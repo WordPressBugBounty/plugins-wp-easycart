@@ -115,7 +115,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_list',
 			array(
@@ -124,7 +124,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'default'   => 'yes',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_list_title',
 			array(
@@ -136,7 +136,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_item_title',
 			array(
@@ -148,7 +148,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_item_date',
 			array(
@@ -160,7 +160,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_item_user_name',
 			array(
@@ -172,7 +172,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_item_rating',
 			array(
@@ -184,7 +184,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_item_review',
 			array(
@@ -196,7 +196,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_form',
 			array(
@@ -205,7 +205,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'default'   => 'yes',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'enable_review_form_title',
 			array(
@@ -217,7 +217,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -231,7 +231,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_main_title_color',
 			array(
@@ -252,7 +252,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_list_title',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_main_title_align',
 			array(
@@ -281,9 +281,9 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_customer_reviews_container',
 			array(
@@ -312,7 +312,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_width_percentage',
 			array(
@@ -369,7 +369,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'one_column_width',
 			array(
@@ -399,9 +399,9 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_list_container',
 			array(
@@ -424,7 +424,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_padding',
 			array(
@@ -444,7 +444,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_margin',
 			array(
@@ -476,7 +476,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -493,7 +493,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_list',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_border_radius',
 			array(
@@ -513,9 +513,9 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_list_item_container',
 			array(
@@ -526,7 +526,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_width_percentage',
 			array(
@@ -560,7 +560,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_padding',
 			array(
@@ -580,7 +580,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_margin',
 			array(
@@ -612,7 +612,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -629,7 +629,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_list > li',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_border_radius',
 			array(
@@ -649,7 +649,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -663,7 +663,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_color',
 			array(
@@ -684,7 +684,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_title_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_align',
 			array(
@@ -726,7 +726,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_width_percentage',
 			array(
@@ -756,7 +756,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_padding',
 			array(
@@ -776,7 +776,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_margin',
 			array(
@@ -808,7 +808,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -816,7 +816,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_title_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_title_border_radius',
 			array(
@@ -836,7 +836,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -850,7 +850,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_color',
 			array(
@@ -871,7 +871,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_date_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_align',
 			array(
@@ -913,7 +913,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_width_percentage',
 			array(
@@ -943,7 +943,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_padding',
 			array(
@@ -963,7 +963,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_margin',
 			array(
@@ -995,7 +995,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1003,7 +1003,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_date_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_date_border_radius',
 			array(
@@ -1023,7 +1023,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1037,7 +1037,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_rating_color',
 			array(
@@ -1051,7 +1051,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_rating_color_inactive',
 			array(
@@ -1065,7 +1065,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_rating_align',
 			array(
@@ -1118,7 +1118,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_rating_padding',
 			array(
@@ -1130,7 +1130,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_rating_margin',
 			array(
@@ -1142,7 +1142,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1156,7 +1156,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_user_name_color',
 			array(
@@ -1177,7 +1177,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_name_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_user_name_align',
 			array(
@@ -1206,7 +1206,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1220,7 +1220,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_color',
 			array(
@@ -1241,7 +1241,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_data_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_align',
 			array(
@@ -1270,7 +1270,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_background_color',
 			array(
@@ -1282,7 +1282,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_padding',
 			array(
@@ -1302,7 +1302,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_margin',
 			array(
@@ -1334,7 +1334,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1342,7 +1342,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_data_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'list_item_review_border_radius',
 			array(
@@ -1362,9 +1362,9 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_form',
 			array(
@@ -1375,13 +1375,20 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_padding',
 			array(
 				'label' => esc_attr__( 'Padding', 'wp-easycart' ),
 				'type' => Controls_Manager::DIMENSIONS,
-				'size_units' => array( 'px', '%', 'em', 'rem', 'custom' ),'default' => array(
+				'size_units' => array(
+					'px',
+					'%',
+					'em',
+					'rem',
+					'custom',
+				),
+				'default' => array(
 					'top' => 20,
 					'right' => 20,
 					'bottom' => 20,
@@ -1394,7 +1401,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_margin',
 			array(
@@ -1438,7 +1445,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1446,7 +1453,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_form_holder',
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1460,7 +1467,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_title_color',
 			array(
@@ -1481,7 +1488,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_form_title_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_title_align',
 			array(
@@ -1510,7 +1517,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'title_padding',
 			array(
@@ -1522,7 +1529,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'title_margin',
 			array(
@@ -1558,7 +1565,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1566,7 +1573,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_review_form_title_ele',
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1579,7 +1586,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_color',
 			array(
@@ -1600,7 +1607,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_label_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_align',
 			array(
@@ -1625,7 +1632,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_background_color',
 			array(
@@ -1637,7 +1644,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_padding',
 			array(
@@ -1657,7 +1664,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_margin',
 			array(
@@ -1689,7 +1696,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1697,7 +1704,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_label_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_label_border_radius',
 			array(
@@ -1717,7 +1724,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1731,7 +1738,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_rating_color',
 			array(
@@ -1745,7 +1752,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_rating_color_inactive',
 			array(
@@ -1759,7 +1766,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_rating_align',
 			array(
@@ -1812,7 +1819,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_rating_padding',
 			array(
@@ -1824,7 +1831,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_rating_margin',
 			array(
@@ -1836,7 +1843,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1855,11 +1862,11 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 			array(
 				'type'  => Controls_Manager::TEXT,
 				'label' => esc_attr__( 'Text', 'wp-easycart' ),
-				'default' => wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_submit' ),
+				'default' => wp_easycart_language()->get_text( 'customer_review', 'product_details_your_review_submit' ),
 				'placeholder' => esc_attr__( 'Submit', 'wp-easycart' ),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Typography::get_type(),
 			array(
@@ -1868,7 +1875,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_button_ele',
 			)
 		);
-		
+
 		$this->start_controls_tabs(
 			'button_style_tabs'
 		);
@@ -1891,7 +1898,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1921,7 +1928,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1942,7 +1949,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_button_hover_animation',
 			array(
@@ -1955,7 +1962,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_responsive_control(
 			'form_button_align',
 			array(
@@ -1984,7 +1991,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1992,7 +1999,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_button_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'button_padding',
 			array(
@@ -2004,7 +2011,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'button_margin',
 			array(
@@ -2016,7 +2023,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2029,7 +2036,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_color',
 			array(
@@ -2041,7 +2048,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_background_color',
 			array(
@@ -2062,7 +2069,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_option_row_error > span',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_align',
 			array(
@@ -2088,7 +2095,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_padding',
 			array(
@@ -2108,7 +2115,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_margin',
 			array(
@@ -2140,7 +2147,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2157,7 +2164,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_option_row_error',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_error_border_radius',
 			array(
@@ -2177,7 +2184,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2190,7 +2197,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_color',
 			array(
@@ -2211,7 +2218,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_form_login_note',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_align',
 			array(
@@ -2240,7 +2247,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_background_color',
 			array(
@@ -2252,7 +2259,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_padding',
 			array(
@@ -2272,7 +2279,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_margin',
 			array(
@@ -2304,7 +2311,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2321,7 +2328,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				'selector' => '{{WRAPPER}} .ec_details_customer_reviews_form_login_note',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'form_login_note_border_radius',
 			array(
@@ -2341,7 +2348,7 @@ class Wp_Easycart_Elementor_Product_Details_Customer_Reviews_Widget extends \Ele
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

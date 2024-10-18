@@ -1683,6 +1683,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"Bestelling bekijken"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"Dit is een pre-order voor afhalen"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"Sommige of alle artikelen in uw winkelwagen moeten ter plaatse worden opgehaald."
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"Artikelen"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"Datum"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"Selecteer ophaaldatum"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"Selecteer ophaaltijd"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"Ophaalinstructies"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"Dit is een afhaalbestelling"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"U plaatst een bestelling om af te halen."
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"Artikelen"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"Tijd"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"Ophaalinstructies"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"Het restaurant is momenteel gesloten!"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"sluit om"
 				}
             }
         },
@@ -3001,6 +3057,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"Er zit een artikel in uw winkelwagen dat niet naar uw huidige verzendadres kan worden verzonden. Verwijder dit artikel uit de winkelwagen of ga door naar de afrekengegevens en voer een ander adres in."
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"Bij deze bestelling moet u een ophaaldatum kiezen."
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"Zorg ervoor dat u uw bestelling op [pickup_date] ophaalt."
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"Uw bestelling is ontvangen en u kunt deze ophalen op [pickup_time]."
 				}
             }
         },

@@ -152,13 +152,13 @@ if( $is_expired && $is_pro ){ // Existing license that is expired - Send to Prem
 			 <a href="http://docs.wpeasycart.com/wp-easycart-extensions-guide/?section=groupon-importer" target="_blank" class="get-extension"><?php esc_attr_e( 'Intallation Guide', 'wp-easycart' ); ?></a>
 		</div>
 		<div class="ec_admin_extension_item">
-			<h3><?php esc_attr_e( 'Quickbooks', 'wp-easycart' ); ?></h3>
-			<a href="https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/" target="_blank">
-				<img alt="<?php esc_attr_e( 'Quickbooks Extension', 'wp-easycart' ); ?>" src="<?php echo esc_url_raw( plugins_url( 'wp-easycart/admin/images/extension-quickbooks.jpg', EC_PLUGIN_DIRECTORY ) ); ?>" />
+			<h3><?php esc_attr_e( 'User Sync', 'wp-easycart' ); ?></h3>
+			<a href="https://www.wpeasycart.com/wp-easycart-users-to-wp-users-sync/" target="_blank">
+				<img alt="<?php esc_attr_e( 'User Sync Extension', 'wp-easycart' ); ?>" src="<?php echo esc_url_raw( plugins_url( 'wp-easycart/admin/images/extension-user-sync.jpg', EC_PLUGIN_DIRECTORY ) ); ?>" />
 			</a>
-			<p><?php esc_attr_e( 'The EasyCart QuickBooks integration plugin allows you to seamlessly have order information, customer account data, and even product information flow from EasyCart to your QuickBooks.', 'wp-easycart' ); ?></p>
-			<?php echo ( $button != 'custom' ) ? wp_easycart_escape_html( $button ) : '<a href="https://www.wpeasycart.com/wordpress-quickbooks-extension/" target="_blank" class="get-extension">' . esc_attr__( 'Learn More', 'wp-easycart' ) . '</a>'; ?><br>
-			 <a href="http://docs.wpeasycart.com/wp-easycart-extensions-guide/?section=quickbooks" target="_blank" class="get-extension"><?php esc_attr_e( 'Intallation Guide', 'wp-easycart' ); ?></a>
+			<p><?php esc_attr_e( 'The WP EasyCart User Sync extension allows you to create/edit users in the WP EasyCart and keep a matching account in WordPress. This can be useful when you want to use WordPress with other plugins and the WP EasyCart to purchase content and subscriptions.', 'wp-easycart' ); ?></p>
+			<?php echo ( $button != 'custom' ) ? wp_easycart_escape_html( $button ) : '<a href="https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/" target="_blank" class="get-extension">' . esc_attr__( 'Learn More', 'wp-easycart' ) . '</a>'; ?><br>
+			 <a href="https://docs.wpeasycart.com/docs/extension-guides/wp-enable-user-extension/" target="_blank" class="get-extension"><?php esc_attr_e( 'Intallation Guide', 'wp-easycart' ); ?></a>
 		</div>
 		<div class="ec_admin_extension_item">
 			<h3><?php esc_attr_e( 'Optimal Logistics', 'wp-easycart' ); ?></h3>

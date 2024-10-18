@@ -10,7 +10,7 @@ $args = shortcode_atts(
 	array(
 		'shortcode' => 'product_details_sku',
 		'use_post_id' => false,
-		'product_id' => ''
+		'product_id' => '',
 	),
 	$atts
 );

@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2024-06-27 08:04-0700\n"
-"PO-Revision-Date: 2024-06-27 08:05-0700\n"
+"POT-Creation-Date: 2024-10-17 13:58-0700\n"
+"PO-Revision-Date: 2024-10-17 13:58-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: it\n"
@@ -10,7 +10,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 3.4.4\n"
+"X-Generator: Poedit 3.5\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-Flags-xgettext: --add-comments=translators:\n"
 "X-Poedit-WPHeader: wpeasycart.php\n"
@@ -508,7 +508,7 @@ msgstr "Larghezza bottone"
 #: admin/elementor/class-wp-easycart-elementor-product-details-price-widget.php:723
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:289
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:227
-#: admin/inc/wp_easycart_admin.php:3012
+#: admin/inc/wp_easycart_admin.php:3018
 #: admin/template/settings/design/product-design-options.php:48
 #: admin/template/settings/products/product-details.php:22
 msgid "Default"
@@ -1292,7 +1292,7 @@ msgstr "Categorie di prodotti WP EasyCart"
 #: admin/elementor/class-wp-easycart-elementor-product-details-featured-products-widget.php:491
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:792
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:851
-#: admin/inc/wp_easycart_admin_details_products.php:953
+#: admin/inc/wp_easycart_admin_details_products.php:955
 #: admin/template/left_nav.php:98 admin/template/mobile_nav.php:29
 #: admin/template/products/categories/category-list.php:143
 #: admin/template/settings/products/product-details.php:117
@@ -1420,8 +1420,8 @@ msgstr "Elenco Voci Contenitore"
 #: admin/elementor/class-wp-easycart-elementor-product-details-price-widget.php:719
 #: admin/elementor/class-wp-easycart-elementor-product-details-price-widget.php:736
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:148
-#: admin/inc/wp_easycart_admin_details_products.php:1044
-#: admin/template/products/products/new-product-slideout.php:149
+#: admin/inc/wp_easycart_admin_details_products.php:1046
+#: admin/template/products/products/new-product-slideout.php:151
 #: admin/template/products/products/quick-edit-product-slideout.php:146
 #: admin/template/products/products/quick-edit-product-slideout.php:147
 msgid "Width"
@@ -1586,9 +1586,9 @@ msgstr "Breve descrizione solo se disponibile."
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:97
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:850
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:141
-#: admin/inc/wp_easycart_admin_details_products.php:432
+#: admin/inc/wp_easycart_admin_details_products.php:434
 #: admin/template/products/inventory/inventory-list.php:22
-#: admin/template/products/products/new-product-slideout.php:60
+#: admin/template/products/products/new-product-slideout.php:62
 #: admin/template/products/products/quick-edit-product-slideout.php:40
 #: admin/template/settings/design/product-design-options.php:71
 #: inc/classes/widget/ec_cartwidget.php:40
@@ -1615,16 +1615,16 @@ msgstr "Titolo"
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:793
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:852
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:142
-#: admin/inc/wp_easycart_admin_details_products.php:472
-#: admin/inc/wp_easycart_admin_details_products.php:2525
-#: admin/inc/wp_easycart_admin_details_products.php:2528
-#: admin/inc/wp_easycart_admin_details_products.php:2556
-#: admin/inc/wp_easycart_admin_details_products.php:2559
+#: admin/inc/wp_easycart_admin_details_products.php:474
+#: admin/inc/wp_easycart_admin_details_products.php:2549
+#: admin/inc/wp_easycart_admin_details_products.php:2552
+#: admin/inc/wp_easycart_admin_details_products.php:2580
+#: admin/inc/wp_easycart_admin_details_products.php:2583
 #: admin/inc/wp_easycart_admin_shortcodes.php:57
 #: admin/inc/wp_easycart_admin_shortcodes.php:202
 #: admin/template/products/categories/product-list.php:34
 #: admin/template/products/categories/product-select-list.php:36
-#: admin/template/products/products/new-product-slideout.php:95
+#: admin/template/products/products/new-product-slideout.php:97
 #: admin/template/products/products/product-list.php:59
 #: admin/template/products/products/quick-edit-product-slideout.php:77
 #: admin/template/settings/design/product-design-options.php:75
@@ -1662,13 +1662,13 @@ msgstr "Anteprima"
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:797
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:856
 #: admin/inc/wp_easycart_admin_details_category.php:186
-#: admin/inc/wp_easycart_admin_details_products.php:1370
+#: admin/inc/wp_easycart_admin_details_products.php:1372
 #: admin/template/settings/design/product-design-options.php:91
 msgid "Short Description"
 msgstr "Descrizione breve"
 
 #: admin/elementor/class-wp-easycart-elementor-product-details-featured-products-widget.php:259
-#: admin/template/products/products/new-product-slideout.php:107
+#: admin/template/products/products/new-product-slideout.php:109
 #: admin/template/products/products/quick-edit-product-slideout.php:97
 msgid "Image"
 msgstr "Immagine"
@@ -1780,11 +1780,11 @@ msgstr "WP EasyCart Produttore di prodotti"
 #: admin/elementor/class-wp-easycart-elementor-product-details-manufacturer-widget.php:90
 #: admin/elementor/class-wp-easycart-elementor-product-details-manufacturer-widget.php:132
 #: admin/elementor/class-wp-easycart-elementor-product-details-manufacturer-widget.php:288
-#: admin/inc/wp_easycart_admin_details_products.php:467
-#: admin/inc/wp_easycart_admin_details_products.php:2580
+#: admin/inc/wp_easycart_admin_details_products.php:469
+#: admin/inc/wp_easycart_admin_details_products.php:2604
 #: admin/inc/wp_easycart_admin_shortcodes.php:443
 #: admin/template/products/manufacturers/manufacturer-list.php:69
-#: admin/template/products/products/new-product-slideout.php:81
+#: admin/template/products/products/new-product-slideout.php:83
 #: admin/template/products/products/quick-edit-product-slideout.php:61
 #: admin/template/settings/products/product-details.php:119
 msgid "Manufacturer"
@@ -1827,7 +1827,7 @@ msgid "Sale Price"
 msgstr "Prezzo di vendita"
 
 #: admin/elementor/class-wp-easycart-elementor-product-details-price-widget.php:656
-#: admin/inc/wp_easycart_admin_details_products.php:1116
+#: admin/inc/wp_easycart_admin_details_products.php:1118
 msgid "Previous Price"
 msgstr "Prezzo precedente"
 
@@ -1849,10 +1849,10 @@ msgstr "WP EasyCart SKU prodotto"
 
 #: admin/elementor/class-wp-easycart-elementor-product-details-sku-widget.php:90
 #: admin/elementor/class-wp-easycart-elementor-product-details-sku-widget.php:122
-#: admin/inc/wp_easycart_admin_details_products.php:447
+#: admin/inc/wp_easycart_admin_details_products.php:449
 #: admin/inc/wp_easycart_admin_shortcodes.php:55
 #: admin/inc/wp_easycart_admin_shortcodes.php:202
-#: admin/template/products/products/new-product-slideout.php:69
+#: admin/template/products/products/new-product-slideout.php:71
 #: admin/template/products/products/product-list.php:65
 #: admin/template/products/products/quick-edit-product-slideout.php:49
 msgid "SKU"
@@ -1924,7 +1924,7 @@ msgstr "WP EasyCart Specifiche di prodotto"
 #: admin/elementor/class-wp-easycart-elementor-product-details-specifications-widget.php:90
 #: admin/elementor/class-wp-easycart-elementor-product-details-specifications-widget.php:122
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:145
-#: admin/inc/wp_easycart_admin_details_products.php:1385
+#: admin/inc/wp_easycart_admin_details_products.php:1387
 msgid "Specifications"
 msgstr "Specifiche"
 
@@ -2071,7 +2071,7 @@ msgstr "Aggiungi al carrello Colore"
 
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:42
 #: admin/inc/wp_easycart_admin.php:2306 admin/inc/wp_easycart_admin.php:2308
-#: admin/inc/wp_easycart_admin.php:2792
+#: admin/inc/wp_easycart_admin.php:2796
 msgid "WP EasyCart Products"
 msgstr "Prodotti WP EasyCart"
 
@@ -2090,7 +2090,7 @@ msgstr "Collegamento al Titolo"
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:112
 #: admin/elementor/class-wp-easycart-elementor-store-widget.php:115
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:144
-#: admin/inc/wp_easycart_admin_details_products.php:482
+#: admin/inc/wp_easycart_admin_details_products.php:484
 msgid "Description"
 msgstr "Descrizione"
 
@@ -2146,7 +2146,7 @@ msgstr "Ordina per"
 
 #: admin/elementor/class-wp-easycart-elementor-product-widget.php:219
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:139
-#: admin/inc/wp_easycart_admin_details_products.php:1726
+#: admin/inc/wp_easycart_admin_details_products.php:1750
 #: admin/inc/wp_easycart_admin_shortcodes.php:521
 #: admin/inc/wp_easycart_admin_shortcodes.php:639
 msgid "Product ID"
@@ -2558,7 +2558,7 @@ msgid "WP EasyCart"
 msgstr "WP EasyCart"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:129
-#: admin/inc/wp_easycart_admin.php:3054
+#: admin/inc/wp_easycart_admin.php:3062
 #: admin/inc/wp_easycart_admin_initial_setup.php:252
 #: admin/template/settings/setup-actions.php:43
 #: admin/template/settings/wizard/page-setup.php:7
@@ -2566,14 +2566,14 @@ msgid "Store"
 msgstr "Negozio"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:130
-#: admin/inc/wp_easycart_admin.php:3055
+#: admin/inc/wp_easycart_admin.php:3063
 #: admin/inc/wp_easycart_admin_initial_setup.php:268
 #: admin/template/settings/setup-actions.php:44
 msgid "Cart"
 msgstr "Carrello"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:131
-#: admin/inc/wp_easycart_admin.php:3056
+#: admin/inc/wp_easycart_admin.php:3064
 #: admin/inc/wp_easycart_admin_initial_setup.php:283
 #: admin/template/settings/setup-actions.php:45
 msgid "Account"
@@ -2618,30 +2618,30 @@ msgstr "Dei Dettagli Personali"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:146
 #: admin/template/products/inventory/inventory-list.php:23
-#: admin/template/products/products/new-product-slideout.php:126
+#: admin/template/products/products/new-product-slideout.php:128
 #: admin/template/products/products/quick-edit-product-slideout.php:121
 msgid "Stock Quantity"
 msgstr "Q.tà Magazzino"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:147
-#: admin/inc/wp_easycart_admin_details_products.php:1034
-#: admin/template/products/products/new-product-slideout.php:143
+#: admin/inc/wp_easycart_admin_details_products.php:1036
+#: admin/template/products/products/new-product-slideout.php:145
 #: admin/template/products/products/quick-edit-product-slideout.php:138
 #: admin/template/products/products/quick-edit-product-slideout.php:139
 msgid "Weight"
 msgstr "Peso"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:149
-#: admin/inc/wp_easycart_admin_details_products.php:1054
-#: admin/template/products/products/new-product-slideout.php:152
+#: admin/inc/wp_easycart_admin_details_products.php:1056
+#: admin/template/products/products/new-product-slideout.php:154
 #: admin/template/products/products/quick-edit-product-slideout.php:150
 #: admin/template/products/products/quick-edit-product-slideout.php:151
 msgid "Height"
 msgstr "Altezza"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:150
-#: admin/inc/wp_easycart_admin_details_products.php:1064
-#: admin/template/products/products/new-product-slideout.php:146
+#: admin/inc/wp_easycart_admin_details_products.php:1066
+#: admin/template/products/products/new-product-slideout.php:148
 #: admin/template/products/products/quick-edit-product-slideout.php:142
 #: admin/template/products/products/quick-edit-product-slideout.php:143
 msgid "Length"
@@ -2948,7 +2948,7 @@ msgid "Done"
 msgstr "Fatto"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:228
-#: admin/inc/wp_easycart_admin.php:2908
+#: admin/inc/wp_easycart_admin.php:2914
 #: admin/inc/wp_easycart_admin_table.php:69
 #: admin/template/orders/orders/order-quick-edit-slideout.php:84
 #: admin/template/products/categories/category-details.php:19
@@ -2990,13 +2990,13 @@ msgstr "Negozio"
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:230
 #: admin/template/orders/orders/order-details.php:68
 #: admin/template/orders/orders/order-details.php:198
-#: admin/template/orders/orders/order-details.php:243
-#: admin/template/orders/orders/order-details.php:266
-#: admin/template/orders/orders/order-details.php:305
-#: admin/template/orders/orders/order-details.php:329
-#: admin/template/orders/orders/order-details.php:342
-#: admin/template/orders/orders/order-details.php:360
-#: admin/template/orders/orders/order-list.php:180
+#: admin/template/orders/orders/order-details.php:304
+#: admin/template/orders/orders/order-details.php:327
+#: admin/template/orders/orders/order-details.php:366
+#: admin/template/orders/orders/order-details.php:390
+#: admin/template/orders/orders/order-details.php:403
+#: admin/template/orders/orders/order-details.php:421
+#: admin/template/orders/orders/order-list.php:196
 #: admin/template/products/categories/category-list.php:120
 #: admin/template/products/manufacturers/manufacturer-list.php:55
 #: admin/template/products/menus/menu-list.php:70
@@ -3180,8 +3180,8 @@ msgstr "Nuovi Ordini"
 msgid "WP EasyCart %s"
 msgstr "WP EasyCart %s"
 
-#: admin/inc/wp_easycart_admin.php:2260 admin/template/left_nav.php:264
-#: admin/template/mobile_nav.php:113
+#: admin/inc/wp_easycart_admin.php:2260 admin/template/left_nav.php:267
+#: admin/template/mobile_nav.php:114
 msgid "Diagnostics"
 msgstr "Diagnostica"
 
@@ -3222,7 +3222,7 @@ msgid "Products"
 msgstr "Prodotti"
 
 #: admin/inc/wp_easycart_admin.php:2312 admin/inc/wp_easycart_admin.php:2314
-#: admin/inc/wp_easycart_admin.php:2809
+#: admin/inc/wp_easycart_admin.php:2813
 msgid "WP EasyCart Orders"
 msgstr "Ordini WP EasyCart"
 
@@ -3277,228 +3277,232 @@ msgstr "RINNOVARE LA LICENZA"
 msgid "Check License Status"
 msgstr "Controllare lo stato della licenza"
 
-#: admin/inc/wp_easycart_admin.php:2794
+#: admin/inc/wp_easycart_admin.php:2798
 msgid "WP EasyCart Inventory"
 msgstr "Inventario WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2796
+#: admin/inc/wp_easycart_admin.php:2800
 msgid "WP EasyCart Option Sets"
 msgstr "Set di opzioni WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2798
+#: admin/inc/wp_easycart_admin.php:2802
 msgid "WP EasyCart Categories"
 msgstr "Categorie WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2800
+#: admin/inc/wp_easycart_admin.php:2804
 msgid "WP EasyCart Menus"
 msgstr "Menu EasyCart di WP"
 
-#: admin/inc/wp_easycart_admin.php:2802
+#: admin/inc/wp_easycart_admin.php:2806
 msgid "WP EasyCart Manufacturers"
 msgstr "Produttori di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2804
+#: admin/inc/wp_easycart_admin.php:2808
 msgid "WP EasyCart Product Reviews"
 msgstr "Recensioni dei prodotti WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2806
+#: admin/inc/wp_easycart_admin.php:2810
 msgid "WP EasyCart Subscription Plans"
 msgstr "Piani di abbonamento WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2811
+#: admin/inc/wp_easycart_admin.php:2815
 msgid "WP EasyCart Subscriptions"
 msgstr "Abbonamenti WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2813
+#: admin/inc/wp_easycart_admin.php:2817
 msgid "WP EasyCart Downloads"
 msgstr "Download di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2816
+#: admin/inc/wp_easycart_admin.php:2820
 msgid "WP EasyCart User Accounts"
 msgstr "Account utente WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2818
+#: admin/inc/wp_easycart_admin.php:2822
 msgid "WP EasyCart User Roles"
 msgstr "Ruoli utente WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2820
+#: admin/inc/wp_easycart_admin.php:2824
 msgid "WP EasyCart Subscribers"
 msgstr "Abbonati a WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2823
+#: admin/inc/wp_easycart_admin.php:2827
 msgid "WP EasyCart Coupons"
 msgstr "Buoni WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2825
+#: admin/inc/wp_easycart_admin.php:2829
 msgid "WP EasyCart Gift Cards"
 msgstr "Carte regalo WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2827
+#: admin/inc/wp_easycart_admin.php:2831
 msgid "WP EasyCart Promotions"
 msgstr "Promozioni WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2829
+#: admin/inc/wp_easycart_admin.php:2833
 msgid "WP EasyCart Abandoned Cart"
 msgstr "WP EasyCart Carrello abbandonato"
 
-#: admin/inc/wp_easycart_admin.php:2832
+#: admin/inc/wp_easycart_admin.php:2836
 msgid "WP EasyCart Initial Setup"
 msgstr "Configurazione iniziale di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2834
+#: admin/inc/wp_easycart_admin.php:2838
 msgid "WP EasyCart Product Settings"
 msgstr "Impostazioni del prodotto WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2836
+#: admin/inc/wp_easycart_admin.php:2840
 msgid "WP EasyCart Tax Settings"
 msgstr "Impostazioni fiscali WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2838
+#: admin/inc/wp_easycart_admin.php:2842
 msgid "WP EasyCart Flex-Fee Settings"
 msgstr "Impostazioni di WP EasyCart Flex-Fee"
 
-#: admin/inc/wp_easycart_admin.php:2840
+#: admin/inc/wp_easycart_admin.php:2844
+msgid "WP EasyCart Schedule Settings"
+msgstr "WP EasyCart Impostazioni di pianificazione"
+
+#: admin/inc/wp_easycart_admin.php:2846
 msgid "WP EasyCart Shipping Settings"
 msgstr "Impostazioni di spedizione WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2842
+#: admin/inc/wp_easycart_admin.php:2848
 msgid "WP EasyCart Shipping Rates"
 msgstr "Tariffe di spedizione WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2844
+#: admin/inc/wp_easycart_admin.php:2850
 msgid "WP EasyCart Payment Settings"
 msgstr "Impostazioni di pagamento WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2846
+#: admin/inc/wp_easycart_admin.php:2852
 msgid "WP EasyCart Checkout Settings"
 msgstr "Impostazioni di checkout di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2848
+#: admin/inc/wp_easycart_admin.php:2854
 msgid "WP EasyCart Account Settings"
 msgstr "Impostazioni account WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2850
+#: admin/inc/wp_easycart_admin.php:2856
 msgid "WP EasyCart Additional Settings"
 msgstr "Impostazioni aggiuntive di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2852
+#: admin/inc/wp_easycart_admin.php:2858
 msgid "WP EasyCart Language Editor"
 msgstr "WP EasyCart Language Editor"
 
-#: admin/inc/wp_easycart_admin.php:2854
+#: admin/inc/wp_easycart_admin.php:2860
 msgid "WP EasyCart Design Settings"
 msgstr "Impostazioni di progettazione WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2856
+#: admin/inc/wp_easycart_admin.php:2862
 msgid "WP EasyCart Email Setup"
 msgstr "Configurazione e-mail di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2858
+#: admin/inc/wp_easycart_admin.php:2864
 msgid "WP EasyCart Third Party Settings"
 msgstr "Impostazioni di terze parti di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2860
+#: admin/inc/wp_easycart_admin.php:2866
 msgid "WP EasyCart Cart Importer"
 msgstr "Importatore di carrelli WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2862
+#: admin/inc/wp_easycart_admin.php:2868
 msgid "WP EasyCart Country Management"
 msgstr "WP EasyCart Country Management"
 
-#: admin/inc/wp_easycart_admin.php:2864
+#: admin/inc/wp_easycart_admin.php:2870
 msgid "WP EasyCart State Management"
 msgstr "Gestione dello stato di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2866
+#: admin/inc/wp_easycart_admin.php:2872
 msgid "WP EasyCart Per Page Settings"
 msgstr "Impostazioni WP EasyCart per pagina"
 
-#: admin/inc/wp_easycart_admin.php:2868
+#: admin/inc/wp_easycart_admin.php:2874
 msgid "WP EasyCart Price Point Settings"
 msgstr "Impostazioni del punto di prezzo di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2870
+#: admin/inc/wp_easycart_admin.php:2876
 msgid "WP EasyCart Logs"
 msgstr "Log di WP EasyCart"
 
-#: admin/inc/wp_easycart_admin.php:2895
+#: admin/inc/wp_easycart_admin.php:2901
 msgid "QUICK FEEDBACK"
 msgstr "FEEDBACK VELOCE"
 
-#: admin/inc/wp_easycart_admin.php:2896
+#: admin/inc/wp_easycart_admin.php:2902
 msgid "If you have a moment, please let us know why you are deactiving."
 msgstr ""
 "Se avete un momento, per favore fateci sapere perché state disattivando."
 
-#: admin/inc/wp_easycart_admin.php:2897
+#: admin/inc/wp_easycart_admin.php:2903
 #: admin/inc/wp_easycart_admin_tracking.php:87
 msgid "The plugin didn't work."
 msgstr "Il plugin non ha funzionato."
 
-#: admin/inc/wp_easycart_admin.php:2898
+#: admin/inc/wp_easycart_admin.php:2904
 #: admin/inc/wp_easycart_admin_tracking.php:88
 msgid "I found a better plugin."
 msgstr "Ho trovato un plugin migliore."
 
-#: admin/inc/wp_easycart_admin.php:2899
+#: admin/inc/wp_easycart_admin.php:2905
 msgid "What's the plugin's name?"
 msgstr "Qual è il nome del plugin?"
 
-#: admin/inc/wp_easycart_admin.php:2900
+#: admin/inc/wp_easycart_admin.php:2906
 #: admin/inc/wp_easycart_admin_tracking.php:89
 msgid "I need a PRO feature and the upgrade cost is too high."
 msgstr ""
 "Ho bisogno di una funzionalità PRO e il costo dell'aggiornamento è troppo "
 "alto."
 
-#: admin/inc/wp_easycart_admin.php:2901
+#: admin/inc/wp_easycart_admin.php:2907
 #: admin/inc/wp_easycart_admin_tracking.php:90
 msgid "Plugin is missing a feature that my project requires."
 msgstr "Nel plugin manca una funzionalità richiesta dal mio progetto."
 
-#: admin/inc/wp_easycart_admin.php:2902
+#: admin/inc/wp_easycart_admin.php:2908
 msgid "What feature is missing?"
 msgstr "Quale caratteristica manca?"
 
-#: admin/inc/wp_easycart_admin.php:2903
+#: admin/inc/wp_easycart_admin.php:2909
 #: admin/inc/wp_easycart_admin_tracking.php:91
 msgid "It's a temporary deactivation. I'm just debugging an issue."
 msgstr "È una disattivazione temporanea, sto solo correggendo un problema."
 
-#: admin/inc/wp_easycart_admin.php:2904
+#: admin/inc/wp_easycart_admin.php:2910
 #: admin/inc/wp_easycart_admin_tracking.php:92
 msgid "Other."
 msgstr "Altro."
 
-#: admin/inc/wp_easycart_admin.php:2905
+#: admin/inc/wp_easycart_admin.php:2911
 msgid "Please tell us the reason so we can improve."
 msgstr "Per favore, diteci il motivo in modo che possiamo migliorare."
 
-#: admin/inc/wp_easycart_admin.php:2906
+#: admin/inc/wp_easycart_admin.php:2912
 msgid "Feedback is Anonymous"
 msgstr "Il feedback è anonimo"
 
-#: admin/inc/wp_easycart_admin.php:2907
+#: admin/inc/wp_easycart_admin.php:2913
 msgid "Skip & Deactivate"
 msgstr "Salta & Disattiva"
 
-#: admin/inc/wp_easycart_admin.php:2909
+#: admin/inc/wp_easycart_admin.php:2915
 msgid "Submit & Deactivate"
 msgstr "Invia & Disattiva"
 
-#: admin/inc/wp_easycart_admin.php:2952 admin/inc/wp_easycart_admin.php:2959
+#: admin/inc/wp_easycart_admin.php:2958 admin/inc/wp_easycart_admin.php:2965
 msgid "PROCESSING..."
 msgstr "PROCESSO..."
 
-#: admin/inc/wp_easycart_admin.php:2960
+#: admin/inc/wp_easycart_admin.php:2966
 msgid "Choose Image"
 msgstr "Scegli un'immagine"
 
-#: admin/inc/wp_easycart_admin.php:2961
+#: admin/inc/wp_easycart_admin.php:2967
 msgid "Congratulations!"
 msgstr "Congratulazioni!"
 
-#: admin/inc/wp_easycart_admin.php:2962
+#: admin/inc/wp_easycart_admin.php:2968
 msgid ""
 "You've just installed WP EasyCart! Start by entering the administrator email "
 "address where you would like to receive alerts for your shopping system:"
@@ -3507,11 +3511,11 @@ msgstr ""
 "dell'amministratore dove vorresti ricevere gli avvisi per il tuo sistema di "
 "shopping:"
 
-#: admin/inc/wp_easycart_admin.php:2963
+#: admin/inc/wp_easycart_admin.php:2969
 msgid "Get Notifications"
 msgstr "Ricevi notifiche"
 
-#: admin/inc/wp_easycart_admin.php:2964
+#: admin/inc/wp_easycart_admin.php:2970
 msgid ""
 "Also join our WordPress eCommerce email list to receive eCommerce updates "
 "and WP EasyCart news."
@@ -3519,85 +3523,85 @@ msgstr ""
 "Iscriviti anche alla nostra mailing list WordPress eCommerce per ricevere "
 "gli aggiornamenti eCommerce e le notizie di WP EasyCart."
 
-#: admin/inc/wp_easycart_admin.php:2965
+#: admin/inc/wp_easycart_admin.php:2971
 msgid "Select File"
 msgstr "Seleziona file"
 
-#: admin/inc/wp_easycart_admin.php:2966
+#: admin/inc/wp_easycart_admin.php:2972
 msgid "Use File"
 msgstr "Utilizzare il file"
 
-#: admin/inc/wp_easycart_admin.php:2967
-#: admin/template/products/products/new-product-slideout.php:110
+#: admin/inc/wp_easycart_admin.php:2973
+#: admin/template/products/products/new-product-slideout.php:112
 #: admin/template/products/products/quick-edit-product-slideout.php:100
 msgid "Select Image"
 msgstr "Seleziona immagine"
 
-#: admin/inc/wp_easycart_admin.php:2968
+#: admin/inc/wp_easycart_admin.php:2974
 msgid "Use Image"
 msgstr "Usa immagine"
 
-#: admin/inc/wp_easycart_admin.php:2969
+#: admin/inc/wp_easycart_admin.php:2975
 msgid "Select Import File"
 msgstr "Seleziona file"
 
-#: admin/inc/wp_easycart_admin.php:3010
+#: admin/inc/wp_easycart_admin.php:3016
 msgid "Clear"
 msgstr "Cancella"
 
-#: admin/inc/wp_easycart_admin.php:3011
+#: admin/inc/wp_easycart_admin.php:3017
 msgid "Clear color"
 msgstr "Colore chiaro"
 
-#: admin/inc/wp_easycart_admin.php:3013
+#: admin/inc/wp_easycart_admin.php:3019
 msgid "Select default color"
 msgstr "Seleziona il colore di default"
 
-#: admin/inc/wp_easycart_admin.php:3014
+#: admin/inc/wp_easycart_admin.php:3020
 msgid "Select Color"
 msgstr "Seleziona Colore"
 
-#: admin/inc/wp_easycart_admin.php:3015
+#: admin/inc/wp_easycart_admin.php:3021
 msgid "Color value"
 msgstr "Valore del colore"
 
-#: admin/inc/wp_easycart_admin.php:3046
+#: admin/inc/wp_easycart_admin.php:3054
 #: admin/inc/wp_easycart_admin_details_user.php:127
 msgid "Please enter a valid email address."
 msgstr "Inserisci un indirizzo email valido."
 
-#: admin/inc/wp_easycart_admin.php:3047 admin/inc/wp_easycart_admin.php:3160
+#: admin/inc/wp_easycart_admin.php:3055 admin/inc/wp_easycart_admin.php:3168
 msgid "Processing Import File...  Please wait."
 msgstr "Elaborazione del file di importazione...  Si prega di attendere."
 
-#: admin/inc/wp_easycart_admin.php:3048 admin/inc/wp_easycart_admin.php:3161
+#: admin/inc/wp_easycart_admin.php:3056 admin/inc/wp_easycart_admin.php:3169
 msgid "Completed!  You may refresh your screen."
 msgstr "Completato!  Puoi aggiornare il tuo schermo."
 
-#: admin/inc/wp_easycart_admin.php:3073
+#: admin/inc/wp_easycart_admin.php:3081
 #: admin/template/settings/payments/manual-bill.php:7
 #: admin/template/settings/payments/paypal.php:17
 #: admin/template/settings/payments/square.php:16
 msgid "Advanced Options"
 msgstr "Opzioni avanzate"
 
-#: admin/inc/wp_easycart_admin.php:3074
+#: admin/inc/wp_easycart_admin.php:3082
 msgid "Back to One-Click Express Setup"
 msgstr "Torna a Configurazione rapida con un clic"
 
-#: admin/inc/wp_easycart_admin.php:3075
+#: admin/inc/wp_easycart_admin.php:3083
 msgid "Use Manual API Credential Input"
 msgstr "Utilizza l'inserimento manuale delle credenziali API"
 
-#: admin/inc/wp_easycart_admin.php:3081
-#: admin/inc/wp_easycart_admin_details_products.php:2532
-#: admin/inc/wp_easycart_admin_products.php:3026
-#: admin/inc/wp_easycart_admin_products.php:3066
-#: admin/inc/wp_easycart_admin_products.php:3429
+#: admin/inc/wp_easycart_admin.php:3089
+#: admin/inc/wp_easycart_admin_details_products.php:2556
+#: admin/inc/wp_easycart_admin_products.php:3032
+#: admin/inc/wp_easycart_admin_products.php:3072
+#: admin/inc/wp_easycart_admin_products.php:3435
 #: admin/inc/wp_easycart_admin_table.php:101
-#: admin/template/orders/orders/order-list.php:35
-#: admin/template/orders/orders/order-list.php:118
-#: admin/template/orders/orders/order-list.php:185
+#: admin/template/orders/orders/order-list.php:34
+#: admin/template/orders/orders/order-list.php:134
+#: admin/template/orders/orders/order-list.php:201
 #: admin/template/products/categories/category-list.php:37
 #: admin/template/products/categories/category-list.php:90
 #: admin/template/products/categories/category-list.php:135
@@ -3659,71 +3663,71 @@ msgstr "Utilizza l'inserimento manuale delle credenziali API"
 msgid "Delete"
 msgstr "Elimina"
 
-#: admin/inc/wp_easycart_admin.php:3105
+#: admin/inc/wp_easycart_admin.php:3113
 msgid "Items Have Synced Inventory"
 msgstr "Gli articoli hanno un inventario sincronizzato"
 
-#: admin/inc/wp_easycart_admin.php:3106
+#: admin/inc/wp_easycart_admin.php:3114
 msgid "All Item Inventory Synced."
 msgstr "Tutti gli inventari degli articoli sono stati sincronizzati."
 
-#: admin/inc/wp_easycart_admin.php:3107
+#: admin/inc/wp_easycart_admin.php:3115
 msgid "Modifier Items Imported"
 msgstr "Elementi modificatori importati"
 
-#: admin/inc/wp_easycart_admin.php:3108
+#: admin/inc/wp_easycart_admin.php:3116
 msgid "All Modifiers Imported, Starting Modifier Items."
 msgstr "Tutti i modificatori importati, Oggetti modificatori iniziali."
 
-#: admin/inc/wp_easycart_admin.php:3109
+#: admin/inc/wp_easycart_admin.php:3117
 msgid "Modifiers Imported"
 msgstr "Modificatori importati"
 
-#: admin/inc/wp_easycart_admin.php:3110
+#: admin/inc/wp_easycart_admin.php:3118
 msgid "All Modifier Items Imported, Starting Categories"
 msgstr "Tutti gli elementi del modificatore importati, categorie iniziali"
 
-#: admin/inc/wp_easycart_admin.php:3111
+#: admin/inc/wp_easycart_admin.php:3119
 msgid "Items Imported"
 msgstr "Articoli importati"
 
-#: admin/inc/wp_easycart_admin.php:3112
+#: admin/inc/wp_easycart_admin.php:3120
 msgid "All Categories Imported, Starting Products."
 msgstr "Tutte le categorie importate, Prodotti di partenza."
 
-#: admin/inc/wp_easycart_admin.php:3113 admin/inc/wp_easycart_admin.php:3115
+#: admin/inc/wp_easycart_admin.php:3121 admin/inc/wp_easycart_admin.php:3123
 msgid "Categories Imported"
 msgstr "Categorie Importate"
 
-#: admin/inc/wp_easycart_admin.php:3114
+#: admin/inc/wp_easycart_admin.php:3122
 msgid "All Products Imported!"
 msgstr "Tutti i prodotti importati!"
 
-#: admin/inc/wp_easycart_admin.php:3116
+#: admin/inc/wp_easycart_admin.php:3124
 msgid "All Categories Imported!"
 msgstr "Tutte le categorie importate!"
 
-#: admin/inc/wp_easycart_admin.php:3117
+#: admin/inc/wp_easycart_admin.php:3125
 msgid "Customers Imported"
 msgstr "Clienti importati"
 
-#: admin/inc/wp_easycart_admin.php:3118
+#: admin/inc/wp_easycart_admin.php:3126
 msgid "All Customers Imported!"
 msgstr "Tutti i clienti importati!"
 
-#: admin/inc/wp_easycart_admin.php:3162
+#: admin/inc/wp_easycart_admin.php:3170
 msgid "Subscription with yearly interval has a max 1 year billing interval."
 msgstr ""
 "L'abbonamento con intervallo annuale ha un intervallo di fatturazione "
 "massimo di 1 anno."
 
-#: admin/inc/wp_easycart_admin.php:3163
+#: admin/inc/wp_easycart_admin.php:3171
 msgid "Subscription with monthly interval has a max 12 month billing interval."
 msgstr ""
 "L'abbonamento con intervallo mensile ha un intervallo di fatturazione "
 "massimo di 12 mesi."
 
-#: admin/inc/wp_easycart_admin.php:3164
+#: admin/inc/wp_easycart_admin.php:3172
 msgid ""
 "Are you sure you want to enable catalog mode? Your customers will no longer "
 "be able to add products to the cart!"
@@ -3731,7 +3735,7 @@ msgstr ""
 "Sei sicuro di voler attivare la modalità catalogo? I tuoi clienti non "
 "potranno più aggiungere prodotti al carrello!"
 
-#: admin/inc/wp_easycart_admin.php:3165
+#: admin/inc/wp_easycart_admin.php:3173
 msgid ""
 "You are currently using option item images AND option item quantity "
 "tracking. By switching to advanced options you will lose both of these "
@@ -3742,7 +3746,7 @@ msgstr ""
 "avanzate perderai entrambe queste caratteristiche. Per favore, conferma che "
 "vuoi continuare."
 
-#: admin/inc/wp_easycart_admin.php:3166
+#: admin/inc/wp_easycart_admin.php:3174
 msgid ""
 "You are currently using option item images. By switching to advanced options "
 "you will lose this feature. Please confirm you wish to continue."
@@ -3751,7 +3755,7 @@ msgstr ""
 "alle opzioni avanzate perderai questa caratteristica. Si prega di confermare "
 "che si desidera continuare."
 
-#: admin/inc/wp_easycart_admin.php:3167
+#: admin/inc/wp_easycart_admin.php:3175
 msgid ""
 "You are currently using option item quantity tracking. By switching to "
 "advanced options you will lose this feature. Please confirm you wish to "
@@ -3761,7 +3765,7 @@ msgstr ""
 "articoli. Passando alle opzioni avanzate perderai questa funzione. Si prega "
 "di confermare che si desidera continuare."
 
-#: admin/inc/wp_easycart_admin.php:3168
+#: admin/inc/wp_easycart_admin.php:3176
 msgid ""
 "You cannot use option item images with advanced option sets. Please change "
 "to basic option sets to use this feature."
@@ -3770,38 +3774,38 @@ msgstr ""
 "set di opzioni avanzate. Si prega di passare ai set di opzioni di base per "
 "utilizzare questa funzione."
 
-#: admin/inc/wp_easycart_admin.php:3169
+#: admin/inc/wp_easycart_admin.php:3177
 #: admin/inc/wp_easycart_admin_details_optionitem.php:340
 #: admin/inc/wp_easycart_admin_details_optionitem.php:421
-#: admin/inc/wp_easycart_admin_details_products.php:836
-#: admin/inc/wp_easycart_admin_details_products.php:849
-#: admin/inc/wp_easycart_admin_details_products.php:862
-#: admin/inc/wp_easycart_admin_details_products.php:874
-#: admin/inc/wp_easycart_admin_details_products.php:887
-#: admin/inc/wp_easycart_admin_details_products.php:900
-#: admin/inc/wp_easycart_admin_details_products.php:912
-#: admin/inc/wp_easycart_admin_details_products.php:925
-#: admin/inc/wp_easycart_admin_details_products.php:938
-#: admin/inc/wp_easycart_admin_details_products.php:1449
-#: admin/inc/wp_easycart_admin_details_products.php:1461
-#: admin/inc/wp_easycart_admin_details_products.php:1473
-#: admin/inc/wp_easycart_admin_details_products.php:1485
-#: admin/inc/wp_easycart_admin_details_products.php:1711
-#: admin/inc/wp_easycart_admin_details_products.php:2085
-#: admin/template/products/products/new-product-slideout.php:183
-#: admin/template/products/products/new-product-slideout.php:197
-#: admin/template/products/products/new-product-slideout.php:211
-#: admin/template/products/products/new-product-slideout.php:225
-#: admin/template/products/products/new-product-slideout.php:239
+#: admin/inc/wp_easycart_admin_details_products.php:838
+#: admin/inc/wp_easycart_admin_details_products.php:851
+#: admin/inc/wp_easycart_admin_details_products.php:864
+#: admin/inc/wp_easycart_admin_details_products.php:876
+#: admin/inc/wp_easycart_admin_details_products.php:889
+#: admin/inc/wp_easycart_admin_details_products.php:902
+#: admin/inc/wp_easycart_admin_details_products.php:914
+#: admin/inc/wp_easycart_admin_details_products.php:927
+#: admin/inc/wp_easycart_admin_details_products.php:940
+#: admin/inc/wp_easycart_admin_details_products.php:1451
+#: admin/inc/wp_easycart_admin_details_products.php:1463
+#: admin/inc/wp_easycart_admin_details_products.php:1475
+#: admin/inc/wp_easycart_admin_details_products.php:1487
+#: admin/inc/wp_easycart_admin_details_products.php:1735
+#: admin/inc/wp_easycart_admin_details_products.php:2109
+#: admin/template/products/products/new-product-slideout.php:185
+#: admin/template/products/products/new-product-slideout.php:199
+#: admin/template/products/products/new-product-slideout.php:213
+#: admin/template/products/products/new-product-slideout.php:227
+#: admin/template/products/products/new-product-slideout.php:241
 msgid "None Selected"
 msgstr "Nessuna scelta"
 
-#: admin/inc/wp_easycart_admin.php:3170
-#: admin/inc/wp_easycart_admin_details_products.php:2512
+#: admin/inc/wp_easycart_admin.php:3178
+#: admin/inc/wp_easycart_admin_details_products.php:2536
 msgid "Product is Not in a Category"
 msgstr "Il prodotto non è in una categoria"
 
-#: admin/inc/wp_easycart_admin.php:3171
+#: admin/inc/wp_easycart_admin.php:3179
 msgid ""
 "You cannot use option item quantity tracking with advanced option sets. "
 "Please change to basic option sets to use this feature."
@@ -3810,12 +3814,12 @@ msgstr ""
 "opzionali con i set di opzioni avanzate. Si prega di passare ai set di "
 "opzioni di base per utilizzare questa funzione."
 
-#: admin/inc/wp_easycart_admin.php:3172
-#: admin/inc/wp_easycart_admin_products.php:3433
+#: admin/inc/wp_easycart_admin.php:3180
+#: admin/inc/wp_easycart_admin_products.php:3439
 msgid "No Option Item Quantities Setup"
 msgstr "Nessun elemento di opzione Impostazione quantità"
 
-#: admin/inc/wp_easycart_admin.php:3173
+#: admin/inc/wp_easycart_admin.php:3181
 msgid ""
 "Option item quantity tracking is only available with WP EasyCart PRO. Please "
 "upgrade to PRO to use this feature!"
@@ -3824,51 +3828,51 @@ msgstr ""
 "WP EasyCart PRO. Per utilizzare questa funzione, effettuare l'aggiornamento "
 "a PRO!"
 
-#: admin/inc/wp_easycart_admin.php:3174
-#: admin/inc/wp_easycart_admin_details_products.php:2535
+#: admin/inc/wp_easycart_admin.php:3182
+#: admin/inc/wp_easycart_admin_details_products.php:2559
 msgid "No Volume Pricing Setup"
 msgstr "Nessuna configurazione del prezzo del volume"
 
-#: admin/inc/wp_easycart_admin.php:3175
-#: admin/inc/wp_easycart_admin_details_products.php:2566
+#: admin/inc/wp_easycart_admin.php:3183
+#: admin/inc/wp_easycart_admin_details_products.php:2590
 msgid "No B2B Pricing Setup"
 msgstr "Nessuna impostazione dei prezzi B2B"
 
-#: admin/inc/wp_easycart_admin.php:3176
+#: admin/inc/wp_easycart_admin.php:3184
 msgid "Total Views"
 msgstr "Visualizzazioni totali"
 
-#: admin/inc/wp_easycart_admin.php:3177
+#: admin/inc/wp_easycart_admin.php:3185
 #: admin/template/products/categories/category-list.php:125
 #: admin/template/products/products/product-list.php:146
 msgid "Deactivate"
 msgstr "Disattiva"
 
-#: admin/inc/wp_easycart_admin.php:3178
-#: admin/inc/wp_easycart_admin_table.php:892
-#: admin/inc/wp_easycart_admin_table.php:926
+#: admin/inc/wp_easycart_admin.php:3186
+#: admin/inc/wp_easycart_admin_table.php:906
+#: admin/inc/wp_easycart_admin_table.php:945
 #: admin/template/products/products/product-details.php:6
 msgid "Activate"
 msgstr "Attiva"
 
-#: admin/inc/wp_easycart_admin.php:3179
+#: admin/inc/wp_easycart_admin.php:3187
 #: admin/template/products/products/product-details.php:25
 msgid "EDIT PRODUCT"
 msgstr "Modifica prodotto"
 
-#: admin/inc/wp_easycart_admin.php:3188
+#: admin/inc/wp_easycart_admin.php:3196
 #: admin/template/upgrade/upgrade-screen.php:67
 #: admin/template/upgrade/upgrade-screen.php:183
 msgid "WP EasyCart PRO is installed but NOT ACTIVATED. Please"
 msgstr "WP EasyCart PRO è installato ma NON ATTIVATO. per favore"
 
-#: admin/inc/wp_easycart_admin.php:3188
+#: admin/inc/wp_easycart_admin.php:3196
 #: admin/template/upgrade/upgrade-screen.php:68
 #: admin/template/upgrade/upgrade-screen.php:183
 msgid "click here to activate your WP EasyCart PRO plugin"
 msgstr "clicca qui per attivare il tuo plugin WP EasyCart PRO"
 
-#: admin/inc/wp_easycart_admin.php:3195
+#: admin/inc/wp_easycart_admin.php:3203
 msgid ""
 "Your Square connection is no longer active and you cannot receive payments. "
 "Please visit the Settings -> Payments and reconnect to begin processing "
@@ -3878,7 +3882,7 @@ msgstr ""
 "Visita Impostazioni -> Pagamenti e ricollegati per iniziare di nuovo "
 "l'elaborazione dei pagamenti."
 
-#: admin/inc/wp_easycart_admin.php:3198
+#: admin/inc/wp_easycart_admin.php:3206
 msgid ""
 "Your Square connection has expired, please visit the Settings -> Payments "
 "and renew the connection to begin processing payments again."
@@ -3886,13 +3890,13 @@ msgstr ""
 "La tua connessione Square è scaduta, visita Impostazioni -> Pagamenti e "
 "rinnova la connessione per iniziare nuovamente l'elaborazione dei pagamenti."
 
-#: admin/inc/wp_easycart_admin.php:3209
+#: admin/inc/wp_easycart_admin.php:3217
 #: admin/template/status/store-status/store-status.php:26
 msgid "We have found problems with your WP EasyCart database structure."
 msgstr ""
 "Abbiamo riscontrato problemi con la struttura del tuo database WP EasyCart."
 
-#: admin/inc/wp_easycart_admin.php:3209
+#: admin/inc/wp_easycart_admin.php:3217
 #: admin/template/status/store-status/store-status.php:26
 #: admin/template/status/store-status/store-status.php:43
 #: admin/template/status/store-status/store-status.php:49
@@ -3903,20 +3907,20 @@ msgstr ""
 msgid "Click to Repair!"
 msgstr "Fare clic per riparare!"
 
-#: admin/inc/wp_easycart_admin.php:3209
+#: admin/inc/wp_easycart_admin.php:3217
 msgid "If you would like to dismiss this notice"
 msgstr "Se desideri ignorare questo avviso"
 
-#: admin/inc/wp_easycart_admin.php:3209
+#: admin/inc/wp_easycart_admin.php:3217
 msgid "please click here"
 msgstr "fai clic qui"
 
-#: admin/inc/wp_easycart_admin.php:3210
+#: admin/inc/wp_easycart_admin.php:3218
 #: admin/template/status/store-status/store-status.php:28
 msgid "For Complete Details"
 msgstr "Per dettagli completi"
 
-#: admin/inc/wp_easycart_admin.php:3210
+#: admin/inc/wp_easycart_admin.php:3218
 #: admin/template/status/store-status/store-status.php:28
 #: admin/template/status/store-status/store-status.php:286
 #: admin/template/status/store-status/store-status.php:332
@@ -3925,28 +3929,28 @@ msgstr "Per dettagli completi"
 msgid "Click Here"
 msgstr "Clicca qui"
 
-#: admin/inc/wp_easycart_admin.php:3256
+#: admin/inc/wp_easycart_admin.php:3264
 #, php-format
 msgid "Please help improve WP EasyCart by sending us %s for your plugin."
 msgstr "Aiutaci a migliorare WP EasyCart inviandoci %s per il tuo plug-in."
 
-#: admin/inc/wp_easycart_admin.php:3256
+#: admin/inc/wp_easycart_admin.php:3264
 msgid "basic usage data"
 msgstr "dati di utilizzo di base"
 
-#: admin/inc/wp_easycart_admin.php:3256
+#: admin/inc/wp_easycart_admin.php:3264
 msgid "allow"
 msgstr "permetti"
 
-#: admin/inc/wp_easycart_admin.php:3256
+#: admin/inc/wp_easycart_admin.php:3264
 msgid "deny"
 msgstr "nega"
 
-#: admin/inc/wp_easycart_admin.php:3273
+#: admin/inc/wp_easycart_admin.php:3281
 msgid "Start Your PRO Trial Today!"
 msgstr "Inizia la prova gratuita oggi stesso!"
 
-#: admin/inc/wp_easycart_admin.php:3344
+#: admin/inc/wp_easycart_admin.php:3352
 msgid ""
 "Error installing the WP EasyCart PRO plugin. Please try again or contact "
 "support@wpeasycart.com for assistance."
@@ -3954,7 +3958,7 @@ msgstr ""
 "Errore durante l'installazione del plug-in WP EasyCart PRO. Riprova o "
 "contatta support@wpeasycart.com per assistenza."
 
-#: admin/inc/wp_easycart_admin.php:3353
+#: admin/inc/wp_easycart_admin.php:3361
 msgid ""
 "Error activating WP EasyCart PRO, please visit your plugins page and click "
 "activate or contact support@wpeasycart.com for assistance."
@@ -3962,7 +3966,7 @@ msgstr ""
 "Errore durante l'attivazione di WP EasyCart PRO, visita la pagina dei plugin "
 "e fai clic su attiva o contatta support@wpeasycart.com per assistenza."
 
-#: admin/inc/wp_easycart_admin.php:3364
+#: admin/inc/wp_easycart_admin.php:3372
 msgid ""
 "Error creating trial key. Something may be wrong with our server, please "
 "contact support@wpeasycart.com for assistance."
@@ -3971,67 +3975,67 @@ msgstr ""
 "sbagliato con il nostro server, contatta support@wpeasycart.com per "
 "assistenza."
 
-#: admin/inc/wp_easycart_admin.php:3382
+#: admin/inc/wp_easycart_admin.php:3390
 msgid "Install WP EasyCart PRO"
 msgstr "Installa WP EasyCart PRO"
 
-#: admin/inc/wp_easycart_admin.php:3434
+#: admin/inc/wp_easycart_admin.php:3442
 msgid "AN ERROR HAS OCCURED. CLICK HERE FOR HELP."
 msgstr "SI È VERIFICATO UN ERRORE. CLICCA QUI PER AIUTO."
 
-#: admin/inc/wp_easycart_admin.php:3435
+#: admin/inc/wp_easycart_admin.php:3443
 msgid "RETURN TO WP EASYCART"
 msgstr "TORNARE A WP EASYCART"
 
-#: admin/inc/wp_easycart_admin.php:3437 admin/inc/wp_easycart_admin.php:3439
+#: admin/inc/wp_easycart_admin.php:3445 admin/inc/wp_easycart_admin.php:3447
 msgid "CLICK HERE TO COMPLETE INSTALLATION"
 msgstr "CLICCA QUI PER COMPLETARE L'INSTALLAZIONE"
 
-#: admin/inc/wp_easycart_admin.php:3441
+#: admin/inc/wp_easycart_admin.php:3449
 msgid ""
 "Did something go wrong? If so click here for manual install instructions."
 msgstr ""
 "Qualcosa è andato storto? In tal caso, fare clic qui per le istruzioni di "
 "installazione manuale."
 
-#: admin/inc/wp_easycart_admin.php:3494
+#: admin/inc/wp_easycart_admin.php:3502
 #: admin/template/settings/payments/manual-bill.php:16
 msgid "Show"
 msgstr "Mostra"
 
-#: admin/inc/wp_easycart_admin.php:3678
+#: admin/inc/wp_easycart_admin.php:3686
 #: admin/inc/wp_easycart_admin_details.php:204
 #: admin/inc/wp_easycart_admin_details.php:303
 msgid "Upload Image"
 msgstr "Carica immagine"
 
-#: admin/inc/wp_easycart_admin.php:3755
+#: admin/inc/wp_easycart_admin.php:3763
 msgid "Select an Action"
 msgstr "Seleziona un azione"
 
-#: admin/inc/wp_easycart_admin.php:3760
-#: admin/inc/wp_easycart_admin_table.php:339
-#: admin/inc/wp_easycart_admin_table.php:393
+#: admin/inc/wp_easycart_admin.php:3768
+#: admin/inc/wp_easycart_admin_table.php:343
+#: admin/inc/wp_easycart_admin_table.php:398
 msgid "Apply"
 msgstr "Applica"
 
-#: admin/inc/wp_easycart_admin.php:3765
-#: admin/inc/wp_easycart_admin_table.php:464
+#: admin/inc/wp_easycart_admin.php:3773
+#: admin/inc/wp_easycart_admin_table.php:469
 #: inc/classes/widget/ec_searchwidget.php:19
 msgid "Search"
 msgstr "Cerca"
 
-#: admin/inc/wp_easycart_admin.php:3774 admin/inc/wp_easycart_admin.php:3775
-#: admin/inc/wp_easycart_admin.php:3776 admin/inc/wp_easycart_admin.php:3777
+#: admin/inc/wp_easycart_admin.php:3782 admin/inc/wp_easycart_admin.php:3783
+#: admin/inc/wp_easycart_admin.php:3784 admin/inc/wp_easycart_admin.php:3785
 msgid "rows"
 msgstr "righe"
 
-#: admin/inc/wp_easycart_admin.php:3790
+#: admin/inc/wp_easycart_admin.php:3798
 #, php-format
 msgid "Showing %s of %s"
 msgstr "Visualizzazione %s di %s"
 
-#: admin/inc/wp_easycart_admin.php:3837
+#: admin/inc/wp_easycart_admin.php:3845
 msgid "No rows, add new below."
 msgstr "Nessuna riga, aggiungine una nuova di seguito."
 
@@ -4111,11 +4115,11 @@ msgstr "Impossibile creare l'elemento della categoria"
 msgid "Category Item failed to delete"
 msgstr "Impossibile eliminare l'elemento della categoria"
 
-#: admin/inc/wp_easycart_admin_checkout.php:73
+#: admin/inc/wp_easycart_admin_checkout.php:80
 msgid "Additional Email"
 msgstr "Email aggiuntiva"
 
-#: admin/inc/wp_easycart_admin_checkout.php:73
+#: admin/inc/wp_easycart_admin_checkout.php:80
 msgid ""
 "Enable this to allow customers to enter an optional secondary email that "
 "will receive order email communications."
@@ -4144,7 +4148,7 @@ msgid "Countries successfully disabled"
 msgstr "Paesi disabilitati con successo"
 
 #: admin/inc/wp_easycart_admin_details.php:295
-#: admin/inc/wp_easycart_admin_details.php:415
+#: admin/inc/wp_easycart_admin_details.php:417
 msgid "Delete Image"
 msgstr "Elimina l'immagine"
 
@@ -4163,7 +4167,7 @@ msgid "Is Featured Category?"
 msgstr "Categoria in evidenza?"
 
 #: admin/inc/wp_easycart_admin_details_category.php:138
-#: admin/inc/wp_easycart_admin_details_products.php:2505
+#: admin/inc/wp_easycart_admin_details_products.php:2529
 #: admin/template/products/categories/category-list.php:16
 msgid "Category Name"
 msgstr "Nome Categoria"
@@ -4185,7 +4189,7 @@ msgstr "Inserisci 0 se preferisci l'ordine alfabetico."
 #: admin/inc/wp_easycart_admin_details_menulevel1.php:85
 #: admin/inc/wp_easycart_admin_details_menulevel2.php:91
 #: admin/inc/wp_easycart_admin_details_menulevel3.php:83
-#: admin/inc/wp_easycart_admin_details_products.php:457
+#: admin/inc/wp_easycart_admin_details_products.php:459
 msgid "Link Slug"
 msgstr "Link Slug"
 
@@ -4194,7 +4198,7 @@ msgstr "Link Slug"
 #: admin/inc/wp_easycart_admin_details_menulevel1.php:90
 #: admin/inc/wp_easycart_admin_details_menulevel2.php:96
 #: admin/inc/wp_easycart_admin_details_menulevel3.php:88
-#: admin/inc/wp_easycart_admin_details_products.php:462
+#: admin/inc/wp_easycart_admin_details_products.php:464
 msgid ""
 "Post Slug values must be unique and may only include letters, numbers, and "
 "dashes"
@@ -4231,7 +4235,7 @@ msgstr "Immettere una descrizione di categoria univoca."
 #: admin/inc/wp_easycart_admin_details_menulevel1.php:131
 #: admin/inc/wp_easycart_admin_details_menulevel2.php:137
 #: admin/inc/wp_easycart_admin_details_menulevel3.php:129
-#: admin/inc/wp_easycart_admin_details_products.php:2004
+#: admin/inc/wp_easycart_admin_details_products.php:2028
 msgid "Post Excerpt - Commonly Used in Search Results"
 msgstr "Estratto del post - Comunemente usato nei risultati di ricerca"
 
@@ -4240,7 +4244,7 @@ msgstr "Estratto del post - Comunemente usato nei risultati di ricerca"
 #: admin/inc/wp_easycart_admin_details_menulevel1.php:140
 #: admin/inc/wp_easycart_admin_details_menulevel2.php:146
 #: admin/inc/wp_easycart_admin_details_menulevel3.php:138
-#: admin/inc/wp_easycart_admin_details_products.php:2013
+#: admin/inc/wp_easycart_admin_details_products.php:2037
 msgid "Post Featured Image - Commonly Used in Search Results"
 msgstr ""
 "Immagine in primo piano del post - comunemente usata nei risultati di ricerca"
@@ -4327,7 +4331,7 @@ msgid "Please enter a source."
 msgstr "Inserisci una fonte."
 
 #: admin/inc/wp_easycart_admin_details_logging.php:87
-#: admin/template/orders/orders/order-list.php:21
+#: admin/template/orders/orders/order-list.php:20
 #: admin/template/settings/logging/log-list.php:22
 msgid "Order ID"
 msgstr "ID Ordine"
@@ -4519,7 +4523,7 @@ msgid "Please Select"
 msgstr "Seleziona"
 
 #: admin/inc/wp_easycart_admin_details_option.php:148
-#: admin/inc/wp_easycart_admin_details_products.php:2356
+#: admin/inc/wp_easycart_admin_details_products.php:2380
 #: admin/template/products/options/category-list.php:17
 #: admin/template/products/options/new-optionset-slideout.php:15
 #: admin/template/products/options/option-list.php:49
@@ -4531,7 +4535,7 @@ msgid "Please select an option type"
 msgstr "Seleziona una opzione"
 
 #: admin/inc/wp_easycart_admin_details_option.php:158
-#: admin/inc/wp_easycart_admin_details_products.php:2356
+#: admin/inc/wp_easycart_admin_details_products.php:2380
 msgid "Option Name"
 msgstr "Opzione Nome"
 
@@ -4688,44 +4692,44 @@ msgstr "Abilita la sostituzione del file di download"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:316
 #: admin/inc/wp_easycart_admin_details_optionitem.php:397
-#: admin/inc/wp_easycart_admin_details_products.php:2061
+#: admin/inc/wp_easycart_admin_details_products.php:2085
 msgid "Download Location"
 msgstr "Scarica posizione"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:320
 #: admin/inc/wp_easycart_admin_details_optionitem.php:401
-#: admin/inc/wp_easycart_admin_details_products.php:2065
+#: admin/inc/wp_easycart_admin_details_products.php:2089
 msgid "Amazon S3"
 msgstr "Amazon S3"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:323
 #: admin/inc/wp_easycart_admin_details_optionitem.php:404
-#: admin/inc/wp_easycart_admin_details_products.php:2068
+#: admin/inc/wp_easycart_admin_details_products.php:2092
 msgid "My Server"
 msgstr "Server"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:338
 #: admin/inc/wp_easycart_admin_details_optionitem.php:419
-#: admin/inc/wp_easycart_admin_details_products.php:2083
+#: admin/inc/wp_easycart_admin_details_products.php:2107
 msgid "S3 File"
 msgstr "File S3"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:362
 #: admin/inc/wp_easycart_admin_details_optionitem.php:443
-#: admin/inc/wp_easycart_admin_details_products.php:2107
+#: admin/inc/wp_easycart_admin_details_products.php:2131
 msgid "Upload File"
 msgstr "Carica File"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:363
 #: admin/inc/wp_easycart_admin_details_optionitem.php:444
-#: admin/inc/wp_easycart_admin_details_products.php:2108
+#: admin/inc/wp_easycart_admin_details_products.php:2132
 #: admin/template/orders/orders/order-item.php:124
 msgid "Download File"
 msgstr "Scarica il File"
 
 #: admin/inc/wp_easycart_admin_details_optionitem.php:380
 #: admin/inc/wp_easycart_admin_details_optionitem.php:461
-#: admin/inc/wp_easycart_admin_details_products.php:2125
+#: admin/inc/wp_easycart_admin_details_products.php:2149
 msgid "Remove File"
 msgstr "Rimuovi"
 
@@ -4824,35 +4828,35 @@ msgid "Please enter a weight multiplier adjustment for this option"
 msgstr ""
 "Immettere un aggiustamento del moltiplicatore di peso per questa opzione"
 
-#: admin/inc/wp_easycart_admin_details_orders.php:110
+#: admin/inc/wp_easycart_admin_details_orders.php:115
 msgid "Administrative Order Notes"
 msgstr "Note dell'ordine amministrativo"
 
-#: admin/inc/wp_easycart_admin_details_orders.php:112
+#: admin/inc/wp_easycart_admin_details_orders.php:117
 msgid "Please enter administrative notes."
 msgstr "Inserisci note amministrative."
 
-#: admin/inc/wp_easycart_admin_details_orders.php:120
+#: admin/inc/wp_easycart_admin_details_orders.php:125
 msgid "Customer Order Notes"
 msgstr "Note sull'ordine del cliente"
 
-#: admin/inc/wp_easycart_admin_details_orders.php:122
+#: admin/inc/wp_easycart_admin_details_orders.php:127
 msgid "Please enter customer order notes."
 msgstr "Inserisci le note dell'ordine del cliente."
 
-#: admin/inc/wp_easycart_admin_details_orders.php:139
+#: admin/inc/wp_easycart_admin_details_orders.php:144
 msgid "Order Weight"
 msgstr "Peso dell'ordine"
 
-#: admin/inc/wp_easycart_admin_details_orders.php:141
+#: admin/inc/wp_easycart_admin_details_orders.php:146
 msgid "Please enter an order weight."
 msgstr "Inserisci un peso dell'ordine."
 
-#: admin/inc/wp_easycart_admin_details_orders.php:148
+#: admin/inc/wp_easycart_admin_details_orders.php:153
 msgid "Gift Card Used"
 msgstr "Carta regalo usata"
 
-#: admin/inc/wp_easycart_admin_details_orders.php:156
+#: admin/inc/wp_easycart_admin_details_orders.php:161
 msgid "Coupon Code Used"
 msgstr "Coupon"
 
@@ -4894,15 +4898,15 @@ msgstr "Punto basso"
 msgid "High Point"
 msgstr "Punto più alto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:422
+#: admin/inc/wp_easycart_admin_details_products.php:424
 msgid "Product Activated"
 msgstr "Prodotto Attivato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:434
+#: admin/inc/wp_easycart_admin_details_products.php:436
 msgid "Your product must have a title"
 msgstr "Il tuo prodotto deve avere un titolo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:452
+#: admin/inc/wp_easycart_admin_details_products.php:454
 msgid ""
 "SKU values must only include letters, numbers, forward slashes, underscores, "
 "and dashes."
@@ -4910,28 +4914,28 @@ msgstr ""
 "I valori delle SKU devono includere solo lettere, numeri, barre in avanti, "
 "trattini bassi e trattini."
 
-#: admin/inc/wp_easycart_admin_details_products.php:452
+#: admin/inc/wp_easycart_admin_details_products.php:454
 msgid "SKU is a duplicate and must be unique"
 msgstr "SKU è un duplicato e deve essere univoco"
 
-#: admin/inc/wp_easycart_admin_details_products.php:474
+#: admin/inc/wp_easycart_admin_details_products.php:476
 msgid "Your product must have a valid price"
 msgstr "Il tuo prodotto deve avere un prezzo valido"
 
-#: admin/inc/wp_easycart_admin_details_products.php:501
+#: admin/inc/wp_easycart_admin_details_products.php:503
 msgid "Option 1"
 msgstr "Opzione 1"
 
-#: admin/inc/wp_easycart_admin_details_products.php:503
-#: admin/inc/wp_easycart_admin_details_products.php:518
-#: admin/inc/wp_easycart_admin_details_products.php:545
-#: admin/inc/wp_easycart_admin_details_products.php:572
-#: admin/inc/wp_easycart_admin_details_products.php:599
+#: admin/inc/wp_easycart_admin_details_products.php:505
+#: admin/inc/wp_easycart_admin_details_products.php:520
+#: admin/inc/wp_easycart_admin_details_products.php:547
+#: admin/inc/wp_easycart_admin_details_products.php:574
+#: admin/inc/wp_easycart_admin_details_products.php:601
 #: admin/inc/wp_easycart_admin_details_review.php:106
 #: admin/inc/wp_easycart_admin_manufacturers.php:256
 #: admin/template/products/options/new-advanced-optionset-slideout.php:18
 #: admin/template/products/options/new-optionset-slideout.php:18
-#: admin/template/products/products/new-product-slideout.php:85
+#: admin/template/products/products/new-product-slideout.php:87
 #: admin/template/products/products/quick-edit-product-slideout.php:65
 #: admin/template/settings/shipping/shipping-zones.php:73
 #: admin/template/settings/taxes/tax-by-country-setup.php:28
@@ -4940,89 +4944,89 @@ msgstr "Opzione 1"
 msgid "Select One"
 msgstr "Seleziona"
 
-#: admin/inc/wp_easycart_admin_details_products.php:516
-#: admin/inc/wp_easycart_admin_details_products.php:530
+#: admin/inc/wp_easycart_admin_details_products.php:518
+#: admin/inc/wp_easycart_admin_details_products.php:532
 msgid "Option 2"
 msgstr "Opzione 2"
 
-#: admin/inc/wp_easycart_admin_details_products.php:543
-#: admin/inc/wp_easycart_admin_details_products.php:557
+#: admin/inc/wp_easycart_admin_details_products.php:545
+#: admin/inc/wp_easycart_admin_details_products.php:559
 msgid "Option 3"
 msgstr "Opzione 3"
 
-#: admin/inc/wp_easycart_admin_details_products.php:570
-#: admin/inc/wp_easycart_admin_details_products.php:584
+#: admin/inc/wp_easycart_admin_details_products.php:572
+#: admin/inc/wp_easycart_admin_details_products.php:586
 msgid "Option 4"
 msgstr "Alternativa 4"
 
-#: admin/inc/wp_easycart_admin_details_products.php:597
-#: admin/inc/wp_easycart_admin_details_products.php:611
+#: admin/inc/wp_easycart_admin_details_products.php:599
+#: admin/inc/wp_easycart_admin_details_products.php:613
 msgid "Option 5"
 msgstr "Opzione 5"
 
-#: admin/inc/wp_easycart_admin_details_products.php:652
+#: admin/inc/wp_easycart_admin_details_products.php:654
 msgid "Option Set Images"
 msgstr "Opzione Imposta immagini"
 
-#: admin/inc/wp_easycart_admin_details_products.php:662
+#: admin/inc/wp_easycart_admin_details_products.php:664
 msgid "Product Images"
 msgstr "Immagini del prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:675
-#: admin/inc/wp_easycart_admin_details_products.php:2423
-#: admin/inc/wp_easycart_admin_products.php:3273
+#: admin/inc/wp_easycart_admin_details_products.php:677
+#: admin/inc/wp_easycart_admin_details_products.php:2447
+#: admin/inc/wp_easycart_admin_products.php:3279
 msgid "Image 1"
 msgstr "Immagine 1"
 
-#: admin/inc/wp_easycart_admin_details_products.php:689
-#: admin/inc/wp_easycart_admin_details_products.php:2432
-#: admin/inc/wp_easycart_admin_products.php:3282
+#: admin/inc/wp_easycart_admin_details_products.php:691
+#: admin/inc/wp_easycart_admin_details_products.php:2456
+#: admin/inc/wp_easycart_admin_products.php:3288
 msgid "Image 2"
 msgstr "Immagine 2"
 
-#: admin/inc/wp_easycart_admin_details_products.php:705
-#: admin/inc/wp_easycart_admin_details_products.php:2441
-#: admin/inc/wp_easycart_admin_products.php:3291
+#: admin/inc/wp_easycart_admin_details_products.php:707
+#: admin/inc/wp_easycart_admin_details_products.php:2465
+#: admin/inc/wp_easycart_admin_products.php:3297
 msgid "Image 3"
 msgstr "Immagine 3"
 
-#: admin/inc/wp_easycart_admin_details_products.php:729
-#: admin/inc/wp_easycart_admin_details_products.php:2450
-#: admin/inc/wp_easycart_admin_products.php:3300
+#: admin/inc/wp_easycart_admin_details_products.php:731
+#: admin/inc/wp_easycart_admin_details_products.php:2474
+#: admin/inc/wp_easycart_admin_products.php:3306
 msgid "Image 4"
 msgstr "Immagine 4"
 
-#: admin/inc/wp_easycart_admin_details_products.php:753
-#: admin/inc/wp_easycart_admin_details_products.php:2459
-#: admin/inc/wp_easycart_admin_products.php:3309
+#: admin/inc/wp_easycart_admin_details_products.php:755
+#: admin/inc/wp_easycart_admin_details_products.php:2483
+#: admin/inc/wp_easycart_admin_products.php:3315
 msgid "Image 5"
 msgstr "Figura 5"
 
-#: admin/inc/wp_easycart_admin_details_products.php:778
+#: admin/inc/wp_easycart_admin_details_products.php:780
 msgid "Add Unlimited Images & Videos in the PRO or Premium Edition"
 msgstr "Aggiungere immagini e video illimitati nell'edizione PRO o Premium"
 
-#: admin/inc/wp_easycart_admin_details_products.php:787
+#: admin/inc/wp_easycart_admin_details_products.php:789
 msgid "Media Library"
 msgstr "Libreria Media"
 
-#: admin/inc/wp_easycart_admin_details_products.php:788
+#: admin/inc/wp_easycart_admin_details_products.php:790
 msgid "Image URL"
 msgstr "URL del'Immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:789
+#: admin/inc/wp_easycart_admin_details_products.php:791
 msgid "Video URL"
 msgstr "URL Video"
 
-#: admin/inc/wp_easycart_admin_details_products.php:790
+#: admin/inc/wp_easycart_admin_details_products.php:792
 msgid "YouTube Embed URL"
 msgstr "URL di embed di YouTube"
 
-#: admin/inc/wp_easycart_admin_details_products.php:791
+#: admin/inc/wp_easycart_admin_details_products.php:793
 msgid "Vimeo Embed URL"
 msgstr "Vimeo Embed URL"
 
-#: admin/inc/wp_easycart_admin_details_products.php:802
+#: admin/inc/wp_easycart_admin_details_products.php:804
 msgid ""
 "Add Options, Unlimited Modifiers, Variant Quantity Tracking, & More in the "
 "PRO or Premium Edition"
@@ -5030,69 +5034,69 @@ msgstr ""
 "Aggiunta di opzioni, modificatori illimitati, tracciamento della quantità di "
 "varianti e altro ancora nell'edizione PRO o Premium"
 
-#: admin/inc/wp_easycart_admin_details_products.php:811
+#: admin/inc/wp_easycart_admin_details_products.php:813
 msgid "More Product Options"
 msgstr "Altre opzioni di prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:812
+#: admin/inc/wp_easycart_admin_details_products.php:814
 msgid "Track Variant Quantity"
 msgstr "Variante di traccia Quantità"
 
-#: admin/inc/wp_easycart_admin_details_products.php:813
+#: admin/inc/wp_easycart_admin_details_products.php:815
 msgid "Create Modifiers"
 msgstr "Creare modificatori"
 
-#: admin/inc/wp_easycart_admin_details_products.php:814
+#: admin/inc/wp_easycart_admin_details_products.php:816
 msgid "Customize Variant SKU & Price"
 msgstr "Personalizzare SKU e prezzo della variante"
 
-#: admin/inc/wp_easycart_admin_details_products.php:834
-#: admin/inc/wp_easycart_admin_details_products.php:872
-#: admin/inc/wp_easycart_admin_details_products.php:910
+#: admin/inc/wp_easycart_admin_details_products.php:836
+#: admin/inc/wp_easycart_admin_details_products.php:874
+#: admin/inc/wp_easycart_admin_details_products.php:912
 msgid "Menu Level 1"
 msgstr "Livello 1"
 
-#: admin/inc/wp_easycart_admin_details_products.php:847
-#: admin/inc/wp_easycart_admin_details_products.php:885
-#: admin/inc/wp_easycart_admin_details_products.php:923
+#: admin/inc/wp_easycart_admin_details_products.php:849
+#: admin/inc/wp_easycart_admin_details_products.php:887
+#: admin/inc/wp_easycart_admin_details_products.php:925
 msgid "Menu Level 2"
 msgstr "Level 2"
 
-#: admin/inc/wp_easycart_admin_details_products.php:860
-#: admin/inc/wp_easycart_admin_details_products.php:898
-#: admin/inc/wp_easycart_admin_details_products.php:936
+#: admin/inc/wp_easycart_admin_details_products.php:862
+#: admin/inc/wp_easycart_admin_details_products.php:900
+#: admin/inc/wp_easycart_admin_details_products.php:938
 msgid "Menu Level 3"
 msgstr "LIVELLO 3"
 
-#: admin/inc/wp_easycart_admin_details_products.php:974
+#: admin/inc/wp_easycart_admin_details_products.php:976
 msgid "Track Overall Quantity"
 msgstr "Tieni traccia della quantità complessiva"
 
-#: admin/inc/wp_easycart_admin_details_products.php:978
+#: admin/inc/wp_easycart_admin_details_products.php:980
 msgid "Track Variation Quantity"
 msgstr "WP EasyCart Carrello abbandonato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:981
+#: admin/inc/wp_easycart_admin_details_products.php:983
 msgid "Do NOT Track Quantity"
 msgstr "NON tenere traccia della quantità"
 
-#: admin/inc/wp_easycart_admin_details_products.php:982
+#: admin/inc/wp_easycart_admin_details_products.php:984
 msgid "Track Quantity"
 msgstr "Traccia la quantità"
 
-#: admin/inc/wp_easycart_admin_details_products.php:998
+#: admin/inc/wp_easycart_admin_details_products.php:1000
 msgid "Total In Stock"
 msgstr "Totale in magazzino"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1008
+#: admin/inc/wp_easycart_admin_details_products.php:1010
 msgid "Minimum Quantity"
 msgstr "Quantità minima"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1018
+#: admin/inc/wp_easycart_admin_details_products.php:1020
 msgid "Maximum Quantity"
 msgstr "Quantità Massima"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1081
+#: admin/inc/wp_easycart_admin_details_products.php:1083
 #: admin/template/dashboard.php:301 admin/template/dashboard.php:302
 #: admin/template/dashboard.php:313 admin/template/dashboard.php:317
 #: admin/template/dashboard.php:327 admin/template/dashboard.php:331
@@ -5116,107 +5120,107 @@ msgstr "Quantità Massima"
 msgid "Disabled"
 msgstr "Disabilitato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1085
+#: admin/inc/wp_easycart_admin_details_products.php:1087
 msgid "Show on Product List"
 msgstr "Mostra nell'elenco dei prodotti"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1089
+#: admin/inc/wp_easycart_admin_details_products.php:1091
 msgid "Show on Product Details"
 msgstr "Mostra su Dettagli prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1093
+#: admin/inc/wp_easycart_admin_details_products.php:1095
 msgid "Show in Cart"
 msgstr "Mostra nel Carrello"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1097
+#: admin/inc/wp_easycart_admin_details_products.php:1099
 msgid "Show on Product List and Details"
 msgstr "Mostra nell'elenco dei prodotti e nei dettagli"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1101
+#: admin/inc/wp_easycart_admin_details_products.php:1103
 msgid "Show on Product List and Cart"
 msgstr "Mostra nell'elenco dei prodotti e nel carrello"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1105
+#: admin/inc/wp_easycart_admin_details_products.php:1107
 msgid "Show on Product Details and Cart"
 msgstr "Mostra su Dettagli prodotto e Carrello"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1109
+#: admin/inc/wp_easycart_admin_details_products.php:1111
 msgid "Show on List, Details, and Cart"
 msgstr "Mostra su Elenco, Dettagli e Carrello"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1126
+#: admin/inc/wp_easycart_admin_details_products.php:1128
 msgid "Custom Price Label"
 msgstr "Etichetta prezzo personalizzata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1138
+#: admin/inc/wp_easycart_admin_details_products.php:1140
 msgid "Replace Price with Label"
 msgstr "Sostituire Prezzo con Etichetta"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1153
+#: admin/inc/wp_easycart_admin_details_products.php:1155
 msgid "Your Custom Price Label"
 msgstr "Etichetta prezzo personalizzata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1163
+#: admin/inc/wp_easycart_admin_details_products.php:1165
 msgid "Enter your custom label"
 msgstr "Inserire l'etichetta personalizzata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1168
+#: admin/inc/wp_easycart_admin_details_products.php:1170
 msgid "Login for Pricing"
 msgstr "Accedi per i prezzi"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1179
-#: admin/inc/wp_easycart_admin_details_products.php:1608
+#: admin/inc/wp_easycart_admin_details_products.php:1181
+#: admin/inc/wp_easycart_admin_details_products.php:1632
 msgid "Restrict to User Role"
 msgstr "Limita al ruolo utente"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1181
-#: admin/inc/wp_easycart_admin_details_products.php:1610
+#: admin/inc/wp_easycart_admin_details_products.php:1183
+#: admin/inc/wp_easycart_admin_details_products.php:1634
 msgid "Show to All User Levels"
 msgstr "Mostra a tutti i livelli utente"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1199
+#: admin/inc/wp_easycart_admin_details_products.php:1201
 msgid "Login Label"
 msgstr "Etichetta Login"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1209
+#: admin/inc/wp_easycart_admin_details_products.php:1211
 msgid "Customize the login for pricing button label or leave empty for default"
 msgstr ""
 "Personalizza l'accesso per l'etichetta del pulsante dei prezzi o lascia "
 "vuoto per impostazione predefinita"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1214
+#: admin/inc/wp_easycart_admin_details_products.php:1216
 msgid "Custom Price Range Display (e.g. $90-$99)"
 msgstr ""
 "Visualizzazione personalizzata della fascia di prezzo (ad esempio $ 90- $ 99)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1225
+#: admin/inc/wp_easycart_admin_details_products.php:1227
 msgid "Price Range Display Low"
 msgstr "Visualizzazione della fascia di prezzo bassa"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1239
+#: admin/inc/wp_easycart_admin_details_products.php:1241
 msgid "Price Range Display High"
 msgstr "Visualizzazione della fascia di prezzo alta"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1259
+#: admin/inc/wp_easycart_admin_details_products.php:1261
 msgid "Volume Pricing"
 msgstr "Prezzi basati sul volume"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1264
+#: admin/inc/wp_easycart_admin_details_products.php:1266
 msgid "B2B Pricing"
 msgstr "Prezzi B2B"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1275
-#: admin/template/products/products/new-product-slideout.php:136
+#: admin/inc/wp_easycart_admin_details_products.php:1277
+#: admin/template/products/products/new-product-slideout.php:138
 #: admin/template/products/products/quick-edit-product-slideout.php:131
 #: admin/template/settings/shipping/shipping-basic-options.php:14
 msgid "Enable Shipping"
 msgstr "Attiva Spedizione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1285
+#: admin/inc/wp_easycart_admin_details_products.php:1287
 msgid "Exclude from Shipping Calculation"
 msgstr "Escludi dal calcolo della spedizione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1295
+#: admin/inc/wp_easycart_admin_details_products.php:1297
 msgid ""
 "Disable shipping address and ship to billing address when this item is in "
 "the cart"
@@ -5224,184 +5228,192 @@ msgstr ""
 "Disattivate l'indirizzo di spedizione e la spedizione all'indirizzo di "
 "fatturazione quando l'articolo è nel carrello"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1305
+#: admin/inc/wp_easycart_admin_details_products.php:1307
 msgid "Allow Backorders"
 msgstr "Consentire prenotazioni"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1319
+#: admin/inc/wp_easycart_admin_details_products.php:1321
 msgid "Expected Delivery Date"
 msgstr "Consegna Prevista"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1333
+#: admin/inc/wp_easycart_admin_details_products.php:1335
 msgid "One-Time Handling Cost"
 msgstr "Costo di gestione una tantum"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1343
+#: admin/inc/wp_easycart_admin_details_products.php:1345
 msgid "Handling Cost Each Item"
 msgstr "Costo di gestione di ogni articolo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1353
+#: admin/inc/wp_easycart_admin_details_products.php:1355
 msgid "Restrict Shipping for this Product"
 msgstr "Limitare la spedizione di questo prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1400
+#: admin/inc/wp_easycart_admin_details_products.php:1402
 msgid "Order Completed Note"
 msgstr "Ordine completato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1415
+#: admin/inc/wp_easycart_admin_details_products.php:1417
 msgid "Order email product note"
 msgstr "Ordinare la nota del prodotto tramite posta elettronica"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1430
+#: admin/inc/wp_easycart_admin_details_products.php:1432
 msgid "Order details product note"
 msgstr "Dettagli dell'ordine nota del prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1447
+#: admin/inc/wp_easycart_admin_details_products.php:1449
 msgid "Featured Product 1"
 msgstr "Prodotto in evidenza"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1459
+#: admin/inc/wp_easycart_admin_details_products.php:1461
 msgid "Featured Product 2"
 msgstr "Prodotto in evidenza"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1471
+#: admin/inc/wp_easycart_admin_details_products.php:1473
 msgid "Featured Product 3"
 msgstr "Prodotto in evidenza"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1483
+#: admin/inc/wp_easycart_admin_details_products.php:1485
 msgid "Featured Product 4"
 msgstr "Prodotto in evidenza"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1499
+#: admin/inc/wp_easycart_admin_details_products.php:1501
 msgid "Requires PRO"
 msgstr "Richiede PRO"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1504
+#: admin/inc/wp_easycart_admin_details_products.php:1506
 msgid "Show on Main Store Page"
 msgstr "Mostra sulla pagina principale del negozio"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1514
+#: admin/inc/wp_easycart_admin_details_products.php:1516
 msgid "Include in Specials Widget"
 msgstr "Includi nel widget delle offerte speciali"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1523
+#: admin/inc/wp_easycart_admin_details_products.php:1525
 msgid "Allow Customer Reviews"
 msgstr "Permetti recensioni dei clienti"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1532
+#: admin/inc/wp_easycart_admin_details_products.php:1534
 msgid "Donation/Invoice Product"
 msgstr "Prodotto per donazione / fattura"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1543
+#: admin/inc/wp_easycart_admin_details_products.php:1545
 #: admin/template/products/products/new-product-slideout.php:51
 msgid "Gift Card Product"
 msgstr "Prodotto buono regalo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1554
+#: admin/inc/wp_easycart_admin_details_products.php:1556
 msgid "Inquiry Mode"
 msgstr "Modo Interrogazione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1565
+#: admin/inc/wp_easycart_admin_details_products.php:1567
 msgid "Inquiry URL"
 msgstr "URL di interrogazione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1579
+#: admin/inc/wp_easycart_admin_details_products.php:1581
 msgid "Seasonal Mode"
 msgstr "Modalità stagionale"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1594
+#: admin/inc/wp_easycart_admin_details_products.php:1596
 msgid "Seasonal Phrase"
 msgstr "Frase stagionale"
 
+#: admin/inc/wp_easycart_admin_details_products.php:1610
+msgid "Enable Preorder for Pickup"
+msgstr "Abilita il preordine per il ritiro"
+
 #: admin/inc/wp_easycart_admin_details_products.php:1621
+msgid "Enable Restaurant for Pickup"
+msgstr "Abilitare il ristorante per il ritiro"
+
+#: admin/inc/wp_easycart_admin_details_products.php:1645
 #: admin/template/products/products/quick-edit-product-slideout.php:104
 msgid "Sort Position"
 msgstr "Posizione di ordinamento"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1638
+#: admin/inc/wp_easycart_admin_details_products.php:1662
 msgid "Product is Taxable"
 msgstr "Il prodotto è tassabile"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1648
+#: admin/inc/wp_easycart_admin_details_products.php:1672
 msgid "VAT Enabled"
 msgstr "IVA abilitata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1657
+#: admin/inc/wp_easycart_admin_details_products.php:1681
 msgid "TIC (Tax Cloud)"
 msgstr "TIC (Tax Cloud)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1674
+#: admin/inc/wp_easycart_admin_details_products.php:1698
 #: admin/template/products/products/new-product-slideout.php:52
 msgid "Deconetwork Product"
 msgstr "Prodotto Deconetwork"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1688
+#: admin/inc/wp_easycart_admin_details_products.php:1712
 msgid "Designer Mode"
 msgstr "Progettista"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1692
+#: admin/inc/wp_easycart_admin_details_products.php:1716
 msgid "Blank Mode"
 msgstr "Modalità vuota"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1696
+#: admin/inc/wp_easycart_admin_details_products.php:1720
 msgid "Designer Predecorated Mode"
 msgstr "Modalità Designer Predecorated"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1700
+#: admin/inc/wp_easycart_admin_details_products.php:1724
 msgid "Predecorated Mode"
 msgstr "Modalità Predecorata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1704
+#: admin/inc/wp_easycart_admin_details_products.php:1728
 msgid "Blank Design Mode"
 msgstr "Modalità di progettazione vuota"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1708
+#: admin/inc/wp_easycart_admin_details_products.php:1732
 msgid "Design Detail Mode"
 msgstr "Particolare Costruttivo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1712
+#: admin/inc/wp_easycart_admin_details_products.php:1736
 msgid "Deconetwork Mode"
 msgstr "Modalità Deconetwork"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1740
+#: admin/inc/wp_easycart_admin_details_products.php:1764
 msgid "Product Size ID"
 msgstr "Dimensioni del prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1754
+#: admin/inc/wp_easycart_admin_details_products.php:1778
 msgid "Product Color ID"
 msgstr "Colore del prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1768
+#: admin/inc/wp_easycart_admin_details_products.php:1792
 msgid "Deconetwork Design ID"
 msgstr "Deconetwork Design ID"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1789
+#: admin/inc/wp_easycart_admin_details_products.php:1813
 #: admin/template/products/products/new-product-slideout.php:49
 msgid "Subscription Product"
 msgstr "Prodotto Abbonamento"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1800
+#: admin/inc/wp_easycart_admin_details_products.php:1824
 msgid "Subscription Interval (How often to bill the customer)"
 msgstr "Intervallo di sottoscrizione (quanto spesso fatturare al cliente)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1818
+#: admin/inc/wp_easycart_admin_details_products.php:1842
 msgid "Bill Customer Forever"
 msgstr "Cliente Bill per sempre"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1822
+#: admin/inc/wp_easycart_admin_details_products.php:1846
 msgid "Set Max Number of Payments"
 msgstr "Impostare il numero massimo di pagamenti"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1825
-#: admin/inc/wp_easycart_admin_details_products.php:1826
+#: admin/inc/wp_easycart_admin_details_products.php:1849
+#: admin/inc/wp_easycart_admin_details_products.php:1850
 msgid "Enable Billing Duration?"
 msgstr "Attivare la durata della fatturazione?"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1828
+#: admin/inc/wp_easycart_admin_details_products.php:1852
 msgid "Please choose a billing duration option."
 msgstr "Scegliere un'opzione di durata della fatturazione."
 
-#: admin/inc/wp_easycart_admin_details_products.php:1835
+#: admin/inc/wp_easycart_admin_details_products.php:1859
 msgid ""
 "Billing Duration (Number of payments before automatically cancelling the "
 "subscription)"
@@ -5409,57 +5421,57 @@ msgstr ""
 "Durata della fatturazione (numero di pagamenti prima dell'annullamento "
 "automatico dell'abbonamento)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1859
+#: admin/inc/wp_easycart_admin_details_products.php:1883
 msgid "Any Shipping Cost - Only Charge Once"
 msgstr "Qualsiasi costo di spedizione: addebitato solo una volta"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1863
+#: admin/inc/wp_easycart_admin_details_products.php:1887
 msgid "Shipping Costs Billing Recurring"
 msgstr "Costi di spedizione Fatturazione ricorrente"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1866
-#: admin/inc/wp_easycart_admin_details_products.php:1867
+#: admin/inc/wp_easycart_admin_details_products.php:1890
+#: admin/inc/wp_easycart_admin_details_products.php:1891
 msgid "How to Handle Shipping Costs"
 msgstr "Come gestire i costi di spedizione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1869
+#: admin/inc/wp_easycart_admin_details_products.php:1893
 msgid "Please choose how you wish to handle any shipping costs."
 msgstr "Scegliete come gestire le spese di spedizione."
 
-#: admin/inc/wp_easycart_admin_details_products.php:1878
+#: admin/inc/wp_easycart_admin_details_products.php:1902
 msgid "Only Send Order Receipt Email on First Payment"
 msgstr "Inviare l'e-mail di ricezione dell'ordine solo al primo pagamento"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1882
+#: admin/inc/wp_easycart_admin_details_products.php:1906
 msgid "Send Order Email Receipts for Each Payment"
 msgstr "Inviare le ricevute via e-mail degli ordini per ogni pagamento"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1885
-#: admin/inc/wp_easycart_admin_details_products.php:1886
+#: admin/inc/wp_easycart_admin_details_products.php:1909
+#: admin/inc/wp_easycart_admin_details_products.php:1910
 msgid "How to Handle Recurring Email Receipts"
 msgstr "Come gestire le ricevute e-mail ricorrenti"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1888
+#: admin/inc/wp_easycart_admin_details_products.php:1912
 msgid "Please choose how you wish to handle recurring email receipts."
 msgstr "Scegliere come gestire le ricevute e-mail ricorrenti."
 
-#: admin/inc/wp_easycart_admin_details_products.php:1894
+#: admin/inc/wp_easycart_admin_details_products.php:1918
 msgid "Trial Days"
 msgstr "Giorni di prova"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1908
+#: admin/inc/wp_easycart_admin_details_products.php:1932
 msgid "Initial Fee"
 msgstr "Commissione iniziale"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1922
+#: admin/inc/wp_easycart_admin_details_products.php:1946
 msgid "Allow Multiple Subscriptions"
 msgstr "Consenti più abbonamenti"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1936
+#: admin/inc/wp_easycart_admin_details_products.php:1960
 msgid "Prorate on Upgrade/Downgrade"
 msgstr "Prorate su Upgrade / Downgrade"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1950
+#: admin/inc/wp_easycart_admin_details_products.php:1974
 msgid ""
 "Subscription Plan (not compatible with price adjustments or recurring "
 "shipping)"
@@ -5467,184 +5479,184 @@ msgstr ""
 "Piano di abbonamento (non compatibile con gli adeguamenti di prezzo o le "
 "spedizioni ricorrenti)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1952
+#: admin/inc/wp_easycart_admin_details_products.php:1976
 msgid "No Plan"
 msgstr "Nessun piano"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1966
+#: admin/inc/wp_easycart_admin_details_products.php:1990
 msgid "Membership URL"
 msgstr "URL di appartenenza"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1986
+#: admin/inc/wp_easycart_admin_details_products.php:2010
 msgid "SEO Description"
 msgstr "Descrizione SEO"
 
-#: admin/inc/wp_easycart_admin_details_products.php:1995
+#: admin/inc/wp_easycart_admin_details_products.php:2019
 msgid "SEO Keywords"
 msgstr "Chiavi SEO (parole)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2042
+#: admin/inc/wp_easycart_admin_details_products.php:2066
 msgid "Error connecting to Amazon S3"
 msgstr "Errore durante la connessione ad Amazon S3"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2050
+#: admin/inc/wp_easycart_admin_details_products.php:2074
 msgid "Download Product"
 msgstr "Scarica il PDF del prodotto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2131
+#: admin/inc/wp_easycart_admin_details_products.php:2155
 msgid "Maximum Downloads"
 msgstr "Scaricamenti massimi"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2145
+#: admin/inc/wp_easycart_admin_details_products.php:2169
 msgid "Expiration (in seconds)"
 msgstr "Scadenza (in secondi)"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2166
+#: admin/inc/wp_easycart_admin_details_products.php:2190
 msgid "Image Hover Type"
 msgstr "Tipo di immagine in primo piano"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2173
+#: admin/inc/wp_easycart_admin_details_products.php:2197
 #: admin/template/settings/design/product-design-options.php:114
 msgid "Image Flip"
 msgstr "Flip immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2177
+#: admin/inc/wp_easycart_admin_details_products.php:2201
 #: admin/template/settings/design/product-design-options.php:118
 msgid "Image Crossfade"
 msgstr "Immagine Crossfade"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2181
+#: admin/inc/wp_easycart_admin_details_products.php:2205
 #: admin/template/settings/design/product-design-options.php:122
 msgid "Lighten"
 msgstr "Schiarisci"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2185
+#: admin/inc/wp_easycart_admin_details_products.php:2209
 #: admin/template/settings/design/product-design-options.php:126
 msgid "Image Grow"
 msgstr "Immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2189
+#: admin/inc/wp_easycart_admin_details_products.php:2213
 #: admin/template/settings/design/product-design-options.php:130
 msgid "Image Shrink"
 msgstr "Riduzione dell'immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2193
+#: admin/inc/wp_easycart_admin_details_products.php:2217
 msgid "Grey Color"
 msgstr "Colore grigio"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2197
+#: admin/inc/wp_easycart_admin_details_products.php:2221
 #: admin/template/settings/design/product-design-options.php:138
 msgid "Brighten"
 msgstr "Illumina"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2201
+#: admin/inc/wp_easycart_admin_details_products.php:2225
 #: admin/template/settings/design/product-design-options.php:142
 msgid "Image Slide"
 msgstr "Diapositiva immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2205
+#: admin/inc/wp_easycart_admin_details_products.php:2229
 #: admin/template/settings/design/product-design-options.php:146
 msgid "Flipbook"
 msgstr "Sequenza animata"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2209
+#: admin/inc/wp_easycart_admin_details_products.php:2233
 #: admin/template/settings/design/product-design-options.php:150
 msgid "No Effect"
 msgstr "Nessun Effetto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2212
+#: admin/inc/wp_easycart_admin_details_products.php:2236
 msgid "Hover Effect"
 msgstr "Effetto Hover"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2218
+#: admin/inc/wp_easycart_admin_details_products.php:2242
 msgid "Image Effect Type"
 msgstr "Tipo di effetto immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2225
+#: admin/inc/wp_easycart_admin_details_products.php:2249
 #: admin/template/settings/design/product-design-options.php:161
 #: admin/template/settings/email-setup/account-emails.php:56
 #: admin/template/settings/email-setup/order-receipt.php:65
 msgid "None"
 msgstr "Nessuna"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2229
+#: admin/inc/wp_easycart_admin_details_products.php:2253
 #: admin/template/settings/design/product-design-options.php:165
 msgid "Border"
 msgstr "Bordo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2233
+#: admin/inc/wp_easycart_admin_details_products.php:2257
 #: admin/template/settings/design/product-design-options.php:169
 msgid "Shadow"
 msgstr "Ombra"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2236
+#: admin/inc/wp_easycart_admin_details_products.php:2260
 msgid "Image Effect"
 msgstr "Effetto immagine"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2242
+#: admin/inc/wp_easycart_admin_details_products.php:2266
 msgid "Tag Type"
 msgstr "Tipo di Tag"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2249
+#: admin/inc/wp_easycart_admin_details_products.php:2273
 msgid "Round Tag"
 msgstr "Tag rotondo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2253
+#: admin/inc/wp_easycart_admin_details_products.php:2277
 msgid "Square Tag"
 msgstr "Tag quadrato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2257
+#: admin/inc/wp_easycart_admin_details_products.php:2281
 msgid "Diagonal Tag"
 msgstr "Diagonale"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2261
+#: admin/inc/wp_easycart_admin_details_products.php:2285
 msgid "Classy Tag"
 msgstr "Classy"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2264
+#: admin/inc/wp_easycart_admin_details_products.php:2288
 msgid "No Tag"
 msgstr "Tag"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2270
+#: admin/inc/wp_easycart_admin_details_products.php:2294
 msgid "Tag Promo Text"
 msgstr "Testo Promo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2279
+#: admin/inc/wp_easycart_admin_details_products.php:2303
 msgid "Tag BG Color"
 msgstr "Colore dello sfondo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2288
+#: admin/inc/wp_easycart_admin_details_products.php:2312
 msgid "Tag Text Color"
 msgstr "Colore del testo al passaggio del mouse"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2322
+#: admin/inc/wp_easycart_admin_details_products.php:2346
 msgid "Weeks"
 msgstr "Settimane"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2323
+#: admin/inc/wp_easycart_admin_details_products.php:2347
 msgid "Months"
 msgstr "Mesi"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2324
+#: admin/inc/wp_easycart_admin_details_products.php:2348
 msgid "Years"
 msgstr "Anni"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2349
-#: admin/inc/wp_easycart_admin_details_products.php:2500
-#: admin/inc/wp_easycart_admin_details_products.php:2551
-#: admin/inc/wp_easycart_admin_products.php:3366
-#: admin/inc/wp_easycart_admin_products.php:3375
-#: admin/inc/wp_easycart_admin_products.php:3384
-#: admin/inc/wp_easycart_admin_products.php:3393
-#: admin/inc/wp_easycart_admin_products.php:3402
+#: admin/inc/wp_easycart_admin_details_products.php:2373
+#: admin/inc/wp_easycart_admin_details_products.php:2524
+#: admin/inc/wp_easycart_admin_details_products.php:2575
+#: admin/inc/wp_easycart_admin_products.php:3372
+#: admin/inc/wp_easycart_admin_products.php:3381
+#: admin/inc/wp_easycart_admin_products.php:3390
+#: admin/inc/wp_easycart_admin_products.php:3399
+#: admin/inc/wp_easycart_admin_products.php:3408
 msgid "No Selection"
 msgstr "Nessuna Selezione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2354
-#: admin/inc/wp_easycart_admin_details_products.php:2503
-#: admin/inc/wp_easycart_admin_details_products.php:2526
-#: admin/inc/wp_easycart_admin_details_products.php:2557
-#: admin/inc/wp_easycart_admin_products.php:3412
+#: admin/inc/wp_easycart_admin_details_products.php:2378
+#: admin/inc/wp_easycart_admin_details_products.php:2527
+#: admin/inc/wp_easycart_admin_details_products.php:2550
+#: admin/inc/wp_easycart_admin_details_products.php:2581
+#: admin/inc/wp_easycart_admin_products.php:3418
 #: admin/inc/wp_easycart_admin_table.php:68
 #: admin/template/products/categories/category-list.php:8
 #: admin/template/products/menus/menu-list.php:8
@@ -5653,12 +5665,12 @@ msgstr "Nessuna Selezione"
 #: admin/template/products/options/category-list.php:6
 #: admin/template/products/options/option-list.php:7
 #: admin/template/products/options/optionitem-list.php:13
-#: admin/template/products/products/new-product-slideout.php:91
-#: admin/template/products/products/new-product-slideout.php:189
-#: admin/template/products/products/new-product-slideout.php:203
-#: admin/template/products/products/new-product-slideout.php:217
-#: admin/template/products/products/new-product-slideout.php:231
-#: admin/template/products/products/new-product-slideout.php:245
+#: admin/template/products/products/new-product-slideout.php:93
+#: admin/template/products/products/new-product-slideout.php:191
+#: admin/template/products/products/new-product-slideout.php:205
+#: admin/template/products/products/new-product-slideout.php:219
+#: admin/template/products/products/new-product-slideout.php:233
+#: admin/template/products/products/new-product-slideout.php:247
 #: admin/template/products/products/quick-edit-product-slideout.php:71
 #: admin/template/settings/shipping/percentage-rates.php:77
 #: admin/template/settings/shipping/price-based.php:80
@@ -5668,54 +5680,54 @@ msgstr "Nessuna Selezione"
 msgid "Add New"
 msgstr "Aggiungi Nuovo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2356
+#: admin/inc/wp_easycart_admin_details_products.php:2380
 msgid "Required"
 msgstr "Richiesto"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2365
+#: admin/inc/wp_easycart_admin_details_products.php:2389
 msgid "No Advanced Options Added"
 msgstr "Nessuna opzione avanzata aggiunta"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2381
-#: admin/inc/wp_easycart_admin_products.php:3254
+#: admin/inc/wp_easycart_admin_details_products.php:2405
+#: admin/inc/wp_easycart_admin_products.php:3260
 msgid "Choose Option"
 msgstr "Scegliere l'opzione"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2418
+#: admin/inc/wp_easycart_admin_details_products.php:2442
 #, php-format
 msgid "Images for %s"
 msgstr "Immagini per %s"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2485
 #: admin/inc/wp_easycart_admin_details_products.php:2509
+#: admin/inc/wp_easycart_admin_details_products.php:2533
 msgid "deactivated"
 msgstr "disattivato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2524
+#: admin/inc/wp_easycart_admin_details_products.php:2548
 msgid "Quantity of"
 msgstr "Quantità"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2524
-#: admin/inc/wp_easycart_admin_details_products.php:2528
+#: admin/inc/wp_easycart_admin_details_products.php:2548
+#: admin/inc/wp_easycart_admin_details_products.php:2552
 #: admin/inc/wp_easycart_admin_inventory.php:47
-#: admin/inc/wp_easycart_admin_products.php:3411
-#: admin/inc/wp_easycart_admin_products.php:3414
+#: admin/inc/wp_easycart_admin_products.php:3417
+#: admin/inc/wp_easycart_admin_products.php:3420
 #: admin/template/products/products/product-list.php:53
 msgid "Quantity"
 msgstr "Quantità"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2525
+#: admin/inc/wp_easycart_admin_details_products.php:2549
 msgid "OR MORE will be charged"
 msgstr "O PIÙ verrà addebitato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2525
+#: admin/inc/wp_easycart_admin_details_products.php:2549
 msgid "EACH"
 msgstr "CIASCUNO"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2532
-#: admin/inc/wp_easycart_admin_products.php:3026
-#: admin/inc/wp_easycart_admin_products.php:3066
-#: admin/inc/wp_easycart_admin_products.php:3429
+#: admin/inc/wp_easycart_admin_details_products.php:2556
+#: admin/inc/wp_easycart_admin_products.php:3032
+#: admin/inc/wp_easycart_admin_products.php:3072
+#: admin/inc/wp_easycart_admin_products.php:3435
 #: admin/template/products/categories/category-details.php:24
 #: admin/template/products/categories/category-details.php:40
 #: admin/template/products/categories/product-details.php:27
@@ -5750,28 +5762,28 @@ msgstr "CIASCUNO"
 msgid "Save"
 msgstr "Salva &amp; Continua"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2556
+#: admin/inc/wp_easycart_admin_details_products.php:2580
 msgid "will be charged"
 msgstr "importo addebitato"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2559
+#: admin/inc/wp_easycart_admin_details_products.php:2583
 msgid "Role"
 msgstr "Ruolo"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2582
+#: admin/inc/wp_easycart_admin_details_products.php:2606
 #: admin/inc/wp_easycart_admin_shortcodes.php:457
 msgid "Select a Manufacturer"
 msgstr "Seleziona un produttore"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2584
+#: admin/inc/wp_easycart_admin_details_products.php:2608
 msgid "Your product must be connected to a manufacturer"
 msgstr "Il prodotto deve essere collegato a un produttore"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2593
+#: admin/inc/wp_easycart_admin_details_products.php:2617
 msgid "Create New Manufacturer"
 msgstr "Creare nuovo Produttore"
 
-#: admin/inc/wp_easycart_admin_details_products.php:2594
+#: admin/inc/wp_easycart_admin_details_products.php:2618
 msgid "New Manufacturer Name"
 msgstr "Nome del nuovo produttore"
 
@@ -5910,7 +5922,7 @@ msgstr "Inserisci un indirizzo email valido."
 #: admin/inc/wp_easycart_admin_details_user.php:107
 #: admin/inc/wp_easycart_admin_details_user.php:218
 #: admin/inc/wp_easycart_admin_details_user.php:308
-#: admin/template/orders/orders/order-list.php:56
+#: admin/template/orders/orders/order-list.php:73
 #: admin/template/users/subscribers/subscribers-list.php:27
 #: admin/template/users/users/user-list.php:30
 msgid "First Name"
@@ -5924,7 +5936,7 @@ msgstr "Inserisca un nome."
 #: admin/inc/wp_easycart_admin_details_user.php:116
 #: admin/inc/wp_easycart_admin_details_user.php:226
 #: admin/inc/wp_easycart_admin_details_user.php:316
-#: admin/template/orders/orders/order-list.php:62
+#: admin/template/orders/orders/order-list.php:79
 #: admin/template/users/subscribers/subscribers-list.php:33
 #: admin/template/users/users/user-list.php:36
 msgid "Last Name"
@@ -6579,7 +6591,7 @@ msgstr ""
 msgid "no matching records found"
 msgstr "nessuna corrispondenza trovata"
 
-#: admin/inc/wp_easycart_admin_online_docs.php:380
+#: admin/inc/wp_easycart_admin_online_docs.php:382
 msgid "Video"
 msgstr "Video"
 
@@ -6684,7 +6696,7 @@ msgid "Order failed to create due to duplicate"
 msgstr "Impossibile creare l'ordine a causa di duplicati"
 
 #: admin/inc/wp_easycart_admin_orders.php:941
-#: admin/template/orders/orders/order-details.php:234
+#: admin/template/orders/orders/order-details.php:295
 msgid "Guest"
 msgstr "Ospite"
 
@@ -6780,7 +6792,7 @@ msgstr " Seleziona la casella da abilitare "
 
 #: admin/inc/wp_easycart_admin_payments.php:263
 #: admin/inc/wp_easycart_admin_payments.php:285
-#: admin/inc/wp_easycart_admin_products.php:2831
+#: admin/inc/wp_easycart_admin_products.php:2837
 #: admin/inc/wp_easycart_admin_taxes.php:88
 #: admin/inc/wp_easycart_admin_taxes.php:97
 #: admin/inc/wp_easycart_admin_third_party.php:64
@@ -6889,22 +6901,22 @@ msgstr "Impossibile creare il prodotto a causa di un duplicato"
 msgid "Allow Customers to Subscribe to Stock Notifications"
 msgstr "Consenti ai clienti di abbonarsi alle notifiche di magazzino"
 
-#: admin/inc/wp_easycart_admin_products.php:2173
+#: admin/inc/wp_easycart_admin_products.php:2179
 #: admin/inc/wp_easycart_admin_users.php:563
 msgid "Invalid file path."
 msgstr "Percorso file non valido."
 
-#: admin/inc/wp_easycart_admin_products.php:2179
+#: admin/inc/wp_easycart_admin_products.php:2185
 #: admin/inc/wp_easycart_admin_users.php:569
 msgid "Invalid file type."
 msgstr "Tipologia file non valida."
 
-#: admin/inc/wp_easycart_admin_products.php:2185
+#: admin/inc/wp_easycart_admin_products.php:2191
 #: admin/inc/wp_easycart_admin_users.php:575
 msgid "Could not open your import file."
 msgstr "Impossibile aprire il file di importazione."
 
-#: admin/inc/wp_easycart_admin_products.php:2269
+#: admin/inc/wp_easycart_admin_products.php:2275
 #, php-format
 msgid ""
 "You have an invalid column header at column %d (value %s), please remove or "
@@ -6913,7 +6925,7 @@ msgstr ""
 "Hai un'intestazione di colonna non valida nella colonna %d (valore %s), per "
 "favore rimuovi o correggi l'etichetta di quella colonna per continuare."
 
-#: admin/inc/wp_easycart_admin_products.php:2276
+#: admin/inc/wp_easycart_admin_products.php:2282
 msgid ""
 "Missing `product_id` Key field! Values for additions should be 0, updates "
 "should be the exported product_id value."
@@ -6921,7 +6933,7 @@ msgstr ""
 "Campo chiave `product_id` mancante! I valori per le aggiunte dovrebbero "
 "essere 0, gli aggiornamenti dovrebbero essere il valore product_id esportato."
 
-#: admin/inc/wp_easycart_admin_products.php:2280
+#: admin/inc/wp_easycart_admin_products.php:2286
 msgid ""
 "Missing `model_number` Key field! Values must be unique from other imported "
 "products and those products already in your store."
@@ -6930,7 +6942,7 @@ msgstr ""
 "rispetto ad altri prodotti importati e ai prodotti già presenti nel tuo "
 "negozio."
 
-#: admin/inc/wp_easycart_admin_products.php:2351
+#: admin/inc/wp_easycart_admin_products.php:2357
 #, php-format
 msgid ""
 "Product %s on line %s failed to update, invalid product_id (if you are "
@@ -6940,13 +6952,13 @@ msgstr ""
 "valido (se stai tentando di aggiungere un nuovo prodotto, usa 0 per "
 "product_id)"
 
-#: admin/inc/wp_easycart_admin_products.php:2391
+#: admin/inc/wp_easycart_admin_products.php:2397
 #, php-format
 msgid "Product on line %s failed to update due to an error."
 msgstr ""
 "Aggiornamento del prodotto in linea %s non riuscito a causa di un errore."
 
-#: admin/inc/wp_easycart_admin_products.php:2497
+#: admin/inc/wp_easycart_admin_products.php:2503
 #, php-format
 msgid ""
 "Product on line %s failed to update, duplicate model number listed for this "
@@ -6955,46 +6967,46 @@ msgstr ""
 "Aggiornamento del prodotto in linea %s non riuscito, numero di modello "
 "duplicato elencato per questo prodotto."
 
-#: admin/inc/wp_easycart_admin_products.php:2577
+#: admin/inc/wp_easycart_admin_products.php:2583
 #, php-format
 msgid "Product on line %s never inserted"
 msgstr "Prodotto in linea %s mai inserito"
 
-#: admin/inc/wp_easycart_admin_products.php:2698
+#: admin/inc/wp_easycart_admin_products.php:2704
 #: admin/inc/wp_easycart_admin_users.php:762
 msgid "No URL"
 msgstr "Nessun URL"
 
-#: admin/inc/wp_easycart_admin_products.php:2828
+#: admin/inc/wp_easycart_admin_products.php:2834
 msgid "Google Merchant Setup"
 msgstr "Impostazione di Google Merchant"
 
-#: admin/inc/wp_easycart_admin_products.php:2830
+#: admin/inc/wp_easycart_admin_products.php:2836
 msgid "Enable Google Merchant on this product."
 msgstr "Abilita Google Merchant su questo prodotto."
 
-#: admin/inc/wp_easycart_admin_products.php:3268
+#: admin/inc/wp_easycart_admin_products.php:3274
 msgid "Images for"
 msgstr "Immagini per"
 
-#: admin/inc/wp_easycart_admin_products.php:3363
+#: admin/inc/wp_easycart_admin_products.php:3369
 msgid "Add New Quantity Item"
 msgstr "Aggiungi nuovo articolo quantità"
 
-#: admin/inc/wp_easycart_admin_products.php:3363
+#: admin/inc/wp_easycart_admin_products.php:3369
 #: admin/inc/wp_easycart_admin_table.php:105
 msgid "Export"
 msgstr "Esporta"
 
-#: admin/inc/wp_easycart_admin_products.php:3363
+#: admin/inc/wp_easycart_admin_products.php:3369
 msgid "Choose Quantity File"
 msgstr "Scegli File quantità"
 
-#: admin/inc/wp_easycart_admin_products.php:3363
+#: admin/inc/wp_easycart_admin_products.php:3369
 msgid "Import Quantities"
 msgstr "Quantità di importazione"
 
-#: admin/inc/wp_easycart_admin_products.php:3414
+#: admin/inc/wp_easycart_admin_products.php:3420
 #: admin/template/products/options/category-list.php:139
 #: admin/template/products/options/option-list.php:185
 msgid "Options"
@@ -9121,6 +9133,7 @@ msgstr "Stai barando&#8217; eh?"
 #: admin/template/settings/cart-importer/woo-import.php:7
 #: admin/template/settings/checkout/cart-settings.php:8
 #: admin/template/settings/checkout/checkout-form-settings.php:8
+#: admin/template/settings/checkout/checkout-schedule.php:7
 #: admin/template/settings/checkout/checkout-settings.php:7
 #: admin/template/settings/checkout/checkout-stock-control.php:7
 #: admin/template/settings/checkout/order-statuses.php:9
@@ -9146,8 +9159,9 @@ msgstr "Stai barando&#8217; eh?"
 #: admin/template/settings/initial-setup/product-page.php:9
 #: admin/template/settings/language-editor/language-settings.php:10
 #: admin/template/settings/language-editor/language-settings.php:74
-#: admin/template/settings/miscellaneous/admin.php:7
-#: admin/template/settings/miscellaneous/admin.php:30
+#: admin/template/settings/miscellaneous/admin.php:6
+#: admin/template/settings/miscellaneous/admin.php:23
+#: admin/template/settings/miscellaneous/admin.php:37
 #: admin/template/settings/miscellaneous/search.php:7
 #: admin/template/settings/miscellaneous/settings.php:10
 #: admin/template/settings/payments/amazonpay.php:7
@@ -9207,29 +9221,29 @@ msgstr "Importa file"
 msgid "Bulk Actions"
 msgstr "Azioni in blocco"
 
-#: admin/inc/wp_easycart_admin_table.php:366
+#: admin/inc/wp_easycart_admin_table.php:371
 msgid "Filter"
 msgstr "Filtro"
 
-#: admin/inc/wp_easycart_admin_table.php:388
+#: admin/inc/wp_easycart_admin_table.php:393
 msgid "Per Page"
 msgstr "Per pagina"
 
-#: admin/inc/wp_easycart_admin_table.php:470
-#: admin/inc/wp_easycart_admin_table.php:962
+#: admin/inc/wp_easycart_admin_table.php:475
+#: admin/inc/wp_easycart_admin_table.php:982
 msgid "Select All"
 msgstr "Seleziona tutto"
 
-#: admin/inc/wp_easycart_admin_table.php:503
+#: admin/inc/wp_easycart_admin_table.php:508
 msgid "Save Sort"
 msgstr "Salva ordinamento"
 
-#: admin/inc/wp_easycart_admin_table.php:513
+#: admin/inc/wp_easycart_admin_table.php:518
 msgid "Select"
 msgstr "Seleziona"
 
-#: admin/inc/wp_easycart_admin_table.php:541
-#: admin/inc/wp_easycart_admin_table.php:743
+#: admin/inc/wp_easycart_admin_table.php:546
+#: admin/inc/wp_easycart_admin_table.php:753
 #: admin/template/products/products/new-product-slideout.php:32
 #: admin/template/products/products/quick-edit-product-slideout.php:34
 #: admin/template/settings/payments/paypal.php:100
@@ -9237,8 +9251,8 @@ msgstr "Seleziona"
 msgid "Yes"
 msgstr "Si"
 
-#: admin/inc/wp_easycart_admin_table.php:541
-#: admin/inc/wp_easycart_admin_table.php:743
+#: admin/inc/wp_easycart_admin_table.php:546
+#: admin/inc/wp_easycart_admin_table.php:753
 #: admin/template/products/products/new-product-slideout.php:33
 #: admin/template/products/products/quick-edit-product-slideout.php:35
 #: admin/template/settings/payments/paypal.php:101
@@ -9246,140 +9260,140 @@ msgstr "Si"
 msgid "No"
 msgstr "No"
 
-#: admin/inc/wp_easycart_admin_table.php:562
-#: admin/inc/wp_easycart_admin_table.php:764
+#: admin/inc/wp_easycart_admin_table.php:572
+#: admin/inc/wp_easycart_admin_table.php:774
 msgid "New Order"
 msgstr "Nuovo Ordine"
 
-#: admin/inc/wp_easycart_admin_table.php:598
-#: admin/inc/wp_easycart_admin_table.php:800
+#: admin/inc/wp_easycart_admin_table.php:608
+#: admin/inc/wp_easycart_admin_table.php:810
 msgid "Basic: Combo"
 msgstr "Di base: Combo"
 
-#: admin/inc/wp_easycart_admin_table.php:602
-#: admin/inc/wp_easycart_admin_table.php:804
+#: admin/inc/wp_easycart_admin_table.php:612
+#: admin/inc/wp_easycart_admin_table.php:814
 msgid "Basic: Swatch"
 msgstr "Di base: Swatch"
 
-#: admin/inc/wp_easycart_admin_table.php:606
-#: admin/inc/wp_easycart_admin_table.php:808
+#: admin/inc/wp_easycart_admin_table.php:616
+#: admin/inc/wp_easycart_admin_table.php:818
 msgid "Advanced: Combo Box"
 msgstr "Avanzate: casella combinata"
 
-#: admin/inc/wp_easycart_admin_table.php:610
-#: admin/inc/wp_easycart_admin_table.php:812
+#: admin/inc/wp_easycart_admin_table.php:620
+#: admin/inc/wp_easycart_admin_table.php:822
 msgid "Advanced: Image Swatches"
 msgstr "Avanzate: campioni di immagini"
 
-#: admin/inc/wp_easycart_admin_table.php:614
-#: admin/inc/wp_easycart_admin_table.php:816
+#: admin/inc/wp_easycart_admin_table.php:624
+#: admin/inc/wp_easycart_admin_table.php:826
 msgid "Advanced: Text Input"
 msgstr "Avanzate: immissione di testo"
 
-#: admin/inc/wp_easycart_admin_table.php:618
-#: admin/inc/wp_easycart_admin_table.php:820
+#: admin/inc/wp_easycart_admin_table.php:628
+#: admin/inc/wp_easycart_admin_table.php:830
 msgid "Advanced: Text Area"
 msgstr "Avanzate: area di testo"
 
-#: admin/inc/wp_easycart_admin_table.php:622
-#: admin/inc/wp_easycart_admin_table.php:824
+#: admin/inc/wp_easycart_admin_table.php:632
+#: admin/inc/wp_easycart_admin_table.php:834
 msgid "Advanced: Number Field"
 msgstr "Avanzate: campo numerico"
 
-#: admin/inc/wp_easycart_admin_table.php:626
-#: admin/inc/wp_easycart_admin_table.php:828
+#: admin/inc/wp_easycart_admin_table.php:636
+#: admin/inc/wp_easycart_admin_table.php:838
 msgid "Advanced: File Upload"
 msgstr "Avanzate: caricamento file"
 
-#: admin/inc/wp_easycart_admin_table.php:630
-#: admin/inc/wp_easycart_admin_table.php:832
+#: admin/inc/wp_easycart_admin_table.php:640
+#: admin/inc/wp_easycart_admin_table.php:842
 msgid "Advanced: Radio Group"
 msgstr "Avanzato: Radio Group"
 
-#: admin/inc/wp_easycart_admin_table.php:634
-#: admin/inc/wp_easycart_admin_table.php:836
+#: admin/inc/wp_easycart_admin_table.php:644
+#: admin/inc/wp_easycart_admin_table.php:846
 msgid "Advanced: Checkbox Group"
 msgstr "Avanzate: gruppo di caselle di controllo"
 
-#: admin/inc/wp_easycart_admin_table.php:638
-#: admin/inc/wp_easycart_admin_table.php:840
+#: admin/inc/wp_easycart_admin_table.php:648
+#: admin/inc/wp_easycart_admin_table.php:850
 msgid "Advanced: Quantity Grid"
 msgstr "Avanzate: griglia quantità"
 
-#: admin/inc/wp_easycart_admin_table.php:642
-#: admin/inc/wp_easycart_admin_table.php:844
+#: admin/inc/wp_easycart_admin_table.php:652
+#: admin/inc/wp_easycart_admin_table.php:854
 msgid "Advanced: Date"
 msgstr "Avanzato: data"
 
-#: admin/inc/wp_easycart_admin_table.php:646
-#: admin/inc/wp_easycart_admin_table.php:848
+#: admin/inc/wp_easycart_admin_table.php:656
+#: admin/inc/wp_easycart_admin_table.php:858
 msgid "Advanced: Dimensions (Whole Inch)"
 msgstr "Avanzate: dimensioni (pollici interi)"
 
-#: admin/inc/wp_easycart_admin_table.php:650
-#: admin/inc/wp_easycart_admin_table.php:852
+#: admin/inc/wp_easycart_admin_table.php:660
+#: admin/inc/wp_easycart_admin_table.php:862
 msgid "Advanced: Dimensions (Sub-Inch)"
 msgstr "Avanzato: dimensioni (sub-pollici)"
 
-#: admin/inc/wp_easycart_admin_table.php:663
-#: admin/inc/wp_easycart_admin_table.php:865
+#: admin/inc/wp_easycart_admin_table.php:673
+#: admin/inc/wp_easycart_admin_table.php:875
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:207
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Partial Refund"
 msgstr "Rimborso parziale"
 
-#: admin/inc/wp_easycart_admin_table.php:665
-#: admin/inc/wp_easycart_admin_table.php:867
+#: admin/inc/wp_easycart_admin_table.php:675
+#: admin/inc/wp_easycart_admin_table.php:877
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:209
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Refunded"
 msgstr "Rimborsato"
 
-#: admin/inc/wp_easycart_admin_table.php:667
-#: admin/inc/wp_easycart_admin_table.php:869
+#: admin/inc/wp_easycart_admin_table.php:677
+#: admin/inc/wp_easycart_admin_table.php:879
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:211
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Paid"
 msgstr "Pagato"
 
-#: admin/inc/wp_easycart_admin_table.php:669
-#: admin/inc/wp_easycart_admin_table.php:871
+#: admin/inc/wp_easycart_admin_table.php:679
+#: admin/inc/wp_easycart_admin_table.php:881
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:213
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Canceled"
 msgstr "Annullato"
 
-#: admin/inc/wp_easycart_admin_table.php:671
-#: admin/inc/wp_easycart_admin_table.php:873
+#: admin/inc/wp_easycart_admin_table.php:681
+#: admin/inc/wp_easycart_admin_table.php:883
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:215
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Failed"
 msgstr "Fallito"
 
-#: admin/inc/wp_easycart_admin_table.php:673
-#: admin/inc/wp_easycart_admin_table.php:875
+#: admin/inc/wp_easycart_admin_table.php:683
+#: admin/inc/wp_easycart_admin_table.php:885
 #: admin/template/orders/orders/order-details.php:81
 #: admin/template/orders/orders/order-details.php:217
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Processing"
 msgstr "Elaborazione"
 
-#: admin/inc/wp_easycart_admin_table.php:684
+#: admin/inc/wp_easycart_admin_table.php:694
 msgid "Content managed in your Square POS"
 msgstr "Contenuti gestiti nel vostro Square POS"
 
-#: admin/inc/wp_easycart_admin_table.php:699
-#: admin/inc/wp_easycart_admin_table.php:902
-#: admin/inc/wp_easycart_admin_table.php:937
+#: admin/inc/wp_easycart_admin_table.php:709
+#: admin/inc/wp_easycart_admin_table.php:916
+#: admin/inc/wp_easycart_admin_table.php:956
 msgid "Are you sure you want to delete this item?"
 msgstr "Sei sicuro di voler eliminare questo elemento?"
 
-#: admin/inc/wp_easycart_admin_table.php:703
+#: admin/inc/wp_easycart_admin_table.php:713
 msgid ""
 "Quick edit disabled when Square products or inventory syncing is enabled. "
 "Please edit the full product by clicking the title."
@@ -9638,7 +9652,6 @@ msgstr "Stato della licenza"
 #: admin/template/license-status.php:67 admin/template/license-status.php:99
 #: admin/template/license-status.php:281 admin/template/license-status.php:298
 #: admin/template/license-status.php:315 admin/template/license-status.php:332
-#: admin/template/license-status.php:349
 msgid "View Account"
 msgstr "Visualizza l'account"
 
@@ -9886,17 +9899,16 @@ msgstr ""
 #: admin/template/extensions/extensions-dashboard.php:60
 #: admin/template/extensions/extensions-dashboard.php:68
 #: admin/template/extensions/extensions-dashboard.php:77
-#: admin/template/extensions/extensions-dashboard.php:86
-#: admin/template/extensions/extensions-dashboard.php:97
+#: admin/template/extensions/extensions-dashboard.php:88
+#: admin/template/extensions/extensions-dashboard.php:96
 #: admin/template/extensions/extensions-dashboard.php:105
 #: admin/template/extensions/extensions-dashboard.php:114
 #: admin/template/extensions/extensions-dashboard.php:123
-#: admin/template/extensions/extensions-dashboard.php:132
-#: admin/template/extensions/extensions-dashboard.php:143
+#: admin/template/extensions/extensions-dashboard.php:134
+#: admin/template/extensions/extensions-dashboard.php:142
 #: admin/template/extensions/extensions-dashboard.php:151
 #: admin/template/extensions/extensions-dashboard.php:160
 #: admin/template/extensions/extensions-dashboard.php:169
-#: admin/template/extensions/extensions-dashboard.php:178
 #: admin/template/settings/wizard/complete.php:40
 #: admin/template/settings/wizard/complete.php:91
 msgid "Learn More"
@@ -9916,46 +9928,14 @@ msgstr ""
 "EasyCart. Scarica oggi stesso dall'App Store di iTunes!"
 
 #: admin/template/extensions/extensions-dashboard.php:63
-#: admin/template/license-status.php:288 admin/template/license-status.php:293
-#: admin/template/license-status.php:298
-msgid "MailChimp"
-msgstr "MailChimp"
-
-#: admin/template/extensions/extensions-dashboard.php:65
-msgid "MailChimp Extension"
-msgstr "Estensione MailChimp"
-
-#: admin/template/extensions/extensions-dashboard.php:67
-msgid ""
-"Fully integrated with MailChimp's eCommerce features to track purchases "
-"directly related to mail campaigns."
-msgstr ""
-"Completamente integrato con le funzionalità di e-commerce di MailChimp per "
-"monitorare gli acquisti direttamente correlati alle campagne di posta."
-
-#: admin/template/extensions/extensions-dashboard.php:69
-#: admin/template/extensions/extensions-dashboard.php:78
-#: admin/template/extensions/extensions-dashboard.php:87
-#: admin/template/extensions/extensions-dashboard.php:106
-#: admin/template/extensions/extensions-dashboard.php:115
-#: admin/template/extensions/extensions-dashboard.php:124
-#: admin/template/extensions/extensions-dashboard.php:133
-#: admin/template/extensions/extensions-dashboard.php:152
-#: admin/template/extensions/extensions-dashboard.php:161
-#: admin/template/extensions/extensions-dashboard.php:170
-#: admin/template/extensions/extensions-dashboard.php:179
-msgid "Intallation Guide"
-msgstr "Guida all'installazione"
-
-#: admin/template/extensions/extensions-dashboard.php:72
 msgid "AffiliateWP Product Rates"
 msgstr "Tariffe dei prodotti AffiliateWP"
 
-#: admin/template/extensions/extensions-dashboard.php:74
+#: admin/template/extensions/extensions-dashboard.php:65
 msgid "AffiliateWP"
 msgstr "WP affiliato"
 
-#: admin/template/extensions/extensions-dashboard.php:76
+#: admin/template/extensions/extensions-dashboard.php:67
 msgid ""
 "The AffiiliateWP product add-on allows you to add custom rates for "
 "individual products through Affiliate WP.  You still must have an "
@@ -9967,16 +9947,29 @@ msgstr ""
 "comunque necessario disporre di una licenza e di un software AffiliateWP per "
 "utilizzarli in combinazione con EasyCart."
 
-#: admin/template/extensions/extensions-dashboard.php:81
+#: admin/template/extensions/extensions-dashboard.php:69
+#: admin/template/extensions/extensions-dashboard.php:78
+#: admin/template/extensions/extensions-dashboard.php:97
+#: admin/template/extensions/extensions-dashboard.php:106
+#: admin/template/extensions/extensions-dashboard.php:115
+#: admin/template/extensions/extensions-dashboard.php:124
+#: admin/template/extensions/extensions-dashboard.php:143
+#: admin/template/extensions/extensions-dashboard.php:152
+#: admin/template/extensions/extensions-dashboard.php:161
+#: admin/template/extensions/extensions-dashboard.php:170
+msgid "Intallation Guide"
+msgstr "Guida all'installazione"
+
+#: admin/template/extensions/extensions-dashboard.php:72
 #: admin/template/settings/payments/stripe_connect.php:297
 msgid "Tabs"
 msgstr "Schede"
 
-#: admin/template/extensions/extensions-dashboard.php:83
+#: admin/template/extensions/extensions-dashboard.php:74
 msgid "Tabs Extension"
 msgstr "Estensione schede"
 
-#: admin/template/extensions/extensions-dashboard.php:85
+#: admin/template/extensions/extensions-dashboard.php:76
 msgid ""
 "The WP EasyCart Tabs Extension allows you to create custom tabs for each "
 "product. Now you can have more than just the Description &amp; "
@@ -9986,12 +9979,12 @@ msgstr ""
 "per ogni prodotto. Ora puoi avere più delle sole schede Descrizione e "
 "specifiche su ogni voce di prodotto."
 
-#: admin/template/extensions/extensions-dashboard.php:92
-#: admin/template/extensions/extensions-dashboard.php:94
+#: admin/template/extensions/extensions-dashboard.php:83
+#: admin/template/extensions/extensions-dashboard.php:85
 msgid "iPad App"
 msgstr "app per iPad"
 
-#: admin/template/extensions/extensions-dashboard.php:96
+#: admin/template/extensions/extensions-dashboard.php:87
 msgid ""
 "Manage your store from your iPad with the WP EasyCart iPad Application. "
 "Download from the iTunes app store today!"
@@ -9999,17 +9992,17 @@ msgstr ""
 "Gestisci il tuo negozio dal tuo iPad con l'applicazione per iPad WP "
 "EasyCart. Scarica oggi stesso dall'App Store di iTunes!"
 
-#: admin/template/extensions/extensions-dashboard.php:100
-#: admin/template/license-status.php:305 admin/template/license-status.php:310
-#: admin/template/license-status.php:315
+#: admin/template/extensions/extensions-dashboard.php:91
+#: admin/template/license-status.php:288 admin/template/license-status.php:293
+#: admin/template/license-status.php:298
 msgid "ShipStation"
 msgstr "ShipStation"
 
-#: admin/template/extensions/extensions-dashboard.php:102
+#: admin/template/extensions/extensions-dashboard.php:93
 msgid "ShipStation Extension"
 msgstr "Estensione ShipStation"
 
-#: admin/template/extensions/extensions-dashboard.php:104
+#: admin/template/extensions/extensions-dashboard.php:95
 msgid ""
 "The WP EasyCart ShipStation extension automatically exports orders to "
 "ShipStation to quickly manage and automate your shipping system."
@@ -10017,15 +10010,15 @@ msgstr ""
 "L'estensione WP EasyCart ShipStation esporta automaticamente gli ordini su "
 "ShipStation per gestire e automatizzare rapidamente il sistema di spedizione."
 
-#: admin/template/extensions/extensions-dashboard.php:109
+#: admin/template/extensions/extensions-dashboard.php:100
 msgid "Stamps.com"
 msgstr "Stamps.com"
 
-#: admin/template/extensions/extensions-dashboard.php:111
+#: admin/template/extensions/extensions-dashboard.php:102
 msgid "Stamps.com Extension"
 msgstr "Estensione Stamps.com"
 
-#: admin/template/extensions/extensions-dashboard.php:113
+#: admin/template/extensions/extensions-dashboard.php:104
 msgid ""
 "The WP EasyCart Stamps.com extension allows you to purchase and print "
 "packaging labels for EasyCart orders directly with Stamps.com account."
@@ -10034,16 +10027,16 @@ msgstr ""
 "etichette per imballaggi per ordini EasyCart direttamente con l'account "
 "Stamps.com."
 
+#: admin/template/extensions/extensions-dashboard.php:109
 #: admin/template/extensions/extensions-dashboard.php:118
-#: admin/template/extensions/extensions-dashboard.php:127
 msgid "BlueCheck"
 msgstr "BlueCheck"
 
-#: admin/template/extensions/extensions-dashboard.php:120
+#: admin/template/extensions/extensions-dashboard.php:111
 msgid "Mandrill Extension"
 msgstr "Mandrill Extension"
 
-#: admin/template/extensions/extensions-dashboard.php:122
+#: admin/template/extensions/extensions-dashboard.php:113
 msgid ""
 "The Mandrill extension will send your email subscribers from EasyCart to the "
 "Mandrill email system for more professional email sending."
@@ -10051,11 +10044,11 @@ msgstr ""
 "L'estensione Mandrill invierà i tuoi abbonati e-mail da EasyCart al sistema "
 "e-mail Mandrill per un invio di e-mail più professionale."
 
-#: admin/template/extensions/extensions-dashboard.php:129
+#: admin/template/extensions/extensions-dashboard.php:120
 msgid "BlueCheck Extension"
 msgstr "Estensione BlueCheck"
 
-#: admin/template/extensions/extensions-dashboard.php:131
+#: admin/template/extensions/extensions-dashboard.php:122
 msgid ""
 "This plugin allows you to verify the age of your customers when selling "
 "vapor and eCigarette type goods. Learn more about BlueCheck at"
@@ -10064,12 +10057,12 @@ msgstr ""
 "vendono prodotti a vapore e sigarette elettroniche. Ulteriori informazioni "
 "su BlueCheck su"
 
-#: admin/template/extensions/extensions-dashboard.php:138
-#: admin/template/extensions/extensions-dashboard.php:140
+#: admin/template/extensions/extensions-dashboard.php:129
+#: admin/template/extensions/extensions-dashboard.php:131
 msgid "Android App"
 msgstr "Android App"
 
-#: admin/template/extensions/extensions-dashboard.php:142
+#: admin/template/extensions/extensions-dashboard.php:133
 msgid ""
 "Manage your store from your Android device with the WP EasyCart iPad "
 "Application. Download from the Google Play app store today!"
@@ -10077,18 +10070,18 @@ msgstr ""
 "Gestisci il tuo negozio dal tuo dispositivo Android con l'applicazione per "
 "iPad WP EasyCart. Scarica oggi stesso dall'App Store di Google Play!"
 
-#: admin/template/extensions/extensions-dashboard.php:146
-#: admin/template/license-status.php:322 admin/template/license-status.php:327
-#: admin/template/license-status.php:332
+#: admin/template/extensions/extensions-dashboard.php:137
+#: admin/template/license-status.php:305 admin/template/license-status.php:310
+#: admin/template/license-status.php:315
 msgid "Facebook & Instagram"
 msgstr "● Facebook e Instagram"
 
+#: admin/template/extensions/extensions-dashboard.php:139
 #: admin/template/extensions/extensions-dashboard.php:148
-#: admin/template/extensions/extensions-dashboard.php:157
 msgid "Groupon Extension"
 msgstr "Estensione di Groupon"
 
-#: admin/template/extensions/extensions-dashboard.php:150
+#: admin/template/extensions/extensions-dashboard.php:141
 msgid ""
 "Sell your products on Facebook & Instagram with the new feed extension.  "
 "Quickly pull products into Facebook dynamically or via CSV."
@@ -10096,45 +10089,44 @@ msgstr ""
 "Vendi i tuoi prodotti su Facebook e Instagram con la nuova estensione feed. "
 "Inserisci rapidamente i prodotti su Facebook in modo dinamico o tramite CSV."
 
-#: admin/template/extensions/extensions-dashboard.php:155
+#: admin/template/extensions/extensions-dashboard.php:146
 msgid "Groupon"
 msgstr "Groupon"
 
-#: admin/template/extensions/extensions-dashboard.php:159
+#: admin/template/extensions/extensions-dashboard.php:150
 msgid "Import your Groupon coupon codes quickly into your WP EasyCart system."
 msgstr ""
 "Importa rapidamente i tuoi codici coupon Groupon nel tuo sistema WP EasyCart."
 
-#: admin/template/extensions/extensions-dashboard.php:164
-#: admin/template/license-status.php:271 admin/template/license-status.php:276
-#: admin/template/license-status.php:281
-msgid "Quickbooks"
-msgstr "Quickbooks"
+#: admin/template/extensions/extensions-dashboard.php:155
+msgid "User Sync"
+msgstr "Sincronizzazione utenti"
 
-#: admin/template/extensions/extensions-dashboard.php:166
-msgid "Quickbooks Extension"
-msgstr "Estensione Quickbooks"
+#: admin/template/extensions/extensions-dashboard.php:157
+msgid "User Sync Extension"
+msgstr "Estensione di sincronizzazione utente"
 
-#: admin/template/extensions/extensions-dashboard.php:168
+#: admin/template/extensions/extensions-dashboard.php:159
 msgid ""
-"The EasyCart QuickBooks integration plugin allows you to seamlessly have "
-"order information, customer account data, and even product information flow "
-"from EasyCart to your QuickBooks."
+"The WP EasyCart User Sync extension allows you to create/edit users in the "
+"WP EasyCart and keep a matching account in WordPress. This can be useful "
+"when you want to use WordPress with other plugins and the WP EasyCart to "
+"purchase content and subscriptions."
 msgstr ""
-"Il plug-in di integrazione EasyCart QuickBooks ti consente di avere senza "
-"problemi le informazioni sugli ordini, i dati dell'account dei clienti e "
-"persino il flusso di informazioni sui prodotti da EasyCart ai tuoi "
-"QuickBooks."
+"L'estensione WP EasyCart User Sync consente di creare/modificare utenti in "
+"WP EasyCart e di mantenere un account corrispondente in WordPress. Ciò può "
+"essere utile quando si desidera utilizzare WordPress con altri plugin e WP "
+"EasyCart per acquistare contenuti e abbonamenti."
 
-#: admin/template/extensions/extensions-dashboard.php:173
+#: admin/template/extensions/extensions-dashboard.php:164
 msgid "Optimal Logistics"
 msgstr "Logistica ottimale"
 
-#: admin/template/extensions/extensions-dashboard.php:175
+#: admin/template/extensions/extensions-dashboard.php:166
 msgid "Optimal Logistics Extension"
 msgstr "Estensione logistica ottimale"
 
-#: admin/template/extensions/extensions-dashboard.php:177
+#: admin/template/extensions/extensions-dashboard.php:168
 msgid ""
 "This plugin allows you to use Optimalship to get a single DHL rate for "
 "international orders."
@@ -10277,7 +10269,7 @@ msgstr "Piani di Abbonamento"
 
 #: admin/template/left_nav.php:119 admin/template/left_nav.php:124
 #: admin/template/mobile_nav.php:38 admin/template/mobile_nav.php:43
-#: admin/template/orders/orders/order-list.php:191
+#: admin/template/orders/orders/order-list.php:207
 #: admin/template/reports.php:18 admin/template/reports.php:32
 msgid "Orders"
 msgstr "Ordini"
@@ -10401,29 +10393,33 @@ msgstr "Opzioni pagina"
 msgid "Price Points"
 msgstr "Punti di prezzo"
 
-#: admin/template/left_nav.php:245
+#: admin/template/left_nav.php:245 admin/template/mobile_nav.php:106
+msgid "Store Schedule"
+msgstr "Programma del negozio"
+
+#: admin/template/left_nav.php:248
 msgid "Integrations"
 msgstr "Integrazioni"
 
-#: admin/template/left_nav.php:247 admin/template/mobile_nav.php:106
+#: admin/template/left_nav.php:250 admin/template/mobile_nav.php:107
 #: admin/template/settings/checkout/checkout-settings.php:23
 msgid "Third Party"
 msgstr "Terza Parte"
 
-#: admin/template/left_nav.php:250 admin/template/mobile_nav.php:107
+#: admin/template/left_nav.php:253 admin/template/mobile_nav.php:108
 msgid "Cart Importer"
 msgstr "Importatore"
 
-#: admin/template/left_nav.php:253
+#: admin/template/left_nav.php:256
 msgid "Troubleshoot"
 msgstr "Risoluzione dei problemi"
 
-#: admin/template/left_nav.php:255 admin/template/mobile_nav.php:108
+#: admin/template/left_nav.php:258 admin/template/mobile_nav.php:109
 #: admin/template/settings/logging/log-list.php:65
 msgid "Log Entries"
 msgstr "Solo voci di registro"
 
-#: admin/template/left_nav.php:272 admin/template/mobile_nav.php:118
+#: admin/template/left_nav.php:275 admin/template/mobile_nav.php:119
 msgid "Registration"
 msgstr "Registrazione"
 
@@ -10630,34 +10626,38 @@ msgstr "I prodotti con carta regalo sono disponibili e funzionanti."
 msgid "New Gift Card"
 msgstr "Nuova Gift Card"
 
+#: admin/template/license-status.php:271 admin/template/license-status.php:276
+#: admin/template/license-status.php:281
+msgid "Quickbooks"
+msgstr "Quickbooks"
+
 #: admin/template/license-status.php:271 admin/template/license-status.php:288
 #: admin/template/license-status.php:305 admin/template/license-status.php:322
-#: admin/template/license-status.php:339
 msgid "Your license is expired, renew to access."
 msgstr "La tua licenza è scaduta, rinnovala per accedere."
 
 #: admin/template/license-status.php:276 admin/template/license-status.php:293
-#: admin/template/license-status.php:310 admin/template/license-status.php:327
+#: admin/template/license-status.php:310
 msgid "A valid premium license is required for this extension."
 msgstr "Per questa estensione è necessaria una licenza premium valida."
 
 #: admin/template/license-status.php:281 admin/template/license-status.php:298
-#: admin/template/license-status.php:315 admin/template/license-status.php:332
+#: admin/template/license-status.php:315
 msgid "Congrats! You have it, download from your account."
 msgstr "Congratulazioni! Ce l'hai, scaricalo dal tuo account."
 
-#: admin/template/license-status.php:339 admin/template/license-status.php:344
-#: admin/template/license-status.php:349
+#: admin/template/license-status.php:322 admin/template/license-status.php:327
+#: admin/template/license-status.php:332
 msgid "Mobile Apps"
 msgstr "Applicazioni mobili"
 
-#: admin/template/license-status.php:344
+#: admin/template/license-status.php:327
 msgid "A valid premium license is required to use our apps."
 msgstr ""
 "Per utilizzare le nostre applicazioni è necessaria una licenza premium "
 "valida."
 
-#: admin/template/license-status.php:349
+#: admin/template/license-status.php:332
 msgid "Congrats! You have it, download from Apple or Google app stores."
 msgstr ""
 "Congratulazioni! Ce l'hai, scaricalo dagli app store di Apple o Google."
@@ -10679,12 +10679,12 @@ msgid "Email Setup"
 msgstr "Configurazione email"
 
 #: admin/template/orders/orders/order-details.php:55
-#: admin/template/orders/orders/order-details.php:383
+#: admin/template/orders/orders/order-details.php:444
 msgid "Back to Orders"
 msgstr "Torna agli ordini"
 
 #: admin/template/orders/orders/order-details.php:63
-#: admin/template/orders/orders/order-list.php:191
+#: admin/template/orders/orders/order-list.php:207
 #: admin/template/orders/orders/order-quick-edit-slideout.php:21
 msgid "Order"
 msgstr "Ordine"
@@ -10718,12 +10718,12 @@ msgid "Print Packaging Slip"
 msgstr "Stampa la ricevuta di confezionamento"
 
 #: admin/template/orders/orders/order-details.php:110
-#: admin/template/orders/orders/order-list.php:126
+#: admin/template/orders/orders/order-list.php:142
 msgid "Print Receipt"
 msgstr "Stampa ricevuta"
 
 #: admin/template/orders/orders/order-details.php:111
-#: admin/template/orders/orders/order-list.php:134
+#: admin/template/orders/orders/order-list.php:150
 msgid "Send Order Shipped Email"
 msgstr "Invia e-mail dell'ordine spedito"
 
@@ -10793,35 +10793,48 @@ msgstr "Rimborso Totale"
 msgid "Grand Total"
 msgstr "Totale complessivo"
 
-#: admin/template/orders/orders/order-details.php:230
+#: admin/template/orders/orders/order-details.php:238
+msgid "Preorder Pick Up Details"
+msgstr "Dettagli per il ritiro del preordine"
+
+#: admin/template/orders/orders/order-details.php:246
+#: admin/template/orders/orders/order-details.php:268
+msgid "Choose a Pick Up Date"
+msgstr "Scegliere una data di ritiro"
+
+#: admin/template/orders/orders/order-details.php:260
+msgid "Pick Up Details"
+msgstr "Dettagli sul ritiro"
+
+#: admin/template/orders/orders/order-details.php:291
 msgid "User Account"
 msgstr "Account Utente"
 
-#: admin/template/orders/orders/order-details.php:245
+#: admin/template/orders/orders/order-details.php:306
 #: admin/template/orders/orders/order-quick-edit-slideout.php:24
 msgid "Shipping Address"
 msgstr "Indirizzo di spedizione"
 
-#: admin/template/orders/orders/order-details.php:268
+#: admin/template/orders/orders/order-details.php:329
 msgid "Shipping Info"
 msgstr "Info Spedizioni"
 
-#: admin/template/orders/orders/order-details.php:269
-#: admin/template/orders/orders/order-details.php:281
+#: admin/template/orders/orders/order-details.php:330
+#: admin/template/orders/orders/order-details.php:342
 #: admin/template/orders/orders/order-quick-edit-slideout.php:46
 msgid "Expedite Shipping"
 msgstr "Spedizione rapida"
 
-#: admin/template/orders/orders/order-details.php:273
+#: admin/template/orders/orders/order-details.php:334
 msgid "Edit Shipping/Tracking Info"
 msgstr "Modifica le informazioni di spedizione / monitoraggio"
 
-#: admin/template/orders/orders/order-details.php:280
+#: admin/template/orders/orders/order-details.php:341
 #: admin/template/orders/orders/order-quick-edit-slideout.php:45
 msgid "Standard Shipping"
 msgstr "Spedizione Standard"
 
-#: admin/template/orders/orders/order-details.php:287
+#: admin/template/orders/orders/order-details.php:348
 #: admin/template/orders/orders/order-quick-edit-slideout.php:51
 #: admin/template/orders/orders/order-quick-edit-slideout.php:53
 #: admin/template/settings/shipping/shipping-rates.php:14
@@ -10829,37 +10842,37 @@ msgstr "Spedizione Standard"
 msgid "Shipping Method"
 msgstr "Metodo di spedizione"
 
-#: admin/template/orders/orders/order-details.php:292
+#: admin/template/orders/orders/order-details.php:353
 #: admin/template/orders/orders/order-quick-edit-slideout.php:57
 #: admin/template/orders/orders/order-quick-edit-slideout.php:59
 msgid "Shipping Carrier"
 msgstr "Spedizionere"
 
-#: admin/template/orders/orders/order-details.php:297
+#: admin/template/orders/orders/order-details.php:358
 #: admin/template/orders/orders/order-quick-edit-slideout.php:63
 #: admin/template/orders/orders/order-quick-edit-slideout.php:65
 msgid "Tracking Number"
 msgstr "Numero Spedizione"
 
-#: admin/template/orders/orders/order-details.php:307
+#: admin/template/orders/orders/order-details.php:368
 msgid "Billing Address"
 msgstr "Indirizzo di fatturazione"
 
-#: admin/template/orders/orders/order-details.php:331
+#: admin/template/orders/orders/order-details.php:392
 msgid "Billing Info"
 msgstr "Info di fatturazione"
 
-#: admin/template/orders/orders/order-details.php:344
-#: admin/template/orders/orders/order-details.php:353
+#: admin/template/orders/orders/order-details.php:405
+#: admin/template/orders/orders/order-details.php:414
 #: admin/template/settings/checkout/checkout-form-settings.php:43
 msgid "Customer Notes"
 msgstr "Note Cliente"
 
-#: admin/template/orders/orders/order-details.php:346
+#: admin/template/orders/orders/order-details.php:407
 msgid "Edit Customer Notes"
 msgstr "Note Cliente"
 
-#: admin/template/orders/orders/order-details.php:363
+#: admin/template/orders/orders/order-details.php:424
 msgid "Agreed to Terms"
 msgstr "Con accordo con i Termini"
 
@@ -10997,92 +11010,100 @@ msgstr "ID Sottoscrizione"
 msgid "View Subscription Information"
 msgstr "Informazioni registrazione"
 
-#: admin/template/orders/orders/order-list.php:28
-#: admin/template/orders/orders/order-list.php:174
+#: admin/template/orders/orders/order-list.php:27
+#: admin/template/orders/orders/order-list.php:190
 #: admin/template/products/products/product-list.php:26
 msgid "Quick Edit"
 msgstr "Modifica Veloce"
 
-#: admin/template/orders/orders/order-list.php:44
+#: admin/template/orders/orders/order-list.php:43
 msgid "Order Date"
 msgstr "Data Ordine"
 
-#: admin/template/orders/orders/order-list.php:50
+#: admin/template/orders/orders/order-list.php:51
+msgid "Pick Up Date"
+msgstr "Data"
+
+#: admin/template/orders/orders/order-list.php:60
+msgid "Restaurant Time"
+msgstr "Tempo di ristorazione"
+
+#: admin/template/orders/orders/order-list.php:67
 msgid "Order Total"
 msgstr "Totale Ordine"
 
-#: admin/template/orders/orders/order-list.php:69
+#: admin/template/orders/orders/order-list.php:86
 #: admin/template/status/store-status/store-status.php:515
 msgid "Payment Status"
 msgstr "Stato Pagamento"
 
-#: admin/template/orders/orders/order-list.php:76
-#: admin/template/orders/orders/order-list.php:92
+#: admin/template/orders/orders/order-list.php:93
+#: admin/template/orders/orders/order-list.php:108
 #: admin/template/orders/orders/order-quick-edit-slideout.php:32
 msgid "Order Status"
 msgstr "Stato Ordine"
 
-#: admin/template/orders/orders/order-list.php:97
+#: admin/template/orders/orders/order-list.php:113
 msgid "Purchased Product"
 msgstr "Prodotto acquistato"
 
-#: admin/template/orders/orders/order-list.php:104
+#: admin/template/orders/orders/order-list.php:120
 msgid "By Customer"
 msgstr "Cliente"
 
-#: admin/template/orders/orders/order-list.php:122
+#: admin/template/orders/orders/order-list.php:138
 msgid "Resend Email Receipt"
 msgstr "Invia di nuovo la ricevuta e-mail"
 
-#: admin/template/orders/orders/order-list.php:130
+#: admin/template/orders/orders/order-list.php:146
 msgid "Print Packing Slip"
 msgstr "Stampa documento di spedizione"
 
-#: admin/template/orders/orders/order-list.php:138
+#: admin/template/orders/orders/order-list.php:154
 msgid "Change Order Status"
 msgstr "Modificare lo stato dell'ordine"
 
-#: admin/template/orders/orders/order-list.php:146
+#: admin/template/orders/orders/order-list.php:162
 #: admin/template/products/products/product-list.php:122
 #: admin/template/users/subscribers/subscribers-list.php:50
 #: admin/template/users/users/user-list.php:61
 msgid "Export Selected CSV"
 msgstr "Esporta selezionati"
 
-#: admin/template/orders/orders/order-list.php:150
+#: admin/template/orders/orders/order-list.php:166
 #: admin/template/products/products/product-list.php:126
 #: admin/template/users/subscribers/subscribers-list.php:54
 #: admin/template/users/users/user-list.php:65
 msgid "Export All CSV"
 msgstr "Esporta TUTTO in CSV"
 
-#: admin/template/orders/orders/order-list.php:154
+#: admin/template/orders/orders/order-list.php:170
 msgid "Mark Selected Viewed"
 msgstr "Contrassegna selezionato visualizzato"
 
-#: admin/template/orders/orders/order-list.php:158
+#: admin/template/orders/orders/order-list.php:174
 msgid "Mark Selected Not Viewed"
 msgstr "Contrassegna selezionato come non visualizzato"
 
-#: admin/template/orders/orders/order-list.php:162
+#: admin/template/orders/orders/order-list.php:178
 msgid "Mark All Viewed"
 msgstr "Segna tutti visualizzati"
 
-#: admin/template/orders/orders/order-list.php:166
+#: admin/template/orders/orders/order-list.php:182
 msgid "Mark All Not Viewed"
 msgstr "Segna tutto non visualizzato"
 
-#: admin/template/orders/orders/order-list.php:195
+#: admin/template/orders/orders/order-list.php:211
 #: admin/template/products/products/product-list.php:198
 msgid "Do you like WP EasyCart? If you do, please take a moment to"
 msgstr "Ti piace WP EasyCart? Se lo fai, per favore prenditi un momento per"
 
-#: admin/template/orders/orders/order-list.php:195
+#: admin/template/orders/orders/order-list.php:211
 #: admin/template/products/products/product-list.php:198
 msgid "submit a review"
 msgstr "invia una recensione"
 
-#: admin/template/orders/orders/order-list.php:195
+#: admin/template/orders/orders/order-list.php:211
 #: admin/template/products/products/product-list.php:198
 msgid "it really helps us!"
 msgstr "ci aiuta davvero!"
@@ -11283,7 +11304,7 @@ msgid "Your Manufacturer Name"
 msgstr "Nome Produttore"
 
 #: admin/template/products/manufacturers/new-manufacturer-slideout.php:27
-#: admin/template/products/products/new-product-slideout.php:269
+#: admin/template/products/products/new-product-slideout.php:271
 msgid "Create"
 msgstr "Crea"
 
@@ -11787,137 +11808,145 @@ msgstr "Prodotto inchiesta"
 msgid "Seasonal/Coming Soon Product"
 msgstr "Prodotto stagionale / in arrivo"
 
-#: admin/template/products/products/new-product-slideout.php:57
+#: admin/template/products/products/new-product-slideout.php:55
+msgid "Restaurant Item"
+msgstr "Articolo da ristorante"
+
+#: admin/template/products/products/new-product-slideout.php:56
+msgid "Preorder for Pickup Item"
+msgstr "Preordine per il ritiro dell'articolo"
+
+#: admin/template/products/products/new-product-slideout.php:59
 msgid "*NOTE: This product type is only compatible with Stripe"
 msgstr "* NOTA: questo tipo di prodotto è compatibile solo con Stripe"
 
-#: admin/template/products/products/new-product-slideout.php:62
+#: admin/template/products/products/new-product-slideout.php:64
 #: admin/template/products/products/quick-edit-product-slideout.php:42
 msgid "Your Product Name"
 msgstr "Il nome del Suo prodotto:*"
 
-#: admin/template/products/products/new-product-slideout.php:65
+#: admin/template/products/products/new-product-slideout.php:67
 #: admin/template/products/products/quick-edit-product-slideout.php:45
 msgid "The title is required."
 msgstr "Il titolo è richiesto."
 
-#: admin/template/products/products/new-product-slideout.php:71
+#: admin/template/products/products/new-product-slideout.php:73
 #: admin/template/products/products/quick-edit-product-slideout.php:51
 msgid "product-name"
 msgstr "nome-prodotto"
 
-#: admin/template/products/products/new-product-slideout.php:74
+#: admin/template/products/products/new-product-slideout.php:76
 #: admin/template/products/products/quick-edit-product-slideout.php:54
 msgid "The SKU is required."
 msgstr "Lo SKU è obbligatorio."
 
-#: admin/template/products/products/new-product-slideout.php:77
+#: admin/template/products/products/new-product-slideout.php:79
 #: admin/template/products/products/quick-edit-product-slideout.php:57
 msgid "Duplicate SKU, please change to a unique value."
 msgstr "SKU duplicato, passare a un valore univoco."
 
-#: admin/template/products/products/new-product-slideout.php:115
+#: admin/template/products/products/new-product-slideout.php:117
 #: admin/template/products/products/quick-edit-product-slideout.php:110
 msgid "Stock Options"
 msgstr "Stock Options"
 
-#: admin/template/products/products/new-product-slideout.php:118
+#: admin/template/products/products/new-product-slideout.php:120
 #: admin/template/products/products/quick-edit-product-slideout.php:113
 msgid "Do Not Track Stock"
 msgstr "Non tenere traccia delle scorte"
 
-#: admin/template/products/products/new-product-slideout.php:119
+#: admin/template/products/products/new-product-slideout.php:121
 #: admin/template/products/products/quick-edit-product-slideout.php:114
 msgid "Track Basic Stock"
 msgstr "Tieni traccia delle scorte di base"
 
-#: admin/template/products/products/new-product-slideout.php:120
+#: admin/template/products/products/new-product-slideout.php:122
 #: admin/template/products/products/quick-edit-product-slideout.php:115
 msgid "Track Option Item Stock"
 msgstr "Traccia Stock articolo opzione"
 
-#: admin/template/products/products/new-product-slideout.php:129
+#: admin/template/products/products/new-product-slideout.php:131
 msgid "Option item quantities will be added when you edit the product"
 msgstr ""
 "Quando modifichi il prodotto, verranno aggiunte le quantità delle voci di "
 "opzione"
 
-#: admin/template/products/products/new-product-slideout.php:132
+#: admin/template/products/products/new-product-slideout.php:134
 #: admin/template/products/products/quick-edit-product-slideout.php:127
 msgid "Shipping Options"
 msgstr "Opzioni di spedizione"
 
-#: admin/template/products/products/new-product-slideout.php:135
+#: admin/template/products/products/new-product-slideout.php:137
 #: admin/template/products/products/quick-edit-product-slideout.php:130
 msgid "No Shipping"
 msgstr "Nessuna spedizione"
 
-#: admin/template/products/products/new-product-slideout.php:158
+#: admin/template/products/products/new-product-slideout.php:160
 #: admin/template/products/products/quick-edit-product-slideout.php:156
 msgid "Tax Options"
 msgstr "Opzioni tasse"
 
-#: admin/template/products/products/new-product-slideout.php:161
+#: admin/template/products/products/new-product-slideout.php:163
 #: admin/template/products/products/quick-edit-product-slideout.php:159
 msgid "Not Taxable"
 msgstr "No tassabile"
 
-#: admin/template/products/products/new-product-slideout.php:162
+#: admin/template/products/products/new-product-slideout.php:164
 #: admin/template/products/products/quick-edit-product-slideout.php:160
 msgid "Enable Tax"
 msgstr "Abilita tasse"
 
-#: admin/template/products/products/new-product-slideout.php:163
+#: admin/template/products/products/new-product-slideout.php:165
 #: admin/template/products/products/quick-edit-product-slideout.php:161
 #: admin/template/settings/taxes/vat-setup.php:39
 msgid "Enable VAT"
 msgstr "Abilita IVA"
 
-#: admin/template/products/products/new-product-slideout.php:169
+#: admin/template/products/products/new-product-slideout.php:171
 msgid "Product Options (Product Variants)?"
 msgstr "Opzioni di prodotto (varianti di prodotto)?"
 
-#: admin/template/products/products/new-product-slideout.php:172
+#: admin/template/products/products/new-product-slideout.php:174
 msgid "No Options or Modifiers"
 msgstr "Nessuna opzione o modificatore"
 
-#: admin/template/products/products/new-product-slideout.php:173
+#: admin/template/products/products/new-product-slideout.php:175
 msgid "Product Options (Variants)"
 msgstr "Opzioni di prodotto (varianti)"
 
-#: admin/template/products/products/new-product-slideout.php:179
-#: admin/template/products/products/new-product-slideout.php:193
-#: admin/template/products/products/new-product-slideout.php:207
-#: admin/template/products/products/new-product-slideout.php:221
-#: admin/template/products/products/new-product-slideout.php:235
+#: admin/template/products/products/new-product-slideout.php:181
+#: admin/template/products/products/new-product-slideout.php:195
+#: admin/template/products/products/new-product-slideout.php:209
+#: admin/template/products/products/new-product-slideout.php:223
+#: admin/template/products/products/new-product-slideout.php:237
 #, php-format
 msgid "Option %s"
 msgstr "Opzione %s"
 
-#: admin/template/products/products/new-product-slideout.php:249
+#: admin/template/products/products/new-product-slideout.php:251
 msgid "Add advanced options by creating then editing the product"
 msgstr "Aggiungi opzioni avanzate creando e modificando il prodotto"
 
-#: admin/template/products/products/new-product-slideout.php:250
+#: admin/template/products/products/new-product-slideout.php:252
 msgid "You can edit all product settings after creating the product basics"
 msgstr ""
 "È possibile modificare tutte le impostazioni del prodotto dopo aver creato "
 "le basi del prodotto"
 
-#: admin/template/products/products/new-product-slideout.php:251
+#: admin/template/products/products/new-product-slideout.php:253
 msgid "Looking to customize this panel?"
 msgstr "Stai cercando di personalizzare questo pannello?"
 
-#: admin/template/products/products/new-product-slideout.php:251
+#: admin/template/products/products/new-product-slideout.php:253
 #: admin/template/settings/cart-importer/square-import.php:24
 msgid "Click here"
 msgstr "Clicca qui"
 
-#: admin/template/products/products/new-product-slideout.php:259
+#: admin/template/products/products/new-product-slideout.php:261
 msgid "Create and Edit"
 msgstr "Crea e Modifica"
 
-#: admin/template/products/products/new-product-slideout.php:264
+#: admin/template/products/products/new-product-slideout.php:266
 msgid "Create and Another"
 msgstr "Crea e un altro"
 
@@ -13541,6 +13570,76 @@ msgstr ""
 "inviare un ordine senza password o account (alcuni prodotti richiedono "
 "account come download, abbonamenti o buoni regalo)"
 
+#: admin/template/settings/checkout/checkout-schedule.php:5
+msgid "Checkout Schedule Settings"
+msgstr "Impostazioni del piano di pagamento"
+
+#: admin/template/settings/checkout/checkout-schedule.php:12
+msgid "Restaurants: Allow Scheduling"
+msgstr "Ristoranti: Consentire la programmazione"
+
+#: admin/template/settings/checkout/checkout-schedule.php:12
+msgid "Enable to allow customers to schedule a restaurant order."
+msgstr "Consentire ai clienti di programmare un ordine al ristorante."
+
+#: admin/template/settings/checkout/checkout-schedule.php:17
+#: admin/template/settings/checkout/checkout-schedule.php:21
+#: admin/template/settings/checkout/checkout-schedule.php:25
+#: admin/template/settings/checkout/checkout-schedule.php:29
+#: admin/template/settings/checkout/checkout-schedule.php:33
+#: admin/template/settings/checkout/checkout-schedule.php:37
+#: admin/template/settings/checkout/checkout-schedule.php:46
+msgid "Minutes"
+msgstr "Minuti"
+
+#: admin/template/settings/checkout/checkout-schedule.php:40
+msgid "Retaurant Orders: Scheduling Range"
+msgstr "Ordini del ristorante: Gamma di programmazione"
+
+#: admin/template/settings/checkout/checkout-schedule.php:40
+msgid "The difference in minutes between possible scheduling times."
+msgstr "La differenza in minuti tra i possibili orari di programmazione."
+
+#: admin/template/settings/checkout/checkout-schedule.php:49
+msgid "Retaurant Orders: Expected Prep Time"
+msgstr "Ordini del ristorante: Tempo di preparazione previsto"
+
+#: admin/template/settings/checkout/checkout-schedule.php:49
+msgid ""
+"This is the amount of time from order to pickup for ASAP restaurant orders."
+msgstr ""
+"È il tempo che intercorre tra l'ordine e il ritiro per gli ordini del "
+"ristorante ASAP."
+
+#: admin/template/settings/checkout/checkout-schedule.php:51
+msgid "Cart Schedule: Preorder for Pickup Instructions"
+msgstr "Programma del carrello: Istruzioni per il preordine e il ritiro"
+
+#: admin/template/settings/checkout/checkout-schedule.php:51
+msgid ""
+"This applies to preorder for pickup products only and shows in the box where "
+"the customer chooses a pickup date."
+msgstr ""
+"Questo vale solo per i prodotti in preordine per il ritiro e viene "
+"visualizzato nella casella in cui il cliente sceglie la data di ritiro."
+
+#: admin/template/settings/checkout/checkout-schedule.php:51
+#: admin/template/settings/checkout/checkout-schedule.php:53
+msgid "Enter a customer message"
+msgstr "Inserire un messaggio per il cliente"
+
+#: admin/template/settings/checkout/checkout-schedule.php:53
+msgid "Cart Schedule: Restaurant Pickup Instructions"
+msgstr "Programma del carrello: Istruzioni per il ritiro al ristorante"
+
+#: admin/template/settings/checkout/checkout-schedule.php:53
+msgid ""
+"This applies to restaurant style products only and shows in the box where "
+"the customer chooses their order pickup time."
+msgstr ""
+"Questo vale solo per i prodotti di tipo ristorante e viene visualizzato "
+"nella casella in cui il cliente sceglie l'orario di ritiro dell'ordine."
+
 #: admin/template/settings/checkout/checkout-settings.php:5
 msgid "Payment Page Options"
 msgstr "Opzioni della pagina di pagamento"
@@ -14872,15 +14971,15 @@ msgstr "Sorgente"
 msgid "Log Entry"
 msgstr "Voce del registro"
 
-#: admin/template/settings/miscellaneous/admin.php:5
+#: admin/template/settings/miscellaneous/admin.php:4
 msgid "Product Quick Add Options"
 msgstr "Opzioni di aggiunta rapida del prodotto"
 
-#: admin/template/settings/miscellaneous/admin.php:13
+#: admin/template/settings/miscellaneous/admin.php:11
 msgid "Show Stock Options"
 msgstr "Opzioni su azioni"
 
-#: admin/template/settings/miscellaneous/admin.php:13
+#: admin/template/settings/miscellaneous/admin.php:11
 msgid ""
 "Enable to show stock options on the product quick creation panel in the "
 "admin."
@@ -14888,11 +14987,11 @@ msgstr ""
 "Abilita per mostrare le opzioni di magazzino nel pannello di creazione "
 "rapida del prodotto nell'amministratore."
 
-#: admin/template/settings/miscellaneous/admin.php:15
+#: admin/template/settings/miscellaneous/admin.php:12
 msgid "Show Shipping Options"
 msgstr "Mostra tutte le opzioni di spedizione"
 
-#: admin/template/settings/miscellaneous/admin.php:15
+#: admin/template/settings/miscellaneous/admin.php:12
 msgid ""
 "Enable to show shipping options on the product quick creation panel in the "
 "admin."
@@ -14900,22 +14999,22 @@ msgstr ""
 "Abilita per mostrare le opzioni di spedizione sul pannello di creazione "
 "rapida del prodotto nell'amministratore."
 
-#: admin/template/settings/miscellaneous/admin.php:17
+#: admin/template/settings/miscellaneous/admin.php:13
 msgid "Show Tax Options"
 msgstr "Opzioni fiscali"
 
-#: admin/template/settings/miscellaneous/admin.php:17
+#: admin/template/settings/miscellaneous/admin.php:13
 msgid ""
 "Enable to show tax options on the product quick creation panel in the admin."
 msgstr ""
 "Abilita per mostrare le opzioni fiscali nel pannello di creazione rapida del "
 "prodotto nell'amministratore."
 
-#: admin/template/settings/miscellaneous/admin.php:19
+#: admin/template/settings/miscellaneous/admin.php:14
 msgid "Show Variants"
 msgstr "Varianti"
 
-#: admin/template/settings/miscellaneous/admin.php:19
+#: admin/template/settings/miscellaneous/admin.php:14
 msgid ""
 "Enable to show variant options on the product quick creation panel in the "
 "admin."
@@ -14923,21 +15022,50 @@ msgstr ""
 "Abilita per mostrare le opzioni delle varianti sul pannello di creazione "
 "rapida del prodotto nell'amministratore."
 
-#: admin/template/settings/miscellaneous/admin.php:28
+#: admin/template/settings/miscellaneous/admin.php:21
 msgid "Admin Apps Options (Premium Only)"
 msgstr "Opzioni app di amministrazione (solo Premium)"
 
-#: admin/template/settings/miscellaneous/admin.php:37
+#: admin/template/settings/miscellaneous/admin.php:28
 msgid "App Notifications"
 msgstr "Notifiche app"
 
-#: admin/template/settings/miscellaneous/admin.php:37
+#: admin/template/settings/miscellaneous/admin.php:28
 msgid ""
 "Enable to receive push notifications on your WP EasyCart apps (must have "
 "push notifications enabled!)."
 msgstr ""
 "Abilita la ricezione di notifiche push sulle tue app WP EasyCart (devono "
 "essere abilitate le notifiche push!)."
+
+#: admin/template/settings/miscellaneous/admin.php:35
+msgid "Additional Admin Options"
+msgstr "Opzioni amministrative aggiuntive"
+
+#: admin/template/settings/miscellaneous/admin.php:42
+msgid "Order List: Enable Preorder Pickup Date Display"
+msgstr ""
+"Elenco ordini: Abilita la visualizzazione della data di ritiro del preordine"
+
+#: admin/template/settings/miscellaneous/admin.php:42
+msgid "This will add a column in the order list for the preorder pickup date."
+msgstr ""
+"Questo aggiungerà una colonna nell'elenco degli ordini per la data di ritiro "
+"del preordine."
+
+#: admin/template/settings/miscellaneous/admin.php:43
+msgid "Order List: Enable Restaurant Pickup Time Display"
+msgstr ""
+"Elenco ordini: Abilita la visualizzazione dell'orario di ritiro del "
+"ristorante"
+
+#: admin/template/settings/miscellaneous/admin.php:43
+msgid ""
+"This will add a column in the order list for the restaurant style orders and "
+"expected pickup time."
+msgstr ""
+"In questo modo, nell'elenco degli ordini verrà aggiunta una colonna per gli "
+"ordini in stile ristorante e l'orario di ritiro previsto."
 
 #: admin/template/settings/miscellaneous/search.php:13
 msgid "Use Live Search"
@@ -19738,8 +19866,8 @@ msgid "See Our Full Feature List"
 msgstr "Consulta il nostro elenco completo delle funzionalità"
 
 #: admin/template/upgrade/upgrade-screen.php:85
-msgid "MailChimp, Square, ShipStation, QB, USPS, UPS"
-msgstr "MailChimp, Square, ShipStation, QB, USPS, UPS"
+msgid "Square, ShipStation, QB, USPS, UPS"
+msgstr "Square, ShipStation, QB, USPS, UPS"
 
 #: admin/template/upgrade/upgrade-screen.php:85
 msgid "Partner Logos"
@@ -20202,60 +20330,60 @@ msgstr "Ricerca prodotti"
 msgid "Product Limit"
 msgstr "Limite Prodotti"
 
-#: wpeasycart.php:1985 wpeasycart.php:2041 wpeasycart.php:2085
-#: wpeasycart.php:2145 wpeasycart.php:2186 wpeasycart.php:2227
-#: wpeasycart.php:2268 wpeasycart.php:2309 wpeasycart.php:2371
-#: wpeasycart.php:2412 wpeasycart.php:2460 wpeasycart.php:2501
-#: wpeasycart.php:2545 wpeasycart.php:2586 wpeasycart.php:2634
-#: wpeasycart.php:2675 wpeasycart.php:2727 wpeasycart.php:2774
-#: wpeasycart.php:2816
+#: wpeasycart.php:1995 wpeasycart.php:2052 wpeasycart.php:2097
+#: wpeasycart.php:2158 wpeasycart.php:2200 wpeasycart.php:2242
+#: wpeasycart.php:2284 wpeasycart.php:2326 wpeasycart.php:2389
+#: wpeasycart.php:2431 wpeasycart.php:2480 wpeasycart.php:2522
+#: wpeasycart.php:2567 wpeasycart.php:2609 wpeasycart.php:2658
+#: wpeasycart.php:2700 wpeasycart.php:2753 wpeasycart.php:2801
+#: wpeasycart.php:2843
 msgid "Product not found."
 msgstr "Prodotto non trovato."
 
-#: wpeasycart.php:8274
+#: wpeasycart.php:8386
 msgctxt "post type general name"
 msgid "Store Items"
 msgstr "Oggetti del Negozio"
 
-#: wpeasycart.php:8275
+#: wpeasycart.php:8387
 msgctxt "post type singular name"
 msgid "Store Item"
 msgstr "( oggetto del Negozio)"
 
-#: wpeasycart.php:8276
+#: wpeasycart.php:8388
 msgctxt "ec_store"
 msgid "Add New"
 msgstr "Aggiungi Nuovo"
 
-#: wpeasycart.php:8277
+#: wpeasycart.php:8389
 msgid "Add New Store Item"
 msgstr "Aggiungi Nuovo Store"
 
-#: wpeasycart.php:8278
+#: wpeasycart.php:8390
 msgid "Edit Store Item"
 msgstr "Modifica Store"
 
-#: wpeasycart.php:8279
+#: wpeasycart.php:8391
 msgid "New Store Item"
 msgstr "Nuovo Store"
 
-#: wpeasycart.php:8280
+#: wpeasycart.php:8392
 msgid "All Store Items"
 msgstr "Tutti gli oggetti del Negozio"
 
-#: wpeasycart.php:8281
+#: wpeasycart.php:8393
 msgid "View Store Item"
 msgstr "Visualizza Store"
 
-#: wpeasycart.php:8282
+#: wpeasycart.php:8394
 msgid "Search Store Items"
 msgstr "Cerca articoli del negozio"
 
-#: wpeasycart.php:8283
+#: wpeasycart.php:8395
 msgid "No store items found"
 msgstr "Nessun articolo del negozio trovato"
 
-#: wpeasycart.php:8284
+#: wpeasycart.php:8396
 msgid "No store items found in the Trash"
 msgstr "Nessun elemento del negozio trovato nel Cestino"
 
@@ -20281,6 +20409,38 @@ msgstr ""
 "e molto altro! Ora con WordPress, le potenti funzionalità sono ancora molto "
 "facili da amministrare! In caso di domande, consultare il nostro sito Web "
 "all'indirizzo WP EasyCart."
+
+#~ msgid "Choose a Pick Up Time"
+#~ msgstr "Scegliere un orario di ritiro"
+
+#~ msgid "Pick Up Time"
+#~ msgstr "Ora di Partenza"
+
+#~ msgid "MailChimp"
+#~ msgstr "MailChimp"
+
+#~ msgid "MailChimp Extension"
+#~ msgstr "Estensione MailChimp"
+
+#~ msgid ""
+#~ "Fully integrated with MailChimp's eCommerce features to track purchases "
+#~ "directly related to mail campaigns."
+#~ msgstr ""
+#~ "Completamente integrato con le funzionalità di e-commerce di MailChimp "
+#~ "per monitorare gli acquisti direttamente correlati alle campagne di posta."
+
+#~ msgid "Quickbooks Extension"
+#~ msgstr "Estensione Quickbooks"
+
+#~ msgid ""
+#~ "The EasyCart QuickBooks integration plugin allows you to seamlessly have "
+#~ "order information, customer account data, and even product information "
+#~ "flow from EasyCart to your QuickBooks."
+#~ msgstr ""
+#~ "Il plug-in di integrazione EasyCart QuickBooks ti consente di avere senza "
+#~ "problemi le informazioni sugli ordini, i dati dell'account dei clienti e "
+#~ "persino il flusso di informazioni sui prodotti da EasyCart ai tuoi "
+#~ "QuickBooks."
 
 #~ msgid "IMAGE TAGS"
 #~ msgstr "TAG IMMAGINE"

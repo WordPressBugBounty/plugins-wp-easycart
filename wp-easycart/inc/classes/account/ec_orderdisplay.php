@@ -89,14 +89,20 @@ class ec_orderdisplay{
 	public $orderdetails = array();				// array of ec_orderdetail items
 	public $cart;
 
-	private $account_page;						// VARCHAR
-	private $cart_page;							// VARCHAR
-	private $store_page;						// VARCHAR
-	private $permalink_divider;					// CHAR
+	private $account_page;
+	private $cart_page;
+	private $store_page;
+	private $permalink_divider;
 
-	private $currency;							// ec_currency structure
+	private $currency;
 
-	private $membership_page;					// VARCHAR 512
+	private $membership_page;
+
+	public $includes_preorder_items;
+	public $includes_restaurant_type;
+	public $pickup_date;
+	public $pickup_asap;
+	public $pickup_time;
 
 	function __construct( $order_row, $is_order_details = false, $is_admin = false ){
 		$this->mysqli = new ec_db( );
@@ -187,6 +193,12 @@ class ec_orderdisplay{
 
 			$this->paypal_email_id = $order_row->paypal_email_id; 
 			$this->paypal_payer_id = $order_row->paypal_payer_id;
+
+			$this->includes_preorder_items = ( isset( $order_row->includes_preorder_items ) ) ? $order_row->includes_preorder_items : false;
+			$this->includes_restaurant_type = ( isset( $order_row->includes_restaurant_type ) ) ? $order_row->includes_restaurant_type : false;
+			$this->pickup_date = ( isset( $order_row->pickup_date ) ) ? $order_row->pickup_date : '';
+			$this->pickup_asap = ( isset( $order_row->pickup_asap ) ) ? $order_row->pickup_asap : '';
+			$this->pickup_time = ( isset( $order_row->pickup_time ) ) ? $order_row->pickup_time : '';
 
 			$this->success_page_shown = $order_row->success_page_shown;
 		}// end check for valid order row

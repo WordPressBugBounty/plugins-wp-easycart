@@ -115,7 +115,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 		);
 
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_list_container',
 			array(
@@ -123,7 +123,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_specw_color',
 			array(
@@ -144,7 +144,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				'selector' => '{{WRAPPER}} .ec_product_details_specifications',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_specw_align',
 			array(
@@ -169,7 +169,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_specw_padding',
 			array(
@@ -189,7 +189,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_specw_margin',
 			array(
@@ -209,7 +209,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -217,7 +217,7 @@ class Wp_Easycart_Elementor_Product_Details_Specifications_Widget extends \Eleme
 				'selector' => '{{WRAPPER}} .ec_product_details_specifications',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_specw_border_radius',
 			array(

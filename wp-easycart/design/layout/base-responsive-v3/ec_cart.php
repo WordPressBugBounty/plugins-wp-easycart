@@ -8,6 +8,14 @@
 		</div>
 	</div>
 
+	<?php if ( $this->cart->has_restaurant_items() && ! $this->cart->is_restaurant_open() ) { ?>
+	<div class="ec_cart_error">
+		<div>
+			<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'restaurant_closed' ); ?>
+		</div>
+	</div>
+	<?php }?>
+
 	<div class="ec_cart_breadcrumbs">
 		<div class="ec_cart_breadcrumb<?php if( isset( $_GET['ec_page'] ) ){?> ec_inactive<?php }?>"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_title' ); ?></div>
 		<div class="ec_cart_breadcrumb_divider"></div>
@@ -233,27 +241,29 @@
 
 		<?php do_action( 'wp_easycart_totals_after' ); ?>
 
-		<?php if( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ){ $this->print_stripe_payment_button( ); } ?>
+		<?php if ( ! $this->cart->has_restaurant_items() || $this->cart->is_restaurant_open() ) { ?>
+			<?php if( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ){ $this->print_stripe_payment_button( ); } ?>
 
-		<?php if( get_option( 'ec_option_payment_process_method' ) == 'square' ){ $this->print_square_payment_button( ); } ?>
+			<?php if( get_option( 'ec_option_payment_process_method' ) == 'square' ){ $this->print_square_payment_button( ); } ?>
 
-		<?php if( apply_filters( 'wpeasycart_show_checkout_button', true ) ){ ?>
-		<div class="ec_cart_button_row ec_cart_button_row_checkout">
-			<a class="ec_cart_button ec_cart_button_checkout" href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_info"; ?>"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $this->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $this->cart->total_items ); ?>', contents: [<?php
-				for( $i=0; $i<count( $this->cart->cart ); $i++ ){
-					if( $i > 0 )
-						echo ", ";
-					echo "{ id: '" . esc_js( $this->cart->cart[$i]->product_id ) . "', quantity: " . esc_js( $this->cart->cart[$i]->quantity ) . ", price: " . esc_js( $this->cart->cart[$i]->unit_price ) . " }";
-				}		
-				?>]}); wp_easycart_cart_checkout_click();"<?php } else { ?> onclick="wp_easycart_cart_checkout_click();"<?php } ?><?php do_action( 'wpeasycart_checkout_button_ahref' ); ?>><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout' ); ?>
-				<div class="wp-easycart-ld-ring wp-easycart-ld-spin" style="color:#fff"></div>
-			</a>
-		</div>
+			<?php if( apply_filters( 'wpeasycart_show_checkout_button', true ) ){ ?>
+			<div class="ec_cart_button_row ec_cart_button_row_checkout">
+				<a class="ec_cart_button ec_cart_button_checkout" href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_info"; ?>"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $this->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $this->cart->total_items ); ?>', contents: [<?php
+					for( $i=0; $i<count( $this->cart->cart ); $i++ ){
+						if( $i > 0 )
+							echo ", ";
+						echo "{ id: '" . esc_js( $this->cart->cart[$i]->product_id ) . "', quantity: " . esc_js( $this->cart->cart[$i]->quantity ) . ", price: " . esc_js( $this->cart->cart[$i]->unit_price ) . " }";
+					}		
+					?>]}); wp_easycart_cart_checkout_click();"<?php } else { ?> onclick="wp_easycart_cart_checkout_click();"<?php } ?><?php do_action( 'wpeasycart_checkout_button_ahref' ); ?>><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout' ); ?>
+					<div class="wp-easycart-ld-ring wp-easycart-ld-spin" style="color:#fff"></div>
+				</a>
+			</div>
+			<?php } ?>
 		<?php } ?>
 
 		<?php do_action( 'wp_easycart_cart_after_checkout_button', $this ); ?>
 
-		<?php if( get_option( 'ec_option_payment_third_party' ) == 'paypal' && apply_filters( 'wp_easycart_allow_paypal_express', false ) && get_option( 'ec_option_paypal_express_page1_checkout' ) && ( get_option( 'ec_option_paypal_enable_credit' ) == '1' || get_option( 'ec_option_paypal_enable_pay_now' ) == '1' ) && $this->order_totals->grand_total > 0 && ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" || ( get_option( 'ec_option_allow_guest' ) && !$this->has_downloads ) ) ){ ?>
+		<?php if( get_option( 'ec_option_payment_third_party' ) == 'paypal' && apply_filters( 'wp_easycart_allow_paypal_express', false ) && get_option( 'ec_option_paypal_express_page1_checkout' ) && ( get_option( 'ec_option_paypal_enable_credit' ) == '1' || get_option( 'ec_option_paypal_enable_pay_now' ) == '1' ) && $this->order_totals->grand_total > 0 && ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" || ( get_option( 'ec_option_allow_guest' ) && !$this->has_downloads ) ) && ! $this->cart->has_preorder_items() && ! $this->cart->has_restaurant_items() ){ ?>
 		<div id="paypal-button-container" style="float:left; width:100%; margin:10px 0;"></div>
 		<div id="paypal-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
 			<style>

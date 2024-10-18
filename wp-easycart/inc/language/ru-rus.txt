@@ -429,6 +429,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"Посмотреть заказ"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"Это предварительный заказ для самовывоза"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"Некоторые или все товары в вашей корзине требуют самовывоза."
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"Предметы"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"Дата"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"Выберите дату получения"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"Выберите время получения"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"Инструкции по получению"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"Это заказ с самовывозом"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"Вы оформляете заказ на самовывоз."
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"Предметы"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"Время"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"Инструкции по получению"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"В настоящее время ресторан закрыт!"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"закрывается в"
 				}
 			}
 		},
@@ -717,6 +773,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"В вашей корзине есть товар, который не может быть отправлен на ваш текущий адрес доставки. Пожалуйста, удалите этот товар из корзины или перейдите к деталям оформления заказа и введите другой адрес."
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"Для этого заказа вам необходимо выбрать дату получения."
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"Пожалуйста, обязательно заберите свой заказ [pickup_date]."
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"Ваш заказ получен, и вы можете забрать его в [pickup_time]."
 				}
 			}
 		},

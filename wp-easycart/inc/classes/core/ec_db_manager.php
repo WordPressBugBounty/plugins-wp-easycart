@@ -39,6 +39,12 @@ class ec_db_manager {
 	public function verify_db() {
 		global $wpdb;
 		$errors = array( );
+		$collate = '';
+		$collation = '';
+		if( $wpdb->has_cap( 'collation' ) ){
+			$collation = str_replace( 'DEFAULT ', '', $wpdb->get_charset_collate() );
+			$collate = $wpdb->collate;
+		}
 		$schema = $this->get_schema( );
 		$create_statements = explode( ';', $schema );
 		foreach( $create_statements as $create_statement ){
@@ -48,67 +54,75 @@ class ec_db_manager {
 				$table_rows_string = $table_data[2][0];
 				$table_rows_strings = explode( PHP_EOL, $table_rows_string );
 				$table_rows = array( );
-				if( 1 || $table_name == 'ec_orderdetail' ){
-					foreach( $table_rows_strings as $table_row_string ){
-						preg_match_all( '/([a-z0-9\_]*)\s(text|[a-zA-Z\(\)\,0-9]*)(\sDEFAULT NULL|\sNOT\sNULL\s|\sNOT\sNULL|\sNULL\s|\sNULL|\s|.*)(DEFAULT.*|.*)\,/', trim( $table_row_string ), $table_row_item );
-						if( count( $table_row_item ) == 5 && count( $table_row_item[1] ) && count( $table_row_item[2] ) && count( $table_row_item[3] ) && count( $table_row_item[4] ) && $table_row_item[1][0] != '' ){
-							if( substr( $table_row_item[4][0], strlen( $table_row_item[4][0] ) - 1, 1 ) == "'" ){
-								$temp_default_string = substr( $table_row_item[4][0], 0, strlen( $table_row_item[4][0] ) - 1 );
-							}else{
-								$temp_default_string = $table_row_item[4][0];
-							}
-
-							$table_rows[(string)$table_row_item[1][0]] = (object) array(
-								'Field'     => $table_row_item[1][0],
-								'Type'      => $table_row_item[2][0],
-								'Null'      => ( trim( $table_row_item[3][0] ) == 'NOT NULL' ) ? 'NO' : 'YES',
-								'Default'   => str_replace( "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", str_replace( "ON UPDATE CURRENT_TIMESTAMP CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", str_replace( "DEFAULT ", "", str_replace( "DEFAULT '", "", $temp_default_string ) ) ) ),
-								'SQL'       => substr( $table_row_string, 0, strlen( $table_row_string ) - 1 )
-							);
+				foreach( $table_rows_strings as $table_row_string ){
+					preg_match_all( '/([a-z0-9\_]*)\s(text|[a-zA-Z\(\)\,0-9]*)(\sDEFAULT NULL|\sNOT\sNULL\s|\sNOT\sNULL|\sNULL\s|\sNULL|\s|.*)(DEFAULT.*|.*)\,/', trim( $table_row_string ), $table_row_item );
+					if( count( $table_row_item ) == 5 && count( $table_row_item[1] ) && count( $table_row_item[2] ) && count( $table_row_item[3] ) && count( $table_row_item[4] ) && $table_row_item[1][0] != '' ){
+						if( substr( $table_row_item[4][0], strlen( $table_row_item[4][0] ) - 1, 1 ) == "'" ){
+							$temp_default_string = substr( $table_row_item[4][0], 0, strlen( $table_row_item[4][0] ) - 1 );
+						}else{
+							$temp_default_string = $table_row_item[4][0];
 						}
+
+						$table_rows[(string)$table_row_item[1][0]] = (object) array(
+							'Field'     => $table_row_item[1][0],
+							'Type'      => $table_row_item[2][0],
+							'Collation' => $collate,
+							'Null'      => ( trim( $table_row_item[3][0] ) == 'NOT NULL' ) ? 'NO' : 'YES',
+							'Default'   => str_replace( "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", str_replace( "ON UPDATE CURRENT_TIMESTAMP CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", str_replace( "DEFAULT ", "", str_replace( "DEFAULT '", "", $temp_default_string ) ) ) ),
+							'SQL'       => substr( $table_row_string, 0, strlen( $table_row_string ) - 1 )
+						);
+					}
+				}
+
+				$table_schema_rows = $wpdb->get_results( "SHOW FULL COLUMNS FROM " . $table_name );
+
+				// Check the table exists at all
+				if( !$table_schema_rows ){
+					$errors[] = array( 'type' => 'missing_table', 'sql_fix' => $create_statement, 'error' => 'The table ' . $table_name . ' is missing from your database.' );
+
+				}else{
+					$table_schema = array( );
+					foreach( $table_schema_rows as $table_schema_row ){
+						$table_schema[$table_schema_row->Field] = $table_schema_row;
 					}
 
-					$table_schema_rows = $wpdb->get_results( "SHOW COLUMNS FROM " . $table_name );
+					foreach( $table_rows as $table_row_item ){
 
-					// Check the table exists at all
-					if( !$table_schema_rows ){
-						$errors[] = array( 'type' => 'missing_table', 'sql_fix' => $create_statement, 'error' => 'The table ' . $table_name . ' is missing from your database.' );
+						// Check that the table column exists
+						if( !isset( $table_schema[ $table_row_item->Field ] ) ){
+							$errors[] = array( 'type' => 'missing_field', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' ADD COLUMN ' . $table_row_item->SQL, 'error' => $table_name . ' is missing "' . $table_row_item->Field . '"' );
 
-					}else{
-						$table_schema = array( );
-						foreach( $table_schema_rows as $table_schema_row ){
-							$table_schema[$table_schema_row->Field] = $table_schema_row;
-						}
+						// Exists, lets check its valid
+						}else{
 
-						foreach( $table_rows as $table_row_item ){
+							// Check the type is correct (removed to prevent unecessary error notices)
+							if( strtolower( trim( $table_schema[ $table_row_item->Field ]->Type ) ) != strtolower( trim( $table_row_item->Type ) ) ){
+								//$errors[] = array( 'type' => 'incorrect_type', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' MODIFY ' . $table_row_item->SQL, 'error' => $table_name . '.' . $table_row_item->Field . ' is the wrong type, listed as "' . trim( $table_schema[ $table_row_item->Field]->Type ) . '" should be "' . trim( $table_row_item->Type ) . '"' );
+							}
+								
+							// Check if VARCHAR and verify encoding
+							/*if ( apply_filters( 'wp_easycart_enable_encoding_verification', false ) && 'varchar' == substr( $table_schema[ $table_row_item->Field ]->Type, 0, 7 ) && isset( $table_schema[ $table_row_item->Field ]->Collation ) && strtolower( trim( $table_schema[ $table_row_item->Field ]->Collation ) ) != strtolower( trim( $table_row_item->Collation ) ) ) {
+								$errors[] = array(
+									'type' => 'incorrect_encoding',
+									'sql_fix' => 'ALTER TABLE ' . $table_name . ' MODIFY ' . $table_row_item->Field . ' ' . $table_row_item->Type . ' ' . $collation . $table_row_item->Default,
+									'error' => $table_name . '.' . $table_row_item->Field . ' is the encoding wrong type, listed as "' . trim( $table_schema[ $table_row_item->Field ]->Collation ) . '" should be "' . $table_row_item->Collation . '"',
+								);
+							}*/
 
-							// Check that the table column exists
-							if( !isset( $table_schema[ $table_row_item->Field ] ) ){
-								$errors[] = array( 'type' => 'missing_field', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' ADD COLUMN ' . $table_row_item->SQL, 'error' => $table_name . ' is missing "' . $table_row_item->Field . '"' );
+							// Check the Null / Not Null is correct (removed to prevent unecessary error notices)
+							if( trim( $table_schema[ $table_row_item->Field ]->Null ) != trim( $table_row_item->Null ) ){
+								//$errors[] = array( 'type' => 'incorrect_null', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' MODIFY ' . $table_row_item->SQL, 'error' => $table_name . '.' . $table_row_item->Field . ' is the wrong "IS NULL" value, listed as "' . trim( $table_schema[ $table_row_item->Field]->Null ) . '" should be "' . trim( $table_row_item->Null ) . '"' );
+							}
 
-							// Exists, lets check its valid
-							}else{
+							// Check the Default is correct (removed to prevent unecessary error notices)
+							if( strtoupper( trim( $table_row_item->Default ) ) == 'AUTO_INCREMENT' ){
+								// Ignore
 
-								// Check the type is correct (removed to prevent unecessary error notices)
-								if( strtolower( trim( $table_schema[ $table_row_item->Field ]->Type ) ) != strtolower( trim( $table_row_item->Type ) ) ){
-									//$errors[] = array( 'type' => 'incorrect_type', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' MODIFY ' . $table_row_item->SQL, 'error' => $table_name . '.' . $table_row_item->Field . ' is the wrong type, listed as "' . trim( $table_schema[ $table_row_item->Field]->Type ) . '" should be "' . trim( $table_row_item->Type ) . '"' );
-								}
-
-								// Check the Null / Not Null is correct (removed to prevent unecessary error notices)
-								if( trim( $table_schema[ $table_row_item->Field ]->Null ) != trim( $table_row_item->Null ) ){
-									//$errors[] = array( 'type' => 'incorrect_null', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' MODIFY ' . $table_row_item->SQL, 'error' => $table_name . '.' . $table_row_item->Field . ' is the wrong "IS NULL" value, listed as "' . trim( $table_schema[ $table_row_item->Field]->Null ) . '" should be "' . trim( $table_row_item->Null ) . '"' );
-								}
-
-								// Check the Default is correct (removed to prevent unecessary error notices)
-								if( strtoupper( trim( $table_row_item->Default ) ) == 'AUTO_INCREMENT' ){
-									// Ignore
-
-								}else if( strtoupper( trim( $table_row_item->Default ) ) == 'CURRENT_TIMESTAMP' ){
-									// Ignore
-
-								}
+							}else if( strtoupper( trim( $table_row_item->Default ) ) == 'CURRENT_TIMESTAMP' ){
+								// Ignore
 
 							}
+
 						}
 					}
 				}
@@ -224,6 +238,9 @@ class ec_db_manager {
 			),
 			'5.6.4' => array(
 				'wpeasycart_sql_5_6_4'
+			),
+			'5.7.5' => array(
+				'wpeasycart_sql_5_7_5'
 			),
 		);
 
@@ -446,6 +463,209 @@ class ec_db_manager {
 		$wpdb->query( "ALTER TABLE ec_option_to_product ADD COLUMN stripe_price_id text" );
 		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN google_merchant text NULL" );
 	}
+
+	private function wpeasycart_sql_5_7_5() {
+		global $wpdb;
+		$collate = "";
+		$max_index_length = 191;
+		if ( $wpdb->has_cap( 'collation' ) ) {
+			$collate = $wpdb->get_charset_collate();
+		}
+		$wpdb->query( "CREATE TABLE ec_schedule (
+			  schedule_id int(11) NOT NULL AUTO_INCREMENT,
+			  schedule_label varchar(255) DEFAULT '',
+			  day_of_week varchar(20) NOT NULL DEFAULT '',
+			  is_holiday tinyint(1) NOT NULL DEFAULT 1,
+			  holiday_date date DEFAULT NULL,
+			  apply_to_retail tinyint(1) NOT NULL DEFAULT 0,
+			  apply_to_preorder tinyint(1) NOT NULL DEFAULT 0,
+			  apply_to_restaurant tinyint(1) NOT NULL DEFAULT 0,
+			  retail_start varchar(32) NOT NULL DEFAULT '',
+			  retail_end varchar(32) NOT NULL DEFAULT '',
+			  preorder_start varchar(32) NOT NULL DEFAULT '',
+			  preorder_end varchar(32) NOT NULL DEFAULT '',
+			  preorder_open_time varchar(32) NOT NULL DEFAULT '',
+			  preorder_close_time varchar(32) NOT NULL DEFAULT '',
+			  restaurant_start varchar(32) NOT NULL DEFAULT '',
+			  restaurant_end varchar(32) NOT NULL DEFAULT '',
+			  retail_closed tinyint(1) NOT NULL DEFAULT 0,
+			  preorder_closed tinyint(1) NOT NULL DEFAULT 0,
+			  restaurant_closed tinyint(1) NOT NULL DEFAULT 0,
+			  PRIMARY KEY (schedule_id),
+			  UNIQUE KEY schedule_id (schedule_id)
+		) $collate;" );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_preorder_type tinyint(1) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_restaurant_type tinyint(1) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_date varchar(32) NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_asap tinyint(1) NOT NULL DEFAULT 1" );
+		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_time varchar(32) NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN includes_preorder_items tinyint(1) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN includes_restaurant_type tinyint(1) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00'" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_asap tinyint(1) NOT NULL DEFAULT 1" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00'" );
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "1",
+				"schedule_label" => "Sunday",
+				"day_of_week" => "SUN",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "2",
+				"schedule_label" => "Monday",
+				"day_of_week" => "MON",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "3",
+				"schedule_label" => "Tuesday",
+				"day_of_week" => "TUE",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "4",
+				"schedule_label" => "Wednesday",
+				"day_of_week" => "WED",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "5",
+				"schedule_label" => "Thursday",
+				"day_of_week" => "THU",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "6",
+				"schedule_label" => "Friday",
+				"day_of_week" => "FRI",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "7",
+				"schedule_label" => "Saturday",
+				"day_of_week" => "SAT",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
 	private function get_uninstall_tables( ){
@@ -496,6 +716,7 @@ class ec_db_manager {
 			"ec_role",
 			"ec_roleaccess",
 			"ec_roleprice",
+			"ec_schedule",
 			"ec_setting",
 			"ec_shipping_class",
 			"ec_shipping_class_to_rate",
@@ -916,6 +1137,11 @@ CREATE TABLE ec_order (
   gateway_transaction_id varchar(255) NOT NULL DEFAULT '',
   success_page_shown tinyint(1) NOT NULL DEFAULT 0,
   email_other varchar(255) NOT NULL DEFAULT '',
+  includes_preorder_items tinyint(1) NOT NULL DEFAULT 0,
+  includes_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
+  pickup_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  pickup_asap tinyint(1) NOT NULL DEFAULT 1,
+  pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY  (order_id),
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
@@ -1229,6 +1455,8 @@ CREATE TABLE ec_product (
   custom_price_label varchar(512) NOT NULL DEFAULT '',
   stripe_product_id varchar(255) DEFAULT '',
   stripe_default_price_id varchar(255) DEFAULT '',
+  is_preorder_type tinyint(1) NOT NULL DEFAULT 0,
+  is_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   UNIQUE KEY product_model_number (model_number($max_index_length)),
@@ -1381,6 +1609,29 @@ CREATE TABLE ec_roleprice (
   UNIQUE KEY roleprice_id (roleprice_id),
   KEY product_id (product_id) ,
   KEY role_label (role_label) 
+) $collate;
+CREATE TABLE ec_schedule (
+  schedule_id int(11) NOT NULL AUTO_INCREMENT,
+  schedule_label varchar(255) DEFAULT '',
+  day_of_week varchar(20) NOT NULL DEFAULT '',
+  is_holiday tinyint(1) NOT NULL DEFAULT 1,
+  holiday_date date DEFAULT NULL,
+  apply_to_retail tinyint(1) NOT NULL DEFAULT 0,
+  apply_to_preorder tinyint(1) NOT NULL DEFAULT 0,
+  apply_to_restaurant tinyint(1) NOT NULL DEFAULT 0,
+  retail_start varchar(32) NOT NULL DEFAULT '',
+  retail_end varchar(32) NOT NULL DEFAULT '',
+  preorder_start varchar(32) NOT NULL DEFAULT '',
+  preorder_end varchar(32) NOT NULL DEFAULT '',
+  preorder_open_time varchar(32) NOT NULL DEFAULT '',
+  preorder_close_time varchar(32) NOT NULL DEFAULT '',
+  restaurant_start varchar(32) NOT NULL DEFAULT '',
+  restaurant_end varchar(32) NOT NULL DEFAULT '',
+  retail_closed tinyint(1) NOT NULL DEFAULT 0,
+  preorder_closed tinyint(1) NOT NULL DEFAULT 0,
+  restaurant_closed tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (schedule_id),
+  UNIQUE KEY schedule_id (schedule_id)
 ) $collate;
 CREATE TABLE ec_setting (
   setting_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1674,6 +1925,9 @@ CREATE TABLE ec_tempcart_data (
   amazon_payment_selection varchar(255) NOT NULL DEFAULT '',
   email_other varchar(255) NOT NULL DEFAULT '',
   stripe_last_pi_data text,
+  pickup_date varchar(32) NOT NULL DEFAULT '',
+  pickup_asap tinyint(1) NOT NULL DEFAULT 1,
+  pickup_time varchar(32) NOT NULL DEFAULT '',
   PRIMARY KEY  (tempcart_data_id)
 ) $collate;
 CREATE TABLE ec_tempcart_optionitem (
@@ -1818,6 +2072,174 @@ CREATE TABLE ec_zone_to_location (
 				"shipping_order" => "0",
 				"shipping_code" => "",
 				"shipping_override_rate" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "1",
+				"schedule_label" => "Sunday",
+				"day_of_week" => "SUN",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "2",
+				"schedule_label" => "Monday",
+				"day_of_week" => "MON",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "3",
+				"schedule_label" => "Tuesday",
+				"day_of_week" => "TUE",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "4",
+				"schedule_label" => "Wednesday",
+				"day_of_week" => "WED",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "5",
+				"schedule_label" => "Thursday",
+				"day_of_week" => "THU",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "6",
+				"schedule_label" => "Friday",
+				"day_of_week" => "FRI",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_schedule",
+			array( 
+				"schedule_id" => "7",
+				"schedule_label" => "Saturday",
+				"day_of_week" => "SAT",
+				"is_holiday" => "0",
+				"apply_to_retail" => "0",
+				"apply_to_preorder" => "1",
+				"apply_to_restaurant" => "1",
+				"retail_start" => "0",
+				"retail_end" => "0",
+				"preorder_start" => "02:00:00:00",
+				"preorder_end" => "00:03:00:00",
+				"preorder_open_time" => "08:00",
+				"preorder_close_time" => "17:00",
+				"restaurant_start" => "08:00",
+				"restaurant_end" => "21:00",
+				"retail_closed" => "0",
+				"preorder_closed" => "0",
+				"restaurant_closed" => "0"
 			)
 		);
 

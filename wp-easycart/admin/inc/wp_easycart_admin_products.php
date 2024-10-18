@@ -966,7 +966,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 				// Product Type
 				$product_type = (int) $_POST['ec_new_product_type'];
-				$is_download = $is_donation = $is_invoice = $is_subscription = $is_giftcard = $is_deconetwork = $is_inquiry = $is_seasonal = 0;
+				$is_download = $is_donation = $is_invoice = $is_subscription = $is_giftcard = $is_deconetwork = $is_inquiry = $is_seasonal = $is_restaurant_item = $is_preorder_item = 0;
 				if ( 1 == $product_type || 2 == $product_type ) {
 					$is_download = 1;
 				} else if ( 3 == $product_type || 4 == $product_type ) {
@@ -981,6 +981,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					$is_inquiry = 1;
 				} else if ( 10 == $product_type ) {
 					$is_seasonal = 1;
+				} else if ( 11 == $product_type ) {
+					$is_restaurant_item = 1;
+				} else if ( 12 == $product_type ) {
+					$is_preorder_item = 1;
 				}
 				$post_status = ( $activate_in_store ) ? 'publish' : 'private';
 				$show_on_startup = (int) $_POST['ec_new_product_featured'];
@@ -1066,7 +1070,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$post_id = $wpdb->insert_id;
 				wp_set_post_tags( $post_id, array( 'product' ), true );
 
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, show_on_startup, title, model_number, manufacturer_id, price, image1, post_id, use_advanced_optionset, use_both_option_types, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, is_shippable, weight, length, width, height, is_taxable, vat_rate, show_stock_quantity, stock_quantity, use_optionitem_quantity_tracking, is_giftcard, is_download, is_donation, is_subscription_item, is_deconetwork, inquiry_mode, catalog_mode ) VALUES( %d, %d, %s, %s, %d, %s, %s, %d, %d, 1, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d )', $activate_in_store, $show_on_startup, $title, $sku, $manufacturer, $price, $image, $post_id, $use_advanced_optionset, $option1, $option2, $option3, $option4, $option5, $is_shippable, $weight, $length, $width, $height, $is_taxable, $vat_rate, $show_stock_quantity, $stock_quantity, $use_optionitem_quantity_tracking, $is_giftcard, $is_download, $is_donation, $is_subscription, $is_deconetwork, $is_inquiry, $is_seasonal ) );
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, show_on_startup, title, model_number, manufacturer_id, price, image1, post_id, use_advanced_optionset, use_both_option_types, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, is_shippable, weight, length, width, height, is_taxable, vat_rate, show_stock_quantity, stock_quantity, use_optionitem_quantity_tracking, is_giftcard, is_download, is_donation, is_subscription_item, is_deconetwork, inquiry_mode, catalog_mode, is_restaurant_type, is_preorder_type ) VALUES( %d, %d, %s, %s, %d, %s, %s, %d, %d, 1, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d )', $activate_in_store, $show_on_startup, $title, $sku, $manufacturer, $price, $image, $post_id, $use_advanced_optionset, $option1, $option2, $option3, $option4, $option5, $is_shippable, $weight, $length, $width, $height, $is_taxable, $vat_rate, $show_stock_quantity, $stock_quantity, $use_optionitem_quantity_tracking, $is_giftcard, $is_download, $is_donation, $is_subscription, $is_deconetwork, $is_inquiry, $is_seasonal, $is_restaurant_item, $is_preorder_item ) );
 				$product_id = $wpdb->insert_id;
 
 				if ( $is_subscription ) {
@@ -1895,9 +1899,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$inquiry_url = esc_url_raw( $_POST['inquiry_url'] );
 				$catalog_mode = (int) $_POST['catalog_mode'];
 				$catalog_mode_phrase = sanitize_text_field( wp_unslash( $_POST['catalog_mode_phrase'] ) );
+				$is_preorder_type = (int) $_POST['is_preorder_type'];
+				$is_restaurant_type = (int) $_POST['is_restaurant_type'];
 				$role_id = (int) $_POST['role_id'];
 				$sort_position = (int) $_POST['sort_position'];
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET show_on_startup = %d, is_special = %d, use_customer_reviews = %d, is_donation = %d, is_giftcard = %d, inquiry_mode = %d, inquiry_url = %s, catalog_mode = %d, catalog_mode_phrase = %s, role_id = %s, sort_position = %d WHERE product_id = %d', $show_on_startup, $is_special, $use_customer_reviews, $is_donation, $is_giftcard, $inquiry_mode, $inquiry_url, $catalog_mode, $catalog_mode_phrase, $role_id, $sort_position, $product_id ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET show_on_startup = %d, is_special = %d, use_customer_reviews = %d, is_donation = %d, is_giftcard = %d, inquiry_mode = %d, inquiry_url = %s, catalog_mode = %d, catalog_mode_phrase = %s, is_preorder_type = %d, is_restaurant_type = %d, role_id = %s, sort_position = %d WHERE product_id = %d', $show_on_startup, $is_special, $use_customer_reviews, $is_donation, $is_giftcard, $inquiry_mode, $inquiry_url, $catalog_mode, $catalog_mode_phrase, $is_preorder_type, $is_restaurant_type, $role_id, $sort_position, $product_id ) );
 				do_action( 'wpeasycart_admin_product_details_general_saved', $product_id );
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
@@ -2820,7 +2826,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$is_taxable, $vat_rate, $sort_position,
 				(int) $_POST['product_id']
 			) );
-			wp_cache_delete( 'wpeasycart-product-only-' . sanitize_text_field( wp_unslash( $_POST['model_number'] ) ), 'wpeasycart-product-list' );
+			wp_cache_flush();
 		}
 
 		public function google_merchant_fields() {

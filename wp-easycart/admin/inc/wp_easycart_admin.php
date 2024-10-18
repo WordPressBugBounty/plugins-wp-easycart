@@ -2419,6 +2419,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_fee_list_example' ) );
 			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_fee_details', array( $this, 'show_upgrade' ) );
+			add_action( 'wp_easycart_admin_schedule_list', array( $this, 'show_upgrade' ) );
+			add_action( 'wp_easycart_admin_schedule_details', array( $this, 'show_upgrade' ) );
 
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
 			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
@@ -2661,6 +2663,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_easycart_admin_perpage( )->load_perpage_list( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "pricepoint" ) {
 				wp_easycart_admin_pricepoint( )->load_pricepoint_list( );
+			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "schedule" ) {
+				wp_easycart_admin_schedule( )->load_schedule_list( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "logs" ) {
 				wp_easycart_admin_logging( )->load_log_list( );
 			} else {
@@ -2836,6 +2840,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return __( 'WP EasyCart Tax Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "fee" ) {
 				return __( 'WP EasyCart Flex-Fee Settings', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "schedule" ) {
+				return __( 'WP EasyCart Schedule Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-settings" ) {
 				return __( 'WP EasyCart Shipping Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-rates" ) {
@@ -3029,6 +3035,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					wp_register_script( 'wp_easycart_admin_category_js', plugins_url( 'wp-easycart/admin/js/category.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_category_js' );	
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-orders" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "orders" ) ){
+					wp_enqueue_script('jquery-ui-datepicker');
+					wp_enqueue_style('jquery-ui-datepicker');
 					wp_register_script( 'wp_easycart_admin_orders_js', plugins_url( 'wp-easycart/admin/js/orders.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-datepicker' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_orders_js' );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "menus" ){

@@ -112,7 +112,7 @@ if ( ! class_exists( 'wp_easycart_admin_user_role' ) ) :
 
 			global $wpdb;
 
-			$role_label = sanitize_text_field( wp_unslash( $_POST['role_label'] ) );
+			$role_label = ( isset( $_POST['role_label'] ) ) ? sanitize_text_field( wp_unslash( $_POST['role_label'] ) ) : '';
 			$admin_access = 0;
 			if ( isset( $_POST['admin_access'] ) ) {
 				$admin_access = 1;

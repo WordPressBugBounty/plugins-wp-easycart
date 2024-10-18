@@ -117,18 +117,16 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 			}
 			die();
 		}
-		
+
 		public function update_inventory_item() {
-			$product_id = (int) $_POST['product_id'];
-			$optionitemquantity_id = (int) $_POST['quantity_id'];
-			$quantity = (int) $_POST['quantity'];
-			
+			$product_id = ( isset( $_POST['product_id'] ) ) ? (int) $_POST['product_id'] : 0;
+			$optionitemquantity_id = ( isset( $_POST['quantity_id'] ) ) ? (int) $_POST['quantity_id'] : 0;
+			$quantity = ( isset( $_POST['quantity'] ) ) ? (int) $_POST['quantity'] : 0;
+
 			global $wpdb;
 			if ( -1 != $optionitemquantity_id ) {
-				echo $wpdb->prepare( 'UPDATE ec_optionitemquantity SET quantity = %d WHERE optionitemquantity_id = %d AND product_id = %d', $quantity, $optionitemquantity_id, $product_id );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_optionitemquantity SET quantity = %d WHERE optionitemquantity_id = %d AND product_id = %d', $quantity, $optionitemquantity_id, $product_id ) );
 			} else {
-				echo $wpdb->prepare( 'UPDATE ec_product SET stock_quantity = %d WHERE product_id = %d', $quantity, $product_id );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stock_quantity = %d WHERE product_id = %d', $quantity, $product_id ) );
 			}
 		}

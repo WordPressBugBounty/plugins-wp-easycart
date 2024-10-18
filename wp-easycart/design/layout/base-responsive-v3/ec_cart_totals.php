@@ -3,7 +3,12 @@
 	<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo esc_attr( $this->get_subtotal( ) ); ?></div>
 </div>
 <?php if( get_option( 'ec_option_enable_tips' ) ){ ?>
-<?php $default_tips = explode( ',', get_option( 'ec_option_default_tips' ) ); ?>
+<?php
+	$default_tips = explode( ',', get_option( 'ec_option_default_tips' ) );
+	if ( ! is_array( $default_tips ) || count( $default_tips ) == 0 || '' == $default_tips[0] ) {
+		$default_tips = array( floatval( 10.00 ), floatval( 15.00 ), floatval( 20.00 ) );
+	}
+?>
 <div class="ec_cart_price_row ec_cart_tips">
 
 	<div class="ec_cart_price_row_label"><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tip' ); ?></div>
@@ -11,7 +16,7 @@
 	<ul class="ec_cart_tip_items">
 		<?php foreach( $default_tips as $tip_rate ){ ?>
 		<li class="ec_cart_tip_item<?php echo ( (float) $GLOBALS['ec_cart_data']->cart_data->tip_rate == (float) $tip_rate ) ? ' ec_tip_selected' : ''; ?>">
-			<a href="" onclick="wpeasycart_update_tip( '<?php echo esc_attr( $tip_rate ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-tip-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' ); jQuery( this ).parent( ).addClass( 'ec_tip_selected' ); jQuery( document.getElementById( 'ec_cart_tip' ) ).html( jQuery( this ).find( 'span' ).html( ) ); jQuery( document.getElementById( 'ec_cart_tip_custom' ) ).val( '' ); return false;"><strong><?php echo esc_attr( number_format( $tip_rate, 0, '', '' ) ); ?>%</strong><br /><span><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $tip_rate / 100 * $this->order_totals->get_converted_sub_total( ), false ) ); ?></span></a>
+			<a href="" onclick="wpeasycart_update_tip( '<?php echo esc_attr( $tip_rate ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-tip-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' ); jQuery( this ).parent( ).addClass( 'ec_tip_selected' ); jQuery( document.getElementById( 'ec_cart_tip' ) ).html( jQuery( this ).find( 'span' ).html( ) ); jQuery( document.getElementById( 'ec_cart_tip_custom' ) ).val( '' ); return false;"><strong><?php echo esc_attr( number_format( (float) $tip_rate, 0, '', '' ) ); ?>%</strong><br /><span><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $tip_rate / 100 * $this->order_totals->get_converted_sub_total( ), false ) ); ?></span></a>
 		</li>
 		<?php }?>
 	</ul>

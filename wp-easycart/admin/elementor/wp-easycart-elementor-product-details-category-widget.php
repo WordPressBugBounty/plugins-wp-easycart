@@ -12,7 +12,7 @@ $args = shortcode_atts(
 		'use_post_id' => false,
 		'product_id' => '',
 		'categories_element' => 'div',
-		'categories_label' => wp_easycart_language( )->get_text( 'product_details', 'product_details_categories' ),
+		'categories_label' => wp_easycart_language()->get_text( 'product_details', 'product_details_categories' ),
 		'categories_divider' => ',',
 	),
 	$atts

@@ -397,7 +397,7 @@ if ( ! class_exists( 'wp_easycart_admin_option' ) ) :
 			if ( isset( $_GET['orderby'] ) && in_array( $_GET['orderby'], $valid_orderby ) ) {
 				$args['orderby'] = sanitize_text_field( wp_unslash( $_GET['orderby'] ) );
 			}
-			if ( isset( $_GET['order'] ) && 'desc' == strtolower( $_GET['order'] ) ) {
+			if ( isset( $_GET['order'] ) && 'desc' == strtolower( esc_attr( wp_unslash( $_GET['order'] ) ) ) ) {
 				$args['order'] = 'desc';
 			} else {
 				$args['order'] = 'asc';
@@ -432,7 +432,7 @@ if ( ! class_exists( 'wp_easycart_admin_option' ) ) :
 			if ( isset( $_GET['orderby'] ) && in_array( $_GET['orderby'], $valid_orderby ) ) {
 				$args['orderby'] = sanitize_text_field( wp_unslash( $_GET['orderby'] ) );
 			}
-			if ( isset( $_GET['order'] ) && 'desc' == strtolower( $_GET['order'] ) ) {
+			if ( isset( $_GET['order'] ) && 'desc' == strtolower( esc_attr( wp_unslash( $_GET['order'] ) ) ) ) {
 				$args['order'] = 'desc';
 			} else {
 				$args['order'] = 'asc';

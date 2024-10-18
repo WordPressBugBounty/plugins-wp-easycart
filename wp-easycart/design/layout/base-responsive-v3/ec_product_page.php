@@ -573,7 +573,7 @@ function ec_admin_reorder_products( ids ){
 			$filter_categories = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_category WHERE parent_id = %d AND is_active = 1 ORDER BY priority DESC', $sidebar_category_filter_id ) );
 			if ( $filter_categories && is_array( $filter_categories ) ) {
 				for ( $i = 0; $i < count ( $filter_categories ); $i++ ) {
-					$groups = ( isset( $_GET[ 'group_id_' . $i ] ) ) ? explode( ',', $_GET[ 'group_id_' . $i ] ) : array();
+					$groups = ( isset( $_GET[ 'group_id_' . $i ] ) ) ? explode( ',', $_GET[ 'group_id_' . $i ] ) : array(); // XSS OK, Each Item Forced INT
 					$selected_sidebar_filters = array();
 					if ( is_array( $groups ) && count( $groups ) > 0 ) {
 						foreach ( $groups as $group ) {

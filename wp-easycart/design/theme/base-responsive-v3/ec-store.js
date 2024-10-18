@@ -2,7 +2,7 @@
 jQuery( document ).ready( function( ){
 	if ( jQuery( '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).length ) {
 		jQuery( '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).on( 'keypress', function( e ) {
-			if ( e.which == 13 ) {
+			if ( ! jQuery( e.target ).is( 'textarea' ) && e.which == 13 ) {
 				return false;
 			}
 		} );
@@ -1061,7 +1061,70 @@ jQuery( document ).ready( function( ){
 			}
 		}
 	} );
+	jQuery( document ).on( 'change', '#preorder_pickup_date', function() {
+		ec_cart_save_pickup_date_time();
+	} );
+	jQuery( document ).on( 'change', '#preorder_pickup_time', function() {
+		ec_cart_save_pickup_date_time();
+	} );
+	jQuery( document ).on( 'click', '#restaurant_pickup_time_asap', function() {
+		ec_cart_save_pickup_date_time();
+	} );
+	jQuery( document ).on( 'click', '#restaurant_pickup_time_schedule', function() {
+		ec_cart_save_pickup_date_time();
+	} );
+	jQuery( document ).on( 'change', '#restaurant_pickup_time', function() {
+		ec_cart_save_pickup_date_time();
+	} );
 } );
+function ec_cart_restaurant_start_timer() {
+	var restaurant_timer_minutes = parseInt( jQuery( '.ec_cart_restaurant_timer_min' ).html() );
+	var restaurant_timer_seconds = parseInt( jQuery( '.ec_cart_restaurant_timer_sec' ).html() );
+	var restaurant_total_seconds = restaurant_timer_minutes * 60 + restaurant_timer_seconds;
+	var restaurant_timer = setInterval( function() {
+		restaurant_total_seconds--;
+		var minutesLeft = Math.floor( restaurant_total_seconds / 60 );
+		var secondsLeft = restaurant_total_seconds % 60;
+		jQuery( '.ec_cart_restaurant_timer_min' ).html( minutesLeft.toString().padStart( 2, '0' ) );
+		jQuery( '.ec_cart_restaurant_timer_sec' ).html( secondsLeft.toString().padStart(2, '0') );
+		if ( restaurant_total_seconds <= 0 ) {
+			clearInterval( restaurant_timer );
+			window.location.reload();
+		}
+	}, 1000 );
+}
+function ec_cart_save_pickup_date_time() {
+	var pickup_date = '';
+	var pickup_date_time = '';
+	var pickup_asap = 0;
+	var pickup_time = '';
+	if ( jQuery( '#preorder_pickup_date' ).length ) {
+		pickup_date = jQuery( '#preorder_pickup_date' ).datepicker( 'getDate' );
+		pickup_date_time = jQuery( '#preorder_pickup_time' ).val();
+		if ( pickup_date && '' != pickup_date_time ) {
+			jQuery( '#ec_preorder_pickup_error' ).hide();
+		}
+	}
+	if ( jQuery( '#restaurant_pickup_time_asap' ).length && jQuery( '#restaurant_pickup_time_asap' ).is( ':checked' ) ) {
+		pickup_asap = 1;
+	}
+	if ( jQuery( '#restaurant_pickup_time' ).length ) {
+		pickup_time = jQuery( '#restaurant_pickup_time' ).val();
+	}
+	var data = {
+		action: 'ec_ajax_save_pickup_info',
+		pickup_date: pickup_date,
+		pickup_date_time: pickup_date_time,
+		pickup_asap: pickup_asap,
+		pickup_time: pickup_time,
+		nonce: jQuery( '#ec_cart_form_nonce' ).val()
+	};
+	jQuery.ajax( { 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data
+	} );
+}
 var wpeasycart_login_recaptcha;
 var wpeasycart_register_recaptcha;
 var wpeasycart_product_stock_recaptcha;
@@ -3026,6 +3089,7 @@ function ec_validate_submit_order( ){
 	var shipping_info_complete = true;
 	var shipping_method_complete = true;
 	var billing_info_complete = true;
+	var pickup_info_complete = true;
 	var scrolled_top = false;
 	if ( jQuery( document.getElementById( 'ec_user_create_form' ) ).length ) {
 		wp_easycart_update_contact_email_v2();
@@ -3121,6 +3185,18 @@ function ec_validate_submit_order( ){
 		}
 	}
 
+	if ( jQuery( '#preorder_pickup_date' ).length ) {
+		if ( ! jQuery( '#preorder_pickup_date' ).datepicker( 'getDate' ) ) {
+			pickup_info_complete = false;
+			jQuery( '#ec_preorder_pickup_error' ).show();
+		} else if ( '' == jQuery( '#preorder_pickup_time' ).val() ) {
+			pickup_info_complete = false;
+			jQuery( '#ec_preorder_pickup_error' ).show();
+		} else {
+			jQuery( '#ec_preorder_pickup_error' ).hide();
+		}
+	}
+
 	var payment_method_complete = ec_validate_payment_method( );
 	var terms_complete = ec_validate_terms( );
 
@@ -3156,7 +3232,7 @@ function ec_validate_submit_order( ){
 		ec_show_error( 'ec_billing_order' );
 	}
 
-	if ( payment_method_complete && terms_complete && email_complete && shipping_info_complete && shipping_method_complete && billing_info_complete ) {
+	if ( payment_method_complete && terms_complete && email_complete && shipping_info_complete && shipping_method_complete && billing_info_complete && pickup_info_complete ) {
 		if( !document.getElementById( 'ec_stripe_card_row' ) && !document.getElementById( 'wpec_braintree_dropin' ) ){
 			jQuery( document.getElementById( 'ec_cart_submit_order' ) ).hide( );
 			jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).show( );

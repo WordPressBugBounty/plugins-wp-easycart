@@ -133,7 +133,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 		);
 
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_price_container',
 			array(
@@ -141,7 +141,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_control(
 			'price_container_width_percentage',
 			array(
@@ -178,7 +178,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_container_padding',
 			array(
@@ -198,7 +198,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_container_margin',
 			array(
@@ -230,7 +230,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -247,7 +247,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_details_single_price',
 			)
 		);
-		
+
 		$this->add_control(
 			'price_container_border_radius',
 			array(
@@ -267,7 +267,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -280,7 +280,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_color',
 			array(
@@ -302,7 +302,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_price_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'price_align',
 			array(
@@ -345,7 +345,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_width_percentage',
 			array(
@@ -375,7 +375,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_padding',
 			array(
@@ -395,7 +395,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'price_margin',
 			array(
@@ -427,7 +427,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -435,7 +435,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_price_ele',
 			)
 		);
-		
+
 		$this->add_control(
 			'price_border_radius',
 			array(
@@ -455,7 +455,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -468,7 +468,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'sale_price_color',
 			array(
@@ -494,7 +494,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_sale_price_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'sale_price_align',
 			array(
@@ -537,7 +537,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'sale_price_width_percentage',
 			array(
@@ -567,7 +567,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'sale_price_padding',
 			array(
@@ -587,7 +587,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'sale_price_margin',
 			array(
@@ -619,7 +619,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -627,7 +627,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_sale_price_ele',
 			)
 		);
-		
+
 		$this->add_control(
 			'sale_price_border_radius',
 			array(
@@ -647,7 +647,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -660,7 +660,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'previous_price_color',
 			array(
@@ -686,7 +686,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_old_price_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'previous_price_align',
 			array(
@@ -729,7 +729,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'previous_price_width_percentage',
 			array(
@@ -759,7 +759,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'previous_price_padding',
 			array(
@@ -779,7 +779,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'previous_price_margin',
 			array(
@@ -811,7 +811,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -819,7 +819,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_product_old_price_ele',
 			)
 		);
-		
+
 		$this->add_control(
 			'previous_price_border_radius',
 			array(
@@ -839,7 +839,7 @@ class Wp_Easycart_Elementor_Product_Details_Price_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

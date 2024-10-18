@@ -1779,6 +1779,7 @@ function ec_admin_save_square_options( ){
 	var location_id = jQuery( document.getElementById( 'ec_option_square_location_id' ) ).val( );
 	var country_code = jQuery( '#ec_option_square_location_id > option:selected' ).attr( 'data-country' );
 	var digital_wallets = jQuery( document.getElementById( 'ec_option_square_digital_wallet' ) ).val( );
+	var sync_block_active_change = jQuery( document.getElementById( 'ec_option_square_sync_block_active_change' ) ).val( );
 	var merchant_name = jQuery( document.getElementById( 'ec_option_square_merchant_name' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_square_free',
@@ -1786,6 +1787,7 @@ function ec_admin_save_square_options( ){
 		ec_option_square_location_id: location_id,
 		ec_option_square_location_country: country_code,
 		ec_option_square_digital_wallet: digital_wallets,
+		ec_option_square_sync_block_active_change: sync_block_active_change,
 		ec_option_square_merchant_name: merchant_name,
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
 	};
@@ -1798,7 +1800,7 @@ function ec_admin_save_square_options( ){
 }
 
 function ec_admin_save_square_options_pro( ){
-	jQuery( document.getElementById( "ec_admin_live_gateway_display_loader" ) ).fadeIn( 'fast' );
+	jQuery( document.getElementById( "ec_admin_square_display_loader" ) ).fadeIn( 'fast' );
 
 	var app_id = jQuery( document.getElementById( 'ec_option_square_application_id' ) ).val( );
 	var access_token = jQuery( document.getElementById( 'ec_option_square_access_token' ) ).val( );
@@ -1806,6 +1808,7 @@ function ec_admin_save_square_options_pro( ){
 	var currency = jQuery( document.getElementById( 'ec_option_square_currency' ) ).val( );
 	var country_code = jQuery( '#ec_option_square_location_id > option:selected' ).attr( 'data-country' );
 	var digital_wallets = jQuery( document.getElementById( 'ec_option_square_digital_wallet' ) ).val( );
+	var sync_block_active_change = jQuery( document.getElementById( 'ec_option_square_sync_block_active_change' ) ).val( );
 	var merchant_name = jQuery( document.getElementById( 'ec_option_square_merchant_name' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_square_pro',
@@ -1816,11 +1819,12 @@ function ec_admin_save_square_options_pro( ){
 		ec_option_square_currency: currency,
 		ec_option_square_location_country: country_code,
 		ec_option_square_digital_wallet: digital_wallets,
+		ec_option_square_sync_block_active_change: sync_block_active_change,
 		ec_option_square_merchant_name: merchant_name
 	};
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_live_gateway_display_loader' );
+		ec_admin_hide_loader( 'ec_admin_square_display_loader' );
 	} } );
 
 	return false;

@@ -116,7 +116,7 @@ class Wp_Easycart_Elementor_Product_Details_Title_Widget extends \Elementor\Widg
 		);
 
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'style_section_container',
 			array(

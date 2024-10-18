@@ -2733,3 +2733,20 @@ ul.ec_menu_vertical span{ float:right; }
 		transform: rotate(360deg);
 	}
 }
+
+.ec_cart_subtitle_info{ float:left; width:100%; }
+.ec_cart_subtitle_info_content{ float:left; width:100%; }
+.ec_cart_pickup_group{ float:left; width:100%; display:flex; margin:10px 0; align-items: stretch; margin:10px 0; }
+.ec_cart_pickup_label{ font-weight:bold; width:80px; border-right:1px solid #c7c7c7; margin-right:10px; background:#eeeeee; padding:10px; display:flex; align-items:center; }
+.ec_cart_pickup_items{ display:flex; align-items:center; padding:10px; }
+.ec_cart_pickup_items ul{ list-style:none; padding:0px; }
+.ec_cart_pickup_items ul li{ padding:2px 0; display: flex; align-content: center; align-items: center; }
+.ec_cart_pickup_items ul li input[type="radio"]{ margin-right:10px; }
+.ec_cart_pickup_items ul li label{ width:250px; }
+.ec_cart_pickup_items ul li select{ margin:0; }
+.ec_cart_restaurant_timer{ float:right; }
+
+@media only screen and ( max-width:489px ){
+	.ec_cart_pickup_group{ flex-direction: column; }
+	.ec_cart_pickup_label{ margin-bottom:10px; }
+}

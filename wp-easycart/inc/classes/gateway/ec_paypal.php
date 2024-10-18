@@ -1000,7 +1000,8 @@ class ec_paypal extends ec_third_party{
 			}
 			$selected_found = false;
 			if ( is_array( $shipping_methods ) && count( $shipping_methods ) > 0 ) {
-				foreach ( $shipping_methods as $shipping_method ) {
+				for ( $i = 0; $i < count( $shipping_methods ) && $i < 10; $i++ ) {
+					$shipping_method = $shipping_methods[ $i ];
 					if ( $shipping_method->amount > 0 ) {
 						if ( $selected_option == $shipping_method->id && number_format( $shipping_method->amount, 2, '.', '' ) == number_format( $cartpage->order_totals->shipping_total, 2, '.', '' ) ) {
 							$selected_found = true;
@@ -1942,7 +1943,7 @@ function wp_easycart_ajax_shipping_paypal_express(){
 	}
 
 	$paypal = new ec_paypal();
-	$paypal->update_order( $_POST['orderID'], $_POST['shippingAddress'], $_POST['selectedRate'] );
+	$paypal->update_order( sanitize_text_field( $_POST['orderID'] ), $_POST['shippingAddress'], $_POST['selectedRate'] ); // XSS OK, Array items handled separately.
 	// Get cart and totals
 	$cartpage = new ec_cartpage();
 	$cart = new ec_cart( $GLOBALS['ec_cart_data']->ec_cart_id );
@@ -1969,7 +1970,7 @@ function wp_easycart_ajax_complete_paypal_express( ){
 	}
 
 	$paypal = new ec_paypal();
-	$response =  $paypal->capture_order( $_POST['token'] );
+	$response =  $paypal->capture_order( sanitize_text_field( $_POST['token'] ) );
 	if ( ! $response ) {
 		echo esc_attr( 'error' );
 	} else {

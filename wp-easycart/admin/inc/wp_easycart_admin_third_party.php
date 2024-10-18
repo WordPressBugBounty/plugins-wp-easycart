@@ -1,4 +1,12 @@
 <?php
+/**
+ * WP EasyCart Admin Third Party
+ *
+ * @category Class
+ * @package  wp_easycart_admin_third_party
+ * @author   WP EasyCart
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -7,12 +15,29 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 
 	final class wp_easycart_admin_third_party {
 
+		/**
+		 * Store instance to allow access from anywhere.
+		 */
 		protected static $_instance = null;
 
+		/**
+		 * Store the design file location.
+		 */
 		public $google_analytics_design_file;
+
+		/**
+		 * Store the settings file location.
+		 */
 		public $settings_file;
+
+		/**
+		 * Store Upgrade file location
+		 */
 		public $upgrade_file;
 
+		/**
+		 * Access point for class instance.
+		 */
 		public static function instance() {
 
 			if ( is_null( self::$_instance ) ) {
@@ -21,6 +46,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			return self::$_instance;
 		}
 
+		/**
+		 * Construct to add file locations, actions, and filters.
+		 */
 		public function __construct() {
 			$this->google_analytics_design_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/third-party/google-analytics.php';
 			$this->settings_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/third-party/settings.php';
@@ -41,6 +69,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 		}
 
+		/**
+		 * Success message management function
+		 */
 		public function add_success_messages( $messages ) {
 			if ( isset( $_GET['success'] ) && 'google-import-complete' == $_GET['success'] ) {
 				$messages[] = __( 'Google Merchant CSV Successfully Uploaded', 'wp-easycart' );
@@ -48,14 +79,23 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			return $messages;
 		}
 
+		/**
+		 * Load the third party section
+		 */
 		public function load_third_party() {
 			include( $this->settings_file );
 		}
 
+		/**
+		 * Load the google analytics section
+		 */
 		public function load_google_analytics_design() {
 			include( $this->google_analytics_design_file );
 		}
 
+		/**
+		 * Load the locked GA4 section
+		 */
 		public function load_google_ga4_design() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Google Analytics GA4 Setup', 'wp-easycart' );
@@ -65,6 +105,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Adwords section
+		 */
 		public function load_google_adwords_design() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Google Adwords Setup', 'wp-easycart' );
@@ -74,6 +117,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Google Merchant section
+		 */
 		public function load_google_merchant() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Google Merchant', 'wp-easycart' );
@@ -83,6 +129,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Amazon S3 section
+		 */
 		public function load_amazon_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Amazon S3 Setup', 'wp-easycart' );
@@ -92,6 +141,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked DecoNetwork section
+		 */
 		public function load_deconetwork_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Deconetwork Setup', 'wp-easycart' );
@@ -101,6 +153,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Facebook section
+		 */
 		public function load_facebook_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Facebook Pixel Setup', 'wp-easycart' );
@@ -110,6 +165,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Share A Sale section
+		 */
 		public function load_shareasale_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'ShareASale Setup', 'wp-easycart' );
@@ -119,6 +177,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked Mailerlite section
+		 */
 		public function load_mailerlite_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Mailer Lite Setup', 'wp-easycart' );
@@ -128,6 +189,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked ConvertKit section
+		 */
 		public function load_convertkit_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'ConvertKit Setup', 'wp-easycart' );
@@ -137,6 +201,9 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Load the locked ActiveCampaign section
+		 */
 		public function load_activecampaign_settings() {
 			$upgrade_icon = 'dashicons-admin-generic';
 			$upgrade_title = __( 'Active Campaign Setup', 'wp-easycart' );
@@ -146,7 +213,14 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			include( $this->upgrade_file );
 		}
 
+		/**
+		 * Save Google Analytics settings
+		 */
 		public function save_google_analytics() {
+			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-third-party-settings' ) ) {
+				return false;
+			}
+
 			$ec_option_googleanalyticsid = 'UA-XXXXXXX-X';
 			if ( isset( $_POST['ec_option_googleanalyticsid'] ) ) {
 				$ec_option_googleanalyticsid = sanitize_text_field( wp_unslash( $_POST['ec_option_googleanalyticsid'] ) );
@@ -163,8 +237,8 @@ wp_easycart_admin_third_party();
 
 add_action( 'wp_ajax_ec_admin_ajax_save_google_analytics', 'ec_admin_ajax_save_google_analytics' );
 function ec_admin_ajax_save_google_analytics() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-third-party-settings' ) ) {
-		return false;
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) && ! current_user_can( 'wpec_settings' ) ) {
+		die();
 	}
 
 	wp_easycart_admin_third_party()->save_google_analytics();

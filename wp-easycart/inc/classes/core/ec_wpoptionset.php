@@ -668,6 +668,16 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_hide_out_of_stock');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_shedule_pickup_preorder');			array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_shedule_pickup_restaurant');			array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_restaurant_pickup_asap_length');		array_push($this->wp_option_defaults, '30' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_restaurant_schedule_range');			array_push($this->wp_option_defaults, '15' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_restaurant_allow_scheduling');		array_push($this->wp_option_defaults, '1' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		
 		// Payment Options
 		array_push($this->wp_option_names, 'ec_option_use_direct_deposit');					array_push($this->wp_option_defaults, '1' );
@@ -1203,6 +1213,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_square_webhooks');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_square_last_cursor');					array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_square_sync_block_active_change');	array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_psigate_store_id');					array_push($this->wp_option_defaults, 'teststore' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');

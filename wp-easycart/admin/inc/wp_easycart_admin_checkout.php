@@ -15,6 +15,7 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 		public $checkout_form_settings_file;
 		public $checkout_settings_file;
 		public $checkout_stock_control_file;
+		public $checkout_schedule_file;
 
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
@@ -30,6 +31,7 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 			$this->checkout_form_settings_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/checkout/checkout-form-settings.php';
 			$this->checkout_settings_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/checkout/checkout-settings.php';
 			$this->checkout_stock_control_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/checkout/checkout-stock-control.php';
+			$this->checkout_schedule_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/checkout/checkout-schedule.php';
 
 			add_action( 'wpeasycart_admin_checkout_success', array( $this, 'load_success_messages' ) );
 			add_action( 'wpeasycart_admin_checkout_settings', array( $this, 'load_cart_settings' ) );
@@ -37,6 +39,7 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 			add_action( 'wpeasycart_admin_checkout_settings', array( $this, 'load_checkout_form_settings' ) );
 			add_action( 'wpeasycart_admin_checkout_settings', array( $this, 'load_stock_control_settings' ) );
 			add_action( 'wpeasycart_admin_checkout_settings', array( $this, 'load_checkout_settings' ) );
+			add_action( 'wpeasycart_admin_checkout_settings', array( $this, 'load_schedule_settings' ) );
 
 			add_action( 'wpeasycart_admin_checkout_form_fields_end', array( $this, 'add_additional_email_option' ) );
 		}
@@ -65,6 +68,10 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 			include( $this->checkout_settings_file );
 		}
 
+		public function load_schedule_settings() {
+			include( $this->checkout_schedule_file );
+		}
+
 		public function load_stock_control_settings() {
 			include( $this->checkout_stock_control_file );
 		}
@@ -78,9 +85,9 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 				return false;
 			}
 
-			$options = array( 'ec_option_onepage_checkout', 'ec_option_onepage_checkout_tabbed', 'ec_option_onepage_checkout_cart_first', 'ec_option_load_ssl', 'ec_option_cache_prevent', 'ec_option_enable_tips', 'ec_option_use_estimate_shipping', 'ec_option_estimate_shipping_zip', 'ec_option_estimate_shipping_country', 'ec_option_show_giftcards', 'ec_option_gift_card_shipping_allowed', 'ec_option_show_coupons', 'ec_option_display_country_top', 'ec_option_use_address2', 'ec_option_collect_user_phone', 'ec_option_user_phone_required', 'ec_option_enable_company_name', 'ec_option_enable_company_name_required', 'ec_option_collect_vat_registration_number', 'ec_option_user_order_notes', 'ec_option_require_terms_agreement', 'ec_option_use_contact_name', 'ec_option_show_card_holder_name', 'ec_option_skip_shipping_page', 'ec_option_allow_guest', 'ec_option_enable_extra_email', 'ec_option_use_state_dropdown', 'ec_option_use_smart_states', 'ec_option_use_country_dropdown', 'ec_option_send_low_stock_emails', 'ec_option_send_out_of_stock_emails', 'ec_option_show_card_holder_name' );
+			$options = array( 'ec_option_onepage_checkout', 'ec_option_onepage_checkout_tabbed', 'ec_option_onepage_checkout_cart_first', 'ec_option_load_ssl', 'ec_option_cache_prevent', 'ec_option_enable_tips', 'ec_option_use_estimate_shipping', 'ec_option_estimate_shipping_zip', 'ec_option_estimate_shipping_country', 'ec_option_show_giftcards', 'ec_option_gift_card_shipping_allowed', 'ec_option_show_coupons', 'ec_option_display_country_top', 'ec_option_use_address2', 'ec_option_collect_user_phone', 'ec_option_user_phone_required', 'ec_option_enable_company_name', 'ec_option_enable_company_name_required', 'ec_option_collect_vat_registration_number', 'ec_option_user_order_notes', 'ec_option_require_terms_agreement', 'ec_option_use_contact_name', 'ec_option_show_card_holder_name', 'ec_option_skip_shipping_page', 'ec_option_allow_guest', 'ec_option_enable_extra_email', 'ec_option_use_state_dropdown', 'ec_option_use_smart_states', 'ec_option_use_country_dropdown', 'ec_option_send_low_stock_emails', 'ec_option_send_out_of_stock_emails', 'ec_option_show_card_holder_name', 'ec_option_restaurant_allow_scheduling' );
 
-			$options_text = array( 'ec_option_return_to_store_page_url', 'ec_option_enable_metric_unit_display', 'ec_option_minimum_order_total', 'ec_option_terms_link', 'ec_option_privacy_link', 'ec_option_default_country', 'ec_option_low_stock_trigger_total', 'ec_option_default_payment_type' );
+			$options_text = array( 'ec_option_return_to_store_page_url', 'ec_option_enable_metric_unit_display', 'ec_option_minimum_order_total', 'ec_option_terms_link', 'ec_option_privacy_link', 'ec_option_default_country', 'ec_option_low_stock_trigger_total', 'ec_option_default_payment_type', 'ec_option_shedule_pickup_preorder', 'ec_option_shedule_pickup_restaurant', 'ec_option_restaurant_pickup_asap_length', 'ec_option_restaurant_schedule_range' );
 
 			if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $options ) ) {
 				$val = wp_easycart_admin_verification()->filter_checkbox( 'val' );
@@ -99,6 +106,8 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 					$val = wp_easycart_admin_verification()->filter_int( sanitize_text_field( wp_unslash( $_POST['val'] ) ) );
 				} else if ( $_POST['update_var'] == 'ec_option_default_payment_type' ) {
 					$val = wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['val'] ) ), array( 'manual_bill', 'third_party', 'credit_card' ) );
+				} else {
+					$val = sanitize_text_field( wp_unslash( $_POST['val'] ) );
 				}
 				update_option( sanitize_text_field( wp_unslash( $_POST['update_var'] ) ), $val );
 

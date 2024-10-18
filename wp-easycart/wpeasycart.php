@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.4
+ * Version: 5.7.5
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.4
+ * @version 5.7.5
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +22,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_4' );
+define( 'EC_CURRENT_VERSION', '5_7_5' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '91' );
+define( 'EC_UPGRADE_DB', '92' );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 
@@ -619,11 +619,11 @@ function load_ec_pre() {
 							if ( $optionset->option_type == "checkbox" ) {
 								$selected_optionitems = array();
 								if ( is_array( $_GET[$optionset->option_meta['url_var']] ) ) {
-									foreach ( (array) $_GET[$optionset->option_meta['url_var']] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
+									foreach ( (array) $_GET[ $optionset->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
 										$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
 									}
 								} else {
-									$selected_optionitems[] = sanitize_text_field( $_GET[$optionset->option_meta['url_var']] );
+									$selected_optionitems[] = sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] );
 								}
 								$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
 								foreach ( $optionitems as $optionitem ) {
@@ -7211,6 +7211,56 @@ function ec_ajax_get_dynamic_cart_menu() {
 
 }
 
+add_action( 'wp_ajax_ec_ajax_save_pickup_info', 'ec_ajax_save_pickup_info' );
+add_action( 'wp_ajax_nopriv_ec_ajax_save_pickup_info', 'ec_ajax_save_pickup_info' );
+function ec_ajax_save_pickup_info() {
+	wpeasycart_session()->handle_session();
+	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ), 'wp-easycart-cart-submit-order-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['pickup_date'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['pickup_date_time'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['pickup_asap'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['pickup_time'] ) ) {
+		die();
+	}
+	$pickup_date = sanitize_text_field( $_POST['pickup_date'] );
+	$pickup_date_time = sanitize_text_field( $_POST['pickup_date_time'] );
+	$pickup_date_split = ( is_string( $pickup_date ) ) ? explode( ' 00:00:00 GMT', $pickup_date ) : array( $pickup_date, '' );
+	$pickup_date_only = ( is_array( $pickup_date_split ) && count( $pickup_date_split ) > 0 ) ? $pickup_date_split[0] : $pickup_date;
+	$wp_timezone_string = get_option( 'timezone_string' );
+	$wp_gmt_offset = get_option( 'gmt_offset' );
+	if ( $wp_timezone_string ) {
+		date_default_timezone_set( $wp_timezone_string );
+	} else {
+		if ( $wp_gmt_offset !== false ) {
+			$wp_timezone_offset = $wp_gmt_offset * 3600;
+			@date_default_timezone_set( 'Etc/GMT' . ( $wp_gmt_offset < 0 ? '+' : '-' ) . abs( $wp_gmt_offset ) );
+		}
+	}
+	$timestamp = strtotime( $pickup_date_only . ' ' . $pickup_date_time );
+	if ( isset( $wp_timezone_offset ) && strpos( $pickup_date, 'GMT' ) !== false ) {
+		preg_match( '/GMT([+-]\d{4})/', $pickup_date, $matches );
+		$jquery_timezone_offset = $matches[1][0] === '+' ? 1 : -1;
+		$jquery_timezone_offset *= ( (int) substr( $matches[1], 1, 2 ) * 3600 ) + ( (int) substr( $matches[1], 3, 2 ) * 60 );
+		$timestamp += ( $wp_timezone_offset - $jquery_timezone_offset );
+	}
+	$formatted_pickup_date = date( 'Y-m-d H:i', $timestamp );
+	$pickup_asap = ( isset( $_POST['pickup_asap'] ) && '1' == $_POST['pickup_asap'] ) ? 1 : 0;
+	$pickup_time = ( ! $pickup_asap && $_POST['pickup_time'] ) ? date( 'H:i', strtotime( sanitize_text_field( $_POST['pickup_time'] ) ) ) : '';
+	$GLOBALS['ec_cart_data']->cart_data->pickup_date = $formatted_pickup_date;
+	$GLOBALS['ec_cart_data']->cart_data->pickup_asap = $pickup_asap;
+	$GLOBALS['ec_cart_data']->cart_data->pickup_time = $pickup_time;
+	$GLOBALS['ec_cart_data']->save_session_to_db();
+	die();
+}
+
 // Helper function for AJAX calls in cart.
 function ec_get_order_totals( $cart = false ) {
 
@@ -7604,8 +7654,11 @@ function wp_easycart_webhook_catch() {
 						}
 
 						if ( $subscription->payment_duration > 0 && $subscription->payment_duration <= $subscription->number_payments_completed + 1 ) {
-							// Used to cancel when payment duration reached
-							$stripe = new ec_stripe();
+							if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
+								$stripe = new ec_stripe();
+							} else {
+								$stripe = new ec_stripe_connect();
+							}
 							$stripe->cancel_subscription( $user, $stripe_subscription_id );
 							$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
 						} else {

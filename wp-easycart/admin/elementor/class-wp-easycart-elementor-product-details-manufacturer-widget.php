@@ -119,7 +119,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 			array(
 				'type'  => Controls_Manager::TEXT,
 				'label' => esc_attr__( 'Text', 'wp-easycart' ),
-				'default' => wp_easycart_language( )->get_text( 'product_details', 'product_details_manufacturer' ),
+				'default' => wp_easycart_language()->get_text( 'product_details', 'product_details_manufacturer' ),
 				'placeholder' => esc_attr__( 'Leave empty for no label', 'wp-easycart' ),
 			)
 		);
@@ -133,7 +133,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_mw_align',
 			array(
@@ -171,7 +171,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_mw_padding',
 			array(
@@ -191,7 +191,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_mw_margin',
 			array(
@@ -211,7 +211,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -228,7 +228,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'selector' => '{{WRAPPER}} .ec_details_manufacturer',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_mw_border_radius',
 			array(
@@ -248,7 +248,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -258,7 +258,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'label_color',
 			array(
@@ -279,7 +279,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'selector' => '{{WRAPPER}} .ec_details_manufacturer_label',
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -289,7 +289,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'manufacturer_color',
 			array(
@@ -310,7 +310,7 @@ class Wp_Easycart_Elementor_Product_Details_Manufacturer_Widget extends \Element
 				'selector' => '{{WRAPPER}} .ec_details_manufacturer_item',
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

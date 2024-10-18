@@ -22,7 +22,7 @@ class ec_square extends ec_gateway{
 		$square_order_id = $this->insert_order();
 
 		$json_arr = array(
-			"source_id" => ( isset( $_POST['sourceId'] ) ) ? $_POST['sourceId'] : sanitize_text_field( $_POST['nonce'] ),
+			"source_id" => ( isset( $_POST['sourceId'] ) ) ? sanitize_text_field( $_POST['sourceId'] ) : sanitize_text_field( $_POST['nonce'] ),
 			"amount_money" => array(
 				"amount" => (integer) number_format( $this->order_totals->grand_total * 100, 0, "", "" ),
 				"currency" => get_option( 'ec_option_square_currency' )
@@ -1660,16 +1660,32 @@ class ec_square extends ec_gateway{
 		if ( $sync_inventory ) {
 			$verify_model = $wpdb->query( $wpdb->prepare( 'SELECT * FROM ec_product WHERE model_number = %s AND product_id != %d', $model_number, $product->product_id ) );
 			if ( ! $verify_model ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $activate_in_store, $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				} else {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $activate_in_store, $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				}
 			} else {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $activate_in_store, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				} else {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, title = %s, description = %s, price = %s, image1 = %s, product_images = %s, show_stock_quantity = 0 WHERE product_id = %d", $activate_in_store, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				}
 			}
 		} else {
 			$verify_model = $wpdb->query( $wpdb->prepare( 'SELECT * FROM ec_product WHERE model_number = %s AND product_id != %d', $model_number, $product->product_id ) );
 			if ( ! $verify_model ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $activate_in_store, $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				} else {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, model_number = %s, title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $activate_in_store, $model_number, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				}
 			} else {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $activate_in_store, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				} else {
+					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET activate_in_store = %d, title = %s, description = %s, price = %s, image1 = %s, product_images = %s WHERE product_id = %d", $activate_in_store, $title, $description, $base_price / 100, $image1, implode( ',', $product_images ), $product->product_id ) );
+				}
 			}
 		}
 		$product_id = $product->product_id;

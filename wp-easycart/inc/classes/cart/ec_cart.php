@@ -178,6 +178,162 @@ class ec_cart{
 		
 		return false;
 	}
+
+	public function has_preorder_items() {
+		for( $i = 0; $i < count( $this->cart ); $i++ ) {
+			if ( $this->cart[$i]->is_preorder_type ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function has_restaurant_items() {
+		for( $i = 0; $i < count( $this->cart ); $i++ ) {
+			if ( $this->cart[$i]->is_restaurant_type ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public function get_preorder_schedule() {
+		global $wpdb;
+		$rules = array();
+		$day_of_weeks = array(
+			'SUN' => 'sunday',
+			'MON' => 'monday',
+			'TUE' => 'tuesday',
+			'WED' => 'wednesday',
+			'THU' => 'thursday',
+			'FRI' => 'friday',
+			'SAT' => 'saturday',
+		);
+		$schedule_standard = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 && is_holiday = 0 ORDER BY schedule_id ASC' );
+		foreach ( $schedule_standard as $schedule_day ) {
+			$timer_start = ( isset( $schedule_day->preorder_start ) && is_string( $schedule_day->preorder_start ) ) ? explode( ':', $schedule_day->preorder_start ) : array( '00', '00', '00', '00' );
+			$month_start = ( isset( $timer_start[0] ) ) ? $timer_start[0] : '00';
+			$day_start = ( isset( $timer_start[1] ) ) ? $timer_start[1] : '00';
+			$hour_start = ( isset( $timer_start[2] ) ) ? $timer_start[2] : '00';
+			$minute_start = ( isset( $timer_start[3] ) ) ? $timer_start[3] : '00';
+			$timer_end = ( isset( $schedule_day->preorder_end ) && is_string( $schedule_day->preorder_end ) ) ? explode( ':', $schedule_day->preorder_end ) : array( '00', '00', '00', '00' );
+			$month_end = ( isset( $timer_end[0] ) ) ? $timer_end[0] : '00';
+			$day_end = ( isset( $timer_end[1] ) ) ? $timer_end[1] : '00';
+			$hour_end = ( isset( $timer_end[2] ) ) ? $timer_end[2] : '00';
+			$minute_end = ( isset( $timer_end[3] ) ) ? $timer_end[3] : '00';
+			$rules[ $day_of_weeks[ $schedule_day->day_of_week ] ] = array(
+				'min' => ( (int) $month_start * 31 * 24 * 60 ) + ( (int) $day_start * 24 * 60 ) + ( (int) $hour_start * 60 ) + (int) $minute_start,
+				'max' => ( (int) $month_end * 31 * 24 * 60 ) + ( (int) $day_end * 24 * 60 ) + ( (int) $hour_end * 60 ) + (int) $minute_end,
+				'open' => $schedule_day->preorder_open_time,
+				'close' => $schedule_day->preorder_close_time,
+				'is_closed' => $schedule_day->preorder_closed,
+			);
+		}
+		$rules['holidays'] = array();
+		$holidays = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 && is_holiday = 1 ORDER BY schedule_id ASC' );
+		foreach ( $holidays as $holiday ) {
+			$timer_start = ( isset( $holiday->preorder_start ) && is_string( $holiday->preorder_start ) ) ? explode( ':', $holiday->preorder_start ) : array( '00', '00', '00', '00' );
+			$month_start = ( isset( $timer_start[0] ) ) ? $timer_start[0] : '00';
+			$day_start = ( isset( $timer_start[1] ) ) ? $timer_start[1] : '00';
+			$hour_start = ( isset( $timer_start[2] ) ) ? $timer_start[2] : '00';
+			$minute_start = ( isset( $timer_start[3] ) ) ? $timer_start[3] : '00';
+			$timer_end = ( isset( $holiday->preorder_end ) && is_string( $holiday->preorder_end ) ) ? explode( ':', $holiday->preorder_end ) : array( '00', '00', '00', '00' );
+			$month_end = ( isset( $timer_end[0] ) ) ? $timer_end[0] : '00';
+			$day_end = ( isset( $timer_end[1] ) ) ? $timer_end[1] : '00';
+			$hour_end = ( isset( $timer_end[2] ) ) ? $timer_end[2] : '00';
+			$minute_end = ( isset( $timer_end[3] ) ) ? $timer_end[3] : '00';
+			$rules['holidays'][ $holiday->holiday_date ] = array(
+				'min' => ( (int) $month_start * 31 * 24 * 60 ) + ( (int) $day_start * 24 * 60 ) + ( (int) $hour_start * 60 ) + (int) $minute_start,
+				'max' => ( (int) $month_end * 31 * 24 * 60 ) + ( (int) $day_end * 24 * 60 ) + ( (int) $hour_end * 60 ) + (int) $minute_end,
+				'open' => date( 'H:i', strtotime( date( 'Y-m-d' ) . ' ' . $holiday->preorder_open_time ) ),
+				'close' => date( 'H:i', strtotime( date( 'Y-m-d' ) . ' ' . $holiday->preorder_close_time ) ),
+				'is_closed' => $schedule_day->preorder_closed,
+			);
+		}
+		return $rules;
+	}
+
+	public function get_restaurant_hours() {
+		global $wpdb;
+		$timezone_string = get_option( 'timezone_string' );
+		if ( $timezone_string ) {
+			date_default_timezone_set( $timezone_string );
+		} else {
+			$gmt_offset = get_option('gmt_offset');
+			if ( $gmt_offset !== false ) {
+				$timezone_offset = $gmt_offset * 3600;
+				@date_default_timezone_set( 'Etc/GMT' . ( $gmt_offset < 0 ? '+' : '-' ) . abs( $gmt_offset ) );
+			}
+		}
+		$current_time = time();
+		if ( isset( $timezone_offset ) ) {
+			$current_time += $timezone_offset;
+		}
+		$start_hour = $start_minute = $end_hour = $end_minute = 0;
+		$holiday = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_schedule WHERE apply_to_restaurant = 1 && is_holiday = 1 AND holiday_date = %s', date( 'Y-m-d', $current_time ) ) );
+		if ( $holiday ) {
+			$start_time = explode( ':', $holiday->restaurant_start );
+			if ( is_array( $start_time ) && count( $start_time ) == 2 ) {
+				$start_hour = $start_time[0];
+				$start_minute = $start_time[1];
+			}
+			$end_time = explode( ':', $holiday->restaurant_end );
+			if ( is_array( $end_time ) && count( $end_time ) == 2 ) {
+				$end_hour = $end_time[0];
+				$end_minute = $end_time[1];
+			}
+		} else {
+			$day_of_weeks = array(
+				'sunday' => 'SUN',
+				'monday' => 'MON',
+				'tuesday' => 'TUE',
+				'wednesday' => 'WED',
+				'thursday' => 'THU',
+				'friday' => 'FRI',
+				'saturday' => 'SAT',
+			);
+			$day = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_schedule WHERE apply_to_restaurant = 1 && is_holiday = 0 AND day_of_week = %s', $day_of_weeks[ strtolower( date( 'l', $current_time ) ) ] ) );
+			if ( $day ) {
+				$start_time = explode( ':', $day->restaurant_start );
+				if ( is_array( $start_time ) && count( $start_time ) == 2 ) {
+					$start_hour = $start_time[0];
+					$start_minute = $start_time[1];
+				}
+				$end_time = explode( ':', $day->restaurant_end );
+				if ( is_array( $end_time ) && count( $end_time ) == 2 ) {
+					$end_hour = $end_time[0];
+					$end_minute = $end_time[1];
+				}
+			}
+		}
+		$now_hour = (int) date( 'G', $current_time );
+		$now_minute = (int) date( 'i', $current_time );
+		return (object) array(
+			'start_hour' => (int) $start_hour,
+			'start_minute' => (int) $start_minute,
+			'end_hour' => (int) $end_hour,
+			'end_minute' => (int) $end_minute,
+			'now_hour' => (int) $now_hour,
+			'now_minute' => (int) $now_minute,
+		);
+	}
+
+	public function is_restaurant_open() {
+		$today_hours = $this->get_restaurant_hours();
+		if ( $today_hours->start_hour > $today_hours->now_hour ) {
+			return false;
+		}
+		if ( $today_hours->end_hour < $today_hours->now_hour ) {
+			return false;
+		}
+		if ( $today_hours->start_hour == $today_hours->now_hour && $today_hours->start_minute > $today_hours->now_minute ) {
+			return false;
+		}
+		if ( $today_hours->end_hour == $today_hours->now_hour && $today_hours->end_minute < $today_hours->now_minute ) {
+			return false;
+		}
+		return true;
+	}
 	
 	// Process Adding Item to cart
 	public function process_add_to_cart($sessionid, $productid, $quantity, $option1, $option2, $option3, $option4, $option5, $message, $to_name, $from_name ){

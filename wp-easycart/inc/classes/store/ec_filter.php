@@ -252,7 +252,7 @@ class ec_filter {
 		if ( isset( $_GET['group_id'] ) ) {
 			$valid_categories = array();
 			$categories = explode( ',', $_GET['group_id'] );
-			foreach ( $categories as $category_id ) {
+			foreach ( $categories as $category_id ) { // XSS OK. Each item sanitized by forcing int and verified as valid.
 				$category_id = $this->mysqli->get_category_id( (int) $category_id );
 				if ( $category_id ) {
 					$valid_categories[] = $category_id;
@@ -271,7 +271,7 @@ class ec_filter {
 		for ( $i = 0; $i < 20; $i++ ) {
 			if ( isset( $_GET[ 'group_id_' . $i ] ) ) {
 				$valid_categories = array();
-				$categories = explode( ',', $_GET[ 'group_id_' . $i ] );
+				$categories = explode( ',', $_GET[ 'group_id_' . $i ] ); // XSS OK. Each item sanitized by forcing int and verified as valid.
 				foreach ( $categories as $category_id ) {
 					$category_id = $this->mysqli->get_category_id( (int) $category_id );
 					if ( $category_id ) {

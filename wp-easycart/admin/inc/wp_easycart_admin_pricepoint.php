@@ -114,15 +114,17 @@ if ( ! class_exists( 'wp_easycart_admin_pricepoint' ) ) :
 
 			global $wpdb;
 
-			$low_point = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['low_point'] ) ) );
-			$high_point = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['high_point'] ) ) );
-			$pricepoint_order = (int) $_POST['pricepoint_order'];
+			$low_point = ( isset( $_POST['low_point'] ) ) ? wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['low_point'] ) ) ) : 0.00;
+			$high_point = ( isset( $_POST['high_point'] ) ) ? wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['high_point'] ) ) ) : 0.00;
+			$pricepoint_order = ( isset( $_POST['pricepoint_order'] ) ) ? (int) $_POST['pricepoint_order'] : 0;
 			$is_less_than = $is_greater_than = 0;
-			if ( isset( $_POST['is_less_than'] ) )
+			if ( isset( $_POST['is_less_than'] ) ) {
 				$is_less_than = 1;
+			}
 
-			if ( isset( $_POST['is_greater_than'] ) )
+			if ( isset( $_POST['is_greater_than'] ) ) {
 				$is_greater_than = 1;
+			}
 
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_pricepoint( is_less_than, is_greater_than, low_point, high_point, pricepoint_order ) VALUES( %d, %d, %s, %s, %d )', $is_less_than, $is_greater_than, $low_point, $high_point, $pricepoint_order ) );
 

@@ -124,7 +124,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_stockw_label_color',
 			array(
@@ -145,7 +145,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_details_stock_total_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_stockw_align',
 			array(
@@ -181,7 +181,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_details_stock_total_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_stockw_padding',
 			array(
@@ -201,7 +201,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_stockw_margin',
 			array(
@@ -221,7 +221,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -238,7 +238,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				'selector' => '{{WRAPPER}} .ec_details_stock_total_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_stockw_border_radius',
 			array(
@@ -258,7 +258,7 @@ class Wp_Easycart_Elementor_Product_Details_Stock_Widget extends \Elementor\Widg
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

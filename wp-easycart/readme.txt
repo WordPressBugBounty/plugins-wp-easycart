@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.6
-Stable tag: 5.7.4
+Stable tag: 5.7.5
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,16 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.5 =
+* New Feature - Restaurant style products with open/close times and holidays.
+* New Feature - Preorder for pickup style products with open/close times and holidays.
+* New Feature - Cart schedule to open and close checkout for retails, restaurant style, and preorder for pickup style products.
+* New Feature - Product sync for Square, new option to allow you to deactivate products and variants without the sync reactivating.
+* Bug Fix - UPS token issues resolved.
+* Bug Fix - Square and PayPal Wallet buttons hidden when appropriate to match Stripe settings.
+* Bug Fix - Tip system error when no values entered on setup.
+* Bug Fix - Carriage return issue for text areas.
+* Bug Fix - Subscriptions with duration set were not cancelling on time.
 = 5.7.4 =
 * Bug Fix - Manufacturers fix for latest PHP versions.
 * Bug Fix - Square product sync, timeout issue for large sites.

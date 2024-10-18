@@ -1047,7 +1047,7 @@ function ec_admin_save_cart_options() {
 										var token = result.token;
 										var ec_quantity = 1;
 										if ( jQuery( document.getElementById( 'ec_quantity_<?php echo esc_attr( $product->product_id ); ?>' ) ).length ) {
-											ec_quantity = jQuery( document.getElementById( 'ec_quantity_<?php echo esc_attr( $product->product_id ); ?>' ) ).val();
+											ec_quantity = Number( jQuery( document.getElementById( 'ec_quantity_<?php echo esc_attr( $product->product_id ); ?>' ) ).val() );
 										}
 										var billing_details = {
 											first_name: first_name,

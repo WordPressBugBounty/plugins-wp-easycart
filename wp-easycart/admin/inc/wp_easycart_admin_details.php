@@ -342,6 +342,8 @@ class wp_easycart_admin_details {
 		}
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['required'] ) && $column['required'] ) {
 			echo ' class="wpep-required" wpec-admin-validation-type="' . esc_attr( $column['validation_type'] ) . '"';
@@ -450,6 +452,8 @@ class wp_easycart_admin_details {
 		echo '"';
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( $column['required'] ) {
 			echo ' class="wpep-required" wpec-admin-validation-type="' . esc_attr( $column['validation_type'] ) . '"';
@@ -499,15 +503,17 @@ class wp_easycart_admin_details {
 		echo '<fieldset class="wp-easycart-admin-field-container">';
 		echo '<input type="text" name="' . esc_attr( $column['name'] ) . '" id="' . esc_attr( $column['name'] ) . '" value="';
 		if ( $this->id ) {
-			echo esc_textarea( wp_unslash( ( ( isset( $column['value'] ) ) ? $column['value'] : '' ) ) );
+			echo esc_attr( wp_unslash( ( ( isset( $column['value'] ) ) ? $column['value'] : '' ) ) );
 		} else if ( isset( $column['default'] ) ) {
-			echo esc_textarea( wp_unslash( $column['default'] ) );
+			echo esc_attr( wp_unslash( $column['default'] ) );
 		}
 		echo '"';
 		if ( isset( $column['maxlength'] ) ) {
 			echo ' maxlength="' . esc_attr( $column['maxlength'] ) . '"';
 		}
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
+			echo ' readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
 			echo ' readonly ';
 		}
 		if ( isset( $column['placeholder'] ) ) {
@@ -583,6 +589,8 @@ class wp_easycart_admin_details {
 		}
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( $column['required'] ) {
 			echo ' class="ec_color_block_input wpep-required" wpec-admin-validation-type="' . esc_attr( $column['validation_type'] ) . '"';
@@ -651,10 +659,13 @@ class wp_easycart_admin_details {
 		}
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			$select_classes[] = 'wpec-admin-readonly';
-			echo 'disabled="true" ';
+			echo ' disabled="true" ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			$select_classes[] = 'wpec-admin-readonly';
+			echo ' disabled="true" ';
 		}
 		if ( isset( $column['multiple'] ) && $column['multiple'] ) {
-			echo 'multiple="multiple" ';
+			echo ' multiple="multiple" ';
 		}
 		if ( isset( $column['show'] ) ) {
 			echo ' onchange="ec_admin_show_hide_update( \'' . esc_attr( $column['name'] ) . '\', \'' . esc_attr( $column['show']['value'] ) . '\', \'ec_admin_row_' . esc_attr( $column['show']['name'] ) . '\' )"';
@@ -750,6 +761,8 @@ class wp_easycart_admin_details {
 		}
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['show'] ) ) {
 			echo ' onchange="ec_admin_show_hide_update( \'' . esc_attr( $column['name'] ) . '\', \'' . esc_attr( $column['show']['value'] ) . '\', \'ec_admin_row_' . esc_attr( $column['show']['name'] ) . '\' )"';
@@ -816,6 +829,8 @@ class wp_easycart_admin_details {
 		echo '"';
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['show'] ) ) {
 			echo ' onchange="ec_admin_show_hide_update( \'' . esc_attr( $column['name'] ) . '\', \'' . esc_attr( $column['show']['value'] ) . '\', \'ec_admin_row_' . esc_attr( $column['show']['name'] ) . '\' )"';
@@ -861,6 +876,8 @@ class wp_easycart_admin_details {
 		echo '>' . esc_attr( $column['label'] );
 		echo '<textarea name="' . esc_attr( $column['name'] ) . '" id="' . esc_attr( $column['name'] ) . '"';
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
+			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
 			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['show'] ) ) {
@@ -965,6 +982,8 @@ class wp_easycart_admin_details {
 		echo '<input type="checkbox" name="' . esc_attr( $column['name'] ) . '" id="' . esc_attr( $column['name'] ) . '" value="1"';
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['show'] ) ) {
 			echo ' onchange="ec_admin_show_hide_update( \'' . esc_attr( $column['name'] ) . '\', \'' . esc_attr( $column['show']['value'] ) . '\', \'ec_admin_row_' . esc_attr( $column['show']['name'] ) . '\' )"';
@@ -1060,6 +1079,8 @@ class wp_easycart_admin_details {
 
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
 			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
+			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( $column['required'] ) {
 			echo ' class="wpep-required wp-ec-datepicker" wpec-admin-validation-type="' . esc_attr( $column['validation_type'] ) . '"';
@@ -1118,6 +1139,8 @@ class wp_easycart_admin_details {
 		}
 
 		if ( isset( $column['read-only'] ) && $column['read-only'] ) {
+			echo ' class="wpec-admin-readonly" readonly ';
+		} else if ( isset( $column['disabled_for_ids'] ) && is_array( $column['disabled_for_ids'] ) && in_array( $this->id, $column['disabled_for_ids'] ) ) {
 			echo ' class="wpec-admin-readonly" readonly ';
 		}
 		if ( isset( $column['show'] ) ) {

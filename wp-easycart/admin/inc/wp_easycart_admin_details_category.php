@@ -72,7 +72,7 @@ class wp_easycart_admin_details_category extends wp_easycart_admin_details {
 		}
 	}
 
-	function build_category_option_items( &$category_list, $categories, $level = 0 ) {
+	public function build_category_option_items( &$category_list, $categories, $level = 0 ) {
 		global $wpdb;
 		foreach ( $categories as $category ) {
 			$category_prefix = '';
@@ -157,7 +157,7 @@ class wp_easycart_admin_details_category extends wp_easycart_admin_details {
 					'label' => __( 'Link Slug', 'wp-easycart' ),
 					'required' => false,
 					'validation_type' => 'post_slug',
-					'visible' => ( $this->id == '0' ) ? false : true,
+					'visible' => ( '0' == $this->id ) ? false : true,
 					'value' => basename( $this->category->guid ),
 					'message' => __( 'Post Slug values must be unique and may only include letters, numbers, and dashes', 'wp-easycart' ),
 				),

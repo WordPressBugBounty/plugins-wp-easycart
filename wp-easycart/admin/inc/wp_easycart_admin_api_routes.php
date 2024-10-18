@@ -25,8 +25,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/easycart_product/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_product' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_product' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -35,8 +35,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/easycart_product_cat/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_product_cat' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_product_cat' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -45,8 +45,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/easycart_product_brand/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_product_brand' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_product_brand' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -55,8 +55,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/categories/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_categories' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_categories' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -65,8 +65,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/easycart_product_optionsets/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_optionsets' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_optionsets' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -75,8 +75,8 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				'wp-easycart/v1',
 				'/products/categories/',
 				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'wp_eayscart_ajax_select_products_by_categories' ),
+					'methods' => 'GET',
+					'callback' => array( $this, 'wp_eayscart_ajax_select_products_by_categories' ),
 					'permission_callback' => '__return_true',
 				),
 				true
@@ -90,19 +90,20 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 
 			if ( isset( $_GET['ids'] ) ) {
 				$sql .= ' AND ec_product.product_id IN (';
-				if ( ! is_array( $_GET['ids'] ) ){
+				if ( ! is_array( $_GET['ids'] ) ) {
 					if ( sanitize_text_field( wp_unslash( $_GET['ids'] ) ) == '' ){
 						return ['results' => []];
 					}
 					$ids = explode( ',', sanitize_text_field( wp_unslash( $_GET['ids'] ) ) );
-				}else{
+				} else {
 					$ids = (array) $_GET['ids']; // XSS OK. Forced array and each item sanitized.
 				}
 				$ids_count = count( $ids );
-				for ( $i = 0; $i < $ids_count; $i++ ){
-					if ( $i > 0 )
+				for ( $i = 0; $i < $ids_count; $i++ ) {
+					if ( $i > 0 ) {
 						$sql .= ',';
-					$sql .= (int) $ids[$i];
+					}
+					$sql .= (int) $ids[ $i ];
 				}
 				$sql .= ')';
 			}
@@ -130,7 +131,7 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 			if ( isset( $_GET['ids'] ) ) {
 				$sql .= ' AND ec_category.category_id IN (';
 				if ( ! is_array( $_GET['ids'] ) ) {
-					if ( sanitize_text_field( wp_unslash( $_GET['ids'] ) ) == '' ){
+					if ( sanitize_text_field( wp_unslash( $_GET['ids'] ) ) == '' ) {
 						return ['results' => []];
 					}
 					$ids = explode( ',', sanitize_text_field( wp_unslash( $_GET['ids'] ) ) );
@@ -142,7 +143,7 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 					if ( $i > 0 ) {
 						$sql .= ',';
 					}
-					$sql .= (int) $ids[$i];
+					$sql .= (int) $ids[ $i ];
 				}
 				$sql .= ')';
 			}
@@ -154,10 +155,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 
 			$products = $wpdb->get_results( $sql );
 			return array( 'results' => $products );
-
 		}
 
-		public function wp_eayscart_ajax_select_product_brand( ){
+		public function wp_eayscart_ajax_select_product_brand() {
 			global $wpdb;
 
 			$sql = 'SELECT ec_manufacturer.manufacturer_id AS id, ec_manufacturer.`name` AS text FROM ec_manufacturer WHERE 1=1';
@@ -177,7 +177,7 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 					if ( $i > 0 ) {
 						$sql .= ',';
 					}
-					$sql .= (int) $ids[$i];
+					$sql .= (int) $ids[ $i ];
 				}
 				$sql .= ')';
 			}
@@ -189,7 +189,6 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 
 			$products = $wpdb->get_results( $sql );
 			return array( 'results' => $products );
-
 		}
 
 		public function wp_eayscart_ajax_select_categories( ){
@@ -260,8 +259,7 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 			return array( 'results' => $options );
 		}
 
-		public function wp_eayscart_ajax_select_products_by_categories( ){
-
+		public function wp_eayscart_ajax_select_products_by_categories() {
 			global $wpdb;
 
 			$sql = 'SELECT DISTINCT ec_product.product_id, ec_product.title, ec_product.image1, ec_product.image2, ec_product.image3, ec_product.image4, ec_product.image5, ec_product.product_images, ec_product.price, ec_product.list_price FROM ec_categoryitem, ec_product WHERE ec_categoryitem.product_id = ec_product.product_id';

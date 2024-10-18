@@ -123,7 +123,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_skw_sku_color',
 			array(
@@ -145,7 +145,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				'selector' => '{{WRAPPER}} .ec_details_sku',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_skw_align',
 			array(
@@ -183,7 +183,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_skw_padding',
 			array(
@@ -203,7 +203,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_skw_margin',
 			array(
@@ -223,7 +223,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -240,7 +240,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				'selector' => '{{WRAPPER}} .ec_details_sku',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_skw_border_radius',
 			array(
@@ -260,7 +260,7 @@ class Wp_Easycart_Elementor_Product_Details_Sku_Widget extends \Elementor\Widget
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

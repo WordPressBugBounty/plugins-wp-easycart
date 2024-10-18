@@ -26,6 +26,11 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 			'promo_code' => '',
 			'giftcard_id' => '',
 			'order_date' => '',
+			'includes_preorder_items' => false,
+			'includes_restaurant_type' => false,
+			'pickup_date' => '',
+			'pickup_asap' => '',
+			'pickup_time' => '',
 			'orderstatus_id' => '',
 			'order_notes' => '',
 			'order_customer_notes' => '',
@@ -86,15 +91,16 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 	}
 
 	protected function init_data() {
+		$order_id = ( isset( $_GET['order_id'] ) ) ? (int) $_GET['order_id'] : 0;
 		$this->form_action = 'update-order';
-		$this->order = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_order.*, ec_user.first_name, ec_user.last_name, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name, ec_orderstatus.is_approved, ec_orderstatus.order_status FROM ec_order LEFT JOIN ec_orderstatus ON ( ec_orderstatus.status_id = ec_order.orderstatus_id ) LEFT JOIN ec_country AS billing_country ON ( billing_country.iso2_cnt = ec_order.billing_country ) LEFT JOIN ec_country AS shipping_country ON ( shipping_country.iso2_cnt = ec_order.shipping_country ) LEFT JOIN ec_user ON ( ec_user.user_id = ec_order.user_id ) WHERE order_id = %d', (int) $_GET['order_id'] ) );
+		$this->order = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_order.*, ec_user.first_name, ec_user.last_name, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name, ec_orderstatus.is_approved, ec_orderstatus.order_status FROM ec_order LEFT JOIN ec_orderstatus ON ( ec_orderstatus.status_id = ec_order.orderstatus_id ) LEFT JOIN ec_country AS billing_country ON ( billing_country.iso2_cnt = ec_order.billing_country ) LEFT JOIN ec_country AS shipping_country ON ( shipping_country.iso2_cnt = ec_order.shipping_country ) LEFT JOIN ec_user ON ( ec_user.user_id = ec_order.user_id ) WHERE order_id = %d', $order_id ) );
 		$this->id = $this->order->order_id;
 		$this->order->order_fees = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY order_fee_id ASC', $this->id ) );
 	}
 
 	public function output( $type = 'edit' ) {
 		$this->init();
-		if ( $type == 'edit' ) {
+		if ( 'edit' == $type ) {
 			$this->init_data();
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-details.php' );

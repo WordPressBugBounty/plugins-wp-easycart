@@ -157,6 +157,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			"amazon_key" => '',
 			"catalog_mode" => '',
 			"catalog_mode_phrase" => '',
+			"is_preorder_type" => 0,
+			"is_restaurant_type" => 0,
 			"inquiry_mode" => '',
 			"inquiry_url" => '',
 			"is_deconetwork" => '',
@@ -1601,6 +1603,28 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"validation_type" 	=> 'text',
 				"visible"			=> true,
 				"value"				=> $this->product->catalog_mode_phrase
+			),
+			array(
+				"name"				=> "is_preorder_type",
+				"type"				=> "checkbox",
+				"label"				=> __( "Enable Preorder for Pickup", 'wp-easycart' ),
+				"required" 			=> false,
+				"onclick"			=> 'show_pro_required',
+				"read-only"			=> true,
+				"validation_type" 	=> 'checkbox',
+				"visible"			=> true,
+				"value"				=> $this->product->is_preorder_type
+			),
+			array(
+				"name"				=> "is_restaurant_type",
+				"type"				=> "checkbox",
+				"label"				=> __( "Enable Restaurant for Pickup", 'wp-easycart' ),
+				"required" 			=> false,
+				"onclick"			=> 'show_pro_required',
+				"read-only"			=> true,
+				"validation_type" 	=> 'checkbox',
+				"visible"			=> true,
+				"value"				=> $this->product->is_restaurant_type
 			),
 			array(
 				"name"				=> "role_id",

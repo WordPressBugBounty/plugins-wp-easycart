@@ -217,6 +217,12 @@ class ec_db_admin extends ec_db{
 
 			ec_order.success_page_shown,
 
+			ec_order.includes_preorder_items,
+			ec_order.includes_restaurant_type,
+			ec_order.pickup_date,
+			ec_order.pickup_asap,
+			ec_order.pickup_time,
+
 			GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data 
 
 			FROM 

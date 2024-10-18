@@ -1683,6 +1683,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"Se ordre"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"Dette er en forudbestilling til afhentning"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"Nogle eller alle varer i din indkøbskurv kræver lokal afhentning."
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"genstande"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"Dato"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"Vælg Afhentningsdato"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"Vælg Afhentningstid"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"Afhentningsvejledning"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"Dette er en afhentningsordre"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"Du afgiver en ordre til afhentning."
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"genstande"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"Tid"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"Afhentningsvejledning"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"Restauranten er i øjeblikket lukket!"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"lukker"
 				}
             }
         },
@@ -3001,6 +3057,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"Der er en vare i din indkøbskurv, som ikke kan sendes til din nuværende leveringsadresse. Fjern venligst denne vare fra indkøbskurven eller fortsæt til kassen og indtast en anden adresse."
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"Denne ordre kræver, at du vælger din afhentningsdato."
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"Sørg for at afhente din ordre den [pickup_date]."
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"Din ordre er modtaget, og du kan afhente den på [pickup_time]."
 				}
             }
         },

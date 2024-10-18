@@ -68,7 +68,7 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-optionitem';
-		$this->item = $this->optionitem = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_optionitem.* FROM ec_optionitem WHERE optionitem_id = %d', (int) $_GET['optionitem_id'] ) );
+		$this->item = $this->optionitem = ( ( isset( $_GET['optionitem_id'] ) ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT ec_optionitem.* FROM ec_optionitem WHERE optionitem_id = %d', (int) $_GET['optionitem_id'] ) ) : 0 );
 		$this->id = $this->optionitem->optionitem_id;
 		$this->option = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_option.* FROM ec_option WHERE option_id = %d', $this->optionitem->option_id ) );
 		$this->optionitem->is_override_file = false;
@@ -253,22 +253,22 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 		$s3_files = array(
 			(object) array(
 				'id' => '0',
-				'value' => 'Not Connected'
-			)
+				'value' => 'Not Connected',
+			),
 		);
 		if ( ( get_option( 'ec_option_amazon_key' ) != '' && get_option( 'ec_option_amazon_key' ) != '0' ) && 
 			( get_option( 'ec_option_amazon_secret' ) != '' && get_option( 'ec_option_amazon_secret' ) != '0' ) &&
 			( get_option( 'ec_option_amazon_bucket' ) != '' && get_option( 'ec_option_amazon_bucket' ) != '0' ) && 
 			( phpversion() >= 5.3 ) ) {
 			try {
-				require_once( EC_PLUGIN_DIRECTORY . "/inc/classes/account/ec_amazons3.php" );
+				require_once( EC_PLUGIN_DIRECTORY . '/inc/classes/account/ec_amazons3.php' );
 				$amazons3 = new ec_amazons3();
 				$s3_files_from_server = $amazons3->get_aws_files();
 				$s3_files = array();
 				foreach ( $s3_files_from_server as $file ) {
 					$s3_files[] = (object) array(
-						"id"			=> $file,
-						"value"			=> $file
+						'id' => $file,
+						'value' => $file,
 					);
 				}
 			} catch( Exception $e ) {
@@ -300,166 +300,166 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 					'value' => $this->optionitem->optionitem_allow_download,
 				),
 				array(
-					"name"				=> "is_override_file",
-					"type"				=> "checkbox",
-					"label"				=> __( "Enable Download File Override", 'wp-easycart' ),
-					"required" 			=> false,
-					"validation_type" 	=> 'checkbox',
-					"onclick"			=> 'wpeasycart_optionitem_update_override_file',
-					"read-only"			=> false,
-					"visible"			=> true,
-					"value"				=> $this->optionitem->is_override_file
+					'name' => 'is_override_file',
+					'type' => 'checkbox',
+					'label' => __( 'Enable Download File Override', 'wp-easycart' ),
+					'required' => false,
+					'validation_type' => 'checkbox',
+					'onclick' => 'wpeasycart_optionitem_update_override_file',
+					'read-only' => false,
+					'visible' => true,
+					'value' => $this->optionitem->is_override_file,
 				),
 				array(
-					"name"				=> "is_override_amazon",
-					"type"				=> "select",
-					"label"				=> __( "Download Location", 'wp-easycart' ),
-					"data"				=> array(
+					'name' => 'is_override_amazon',
+					'type' => 'select',
+					'label' => __( 'Download Location', 'wp-easycart' ),
+					'data' => array(
 						(object) array(
-							"id"		=> "1",
-							"value"		=> __( "Amazon S3", 'wp-easycart' )
-						)
+							'id' => '1',
+							'value' => __( 'Amazon S3', 'wp-easycart' ),
+						),
 					),
-					"data_label"		=> __( "My Server", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
-						"name"			=> "is_override_file",
-						"value"			=> 1,
-						"default_show"	=> false
+					'data_label' => __( 'My Server', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
+						'name' => 'is_override_file',
+						'value' => 1,
+						'default_show' => false,
 					),
-					"onchange"			=> 'wpeasycart_optionitem_update_override_file',
-					"validation_type" 	=> 'select',
-					"visible"			=> false,
-					"value"				=> $this->optionitem->is_override_amazon,
+					'onchange' => 'wpeasycart_optionitem_update_override_file',
+					'validation_type' => 'select',
+					'visible' => false,
+					'value' => $this->optionitem->is_override_amazon,
 				),
 				array(
-					"name"				=> "override_amazon_key",
-					"type"				=> "select",
-					"label"				=> __( "S3 File", 'wp-easycart' ),
-					"data"				=> $s3_files,
-					"data_label"		=> __( "None Selected", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
+					'name' => 'override_amazon_key',
+					'type' => 'select',
+					'label' => __( 'S3 File', 'wp-easycart' ),
+					'data' => $s3_files,
+					'data_label' => __( 'None Selected', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
 						array(
-							"name"		=> "is_override_amazon",
-							"value"		=> 1,
-							"default_show"=> false
+							'name' => 'is_override_amazon',
+							'value' => 1,
+							'default_show' => false,
 						),
 						array(
-							"name"		=> "is_override_file",
-							"value"		=> 1,
-							"default_show"=> false
-						)
+							'name' => 'is_override_file',
+							'value' => 1,
+							'default_show' => false,
+						),
 					),
-					"validation_type" 	=> 'select',
-					"visible"			=> false,
-					"value"				=> $this->optionitem->override_amazon_key
+					'validation_type' => 'select',
+					'visible' => false,
+					'value' => $this->optionitem->override_amazon_key,
 				),
 				array(
-					"name"				=> "override_file_name",
-					"type"				=> "image_upload",
-					"hide_preview"      => true,
-					"button_label"		=> __( "Upload File", 'wp-easycart' ),
-					"label"				=> __( "Download File", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
+					'name' => 'override_file_name',
+					'type' => 'image_upload',
+					'hide_preview' => true,
+					'button_label' => __( 'Upload File', 'wp-easycart' ),
+					'label' => __( 'Download File', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
 						array(
-							"name"		=> "is_override_amazon",
-							"value"		=> 0,
-							"default_show"=> false
+							'name' => 'is_override_amazon',
+							'value' => 0,
+							'default_show' => false,
 						),
 						array(
-							"name"		=> "is_override_file",
-							"value"		=> 1,
-							"default_show"=> false
-						)
+							'name' => 'is_override_file',
+							'value' => 1,
+							'default_show' => false,
+						),
 					),
-					"validation_type" 	=> 'image',
-					"image_action"		=> 'ec_admin_download_upload',
-					"visible"			=> true,
-					"delete_label"		=> __( 'Remove File', 'wp-easycart' ),
-					"value"				=> $this->optionitem->override_file_name
+					'validation_type' => 'image',
+					'image_action' => 'ec_admin_download_upload',
+					'visible' => true,
+					'delete_label' => __( 'Remove File', 'wp-easycart' ),
+					'value' => $this->optionitem->override_file_name,
 				),
 				array(
-					"name"				=> "is_additional_file",
-					"type"				=> "checkbox",
-					"label"				=> __( "Enable Additional Download File", 'wp-easycart' ),
-					"required" 			=> false,
-					"validation_type" 	=> 'checkbox',
-					"onclick"			=> 'wpeasycart_optionitem_update_additional_file',
-					"read-only"			=> false,
-					"visible"			=> true,
-					"value"				=> $this->optionitem->is_additional_file
+					'name' => 'is_additional_file',
+					'type' => 'checkbox',
+					'label' => __( 'Enable Additional Download File', 'wp-easycart' ),
+					'required' => false,
+					'validation_type' => 'checkbox',
+					'onclick' => 'wpeasycart_optionitem_update_additional_file',
+					'read-only' => false,
+					'visible' => true,
+					'value' => $this->optionitem->is_additional_file,
 				),
 				array(
-					"name"				=> "is_additional_amazon",
-					"type"				=> "select",
-					"label"				=> __( "Download Location", 'wp-easycart' ),
-					"data"				=> array(
+					'name' => 'is_additional_amazon',
+					'type' => 'select',
+					'label' => __( 'Download Location', 'wp-easycart' ),
+					'data' => array(
 						(object) array(
-							"id"		=> "1",
-							"value"		=> __( "Amazon S3", 'wp-easycart' )
-						)
+							'id' => '1',
+							'value' => __( 'Amazon S3', 'wp-easycart' ),
+						),
 					),
-					"data_label"		=> __( "My Server", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
-						"name"			=> "is_additional_file",
-						"value"			=> 1,
-						"default_show"	=> false
+					'data_label' => __( 'My Server', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
+						'name' => 'is_additional_file',
+						'value' => 1,
+						'default_show' => false,
 					),
-					"onchange"			=> 'wpeasycart_optionitem_update_additional_file',
-					"validation_type" 	=> 'select',
-					"visible"			=> false,
-					"value"				=> $this->optionitem->is_additional_amazon,
+					'onchange' => 'wpeasycart_optionitem_update_additional_file',
+					'validation_type' => 'select',
+					'visible' => false,
+					'value' => $this->optionitem->is_additional_amazon,
 				),
 				array(
-					"name"				=> "additional_amazon_key",
-					"type"				=> "select",
-					"label"				=> __( "S3 File", 'wp-easycart' ),
-					"data"				=> $s3_files,
-					"data_label"		=> __( "None Selected", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
+					'name' => 'additional_amazon_key',
+					'type' => 'select',
+					'label' => __( 'S3 File', 'wp-easycart' ),
+					'data' => $s3_files,
+					'data_label' => __( 'None Selected', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
 						array(
-							"name"		=> "is_additional_amazon",
-							"value"		=> 1,
-							"default_show"=> false
+							'name' => 'is_additional_amazon',
+							'value' => 1,
+							'default_show' => false,
 						),
 						array(
-							"name"		=> "is_additional_file",
-							"value"		=> 1,
-							"default_show"=> false
-						)
+							'name' => 'is_additional_file',
+							'value' => 1,
+							'default_show' => false,
+						),
 					),
-					"validation_type" 	=> 'select',
-					"visible"			=> false,
-					"value"				=> $this->optionitem->additional_amazon_key
+					'validation_type' => 'select',
+					'visible' => false,
+					'value' => $this->optionitem->additional_amazon_key,
 				),
 				array(
-					"name"				=> "additional_file_name",
-					"type"				=> "image_upload",
-					"hide_preview"      => true,
-					"button_label"		=> __( "Upload File", 'wp-easycart' ),
-					"label"				=> __( "Download File", 'wp-easycart' ),
-					"required" 			=> false,
-					"requires"			=> array(
+					'name' => 'additional_file_name',
+					'type' => 'image_upload',
+					'hide_preview' => true,
+					'button_label' => __( 'Upload File', 'wp-easycart' ),
+					'label' => __( 'Download File', 'wp-easycart' ),
+					'required' => false,
+					'requires' => array(
 						array(
-							"name"		=> "is_additional_amazon",
-							"value"		=> 0,
-							"default_show"=> false
+							'name' => 'is_additional_amazon',
+							'value' => 0,
+							'default_show' => false,
 						),
 						array(
-							"name"		=> "is_additional_file",
-							"value"		=> 1,
-							"default_show"=> false
-						)
+							'name' => 'is_additional_file',
+							'value' => 1,
+							'default_show' => false,
+						),
 					),
-					"validation_type" 	=> 'image',
-					"image_action"		=> 'ec_admin_download_upload',
-					"visible"			=> true,
-					"delete_label"		=> __( 'Remove File', 'wp-easycart' ),
-					"value"				=> $this->optionitem->additional_file_name
+					'validation_type' => 'image',
+					'image_action' => 'ec_admin_download_upload',
+					'visible' => true,
+					'delete_label' => __( 'Remove File', 'wp-easycart' ),
+					'value' => $this->optionitem->additional_file_name,
 				),
 				array(
 					'name' => 'optionitem_disallow_shipping',
@@ -486,7 +486,6 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 	}
 
 	public function price_fields() {
-
 		$fields = apply_filters(
 			'wp_easycart_admin_optionitem_details_price_fields_list',
 			array(

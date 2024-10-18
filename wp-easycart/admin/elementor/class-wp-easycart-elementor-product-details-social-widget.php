@@ -165,7 +165,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				'type' => Controls_Manager::COLOR,
 				'default' => '#aaaaaa',
 				'selectors' => array(
-					'{{WRAPPER}} {{CURRENT_ITEM}} i' => 'color: {{VALUE}}'
+					'{{WRAPPER}} {{CURRENT_ITEM}} i' => 'color: {{VALUE}}',
 				),
 			)
 		);
@@ -177,7 +177,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				'type' => Controls_Manager::COLOR,
 				'default' => ( get_option( 'ec_option_details_main_color' ) != '' ) ? get_option( 'ec_option_details_main_color' ) : '#333333',
 				'selectors' => array(
-					'{{WRAPPER}} {{CURRENT_ITEM}}:hover i' => 'color: {{VALUE}}'
+					'{{WRAPPER}} {{CURRENT_ITEM}}:hover i' => 'color: {{VALUE}}',
 				),
 			)
 		);
@@ -243,7 +243,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_align',
 			array(
@@ -269,7 +269,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_icon_size',
 			array(
@@ -291,7 +291,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_icon_spacing',
 			array(
@@ -326,7 +326,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_padding',
 			array(
@@ -346,7 +346,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_margin',
 			array(
@@ -366,7 +366,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -383,7 +383,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_social',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_siw_border_radius',
 			array(
@@ -403,7 +403,7 @@ class Wp_Easycart_Elementor_Product_Details_Social_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

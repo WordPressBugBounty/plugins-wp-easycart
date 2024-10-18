@@ -52,6 +52,8 @@ $basic_option_list = $wpdb->get_results( "SELECT ec_option.option_id AS value, e
                         <option value="8"><?php esc_attr_e( 'Deconetwork Product', 'wp-easycart' ); ?><?php echo esc_attr( apply_filters( 'wp_easycart_admin_lock_icon', ' (PRO/PREMIUM ONLY)' ) ); ?></option>
                         <option value="9"><?php esc_attr_e( 'Inquiry Product', 'wp-easycart' ); ?><?php echo esc_attr( apply_filters( 'wp_easycart_admin_lock_icon', ' (PRO/PREMIUM ONLY)' ) ); ?></option>
                         <option value="10"><?php esc_attr_e( 'Seasonal/Coming Soon Product', 'wp-easycart' ); ?><?php echo esc_attr( apply_filters( 'wp_easycart_admin_lock_icon', ' (PRO/PREMIUM ONLY)' ) ); ?></option>
+                        <option value="11"><?php esc_attr_e( 'Restaurant Item', 'wp-easycart' ); ?><?php echo esc_attr( apply_filters( 'wp_easycart_admin_lock_icon', ' (PRO/PREMIUM ONLY)' ) ); ?>
+                        <option value="12"><?php esc_attr_e( 'Preorder for Pickup Item', 'wp-easycart' ); ?><?php echo esc_attr( apply_filters( 'wp_easycart_admin_lock_icon', ' (PRO/PREMIUM ONLY)' ) ); ?></option>
                     </select>
                 </div>
                 <div id="stripe_paypal_only" style="display:none; padding:10px 0; font-size:12px; text-align:right;"><?php esc_attr_e( '*NOTE: This product type is only compatible with Stripe', 'wp-easycart' ); ?></div>

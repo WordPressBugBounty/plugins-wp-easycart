@@ -118,7 +118,6 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 					$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
 			} else {
 				include( $this->manufacturers_list_file );
-
 			}
 		}
 
@@ -129,7 +128,7 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 
 			global $wpdb;
 
-			$name = sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) );
+			$name = ( isset( $_POST['manufacturer_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) ) : '';
 			$post_slug = preg_replace( '/[^A-Za-z0-9\-]/', '', str_replace( ' ', '-', stripslashes_deep( strtolower( $name ) ) ) );
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_manufacturer( `name` ) VALUES( %s )', $name ) );
 			$manufacturer_id = $wpdb->insert_id;
@@ -138,9 +137,13 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 
 			// Get URL
 			$store_page = get_permalink( get_option( 'ec_option_storepage' ) );
-			if ( strstr( $store_page, '?' ) )									$guid = $store_page . '&manufacturer=' . $manufacturer_id;
-			else if ( substr( $store_page, strlen( $store_page ) - 1 ) == '/' )	$guid = $store_page . $post_slug;
-			else																$guid = $store_page . '/' . $post_slug;
+			if ( strstr( $store_page, '?' ) ) {
+				$guid = $store_page . '&manufacturer=' . $manufacturer_id;
+			} else if ( substr( $store_page, strlen( $store_page ) - 1 ) == '/' ) {
+				$guid = $store_page . $post_slug;
+			} else {
+				$guid = $store_page . '/' . $post_slug;
+			}
 
 			$guid = strtolower( $guid );
 			$post_slug_orig = $post_slug;
@@ -148,8 +151,8 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			$guid = $guid . '/';
 
 			/* Fix for Duplicate GUIDs */
-			$i=1;
-			while( $guid_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.guid = %s', $guid ) ) ) {
+			$i = 1;
+			while ( $guid_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.guid = %s', $guid ) ) ) {
 				$guid = $guid_orig . '-' . $i . '/';
 				$post_slug = $post_slug_orig . '-' . $i;
 				$i++;
@@ -165,7 +168,10 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			}
 			do_action( 'wpeasycart_manufacturer_added', $manufacturer_id );
 
-			return array( 'success' => 'manufacturer-inserted', 'manufacturer_id' => $manufacturer_id );
+			return array(
+				'success' => 'manufacturer-inserted',
+				'manufacturer_id' => $manufacturer_id,
+			);
 		}
 
 		public function update_manufacturer() {	
@@ -175,21 +181,21 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 
 			global $wpdb;
 
-			$manufacturer_id = (int) $_POST['manufacturer_id'];			
-			$name = sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) );
-			$post_slug = preg_replace( '/[^A-Za-z0-9\-]/', '', str_replace( ' ', '-', sanitize_text_field( wp_unslash( $_POST['post_slug'] ) ) ) );
-			$post_id = (int) $_POST['post_id'];
-			$post_excerpt = sanitize_text_field( wp_unslash( $_POST['post_excerpt'] ) );
+			$manufacturer_id = ( isset( $_POST['manufacturer_id'] ) ) ? (int) $_POST['manufacturer_id'] : 0;
+			$name = ( isset( $_POST['manufacturer_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) ) : '';
+			$post_slug = ( isset( $_POST['post_slug'] ) ) ? preg_replace( '/[^A-Za-z0-9\-]/', '', str_replace( ' ', '-', sanitize_text_field( wp_unslash( $_POST['post_slug'] ) ) ) ) : '';
+			$post_id = ( isset( $_POST['post_id'] ) ) ? (int) $_POST['post_id'] : 0;
+			$post_excerpt = ( isset( $_POST['post_excerpt'] ) ) ? sanitize_text_field( wp_unslash( $_POST['post_excerpt'] ) ) : '';
 			$featured_image = ( isset( $_POST['featured_image'] ) && '' != $_POST['featured_image'] ) ? (int) $_POST['featured_image'] : 0;
 
-			$post = array(	
-				'ID'			=> $post_id,
-				'post_content'	=> '[ec_store manufacturerid="' . $manufacturer_id . '"]',
-				'post_status'	=> 'publish',
-				'post_title'	=> wp_easycart_language()->convert_text( $name ),
-				'post_type'		=> 'ec_store',
-				'post_name'		=> $post_slug,
-				'post_excerpt'  => $post_excerpt
+			$post = array(
+				'ID' => $post_id,
+				'post_content' => '[ec_store manufacturerid="' . $manufacturer_id . '"]',
+				'post_status' => 'publish',
+				'post_title' => wp_easycart_language()->convert_text( $name ),
+				'post_type' => 'ec_store',
+				'post_name' => $post_slug,
+				'post_excerpt' => $post_excerpt,
 			);
 			wp_update_post( $post );
 			if ( 0 == $featured_image ) {
@@ -202,7 +208,9 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_manufacturer SET name = %s WHERE manufacturer_id = %d', $name, $manufacturer_id ) );
 			do_action( 'wpeasycart_manufacturer_updated', $manufacturer_id );
 
-			return array( 'success' => 'manufacturer-updated' );
+			return array(
+				'success' => 'manufacturer-updated',
+			);
 		}
 
 		public function delete_manufacturer() {
@@ -211,13 +219,15 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			}
 
 			global $wpdb;
-			$manufacturer_id = (int) $_GET['manufacturer_id'];
+			$manufacturer_id = ( isset( $_GET['manufacturer_id'] ) ) ? (int) $_GET['manufacturer_id'] : 0;
 			do_action( 'wpeasycart_manufacturer_deleting', $manufacturer_id );
 			$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
 			wp_delete_post( $post_id, true );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
 			do_action( 'wpeasycart_manufacturer_deleted', $manufacturer_id );
-			return array( 'success' => 'manufacturer-deleted' );
+			return array(
+				'success' => 'manufacturer-deleted',
+			);
 		}
 
 		public function bulk_delete_manufacturer() {
@@ -228,12 +238,14 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			global $wpdb;
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 
-			foreach( $bulk_ids as $bulk_id ) {
+			foreach ( $bulk_ids as $bulk_id ) {
 				do_action( 'wpeasycart_manufacturer_deleting', (int) $bulk_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', (int) $bulk_id ) );
 				do_action( 'wpeasycart_manufacturer_deleted', (int) $bulk_id );
 			}
-			return array( 'success' => 'manufacturer-deleted' );
+			return array(
+				'success' => 'manufacturer-deleted',
+			);
 		}
 	}
 endif; // End if class_exists check
@@ -257,6 +269,5 @@ function ec_admin_ajax_create_new_manufacturer() {
 	foreach( $manufacturer_list as $manufacturer ) {
 		echo '<option value="' . esc_attr( $manufacturer->value ) . '"' . ( ( $manufacturer->value == $result['manufacturer_id'] ) ? ' selected="selected"' : '' ) . '>' . esc_attr( $manufacturer->label ) . '</option>';
 	}
-	echo '';
 	die();
 }

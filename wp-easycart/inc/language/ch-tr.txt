@@ -1696,6 +1696,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"查看訂單"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"這是提貨預購"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"您購物車中的部分或全部商品需要本地取貨。"
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"專案"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"日期"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"選擇取貨日期"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"選擇接送時間"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"領取須知"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"這是取貨訂單"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"您正在下訂單取貨。"
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"專案"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"時間"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"領取須知"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"目前餐廳已暫停營業！"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"結束"
 				}
 			}
 		},
@@ -3018,6 +3074,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"您的購物車中有一件商品無法運送到您當前的送貨地址。 請從購物車中刪除該商品或繼續查看結帳詳情並輸入其他地址。"
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"此訂單要求您選擇取貨日期。"
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"請務必在 [pickup_date] 取貨。"
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"您的訂單已收到，您可以在 [pickup_time] 取貨。"
 				}
 			}
 		},

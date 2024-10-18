@@ -1622,7 +1622,7 @@ class ec_cartpage {
 		do_action( 'wp_easycart_checkout_form_inner' );
 		echo ">";
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"save_checkout_info\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-checkout-info-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-checkout-info-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 	}
 
 	public function display_page_one_form_end() {
@@ -1641,7 +1641,7 @@ class ec_cartpage {
 	public function display_page_two_form_start() {
 		echo "<form action=\"" . esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_payment\" method=\"post\" id=\"wpeasycart_payment_shipping_method_form\">";
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"save_checkout_shipping\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-shipping-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-shipping-method-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 	}
 
 	public function display_page_two_form_end() {
@@ -1664,7 +1664,7 @@ class ec_cartpage {
 			echo "<form action=\"" . esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_submit_order\" method=\"post\" id=\"ec_submit_order_form\">";
 		}
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"submit_order\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-submit-order-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-submit-order-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 	}
 
 	public function display_page_three_form_end() {
@@ -1674,7 +1674,7 @@ class ec_cartpage {
 	public function display_subscription_form_start( $model_number ) {
 		echo "<form action=\"" . esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_submit_order\" id=\"ec_submit_order_form\" method=\"post\">";
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"insert_subscription\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-insert-subscription-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-insert-subscription-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"ec_cart_model_number\" id=\"ec_cart_model_number\" value=\"" . esc_attr( $model_number ) . "\" />";
 	}
 
@@ -1981,7 +1981,7 @@ class ec_cartpage {
 			echo "<input type=\"hidden\" name=\"ec_cart_subscription\" value=\"" . esc_attr( sanitize_text_field( $_GET['subscription'] ) ) . "\" />";
 		}
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"login_user\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-login-user-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-login-user-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 		echo "</form>";
 	}
 
@@ -1994,7 +1994,7 @@ class ec_cartpage {
 			echo "<input type=\"hidden\" name=\"ec_cart_subscription\" value=\"" . esc_attr( sanitize_text_field( $_GET['subscription'] ) ) . "\" />";
 		}
 		echo "<input type=\"hidden\" name=\"ec_cart_form_action\" value=\"login_user\" />";
-		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-login-user-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_cart_form_nonce\" id=\"ec_cart_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-cart-login-user-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"ec_cart_login_email\" value=\"guest\" />";
 		echo "<input type=\"hidden\" name=\"ec_cart_login_password\" value=\"guest\" />";
 		echo "</form>";
@@ -3201,7 +3201,7 @@ class ec_cartpage {
 	}
 
 	public function print_square_payment_button( $is_payment = false ) {
-		if ( ! $is_payment && ! get_option( 'ec_option_square_digital_wallet' ) ) {
+		if ( ( ! $is_payment && ! get_option( 'ec_option_square_digital_wallet' ) ) || ( ! $is_payment && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) || ( ! $is_payment && $this->cart->has_preorder_items() ) || ( ! $is_payment && $this->cart->has_restaurant_items() ) ) {
 			return;
 		}
 
@@ -3825,7 +3825,7 @@ class ec_cartpage {
 	}
 
 	public function print_stripe_payment_button( $is_payment = false ) {
-		if ( ( get_option( 'ec_option_stripe_disable_wallet_first' ) && ! $is_payment ) || ( ! $is_payment && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) ) {
+		if ( ( get_option( 'ec_option_stripe_disable_wallet_first' ) && ! $is_payment ) || ( ! $is_payment && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) || ( ! $is_payment && $this->cart->has_preorder_items() ) || ( ! $is_payment && $this->cart->has_restaurant_items() ) ) {
 			return false;
 		}
 
@@ -5614,6 +5614,9 @@ class ec_cartpage {
 	}
 
 	public function print_paypal_express_button_code( $is_payment_page = false, $is_horizontal = false ) {
+		if ( ( ! $is_payment_page && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) || ( ! $is_payment_page && $this->cart->has_preorder_items() ) || ( ! $is_payment_page && $this->cart->has_restaurant_items() ) ) {
+			return;
+		}
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_paypal_button_code.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_paypal_button_code.php' );
 		} else {
@@ -5622,6 +5625,9 @@ class ec_cartpage {
 	}
 
 	public function print_paypal_express_button_code_order( $is_payment_page = false, $is_horizontal = false ) {
+		if ( ( ! $is_payment_page && '' == $GLOBALS['ec_cart_data']->cart_data->user_id && ( ! get_option( 'ec_option_allow_guest' ) || $this->has_downloads ) ) || ( ! $is_payment_page && $this->cart->has_preorder_items() ) || ( ! $is_payment_page && $this->cart->has_restaurant_items() ) ) {
+			return;
+		}
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_paypal_button_code_order.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_paypal_button_code_order.php' );
 		} else {
@@ -6226,7 +6232,7 @@ class ec_cartpage {
 		$card = new ec_credit_card( sanitize_text_field( $_POST['card']['brand'] ), sanitize_text_field( $_POST['card']['name'] ), sanitize_text_field( $_POST['card']['last4'] ), sanitize_text_field( $_POST['card']['exp_month'] ), sanitize_text_field( $_POST['card']['exp_year'] ), sanitize_text_field( $_POST['card']['cvv'] ) );
 
 		$stripe_charge_id = '';
-		$stripe_payment_intent = $stripe->get_payment_intent( $_POST['paymentintent_id'] );
+		$stripe_payment_intent = $stripe->get_payment_intent( sanitize_text_field( $_POST['paymentintent_id'] ) );
 		if ( $stripe_payment_intent && isset( $stripe_payment_intent->latest_charge ) ) {
 			$stripe_charge_id = $stripe_payment_intent->latest_charge;
 			$charge = $stripe->get_charge( $stripe_charge_id );

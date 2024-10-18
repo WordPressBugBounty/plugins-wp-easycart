@@ -8,77 +8,93 @@ $table->set_add_new(false, '', '' );
 $table->set_docs_link( 'orders','order-management' );
 $table->set_join( 'LEFT JOIN ec_orderstatus ON (ec_orderstatus.status_id = ec_order.orderstatus_id)' );
 $table->enable_mobile_column();
-$table->set_list_columns(
-	array(
+$columns = array();
+$columns[] = array(
+	'name' => 'order_viewed', 
+	'label' => '',
+	'is_mobile' => false,
+	'format' => 'order_viewed',
+);
+$columns[] = array(
+	'name' => 'order_id', 
+	'label' => __( 'Order ID', 'wp-easycart' ),
+	'format' => 'int',
+	'linked' => true,
+	'is_mobile' => true,
+	'subactions' => array(
 		array(
-			'name' => 'order_viewed', 
-			'label' => '',
-			'is_mobile' => false,
-			'format' => 'order_viewed',
+			'click' => 'return false',
+			'name' => __( 'Quick Edit', 'wp-easycart' ),
+			'action_type' => 'quick-edit',
+			'action' => 'quick-edit-order',
+			'type' => 'order',
 		),
 		array(
-			'name' => 'order_id', 
-			'label' => __( 'Order ID', 'wp-easycart' ),
-			'format' => 'int',
-			'linked' => true,
-			'is_mobile' => true,
-			'subactions' => array(
-				array(
-					'click' => 'return false',
-					'name' => __( 'Quick Edit', 'wp-easycart' ),
-					'action_type' => 'quick-edit',
-					'action' => 'quick-edit-order',
-					'type' => 'order',
-				),
-				array(
-					'click' => 'return false',
-					'name' => __( 'Delete', 'wp-easycart' ),
-					'action_type' => 'delete',
-					'action' => 'delete-order',
-				),
-			)
-		),
-		array(
-			'select' => "ec_order.order_date AS order_date",
-			'name' => 'order_date', 
-			'label' => __( 'Order Date', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'datetime',
-		),
-		array(
-			'name' => 'grand_total',
-			'label' => __( 'Order Total', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'currency',
-		),
-		array(
-			'name' => 'billing_first_name',
-			'label' => __( 'First Name', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-		array(
-			'name' => 'billing_last_name',
-			'label' => __( 'Last Name', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-		array(
-			'select' => 'ec_orderstatus.is_approved, ec_order.orderstatus_id',
-			'name' => 'orderstatus_id',
-			'label' => __( 'Payment Status', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'payment_status',
-		),
-		array(
-			'select' => 'ec_orderstatus.order_status',
-			'name' => 'order_status',
-			'label' => __( 'Order Status', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
+			'click' => 'return false',
+			'name' => __( 'Delete', 'wp-easycart' ),
+			'action_type' => 'delete',
+			'action' => 'delete-order',
 		),
 	)
 );
+$columns[] = array(
+	'select' => "ec_order.order_date AS order_date",
+	'name' => 'order_date', 
+	'label' => __( 'Order Date', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'datetime',
+);
+if ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) ) {
+	$columns[] = array(
+		'select' => "ec_order.pickup_date",
+		'name' => 'pickup_date', 
+		'label' => __( 'Pick Up Date', 'wp-easycart' ),
+		'is_mobile' => true,
+		'format' => 'datetime',
+	);
+}
+if ( get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) {
+	$columns[] = array(
+		'select' => "ec_order.pickup_time",
+		'name' => 'pickup_time', 
+		'label' => __( 'Restaurant Time', 'wp-easycart' ),
+		'is_mobile' => true,
+		'format' => 'datetime',
+	);
+}
+$columns[] = array(
+	'name' => 'grand_total',
+	'label' => __( 'Order Total', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'currency',
+);
+$columns[] = array(
+	'name' => 'billing_first_name',
+	'label' => __( 'First Name', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'string',
+);
+$columns[] = array(
+	'name' => 'billing_last_name',
+	'label' => __( 'Last Name', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'string',
+);
+$columns[] = array(
+	'select' => 'ec_orderstatus.is_approved, ec_order.orderstatus_id',
+	'name' => 'orderstatus_id',
+	'label' => __( 'Payment Status', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'payment_status',
+);
+$columns[] = array(
+	'select' => 'ec_orderstatus.order_status',
+	'name' => 'order_status',
+	'label' => __( 'Order Status', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'string',
+);
+$table->set_list_columns( $columns );
 
 global $wpdb;
 $order_status = $wpdb->get_results( "SELECT ec_orderstatus.status_id AS value, ec_orderstatus.order_status AS label FROM ec_orderstatus ORDER BY status_id ASC" );

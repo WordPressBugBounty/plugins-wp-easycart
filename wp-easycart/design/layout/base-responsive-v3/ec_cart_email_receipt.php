@@ -76,6 +76,26 @@
 				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
 			</td>
 			<?php } ?>
+			<?php if ( $this->includes_preorder_items ) { ?>
+			<tr>
+				<td align="center" class="stylesuccess">
+					<?php echo str_replace( '[pickup_date]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y g:i A' ), strtotime( $this->pickup_date ) ) . ' - ' . date_i18n( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $this->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?>
+				</td>
+			</tr>
+			<tr>
+				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
+			</td>
+			<?php } ?>
+			<?php if ( $this->includes_restaurant_type ) { ?>
+			<tr>
+				<td align="center" class="stylesuccess">
+					<?php echo str_replace( '[pickup_time]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_time_placeholder_format', 'g:i A F d, Y' ), strtotime( $this->pickup_time ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'restaurant_message' ) ); ?> 
+				</td>
+			</tr>
+			<tr>
+				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
+			</td>
+			<?php } ?>
 
 			<?php do_action( 'wp_easycart_email_receipt_top', $this->order_id, $is_admin ); ?>
 			<tr>

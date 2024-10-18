@@ -2452,89 +2452,98 @@ class ec_db{
 		} else {
 			$vat_rate = 0;
 		}
-		self::$mysqli->insert(  'ec_order', 
-								array( 	'user_id' 						=> $user->user_id, 
-										'last_updated' 					=> date( 'Y-m-d H:i:s' ),
-										'orderstatus_id'				=> $orderstatus_id,
-										'order_weight' 					=> $cart->weight,
-										'sub_total'						=> $order_totals->sub_total,
-										
-										'tax_total'						=> $order_totals->tax_total,
-										'shipping_total'				=> $order_totals->shipping_total,
-										'duty_total'					=> $order_totals->duty_total,
-										'discount_total'				=> $order_totals->discount_total,
-										'vat_total'						=> $order_totals->vat_total,
-										'vat_rate'						=> $vat_rate,
-										'gst_total'						=> $order_totals->gst_total,
-										'pst_total'						=> $order_totals->pst_total,
-										'hst_total'						=> $order_totals->hst_total,
-										'tip_total'						=> $order_totals->tip_total,
-										
-										'gst_rate'						=> $tax->gst_rate,
-										'pst_rate'						=> $tax->pst_rate,
-										'hst_rate'						=> $tax->hst_rate,
-										
-										'grand_total' 					=> $order_totals->grand_total,
-										'promo_code'					=> $coupon_code,
-										'giftcard_id'					=> $gift_card,
-										'use_expedited_shipping'		=> $expedited_shipping,
-										'shipping_method'				=> $shipping_method,
-										
-										'user_email'					=> $user->email,
-										'email_other'					=> $GLOBALS['ec_cart_data']->cart_data->email_other,
-										'user_level'					=> $user->user_level,
-										'billing_first_name'			=> $GLOBALS['ec_cart_data']->cart_data->billing_first_name,
-										'billing_last_name'				=> $GLOBALS['ec_cart_data']->cart_data->billing_last_name,
-										'billing_company_name'			=> $GLOBALS['ec_cart_data']->cart_data->billing_company_name,
-										'billing_address_line_1'		=> $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1,
-										
-										'billing_address_line_2'		=> $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2,
-										'billing_city'					=> $GLOBALS['ec_cart_data']->cart_data->billing_city,
-										'billing_state'					=> $GLOBALS['ec_cart_data']->cart_data->billing_state,
-										'billing_country'				=> $GLOBALS['ec_cart_data']->cart_data->billing_country,
-										'billing_zip'					=> $GLOBALS['ec_cart_data']->cart_data->billing_zip,
-										
-										'billing_phone'					=> $GLOBALS['ec_cart_data']->cart_data->billing_phone,
-										'shipping_first_name'			=> $GLOBALS['ec_cart_data']->cart_data->shipping_first_name,
-										'shipping_last_name'			=> $GLOBALS['ec_cart_data']->cart_data->shipping_last_name,
-										'shipping_company_name'			=> $GLOBALS['ec_cart_data']->cart_data->shipping_company_name,
-										'shipping_address_line_1'		=> $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1,
-										'shipping_address_line_2'		=> $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2,
-										
-										'shipping_city'					=> $GLOBALS['ec_cart_data']->cart_data->shipping_city,
-										'shipping_state'				=> $GLOBALS['ec_cart_data']->cart_data->shipping_state,
-										'shipping_country'				=> $GLOBALS['ec_cart_data']->cart_data->shipping_country,
-										'shipping_zip'					=> $GLOBALS['ec_cart_data']->cart_data->shipping_zip,
-										'shipping_phone'				=> $GLOBALS['ec_cart_data']->cart_data->shipping_phone,
-										'vat_registration_number'		=> $GLOBALS['ec_cart_data']->cart_data->vat_registration_number,
-										
-										'payment_method'				=> $payment_type,
-										'order_customer_notes'			=> $order_notes,
-										'card_holder_name'				=> $card_holder_name,
-										'creditcard_digits'				=> $credit_card_last_four,
-										'cc_exp_month'					=> $cc_exp_month,
-										'cc_exp_year'					=> $cc_exp_year,
-										'order_gateway'					=> $order_gateway,
-										
-										'guest_key'						=> $guest_key,
-										'agreed_to_terms'				=> $agreed_to_terms,
-										'order_ip_address'				=> sanitize_text_field( $_SERVER['REMOTE_ADDR'] )
-								), 
-								array( 	'%d', '%s', '%d', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s', '%s',
-										'%s', '%s', '%s', '%s', '%s', '%s', '%s',
-										'%s', '%d', '%s'
-								)
-							);	
-									
+		$wp_timezone_string = get_option( 'timezone_string' );
+		date_default_timezone_set( $wp_timezone_string );
+		$pickup_timestamp = ( $GLOBALS['ec_cart_data']->cart_data->pickup_asap ) ? strtotime( '+' . (int) get_option( 'ec_option_restaurant_pickup_asap_length' ) . ' minutes' ) : strtotime( $GLOBALS['ec_cart_data']->cart_data->pickup_time );
+		$formatted_pickup_time = date( 'Y-m-d H:i', $pickup_timestamp );
+		self::$mysqli->insert( 'ec_order', array(
+			'user_id' => $user->user_id, 
+			'last_updated' => date( 'Y-m-d H:i:s' ),
+			'orderstatus_id' => $orderstatus_id,
+			'order_weight' => $cart->weight,
+			'sub_total' => $order_totals->sub_total,
+
+			'tax_total' => $order_totals->tax_total,
+			'shipping_total' => $order_totals->shipping_total,
+			'duty_total' => $order_totals->duty_total,
+			'discount_total' => $order_totals->discount_total,
+			'vat_total' => $order_totals->vat_total,
+			'vat_rate' => $vat_rate,
+			'gst_total' => $order_totals->gst_total,
+			'pst_total' => $order_totals->pst_total,
+			'hst_total' => $order_totals->hst_total,
+			'tip_total' => $order_totals->tip_total,
+
+			'gst_rate' => $tax->gst_rate,
+			'pst_rate' => $tax->pst_rate,
+			'hst_rate' => $tax->hst_rate,
+
+			'grand_total' => $order_totals->grand_total,
+			'promo_code' => $coupon_code,
+			'giftcard_id' => $gift_card,
+			'use_expedited_shipping' => $expedited_shipping,
+			'shipping_method' => $shipping_method,
+
+			'user_email' => $user->email,
+			'email_other' => $GLOBALS['ec_cart_data']->cart_data->email_other,
+			'user_level' => $user->user_level,
+			'billing_first_name' => $GLOBALS['ec_cart_data']->cart_data->billing_first_name,
+			'billing_last_name' => $GLOBALS['ec_cart_data']->cart_data->billing_last_name,
+			'billing_company_name' => $GLOBALS['ec_cart_data']->cart_data->billing_company_name,
+			'billing_address_line_1' => $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1,
+
+			'billing_address_line_2' => $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2,
+			'billing_city' => $GLOBALS['ec_cart_data']->cart_data->billing_city,
+			'billing_state' => $GLOBALS['ec_cart_data']->cart_data->billing_state,
+			'billing_country' => $GLOBALS['ec_cart_data']->cart_data->billing_country,
+			'billing_zip' => $GLOBALS['ec_cart_data']->cart_data->billing_zip,
+
+			'billing_phone' => $GLOBALS['ec_cart_data']->cart_data->billing_phone,
+			'shipping_first_name' => $GLOBALS['ec_cart_data']->cart_data->shipping_first_name,
+			'shipping_last_name' => $GLOBALS['ec_cart_data']->cart_data->shipping_last_name,
+			'shipping_company_name' => $GLOBALS['ec_cart_data']->cart_data->shipping_company_name,
+			'shipping_address_line_1' => $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1,
+			'shipping_address_line_2' => $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2,
+
+			'shipping_city' => $GLOBALS['ec_cart_data']->cart_data->shipping_city,
+			'shipping_state' => $GLOBALS['ec_cart_data']->cart_data->shipping_state,
+			'shipping_country' => $GLOBALS['ec_cart_data']->cart_data->shipping_country,
+			'shipping_zip' => $GLOBALS['ec_cart_data']->cart_data->shipping_zip,
+			'shipping_phone' => $GLOBALS['ec_cart_data']->cart_data->shipping_phone,
+			'vat_registration_number' => $GLOBALS['ec_cart_data']->cart_data->vat_registration_number,
+
+			'payment_method' => $payment_type,
+			'order_customer_notes' => $order_notes,
+			'card_holder_name' => $card_holder_name,
+			'creditcard_digits' => $credit_card_last_four,
+			'cc_exp_month' => $cc_exp_month,
+			'cc_exp_year' => $cc_exp_year,
+			'order_gateway' => $order_gateway,
+
+			'guest_key' => $guest_key,
+			'agreed_to_terms' => $agreed_to_terms,
+			'order_ip_address' => sanitize_text_field( $_SERVER['REMOTE_ADDR'] ),
+
+			'includes_preorder_items' => ( $cart->has_preorder_items() ) ? 1 : 0,
+			'includes_restaurant_type' => ( $cart->has_restaurant_items() ) ? 1 : 0,
+			'pickup_date' => date( 'Y-m-d H:i:00', strtotime( $GLOBALS['ec_cart_data']->cart_data->pickup_date ) ),
+			'pickup_asap' => $GLOBALS['ec_cart_data']->cart_data->pickup_asap,
+			'pickup_time' => $formatted_pickup_time,
+		), array(
+			'%d', '%s', '%d', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%d', '%s',
+			'%d', '%d', '%s', '%d', '%s',
+		) );
 		$order_id = self::$mysqli->insert_id;
-		
+
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 		$order_log_id = self::$mysqli->insert_id;
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
@@ -3001,7 +3010,13 @@ class ec_db{
 					ec_order.fraktjakt_shipment_id,
 					ec_order.subscription_id,
 
-					ec_order.success_page_shown
+					ec_order.success_page_shown,
+
+					ec_order.includes_preorder_items,
+					ec_order.includes_restaurant_type,
+					ec_order.pickup_date,
+					ec_order.pickup_asap,
+					ec_order.pickup_time
 
 					FROM 
 					ec_order
@@ -3108,7 +3123,13 @@ class ec_db{
 				ec_order.subscription_id,
 
 				ec_order.success_page_shown,
-				
+
+				ec_order.includes_preorder_items,
+				ec_order.includes_restaurant_type,
+				ec_order.pickup_date,
+				ec_order.pickup_asap,
+				ec_order.pickup_time,
+
 				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
 				
 				FROM 
@@ -3232,6 +3253,12 @@ class ec_db{
 				ec_order.subscription_id,
 
 				ec_order.success_page_shown,
+
+				ec_order.includes_preorder_items,
+				ec_order.includes_restaurant_type,
+				ec_order.pickup_date,
+				ec_order.pickup_asap,
+				ec_order.pickup_time,
 
 				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data 
 				

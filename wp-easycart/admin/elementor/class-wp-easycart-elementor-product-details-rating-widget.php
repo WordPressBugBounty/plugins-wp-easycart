@@ -123,7 +123,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_rw_color',
 			array(
@@ -137,7 +137,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_rw_color_inactive',
 			array(
@@ -151,7 +151,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_rw_align',
 			array(
@@ -205,7 +205,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_rw_padding',
 			array(
@@ -217,7 +217,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_rw_margin',
 			array(
@@ -229,7 +229,7 @@ class Wp_Easycart_Elementor_Product_Details_Rating_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

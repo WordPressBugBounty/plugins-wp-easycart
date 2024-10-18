@@ -93,7 +93,7 @@ if ( ! $enable_v2 ) {
 	$more_atts['enable_quantity'] = ( 'yes' == $enable_quantity ) ? 1 : 0;
 	$more_atts['minus_icon'] = $minus_icon['library'] . ' ' . $minus_icon['value'];
 	$more_atts['plus_icon'] = $plus_icon['library'] . ' ' . $plus_icon['value'];
-	
+
 	echo '<div class="wp-easycart-product-details-shortcode-wrapper d-flex">';
 
 	$extra_atts = ' ';

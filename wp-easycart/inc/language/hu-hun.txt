@@ -1695,6 +1695,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"Megtekintési sorrend"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"Ez egy előrendelés átvételre"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"A kosárban lévő termékek egy része vagy mindegyike helyi átvételt igényel."
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"Tételek"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"Datums"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"Válassza az Átvétel dátumát"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"Válassza az Átvételi idő lehetőséget"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"Felvételi utasítások"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"Ez egy átvételi rendelés"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"Ön rendelést ad le átvételre."
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"Tételek"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"Idő"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"Felvételi utasítások"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"Az étterem jelenleg zárva tart!"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"kor zár"
 				}
 			}
 		},
@@ -3017,6 +3073,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"A kosarában olyan tétel található, amelyet nem lehet kiszállítani a jelenlegi szállítási címére. Kérjük, távolítsa el ezt a terméket a kosárból, vagy lépjen tovább a fizetési adatokhoz, és adjon meg egy másik címet."
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"Ehhez a megrendeléshez ki kell választania az átvétel dátumát."
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"Kérjük, ügyeljen arra, hogy a [pickup_date] napon vegye át rendelését."
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"Megrendelését megkaptuk, és átveheti a következő időpontban: [pickup_time]."
 				}
 			}
 		},

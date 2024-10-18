@@ -20,7 +20,7 @@ $args = shortcode_atts(
 		'enable_review_item_review' => true,
 		'enable_review_form' => true,
 		'enable_review_form_title' => true,
-		'form_button_text' => wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_submit' )
+		'form_button_text' => wp_easycart_language()->get_text( 'customer_review', 'product_details_your_review_submit' ),
 	),
 	$atts
 );

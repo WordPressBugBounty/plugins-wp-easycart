@@ -35,6 +35,8 @@
 			.ec_option_label{font-family: Arial, Helvetica, sans-serif; font-size:11px; font-weight:bold; }
 			.ec_option_name{font-family: Arial, Helvetica, sans-serif; font-size:11px; }
 			.ec_admin_page_break{ page-break-before:always; }
+			.stylefailed{font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 12px; line-height:1.5em; text-align:center; background:#df371c; color:#FFF; padding:15px; }
+			.stylesuccess{font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 12px; line-height:1.5em; text-align:center; background:#5dbf20; color:#FFF; padding:15px; }
 		-->
 		</style>
 	</head>
@@ -45,6 +47,26 @@
 					<a href="<?php echo esc_url_raw( $store_page ); ?>" target="_blank"><img src="<?php echo esc_attr( $email_logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-height:250px; max-width:100%; height:auto;"></a>
 				</td>
 			</tr>
+			<?php if ( $order->includes_preorder_items ) { ?>
+			<tr>
+				<td colspan='4' align="center" class="stylesuccess">
+					<?php echo str_replace( '[pickup_date]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y g:i A' ), strtotime( $order->pickup_date ) ) . ' - ' . date_i18n( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $this->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?> 
+				</td>
+			</tr>
+			<tr>
+				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
+			</td>
+			<?php } ?>
+			<?php if ( $order->includes_restaurant_type ) { ?>
+			<tr>
+				<td colspan='4' align="center" class="stylesuccess">
+					<?php echo str_replace( '[pickup_time]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_time_placeholder_format', 'g:i A F d, Y' ), strtotime( $order->pickup_time ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'restaurant_message' ) ); ?> 
+				</td>
+			</tr>
+			<tr>
+				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
+			</td>
+			<?php } ?>
 			<tr>
 				<td colspan='4' align='left' class='style22'>  
 					<p><br><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_1" ) . " " . esc_attr( htmlspecialchars( $order->billing_first_name, ENT_QUOTES ) . " " . htmlspecialchars( $order->billing_last_name, ENT_QUOTES ) ); ?>:</p>

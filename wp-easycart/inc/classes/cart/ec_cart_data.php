@@ -82,6 +82,9 @@ class ec_cart_data{
 				"amazon_buyer_id"				=> '',
 				"amazon_payment_selection"		=> '',
 				"stripe_last_pi_data"			=> '',
+				"pickup_date"					=> '',
+				"pickup_asap"					=> 1,
+				"pickup_time"					=> '',
 			);
 		}else{
 			$this->cart_data = $this->mysqli->get_cart_data( $ec_cart_id );

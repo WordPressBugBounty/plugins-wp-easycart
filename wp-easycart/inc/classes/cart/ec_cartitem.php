@@ -149,6 +149,9 @@ class ec_cartitem {
 	public $max_quantity;
 	public $min_quantity;
 
+	public $is_preorder_type;
+	public $is_restaurant_type;
+
 	public $is_subscription_item;
 	public $subscription_bill_length;
 	public $subscription_bill_period;
@@ -415,6 +418,9 @@ class ec_cartitem {
 		$this->amazon_key = $cartitem_data->amazon_key;
 		$this->maximum_downloads_allowed = $cartitem_data->maximum_downloads_allowed;
 		$this->download_timelimit_seconds = $cartitem_data->download_timelimit_seconds;
+
+		$this->is_preorder_type = $cartitem_data->is_preorder_type;
+		$this->is_restaurant_type = $cartitem_data->is_restaurant_type;
 
 		$this->is_subscription_item = $cartitem_data->is_subscription_item;
 		$this->subscription_bill_length = $cartitem_data->subscription_bill_length;

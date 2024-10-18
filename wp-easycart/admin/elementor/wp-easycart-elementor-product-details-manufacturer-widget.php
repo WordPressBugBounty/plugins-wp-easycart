@@ -11,7 +11,7 @@ $args = shortcode_atts(
 		'shortcode' => 'product_details_manufacturer',
 		'use_post_id' => false,
 		'product_id' => '',
-		'label_text' => wp_easycart_language( )->get_text( 'product_details', 'product_details_manufacturer' ),
+		'label_text' => wp_easycart_language()->get_text( 'product_details', 'product_details_manufacturer' ),
 	),
 	$atts
 );

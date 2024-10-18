@@ -251,7 +251,7 @@ class Wp_Easycart_Elementor_Product_Details_Breadcrumbs_Widget extends \Elemento
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -282,7 +282,7 @@ class Wp_Easycart_Elementor_Product_Details_Breadcrumbs_Widget extends \Elemento
 				'selector' => '{{WRAPPER}} .ec_breadcrumbs_item',
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(

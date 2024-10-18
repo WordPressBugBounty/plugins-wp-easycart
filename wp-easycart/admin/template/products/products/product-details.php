@@ -163,7 +163,7 @@
 		<div class="ec_admin_settings_input ec_admin_collapsed_section" id="ec_admin_product_details_general_options_section" style="padding-top:10px;">
 			<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 			<div class="ec_admin_products_submit">
-				<input type="submit" class="ec_admin_products_simple_button" onclick="return ec_admin_save_product_details_general_options( );" value="<?php esc_attr_e( 'Update General Options', 'wp-easycart' ); ?>" />
+				<input type="submit" id="product_update_basic_settings" class="ec_admin_products_simple_button" onclick="return ec_admin_save_product_details_general_options( );" value="<?php esc_attr_e( 'Update General Options', 'wp-easycart' ); ?>" />
 			</div>
 		</div>
 		</div>

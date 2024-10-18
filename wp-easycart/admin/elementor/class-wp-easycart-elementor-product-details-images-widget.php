@@ -160,7 +160,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'thumbnails_spacing_row',
 			array(
@@ -190,7 +190,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'thumbnails_spacing_column',
 			array(
@@ -220,7 +220,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'thumbnail_image_width',
 			array(
@@ -251,7 +251,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'thumbnail_image_width_row',
 			array(
@@ -291,23 +291,23 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Image_Size::get_type(),
 			array(
 				'name' => 'ec_imw_image_size',
 				'label' => esc_attr__( 'Main Size', 'wp-easycart' ),
-				'include' => [],
+				'include' => array(),
 				'default' => 'medium_large',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Image_Size::get_type(),
 			array(
 				'name' => 'ec_imw_thumb_size',
 				'label' => esc_attr__( 'Thumb Size', 'wp-easycart' ),
-				'include' => [],
+				'include' => array(),
 				'default' => 'small',
 			)
 		);
@@ -331,7 +331,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_images',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_padding',
 			array(
@@ -351,7 +351,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_margin',
 			array(
@@ -371,7 +371,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -388,7 +388,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_images',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_border_radius',
 			array(
@@ -428,7 +428,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_main_image',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_main_padding',
 			array(
@@ -448,7 +448,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_main_margin',
 			array(
@@ -468,7 +468,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -486,7 +486,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_main_image',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_main_border_radius',
 			array(
@@ -526,7 +526,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_thumbnails',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -543,7 +543,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_thumbnails',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_thumbs_border_radius',
 			array(
@@ -563,7 +563,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_thumbs_padding',
 			array(
@@ -583,7 +583,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_thumbs_margin',
 			array(
@@ -623,7 +623,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_thumbnail',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_thumb_padding',
 			array(
@@ -643,7 +643,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -660,7 +660,7 @@ class Wp_Easycart_Elementor_Product_Details_Images_Widget extends \Elementor\Wid
 				'selector' => '{{WRAPPER}} .ec_details_thumbnail',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_imw_thumb_border_radius',
 			array(

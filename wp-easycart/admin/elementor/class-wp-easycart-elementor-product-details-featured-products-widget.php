@@ -191,7 +191,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -204,7 +204,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_details_related_products > li > div',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -230,7 +230,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_details_related_products > li > div',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_container_border_radius',
 			array(
@@ -260,7 +260,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'tab' => Controls_Manager::TAB_STYLE,
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -273,7 +273,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_details_related_products .ec_product_image_ele img',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -299,7 +299,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_details_related_products .ec_product_image_ele img',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_image_border_radius',
 			array(
@@ -332,7 +332,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_title_color',
 			array(
@@ -353,7 +353,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_title > a',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_title_align',
 			array(
@@ -383,7 +383,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -396,7 +396,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_title',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -422,7 +422,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_title',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_title_border_radius',
 			array(
@@ -442,7 +442,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_title_padding',
 			array(
@@ -462,7 +462,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_title_margin',
 			array(
@@ -482,7 +482,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -495,7 +495,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_categories_color',
 			array(
@@ -516,7 +516,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_categories > a',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_categories_align',
 			array(
@@ -546,7 +546,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -559,7 +559,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_rating_color',
 			array(
@@ -573,7 +573,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_rating_color_inactive',
 			array(
@@ -587,7 +587,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_rating_align',
 			array(
@@ -641,7 +641,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_rating_padding',
 			array(
@@ -661,7 +661,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_rating_margin',
 			array(
@@ -673,7 +673,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -686,7 +686,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_price_align',
 			array(
@@ -713,7 +713,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_price_color',
 			array(
@@ -735,7 +735,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_price_type1',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_previous_price_color',
 			array(
@@ -761,7 +761,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_list_price_type1',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_price_padding',
 			array(
@@ -781,7 +781,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_price_margin',
 			array(
@@ -801,7 +801,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -809,7 +809,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_price_container_type1',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_price_border_radius',
 			array(
@@ -829,7 +829,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -842,7 +842,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Typography::get_type(),
 			array(
@@ -851,7 +851,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_addtocart_container_ele a.ec_add_to_cart_button',
 			)
 		);
-		
+
 		$this->start_controls_tabs(
 			'ec_fpw_button_style_tabs'
 		);
@@ -874,7 +874,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -908,7 +908,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -937,7 +937,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_align',
 			array(
@@ -967,7 +967,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -976,7 +976,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_addtocart_container_ele a.ec_add_to_cart_button',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_button_border_radius',
 			array(
@@ -996,7 +996,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_padding',
 			array(
@@ -1016,7 +1016,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_margin',
 			array(
@@ -1036,7 +1036,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1049,7 +1049,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Typography::get_type(),
 			array(
@@ -1058,7 +1058,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_addtocart_container_ele a.ec_added_to_cart_button',
 			)
 		);
-		
+
 		$this->start_controls_tabs(
 			'ec_fpw_button_checkout_style_tabs'
 		);
@@ -1081,7 +1081,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1115,7 +1115,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1144,7 +1144,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_checkout_align',
 			array(
@@ -1174,7 +1174,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1183,7 +1183,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_addtocart_container_ele a.ec_added_to_cart_button',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_button_checkout_border_radius',
 			array(
@@ -1203,7 +1203,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_checkout_padding',
 			array(
@@ -1223,7 +1223,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1236,7 +1236,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Typography::get_type(),
 			array(
@@ -1245,7 +1245,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_quickview_ele > input',
 			)
 		);
-		
+
 		$this->start_controls_tabs(
 			'ec_fpw_button_quickview_style_tabs'
 		);
@@ -1268,7 +1268,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1302,7 +1302,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1331,7 +1331,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_quickview_align',
 			array(
@@ -1361,7 +1361,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1370,7 +1370,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_quickview_ele > input',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_button_quickview_border_radius',
 			array(
@@ -1390,7 +1390,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_button_quickview_padding',
 			array(
@@ -1410,7 +1410,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1423,7 +1423,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_desc_color',
 			array(
@@ -1444,7 +1444,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_basic_description_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_desc_align',
 			array(
@@ -1474,7 +1474,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1487,7 +1487,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_basic_description_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1496,7 +1496,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				'selector' => '{{WRAPPER}} .ec_product_basic_description_ele',
 			)
 		);
-		
+
 		$this->add_control(
 			'ec_fpw_desc_border_radius',
 			array(
@@ -1516,7 +1516,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_desc_padding',
 			array(
@@ -1536,7 +1536,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_fpw_desc_margin',
 			array(
@@ -1556,7 +1556,7 @@ class Wp_Easycart_Elementor_Product_Details_Featured_Products_Widget extends \El
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

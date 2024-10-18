@@ -42,7 +42,7 @@ $args = shortcode_atts(
 		'description' => true,
 		'specifications' => true,
 		'related_products' => true,
-		'background_add' => false
+		'background_add' => false,
 	),
 	$atts
 );

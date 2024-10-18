@@ -150,7 +150,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		);
 
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'section_products',
 			array(
@@ -330,7 +330,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_main_button_container_align',
 			array(
@@ -361,7 +361,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_button_container_margin',
 			array(
@@ -403,7 +403,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_ele input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -434,7 +434,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_button_align',
 			array(
@@ -463,7 +463,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_button_container_align',
 			array(
@@ -600,7 +600,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -627,7 +627,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_button_border_radius',
 			array(
@@ -647,7 +647,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_button_padding',
 			array(
@@ -667,7 +667,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_button_margin',
 			array(
@@ -687,7 +687,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -731,7 +731,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_quantity_border_radius',
 			array(
@@ -753,7 +753,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_padding',
 			array(
@@ -773,7 +773,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_margin',
 			array(
@@ -793,7 +793,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1009,7 +1009,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1037,7 +1037,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > button',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_quantity_buttons_border_radius',
 			array(
@@ -1057,7 +1057,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1120,7 +1120,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > input[type="number"]',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -1134,7 +1134,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_box_align',
 			array(
@@ -1183,7 +1183,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > input[type="number"]',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1210,7 +1210,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > input[type="number"]',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_quantity_input_border_box_radius',
 			array(
@@ -1230,7 +1230,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_box_padding',
 			array(
@@ -1250,7 +1250,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_box_margin',
 			array(
@@ -1304,7 +1304,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_label_ele',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -1318,7 +1318,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_label_align',
 			array(
@@ -1364,7 +1364,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_label_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1391,7 +1391,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_label_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_label_padding',
 			array(
@@ -1411,7 +1411,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_label_margin',
 			array(
@@ -1431,7 +1431,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1444,7 +1444,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_image_align',
 			array(
@@ -1540,7 +1540,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_swatches_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1567,7 +1567,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_swatches_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatches_border_radius',
 			array(
@@ -1587,7 +1587,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatches_padding',
 			array(
@@ -1607,7 +1607,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatches_margin',
 			array(
@@ -1627,7 +1627,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1663,7 +1663,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -1718,7 +1718,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_image_border_radius',
 			array(
@@ -1738,7 +1738,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_image_padding',
 			array(
@@ -1758,7 +1758,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_image_margin',
 			array(
@@ -1778,7 +1778,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -1800,7 +1800,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .wpeasycart-html-swatch-ele',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -1814,7 +1814,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_align',
 			array(
@@ -1949,7 +1949,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'label' => esc_attr__( 'Selected', 'wp-easycart' ),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -1987,7 +1987,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2014,7 +2014,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .wpeasycart-html-swatch-ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_border_radius',
 			array(
@@ -2034,7 +2034,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_padding',
 			array(
@@ -2054,7 +2054,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_swatch_margin',
 			array(
@@ -2074,7 +2074,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2087,7 +2087,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_combo_color',
 			array(
@@ -2108,7 +2108,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_combo, {{WRAPPER}} .ec_details_option_data > select',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2122,7 +2122,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_combo_align',
 			array(
@@ -2148,7 +2148,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -2168,7 +2168,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_combo, {{WRAPPER}} .ec_details_option_data > select',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2196,7 +2196,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_combo, {{WRAPPER}} .ec_details_option_data > select',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_combo_border_radius',
 			array(
@@ -2216,7 +2216,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_combo_padding',
 			array(
@@ -2236,7 +2236,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_combo_margin',
 			array(
@@ -2256,7 +2256,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2269,7 +2269,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_input_color',
 			array(
@@ -2290,7 +2290,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_text input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2304,7 +2304,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_input_align',
 			array(
@@ -2330,7 +2330,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -2350,7 +2350,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_text input',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2378,7 +2378,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_text input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_input_border_radius',
 			array(
@@ -2398,7 +2398,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_input_padding',
 			array(
@@ -2418,7 +2418,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_text_input_margin',
 			array(
@@ -2438,7 +2438,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2451,7 +2451,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_textarea_input_color',
 			array(
@@ -2472,7 +2472,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_data > textarea',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2486,7 +2486,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_textarea_input_align',
 			array(
@@ -2512,7 +2512,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -2532,7 +2532,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_data > textarea',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2560,7 +2560,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_data > textarea',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_textarea_input_border_radius',
 			array(
@@ -2580,7 +2580,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_textarea_input_padding',
 			array(
@@ -2600,7 +2600,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_textarea_input_margin',
 			array(
@@ -2620,7 +2620,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2633,7 +2633,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_number_input_color',
 			array(
@@ -2654,7 +2654,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_number input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2668,7 +2668,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_number_input_align',
 			array(
@@ -2694,7 +2694,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -2714,7 +2714,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_number input',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2742,7 +2742,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_number input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_number_input_border_radius',
 			array(
@@ -2762,7 +2762,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_number_input_padding',
 			array(
@@ -2782,7 +2782,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_number_input_margin',
 			array(
@@ -2802,7 +2802,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2815,7 +2815,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_container_color',
 			array(
@@ -2836,7 +2836,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_file input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2850,7 +2850,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -2870,7 +2870,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_file .ec_details_option_data',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -2898,7 +2898,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_file .ec_details_option_data',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_border_container_radius',
 			array(
@@ -2918,7 +2918,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_container_padding',
 			array(
@@ -2938,7 +2938,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_container_margin',
 			array(
@@ -2958,7 +2958,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -2980,7 +2980,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_file input::file-selector-button',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -2994,7 +2994,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->start_controls_tabs(
 			'ec_adtw_file_button_style_tabs'
 		);
@@ -3017,7 +3017,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3058,7 +3058,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3082,7 +3082,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->end_controls_tab();
 
 		$this->end_controls_tabs();
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3110,7 +3110,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_file input::file-selector-button',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_border_radius',
 			array(
@@ -3130,7 +3130,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_padding',
 			array(
@@ -3150,7 +3150,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_file_input_margin',
 			array(
@@ -3170,7 +3170,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -3183,7 +3183,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_label_input_color',
 			array(
@@ -3204,7 +3204,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_radio_row_ele',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -3218,7 +3218,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_label_input_align',
 			array(
@@ -3244,7 +3244,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3264,7 +3264,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_radio_row_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3291,7 +3291,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_radio_row_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_label_input_border_radius',
 			array(
@@ -3311,7 +3311,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_label_input_padding',
 			array(
@@ -3331,7 +3331,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_label_input_margin',
 			array(
@@ -3351,7 +3351,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -3364,7 +3364,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3386,7 +3386,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_radio_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_input_selected_color',
 			array(
@@ -3398,7 +3398,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_input_focus_color',
 			array(
@@ -3410,7 +3410,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3438,7 +3438,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_radio_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_input_border_radius',
 			array(
@@ -3458,7 +3458,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_radio_input_margin',
 			array(
@@ -3478,7 +3478,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -3491,7 +3491,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_label_input_color',
 			array(
@@ -3512,7 +3512,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_checkbox_row_ele',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -3526,7 +3526,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_label_input_align',
 			array(
@@ -3552,7 +3552,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3572,7 +3572,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_checkbox_row_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3599,7 +3599,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_checkbox_row_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_label_input_border_radius',
 			array(
@@ -3619,7 +3619,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_label_input_padding',
 			array(
@@ -3639,7 +3639,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_label_input_margin',
 			array(
@@ -3659,7 +3659,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -3672,7 +3672,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3694,7 +3694,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_checkbox_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_input_selected_color',
 			array(
@@ -3706,7 +3706,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_input_focus_color',
 			array(
@@ -3718,7 +3718,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3746,7 +3746,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_checkbox_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_input_border_radius',
 			array(
@@ -3766,7 +3766,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_checkbox_input_margin',
 			array(
@@ -3786,7 +3786,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -3799,7 +3799,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_color',
 			array(
@@ -3820,7 +3820,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele > span',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -3834,7 +3834,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_align',
 			array(
@@ -3860,7 +3860,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_label_align',
 			array(
@@ -3886,7 +3886,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -3906,7 +3906,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -3933,7 +3933,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_border_radius',
 			array(
@@ -3953,7 +3953,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_padding',
 			array(
@@ -3973,7 +3973,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_label_input_margin',
 			array(
@@ -3993,7 +3993,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4006,7 +4006,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_color',
 			array(
@@ -4027,7 +4027,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele > input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -4041,7 +4041,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_align',
 			array(
@@ -4067,7 +4067,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4089,7 +4089,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_selected_color',
 			array(
@@ -4101,7 +4101,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_focus_color',
 			array(
@@ -4113,7 +4113,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4141,7 +4141,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_grid_row_ele input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_border_radius',
 			array(
@@ -4161,7 +4161,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_padding',
 			array(
@@ -4181,7 +4181,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_quantity_input_margin',
 			array(
@@ -4201,7 +4201,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4214,7 +4214,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_date_input_color',
 			array(
@@ -4235,7 +4235,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_date input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -4249,7 +4249,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_date_input_align',
 			array(
@@ -4275,7 +4275,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4295,7 +4295,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_date input',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4323,7 +4323,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_date input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_date_input_border_radius',
 			array(
@@ -4343,7 +4343,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_date_input_padding',
 			array(
@@ -4363,7 +4363,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_date_input_margin',
 			array(
@@ -4383,7 +4383,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4396,7 +4396,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_label_input_color',
 			array(
@@ -4418,7 +4418,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 span, {{WRAPPER}} .ec_option_type_dimensions2 span',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -4432,7 +4432,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_label_input_align',
 			array(
@@ -4459,7 +4459,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4479,7 +4479,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 .ec_details_option_data, {{WRAPPER}} .ec_option_type_dimensions2 .ec_details_option_data',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4506,7 +4506,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 .ec_details_option_data, {{WRAPPER}} .ec_option_type_dimensions2 .ec_details_option_data',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_label_input_border_radius',
 			array(
@@ -4527,7 +4527,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_label_input_padding',
 			array(
@@ -4548,7 +4548,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_label_input_margin',
 			array(
@@ -4569,7 +4569,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4582,7 +4582,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_input_color',
 			array(
@@ -4604,7 +4604,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 input, {{WRAPPER}} .ec_option_type_dimensions2 input',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -4618,7 +4618,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_input_align',
 			array(
@@ -4645,7 +4645,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4667,7 +4667,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 input, {{WRAPPER}} .ec_option_type_dimensions2 input',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4695,7 +4695,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_option_type_dimensions1 input, {{WRAPPER}} .ec_option_type_dimensions2 input',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_input_border_radius',
 			array(
@@ -4716,7 +4716,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_input_padding',
 			array(
@@ -4737,7 +4737,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_dimension_input_margin',
 			array(
@@ -4758,7 +4758,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4771,7 +4771,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4791,7 +4791,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_options_basic',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4818,7 +4818,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_options_basic',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_variants_border_radius',
 			array(
@@ -4838,7 +4838,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_variants_padding',
 			array(
@@ -4858,7 +4858,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_variants_margin',
 			array(
@@ -4878,7 +4878,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -4891,7 +4891,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Background::get_type(),
 			array(
@@ -4911,7 +4911,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_options_advanced',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -4938,7 +4938,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_options_advanced',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_modifiers_border_radius',
 			array(
@@ -4958,7 +4958,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_modifiers_padding',
 			array(
@@ -4978,7 +4978,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_modifiers_margin',
 			array(
@@ -4998,7 +4998,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -5033,7 +5033,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_final_price_ele',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -5047,7 +5047,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_your_price_align',
 			array(
@@ -5095,7 +5095,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_final_price_ele',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -5123,7 +5123,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_final_price_ele',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_your_price_padding',
 			array(
@@ -5143,7 +5143,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_your_price_margin',
 			array(
@@ -5163,7 +5163,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(
@@ -5197,7 +5197,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_row_error',
 				'fields_options' => array(
 					'typography' => array(
-						'default' => Global_Typography::TYPOGRAPHY_PRIMARY
+						'default' => Global_Typography::TYPOGRAPHY_PRIMARY,
 					),
 					'font_size' => array(
 						'default' => array(
@@ -5211,7 +5211,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_error_align',
 			array(
@@ -5259,7 +5259,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_row_error',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(
@@ -5287,7 +5287,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				'selector' => '{{WRAPPER}} .ec_details_option_row_error',
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_error_padding',
 			array(
@@ -5307,7 +5307,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->add_responsive_control(
 			'ec_adtw_error_margin',
 			array(
@@ -5327,7 +5327,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 			)
 		);
-		
+
 		$this->end_controls_section();
 	}
 

@@ -120,7 +120,7 @@ class Wp_Easycart_Elementor_Product_Details_Category_Widget extends \Elementor\W
 			array(
 				'type'  => Controls_Manager::TEXT,
 				'label' => esc_attr__( 'Label', 'wp-easycart' ),
-				'default' => wp_easycart_language( )->get_text( 'product_details', 'product_details_categories' ),
+				'default' => wp_easycart_language()->get_text( 'product_details', 'product_details_categories' ),
 				'placeholder' => esc_attr__( 'Enter label (optional)', 'wp-easycart' ),
 			)
 		);
@@ -286,7 +286,7 @@ class Wp_Easycart_Elementor_Product_Details_Category_Widget extends \Elementor\W
 				'selector' => '{{WRAPPER}} .ec_category_link',
 			)
 		);
-		
+
 		$this->end_controls_section();
 
 		$this->start_controls_section(

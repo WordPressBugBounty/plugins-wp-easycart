@@ -240,6 +240,15 @@ jQuery( document ).ready( function( ){
 		jQuery( document.getElementById( 'subscription_bill_period' ) ).on( 'change', wpeasycart_verify_subscription_length );
 		jQuery( document.getElementById( 'subscription_bill_length' ) ).on( 'change', wpeasycart_verify_subscription_length );
 	}
+
+	if ( jQuery( '#is_preorder_type' ).length ) {
+		jQuery( '#is_preorder_type' ).on( 'change', function() { 
+			jQuery( '#is_restaurant_type' ).prop( 'checked', false );
+		} );
+		jQuery( '#is_restaurant_type' ).on( 'change', function() { 
+			jQuery( '#is_preorder_type' ).prop( 'checked', false );
+		} );
+	}
 } );
 
 function wpeasycart_verify_subscription_length( ){
@@ -2105,6 +2114,8 @@ function ec_admin_save_product_details_general_options( ){
 		inquiry_url: ec_admin_get_value( 'inquiry_url', 'text' ),
 		catalog_mode: ec_admin_get_value( 'catalog_mode', 'checkbox' ),
 		catalog_mode_phrase: ec_admin_get_value( 'catalog_mode_phrase', 'text' ),
+		is_preorder_type: ec_admin_get_value( 'is_preorder_type', 'checkbox' ),
+		is_restaurant_type: ec_admin_get_value( 'is_restaurant_type', 'checkbox' ),
 		role_id: ec_admin_get_value( 'role_id', 'select' ),
 		sort_position: ec_admin_get_value( 'sort_position', 'text' ),
 		mailerlite_group_name: ( jQuery( document.getElementById( 'mailerlite_group_name' ) ).length ) ? jQuery( document.getElementById( 'mailerlite_group_name' ) ).val() : '',

@@ -138,6 +138,16 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
     <?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?> 
 </div>
 <?php }?>
+<?php if ( $order->includes_preorder_items ) { ?>
+<div class="ec_cart_notice_row" style="margin-bottom:20px;">
+	<?php echo str_replace( '[pickup_date]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y g:i A' ), strtotime( $order->pickup_date ) ) . ' - ' . date_i18n( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $order->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?> 
+</div>
+<?php } ?>
+<?php if ( $order->includes_restaurant_type ) { ?>
+<div class="ec_cart_notice_row" style="margin-bottom:20px;">
+	<?php echo str_replace( '[pickup_time]', esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_time_placeholder_format', 'g:i A F d, Y' ), strtotime( $order->pickup_time ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'restaurant_message' ) ); ?> 
+</div>
+<?php }?>
 
 <div class="ec_cart_success_print_button_v2">
 	<?php $this->display_print_receipt_link( '<span class="dashicons dashicons-printer"></span>' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ), $order_id ); ?>

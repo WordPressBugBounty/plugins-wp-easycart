@@ -225,8 +225,69 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 			<div class="ec_admin_list_line_item ec_admin_col_3">
 				<?php wp_easycart_admin( )->preloader->print_preloader( "ec_admin_shipping_details" ); ?>
 				<div class="ec_admin_settings_input ec_admin_settings_input_order_row ec_admin_settings_currency_section">
+					<?php if ( $this->order->includes_preorder_items ) { ?>
+					<div id="ec_admin_order_details_pickup_content" class="ec_admin_order_details_row ec_admin_customer_info_top ec_admin_customer_info_details">
+						<div class="ec_admin_row_heading_title ec_admin_order_details_special_title"><?php esc_attr_e( 'Preorder Pick Up Details', 'wp-easycart' ); ?></div>
+						<div class="ec_admin_order_details_row">
+							<div style="padding:5px 0;">
+								<input type="text" class="ec_admin_datepicker" id="ec_order_pickup_date" style="float:none;" value="<?php
+								$date_timestamp = strtotime( $this->order->pickup_date );
+								if ( $date_timestamp > 0 ) {
+									echo esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $date_timestamp ) );
+								}
+								?>" placeholder="<?php echo esc_attr__( 'Choose a Pick Up Date', 'wp-easycart' ); ?>" />
+								<select name="ec_order_pickup_date_time" id="ec_order_pickup_date_time" style="margin: 5px 0 0 0; float: left; width: 100%;"><?php $selected_pickup_date_time = ''; if ( isset( $this->order->pickup_date ) && '' != $this->order->pickup_date ) { $selected_pickup_date_time = date( 'H:i', $date_timestamp ); } ?>
+									<option value=""<?php if ( '' == $selected_pickup_date_time ) { ?> selected="selected"<?php }?>><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'preorder_pickup_time_label' ); ?></option>
+									<?php for ( $hour = 0; $hour < 24; $hour++ ) { ?>
+									<option value="<?php echo esc_attr( date( 'H:i', strtotime( date( 'Y-m-d ' . $hour . ':00' ) ) ) ); ?>"<?php if ( date( 'H:i', strtotime( date( 'Y-m-d ' . $hour . ':00' ) ) ) == $selected_pickup_date_time ) { ?> selected="selected"<?php }?>><?php echo esc_attr( date( get_option('time_format'), strtotime( date( 'Y-m-d ' . $hour . ':00' ) ) ) ); ?> - <?php echo esc_attr( date( get_option('time_format'), strtotime( date( 'Y-m-d ' . $hour . ':00' ) . ' + 1 hour' ) ) ); ?></option>
+									<?php } ?>
+								</select>
+							</div>
+						</div>
+					</div>
+					<?php }?>
 
-					<div id="ec_admin_order_details_user_id_content" class="ec_admin_order_details_row ec_admin_customer_info_top ec_admin_customer_info_details">
+					<?php if ( $this->order->includes_restaurant_type ) { ?>
+					<div id="ec_admin_order_details_restaurant_content" class="ec_admin_order_details_row ec_admin_customer_info_top ec_admin_customer_info_details">
+						<div class="ec_admin_row_heading_title ec_admin_order_details_special_title"><?php esc_attr_e( 'Pick Up Details', 'wp-easycart' ); ?></div>
+						<div class="ec_admin_order_details_row">
+							<div style="padding:5px 0;">
+								<input type="text" class="ec_admin_datepicker" id="ec_order_pickup_time_date" style="float:none;" value="<?php
+								$pickup_time = $this->order->pickup_time;
+								$pickup_time_timestamp = strtotime( $pickup_time );
+								if ( $pickup_time_timestamp > 0 ) {
+									echo esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $pickup_time_timestamp ) );
+								}
+								?>" placeholder="<?php echo esc_attr__( 'Choose a Pick Up Date', 'wp-easycart' ); ?>" />
+								<select name="ec_order_pickup_time_time" id="ec_order_pickup_time_time" style="margin: 5px 0 0 0; float: left; width: 100%;"><?php
+									$selected_pickup_time_time = '';
+									if ( isset( $this->order->pickup_time ) && '' != $this->order->pickup_time ) {
+										$pickup_time_minutes = (int) date( 'i', $pickup_time_timestamp );
+										$pickup_time_rounded_minutes = round( $pickup_time_minutes / 5 ) * 5;
+										$pickup_time_updated_timestamp = strtotime( date( 'Y-m-d H:', $pickup_time_timestamp ) . sprintf( '%02d:00', $pickup_time_rounded_minutes ) );
+										$selected_pickup_time_time = date( 'H:i', $pickup_time_updated_timestamp );
+									} ?>
+									<option value=""<?php if ( '' == $selected_pickup_time_time ) { ?> selected="selected"<?php }?>><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'preorder_pickup_time_label' ); ?></option>
+									<?php for ( $hour = 0; $hour < 24; $hour++ ) { ?>
+										<?php for ( $minute = 0; $minute < 60; $minute = $minute + 5 ) { ?>
+									<option value="<?php echo esc_attr( $hour . ':' . sprintf( "%02d", $minute ) ); ?>"<?php if ( $hour . ':' . sprintf( "%02d", $minute ) == $selected_pickup_time_time ) { ?> selected="selected"<?php }?>><?php echo esc_attr( date( get_option( 'time_format' ), strtotime( date( 'Y-m-d ' . sprintf( "%02d", $hour ) . ':' . sprintf( "%02d", $minute ) ) ) ) ); ?></option>
+										<?php } ?>
+									<?php } ?>
+								</select>
+							</div>
+						</div>
+					</div>
+					<?php }?>
+
+					<?php if ( $this->order->includes_preorder_items || $this->order->includes_restaurant_type ) { ?>
+						<script>
+							jQuery( '.ec_admin_datepicker' ).datepicker( {
+								dateFormat: "<?php echo esc_attr( apply_filters( 'wp_easycart_pickup_date_jquery_format', 'MM d, yy' ) ); ?>",
+							} );
+						</script>
+					<?php }?>
+
+					<div id="ec_admin_order_details_user_id_content" class="ec_admin_customer_info_top ec_admin_customer_info_details">
 						<div class="ec_admin_row_heading_title ec_admin_order_details_special_title"><?php esc_attr_e( 'User Account', 'wp-easycart' ); ?></div>
 						<select id="ec_order_user_id" class="select2" style="width:100% !important; float:left;"><?php if( $this->order->user_id ){ ?>
 							<option value="<?php echo esc_attr( $this->order->user_id ); ?>" selected="selected"><?php echo esc_attr( $this->order->last_name ); ?>, <?php echo esc_attr( $this->order->first_name ); ?> (<?php echo esc_attr( $this->order->user_id ); ?>)</option>

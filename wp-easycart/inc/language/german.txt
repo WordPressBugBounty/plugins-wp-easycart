@@ -1691,6 +1691,62 @@
 				"payment_processed_view":{
 					"title":"Cart, Payment Processed View",
 					"value":"Bestellung ansehen"
+				},
+				"preorder_title":{
+					"title":"Cart, Preorder for Pickup Title",
+					"value":"Dies ist eine Vorbestellung zur Abholung"
+				},
+				"preorder_subtitle":{
+					"title":"Cart, Preorder for Pickup Subtitle",
+					"value":"Einige oder alle Artikel in Ihrem Einkaufswagen müssen vor Ort abgeholt werden."
+				},
+				"preorder_items":{
+					"title":"Cart, Preorder for Pickup Items",
+					"value":"Artikel"
+				},
+				"preorder_date":{
+					"title":"Cart, Preorder for Pickup Date",
+					"value":"Datum"
+				},
+				"preorder_pickup_date_label":{
+					"title":"Cart, Preorder for Pickup Date Label",
+					"value":"Abholdatum auswählen"
+				},
+				"preorder_pickup_time_label":{
+					"title":"Cart, Preorder for Pickup Time Label",
+					"value":"Wählen Sie eine Abholzeit"
+				},
+				"preorder_pickup_title":{
+					"title":"Cart, Preorder Pickup Instructions Title",
+					"value":"Anweisungen zur Abholung"
+				},
+				"restaurant_title":{
+					"title":"Cart, Restaurant Order Title",
+					"value":"Dies ist eine Abholbestellung"
+				},
+				"restaurant_subtitle":{
+					"title":"Cart, Restaurant Order Subtitle",
+					"value":"Sie geben eine Bestellung zur Abholung auf."
+				},
+				"restaurant_items":{
+					"title":"Cart, Restaurant Order Items",
+					"value":"Artikel"
+				},
+				"restaurant_time":{
+					"title":"Cart, Restaurant Order Time",
+					"value":"Zeit"
+				},
+				"restaurant_pickup_title":{
+					"title":"Cart, Restaurant Pickup Instructions Title",
+					"value":"Anweisungen zur Abholung"
+				},
+				"restaurant_closed":{
+					"title":"Cart, Restaurant Closed Message",
+					"value":"Das Restaurant ist momentan geschlossen!"
+				},
+				"restaurant_closes":{
+					"title":"Cart, Restaurant Closes Timer",
+					"value":"schließt in"
 				}
             }
         },
@@ -3009,6 +3065,18 @@
 				"cart_location_error":{
 					"title":"Cart, Location Error",
 					"value":"In Ihrem Warenkorb befindet sich ein Artikel, der nicht an Ihre aktuelle Lieferadresse versendet werden kann. Bitte entfernen Sie diesen Artikel aus dem Warenkorb oder gehen Sie zu den Bestelldetails und geben Sie eine andere Adresse ein."
+				},
+				"missing_preorder_pickup":{
+					"title":"Cart, Pickup Date Missing",
+					"value":"Bei dieser Bestellung müssen Sie Ihr Abholdatum auswählen."
+				},
+				"preorder_message":{
+					"title":"Cart, Preorder for Pickup Message",
+					"value":"Bitte holen Sie Ihre Bestellung unbedingt am [Abholdatum] ab."
+				},
+				"restaurant_message":{
+					"title":"Cart, Restaurant Pickup Message",
+					"value":"Ihre Bestellung ist bei uns eingegangen und Sie können diese um [pickup_time] abholen."
 				}
             }
         },

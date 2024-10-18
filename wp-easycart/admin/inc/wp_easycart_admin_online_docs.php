@@ -155,6 +155,8 @@ class wp_easycart_admin_online_docs {
 				return $this->admin_guide_section_url . $category;
 			} else if ( $category == 'fees' ) {
 				return 'https://docs.wpeasycart.com/docs/administrative-console-guide/flex-fee-settings/';
+			} else if ( 'schedules' == $category ) {
+				return 'https://docs.wpeasycart.com/docs/administrative-console-guide/store-schedule-settings/';
 			} else {
 				return $this->admin_guide_url;
 			}

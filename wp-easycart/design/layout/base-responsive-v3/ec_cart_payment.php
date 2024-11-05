@@ -236,6 +236,15 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 							wp_easycart_update_pickup_time_box( jQuery( this ).datepicker( 'getDate' ), true );
 							ec_cart_save_pickup_date_time();
 						},
+						onClose: function( dateText, inst ) {
+							var selectedDate = jQuery( this ).datepicker( 'getDate' );
+							var is_valid_date = ( selectedDate ) ? wp_easycart_pickup_disable_invalid_dates( selectedDate ) : [ false ];
+							console.log( is_valid_date[0] );
+							if ( selectedDate && ! is_valid_date[0] ) {
+								jQuery( this ).val( '' );
+								wp_easycart_update_pickup_time_box( selectedDate, true );
+							}
+						},
 						minDate: 0,
 						dateFormat: "<?php echo esc_attr( apply_filters( 'wp_easycart_pickup_date_jquery_format', 'MM d, yy' ) ); ?>",<?php $selected_date = explode( '-', $GLOBALS['ec_cart_data']->cart_data->pickup_date ); if ( is_array( $selected_date ) && count( $selected_date ) == 3 ) { ?>
 						defaultDate: new Date( <?php echo esc_attr( (int) $selected_date[0] ); ?>, <?php echo esc_attr( (int) $selected_date[1] ); ?>, <?php echo esc_attr( (int) $selected_date[2] ); ?> )<?php }?>

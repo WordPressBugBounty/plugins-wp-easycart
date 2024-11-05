@@ -35,7 +35,16 @@ $columns[] = array(
 			'action_type' => 'delete',
 			'action' => 'delete-order',
 		),
-	)
+	),
+	'mobile_extra' => array(
+		array(
+			'select' => 'ec_orderstatus.order_status',
+			'name' => 'order_status',
+			'label' => __( 'Order Status', 'wp-easycart' ),
+			'is_mobile' => true,
+			'format' => 'order_status',
+		),
+	),
 );
 $columns[] = array(
 	'select' => "ec_order.order_date AS order_date",
@@ -43,12 +52,14 @@ $columns[] = array(
 	'label' => __( 'Order Date', 'wp-easycart' ),
 	'is_mobile' => true,
 	'format' => 'datetime',
+	'localize_timestamp' => true,
 );
 if ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) ) {
 	$columns[] = array(
 		'select' => "ec_order.pickup_date",
 		'name' => 'pickup_date', 
 		'label' => __( 'Pick Up Date', 'wp-easycart' ),
+		'tablet_hide' => true,
 		'is_mobile' => true,
 		'format' => 'datetime',
 	);
@@ -58,6 +69,7 @@ if ( get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) {
 		'select' => "ec_order.pickup_time",
 		'name' => 'pickup_time', 
 		'label' => __( 'Restaurant Time', 'wp-easycart' ),
+		'tablet_hide' => false,
 		'is_mobile' => true,
 		'format' => 'datetime',
 	);
@@ -71,12 +83,16 @@ $columns[] = array(
 $columns[] = array(
 	'name' => 'billing_first_name',
 	'label' => __( 'First Name', 'wp-easycart' ),
+	'laptop_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
+	'tablet_hide' => true,
 	'is_mobile' => true,
 	'format' => 'string',
 );
 $columns[] = array(
 	'name' => 'billing_last_name',
 	'label' => __( 'Last Name', 'wp-easycart' ),
+	'laptop_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
+	'tablet_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
 	'is_mobile' => true,
 	'format' => 'string',
 );
@@ -84,6 +100,7 @@ $columns[] = array(
 	'select' => 'ec_orderstatus.is_approved, ec_order.orderstatus_id',
 	'name' => 'orderstatus_id',
 	'label' => __( 'Payment Status', 'wp-easycart' ),
+	'tablet_hide' => true,
 	'is_mobile' => true,
 	'format' => 'payment_status',
 );
@@ -91,8 +108,15 @@ $columns[] = array(
 	'select' => 'ec_orderstatus.order_status',
 	'name' => 'order_status',
 	'label' => __( 'Order Status', 'wp-easycart' ),
-	'is_mobile' => true,
-	'format' => 'string',
+	'is_mobile' => false,
+	'format' => 'order_status',
+);
+$columns[] = array(
+	'select' => 'ec_orderstatus.color_code',
+	'name' => 'color_code',
+	'label' => __( 'Color Code', 'wp-easycart' ),
+	'is_mobile' => false,
+	'format' => 'hidden',
 );
 $table->set_list_columns( $columns );
 

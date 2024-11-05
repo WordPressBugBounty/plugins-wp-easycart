@@ -931,6 +931,13 @@ function ec_admin_ajax_update_order_quick_edit() {
 	if ( $send_tracking_email ) {
 		wp_easycart_admin_orders()->send_customer_shipping_email( $order_id, $tracking_number, $shipping_carrier );
 	}
+
+	$order_status = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_orderstatus WHERE status_id = %d', $orderstatus_id ) );
+	$response = (object) array(
+		'order_status' => ( is_object( $order_status ) && isset( $order_status->order_status ) ) ? $order_status->order_status : '',
+		'color_code' => ( is_object( $order_status ) && isset( $order_status->color_code ) ) ? wp_easycart_admin()->convert_hex_to_rgba( $order_status->color_code, '0.4' ) : wp_easycart_admin()->convert_hex_to_rgba( '#FFFFFF', '0.4' ),
+	);
+	echo json_encode( $response );
 	die();
 }
 add_action( 'wp_ajax_ec_admin_ajax_get_order_users', 'ec_admin_ajax_get_order_users' );

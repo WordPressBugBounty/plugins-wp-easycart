@@ -4,6 +4,14 @@ jQuery( document ).ready( function() {
 		jQuery( this_ele ).parent().find( '.wp-easycart-admin-icon-close-check' ).hide();
 		jQuery( this_ele ).parent( ).find( '.wp_easycart_toggle_saving' ).show( );
 		var quantity = Number( jQuery( this_ele ).val() );
+		jQuery( this_ele ).parent().parent().parent().removeClass( 'inventory_fine' ).removeClass( 'inventory_low' ).removeClass( 'out_of_stock' );
+		if ( quantity <= 0 ) {
+			jQuery( this_ele ).parent().parent().parent().addClass( 'out_of_stock' );
+		} else if ( quantity <= 10 ) {
+			jQuery( this_ele ).parent().parent().parent().addClass( 'inventory_low' );
+		} else {
+			jQuery( this_ele ).parent().parent().parent().addClass( 'inventory_fine' );
+		}
 		var data = {
 			action: 'ec_admin_ajax_update_inventory_item',
 			product_id: jQuery( this_ele ).attr( 'data-product-id' ),

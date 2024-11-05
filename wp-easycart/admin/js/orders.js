@@ -395,9 +395,10 @@ function ec_admin_cancel_order_quick_edit( ){
 
 function ec_admin_save_order_quick_edit( ){
 	jQuery( document.getElementById( "ec_admin_order_quick_edit_display_loader" ) ).fadeIn( 'fast' );
+	var order_id = Number( jQuery( document.getElementById( 'ec_qe_order_id' ) ).html() );
 	var data = {
 		action: 'ec_admin_ajax_update_order_quick_edit',
-		order_id: jQuery( document.getElementById( 'ec_qe_order_id' ) ).html( ),
+		order_id: order_id,
 		orderstatus_id: jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( ),
 		use_expedited_shipping: jQuery( document.getElementById( 'ec_qe_order_use_expedited_shipping' ) ).val( ),
 		shipping_method: jQuery( document.getElementById( 'ec_qe_order_shipping_method' ) ).val( ),
@@ -406,7 +407,7 @@ function ec_admin_save_order_quick_edit( ){
 		send_tracking_email: jQuery( document.getElementById( 'ec_qe_order_send_tracking_email' ) ).val( ),
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_quick_edit_nonce', 'text' )
 	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){
 		var paid_text = '';
 		var orderstatus_id = jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( );
 		var is_approved = ( jQuery( '#ec_qe_order_status option[value="' + orderstatus_id + '"]' ).attr( 'isapproved' ) ) ? jQuery( '#ec_qe_order_status option[value="' + orderstatus_id + '"]' ).attr( 'isapproved' ) : 0;
@@ -423,8 +424,9 @@ function ec_admin_save_order_quick_edit( ){
 		} else {
 			paid_text += ' <span class="payment-processing">' + jQuery( '#ec_qe_order_status' ).attr( 'data-pending' ) + '</span>';
 		}
-		jQuery( document.getElementById( 'ec_admin_order_list' ) ).find( "[data-id='"+ jQuery( document.getElementById( 'ec_qe_order_id' ) ).html( ) + "']" ).find( 'td:eq(6)' ).html( paid_text );
-		jQuery( document.getElementById( 'ec_admin_order_list' ) ).find( "[data-id='"+ jQuery( document.getElementById( 'ec_qe_order_id' ) ).html( ) + "']" ).find( 'td:eq(7)' ).html( jQuery( '#ec_qe_order_status > option:selected' ).text( ) );
+		var json_response = JSON.parse( response );
+		jQuery( '#wpec_table_cell_orderstatus_id_' + order_id ).html( paid_text );
+		jQuery( '#wpec_table_cell_order_status_' + order_id + ' > .order_status_chip' ).html( json_response.order_status ).css( 'background-color', json_response.color_code );
 		ec_admin_hide_loader( 'ec_admin_order_quick_edit_display_loader' );
 		wp_easycart_admin_close_slideout( 'order_quick_edit_box' );
 		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {

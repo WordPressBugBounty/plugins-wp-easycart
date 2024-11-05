@@ -3083,6 +3083,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						'manual-api-input'         => __( 'Use Manual API Credential Input', 'wp-easycart' )
 					) );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "checkout" ){
+					wp_enqueue_script( 'jquery-ui-core' );
+					wp_enqueue_script( 'jquery-ui-datepicker' );
+					wp_enqueue_style( 'wp-color-picker' );
 					wp_register_script( 'wp_easycart_admin_checkout_js', plugins_url( 'wp-easycart/admin/js/checkout.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_checkout_js' );
 					wp_localize_script( 'wp_easycart_admin_checkout_js', 'wp_easycart_checkout_language', array(
@@ -3489,6 +3492,37 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$color = str_pad( dechex( $color + $adjustAmount ), 2, '0', STR_PAD_LEFT );
 			}
 			return '#' . implode( $hexCode );
+		}
+
+		public function convert_hex_to_rgba( $color, $opacity = 1.0 ) {
+			if ( abs( $opacity ) > 1 ){
+				$opacity = 1.0;
+			} else {
+				$opacity = number_format( $opacity, 1, '.', '' );
+			}
+			if ( ! isset( $color ) ) {
+				return 'rgb( 255, 255, 255, ' . esc_attr( $opacity ) . ' )';
+			}
+			if ( '#' == $color[0] ) {
+				$color = substr( $color, 1 );
+			}
+			if ( 6 == strlen( $color ) ) {
+				$hex = array(
+					$color[0] . $color[1],
+					$color[2] . $color[3],
+					$color[4] . $color[5]
+				);
+			} else if ( strlen( $color ) == 3 ) {
+				$hex = array(
+					$color[0] . $color[0],
+					$color[1] . $color[1],
+					$color[2] . $color[2]
+				);
+			} else {
+				return 'rgb( 255, 255, 255, ' . esc_attr( $opacity ) . ' )';
+			}
+			$rgb = array_map( 'hexdec', $hex );
+			return 'rgba( ' . implode( ', ', $rgb ) . ', ' . $opacity . ' )';
 		}
 
 		public function load_toggle_group( $id, $change_func, $enabled, $title, $subtitle, $row_id = false, $default_show = true ){

@@ -168,101 +168,105 @@ $keys = apply_filters( 'wp_easycart_order_export_keys', $keys );
 
 $prev_order = 0;
 $is_new_order = false;
+$order_details_ids = array();
 
 foreach( $results as $result ){
 
 	if( $result['order_id'] != $prev_order ){
 		$prev_order = $result['order_id'];
 		$is_new_order = true;
+		$order_details_ids = array();
 	}
 
-	if( $result['order_gateway'] == "authorize" ){
-		$response_exploded = explode( ",", $result['gateway_response'] );
-		if( count( $response_exploded ) > 3 ){
-			 $result['gateway_response'] = $response_exploded[3];
-		}
-	}else if( $result['order_gateway'] == "paypal" ){
-		preg_match_all( "/\[payment_status\] \=\> (.*)\n/", $result['gateway_response'], $output_array );
-		if( count( $output_array ) > 1 ){
-			 $result['gateway_response'] = $output_array[1][0];
-		}
-	}else if( $result['order_gateway'] == "stripe" ){
-		preg_match_all( "/\[status\] \=\> (.*)\n/", $result['gateway_response'], $output_array );
-		if( count( $output_array ) > 1 ){
-			 $result['gateway_response'] = $output_array[1][0];
-		}
-	}
-
-	$new_line = array( );
-
-	foreach( $keys as $key ){
-
-		if( $key == "advanced_product_options" ){
-			$option_sql = "SELECT 
-					ec_order_option.option_value 
-				   FROM 
-					ec_order_option 
-				   WHERE 
-					ec_order_option.orderdetail_id = %s 
-				   ORDER BY 
-					ec_order_option.order_option_id ASC";
-			$option_results = $wpdb->get_results( $wpdb->prepare( $option_sql, $result['orderdetail_id'] ) );
-
-			$optionlist = '';
-			$first = true;
-			foreach( $option_results as $option_row ){
-				if( !$first )
-					$optionlist .= ', ';
-				$optionlist .= htmlspecialchars_decode( $option_row->option_value );
-				$first = false;
+	if ( ! in_array( $result['orderdetail_id'], $order_details_ids ) ) {
+		$order_details_ids[] = $result['orderdetail_id'];
+		if( $result['order_gateway'] == "authorize" ){
+			$response_exploded = explode( ",", $result['gateway_response'] );
+			if( count( $response_exploded ) > 3 ){
+				 $result['gateway_response'] = $response_exploded[3];
 			}
-			$new_line[] = $optionlist;
+		}else if( $result['order_gateway'] == "paypal" ){
+			preg_match_all( "/\[payment_status\] \=\> (.*)\n/", $result['gateway_response'], $output_array );
+			if( count( $output_array ) > 1 ){
+				 $result['gateway_response'] = $output_array[1][0];
+			}
+		}else if( $result['order_gateway'] == "stripe" ){
+			preg_match_all( "/\[status\] \=\> (.*)\n/", $result['gateway_response'], $output_array );
+			if( count( $output_array ) > 1 ){
+				 $result['gateway_response'] = $output_array[1][0];
+			}
+		}
 
-		} else if( ! in_array( $key, $fee_type_keys ) ) {
+		$new_line = array( );
 
-			$value = $result[$key];
+		foreach( $keys as $key ){
 
-			if( in_array( $key, $single_use_key_names ) && !$is_new_order ){
-				$new_line[] = "0.00";
+			if( $key == "advanced_product_options" ){
+				$option_sql = "SELECT 
+						ec_order_option.option_value 
+					   FROM 
+						ec_order_option 
+					   WHERE 
+						ec_order_option.orderdetail_id = %s 
+					   ORDER BY 
+						ec_order_option.order_option_id ASC";
+				$option_results = $wpdb->get_results( $wpdb->prepare( $option_sql, $result['orderdetail_id'] ) );
 
-			}else if( !isset( $value ) || $value == "" ){
-				$new_line[] = "";
+				$optionlist = '';
+				$first = true;
+				foreach( $option_results as $option_row ){
+					if( !$first )
+						$optionlist .= ', ';
+					$optionlist .= htmlspecialchars_decode( $option_row->option_value );
+					$first = false;
+				}
+				$new_line[] = $optionlist;
 
-			}else if( $key == 'billing_zip' || $key == 'shipping_zip' ){
-				$new_line[] = "=\"" . $value . "\"";
+			} else if( ! in_array( $key, $fee_type_keys ) ) {
 
-			}else{
-				$new_line[] = htmlspecialchars_decode( $value );
+				$value = $result[$key];
+
+				if( in_array( $key, $single_use_key_names ) && !$is_new_order ){
+					$new_line[] = "0.00";
+
+				}else if( !isset( $value ) || $value == "" ){
+					$new_line[] = "";
+
+				}else if( $key == 'billing_zip' || $key == 'shipping_zip' ){
+					$new_line[] = "=\"" . $value . "\"";
+
+				}else{
+					$new_line[] = htmlspecialchars_decode( $value );
+
+				}
 
 			}
 
 		}
 
-	}
-
-	if ( $is_new_order ) {
-		if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-			$order_fee_list = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
-			foreach ( $fee_types as $fee_type ) {
-				$is_fee_type_found = false;
-				if ( $order_fee_list && is_array( $order_fee_list ) ) {
-					foreach ( $order_fee_list as $order_fee_item ) {
-						if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
-							$new_line[] = $order_fee_item->fee_total;
-							$is_fee_type_found = true;
+		if ( $is_new_order ) {
+			if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
+				$order_fee_list = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
+				foreach ( $fee_types as $fee_type ) {
+					$is_fee_type_found = false;
+					if ( $order_fee_list && is_array( $order_fee_list ) ) {
+						foreach ( $order_fee_list as $order_fee_item ) {
+							if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
+								$new_line[] = $order_fee_item->fee_total;
+								$is_fee_type_found = true;
+							}
 						}
 					}
-				}
-				if ( ! $is_fee_type_found ) {
-					$new_line[] = '0.000';
+					if ( ! $is_fee_type_found ) {
+						$new_line[] = '0.000';
+					}
 				}
 			}
 		}
+
+		$dataset[] = $new_line;
+		$is_new_order = false;
 	}
-
-	$dataset[] = $new_line;
-
-	$is_new_order = false;
 }
 
 header('Content-Type: text/csv; charset=utf-8');

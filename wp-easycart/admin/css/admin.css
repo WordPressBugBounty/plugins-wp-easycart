@@ -348,6 +348,12 @@ th.wpec-mobile-only, td.wpec-mobile-only{ display:none; position:relative; }
 .wpec-mobile-label{ font-weight:bold; }
 .wpec-mobile-expand{ width:100%; position:absolute; left:0px; top:0px; cursor:pointer; padding:4px 0 0; }
 .wpec-mobile-expand > div{ float:right !important; }
+@media screen and (max-width: 1499px) and (min-width: 1300px) {
+	th.wpec-laptop-hide, td.wpec-laptop-hide{ display:none; }
+}
+@media screen and (max-width: 1299px) and (min-width: 783px) {
+	th.wpec-tablet-hide, td.wpec-tablet-hide{ display:none; }
+}
 @media screen and (max-width: 782px) {
 	.ec_page_title_button_wrap > select{ width:99% !important; min-width:99% !important; max-width:99% !important; }
 	th.wpec-mobile-only, td.wpec-mobile-only{ display:table-cell !important; min-width:60%; padding:10px 5px !important; }
@@ -421,26 +427,6 @@ th.wpec-mobile-only, td.wpec-mobile-only{ display:none; position:relative; }
 @media screen and (max-width: 782px) {
 	#ec_admin_review_list > tbody > tr > td:first-child{ font-size:18px; padding:4px 10px 0; margin-bottom:-5px; }
 	#ec_admin_review_list > tbody > tr > td:last-child{ height:32px; }
-}
-
-/* Orders Page */
-@media screen and (max-width: 1279px) {
-	#ec_admin_order_list tr > th:nth-child( 5 ){ display:none; }
-	#ec_admin_order_list tr > td:nth-child( 5 ){ display:none; }
-}
-@media screen and (max-width: 1105px) {
-	#ec_admin_order_list tr > th:nth-child( 6 ){ display:none; }
-	#ec_admin_order_list tr > td:nth-child( 6 ){ display:none; }
-	#ec_admin_order_list tr > th:nth-child( 7 ){ display:none; }
-	#ec_admin_order_list tr > td:nth-child( 7 ){ display:none; }
-	#ec_admin_order_list tr > th:nth-child( 8 ){ display:none; }
-	#ec_admin_order_list tr > td:nth-child( 8 ){ display:none; }
-}
-@media screen and (max-width: 782px) {
-	#ec_admin_order_list tr > th:nth-child( 2 ){ display:none; }
-	#ec_admin_order_list tr > td:nth-child( 2 ){ display:none; }
-	#ec_admin_order_list > tbody > tr > td:first-child{ font-size:18px; padding:4px 10px 0; margin-bottom:-5px; }
-	#ec_admin_order_list > tbody > tr > td:last-child{ height:32px; }
 }
 
 /* Subscriptions Page */
@@ -1015,6 +1001,8 @@ input.readonly, input[readonly], textarea.readonly, textarea[readonly]{ backgrou
 .payment-processing{ background: rgb(222 244 24 / 34%); border-radius: 25px; padding: 2px 15px; }
 .payment-neutral{ background: rgb(0 0 0 / 12%); border-radius: 25px; padding: 2px 15px; }
 .payment-paid{ background: rgb(213 213 213 / 41%); border-radius: 25px; padding: 2px 15px; }
+.order_status_chip{ background: rgb(213 213 213 / 41%); padding: 2px 7px; display:inline-block; width:100%; font-size:11px; text-align:center; }
+.wpec-mobile-row .order_status_chip{ float:right; margin-right:25px; width:auto;  }
 .payments-details-view{ float:left; width:100%; border-radius:0px; text-align:center; }
 .ec_admin_slider_row{ position:relative; float:left; width:100%; background:#FFF; border:1px solid #e1e1e1; padding:20px; margin:0 0 10px 0; }
 .ec_admin_slider_row > h1{ font-size:24px; font-weight:400; text-align:center; }

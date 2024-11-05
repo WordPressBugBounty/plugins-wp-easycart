@@ -478,7 +478,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					if ( $this->current_sort_column == $header['name'] ) {
 						$is_sort_selected = 'sorted';
 					}
-					echo '<th scope="col" id="' . esc_attr( $header['name'] ) . '" class="manage-column column-primary ' . esc_attr( $is_sort_selected . ' ' . $sort ) . ( ( $this->mobile_column ) ? ' wpec-mobile-hide' : '' ) . '"';
+					echo '<th scope="col" id="' . esc_attr( $header['name'] ) . '" class="manage-column column-primary ' . esc_attr( $is_sort_selected . ' ' . $sort ) . ( ( $this->mobile_column ) ? ' wpec-mobile-hide' : '' ) . ( ( isset( $header['tablet_hide'] ) && $header['tablet_hide'] ) ? ' wpec-tablet-hide' : '' ) . ( ( isset( $header['laptop_hide'] ) && $header['laptop_hide'] ) ? ' wpec-laptop-hide' : '' ) . '"';
 					if ( isset( $header['width'] ) ) {
 						echo ' width="' . esc_attr( $header['width'] ) . '"';
 					}
@@ -514,453 +514,381 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private function print_table_data() {
 			echo '<tbody>';
 			foreach ( $this->results as $result ) {
-				echo '<tr data-id="' . esc_attr( $result->{ $this->key } ) . '">';
-				echo '<th scope="row" class="check-column">';
-				echo '<label class="screen-reader-text" for="cb-select-' . esc_attr( $result->{ $this->key } ) . '">' . esc_attr__( 'Select', 'wp-easycart' ) . ' ' . esc_attr( $result->{ $this->key } ) . '</label>';
-				echo '<input id="cb-select-' . esc_attr( $result->{ $this->key } ) . '" type="checkbox" name="bulk[]" value="' . esc_attr( $result->{ $this->key } ) . '">';
-				echo '</th>';
+				$this->print_table_row( $result );
+			}
+			echo '</tbody>';
+		}
+		private function print_table_row( $result ) {
+			echo '<tr data-id="' . esc_attr( $result->{ $this->key } ) . '">';
+			$this->print_table_column_bulk_check( $result );
+			for ( $i = 0; $i < count( $this->list_columns ); $i++ ) {
+				if ( $this->list_columns[ $i ]['format'] != 'hidden' ) {
+					$this->print_table_column( $result, $this->list_columns[ $i ] );
+				}
+			}
+			if ( $this->mobile_column ) {
+				echo '<td class="wpec-mobile-only">';
 				for ( $i = 0; $i < count( $this->list_columns ); $i++ ) {
-					if ( $this->list_columns[ $i ]['format'] != 'hidden' ) {
-						echo '<td'. ( ( $this->mobile_column ) ? ' class="wpec-mobile-hide"' : '' ) . '>';
-						if ( isset( $this->list_columns[ $i ]['linked'] ) && $this->list_columns[ $i ]['linked'] ) {
-							echo '<a href="' . esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', 'edit' ) ) . '">';
-						}
-						switch( $this->list_columns[ $i ]['format'] ) {
-							case 'int':
-								echo esc_attr( (integer) $result->{ $this->list_columns[ $i ]['name'] } );
-								break;
-							case 'stock':
-								if ( $result->show_stock_quantity || $result->use_optionitem_quantity_tracking ) {
-									echo esc_attr( (integer) $result->{ $this->list_columns[ $i ]['name'] } );
-								} else {
-									echo '&#8734;';
-								}
-								break;
-							case 'string':
-								if ( isset( $this->list_columns[ $i ]['parent_id'] ) && 0 != $result->{ $this->list_columns[ $i ]['parent_id'] } ) {
-									echo '-- ';
-								}
-								echo ( isset( $result->{ $this->list_columns[ $i ]['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $this->list_columns[ $i ]['name'] } ) ) ) : '';
-								break;
-							case 'yes_no':
-								echo ( (bool) $result->{ $this->list_columns[ $i ]['name'] } ) ? esc_attr__( 'Yes', 'wp-easycart' ) : esc_attr__( 'No', 'wp-easycart' );
-								break;
-							case 'date':
-								$date_timestamp = strtotime( $result->{ $this->list_columns[ $i ]['name'] } );
-								if ( $date_timestamp > 0 ) {
-									echo esc_attr( date( 'F d, Y', $date_timestamp ) );
-								}
-								break;
-							case 'datetime':
-								$date = $result->{ $this->list_columns[ $i ]['name'] };
-								$date_timestamp = strtotime( $date );
-								if ( $date_timestamp > 0 ) {
-									echo esc_attr( date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ) );
-								}
-								break;
-							case 'bool':
-								echo ( $result->{ $this->list_columns[ $i ]['name'] } ? 'Yes' : 'No' );
-								break;
-							case 'currency':
-								echo esc_attr( $GLOBALS['currency']->get_currency_display( $result->{ $this->list_columns[ $i ]['name'] } ) );
-								break;
-							case 'checkbox':
-								echo '<input type="checkbox"  onclick="return false;" ' . ( $result->{ $this->list_columns[ $i ]['name'] } == 1 ? 'checked' : '')  . '>';
-								break;
-							case 'order_viewed':
-								echo '<span class="ec_admin_new_order" title="' . esc_attr__( 'New Order', 'wp-easycart' ) . '">'.esc_attr( $result->{ $this->list_columns[ $i ]['name'] } == 0 ? '!' : '').'</span>';
-								break;
-							case 'image_swatch':
-								if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) && !is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) ) {
-									$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] }, EC_PLUGIN_DATA_DIRECTORY );
-									echo '<img src="' . esc_attr( $img_url )  . '" style="height:25px;width:25px;">';
-
-								} else if ( substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 7 ) == 'http://' || substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 8 ) == 'https://' ) {
-									echo '<img src="' . esc_attr( $result->{ $this->list_columns[ $i ]['name'] } )  . '" style="height:25px;width:25px;">';
-
-								} else {
-									echo '<div class="wp-easycart-admin-swatch">' . esc_attr( $result->{ $this->list_columns[ $i ]['alt'] } ) . '</div>';
-								}
-								break;
-							case 'image_upload':
-								if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) && !is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) ) {
-									$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] }, EC_PLUGIN_DATA_DIRECTORY );
-									echo '<img src="' . esc_attr( $img_url )  . '" style="height:25px;width:25px;">';
-								} else if ( substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 7 ) == 'http://' || substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 8 ) == 'https://' ) {
-									echo '<img src="' . esc_attr( $result->{ $this->list_columns[ $i ]['name'] } )  . '" style="height:25px;width:25px;">';
-								} else {
-									echo esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-								}
-								break;
-							case 'star_rating':
-								$this->display_review_stars( $result->{ $this->list_columns[ $i ]['name'] } );
-								break;
-							case 'optiontype':
-								$option_type = esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-								$option_types = array(
-									(object) array(
-										'value'	=> 'basic-combo',
-										'label'	=> __( 'Basic: Combo', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'basic-swatch',
-										'label'	=> __( 'Basic: Swatch', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'combo',
-										'label'	=> __( 'Advanced: Combo Box', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'swatch',
-										'label'	=> __( 'Advanced: Image Swatches', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'text',
-										'label'	=> __( 'Advanced: Text Input', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'textarea',
-										'label'	=> __( 'Advanced: Text Area', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'number',
-										'label'	=> __( 'Advanced: Number Field', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'file',
-										'label'	=> __( 'Advanced: File Upload', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'radio',
-										'label'	=> __( 'Advanced: Radio Group', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'checkbox',
-										'label'	=> __( 'Advanced: Checkbox Group', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'grid',
-										'label'	=> __( 'Advanced: Quantity Grid', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'date',
-										'label'	=> __( 'Advanced: Date', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'dimensions1',
-										'label'	=> __( 'Advanced: Dimensions (Whole Inch)', 'wp-easycart' ),
-									),
-									(object) array(
-										'value'	=> 'dimensions2',
-										'label'	=> __( 'Advanced: Dimensions (Sub-Inch)', 'wp-easycart' ),
-									)
-								);
-								foreach ( $option_types as $op_type ) {
-									if ( $op_type->value == $option_type ) {
-										$option_type = esc_attr( $op_type->label );
-										break;
-									}
-								}
-								echo esc_attr( $option_type );
-								break;
-							case 'payment_status':
-								if ( 17 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-									echo '<span class="payment-neutral">' . esc_attr__( 'Partial Refund', 'wp-easycart' ) . '</span>';
-								} else if ( 16 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-									echo '<span class="payment-bad">' . esc_attr__( 'Refunded', 'wp-easycart' ) . '</span>';
-								} else if ( $result->is_approved ) {
-									echo '<span class="payment-paid">' . esc_attr__( 'Paid', 'wp-easycart' ) . '</span>';
-								} else if ( 19 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-									echo '<span class="payment-bad">' . esc_attr__( 'Canceled', 'wp-easycart' ) . '</span>';
-								} else if ( 7 == (int) $result->{ $this->list_columns[ $i ]['name'] } || 9 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-									echo '<span class="payment-bad">' . esc_attr__( 'Failed', 'wp-easycart' ) . '</span>';
-								} else {
-									echo '<span class="payment-processing">' . esc_attr__( 'Processing', 'wp-easycart' ) . '</span>';
-								}
-								break;
-							default:
-								echo esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-								break;
-						}
-						if ( isset( $this->list_columns[ $i ]['linked'] ) && $this->list_columns[ $i ]['linked'] ) {
-							echo '</a>';
-							if ( isset( $this->list_columns[ $i ]['subactions'] ) ) {
-								if ( isset( $this->list_columns[ $i ]['square_check'] ) && $this->list_columns[ $i ]['square_check'] && isset( $result->square_id ) && '' != $result->square_id ) {
-									echo '<img src="' . plugins_url( 'wp-easycart/admin/images/square-logo.png' ) . '" class="wp-easycart-square-sync-icon" title="' . esc_attr__( 'Content managed in your Square POS', 'wp-easycart' ) . '" />';
-								}
-								echo '<div class="ec_admin_list_subactions">';
-								$first_subaction = true;
-								foreach ( $this->list_columns[ $i ]['subactions'] as $subaction ) {
-									if ( isset( $subaction['min_id'] ) && $result->{$this->key} < $subaction['min_id'] ) {
-										// Skip this item
-									} else {
-										if ( ! $first_subaction ) {
-											echo '<span> | </span>';
-										}
-										echo '<a href="';
-										if ( isset( $subaction['custom_key'] ) && isset( $result->{ $subaction['custom_key'] } ) ) {
-											$subaction['url'] = str_replace( '{custom_key}', $result->{ $subaction['custom_key'] }, $subaction['url'] );
-										}
-										echo ( ( isset( $subaction['url'] ) ) ? esc_attr( str_replace( '{key}', $result->{ $this->key }, $subaction['url'] ) ) : esc_url( $this->get_url( $this->key, $result->{$this->key}, false, 'ec_admin_form_action', $subaction['action'] ) ) );
-										echo '" aria-label="' . esc_attr( $subaction['name'] ) . '" title="' . esc_attr( $subaction['name'] ) . '"';
-										if ( 'delete' == $subaction['action_type'] ) {
-											echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
-										} else if ( 'quick-edit' == $subaction['action_type'] ) {
-											if ( 'square' == get_option( 'ec_option_payment_process_method' ) && ( get_option( 'ec_option_square_auto_product_sync' ) || get_option( 'ec_option_square_auto_sync' ) ) && isset( $result->square_id ) && '' != $result->square_id ) {
-												echo ' onclick="alert( \'' . esc_attr__( 'Quick edit disabled when Square products or inventory syncing is enabled. Please edit the full product by clicking the title.', 'wp-easycart' ) . '\'); return false;"';
-											} else {
-												echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $subaction['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
-											}
-										}
-										if ( isset( $subaction['target'] ) ) {
-											echo ' target="' . esc_attr( $subaction['target'] ) . '"';
-										}
-										echo '>' . esc_attr( $subaction['name'] ) . '</a>';
-										$first_subaction = false;
-									}
-								}
-								echo '</div>';
+					if ( isset( $this->list_columns[ $i ]['is_mobile'] ) && $this->list_columns[ $i ]['is_mobile'] ) {
+						echo '<div class="wpec-mobile-row"><span class="wpec-mobile-label">' . esc_attr( $this->list_columns[ $i ]['label'] ) . ': </span> ';
+						$this->print_table_column_data_format( $result, $this->list_columns[ $i ] );
+						if ( isset( $this->list_columns[ $i ]['mobile_extra'] ) ) {
+							for ( $j = 0; $j < count( $this->list_columns[ $i ]['mobile_extra'] ); $j++ ) {
+								$this->print_table_column_data_format( $result, $this->list_columns[ $i ]['mobile_extra'][ $j ] );
 							}
 						}
-						echo '</td>';
+						echo '</div>';
 					}
 				}
-				if ( $this->mobile_column ) {
-					echo '<td class="wpec-mobile-only">';
-					for ( $i = 0; $i < count( $this->list_columns ); $i++ ) {
-						if ( isset( $this->list_columns[ $i ]['is_mobile'] ) && $this->list_columns[ $i ]['is_mobile'] ) {
-							echo '<div class="wpec-mobile-row"><span class="wpec-mobile-label">' . esc_attr( $this->list_columns[ $i ]['label'] ) . ': </span> ';
-							switch( $this->list_columns[ $i ]['format'] ) {
-								case 'int':
-									echo esc_attr( (integer) $result->{ $this->list_columns[ $i ]['name'] } );
-									break;
-								case 'stock':
-									if ( $result->show_stock_quantity || $result->use_optionitem_quantity_tracking ) {
-										echo esc_attr( (integer) $result->{ $this->list_columns[ $i ]['name'] } );
-									} else {
-										echo '&#8734;';
-									}
-									break;
-								case 'string':
-									if ( isset( $this->list_columns[ $i ]['parent_id'] ) && 0 != $result->{ $this->list_columns[ $i ]['parent_id'] } ) {
-										echo '-- ';
-									}
-									echo ( isset( $result->{ $this->list_columns[ $i ]['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $this->list_columns[ $i ]['name'] } ) ) ) : '';
-									break;
-								case 'yes_no':
-									echo ( (bool) $result->{ $this->list_columns[ $i ]['name'] } ) ? esc_attr__( 'Yes', 'wp-easycart' ) : esc_attr__( 'No', 'wp-easycart' );
-									break;
-								case 'date':
-									echo esc_attr( date('F d, Y', strtotime( $result->{ $this->list_columns[ $i ]['name'] } ) ) );
-									break;
-								case 'datetime':
-									$date = $result->{ $this->list_columns[ $i ]['name'] };
-									$date_timestamp = strtotime( $date );
-									$date_timestamp = $date_timestamp + $this->date_diff;
-									echo esc_attr( date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ) );
-									break;
-								case 'bool':
-									echo ( $result->{ $this->list_columns[ $i ]['name'] } ? 'Yes' : 'No' );
-									break;
-								case 'currency':
-									echo esc_attr( $GLOBALS['currency']->get_currency_display( $result->{ $this->list_columns[ $i ]['name'] } ) );
-									break;
-								case 'checkbox':
-									echo '<input type="checkbox"  onclick="return false;" ' . ( $result->{ $this->list_columns[ $i ]['name'] } == 1 ? 'checked' : '' )  . '>';
-									break;
-								case 'order_viewed':
-									echo '<span class="ec_admin_new_order" title="' . esc_attr__( 'New Order', 'wp-easycart' ) . '">' . esc_attr( $result->{ $this->list_columns[ $i ]['name'] } == 0 ? '!' : '' ) . '</span>';
-									break;
-								case 'image_swatch':
-									if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) && ! is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) ) {
-										$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $this->list_columns[ $i ]['name']}, EC_PLUGIN_DATA_DIRECTORY );
-										echo '<img src="' . esc_attr( $img_url ) . '" style="height:25px;width:25px;">';
-									} else if ( 'http://' == substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 7 ) || 'https://' == substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 8 ) ) {
-										echo '<img src="' . esc_attr( $result->{ $this->list_columns[ $i ]['name'] } ) . '" style="height:25px;width:25px;">';
-									} else {
-										echo '<div class="wp-easycart-admin-swatch">' . esc_attr( $result->{ $this->list_columns[ $i ]['alt'] } ) . '</div>';
-									}
-									break;
-								case 'image_upload':
-									if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) && ! is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] } ) ) {
-										$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $this->list_columns[ $i ]['name'] }, EC_PLUGIN_DATA_DIRECTORY );
-										echo '<img src="' . esc_attr( $img_url ) . '" style="height:25px;width:25px;">';
-									} else if ( 'http://' == substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 7 ) || 'https://' == substr( $result->{ $this->list_columns[ $i ]['name'] }, 0, 8 ) ) {
-										echo '<img src="' . esc_attr( $result->{ $this->list_columns[ $i ]['name'] } ) . '" style="height:25px;width:25px;">';
-									} else {
-										echo esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-									}
-									break;
-								case 'star_rating':
-									$this->display_review_stars( $result->{ $this->list_columns[ $i ]['name'] } );
-									break;
-								case 'optiontype':
-									$option_type = esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-									$option_types = array(
-										(object) array(
-											'value'	=> 'basic-combo',
-											'label'	=> __( 'Basic: Combo', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'basic-swatch',
-											'label'	=> __( 'Basic: Swatch', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'combo',
-											'label'	=> __( 'Advanced: Combo Box', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'swatch',
-											'label'	=> __( 'Advanced: Image Swatches', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'text',
-											'label'	=> __( 'Advanced: Text Input', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'textarea',
-											'label'	=> __( 'Advanced: Text Area', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'number',
-											'label'	=> __( 'Advanced: Number Field', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'file',
-											'label'	=> __( 'Advanced: File Upload', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'radio',
-											'label'	=> __( 'Advanced: Radio Group', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'checkbox',
-											'label'	=> __( 'Advanced: Checkbox Group', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'grid',
-											'label'	=> __( 'Advanced: Quantity Grid', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'date',
-											'label'	=> __( 'Advanced: Date', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'dimensions1',
-											'label'	=> __( 'Advanced: Dimensions (Whole Inch)', 'wp-easycart' ),
-										),
-										(object) array(
-											'value'	=> 'dimensions2',
-											'label'	=> __( 'Advanced: Dimensions (Sub-Inch)', 'wp-easycart' ),
-										),
-									);
-									foreach ( $option_types as $op_type ) {
-										if ( $op_type->value == $option_type ) {
-											$option_type = esc_attr( $op_type->label );
-											break;
-										}
-									}
-									echo esc_attr( $option_type );
-									break;
-								case 'payment_status':
-									if ( 17 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-										echo '<span class="payment-neutral">' . esc_attr__( 'Partial Refund', 'wp-easycart' ) . '</span>';
-									} else if ( 16 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-										echo '<span class="payment-bad">' . esc_attr__( 'Refunded', 'wp-easycart' ) . '</span>';
-									} else if ( $result->is_approved ) {
-										echo '<span class="payment-paid">' . esc_attr__( 'Paid', 'wp-easycart' ) . '</span>';
-									} else if ( 19 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-										echo '<span class="payment-bad">' . esc_attr__( 'Canceled', 'wp-easycart' ) . '</span>';
-									} else if ( 7 == (int) $result->{ $this->list_columns[ $i ]['name'] } || 9 == (int) $result->{ $this->list_columns[ $i ]['name'] } ) {
-										echo '<span class="payment-bad">' . esc_attr__( 'Failed', 'wp-easycart' ) . '</span>';
-									} else {
-										echo '<span class="payment-processing">' . esc_attr__( 'Processing', 'wp-easycart' ) . '</span>';
-									}
-									break;
-								default:
-									echo esc_attr( $result->{ $this->list_columns[ $i ]['name'] } );
-									break;
-							}
-							echo '</div>';
-						}
+				echo '<div>';
+				$this->print_table_column_actions_mobile( $result );
+				echo '</div>';
+				echo '<div class="wpec-mobile-expand"><div class="dashicons-before dashicons-arrow-down"></div></div>';
+				echo '</td>';
+			}
+			echo '<td' . ( ( $this->mobile_column ) ? ' class="wpec-mobile-hide"' : '' ) . '>';
+			$this->print_table_column_actions_icons( $result );
+			echo '</td>';
+			echo '</tr>';
+		}
+		private function print_table_column_bulk_check( $result ) {
+			echo '<th scope="row" class="check-column">';
+			echo '<label class="screen-reader-text" for="cb-select-' . esc_attr( $result->{ $this->key } ) . '">' . esc_attr__( 'Select', 'wp-easycart' ) . ' ' . esc_attr( $result->{ $this->key } ) . '</label>';
+			echo '<input id="cb-select-' . esc_attr( $result->{ $this->key } ) . '" type="checkbox" name="bulk[]" value="' . esc_attr( $result->{ $this->key } ) . '">';
+			echo '</th>';
+		}
+		private function print_table_column( $result, $list_column ) {
+			echo '<td class="' . ( ( $this->mobile_column ) ? 'wpec-mobile-hide' : '' ) . ( ( isset( $list_column['tablet_hide'] ) && $list_column['tablet_hide'] ) ? ' wpec-tablet-hide' : '' ) . ( ( isset( $list_column['laptop_hide'] ) && $list_column['laptop_hide'] ) ? ' wpec-laptop-hide' : '' ) . '" id="wpec_table_cell_' . $list_column['name'] . '_' . $result->{ $this->key } . '">';
+			if ( isset( $list_column['linked'] ) && $list_column['linked'] ) {
+				echo '<a href="' . esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', 'edit' ) ) . '">';
+			}
+			$this->print_table_column_data_format( $result, $list_column );
+			if ( isset( $list_column['linked'] ) && $list_column['linked'] ) {
+				echo '</a>';
+				if ( isset( $list_column['subactions'] ) ) {
+					if ( isset( $list_column['square_check'] ) && $list_column['square_check'] && isset( $result->square_id ) && '' != $result->square_id ) {
+						echo '<img src="' . plugins_url( 'wp-easycart/admin/images/square-logo.png' ) . '" class="wp-easycart-square-sync-icon" title="' . esc_attr__( 'Content managed in your Square POS', 'wp-easycart' ) . '" />';
 					}
-					echo '<div>';
-					$total_actions_printed = 0;
-					for ( $j = 0; $j < count( $this->actions ); $j++ ) {
-						if ( isset( $this->actions[ $j ]['min_id'] ) && $result->{$this->key} < $this->actions[ $j ]['min_id'] ) {
+					echo '<div class="ec_admin_list_subactions">';
+					$first_subaction = true;
+					foreach ( $list_column['subactions'] as $subaction ) {
+						if ( isset( $subaction['min_id'] ) && $result->{$this->key} < $subaction['min_id'] ) {
 							// Skip this item
 						} else {
-							if ( $total_actions_printed > 0 ) {
-								echo  ' | ';
+							if ( ! $first_subaction ) {
+								echo '<span> | </span>';
 							}
-							$label = esc_attr( $this->actions[$j]['label'] );
-							if ( 'hidden' == $this->actions[$j]['icon'] && ! $result->is_visible ) {
-								$label = __( 'Activate', 'wp-easycart' );
+							echo '<a href="';
+							if ( isset( $subaction['custom_key'] ) && isset( $result->{ $subaction['custom_key'] } ) ) {
+								$subaction['url'] = str_replace( '{custom_key}', $result->{ $subaction['custom_key'] }, $subaction['url'] );
 							}
-							echo '<span class="' . esc_attr( $this->actions[ $j ]['name'] ) . '"><a href="';
-							if ( isset( $this->actions[$j]['custom'] ) ) {
-								echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, true, $this->actions[ $j ]['custom'], $this->actions[ $j ]['name'] ) );
-							} else {
-								echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', $this->actions[ $j ]['name'] ) );
-							}
-							echo '" aria-label="' . esc_attr( $label ) . '" title="' . esc_attr( $label ) . '"';
-							if ( 'Delete' == $label ) {
+							echo ( ( isset( $subaction['url'] ) ) ? esc_attr( str_replace( '{key}', $result->{ $this->key }, $subaction['url'] ) ) : esc_url( $this->get_url( $this->key, $result->{$this->key}, false, 'ec_admin_form_action', $subaction['action'] ) ) );
+							echo '" aria-label="' . esc_attr( $subaction['name'] ) . '" title="' . esc_attr( $subaction['name'] ) . '"';
+							if ( 'delete' == $subaction['action_type'] ) {
 								echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
-							} else if ( 'Quick Edit' == $label ) {
-								echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
-							} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
-								echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
+							} else if ( 'quick-edit' == $subaction['action_type'] ) {
+								if ( 'square' == get_option( 'ec_option_payment_process_method' ) && ( get_option( 'ec_option_square_auto_product_sync' ) || get_option( 'ec_option_square_auto_sync' ) ) && isset( $result->square_id ) && '' != $result->square_id ) {
+									echo ' onclick="alert( \'' . esc_attr__( 'Quick edit disabled when Square products or inventory syncing is enabled. Please edit the full product by clicking the title.', 'wp-easycart' ) . '\'); return false;"';
+								} else {
+									echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $subaction['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
+								}
 							}
-							if ( 'Stats' == $label ) {
-								echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
+							if ( isset( $subaction['target'] ) ) {
+								echo ' target="' . esc_attr( $subaction['target'] ) . '"';
 							}
-							echo '>' . esc_attr( $label ) . '</a>';
-							echo '</span>';
-							$total_actions_printed++;
+							echo '>' . esc_attr( $subaction['name'] ) . '</a>';
+							$first_subaction = false;
 						}
 					}
 					echo '</div>';
-					echo '<div class="wpec-mobile-expand"><div class="dashicons-before dashicons-arrow-down"></div></div>';
-					echo '</td>';
 				}
-				echo '<td' . ( ( $this->mobile_column ) ? ' class="wpec-mobile-hide"' : '' ) . '>';
-				for ( $j = 0; $j < count( $this->actions ); $j++ ) {
-					if ( isset( $this->actions[ $j ]['min_id'] ) && $result->{ $this->key } < $this->actions[ $j ]['min_id'] ) {
-						// Skip this item
-					} else {
-						$label = esc_attr( $this->actions[ $j ]['label'] );
-						$icon = esc_attr( $this->actions[ $j ]['icon'] );
-						if ( $this->actions[ $j ]['icon'] == 'hidden' && ! $result->is_visible ) {
-							$label = esc_attr__( 'Activate', 'wp-easycart' );
-							$icon = 'visibility';
-						}
-						echo '<span class="' . esc_attr( $this->actions[ $j ]['name'] ) . '"><a href="';
-						if ( isset( $this->actions[ $j ]['custom'] ) ) {
-							echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, true, $this->actions[ $j ]['custom'], $this->actions[ $j ]['name'] ) );
-						} else {
-							echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', $this->actions[ $j ]['name'] ) );
-						}
-						echo '" aria-label="' . esc_attr( $label ) . '" title="' . esc_attr( $label ) . '"';
-						if ( 'Delete' == $label ) {
-							echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
-						} else if ( 'Quick Edit' == $label ) {
-							echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
-						} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
-							echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
-						}
-						if ( 'Stats' == $label ) {
-							echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
-						}
-						echo '>';
-						echo '<div class="dashicons-before dashicons-' . esc_attr( $icon ) . '"></div>';
-						echo '</a>';
-						echo '</span>';
-					}
-				}
-				echo '</td>';
-				echo '</tr>';
 			}
-			echo '</tbody>';
+			echo '</td>';
+		}
+		private function print_table_column_data_format( $result, $list_column ) {
+			switch( $list_column['format'] ) {
+				case 'int':
+					$this->print_table_column_int( $result, $list_column );
+					break;
+				case 'stock':
+					$this->print_table_column_stock( $result, $list_column );
+					break;
+				case 'string':
+					$this->print_table_column_string( $result, $list_column );
+					break;
+				case 'yes_no':
+					$this->print_table_column_yes_no( $result, $list_column );
+					break;
+				case 'date':
+					$this->print_table_column_date( $result, $list_column );
+					break;
+				case 'datetime':
+					$this->print_table_column_datetime( $result, $list_column );
+					break;
+				case 'bool':
+					$this->print_table_column_bool( $result, $list_column );
+					break;
+				case 'currency':
+					$this->print_table_column_currency( $result, $list_column );
+					break;
+				case 'checkbox':
+					$this->print_table_column_checkbox( $result, $list_column );
+					break;
+				case 'order_viewed':
+					$this->print_table_column_order_viewed( $result, $list_column );
+					break;
+				case 'image_swatch':
+					$this->print_table_column_image_swatch( $result, $list_column );
+					break;
+				case 'image_upload':
+					$this->print_table_column_image_upload( $result, $list_column );
+					break;
+				case 'star_rating':
+					$this->display_review_stars( $result->{ $list_column['name'] } );
+					break;
+				case 'optiontype':
+					$this->print_table_column_optiontype( $result, $list_column );
+					break;
+				case 'payment_status':
+					$this->print_table_column_payment_status( $result, $list_column );
+					break;
+				case 'order_status':
+					$this->print_table_column_order_status( $result, $list_column );
+					break;
+				default:
+					echo esc_attr( $result->{ $list_column['name'] } );
+					break;
+			}
+		}
+		private function print_table_column_int( $result, $list_column ) {
+			echo esc_attr( (integer) $result->{ $list_column['name'] } );
+		}
+		private function print_table_column_stock( $result, $list_column ) {
+			if ( $result->show_stock_quantity || $result->use_optionitem_quantity_tracking ) {
+				echo esc_attr( (integer) $result->{ $list_column['name'] } );
+			} else {
+				echo '&#8734;';
+			}
+		}
+		private function print_table_column_string( $result, $list_column ) {
+			if ( isset( $list_column['parent_id'] ) && 0 != $result->{ $list_column['parent_id'] } ) {
+				echo '-- ';
+			}
+			echo ( isset( $result->{ $list_column['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $list_column['name'] } ) ) ) : '';
+		}
+		private function print_table_column_yes_no( $result, $list_column ) {
+			echo ( (bool) $result->{ $list_column['name'] } ) ? esc_attr__( 'Yes', 'wp-easycart' ) : esc_attr__( 'No', 'wp-easycart' );
+		}
+		private function print_table_column_date( $result, $list_column ) {
+			$date_timestamp = strtotime( $result->{ $list_column['name'] } );
+			if ( $date_timestamp > 0 ) {
+				echo esc_attr( date( 'F d, Y', $date_timestamp ) );
+			}
+		}
+		private function print_table_column_datetime( $result, $list_column ) {
+			$date = $result->{ $list_column['name'] };
+			$date_timestamp = strtotime( $date );
+			if ( isset( $list_column['localize_timestamp'] ) && $list_column['localize_timestamp'] ) {
+				$date_timestamp = $date_timestamp + $this->date_diff;
+			}
+			if ( $date_timestamp > 0 ) {
+				echo esc_attr( date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ) );
+			}
+		}
+		private function print_table_column_bool( $result, $list_column ) {
+			echo ( $result->{ $list_column['name'] } ? 'Yes' : 'No' );
+		}
+		private function print_table_column_currency( $result, $list_column ) {
+			echo esc_attr( $GLOBALS['currency']->get_currency_display( $result->{ $list_column['name'] } ) );
+		}
+		private function print_table_column_checkbox( $result, $list_column ) {
+			echo '<input type="checkbox"  onclick="return false;" ' . ( $result->{ $list_column['name'] } == 1 ? 'checked' : '')  . '>';
+		}
+		private function print_table_column_order_viewed( $result, $list_column ) {
+			echo '<span class="ec_admin_new_order" title="' . esc_attr__( 'New Order', 'wp-easycart' ) . '">'.esc_attr( $result->{ $list_column['name'] } == 0 ? '!' : '').'</span>';
+		}
+		private function print_table_column_image_swatch( $result, $list_column ) {
+			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $list_column['name'] } ) && !is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $list_column['name'] } ) ) {
+				$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $list_column['name'] }, EC_PLUGIN_DATA_DIRECTORY );
+				echo '<img src="' . esc_attr( $img_url )  . '" style="height:25px;width:25px;">';
+
+			} else if ( substr( $result->{ $list_column['name'] }, 0, 7 ) == 'http://' || substr( $result->{ $list_column['name'] }, 0, 8 ) == 'https://' ) {
+				echo '<img src="' . esc_attr( $result->{ $list_column['name'] } )  . '" style="height:25px;width:25px;">';
+
+			} else {
+				echo '<div class="wp-easycart-admin-swatch">' . esc_attr( $result->{ $list_column['alt'] } ) . '</div>';
+			}
+		}
+		private function print_table_column_image_upload( $result, $list_column ) {
+			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $list_column['name'] } ) && !is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/swatches/' . $result->{ $list_column['name'] } ) ) {
+				$img_url = plugins_url( 'wp-easycart-data/products/swatches/' . $result->{ $list_column['name'] }, EC_PLUGIN_DATA_DIRECTORY );
+				echo '<img src="' . esc_attr( $img_url )  . '" style="height:25px;width:25px;">';
+			} else if ( substr( $result->{ $list_column['name'] }, 0, 7 ) == 'http://' || substr( $result->{ $list_column['name'] }, 0, 8 ) == 'https://' ) {
+				echo '<img src="' . esc_attr( $result->{ $list_column['name'] } )  . '" style="height:25px;width:25px;">';
+			} else {
+				echo esc_attr( $result->{ $list_column['name'] } );
+			}
+		}
+		private function print_table_column_optiontype( $result, $list_column ) {
+			$option_type = esc_attr( $result->{ $list_column['name'] } );
+			$option_types = array(
+				(object) array(
+					'value'	=> 'basic-combo',
+					'label'	=> __( 'Basic: Combo', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'basic-swatch',
+					'label'	=> __( 'Basic: Swatch', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'combo',
+					'label'	=> __( 'Advanced: Combo Box', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'swatch',
+					'label'	=> __( 'Advanced: Image Swatches', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'text',
+					'label'	=> __( 'Advanced: Text Input', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'textarea',
+					'label'	=> __( 'Advanced: Text Area', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'number',
+					'label'	=> __( 'Advanced: Number Field', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'file',
+					'label'	=> __( 'Advanced: File Upload', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'radio',
+					'label'	=> __( 'Advanced: Radio Group', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'checkbox',
+					'label'	=> __( 'Advanced: Checkbox Group', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'grid',
+					'label'	=> __( 'Advanced: Quantity Grid', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'date',
+					'label'	=> __( 'Advanced: Date', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'dimensions1',
+					'label'	=> __( 'Advanced: Dimensions (Whole Inch)', 'wp-easycart' ),
+				),
+				(object) array(
+					'value'	=> 'dimensions2',
+					'label'	=> __( 'Advanced: Dimensions (Sub-Inch)', 'wp-easycart' ),
+				)
+			);
+			foreach ( $option_types as $op_type ) {
+				if ( $op_type->value == $option_type ) {
+					$option_type = esc_attr( $op_type->label );
+					break;
+				}
+			}
+			echo esc_attr( $option_type );
+		}
+		private function print_table_column_payment_status( $result, $list_column ) {
+			if ( 17 == (int) $result->{ $list_column['name'] } ) {
+				echo '<span class="payment-neutral">' . esc_attr__( 'Partial Refund', 'wp-easycart' ) . '</span>';
+			} else if ( 16 == (int) $result->{ $list_column['name'] } ) {
+				echo '<span class="payment-bad">' . esc_attr__( 'Refunded', 'wp-easycart' ) . '</span>';
+			} else if ( $result->is_approved ) {
+				echo '<span class="payment-paid">' . esc_attr__( 'Paid', 'wp-easycart' ) . '</span>';
+			} else if ( 19 == (int) $result->{ $list_column['name'] } ) {
+				echo '<span class="payment-bad">' . esc_attr__( 'Canceled', 'wp-easycart' ) . '</span>';
+			} else if ( 7 == (int) $result->{ $list_column['name'] } || 9 == (int) $result->{ $list_column['name'] } ) {
+				echo '<span class="payment-bad">' . esc_attr__( 'Failed', 'wp-easycart' ) . '</span>';
+			} else {
+				echo '<span class="payment-processing">' . esc_attr__( 'Processing', 'wp-easycart' ) . '</span>';
+			}
+		}
+		private function print_table_column_order_status( $result, $list_column ) {
+			if ( isset( $result->color_code ) ) {
+				echo '<span class="order_status_chip" style="background-color:' . esc_attr( wp_easycart_admin()->convert_hex_to_rgba( $result->color_code, '0.4' ) ) . '">' . esc_attr( $result->{ $list_column['name'] } ) . '</span>';
+			} else {
+				echo '<span class="order_status_chip">' . esc_attr( $result->{ $list_column['name'] } ) . '</span>';
+			}
+		}
+		private function print_table_column_actions_mobile( $result ) {
+			$total_actions_printed = 0;
+			for ( $j = 0; $j < count( $this->actions ); $j++ ) {
+				if ( isset( $this->actions[ $j ]['min_id'] ) && $result->{$this->key} < $this->actions[ $j ]['min_id'] ) {
+					// Skip this item
+				} else {
+					if ( $total_actions_printed > 0 ) {
+						echo  ' | ';
+					}
+					$label = esc_attr( $this->actions[$j]['label'] );
+					if ( 'hidden' == $this->actions[$j]['icon'] && ! $result->is_visible ) {
+						$label = __( 'Activate', 'wp-easycart' );
+					}
+					echo '<span class="' . esc_attr( $this->actions[ $j ]['name'] ) . '"><a href="';
+					if ( isset( $this->actions[$j]['custom'] ) ) {
+						echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, true, $this->actions[ $j ]['custom'], $this->actions[ $j ]['name'] ) );
+					} else {
+						echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', $this->actions[ $j ]['name'] ) );
+					}
+					echo '" aria-label="' . esc_attr( $label ) . '" title="' . esc_attr( $label ) . '"';
+					if ( 'Delete' == $label ) {
+						echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
+					} else if ( 'Quick Edit' == $label ) {
+						echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
+					} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
+						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
+					}
+					if ( 'Stats' == $label ) {
+						echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
+					}
+					echo '>' . esc_attr( $label ) . '</a>';
+					echo '</span>';
+					$total_actions_printed++;
+				}
+			}
+		}
+		private function print_table_column_actions_icons( $result ) {
+			for ( $j = 0; $j < count( $this->actions ); $j++ ) {
+				if ( isset( $this->actions[ $j ]['min_id'] ) && $result->{ $this->key } < $this->actions[ $j ]['min_id'] ) {
+					// Skip this item
+				} else {
+					$label = esc_attr( $this->actions[ $j ]['label'] );
+					$icon = esc_attr( $this->actions[ $j ]['icon'] );
+					if ( $this->actions[ $j ]['icon'] == 'hidden' && ! $result->is_visible ) {
+						$label = esc_attr__( 'Activate', 'wp-easycart' );
+						$icon = 'visibility';
+					}
+					echo '<span class="' . esc_attr( $this->actions[ $j ]['name'] ) . '"><a href="';
+					if ( isset( $this->actions[ $j ]['custom'] ) ) {
+						echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, true, $this->actions[ $j ]['custom'], $this->actions[ $j ]['name'] ) );
+					} else {
+						echo esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', $this->actions[ $j ]['name'] ) );
+					}
+					echo '" aria-label="' . esc_attr( $label ) . '" title="' . esc_attr( $label ) . '"';
+					if ( 'Delete' == $label ) {
+						echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
+					} else if ( 'Quick Edit' == $label ) {
+						echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
+					} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
+						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
+					}
+					if ( 'Stats' == $label ) {
+						echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
+					}
+					echo '>';
+					echo '<div class="dashicons-before dashicons-' . esc_attr( $icon ) . '"></div>';
+					echo '</a>';
+					echo '</span>';
+				}
+			}
 		}
 		private function print_table_footer() {
 			echo '<tfoot>';
@@ -977,7 +905,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					if ( $this->current_sort_column == $header['name'] ) {
 						$is_sort_selected = 'sorted';
 					}
-					echo '<th scope="col" id="' . esc_attr( $header['name'] ) . '" class="manage-column column-primary ' . esc_attr( $is_sort_selected ) . ' ' . esc_attr( $sort ) . '">';
+					echo '<th scope="col" id="' . esc_attr( $header['name'] ) . '" class="manage-column column-primary ' . esc_attr( $is_sort_selected ) . ' ' . esc_attr( $sort ) . ( ( isset( $header['tablet_hide'] ) && $header['tablet_hide'] ) ? ' wpec-tablet-hide' : '' ) . ( ( isset( $header['laptop_hide'] ) && $header['laptop_hide'] ) ? ' wpec-laptop-hide' : '' ) . '">';
 					echo '<a href="' . esc_url_raw( $this->get_url( 'orderby', $header['name'], true, 'order', $sort ) ) . '"><span>' . esc_attr( $header['label'] ) . '</span><span class="sorting-indicator"></span></a>';
 					echo '</th>';
 				}

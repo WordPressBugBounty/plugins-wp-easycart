@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.6
-Stable tag: 5.7.5
+Stable tag: 5.7.6
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,15 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.6 =
+* New Feature - Order statuses can now have assigned color codes. Set this up in the checkout settings.
+* New Feature - Order status added to mobile display.
+* New Feature - UPS added SurePost, which may be useful to some users.
+* Bug Fix - Order date bug added in previous version, corrected to match your WordPress timezone again, rather than the server timezone.
+* Bug Fix - Inventory updates match the correct color of the row based on the current inventory level.
+* Bug Fix - Order export fix to prevent duplicate order details rows.
+* Bug Fix - Order quick edit now updating display automatically, broken in previous version if you use the new features.
+* Bug Fix - Preorders prevent manual entry of invalid date.
 = 5.7.5 =
 * New Feature - Restaurant style products with open/close times and holidays.
 * New Feature - Preorder for pickup style products with open/close times and holidays.

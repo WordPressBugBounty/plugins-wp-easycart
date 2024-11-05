@@ -242,6 +242,9 @@ class ec_db_manager {
 			'5.7.5' => array(
 				'wpeasycart_sql_5_7_5'
 			),
+			'5.7.6' => array(
+				'wpeasycart_sql_5_7_6'
+			),
 		);
 
 		$return_functions = array();
@@ -665,6 +668,21 @@ class ec_db_manager {
 				"restaurant_closed" => "0"
 			)
 		);
+	}
+
+	private function wpeasycart_sql_5_7_6() {
+		global $wpdb;
+		$wpdb->query( "ALTER TABLE ec_orderstatus ADD COLUMN color_code varchar(40) NOT NULL DEFAULT '#FFFFFF'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_1 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_2 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_3 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_4 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_5 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_1 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_2 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_3 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_4 text NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_5 text NOT NULL DEFAULT ''" );
 	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
@@ -1222,16 +1240,16 @@ CREATE TABLE ec_orderdetail (
   optionitem_id_3 int(11) NOT NULL DEFAULT '0',
   optionitem_id_4 int(11) NOT NULL DEFAULT '0',
   optionitem_id_5 int(11) NOT NULL DEFAULT '0',
-  optionitem_name_1 varchar(128) NOT NULL DEFAULT '',
-  optionitem_name_2 varchar(128) NOT NULL DEFAULT '',
-  optionitem_name_3 varchar(128) NOT NULL DEFAULT '',
-  optionitem_name_4 varchar(128) NOT NULL DEFAULT '',
-  optionitem_name_5 varchar(128) NOT NULL DEFAULT '',
-  optionitem_label_1 varchar(255) NOT NULL DEFAULT '',
-  optionitem_label_2 varchar(255) NOT NULL DEFAULT '',
-  optionitem_label_3 varchar(255) NOT NULL DEFAULT '',
-  optionitem_label_4 varchar(255) NOT NULL DEFAULT '',
-  optionitem_label_5 varchar(255) NOT NULL DEFAULT '',
+  optionitem_name_1 text NOT NULL DEFAULT '',
+  optionitem_name_2 text NOT NULL DEFAULT '',
+  optionitem_name_3 text NOT NULL DEFAULT '',
+  optionitem_name_4 text NOT NULL DEFAULT '',
+  optionitem_name_5 text NOT NULL DEFAULT '',
+  optionitem_label_1 text NOT NULL DEFAULT '',
+  optionitem_label_2 text NOT NULL DEFAULT '',
+  optionitem_label_3 text NOT NULL DEFAULT '',
+  optionitem_label_4 text NOT NULL DEFAULT '',
+  optionitem_label_5 text NOT NULL DEFAULT '',
   optionitem_price_1 float(15,3) NOT NULL DEFAULT '0.000',
   optionitem_price_2 float(15,3) NOT NULL DEFAULT '0.000',
   optionitem_price_3 float(15,3) NOT NULL DEFAULT '0.000',
@@ -1280,6 +1298,7 @@ CREATE TABLE ec_orderstatus (
   order_status varchar(255) NOT NULL DEFAULT '',
   is_approved tinyint(1) DEFAULT '0',
   is_archieved tinyint(1) DEFAULT '0',
+  color_code varchar(40) NOT NULL DEFAULT '#FFFFFF',
   PRIMARY KEY  (status_id),
   UNIQUE KEY orderstatus_status_id (status_id)
 ) $collate;
@@ -4657,7 +4676,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "1",
 				"order_status" => "Status Not Found",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#999999",
 			)
 		);
 
@@ -4666,7 +4686,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "2",
 				"order_status" => "Order Shipped",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4675,7 +4696,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "3",
 				"order_status" => "Order Confirmed",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4684,7 +4706,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "4",
 				"order_status" => "Order on Hold",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4693,7 +4716,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "5",
 				"order_status" => "Order Started",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4702,7 +4726,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "6",
 				"order_status" => "Card Approved",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4711,7 +4736,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "7",
 				"order_status" => "Card Denied",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#FF3030",
 			)
 		);
 
@@ -4720,7 +4746,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "8",
 				"order_status" => "Third Party Pending",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4729,7 +4756,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "9",
 				"order_status" => "Third Party Error",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#FF3030",
 			)
 		);
 
@@ -4738,7 +4766,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "10",
 				"order_status" => "Third Party Approved",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4747,7 +4776,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "11",
 				"order_status" => "Ready for Pickup",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4756,7 +4786,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "12",
 				"order_status" => "Pending Approval",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4765,7 +4796,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "14",
 				"order_status" => "Direct Deposit Pending",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4774,7 +4806,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "15",
 				"order_status" => "Direct Deposit Received",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4783,7 +4816,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "16",
 				"order_status" => "Refunded Order",
-				"is_approved" => "0" 
+				"is_approved" => "0",
+				"color_code" => "#FF3030",
 			)
 		);
 
@@ -4792,7 +4826,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "17",
 				"order_status" => "Partial Refund",
-				"is_approved" => "1" 
+				"is_approved" => "1",
+				"color_code" => "#DD9933",
 			)
 		);
 
@@ -4801,7 +4836,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "18",
 				"order_status" => "Order Picked Up",
-				"is_approved" => "1"
+				"is_approved" => "1",
+				"color_code" => "#81D742",
 			)
 		);
 
@@ -4810,7 +4846,8 @@ CREATE TABLE ec_zone_to_location (
 			array(
 				"status_id" => "19",
 				"order_status" => "Order Cancelled",
-				"is_approved" => "0"
+				"is_approved" => "0",
+				"color_code" => "#FF3030",
 			)
 		);
 

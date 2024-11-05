@@ -129,25 +129,25 @@ if ( ! class_exists( 'wp_easycart_admin_checkout' ) ) :
 			}
 		}
 
-		public function add_order_status( $order_status, $is_approved ) {
+		public function add_order_status( $order_status, $color_code, $is_approved ) {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-checkout' ) ) {
 				return false;
 			}
 
 			global $wpdb;
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_orderstatus( order_status, is_approved ) VALUES( %s, %d )',  wp_easycart_admin_verification()->min_filter( $order_status ), wp_easycart_admin_verification()->filter_bool_int( $is_approved ) ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_orderstatus( order_status, color_code, is_approved ) VALUES( %s, %s, %d )',  wp_easycart_admin_verification()->min_filter( $order_status ),  wp_easycart_admin_verification()->min_filter( $color_code ), wp_easycart_admin_verification()->filter_bool_int( $is_approved ) ) );
 			$status_id = $wpdb->insert_id;
 			do_action( 'wpeasycart_order_status_added', $status_id );
 			return $status_id;
 		}
 
-		public function update_order_status( $status_id, $order_status ) {
+		public function update_order_status( $status_id, $order_status, $color_code ) {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-checkout' ) ) {
 				return false;
 			}
 
 			global $wpdb;
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_orderstatus SET order_status = %s WHERE status_id = %d', wp_easycart_admin_verification()->min_filter( $order_status ), wp_easycart_admin_verification()->filter_int( $status_id ) ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_orderstatus SET order_status = %s, color_code = %s WHERE status_id = %d', wp_easycart_admin_verification()->min_filter( $order_status ), wp_easycart_admin_verification()->min_filter( $color_code ), wp_easycart_admin_verification()->filter_int( $status_id ) ) );
 			do_action( 'wpeasycart_order_status_updated', $status_id );
 		}
 
@@ -187,14 +187,29 @@ function ec_admin_ajax_save_cart_settings() {
 
 add_action( 'wp_ajax_ec_admin_ajax_add_orderstatus', 'ec_admin_ajax_add_orderstatus' );
 function ec_admin_ajax_add_orderstatus() {
-	$insert_id = wp_easycart_admin_checkout()->add_order_status( sanitize_text_field( wp_unslash( $_POST['order_status'] ) ), (int) $_POST['is_approved'] );
+	if ( ! isset( $_POST['order_status'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['color_code'] ) ) {
+		die();
+	}
+	$insert_id = wp_easycart_admin_checkout()->add_order_status( sanitize_text_field( wp_unslash( $_POST['order_status'] ) ), sanitize_text_field( wp_unslash( $_POST['color_code'] ) ), (int) $_POST['is_approved'] );
 	echo esc_attr( $insert_id );
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_orderstatus', 'ec_admin_ajax_save_orderstatus' );
 function ec_admin_ajax_save_orderstatus() {
-	wp_easycart_admin_checkout()->update_order_status( (int) $_POST['status_id'], sanitize_text_field( wp_unslash( $_POST['order_status'] ) ) );
+	if ( ! isset( $_POST['status_id'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['order_status'] ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['color_code'] ) ) {
+		die();
+	}
+	wp_easycart_admin_checkout()->update_order_status( (int) $_POST['status_id'], sanitize_text_field( wp_unslash( $_POST['order_status'] ) ), sanitize_text_field( wp_unslash( $_POST['color_code'] ) ) );
 	die();
 }
 

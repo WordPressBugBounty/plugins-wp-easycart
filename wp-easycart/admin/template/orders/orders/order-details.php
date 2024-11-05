@@ -233,7 +233,7 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 								<input type="text" class="ec_admin_datepicker" id="ec_order_pickup_date" style="float:none;" value="<?php
 								$date_timestamp = strtotime( $this->order->pickup_date );
 								if ( $date_timestamp > 0 ) {
-									echo esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $date_timestamp ) );
+									echo esc_attr( date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $date_timestamp ) );
 								}
 								?>" placeholder="<?php echo esc_attr__( 'Choose a Pick Up Date', 'wp-easycart' ); ?>" />
 								<select name="ec_order_pickup_date_time" id="ec_order_pickup_date_time" style="margin: 5px 0 0 0; float: left; width: 100%;"><?php $selected_pickup_date_time = ''; if ( isset( $this->order->pickup_date ) && '' != $this->order->pickup_date ) { $selected_pickup_date_time = date( 'H:i', $date_timestamp ); } ?>
@@ -256,7 +256,7 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 								$pickup_time = $this->order->pickup_time;
 								$pickup_time_timestamp = strtotime( $pickup_time );
 								if ( $pickup_time_timestamp > 0 ) {
-									echo esc_attr( date_i18n( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $pickup_time_timestamp ) );
+									echo esc_attr( date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), $pickup_time_timestamp ) );
 								}
 								?>" placeholder="<?php echo esc_attr__( 'Choose a Pick Up Date', 'wp-easycart' ); ?>" />
 								<select name="ec_order_pickup_time_time" id="ec_order_pickup_time_time" style="margin: 5px 0 0 0; float: left; width: 100%;"><?php

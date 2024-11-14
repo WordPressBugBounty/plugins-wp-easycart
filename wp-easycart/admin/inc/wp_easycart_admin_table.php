@@ -691,7 +691,8 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			if ( isset( $list_column['localize_timestamp'] ) && $list_column['localize_timestamp'] ) {
 				$date_timestamp = $date_timestamp + $this->date_diff;
 			}
-			if ( $date_timestamp > 0 ) {
+			$requires_valid = ( isset( $list_column['requires'] ) && isset( $result->{ $list_column['requires'] } ) ) ? $result->{ $list_column['requires'] } : true;
+			if ( $date_timestamp > 0 && $requires_valid ) {
 				echo esc_attr( date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ) );
 			}
 		}

@@ -388,7 +388,6 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				<?php do_action( 'wp_easycart_product_details_image_holder_pre', $this->product );
 				$magbox_active = true;
 				if( $this->product->use_optionitem_images ){
-					$first_image_found = false;
 					$first_optionitem_id = false;
 					if( $this->product->use_advanced_optionset ) {
 						if( count( $this->product->advanced_optionsets ) > 0 ) {
@@ -427,59 +426,76 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 							}
 						}
 					}
-					if( $first_optionitem_id ) {
-						for( $i=0; $i<count( $this->product->images->imageset ); $i++ ){
-							if( $this->product->images->imageset[$i]->optionitem_id == $first_optionitem_id ){
-								if( count( $this->product->images->imageset[$i]->product_images ) > 0  && 'video:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-									$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
-									$video_arr = explode( ':::', $video_str );
-									if ( count( $video_arr ) >= 2 ) {
-										echo '<div class="wp-easycart-video-box"><video controls><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
-										echo '<img src="' . esc_attr( $video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
-									}
-									$magbox_active = false;
-								} else if( count( $this->product->images->imageset[$i]->product_images ) > 0  && 'youtube:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 8 ) ) {
-									$youtube_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 8, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 8 );
-									$youtube_video_arr = explode( ':::', $youtube_video_str );
-									if ( count( $youtube_video_arr ) >= 2 ) {
-										echo '<div class="wp-easycart-video-box"><iframe src="' . esc_attr( $youtube_video_arr[0] ) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
-										echo '<img src="' . esc_attr( $youtube_video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
-									}
-									$magbox_active = false;
-								} else if( count( $this->product->images->imageset[$i]->product_images ) > 0  && 'vimeo:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-									$vimeo_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
-									$vimeo_video_arr = explode( ':::', $vimeo_video_str );
-									if ( count( $vimeo_video_arr ) >= 2 ) {
-										echo '<div class="wp-easycart-video-box"><iframe src="' . esc_attr( $vimeo_video_arr[0] ) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
-										echo '<img src="' . esc_attr( $vimeo_video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
-									}
-									$magbox_active = false;
-								} else { ?>
-									<img src="<?php if( count( $this->product->images->imageset[$i]->product_images ) > 0 ) { 
-										if ( 'image1' == $this->product->images->imageset[$i]->product_images[0] ) {
-											echo esc_attr( $this->product->get_first_image_url( ) );
-										} else if( 'image2' == $this->product->images->imageset[$i]->product_images[0] ) {
-											echo esc_attr( $this->product->get_second_image_url( ) );
-										} else if( 'image3' == $this->product->images->imageset[$i]->product_images[0] ) {
-											echo esc_attr( $this->product->get_third_image_url( ) );
-										} else if( 'image4' == $this->product->images->imageset[$i]->product_images[0] ) {
-											echo esc_attr( $this->product->get_fourth_image_url( ) );
-										} else if( 'image5' == $this->product->images->imageset[$i]->product_images[0] ) {
-											echo esc_attr( $this->product->get_fifth_image_url( ) );
-										} else if( 'image:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-											echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
-										} else {
-											$product_image_media = wp_get_attachment_image_src( $this->product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
-											if( $product_image_media && isset( $product_image_media[0] ) ) {
-												echo esc_attr( $product_image_media[0] );
-											}
+					$first_image_found = false;
+					if ( $first_optionitem_id ) {
+						for ( $i = 0; $i < count( $this->product->images->imageset ); $i++ ) {
+							if ( ! $first_image_found && ( $this->product->images->imageset[$i]->optionitem_id == 0 || $this->product->images->imageset[$i]->optionitem_id == $first_optionitem_id ) ) {
+								if ( count( $this->product->images->imageset[$i]->product_images ) > 0 ) {
+									if( 'video:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
+										$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
+										$video_arr = explode( ':::', $video_str );
+										if ( count( $video_arr ) >= 2 ) {
+											echo '<div class="wp-easycart-video-box"><video controls><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
+											echo '<img src="' . esc_attr( $video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
+											$first_image_found = true;
 										}
-									} else { 
-										echo esc_attr( $this->product->get_first_image_url( ) );
-									} ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" />
+										$magbox_active = false;
+									} else if( 'youtube:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 8 ) ) {
+										$youtube_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 8, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 8 );
+										$youtube_video_arr = explode( ':::', $youtube_video_str );
+										if ( count( $youtube_video_arr ) >= 2 ) {
+											echo '<div class="wp-easycart-video-box"><iframe src="' . esc_attr( $youtube_video_arr[0] ) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+											echo '<img src="' . esc_attr( $youtube_video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
+											$first_image_found = true;
+										}
+										$magbox_active = false;
+									} else if( 'vimeo:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
+										$vimeo_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
+										$vimeo_video_arr = explode( ':::', $vimeo_video_str );
+										if ( count( $vimeo_video_arr ) >= 2 ) {
+											echo '<div class="wp-easycart-video-box"><iframe src="' . esc_attr( $vimeo_video_arr[0] ) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+											echo '<img src="' . esc_attr( $vimeo_video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
+											$first_image_found = true;
+										}
+										$magbox_active = false;
+									} else { ?>
+										<img src="<?php if ( 'image1' == $this->product->images->imageset[$i]->product_images[0] ) {
+												echo esc_attr( $this->product->get_first_image_url( ) );
+												$first_image_found = true;
+											} else if( 'image2' == $this->product->images->imageset[$i]->product_images[0] ) {
+												echo esc_attr( $this->product->get_second_image_url( ) );
+												$first_image_found = true;
+											} else if( 'image3' == $this->product->images->imageset[$i]->product_images[0] ) {
+												echo esc_attr( $this->product->get_third_image_url( ) );
+												$first_image_found = true;
+											} else if( 'image4' == $this->product->images->imageset[$i]->product_images[0] ) {
+												echo esc_attr( $this->product->get_fourth_image_url( ) );
+												$first_image_found = true;
+											} else if( 'image5' == $this->product->images->imageset[$i]->product_images[0] ) {
+												echo esc_attr( $this->product->get_fifth_image_url( ) );
+												$first_image_found = true;
+											} else if( 'image:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
+												echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+												$first_image_found = true;
+											} else {
+												$product_image_media = wp_get_attachment_image_src( $this->product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
+												if( $product_image_media && isset( $product_image_media[0] ) ) {
+													echo esc_attr( $product_image_media[0] );
+													$first_image_found = true;
+												}
+											} ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" />
 								<?php } // close check for video
+								} else {
+									if ( (int) $this->product->images->imageset[$i]->optionitem_id != 0 ) { ?>
+										<img src="<?php echo esc_attr( $this->product->get_first_image_url() ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /><?php
+										$first_image_found = true;
+									}
+								}
 							}
 						}
+					}
+					if ( ! $first_image_found ) { ?>
+						<img src="<?php echo esc_attr( $this->product->get_first_image_url() ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /><?php
 					}
 				} else {
 					if( count( $this->product->images->product_images ) > 0  && 'video:' == substr( $this->product->images->product_images[0], 0, 6 ) ) {
@@ -538,7 +554,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php /* START DISPLAY FOR OPTION ITEM IMAGES USEAGE */ ?>
 			<?php if( ( isset( $this->atts['show_thumbnails'] ) && $this->atts['show_thumbnails'] ) || ( ! isset( $this->atts['show_thumbnails'] ) ) ) { ?>
 			<?php if( $this->product->use_optionitem_images ){
-				$optionitem_id_array = array( );
+				$optionitem_id_array = array( 0 );
 				if( $this->product->use_advanced_optionset ) {
 					if( count( $this->product->advanced_optionsets ) > 0 ) {
 						$valid_optionset = false;
@@ -700,32 +716,36 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 								}
 							} ?>
 							</div>
-						<?php } else { ?>
-						<div class="ec_details_thumbnails ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php if( $thumbnails_displayed > 0 ){ ?> ec_inactive<?php }?><?php if( $this->product->images->imageset[$i]->image2 == "" ){ ?> ec_no_thumbnails<?php }?>" id="ec_details_thumbnails_<?php echo esc_attr( $this->product->images->imageset[$i]->optionitem_id ); ?>_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( trim( $this->product->images->imageset[$i]->image2 ) == "" ){ ?> style="display:none !important;"<?php }?>>
-							<div class="ec_details_thumbnail ec_active" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image1, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image1, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image1 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics1/" . $this->product->images->imageset[$i]->image1, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div>
-							
-							<?php if( trim( $this->product->images->imageset[$i]->image2 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image2, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image2, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image2 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics2/" . $this->product->images->imageset[$i]->image2, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image3 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image3, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image3, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image3 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics3/" . $this->product->images->imageset[$i]->image3, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image4 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image4, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image4, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image4 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics4/" . $this->product->images->imageset[$i]->image4, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image5 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image5, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image5, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image5 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics5/" . $this->product->images->imageset[$i]->image5, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php do_action( 'wp_easycart_product_details_thumbnail_items_simple', $this->product, $wpeasycart_addtocart_shortcode_rand ); ?>
-						</div>
-						<?php if( $thumbnails_displayed == 0 ){ ?>
-						<div class="ec_details_thumbnails ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> ec_inactive<?php if( $this->product->images->imageset[$i]->image2 == "" ){ ?> ec_no_thumbnails<?php }?>" id="ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( trim( $this->product->images->imageset[$i]->image2 ) == "" ){ ?> style="display:none !important;"<?php }?>>
-							<div class="ec_details_thumbnail ec_active" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics1/" . $this->product->images->imageset[$i]->image1, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div>
-							<?php if( trim( $this->product->images->imageset[$i]->image2 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics2/" . $this->product->images->imageset[$i]->image2, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image3 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics3/" . $this->product->images->imageset[$i]->image3, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image4 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics4/" . $this->product->images->imageset[$i]->image4, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php if( trim( $this->product->images->imageset[$i]->image5 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics5/" . $this->product->images->imageset[$i]->image5, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
-							<?php do_action( 'wp_easycart_product_details_thumbnail_items_simple', $this->product, $wpeasycart_addtocart_shortcode_rand ); ?>
-						</div>
+						<?php $thumbnails_displayed++; } else if ( '' != $this->product->images->imageset[$i]->image1 || '' != $this->product->images->imageset[$i]->image2 || '' != $this->product->images->imageset[$i]->image3 || '' != $this->product->images->imageset[$i]->image4 || '' != $this->product->images->imageset[$i]->image5 ) { ?>
+							<div class="ec_details_thumbnails ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php if( $thumbnails_displayed > 0 ){ ?> ec_inactive<?php }?><?php if( $this->product->images->imageset[$i]->image2 == "" ){ ?> ec_no_thumbnails<?php }?>" id="ec_details_thumbnails_<?php echo esc_attr( $this->product->images->imageset[$i]->optionitem_id ); ?>_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( trim( $this->product->images->imageset[$i]->image2 ) == "" ){ ?> style="display:none !important;"<?php }?>>
+								<div class="ec_details_thumbnail ec_active" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image1, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image1, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image1 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics1/" . $this->product->images->imageset[$i]->image1, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div>
 
-						<?php } // Close test for thumbs displayed
-					} // Close test for unlimited options
-					$thumbnails_displayed++;
-				}// Close test for existing option item id (bad data fix)
-
-			} //Close for loop of image set
+								<?php if( trim( $this->product->images->imageset[$i]->image2 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image2, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image2, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image2 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics2/" . $this->product->images->imageset[$i]->image2, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image3 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image3, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image3, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image3 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics3/" . $this->product->images->imageset[$i]->image3, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image4 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image4, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image4, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image4 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics4/" . $this->product->images->imageset[$i]->image4, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image5 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php if( substr( $this->product->images->imageset[$i]->image5, 0, 7 ) == 'http://' || substr( $this->product->images->imageset[$i]->image5, 0, 8 ) == 'https://' ){ echo esc_attr( $this->product->images->imageset[$i]->image5 ); }else{ echo esc_attr( plugins_url( "/wp-easycart-data/products/pics5/" . $this->product->images->imageset[$i]->image5, EC_PLUGIN_DATA_DIRECTORY ) ); } ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php do_action( 'wp_easycart_product_details_thumbnail_items_simple', $this->product, $wpeasycart_addtocart_shortcode_rand ); ?>
+							</div>
+							<?php if( $thumbnails_displayed == 0 ){ ?>
+							<div class="ec_details_thumbnails ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> ec_inactive<?php if( $this->product->images->imageset[$i]->image2 == "" ){ ?> ec_no_thumbnails<?php }?>" id="ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( trim( $this->product->images->imageset[$i]->image2 ) == "" ){ ?> style="display:none !important;"<?php }?>>
+								<div class="ec_details_thumbnail ec_active" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics1/" . $this->product->images->imageset[$i]->image1, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div>
+								<?php if( trim( $this->product->images->imageset[$i]->image2 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics2/" . $this->product->images->imageset[$i]->image2, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image3 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics3/" . $this->product->images->imageset[$i]->image3, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image4 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics4/" . $this->product->images->imageset[$i]->image4, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php if( trim( $this->product->images->imageset[$i]->image5 ) != "" ){ ?><div class="ec_details_thumbnail" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( plugins_url( "/wp-easycart-data/products/pics5/" . $this->product->images->imageset[$i]->image5, EC_PLUGIN_DATA_DIRECTORY ) ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div><?php } ?>
+								<?php do_action( 'wp_easycart_product_details_thumbnail_items_simple', $this->product, $wpeasycart_addtocart_shortcode_rand ); ?>
+							</div>
+							<?php } // Close test for thumbs displayed
+							$thumbnails_displayed++;
+						} // Close test for unlimited options
+					}// Close test for existing option item id (bad data fix)
+				} //Close for loop of image set
+				if( $thumbnails_displayed == 0 ){ ?>
+					<div class="ec_details_thumbnails ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> ec_inactive ec_no_thumbnails" id="ec_details_thumbnails_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" style="display:none !important;">
+						<div class="ec_details_thumbnail ec_active" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><img src="<?php echo esc_attr( $this->product->get_first_image_url() ); ?>" alt="<?php echo esc_attr( strip_tags( stripslashes( $this->product->title ) ) ); ?>" /></div>
+						<?php do_action( 'wp_easycart_product_details_thumbnail_items_simple', $this->product, $wpeasycart_addtocart_shortcode_rand ); ?>
+					</div>
+				<?php } // Close test for thumbs displayed
 			/* END DISPLAY FOR OPTION ITEM IMAGES THUMNAILS */
 
 			/* START DISPLAY FOR BASIC IMAGE THUMBNAILS */
@@ -847,7 +867,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 					$first_image_found = false;
 					if( $first_optionitem_id ) {
 						for( $i=0; $i<count( $this->product->images->imageset ); $i++ ){
-							if( ! $first_image_found && (int) $this->product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
+							if( ! $first_image_found && ( (int) $this->product->images->imageset[$i]->optionitem_id == 0 || (int) $this->product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ){
 								if( count( $this->product->images->imageset[$i]->product_images ) > 0 ) {
 									if( 'video:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 										$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
@@ -873,26 +893,35 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 									} else { 
 										if ( 'image1' == $this->product->images->imageset[$i]->product_images[0] ) {
 											echo esc_attr( $this->product->get_first_image_url( ) );
+											$first_image_found = true;
 										} else if( 'image2' == $this->product->images->imageset[$i]->product_images[0] ) {
 											echo esc_attr( $this->product->get_second_image_url( ) );
+											$first_image_found = true;
 										} else if( 'image3' == $this->product->images->imageset[$i]->product_images[0] ) {
 											echo esc_attr( $this->product->get_third_image_url( ) );
+											$first_image_found = true;
 										} else if( 'image4' == $this->product->images->imageset[$i]->product_images[0] ) {
 											echo esc_attr( $this->product->get_fourth_image_url( ) );
+											$first_image_found = true;
 										} else if( 'image5' == $this->product->images->imageset[$i]->product_images[0] ) {
 											echo esc_attr( $this->product->get_fifth_image_url( ) );
+											$first_image_found = true;
 										} else if( 'image:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 											echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+											$first_image_found = true;
 										} else {
 											$product_image_media = wp_get_attachment_image_src( $this->product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 											if( $product_image_media && isset( $product_image_media[0] ) ) {
 												echo esc_attr( $product_image_media[0] );
+												$first_image_found = true;
 											}
 										}
-										$first_image_found = true;
 									}
 								} else {
-									echo esc_attr( $this->product->get_first_image_url( ) );
+									if ( (int) $this->product->images->imageset[$i]->optionitem_id != 0 ) {
+										echo esc_attr( $this->product->get_first_image_url( ) );
+										$first_image_found = true;
+									}
 								}
 							}
 						}
@@ -956,7 +985,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 									$first_image_found = false;
 									if( $first_optionitem_id ) {
 										for( $i=0; $i<count( $this->product->images->imageset ); $i++ ){
-											if( ! $first_image_found && (int) $this->product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
+											if( ! $first_image_found && ( (int) $this->product->images->imageset[$i]->optionitem_id == 0 || (int) $this->product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ){
 												if( count( $this->product->images->imageset[$i]->product_images ) > 0 ) {
 													if( 'video:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 														$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );

@@ -11,7 +11,7 @@ jQuery( document ).ready( function( ){
 		function( event ){
 			var current_image = jQuery( event.target ).parent( ).find( 'img.ec_flipbook_image' ).attr( 'src' );
 			var image_list_string = jQuery( event.target ).parent( ).data( 'image-list' );
-			var image_list = image_list_string.split( ',' );
+			var image_list = image_list_string.split( ',' ).filter( item => item !== '' );
 			var prev = image_list[image_list.length - 1]; 
 			for( var i=0; i<image_list.length; i++ ){ 
 				if( image_list[i] == current_image ){ 
@@ -27,7 +27,7 @@ jQuery( document ).ready( function( ){
 		function( event ){
 			var current_image = jQuery( event.target ).parent( ).find( 'img.ec_flipbook_image' ).attr( 'src' );
 			var image_list_string = jQuery( event.target ).parent( ).data( 'image-list' );
-			var image_list = image_list_string.split( ',' );
+			var image_list = image_list_string.split( ',' ).filter( item => item !== '' );
 			var prev = image_list[0]; 
 			for( var i=image_list.length-1; i>-1; i-- ){ 
 				if( image_list[i] == current_image ){ 
@@ -287,7 +287,7 @@ jQuery( document ).ready( function( ){
 				jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).find( '.wp-easycart-video-box' ).remove();
 				jQuery( '.ec_details_large_popup_main_' + product_id + '_' + rand_id ).find( 'img' ).attr( 'data-src', src ).attr( 'src', src );
 				jQuery( '.ec_details_magbox_' + product_id + '_' + rand_id ).removeClass( 'inactive' );
-				jQuery( '.ec_details_magbox_image_' + product_id + '_' + rand_id ).css( 'background', 'url( "' + src + '" ) no-repeat' );
+				jQuery( '.ec_details_magbox_image_' + product_id + '_' + rand_id ).css( 'background', 'url( "' + src + '" ) no-repeat' ).attr( 'data-bg', 'url( "' + src + '" ) no-repeat' );
 			}
 			return false;
 		} );
@@ -5321,7 +5321,7 @@ function ec_option1_image_change( product_id, rand_id, optionitem_id_1, quantity
 				rand_id = jQuery( '.ec_details_main_image[data-product-id="' + product_id + '"]' ).attr( 'data-rand-id' );
 			}
 		}
-		if( optionitem_id_1 != 0 && jQuery( document.getElementById( 'ec_details_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ).length ){
+		if( jQuery( document.getElementById( 'ec_details_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ).length ){
 			jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).addClass( 'ec_inactive' );
 			jQuery( '.ec_details_large_popup_thumbnails_' + product_id + '_' + rand_id ).addClass( 'ec_inactive' );
 			jQuery( document.getElementById( 'ec_details_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ).find( '.ec_details_thumbnail' ).first( ).trigger( 'click' );
@@ -5329,6 +5329,16 @@ function ec_option1_image_change( product_id, rand_id, optionitem_id_1, quantity
 				jQuery( document.getElementById( 'ec_details_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ).removeClass( 'ec_inactive' );
 				if( jQuery( document.getElementById( 'ec_details_large_popup_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ) ){
 					jQuery( document.getElementById( 'ec_details_large_popup_thumbnails_' + optionitem_id_1 + '_' + product_id + '_' + rand_id ) ).removeClass( 'ec_inactive' );
+				}
+			}
+		} else if( jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).length ){
+			jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).addClass( 'ec_inactive' );
+			jQuery( '.ec_details_large_popup_thumbnails_' + product_id + '_' + rand_id ).addClass( 'ec_inactive' );
+			jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).first().find( '.ec_details_thumbnail' ).first( ).trigger( 'click' );
+			if ( ! jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).first().hasClass( 'ec_no_thumbnails' ) ){
+				jQuery( '.ec_details_thumbnails_' + product_id + '_' + rand_id ).first().removeClass( 'ec_inactive' );
+				if ( jQuery( '.ec_details_large_popup_thumbnails_' + product_id + '_' + rand_id ).length ) {
+					jQuery( '.ec_details_large_popup_thumbnails_' + product_id + '_' + rand_id ).first().removeClass( 'ec_inactive' );
 				}
 			}
 		}

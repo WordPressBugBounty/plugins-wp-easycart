@@ -86,6 +86,24 @@ class ec_options{
 						
 						ORDER BY
 						ec_optionitem.optionitem_order", $product_id ) );
+			$optionitem_images_default = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT 
+						ec_optionitemimage.optionitemimage_id,
+						ec_optionitemimage.optionitem_id, 
+						ec_optionitemimage.product_id, 
+						ec_optionitemimage.image1, 
+						ec_optionitemimage.image2, 
+						ec_optionitemimage.image3, 
+						ec_optionitemimage.image4, 
+						ec_optionitemimage.image5,
+						ec_optionitemimage.product_images,
+						0 AS optionitem_order
+						
+						FROM ec_optionitemimage
+		
+						WHERE 
+						ec_optionitemimage.product_id = %d AND
+						ec_optionitemimage.optionitem_id = 0", $product_id ) );
+			$optionitem_images = array_merge( $optionitem_images_default, $optionitem_images );
 			wp_cache_set( 'wpeascyart-optionitem-images-'.$product_id, $optionitem_images, 'wpeasycart-optionitems' );
 		}
 		return $optionitem_images;
@@ -98,6 +116,9 @@ class ec_options{
 			$optionitem_image1 = false;
 			if ( $product_id && $optionitem_id ) {
 				$optionitem_image_row = $this->wpdb->get_row( $this->wpdb->prepare( "SELECT ec_optionitemimage.image1, ec_optionitemimage.product_images FROM ec_optionitemimage WHERE ec_optionitemimage.optionitem_id = %d AND ec_optionitemimage.product_id = %d", $optionitem_id, $product_id ) );
+				if ( ! $optionitem_image_row ) {
+					$optionitem_image_row = $this->wpdb->get_row( $this->wpdb->prepare( "SELECT ec_optionitemimage.image1, ec_optionitemimage.product_images FROM ec_optionitemimage WHERE ec_optionitemimage.optionitem_id = 0 AND ec_optionitemimage.product_id = %d", $product_id ) );
+				}
 				if ( $optionitem_image_row ) {
 					$optionitem_image1 = $optionitem_image_row->image1;
 					if ( '' != $optionitem_image_row->product_images ) {

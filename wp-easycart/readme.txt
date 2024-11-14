@@ -1,8 +1,8 @@
 ===Shopping Cart & eCommerce Store===
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
-Tested up to: 6.6
-Stable tag: 5.7.6
+Tested up to: 6.7
+Stable tag: 5.7.7
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,12 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.7 =
+* New Feature - Option item images now allow for a default image. Defaults may be left blank to continue with the first image being automatically selected.
+* New Feature - Verified for WordPress 6.7.
+* Bug Fix - Option item images with missing option images fixed to use default or empty image icon if necessary.
+* Bug Fix - Missing option item simages with flipbook image display, skips empty option items.
+* Bug Fix - Rare case of cart item data for restaurant and pickup dates fixed to only show applicable data in the admin.
 = 5.7.6 =
 * New Feature - Order statuses can now have assigned color codes. Set this up in the checkout settings.
 * New Feature - Order status added to mobile display.

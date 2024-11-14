@@ -119,7 +119,7 @@ if( $admin_access || $use_quickview ){ ?>
 						}
 						$image_count = 0;
 						for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-							if( in_array( $product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){
+							if( $product->images->imageset[$i]->optionitem_id == 0 || in_array( $product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){
 								if( $image_count > 0 ){ 
 									echo ",";
 								}
@@ -271,12 +271,12 @@ if( $admin_access || $use_quickview ){ ?>
 					<div class="ec_flipbook_right">&#65515;</div>
 					<?php }?>
 					<img src="<?php 
-						if( $product->use_optionitem_images ){
+						if ( $product->use_optionitem_images ) {
 							$first_image_found = false;
-							if( $first_optionitem_id ) {
-								for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-									if( ! $first_image_found && (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
-										if( count( $product->images->imageset[$i]->product_images ) > 0 ) {
+							if ( $first_optionitem_id ) {
+								for ( $i = 0; $i < count( $product->images->imageset ); $i++ ) {
+									if ( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id == 0 || $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ) {
+										if ( count( $product->images->imageset[$i]->product_images ) > 0 ) {
 											if( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 												$video_str = substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 );
 												$video_arr = explode( ':::', $video_str );
@@ -301,29 +301,41 @@ if( $admin_access || $use_quickview ){ ?>
 											} else { 
 												if ( 'image1' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_first_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image2' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_second_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image3' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_third_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image4' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fourth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image5' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fifth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 													echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+													$first_image_found = true;
 												} else {
 													$product_image_media = wp_get_attachment_image_src( $product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 													if( $product_image_media && isset( $product_image_media[0] ) ) {
 														echo esc_attr( $product_image_media[0] );
+														$first_image_found = true;
 													}
 												}
-												$first_image_found = true;
 											}
 										} else {
-											echo esc_attr( $product->get_first_image_url( ) );
+											if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+												echo esc_attr( $product->get_first_image_url( ) );
+												$first_image_found = true;
+											}
 										}
 									}
 								}
+							}
+							if ( ! $first_image_found ) {
+								echo esc_attr( $product->get_first_image_url( ) );
 							}
 						} else { // Close check for option item images
 							if( count( $product->images->product_images ) > 0  && 'video:' == substr( $product->images->product_images[0], 0, 6 ) ) {
@@ -654,7 +666,7 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 						}
 						$image_count = 0;
 						for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-							if( in_array( $product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){
+							if( $product->images->imageset[$i]->optionitem_id == 0 || in_array( $product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){
 								if( $image_count > 0 ){ 
 									echo ",";
 								}
@@ -749,6 +761,9 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 									$image_count++;
 								}
 							}
+						}
+						if ( 0 == $image_count ) {
+							echo esc_attr( $product->get_first_image_url( ) );
 						}
 					}else{ 
 						if( count( $product->images->product_images ) > 0 ) {
@@ -854,13 +869,13 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 				<div class="ec_flipbook_left">&#65513;</div>
 				<div class="ec_flipbook_right">&#65515;</div>
 				<img src="<?php 
-					if( $product->use_optionitem_images ){
+					if ( $product->use_optionitem_images ) {
 						$first_image_found = false;
-						if( $first_optionitem_id ) {
-							for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-								if( ! $first_image_found && (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
-									if( count( $product->images->imageset[$i]->product_images ) > 0 ) {
-										if( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
+						if ( $first_optionitem_id ) {
+							for ( $i = 0; $i < count( $product->images->imageset ); $i++ ) {
+								if ( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id == 0 || (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ) {
+									if ( count( $product->images->imageset[$i]->product_images ) > 0 ) {
+										if ( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 											$video_str = substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 );
 											$video_arr = explode( ':::', $video_str );
 											if ( count( $video_arr ) >= 2 ) {
@@ -884,29 +899,41 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 										} else { 
 											if ( 'image1' == $product->images->imageset[$i]->product_images[0] ) {
 												echo esc_attr( $product->get_first_image_url( ) );
+												$first_image_found = true;
 											} else if( 'image2' == $product->images->imageset[$i]->product_images[0] ) {
 												echo esc_attr( $product->get_second_image_url( ) );
+												$first_image_found = true;
 											} else if( 'image3' == $product->images->imageset[$i]->product_images[0] ) {
 												echo esc_attr( $product->get_third_image_url( ) );
+												$first_image_found = true;
 											} else if( 'image4' == $product->images->imageset[$i]->product_images[0] ) {
 												echo esc_attr( $product->get_fourth_image_url( ) );
+												$first_image_found = true;
 											} else if( 'image5' == $product->images->imageset[$i]->product_images[0] ) {
 												echo esc_attr( $product->get_fifth_image_url( ) );
+												$first_image_found = true;
 											} else if( 'image:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 												echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+												$first_image_found = true;
 											} else {
 												$product_image_media = wp_get_attachment_image_src( $product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 												if( $product_image_media && isset( $product_image_media[0] ) ) {
 													echo esc_attr( $product_image_media[0] );
+													$first_image_found = true;
 												}
 											}
-											$first_image_found = true;
 										}
 									} else {
-										echo esc_attr( $product->get_first_image_url( ) );
+										if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+											echo esc_attr( $product->get_first_image_url( ) );
+											$first_image_found = true;
+										}
 									}
 								}
 							}
+						}
+						if ( ! $first_image_found ) {
+							echo esc_attr( $product->get_first_image_url( ) );
 						}
 					} else { // Close check for option item images
 						if( count( $product->images->product_images ) > 0  && 'video:' == substr( $product->images->product_images[0], 0, 6 ) ) {
@@ -966,13 +993,13 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 
 					<?php if( $admin_access || $product->image_hover_type == 9 ){ ?>
 					<img src="<?php 
-						if( $product->use_optionitem_images ){
+						if ( $product->use_optionitem_images ) {
 							$first_image_found = false;
-							if( $first_optionitem_id ) {
-								for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-									if( ! $first_image_found && (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
+							if ( $first_optionitem_id ) {
+								for ( $i = 0; $i < count( $product->images->imageset ); $i++ ) {
+									if ( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id == 0 || (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ) {
 										if( count( $product->images->imageset[$i]->product_images ) > 0 ) {
-											if( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
+											if ( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 												$video_str = substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 );
 												$video_arr = explode( ':::', $video_str );
 												if ( count( $video_arr ) >= 2 ) {
@@ -996,29 +1023,41 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 											} else { 
 												if ( 'image1' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_first_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image2' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_second_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image3' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_third_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image4' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fourth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image5' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fifth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 													echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+													$first_image_found = true;
 												} else {
 													$product_image_media = wp_get_attachment_image_src( $product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 													if( $product_image_media && isset( $product_image_media[0] ) ) {
 														echo esc_attr( $product_image_media[0] );
+														$first_image_found = true;
 													}
 												}
-												$first_image_found = true;
 											}
 										} else {
-											echo esc_attr( $product->get_first_image_url( ) );
+											if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+												echo esc_attr( $product->get_first_image_url( ) );
+												$first_image_found = true;
+											}
 										}
 									}
 								}
+							}
+							if ( ! $first_image_found ) {
+								echo esc_attr( $product->get_first_image_url( ) );
 							}
 						} else { // Close check for option item images
 							if( count( $product->images->product_images ) > 0  && 'video:' == substr( $product->images->product_images[0], 0, 6 ) ) {
@@ -1067,11 +1106,11 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 					<?php }?>
 
 					<div class="ec_dynamic_image_height ec_product_image_1 <?php if( $dynamic_image_sizing ){ ?> dynamic_height_rule<?php }?>"><img src="<?php 
-						if( $product->use_optionitem_images ){
+						if ( $product->use_optionitem_images ) {
 							$first_image_found = false;
-							if( $first_optionitem_id ) {
-								for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-									if( ! $first_image_found && (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
+							if ( $first_optionitem_id ) {
+								for ( $i = 0; $i < count( $product->images->imageset ); $i++ ) {
+									if ( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id == 0 || (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ) {
 										if( count( $product->images->imageset[$i]->product_images ) > 0 ) {
 											if( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 												$video_str = substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 );
@@ -1097,29 +1136,41 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 											} else { 
 												if ( 'image1' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_first_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image2' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_second_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image3' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_third_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image4' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fourth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image5' == $product->images->imageset[$i]->product_images[0] ) {
 													echo esc_attr( $product->get_fifth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 													echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
+													$first_image_found = true;
 												} else {
 													$product_image_media = wp_get_attachment_image_src( $product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 													if( $product_image_media && isset( $product_image_media[0] ) ) {
 														echo esc_attr( $product_image_media[0] );
+														$first_image_found = true;
 													}
 												}
-												$first_image_found = true;
 											}
 										} else {
-											echo esc_attr( $product->get_first_image_url( ) );
+											if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+												echo esc_attr( $product->get_first_image_url( ) );
+												$first_image_found = true;
+											}
 										}
 									}
 								}
+							}
+							if ( ! $first_image_found ) {
+								echo esc_attr( $product->get_first_image_url( ) );
 							}
 						} else { // Close check for option item images
 							if( count( $product->images->product_images ) > 0  && 'video:' == substr( $product->images->product_images[0], 0, 6 ) ) {
@@ -1172,7 +1223,7 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 							$first_image_found = false;
 							if( $first_optionitem_id ) {
 								for( $i=0; $i<count( $product->images->imageset ); $i++ ){
-									if( ! $first_image_found && (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ){
+									if( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id == 0 || (int) $product->images->imageset[$i]->optionitem_id == (int) $first_optionitem_id ) ){
 										if( count( $product->images->imageset[$i]->product_images ) > 1 ) {
 											if( 'video:' == substr( $product->images->imageset[$i]->product_images[1], 0, 6 ) ) {
 												$video_str = substr( $product->images->imageset[$i]->product_images[1], 6, strlen( $product->images->imageset[$i]->product_images[1] ) - 6 );
@@ -1198,29 +1249,41 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 											} else { 
 												if ( 'image1' == $product->images->imageset[$i]->product_images[1] ) {
 													echo esc_attr( $product->get_first_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image2' == $product->images->imageset[$i]->product_images[1] ) {
 													echo esc_attr( $product->get_second_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image3' == $product->images->imageset[$i]->product_images[1] ) {
 													echo esc_attr( $product->get_third_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image4' == $product->images->imageset[$i]->product_images[1] ) {
 													echo esc_attr( $product->get_fourth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image5' == $product->images->imageset[$i]->product_images[1] ) {
 													echo esc_attr( $product->get_fifth_image_url( ) );
+													$first_image_found = true;
 												} else if( 'image:' == substr( $product->images->imageset[$i]->product_images[1], 0, 6 ) ) {
 													echo esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $product->images->imageset[$i]->product_images[1], 6, strlen( $product->images->imageset[$i]->product_images[1] ) - 6 ) ) );
+													$first_image_found = true;
 												} else {
 													$product_image_media = wp_get_attachment_image_src( $product->images->imageset[$i]->product_images[1], apply_filters( 'wp_easycart_product_details_full_size', 'large' ) );
 													if( $product_image_media && isset( $product_image_media[0] ) ) {
 														echo esc_attr( $product_image_media[0] );
+														$first_image_found = true;
 													}
 												}
-												$first_image_found = true;
 											}
 										} else {
-											echo esc_attr( $product->get_second_image_url( ) );
+											if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+												echo esc_attr( $product->get_second_image_url( ) );
+												$first_image_found = true;
+											}
 										}
 									}
 								}
+							}
+							if ( ! $first_image_found ) {
+								echo esc_attr( $product->get_first_image_url( ) );
 							}
 						} else { // Close check for option item images
 							if( count( $product->images->product_images ) > 1  && 'video:' == substr( $product->images->product_images[1], 0, 6 ) ) {

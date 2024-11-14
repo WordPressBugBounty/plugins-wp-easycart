@@ -62,6 +62,14 @@ if ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) ) {
 		'tablet_hide' => true,
 		'is_mobile' => true,
 		'format' => 'datetime',
+		'requires' => 'includes_preorder_items',
+	);
+	$columns[] = array(
+		'select' => 'ec_order.includes_preorder_items',
+		'name' => 'includes_preorder_items',
+		'label' => __( 'Includes Preorder Items', 'wp-easycart' ),
+		'is_mobile' => false,
+		'format' => 'hidden',
 	);
 }
 if ( get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) {
@@ -72,6 +80,14 @@ if ( get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) {
 		'tablet_hide' => false,
 		'is_mobile' => true,
 		'format' => 'datetime',
+		'requires' => 'includes_restaurant_type',
+	);
+	$columns[] = array(
+		'select' => 'ec_order.includes_restaurant_type',
+		'name' => 'includes_restaurant_type',
+		'label' => __( 'Includes Restaurant Type', 'wp-easycart' ),
+		'is_mobile' => false,
+		'format' => 'hidden',
 	);
 }
 $columns[] = array(

@@ -1,5 +1,16 @@
 // JavaScript Document
 jQuery( document ).ready( function( ){
+	if ( jQuery( '#wpeasycart_cart_holder' ).length ) {
+		wpeasycart_load_cart( jQuery( '#wpeasycart_cart_holder' ).data( 'cart-page' ), jQuery( '#wpeasycart_cart_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'language' ), jQuery( '#wpeasycart_cart_holder' ).data( 'nonce' ) )
+	}
+	if ( jQuery( '#wpeasycart_account_holder' ).length ) {
+		wpeasycart_load_account( jQuery( '#wpeasycart_account_holder' ).data( 'account-page' ), jQuery( '#wpeasycart_account_holder' ).data( 'page-id' ), jQuery( '#wpeasycart_account_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'language' ), jQuery( '#wpeasycart_account_holder' ).data( 'nonce' ) )
+	}
+	if ( jQuery( '.ec_product_quickview_container' ).length ) {
+		jQuery( '.ec_product_quickview_container' ).each( function() {
+			jQuery( this ).appendTo( document.body );
+		} );
+	}
 	if ( jQuery( '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).length ) {
 		jQuery( '.ec_add_to_cart_form, input[type="number"].ec_quantity' ).on( 'keypress', function( e ) {
 			if ( ! jQuery( e.target ).is( 'textarea' ) && e.which == 13 ) {

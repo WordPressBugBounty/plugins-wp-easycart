@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.7
+ * Version: 5.7.8
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.7
+ * @version 5.7.8
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_7' );
+define( 'EC_CURRENT_VERSION', '5_7_8' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '93' );
 
@@ -1492,8 +1492,12 @@ function wp_easycart_dynamic_cart_display( $language = 'NONE' ) {
 			}
 		}
 	}
+	$cart_page .= ( ( isset( $_GET['order_id'] ) ) ? '-' . (int) $_GET['order_id'] : '' );
+	$cart_page .= ( ( isset( $_GET['PID'] ) && sanitize_text_field( $_GET['PID'] ) != '' ) ? '-paypal-' . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['PID'] ) ) . '-' . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['PYID'] ) ) : '' );
+	$cart_page .= ( ( isset( $_GET['OID'] ) && sanitize_text_field( $_GET['OID'] ) != '' ) ? '-paypal-' . preg_replace( "/[^A-Z0-9]/", '', sanitize_text_field( $_GET['OID'] ) ) . '-' . preg_replace( "/[^A-Z0-9]/", '', sanitize_text_field( $_GET['PYID'] ) ) : '' );
+	$cart_page .= ( ( $cart_page == 5 ) ? '-sub-' . esc_attr( $product_id ) : '' );
 	$error_codes = apply_filters( 'wpeasycart_valid_cart_errors', array( "email_exists", "login_failed", "3dsecure_failed", "manualbill_failed", "thirdparty_failed", "payment_failed", "card_error", "already_subscribed", "not_activated", "subscription_not_found", "user_insert_error", "subscription_added_failed", "subscription_failed", "invalid_address", "session_expired", "invalid_vat_number", "stock_invalid", "ideal-pending", "shipping_method", "invalid_cart_shipping" ) );
-	echo '<div id="wpeasycart_cart_holder" style="position:relative; width:100%; min-height:350px;"><style>
+	echo '<div id="wpeasycart_cart_holder" style="position:relative; width:100%; min-height:350px;" data-cart-page="' . esc_js( $cart_page ) . '" data-success-code="' . ( ( isset( $_GET['ec_cart_success'] ) && sanitize_text_field( $_GET['ec_cart_success'] ) == 'account_created' ) ? 'account_created' : '' ) . '" data-error-code="' . ( ( isset( $_GET['ec_cart_error'] ) && in_array( $_GET['ec_cart_error'], $error_codes ) ) ? esc_js( sanitize_text_field( $_GET['ec_cart_error'] ) ) : '' ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-cart-page' ) ) . '"><style>
 	@keyframes rotation{
 		0% { transform:rotate(0deg); }
 		100%{ transform:rotate(359deg); }
@@ -1503,7 +1507,7 @@ function wp_easycart_dynamic_cart_display( $language = 'NONE' ) {
 		<div>
 			<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
 		</div>
-	</div></div><script type="text/javascript">jQuery( document ).ready( function() { wpeasycart_load_cart( \'' . esc_js( $cart_page ) . ( ( isset( $_GET['order_id'] ) ) ? '-' . (int) $_GET['order_id'] : '' ) . ( ( isset( $_GET['PID'] ) && sanitize_text_field( $_GET['PID'] ) != '' ) ? '-paypal-' . esc_js( preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['PID'] ) ) ) . '-' . esc_js( preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['PYID'] ) ) ) : '' ) . ( ( isset( $_GET['OID'] ) && sanitize_text_field( $_GET['OID'] ) != '' ) ? '-paypal-' . esc_js( preg_replace( "/[^A-Z0-9]/", '', sanitize_text_field( $_GET['OID'] ) ) ) . '-' . esc_js( preg_replace( "/[^A-Z0-9]/", '', sanitize_text_field( $_GET['PYID'] ) ) ) : '' ) . ( ( $cart_page == 5 ) ? '-sub-' . esc_attr( $product_id ) : '' ) . '\', \'' . ( ( isset( $_GET['ec_cart_success'] ) && sanitize_text_field( $_GET['ec_cart_success'] ) == 'account_created' ) ? 'account_created' : '' ) . '\', \'' . ( ( isset( $_GET['ec_cart_error'] ) && in_array( $_GET['ec_cart_error'], $error_codes ) ) ? esc_js( sanitize_text_field( $_GET['ec_cart_error'] ) ) : '' ) . '\', \'' . esc_attr( sanitize_text_field( $language ) ). '\', \'' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-cart-page' ) ) .'\' ); } );</script>';
+	</div></div>';
 }
 
 //[ec_account]
@@ -1592,7 +1596,18 @@ function wp_easycart_dynamic_account_display( $language = 'NONE', $force_page = 
 	} else if ( isset( $_GET['ec_page'] ) && in_array( $_GET['ec_page'], $pages ) ) {
 		$account_page = sanitize_key( $_GET['ec_page'] );
 	}
-	echo '<div id="wpeasycart_account_holder" style="position:relative; width:100%; min-height:350px;"><style>
+	if ( $account_page == 'order_details' && isset( $_GET['order_id'] ) && isset( $_GET['ec_guest_key'] ) ) {
+		$account_page .= '-' . (int) $_GET['order_id'] . '-' . substr( preg_replace( '/[^A-Z]/', '', sanitize_text_field( $_GET['ec_guest_key'] ) ), 0, 30 );
+	} else if ( $account_page == 'order_details' && isset( $_GET['order_id'] ) ) {
+		$account_page .= '-' . (int) $_GET['order_id'];
+	} else if ( $account_page == 'subscription_details' && isset( $_GET['subscription_id'] ) ) {
+		$account_page .= '-' . (int) $_GET['subscription_id'];
+	}
+	$valid_success_codes = array( 'login_success', 'validation_required', 'reset_email_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
+	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
+	$success_code = ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) ? sanitize_text_field( $_GET['account_success'] ) : '';
+	$error_code = ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) ? sanitize_text_field( $_GET['account_error'] ) : '';
+	echo '<div id="wpeasycart_account_holder" style="position:relative; width:100%; min-height:350px;" data-account-page="' . esc_js( $account_page ) . '" data-page-id="' . esc_js( get_queried_object_id() ) . '" data-success-code="' . esc_js( $success_code ) . '" data-error-code="' . esc_js( $error_code ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) . '"><style>
 	@keyframes rotation{
 		0% { transform:rotate(0deg); }
 		100%{ transform:rotate(359deg); }
@@ -1602,25 +1617,7 @@ function wp_easycart_dynamic_account_display( $language = 'NONE', $force_page = 
 		<div>
 			<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
 		</div>
-	</div></div><script type="text/javascript">jQuery( document ).ready( function() { ';
-	$valid_success_codes = array( 'login_success', 'validation_required', 'reset_email_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
-	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
-	$success_code = ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) ? sanitize_text_field( $_GET['account_success'] ) : '';
-	$error_code = ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) ? sanitize_text_field( $_GET['account_error'] ) : '';
-	if ( $account_page == 'order_details' && isset( $_GET['order_id'] ) && isset( $_GET['ec_guest_key'] ) ) {
-		echo 'wpeasycart_load_account( \'' . esc_js( $account_page ) . '-' . (int) $_GET['order_id'] . '-' . esc_js( substr( preg_replace( '/[^A-Z]/', '', sanitize_text_field( $_GET['ec_guest_key'] ) ), 0, 30 ) ) . '\', ' . esc_js( get_queried_object_id() ) . ', \'' . esc_js( $success_code ) . '\', \'' . esc_js( $error_code ) . '\', \'' . esc_attr( sanitize_text_field( $language ) ). '\', \'' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) .'\' ); } );';
-
-	} else if ( $account_page == 'order_details' && isset( $_GET['order_id'] ) ) {
-		echo 'wpeasycart_load_account( \'' . esc_js( $account_page ) . '-' . (int) $_GET['order_id']. '\', ' . esc_js( get_queried_object_id() ) . ', \'' . esc_js( $success_code ) . '\', \'' . esc_js( $error_code ) . '\', \'' . esc_attr( sanitize_text_field( $language ) ). '\', \'' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) .'\' ); } );';
-
-	} else if ( $account_page == 'subscription_details' && isset( $_GET['subscription_id'] ) ) {
-		echo 'wpeasycart_load_account( \'' . esc_js( $account_page ) . '-' . (int) $_GET['subscription_id'] . '\', ' . esc_js( get_queried_object_id() ) . ', \'' . esc_js( $success_code ) . '\', \'' . esc_js( $error_code ) . '\', \'' . esc_attr( sanitize_text_field( $language ) ). '\', \'' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) .'\' ); } );';
-
-	} else {
-		echo 'wpeasycart_load_account( \'' . esc_js( $account_page ) . '\', ' . esc_js( get_queried_object_id() ) . ', \'' . esc_js( $success_code ) . '\', \'' . esc_js( $error_code ) . '\', \'' . esc_attr( sanitize_text_field( $language ) ). '\', \'' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) .'\' ); } );';
-
-	}
-	echo '</script>';
+	</div></div>';
 }
 
 //[ec_product]
@@ -8742,21 +8739,21 @@ function wp_easycart_restrict_access() {
 	$has_redirect = ( $redirect_page != "" || $redirect_page_not_auth != "" || $redirect_page_auth != "" ) ? true : false;
 	if ( is_array( $product_restrict ) ) {
 		for ( $i=0; $i<count( $product_restrict ); $i++ ) {
-			if ( $product_restrict[$i] != '' ) {
+			if ( $product_restrict[$i] != '' && $product_restrict[$i] != '0' ) {
 				$is_product_restricted = true;
 			}
 		}
 	}
 	if ( is_array( $user_restrict ) ) {
 		for ( $i=0; $i<count( $user_restrict ); $i++ ) {
-			if ( $user_restrict[$i] != '' ) {
+			if ( $user_restrict[$i] != '' && $user_restrict[$i] != '0' ) {
 				$is_user_restricted = true;
 			}
 		}
 	}
 	if ( is_array( $role_restrict ) ) {
 		for ( $i=0; $i<count( $role_restrict ); $i++ ) {
-			if ( $role_restrict[$i] != '' ) {
+			if ( $role_restrict[$i] != '' && $role_restrict[$i] != '0' ) {
 				$is_role_restricted = true;
 			}
 		}

@@ -255,7 +255,7 @@ class ec_storepage{
 		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
 			if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) {
 				echo '<script>
-				jQuery( document ).ready( function() {
+				document.addEventListener( \'DOMContentLoaded\', function() {
 					dataLayer.push({ ecommerce: null });
 					dataLayer.push({
 						event: "view_item_list",
@@ -280,7 +280,7 @@ class ec_storepage{
 				</script>';
 			} else {
 				echo '<script>
-				jQuery( document ).ready( function() {
+				document.addEventListener( \'DOMContentLoaded\', function() {
 					gtag( "event", "view_item_list", {
 							item_list_id: "products",
 							item_list_name: "' . esc_attr__( 'Products', 'wp-easycart' ) . '",
@@ -334,7 +334,7 @@ class ec_storepage{
 		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
 			if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) {
 				echo '<script>
-				jQuery( document ).ready( function() {
+				document.addEventListener( \'DOMContentLoaded\', function() {
 					dataLayer.push( { ecommerce: null } );
 					dataLayer.push( {
 						event: "view_item",
@@ -355,7 +355,7 @@ class ec_storepage{
 				</script>';
 			} else {
 				echo '<script>
-				jQuery( document ).ready( function() {
+				document.addEventListener( \'DOMContentLoaded\', function() {
 					gtag( "event", "view_item", {
 						currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
 						value: ' . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ',

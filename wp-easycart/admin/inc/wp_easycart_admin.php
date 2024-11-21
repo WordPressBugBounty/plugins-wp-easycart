@@ -1499,48 +1499,54 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( count( $sales_data ) > 0 ) {
 				$prev_order = 0;
 				$is_new_order = false;
+				$order_details_ids = array();
 				foreach ( $sales_data as $result ) {
 					if ( $result['order_id'] != $prev_order ) {
 						$prev_order = $result['order_id'];
 						$is_new_order = true;
+						$order_details_ids = array();
 					}
 
-					$new_line = array();
-					foreach ( $keys as $key ) {
-						if ( ! in_array( $key, $fee_type_keys ) ) {
-							$value = $result[ $key ];
-							if ( in_array( $key, $single_use_key_names ) && ! $is_new_order ) {
-								$new_line[] = '0.00';
-							} else if ( ! isset( $value ) || '' == $value ) {
-								$new_line[] = '';
-							} else {
-								$new_line[] = $value;
+					if ( ! in_array( $result['orderdetail_id'], $order_details_ids ) ) {
+						$order_details_ids[] = $result['orderdetail_id'];
+
+						$new_line = array();
+						foreach ( $keys as $key ) {
+							if ( ! in_array( $key, $fee_type_keys ) ) {
+								$value = $result[ $key ];
+								if ( in_array( $key, $single_use_key_names ) && ! $is_new_order ) {
+									$new_line[] = '0.00';
+								} else if ( ! isset( $value ) || '' == $value ) {
+									$new_line[] = '';
+								} else {
+									$new_line[] = $value;
+								}
 							}
 						}
-					}
 
-					if ( $is_new_order ) {
-						if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-							$order_fee_list = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
-							foreach ( $fee_types as $fee_type ) {
-								$is_fee_type_found = false;
-								if ( $order_fee_list && is_array( $order_fee_list ) ) {
-									foreach ( $order_fee_list as $order_fee_item ) {
-										if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
-											$new_line[] = $order_fee_item->fee_total;
-											$is_fee_type_found = true;
+						if ( $is_new_order ) {
+							if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
+								$order_fee_list = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
+								foreach ( $fee_types as $fee_type ) {
+									$is_fee_type_found = false;
+									if ( $order_fee_list && is_array( $order_fee_list ) ) {
+										foreach ( $order_fee_list as $order_fee_item ) {
+											if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
+												$new_line[] = $order_fee_item->fee_total;
+												$is_fee_type_found = true;
+											}
 										}
 									}
-								}
-								if ( ! $is_fee_type_found ) {
-									$new_line[] = '0.000';
+									if ( ! $is_fee_type_found ) {
+										$new_line[] = '0.000';
+									}
 								}
 							}
 						}
-					}
 
-					fputcsv( $file, $new_line );
-					$is_new_order = false;
+						fputcsv( $file, $new_line );
+						$is_new_order = false;
+					}
 				}
 				fclose( $file );
 			}

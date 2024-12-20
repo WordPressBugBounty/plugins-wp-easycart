@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.8
+ * Version: 5.7.9
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.8
+ * @version 5.7.9
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_8' );
+define( 'EC_CURRENT_VERSION', '5_7_9' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '93' );
 
@@ -7554,141 +7554,174 @@ function wp_easycart_add_rewrite_webhooks() {
 	}
 }
 
+function wp_easycart_verify_stripe_webhook( $payload ) {
+	if ( ! get_option( 'ec_option_stripe_connect_webhook_secret' ) || '' == get_option( 'ec_option_stripe_connect_webhook_secret' ) ){
+		return true;
+	}
+	if ( ! isset( $_SERVER['HTTP_STRIPE_SIGNATURE'] ) ) {
+		return false;
+	}
+	$endpoint_secret = get_option( 'ec_option_stripe_connect_webhook_secret' );
+	$sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'];
+	$parts = explode( ',', $sig_header );
+	if ( ! is_array( $parts ) ) {
+		return false;
+	}
+	$timestamp = false;
+	$signature = '';
+	foreach ( $parts as $part ) {
+		$item = explode('=', $part);
+		if ( is_array( $item ) && count( $item ) == 2 ) {
+			if ( 't' === trim( $item[0] ) ) {
+				$timestamp = trim( $item[1] );
+			} else if ( 'v1' === trim( $item[0] ) ) {
+				$signature = trim( $item[1] );
+			}
+		}
+	}
+	if ( false === $timestamp || '' === $signature ) {
+		return false;
+	}
+	$signed_payload = $timestamp . '.' . $payload;
+	$expected_signature = hash_hmac( 'sha256', $signed_payload, $endpoint_secret );
+	if ( ! hash_equals( $expected_signature, $signature ) ) {
+		return false;
+	}
+	return true;
+}
+
 add_action( 'wp', 'wp_easycart_webhook_catch' );
 function wp_easycart_webhook_catch() {
 	if ( isset( $_GET['wpeasycarthook'] ) && $_GET['wpeasycarthook'] == 'stripe-webhook' ) {
+		$body = @file_get_contents('php://input');
+		if ( ! wp_easycart_verify_stripe_webhook( $body ) ) {
+			wp_send_json_error( array( 'message' => 'Invalid Signature' ), 400 );
+		}
+
 		global $wpdb;
 		$mysqli = new ec_db();
-
-		$body = @file_get_contents('php://input');
 		$json = json_decode( $body );
 		
-		if ( isset( $json->type ) && isset( $json->data ) ) {
-
+		if ( isset( $json->type ) && isset( $json->data ) && isset( $json->id ) && isset( $json->type ) && isset( $json->data ) && isset( $json->data->object ) ) {
 			$webhook_id = $json->id;
 			$webhook_type = $json->type;
 			$webhook_data = $json->data->object;
-
-
 			$webhook = $mysqli->get_webhook( $webhook_id );
-
-			if ( !$webhook || $webhook_id == "evt_00000000000000" ) {
-
+			if ( ! $webhook || 'evt_00000000000000' == $webhook_id ) {
 				$mysqli->insert_webhook( $webhook_id, $webhook_type, $webhook_data );
-
-				// Refund an Order
-				if ( $webhook_type == "charge.refunded" ) {
-
+				if ( $webhook_type == "charge.refunded" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
 					global $wpdb;
-					$order_status = $wpdb->get_var( $wpdb->prepare( "SELECT ec_order.orderstatus_id FROM ec_order WHERE ec_order.stripe_charge_id = %s", $webhook_data->id ) );
-
-					if ( $order_status != 16 && $order_status != 17 ) {
-						// Refund order
-						$stripe_charge_id = $webhook_data->id;
-						$original_amount = $webhook_data->amount;
-
-						$refunds = $webhook_data->refunds->data;
-						$refund_total = 0;
-						$order_status = 16;
-
-						foreach ( $refunds as $refund ) {
-							$refund_total = $refund_total + $refund->amount;
+					$order = $wpdb->get_row( $wpdb->prepare( "SELECT ec_order.orderstatus_id FROM ec_order WHERE ec_order.stripe_charge_id = %s", $webhook_data->id ) );
+					if ( is_object( $order ) ) {
+						$order_status = $order->orderstatus_id;
+						if ( $order_status != 16 && $order_status != 17 ) {
+							$stripe_charge_id = $webhook_data->id;
+							$original_amount = $webhook_data->amount;
+							$refunds = $webhook_data->refunds->data;
+							$refund_total = 0;
+							$order_status = 16;
+							foreach ( $refunds as $refund ) {
+								$refund_total = $refund_total + $refund->amount;
+							}
+							if ( $refund_total < $original_amount ) {
+								$order_status = 17;
+							}
+							$mysqli->update_stripe_order_status( $stripe_charge_id, $order_status, ( $refund_total / 100 ) );
+							if ( $status == "16" ) {
+								do_action( 'wpeasycart_full_order_refund', $orderid );
+							} else if ( $status == "17" ) {
+								do_action( 'wpeasycart_partial_order_refund', $orderid );
+							}
 						}
-
-						if ( $refund_total < $original_amount ) {
-							$order_status = 17;
-						}
-
-						$mysqli->update_stripe_order_status( $stripe_charge_id, $order_status, ( $refund_total / 100 ) );
-
-						if ( $status == "16" )
-							do_action( 'wpeasycart_full_order_refund', $orderid );
-						else if ( $status == "17" )
-							do_action( 'wpeasycart_partial_order_refund', $orderid );
 					}
 
 				// Subscription Cancelled (manaually, by customer, or by failed payments)	
-				} else if ( $webhook_type == "customer.subscription.deleted" ) {
+				} else if ( $webhook_type == "customer.subscription.deleted" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
 					$stripe_subscription_id = $webhook_data->id;
 					$subscription_row = $mysqli->get_stripe_subscription( $stripe_subscription_id );
-					$subscription = new ec_subscription( $subscription_row );
-					$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
-					$user = $mysqli->get_stripe_user( $webhook_data->customer );
-					$subscription->send_subscription_ended_email( $user );
-					do_action( 'wp_easycart_subscription_ended', $subscription, $user, $webhook_data );
+					if ( $subscription_row ) {
+						$subscription = new ec_subscription( $subscription_row );
+						$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
+						$user = $mysqli->get_stripe_user( $webhook_data->customer );
+						$subscription->send_subscription_ended_email( $user );
+						do_action( 'wp_easycart_subscription_ended', $subscription, $user, $webhook_data );
+					}
 
 				// Subscription Trial is Ending in 3 Days	
-				} else if ( $webhook_type == "customer.subscription.trial_will_end" ) {
+				} else if ( $webhook_type == "customer.subscription.trial_will_end" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
 					$stripe_subscription_id = $webhook_data->id;
 					$subscription_row = $mysqli->get_stripe_subscription( $stripe_subscription_id );
-					$subscription = new ec_subscription( $subscription_row );
-					$subscription->send_subscription_trial_ending_email();
+					if ( $subscription_row ) {
+						$subscription = new ec_subscription( $subscription_row );
+						$subscription->send_subscription_trial_ending_email();
+					}
 
 				// Subscription Recurring Billing Succeeded	
-				} else if ( $webhook_type == "invoice.payment_succeeded" ) {
+				} else if ( $webhook_type == "invoice.payment_succeeded" && isset( $webhook_data->subscription ) && '' != $webhook_data->subscription && isset( $webhook_data->charge ) && '' != $webhook_data->charge ) {
 					$payment_timestamp = $webhook_data->created;
 					$stripe_subscription_id = $webhook_data->subscription;
 					$stripe_charge_id = $webhook_data->charge;
 					$subscription = $mysqli->get_stripe_subscription( $stripe_subscription_id );
+					if ( $subscription ) {
+						$mysqli->insert_response( 0, 1, "STRIPE Subscription", print_r( $webhook_data, true ) );
 
-					$mysqli->insert_response( 0, 1, "STRIPE Subscription", print_r( $webhook_data, true ) );
+						if ( $subscription && ( $subscription->last_payment_date + 10 ) >= $payment_timestamp ) {
+							$mysqli->update_stripe_order( $subscription->subscription_id, $stripe_charge_id );
+						} else if ( $subscription ) {
+							$user = $mysqli->get_stripe_user( $webhook_data->customer );
+							$order_id = $mysqli->insert_stripe_order( $subscription, $webhook_data, $user );
 
-					if ( $subscription && ( $subscription->last_payment_date + 10 ) >= $payment_timestamp ) {
-						$mysqli->update_stripe_order( $subscription->subscription_id, $stripe_charge_id );
-					} else if ( $subscription ) {
-						$user = $mysqli->get_stripe_user( $webhook_data->customer );
-						$order_id = $mysqli->insert_stripe_order( $subscription, $webhook_data, $user );
+							do_action( 'wpeasycart_subscription_paid', $order_id );
+							do_action( 'wpeasycart_order_paid', $order_id );
 
-						do_action( 'wpeasycart_subscription_paid', $order_id );
-						do_action( 'wpeasycart_order_paid', $order_id );
-
-						$db_admin = new ec_db_admin();
-						$order_row = $db_admin->get_order_row_admin( $order_id );
-						$order = new ec_orderdisplay( $order_row, true, true );
-						$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $subscription->product_id ) );
-						if ( ! is_object( $product ) || $product->subscription_recurring_email ) {
-							$order->send_email_receipt();
-						}
-
-						if ( $subscription->payment_duration > 0 && $subscription->payment_duration <= $subscription->number_payments_completed + 1 ) {
-							if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-								$stripe = new ec_stripe();
-							} else {
-								$stripe = new ec_stripe_connect();
+							$db_admin = new ec_db_admin();
+							$order_row = $db_admin->get_order_row_admin( $order_id );
+							$order = new ec_orderdisplay( $order_row, true, true );
+							$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $subscription->product_id ) );
+							if ( ! is_object( $product ) || $product->subscription_recurring_email ) {
+								$order->send_email_receipt();
 							}
-							$stripe->cancel_subscription( $user, $stripe_subscription_id );
-							$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
-						} else {
-							$mysqli->update_stripe_subscription( $stripe_subscription_id, $webhook_data );
+
+							if ( $subscription->payment_duration > 0 && $subscription->payment_duration <= $subscription->number_payments_completed + 1 ) {
+								if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
+									$stripe = new ec_stripe();
+								} else {
+									$stripe = new ec_stripe_connect();
+								}
+								$stripe->cancel_subscription( $user, $stripe_subscription_id );
+								$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
+							} else {
+								$mysqli->update_stripe_subscription( $stripe_subscription_id, $webhook_data );
+							}
 						}
 					}
 
 				// Subscription Failed Payment	
-				} else if ( $webhook_type == "invoice.payment_failed" ) {
-
+				} else if ( $webhook_type == "invoice.payment_failed" && isset( $webhook_data->subscription ) && '' != $webhook_data->subscription && isset( $webhook_data->charge ) && '' != $webhook_data->charge ) {
 					if ( $webhook_data->billing_reason != 'subscription_create' ) {
 						$payment_timestamp = $webhook_data->date;
 						$stripe_subscription_id = $webhook_data->subscription;
 						$stripe_charge_id = $webhook_data->charge;
 						$subscription = $mysqli->get_stripe_subscription( $stripe_subscription_id );
-
-						$mysqli->insert_response( 0, 1, "STRIPE Subscription Failed", print_r( $subscription, true ) );
-
 						if ( $subscription ) {
+							$mysqli->insert_response( 0, 1, "STRIPE Subscription Failed", print_r( $subscription, true ) );
 
-							$order_id = $mysqli->insert_stripe_failed_order( $subscription, $webhook_data );
-							$mysqli->update_stripe_subscription_failed( $subscription_id, $webhook_data );
+							if ( $subscription ) {
 
-							$db_admin = new ec_db_admin();
-							$order_row = $db_admin->get_order_row_admin( $order_id );
-							$order = new ec_orderdisplay( $order_row, true, true );
+								$order_id = $mysqli->insert_stripe_failed_order( $subscription, $webhook_data );
+								$mysqli->update_stripe_subscription_failed( $subscription_id, $webhook_data );
 
-							$order->send_failed_payment();
+								$db_admin = new ec_db_admin();
+								$order_row = $db_admin->get_order_row_admin( $order_id );
+								$order = new ec_orderdisplay( $order_row, true, true );
+
+								$order->send_failed_payment();
+							}
 						}
 					}
 
 				// iDEAL now chargeable	
-				} else if ( $webhook_type == "source.chargeable" ) {
+				} else if ( $webhook_type == "source.chargeable" && isset( $webhook_data->id ) && isset( $webhook_data->client_secret ) && '' != $webhook_data->id && '' != $webhook_data->client_secret ) {
 					global $wpdb;
 					$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id, grand_total FROM ec_order WHERE gateway_transaction_id = %s", $webhook_data->id . ':' . $webhook_data->client_secret ) );
 					if ( $order ) {
@@ -7736,13 +7769,15 @@ function wp_easycart_webhook_catch() {
 					}
 
 				// iDEAL failed	
-				} else if ( $webhook_type == "source.failed" || $webhook_type == "source.canceled" ) {
+				} else if ( ( $webhook_type == "source.failed" || $webhook_type == "source.canceled" ) && isset( $webhook_data->id ) && isset( $webhook_data->client_secret ) && '' != $webhook_data->id && '' != $webhook_data->client_secret ) {
 					global $wpdb;
-					$wpdb->query( $wpdb->prepare( "DELETE FROM ec_order WHERE gateway_transaction_id = %s", $webhook_data->id . ':' . $webhook_data->client_secret ) );
+					$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s", $webhook_data->id . ':' . $webhook_data->client_secret ) );
+					if ( $order ) {
+						$wpdb->query( $wpdb->prepare( "DELETE FROM ec_order WHERE order_id = %d AND gateway_transaction_id = %s", $order->order_id, $webhook_data->id . ':' . $webhook_data->client_secret ) );
+					}
 
 				// Payment Intent Succeeded	
-				} else if ( $webhook_type == "payment_intent.succeeded" ) {
-
+				} else if ( $webhook_type == "payment_intent.succeeded" && isset( $webhook_data->id ) && isset( $webhook_data->client_secret ) && '' != $webhook_data->id && '' != $webhook_data->client_secret ) {
 					global $wpdb;
 					$ec_db_admin = new ec_db_admin();
 
@@ -7906,8 +7941,7 @@ function wp_easycart_webhook_catch() {
 						}
 					}
 
-				} else if ( $webhook_type == "payment_intent.payment_failed" ) {
-
+				} else if ( $webhook_type == "payment_intent.payment_failed" && isset( $webhook_data->id ) && isset( $webhook_data->client_secret ) && '' != $webhook_data->id && '' != $webhook_data->client_secret ) {
 					global $wpdb;
 					$ec_db_admin = new ec_db_admin();
 
@@ -7923,8 +7957,6 @@ function wp_easycart_webhook_catch() {
 				}
 
 				do_action( 'wpeasycart_stripe_webhook', $webhook_id, $webhook_type, $webhook_data );
-
-
 			}
 
 		}
@@ -7940,7 +7972,7 @@ function wp_easycart_webhook_catch() {
 
 
 		// Payment was voided
-		if ( $json->event_type == 'PAYMENT.AUTHORIZATION.VOIDED' ) {
+		if ( $json->event_type == 'PAYMENT.AUTHORIZATION.VOIDED' && isset( $json->resource->parent_payment ) && '' != $json->resource->parent_payment ) {
 			$paypal_payment_id = $json->resource->parent_payment;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s", $paypal_order_id ) );
 			if ( !$order_id ) {
@@ -7951,7 +7983,7 @@ function wp_easycart_webhook_catch() {
 			$ec_db_admin->update_order_status( $order_id, "19" );
 
 		// Order Processed
-		} else if ( $json->event_type == 'CHECKOUT.ORDER.PROCESSED' || ( $json->event_type == 'PAYMENT.SALE.COMPLETED' && $json->resource->payment_mode == 'ECHECK' ) ) {
+		} else if ( ( $json->event_type == 'CHECKOUT.ORDER.PROCESSED' || ( $json->event_type == 'PAYMENT.SALE.COMPLETED' && $json->resource->payment_mode == 'ECHECK' ) ) && isset( $json->resource->id ) && '' != $json->resource->id ) {
 			$paypal_order_id = $json->resource->id;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s", $paypal_order_id ) );
 			if ( ! $order_id ) {
@@ -7992,7 +8024,7 @@ function wp_easycart_webhook_catch() {
 			}
 
 		// Payment was Refunded
-		} else if ( $json->event_type == 'PAYMENT.CAPTURE.REFUNDED' || $json->event_type == 'PAYMENT.SALE.REFUNDED' ) {
+		} else if ( ( $json->event_type == 'PAYMENT.CAPTURE.REFUNDED' || $json->event_type == 'PAYMENT.SALE.REFUNDED' ) && isset( $json->resource->sale_id ) && isset( $json->resource->parent_payment ) && '' != $json->resource->sale_id && '' != $json->resource->parent_payment ) {
 			$paypal_sale_id = $json->resource->sale_id;
 			$paypal_payment_id = $json->resource->parent_payment;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s OR gateway_transaction_id = %s", $paypal_payment_id, $paypal_sale_id ) );
@@ -8017,7 +8049,7 @@ function wp_easycart_webhook_catch() {
 			}
 
 		// Payment was Denied
-		} else if ( $json->event_type == 'PAYMENT.CAPTURE.DENIED' || $json->event_type == 'PAYMENT.SALE.DENIED' ) {
+		} else if ( ( $json->event_type == 'PAYMENT.CAPTURE.DENIED' || $json->event_type == 'PAYMENT.SALE.DENIED' ) && isset( $json->resource->sale_id ) && isset( $json->resource->parent_payment ) && '' != $json->resource->sale_id && '' != $json->resource->parent_payment ) {
 			$paypal_sale_id = $json->resource->sale_id;
 			$paypal_payment_id = $json->resource->parent_payment;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s OR gateway_transaction_id = %s", $paypal_payment_id, $paypal_sale_id ) );
@@ -8028,7 +8060,7 @@ function wp_easycart_webhook_catch() {
 			$ec_db_admin->update_order_status( $order_id, "7" );
 
 		// Payment Pending
-		} else if ( $json->event_type == 'PAYMENT.CAPTURE.PENDING' || $json->event_type == 'PAYMENT.SALE.PENDING' ) {
+		} else if ( ( $json->event_type == 'PAYMENT.CAPTURE.PENDING' || $json->event_type == 'PAYMENT.SALE.PENDING' ) && isset( $json->resource->id ) && isset( $json->resource->parent_payment ) && '' != $json->resource->id && '' != $json->resource->parent_payment ) {
 			$paypal_sale_id = $json->resource->id;
 			$paypal_payment_id = $json->resource->parent_payment;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s OR gateway_transaction_id = %s", $paypal_payment_id, $paypal_sale_id ) );
@@ -8039,7 +8071,7 @@ function wp_easycart_webhook_catch() {
 			$ec_db_admin->update_order_status( $order_id, "8" );
 
 		// Payment Reversed
-		} else if ( $json->event_type == 'PAYMENT.CAPTURE.REVERSED' || $json->event_type == 'PAYMENT.SALE.REVERSED' ) {
+		} else if ( ( $json->event_type == 'PAYMENT.CAPTURE.REVERSED' || $json->event_type == 'PAYMENT.SALE.REVERSED' ) && isset( $json->resource->sale_id ) && isset( $json->resource->parent_payment ) && '' != $json->resource->sale_id && '' != $json->resource->parent_payment ) {
 			$paypal_sale_id = $json->resource->sale_id;
 			$paypal_payment_id = $json->resource->parent_payment;
 			$order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order WHERE gateway_transaction_id = %s OR gateway_transaction_id = %s", $paypal_payment_id, $paypal_sale_id ) );
@@ -8138,7 +8170,7 @@ function wp_easycart_webhook_catch() {
 		$order_row = $mysqli->get_order_row_admin( $order_id );
 		$orderdetails = $mysqli->get_order_details_admin( $order_id );
 
-		if ( $order_row->orderstatus_id != "10" ) { // Order Has Not Been Processed
+		if ( 'sagepay' == $order_row->order_gateway && $order_row->orderstatus_id != "10" ) { // Order Has Not Been Processed
 
 			if ( $data['Amount'] == $order_row->grand_total ) { // Make Sure Transaction Matches DB Value
 

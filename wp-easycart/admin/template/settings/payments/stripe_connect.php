@@ -309,6 +309,9 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 			<?php } else { ?>
 				<input type="hidden" name="ec_option_stripe_address_autocomplete" id="ec_option_stripe_address_autocomplete" value="<?php echo esc_attr( (int) get_option( 'ec_option_stripe_address_autocomplete' ) ); ?>" />
 			<?php } ?>
+			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show wp_easycart_admin_no_padding" style="padding:0px !important;">
+				<?php wp_easycart_admin( )->load_toggle_group_text( 'ec_option_stripe_connect_webhook_secret', 'ec_admin_save_stripe_connect_options', get_option( 'ec_option_stripe_connect_webhook_secret' ), __( 'Secure Your Webhook', 'wp-easycart' ), __( 'Enter the signing secret from your webhook to enhance security.', 'wp-easycart' ), '', true ); ?>
+			</div>
 
 			<div id="stripe_buy_now_later" class="ec_admin_stripe_section" data-currencies="USD,CAD,GBP,AUD,NZD,EUR,DKK,SEK,NOK" data-countries="US,AU,CA,FR,NZ,ES,GB,AT,BE,DK,EE,FI,GR,DE,GR,IE,IT,LV,LT,NL,NO,SK,SI,SE"<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR', 'DKK', 'SEK', 'NOK' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US', 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB', 'AT', 'BE', 'DK', 'EE', 'FI', 'GR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'SE' ) ) ) { echo ' style="display:none;"'; } ?>>
 				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Buy Now, Pay Later', 'wp-easycart' ); ?></h3>
@@ -369,7 +372,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 				<div id="stripe_use_klarna" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR,USD,GBP,DKK,SEK,NOK" data-countries="AT,BE,DK,EE,FI,GR,DE,GR,IE,IT,LV,LT,NL,NO,SK,SI,ES,SE,GB,US" data-country-currency='{"AT": ["EUR"],"BE": ["EUR"],"DK": ["DKK"],"FI": ["EUR"],"FR": ["EUR"],"DE": ["EUR"],"IE": ["EUR"],"IT": ["EUR"],"NL": ["EUR"],"NO": ["NOK"],"ES": ["EUR"],"SE": ["SEK"],"GB": ["GBP"],"US": ["USD"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR', 'USD', 'GBP', 'DKK', 'SEK', 'NOK' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US', 'ES', 'GB', 'AT', 'BE', 'DK', 'EE', 'FI', 'GR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'SE' ) ) ) { echo ' display:none;'; } ?>">
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Klarna', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_enable_klarna" id="ec_option_stripe_enable_klarna" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
+						<select name="ec_option_stripe_klarna" id="ec_option_stripe_klarna" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
 							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
@@ -513,7 +516,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 				<div id="stripe_use_link" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Link Payments', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_enable_link" id="ec_option_stripe_enable_link" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
+						<select name="ec_option_stripe_link" id="ec_option_stripe_link" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
 							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">

@@ -437,6 +437,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			update_option( 'ec_option_stripe_payment_theme', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_payment_theme'] ) ) );
 			update_option( 'ec_option_stripe_payment_layout', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_payment_layout'] ) ) );
 			update_option( 'ec_option_stripe_address_autocomplete', sanitize_text_field( (int) $_POST['ec_option_stripe_address_autocomplete'] ) );
+			update_option( 'ec_option_stripe_connect_webhook_secret', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_connect_webhook_secret'] ) ) );
 			
 			update_option( 'ec_option_stripe_affirm', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_affirm'] ) );
 			update_option( 'ec_option_stripe_afterpay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_afterpay'] ) );

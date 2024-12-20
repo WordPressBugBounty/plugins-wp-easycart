@@ -135,6 +135,7 @@ class ec_db_admin extends ec_db{
 			ec_order.credit_memo_txn_id,
 			ec_order.order_date,  
 			ec_order.orderstatus_id,
+			ec_order.order_gateway,
 			ec_order.gateway_transaction_id,
 			ec_orderstatus.order_status, 
 			ec_order.order_weight, 

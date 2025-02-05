@@ -218,7 +218,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'First Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->first_name,
+					'value' => ( isset( $this->billing_info->first_name ) ) ? $this->billing_info->first_name : '',
 				),
 				array(
 					'name' => 'billing_last_name',
@@ -226,7 +226,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Last Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->last_name,
+					'value' => ( isset( $this->billing_info->last_name ) ) ? $this->billing_info->last_name : '',
 				),
 				array(
 					'name' => 'billing_company_name',
@@ -234,7 +234,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Company Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->company_name,
+					'value' => ( isset( $this->billing_info->company_name ) ) ? $this->billing_info->company_name : '',
 				),
 				array(
 					'name' => 'billing_address_line_1',
@@ -242,7 +242,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Address Line 1', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->address_line_1,
+					'value' => ( isset( $this->billing_info->address_line_1 ) ) ? $this->billing_info->address_line_1 : '',
 				),
 				array(
 					'name' => 'billing_address_line_2',
@@ -250,7 +250,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Address Line 2', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->address_line_2,
+					'value' => ( isset( $this->billing_info->address_line_2 ) ) ? $this->billing_info->address_line_2 : '',
 				),
 				array(
 					'name' => 'billing_city',
@@ -258,7 +258,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'City', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->city,
+					'value' => ( isset( $this->billing_info->city ) ) ? $this->billing_info->city : '',
 				),
 				array(
 					'name' => 'billing_state',
@@ -266,7 +266,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'State/Province', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->state,
+					'value' => ( isset( $this->billing_info->state ) ) ? $this->billing_info->state : '',
 				),
 				array(
 					'name' => 'billing_zip',
@@ -274,7 +274,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Zip/Postal Code', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->zip,
+					'value' => ( isset( $this->billing_info->zip ) ) ? $this->billing_info->zip : '',
 				),
 				array(
 					'name' => 'billing_country',
@@ -282,7 +282,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Country', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->country,
+					'value' => ( isset( $this->billing_info->country ) ) ? $this->billing_info->country : '',
 				),
 				array(
 					'name' => 'billing_phone',
@@ -290,7 +290,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Phone Number', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->billing_info->phone,
+					'value' => ( isset( $this->billing_info->phone ) ) ? $this->billing_info->phone : '',
 				),
 			),
 			$this->user
@@ -308,7 +308,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'First Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->first_name,
+					'value' => ( isset( $this->shipping_info->first_name ) ) ? $this->shipping_info->first_name : '',
 				),
 				array(
 					'name' => 'shipping_last_name',
@@ -316,7 +316,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Last Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->last_name,
+					'value' => ( isset( $this->shipping_info->last_name ) ) ? $this->shipping_info->last_name : '',
 				),
 				array(
 					'name' => 'shipping_company_name',
@@ -324,7 +324,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Company Name', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->company_name,
+					'value' => ( isset( $this->shipping_info->company_name ) ) ? $this->shipping_info->company_name : '',
 				),
 				array(
 					'name' => 'shipping_address_line_1',
@@ -332,7 +332,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Address Line 1', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->address_line_1,
+					'value' => ( isset( $this->shipping_info->address_line_1 ) ) ? $this->shipping_info->address_line_1 : '',
 				),
 				array(
 					'name' => 'shipping_address_line_2',
@@ -340,7 +340,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Address Line 2', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->address_line_2,
+					'value' => ( isset( $this->shipping_info->address_line_2 ) ) ? $this->shipping_info->address_line_2 : '',
 				),
 				array(
 					'name' => 'shipping_city',
@@ -348,7 +348,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'City', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->city,
+					'value' => ( isset( $this->shipping_info->city ) ) ? $this->shipping_info->city : '',
 				),
 				array(
 					'name' => 'shipping_state',
@@ -356,7 +356,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'State/Province', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->state,
+					'value' => ( isset( $this->shipping_info->state ) ) ? $this->shipping_info->state : '',
 				),
 				array(
 					'name' => 'shipping_zip',
@@ -364,7 +364,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Zip/Postal Code', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->zip,
+					'value' => ( isset( $this->shipping_info->zip ) ) ? $this->shipping_info->zip : '',
 				),
 				array(
 					'name' => 'shipping_country',
@@ -372,7 +372,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Country', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->country,
+					'value' => ( isset( $this->shipping_info->country ) ) ? $this->shipping_info->country : '',
 				),
 				array(
 					'name' => 'shipping_phone',
@@ -380,7 +380,7 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 					'label' => __( 'Phone Number', 'wp-easycart' ),
 					'required' => false,
 					'message' => '',
-					'value' => $this->shipping_info->phone,
+					'value' => ( isset( $this->shipping_info->phone ) ) ? $this->shipping_info->phone : '',
 				),
 			),
 			$this->user

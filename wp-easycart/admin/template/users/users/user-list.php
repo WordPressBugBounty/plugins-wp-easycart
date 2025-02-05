@@ -38,6 +38,12 @@ $table->set_list_columns(
 			'format' => 'string',
 		),
 		array(
+			'name' => 'user_id',
+			'label' => __( 'User ID', 'wp-easycart' ),
+			'is_mobile' => true,
+			'format' => 'string',
+		),
+		array(
 			'name' => 'user_level',
 			'label' => __( 'Security Level', 'wp-easycart' ),
 			'is_mobile' => true,
@@ -46,7 +52,7 @@ $table->set_list_columns(
 	)
 );
 $table->set_search_columns(
-	array( 'ec_user.email', 'ec_user.first_name', 'ec_user.last_name', 'ec_user.user_level' )
+	array( 'ec_user.email', 'ec_user.first_name', 'ec_user.last_name', 'ec_user.user_id', 'ec_user.user_level' )
 );
 $table->set_bulk_actions(
 	apply_filters(

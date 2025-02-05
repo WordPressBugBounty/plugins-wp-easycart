@@ -1092,7 +1092,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		public function ec_using_no_tax() {
 			$db = new ec_db_admin();
 			$taxrates = $db->get_taxrates();
-			if ( count( $taxrates ) > 0 )
+			if ( count( $taxrates ) > 0 || get_option( 'ec_option_enable_easy_canada_tax' ) )
 				return false;
 			else
 				return true;

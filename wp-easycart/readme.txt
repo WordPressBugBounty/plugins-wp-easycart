@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.7
-Stable tag: 5.7.9
+Stable tag: 5.7.10
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,13 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.10 =
+* Bug Fix - Store status tax section shows set up with Canada Tax.
+* Bug Fix - Button click in admin issue on somse systems fixed.
+* Bug Fix - Google Merchant schema output fixed for special characters.
+* Bug Fix - Redirect feature for ec_account shortcode fixed.
+* Improvement - User list includes user ID.
+* Improvement - User list can be searched by user ID.
 = 5.7.9 =
 * New feature - Add your Stripe webhook signing secret for extra webhook security.
 * Improvement - Added verification for webhooks.

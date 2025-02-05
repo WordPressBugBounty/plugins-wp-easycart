@@ -60,7 +60,7 @@ jQuery( document ).ready( function( ){
 	/* PROCESSING CLICK ACTION */
 	jQuery( '.ec_admin_process_click' ).on( 'click', function( ){
 		jQuery( this ).html( wpeasycart_admin_ajax_object.wp_easycart_admin_language['processing'] );
-		jQuery( this ).attr( 'disabled', 'disabled' );
+		//jQuery( this ).attr( 'disabled', 'disabled' );
 	} );
 	
 	/* PREVENT DOUBLE FORM SUBMISSION */

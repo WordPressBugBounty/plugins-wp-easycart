@@ -198,7 +198,7 @@ if ( ! $first_image_found ) {
 	"brand": <?php echo wp_json_encode( $product->manufacturer_name ); ?>,
 	"sku": <?php echo wp_json_encode( $product->model_number ); ?>,
 	"name": <?php echo wp_json_encode( strip_tags( $product->title ) ); ?>,
-	"description": <?php echo  wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', ( ( isset( $product->short_description ) && strlen( $product->short_description ) > 0 ) ? str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $product->short_description ) ) ) : str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $product->description ) ) ) ) ) ) ); ?><?php if( $google_attributes && isset( $google_attributes->gtin ) && strlen( $google_attributes->gtin ) > 0 ){ ?>,
+	"description": <?php echo  wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', ( ( isset( $product->short_description ) && strlen( $product->short_description ) > 0 ) ? str_replace( "\n", ' ', str_replace( "\r", ' ', strip_tags( stripslashes( $product->short_description ) ) ) ) : str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $product->description ) ) ) ) ) ) ); ?><?php if( $google_attributes && isset( $google_attributes->gtin ) && strlen( $google_attributes->gtin ) > 0 ){ ?>,
 	"gtin": <?php echo wp_json_encode( $google_attributes->gtin ); ?><?php }else if( $google_attributes && isset( $google_attributes->mpn ) && strlen( $google_attributes->mpn ) > 0 ){ ?>,
 	"mpn": <?php echo wp_json_encode( $google_attributes->mpn ); ?><?php }?>,
 	"url": <?php echo wp_json_encode( esc_url( $product->get_product_link() ) ); ?>,<?php if( $product->use_customer_reviews && count( $product->reviews ) > 0 ){

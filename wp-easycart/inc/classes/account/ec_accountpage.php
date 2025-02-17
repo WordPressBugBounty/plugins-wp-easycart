@@ -221,26 +221,32 @@ class ec_accountpage {
 	}
 
 	public function display_account_page( $force_page = false ) {
-		do_action( 'wpeasycart_account_page_pre' );
-		if ( apply_filters( 'wpeasycart_show_account_page', true ) ) {
-			echo "<div class=\"ec_account_page\">";
-			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_page.php' ) )	
-				include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_page.php' );
-			else	
-				include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_page.php' );
-			echo "<input type=\"hidden\" name=\"ec_account_base_path\" id=\"ec_account_base_path\" value=\"" . esc_url( plugins_url() ) . "\" />";
-			echo "<input type=\"hidden\" name=\"ec_account_session_id\" id=\"ec_account_session_id\" value=\"" . esc_attr( $GLOBALS['ec_cart_data']->ec_cart_id ) . "\" />";
-			echo "<input type=\"hidden\" name=\"ec_account_email\" id=\"ec_account_email\" value=\"" . esc_attr( htmlspecialchars( $this->user_email, ENT_QUOTES ) ) . "\" />";
+		if ( $force_page && 'register' == $force_page ) {
+			$this->display_register_page();
+		} else if ( $force_page && 'forgot_password' == $force_page ) {
+			$this->display_forgot_password_page();
+		} else {
+			do_action( 'wpeasycart_account_page_pre' );
+			if ( apply_filters( 'wpeasycart_show_account_page', true ) ) {
+				echo "<div class=\"ec_account_page\">";
+				if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_page.php' ) )	
+					include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_page.php' );
+				else	
+					include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_page.php' );
+				echo "<input type=\"hidden\" name=\"ec_account_base_path\" id=\"ec_account_base_path\" value=\"" . esc_url( plugins_url() ) . "\" />";
+				echo "<input type=\"hidden\" name=\"ec_account_session_id\" id=\"ec_account_session_id\" value=\"" . esc_attr( $GLOBALS['ec_cart_data']->ec_cart_id ) . "\" />";
+				echo "<input type=\"hidden\" name=\"ec_account_email\" id=\"ec_account_email\" value=\"" . esc_attr( htmlspecialchars( $this->user_email, ENT_QUOTES ) ) . "\" />";
 
-			$page_name = "";
-			if ( $force_page ) {
-				$page_name = htmlspecialchars( sanitize_key( $force_page ), ENT_QUOTES );
-			} else if ( isset( $_GET['ec_page'] ) ) {
-				$page_name = htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES );
+				$page_name = "";
+				if ( $force_page ) {
+					$page_name = htmlspecialchars( sanitize_key( $force_page ), ENT_QUOTES );
+				} else if ( isset( $_GET['ec_page'] ) ) {
+					$page_name = htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES );
+				}
+
+				echo "<input type=\"hidden\" name=\"ec_account_start_page\" id=\"ec_account_start_page\" value=\"" . esc_attr( $page_name ) . "\" />";
+				echo "</div>";
 			}
-
-			echo "<input type=\"hidden\" name=\"ec_account_start_page\" id=\"ec_account_start_page\" value=\"" . esc_attr( $page_name ) . "\" />";
-			echo "</div>";
 		}
 	}
 

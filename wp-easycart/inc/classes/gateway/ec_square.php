@@ -501,19 +501,26 @@ class ec_square extends ec_gateway{
 				),
 				'name'              => (string) wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_shipping' ),
 				'calculation_phase' => 'SUBTOTAL_PHASE',
-				'applied_taxes'     => array( ),
-				'taxable'           => (bool) !get_option( 'ec_option_no_vat_on_shipping' )
+				'applied_taxes'     => array(),
+				'taxable'           => (bool) ( ! get_option( 'ec_option_no_vat_on_shipping' ) || get_option( 'ec_option_collect_tax_on_shipping' ) )
 			);
-			if( !get_option( 'ec_option_no_vat_on_shipping' ) ){
+			if ( ! get_option( 'ec_option_no_vat_on_shipping' ) ){
 				$this->cart->vat_subtotal += $this->order_totals->shipping_total;
-				for( $j=0; $j<count( $tax_items ); $j++ ){
-					if( $tax_items[$j][3] == 'vat' ){
+				for ( $j = 0; $j < count( $tax_items ); $j++ ) {
+					if ( 'vat' == $tax_items[ $j ][3] ) {
 						$service_charge['applied_taxes'][] = array(
-							'tax_uid'   => (string) 'tax-'.$j
+							'tax_uid' => (string) 'tax-' . $j
 						);
-
 					}
-
+				}
+			}
+			if ( get_option( 'ec_option_collect_tax_on_shipping' ) ) {
+				for( $j = 0; $j < count( $tax_items ); $j++ ) {
+					if ( 'vat' != $tax_items[ $j ][3] ) {
+						$service_charge['applied_taxes'][] = array(
+							'tax_uid' => (string) 'tax-' . $j
+						);
+					}
 				}
 			}
 			$service_charges[] = $service_charge;
@@ -548,13 +555,14 @@ class ec_square extends ec_gateway{
 			);
 		}
 
+		$shipping_taxable_amount = ( get_option( 'ec_option_collect_tax_on_shipping' ) ) ? (int) number_format( $this->order_totals->shipping_total * 100, 0, '', '' ) : 0;
 		if( count( $tax_items ) ){
 			$taxcount=0;
 			$json_arr['order']['taxes']         = array( );
 			foreach( $tax_items as $tax_item ){
 				$json_arr['order']['taxes'][]   = array(
 					'applied_money'             => array(
-						'amount'                => ( $tax_item[3] == 'tax' ) ? (int) ( $this->cart->taxable_subtotal * 100 ) : (int) ( $this->cart->vat_subtotal * 100 ),
+						'amount'                => ( $tax_item[3] == 'tax' ) ? (int) ( ( $this->cart->taxable_subtotal * 100 ) + $shipping_taxable_amount ) : (int) ( $this->cart->vat_subtotal * 100 ),
 						'currency'              => (string) get_option( 'ec_option_square_currency' ),
 					),
 					'name'                      => (string) $tax_item[0],

@@ -522,11 +522,12 @@ class ec_filter {
 
 	public function get_where_query() {
 		global $wpdb;
-
 		if ( $this->has_filters() || $this->product_only ) {
-
-			$ret_string = 'WHERE product.activate_in_store = 1';
-
+			if ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) || ! $this->product_only ) {
+				$ret_string = 'WHERE product.activate_in_store = 1';
+			} else {
+				$ret_string = 'WHERE ( product.activate_in_store = 1 OR product.activate_in_store = 0 )';
+			}
 			if ( $this->get_menu_level() == 1 && $this->get_menu_id() != 0 ) {
 				$ret_string .= $wpdb->prepare( ' AND ( product.menulevel1_id_1 = %s OR product.menulevel2_id_1 = %s OR product.menulevel3_id_1 = %s )', $this->get_menu_id(), $this->get_menu_id(), $this->get_menu_id() );
 			}
@@ -705,7 +706,12 @@ class ec_filter {
 			return $ret_string;
 
 		} else {
-			$ret_string = ' WHERE product.show_on_startup = 1 AND product.activate_in_store = 1';
+			$ret_string = ' WHERE product.show_on_startup = 1';
+			if ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) || ! $this->product_only ) {
+				$ret_string = ' AND product.activate_in_store = 1';
+			} else {
+				$ret_string = ' AND ( product.activate_in_store = 1 OR product.activate_in_store = 0 )';
+			}
 
 			if ( get_option( 'ec_option_hide_out_of_stock' ) ) {
 				$ret_string .= ' AND ( ( product.show_stock_quantity = 0 AND product.use_optionitem_quantity_tracking = 0 ) OR ( product.stock_quantity > 0 && ( product.show_stock_quantity = 1 OR product.use_optionitem_quantity_tracking = 1 ) ) OR product.allow_backorders = 1 )';

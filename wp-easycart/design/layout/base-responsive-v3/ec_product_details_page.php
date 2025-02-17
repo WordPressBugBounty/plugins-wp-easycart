@@ -151,6 +151,7 @@ if( isset( $this->product->google_attributes ) && $this->product->google_attribu
 	$google_attributes = false;
 }
 $first_image_url = '';
+$first_image_found = false;
 if ( $this->product->use_optionitem_images ) {
 	$first_optionitem_id = false;
 	if ( $this->product->use_advanced_optionset ) {
@@ -190,7 +191,6 @@ if ( $this->product->use_optionitem_images ) {
 			}
 		}
 	}
-	$first_image_found = false;
 	if ( $first_optionitem_id ) {
 		for ( $i = 0; $i < count( $this->product->images->imageset ); $i++ ) {
 			if ( ! $first_image_found && ( 0 == (int) $this->product->images->imageset[$i]->optionitem_id || (int) $this->product->images->imageset[$i]->optionitem_id == $first_optionitem_id ) ) {
@@ -324,7 +324,7 @@ if ( ! $first_image_found ) {
 	"brand": <?php echo wp_json_encode( $this->product->manufacturer_name ); ?>,
 	"sku": <?php echo wp_json_encode( $this->product->model_number ); ?>,
 	"name": <?php echo wp_json_encode( strip_tags( $this->product->title ) ); ?>,
-	"description": <?php echo  wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', ( ( isset( $this->product->short_description ) && strlen( $this->product->short_description ) > 0 ) ? str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $this->product->short_description ) ) ) : str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $this->product->description ) ) ) ) ) ) ); ?><?php if( $google_attributes && isset( $google_attributes->gtin ) && strlen( $google_attributes->gtin ) > 0 ){ ?>,
+	"description": <?php echo  wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', ( ( isset( $this->product->short_description ) && strlen( $this->product->short_description ) > 0 ) ? str_replace( "\n", ' ', str_replace( "\r", ' ', strip_tags( stripslashes( $this->product->short_description ) ) ) ) : str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $this->product->description ) ) ) ) ) ) ); ?><?php if( $google_attributes && isset( $google_attributes->gtin ) && strlen( $google_attributes->gtin ) > 0 ){ ?>,
 	"gtin": <?php echo wp_json_encode( $google_attributes->gtin ); ?><?php }else if( $google_attributes && isset( $google_attributes->mpn ) && strlen( $google_attributes->mpn ) > 0 ){ ?>,
 	"mpn": <?php echo wp_json_encode( $google_attributes->mpn ); ?><?php }?>,
 	"url": <?php echo wp_json_encode( esc_url( $this->product->get_product_link() ) ); ?>,<?php if( $this->product->use_customer_reviews && count( $this->product->reviews ) > 0 ){ 
@@ -396,6 +396,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 	}?>
 ];
 </script>
+<?php if ( ! $this->product->activate_in_store ) { ?>
+<div style="float:left; width:100%; padding:10px 25px; background:#FFF8E1; border:2px solid #FF6F00; margin-bottom:20px;"><div style="float:left; width:100%; text-align:center; color:#222; font-size:1em;"><?php esc_attr_e( 'This product is deactivated and only visible to admin users.', 'wp-easycart' ); ?></div></div>
+<?php } ?>
 <section class="ec_product_details_page<?php echo ( isset( $this->atts['cols_desktop'] ) ) ? ' ec-product-details-cols-desktop-' . (int) $this->atts['cols_desktop'] : ''; ?><?php echo ( isset( $this->atts['columns'] ) ) ? ' ec-product-details-cols-' . (int) $this->atts['columns'] : ''; ?><?php echo ( isset( $this->atts['cols_tablet'] ) ) ? ' ec-product-details-cols-tablet-' . (int) $this->atts['cols_tablet'] : ''; ?><?php echo ( isset( $this->atts['cols_mobile'] ) ) ? ' ec-product-details-cols-mobile-' . (int) $this->atts['cols_mobile'] : ''; ?><?php echo ( isset( $this->atts['cols_mobile_small'] ) ) ? ' ec-product-details-cols-mobile-small-' . (int) $this->atts['cols_mobile_small'] : ''; ?><?php echo ( isset( $this->atts['details_sizing'] ) ) ? ' ec-product-details-sizing-' . (int) $this->atts['details_sizing'] : ''; ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php if( $this->product->has_promotion_text( ) ){ ?>
 	<div class="ec_cart_success"><div><?php $this->product->display_promotion_text( ); ?></div></div><?php }?>
 	<?php if( $this->product->is_subscription_item && $this->product->trial_period_days > 0 ){ ?>

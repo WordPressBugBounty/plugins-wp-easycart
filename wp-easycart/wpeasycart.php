@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.10
+ * Version: 5.7.11
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.10
+ * @version 5.7.11
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_10' );
+define( 'EC_CURRENT_VERSION', '5_7_11' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '93' );
 
@@ -570,145 +570,216 @@ function load_ec_pre() {
 	}
 
 	if ( isset( $_GET['ec_add_to_cart'] ) ) {
-
 		global $wpdb;
-
 		wpeasycart_session()->handle_session();
 		wp_easycart_apply_query_coupon();
 
-		// Verify Product can be added
 		$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE model_number = %s', sanitize_text_field( $_GET['ec_add_to_cart'] ) ) );
 		if ( ! $product ) {
 			header( "location: " . $cartpage );
 			die();
 		}
-		
+
+		$advanced_options = $GLOBALS['ec_advanced_optionsets']->get_advanced_optionsets( $product->product_id );
 		if ( ( ! $product->use_advanced_optionset || $product->use_both_option_types ) && ( $product->option_id_1 != 0 || $product->option_id_2 != 0 || $product->option_id_3 != 0 || $product->option_id_4 != 0 || $product->option_id_5 != 0 ) ) {
 			header( "location: " . $storepage . "?model_number=" . htmlspecialchars( sanitize_text_field( $_GET['ec_add_to_cart'] ), ENT_QUOTES ) );
 			die();
 		}
-		
+
+		$db = new ec_db();
 		if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
-			$advanced_options_check = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_option_to_product WHERE product_id = %d', $product->product_id ) );
-			if ( count( $advanced_options_check ) > 0 ) {
+			$is_valid = true;
+			$valid_types = array( 'text', 'number', 'checkbox', 'combo', 'swatch', 'radio' ); // Limit allowed types
+			foreach ( $advanced_options as $advanced_option ) {
+				// Required data check for this product/options
+				if ( '' == $advanced_option->option_meta['url_var'] || ! isset( $_GET[ $advanced_option->option_meta['url_var'] ] ) ) {
+					$is_valid = false;
+					break;
+				}
+				// Limit types that may be used in this format, redirect if product not allowed in this method
+				if ( ! in_array( $advanced_option->option_type, $valid_types ) ) {
+					$is_valid = false;
+					break;
+				}
+				// Validate values are valid, otherwise redirect to product
+				if ( 'checkbox' == $advanced_option->option_type ) {
+					$selected_optionitems = array();
+					if ( is_array( $_GET[ $advanced_option->option_meta['url_var'] ] ) ) {
+						foreach ( $_GET[ $advanced_option->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
+							$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
+						}
+					} else {
+						$selected_optionitems[] = sanitize_text_field( $_GET[ $advanced_option->option_meta['url_var'] ] );
+					}
+					$optionitems = $db->get_advanced_optionitems( $advanced_option->option_id );
+					foreach ( $selected_optionitems as $selected_optionitem ) {
+						$item_found = false;
+						for ( $i = 0; $i < count( $optionitems ); $i++ ) {
+							if ( $optionitems[ $i ]->optionitem_name == $selected_optionitem ) {
+								$item_found = true;
+								break;
+							}
+						}
+						if ( ! $item_found ) {
+							$is_valid = false;
+						}
+					}
+				} else if ( 'combo' == $advanced_option->option_type || 'swatch' == $advanced_option->option_type || 'radio' == $advanced_option->option_type ) {
+					$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+					$item_found = false;
+					foreach ( $optionitems as $optionitem ) {
+						if ( $optionitem->optionitem_name == $_GET[ $optionset->option_meta['url_var'] ] ) {
+							$item_found = true;
+							break;
+						}
+					}
+					if ( ! $item_found ) {
+						$is_valid = false;
+					}
+				}
+			}
+			if ( ! $is_valid ) {
 				header( "location: " . $storepage . "?model_number=" . htmlspecialchars( sanitize_text_field( $_GET['ec_add_to_cart'] ), ENT_QUOTES ) );
 				die();
 			}
 		}
 
-		$db = new ec_db();
-		$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['ec_add_to_cart'] ) );
+		if ( $product->is_subscription_item ) {
+			$tempcart_id = true;
+		} else {
+			$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['ec_add_to_cart'] ) );
+		}
 
 		if ( $tempcart_id ) {
-
-			$product = $wpdb->get_row( $wpdb->prepare( "SELECT product_id, model_number, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, use_advanced_optionset FROM ec_product WHERE model_number = %s", sanitize_text_field( $_GET['ec_add_to_cart'] ) ) );
-			if ( $product ) {
-
-				$product_id = $product->product_id;
-				$use_advanced_optionset = $product->use_advanced_optionset;
-				$option_vals = array();
-
-				if ( $use_advanced_optionset ) {
-
-					$optionsets = $GLOBALS['ec_advanced_optionsets']->get_advanced_optionsets( $product_id );
-					$grid_quantity = 0;
-
-					foreach ( $optionsets as $optionset ) {
-						if ( $optionset->option_meta['url_var'] != "" && isset( $_GET[$optionset->option_meta['url_var']] ) ) {
-
-							if ( $optionset->option_type == "checkbox" ) {
-								$selected_optionitems = array();
-								if ( is_array( $_GET[$optionset->option_meta['url_var']] ) ) {
-									foreach ( (array) $_GET[ $optionset->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
-										$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
-									}
-								} else {
-									$selected_optionitems[] = sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] );
-								}
-								$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-								foreach ( $optionitems as $optionitem ) {
-									if ( in_array( $optionitem->optionitem_name, $selected_optionitems ) ) {
-										$option_vals[] = array( "option_id" => $optionset->option_id, "optionitem_id" => $optionitem->optionitem_id, "option_name" => $optionitem->option_name, "optionitem_name" => $optionitem->optionitem_name, "option_type" => $optionitem->option_type, "optionitem_value" => $optionitem->optionitem_name, "optionitem_model_number" => $optionitem->optionitem_model_number );
-									}
-								}
-							} else if ( $optionset->option_type == "combo" || $optionset->option_type == "swatch" || $optionset->option_type == "radio" ) {
-								$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-								foreach ( $optionitems as $optionitem ) {
-									if ( $optionitem->optionitem_name == $_GET[$optionset->option_meta['url_var']] ) {
-										$option_vals[] = array( "option_id" => $optionset->option_id, "optionitem_id" => $optionitem->optionitem_id, "option_name" => $optionitem->option_name, "optionitem_name" => $optionitem->optionitem_name, "option_type" => $optionitem->option_type, "optionitem_value" => $optionitem->optionitem_name, "optionitem_model_number" => $optionitem->optionitem_model_number );
-									}
-								}
-							} else {
-								$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-								foreach ( $optionitems as $optionitem ) {
-									$option_vals[] = array( "option_id" => $optionset->option_id, "optionitem_id" => $optionitem->optionitem_id, "option_name" => $optionitem->option_name, "optionitem_name" => $optionitem->optionitem_name, "option_type" => $optionitem->option_type, "optionitem_value" => stripslashes( sanitize_text_field( $_GET[$optionset->option_meta['url_var']] ) ), "optionitem_model_number" => $optionitem->optionitem_model_number );
-								}
+			$option_vals = array();
+			if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
+				$grid_quantity = 0;
+				foreach ( $advanced_options as $optionset ) {
+					if ( 'checkbox' == $optionset->option_type ) {
+						$selected_optionitems = array();
+						if ( is_array( $_GET[$optionset->option_meta['url_var']] ) ) {
+							foreach ( (array) $_GET[ $optionset->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
+								$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
+							}
+						} else {
+							$selected_optionitems[] = sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] );
+						}
+						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+						foreach ( $optionitems as $optionitem ) {
+							if ( in_array( $optionitem->optionitem_name, $selected_optionitems ) ) {
+								$option_vals[] = array( 
+									"option_id" => (int) $optionset->option_id, 
+									"option_label" => wp_easycart_escape_html( $optionset->option_label ), 
+									"option_name" => sanitize_text_field( $optionset->option_name ), 
+									"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
+									"option_type" => sanitize_text_field( $optionset->option_type ), 
+									"optionitem_id" => (int) $optionitem->optionitem_id, 
+									"optionitem_value" => esc_attr( $optionitem->optionitem_name ), 
+									"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
+								);
 							}
 						}
-
-					} //end foreach
-
-				} else {// else use basic
-					$option_id_1 = $option_id_2 = $option_id_3 = $option_id_4 = $option_id_5 = 0;
-
-					if ( $product->option_id_1 || $product->option_id_2 || $product->option_id_3 || $product->option_id_4 || $product->option_id_5 ) {
-						$products = $db->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s AND product.activate_in_store = 1", $product->model_number ), "", "", "", "wpeasycart-product-only-".$product->model_number );
-						if ( count( $products ) ) {
-							$product_item = new ec_product( $products[0], 0, 1, 0 );
-							if ( $product_item->has_options ) {
-								if ( $product->option_id_1 && $product_item->options->optionset1->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset1->option_meta['url_var']] ) ) {
-									for ( $j=0; $j<count( $product_item->options->optionset1->optionset ); $j++ ) {
-										if ( $_GET[$product_item->options->optionset1->option_meta['url_var']] == $product_item->options->optionset1->optionset[$j]->optionitem_name ) {
-											$option_id_1 = $product_item->options->optionset1->optionset[$j]->optionitem_id;
-										}
-									}
-								}
-
-								if ( $product->option_id_2 && $product_item->options->optionset2->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset2->option_meta['url_var']] ) ) {
-									for ( $j=0; $j<count( $product_item->options->optionset2->optionset ); $j++ ) {
-										if ( $_GET[$product_item->options->optionset2->option_meta['url_var']] == $product_item->options->optionset2->optionset[$j]->optionitem_name ) {
-											$option_id_2 = $product_item->options->optionset2->optionset[$j]->optionitem_id;
-										}
-									}
-								}
-
-								if ( $product->option_id_3 && $product_item->options->optionset3->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset3->option_meta['url_var']] ) ) {
-									for ( $j=0; $j<count( $product_item->options->optionset3->optionset ); $j++ ) {
-										if ( $_GET[$product_item->options->optionset3->option_meta['url_var']] == $product_item->options->optionset3->optionset[$j]->optionitem_name ) {
-											$option_id_3 = $product_item->options->optionset3->optionset[$j]->optionitem_id;
-										}
-									}
-								}
-
-								if ( $product->option_id_4 && $product_item->options->optionset4->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset4->option_meta['url_var']] ) ) {
-									for ( $j=0; $j<count( $product_item->options->optionset4->optionset ); $j++ ) {
-										if ( $_GET[$product_item->options->optionset4->option_meta['url_var']] == $product_item->options->optionset4->optionset[$j]->optionitem_name ) {
-											$option_id_4 = $product_item->options->optionset4->optionset[$j]->optionitem_id;
-										}
-									}
-								}
-
-								if ( $product->option_id_5 && $product_item->options->optionset5->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset5->option_meta['url_var']] ) ) {
-									for ( $j=0; $j<count( $product_item->options->optionset5->optionset ); $j++ ) {
-										if ( $_GET[$product_item->options->optionset5->option_meta['url_var']] == $product_item->options->optionset5->optionset[$j]->optionitem_name ) {
-											$option_id_5 = $product_item->options->optionset5->optionset[$j]->optionitem_id;
-										}
-									}
-								}
-
-								$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart SET optionitem_id_1 = %d, optionitem_id_2 = %d, optionitem_id_3 = %d, optionitem_id_4 = %d, optionitem_id_5 = %d WHERE tempcart_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $tempcart_id ) );
-								do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
+					} else if ( 'combo' == $optionset->option_type || 'swatch' == $optionset->option_type || 'radio' == $optionset->option_type ) {
+						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+						foreach ( $optionitems as $optionitem ) {
+							if ( $optionitem->optionitem_name == $_GET[$optionset->option_meta['url_var']] ) {
+								$option_vals[] = array(
+									"option_id" => (int) $optionset->option_id,
+									"option_label" => wp_easycart_escape_html( $optionset->option_label ),
+									"option_name" => sanitize_text_field( $optionset->option_name ),
+									"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
+									"option_type" => sanitize_text_field( $optionset->option_type ),
+									"optionitem_id" => (int) $optionitem->optionitem_id,
+									"optionitem_value" => sanitize_text_field( $optionitem->optionitem_name ),
+									"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
+								);
 							}
+						}
+					} else {
+						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+						foreach ( $optionitems as $optionitem ) {
+							$option_vals[] = array(
+								"option_id" => $optionset->option_id,
+								"option_label" => wp_easycart_escape_html( $optionset->option_label ),
+								"option_name" => $optionitem->option_name,
+								"optionitem_name" => $optionitem->optionitem_name,
+								"option_type" => $optionitem->option_type,
+								"optionitem_id" => $optionitem->optionitem_id,
+								"optionitem_value" => ( 'number' == $optionset->option_type ) ? (int) sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) : esc_attr( sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) ),
+								"optionitem_model_number" => $optionitem->optionitem_model_number,
+							);
 						}
 					}
 				}
-
-				for ( $i=0; $i<count( $option_vals ); $i++ ) {
-					$db->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
+				if ( $product->is_subscription_item ) {
+					$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
+					$GLOBALS['ec_cart_data']->save_session_to_db();
+				} else {
+					for ( $i=0; $i<count( $option_vals ); $i++ ) {
+						$db->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
+					}
 				}
-			}// If product found
 
-			header( "location: " . $cartpage );
+			} else {// else use basic
+				$option_id_1 = $option_id_2 = $option_id_3 = $option_id_4 = $option_id_5 = 0;
+
+				if ( $product->option_id_1 || $product->option_id_2 || $product->option_id_3 || $product->option_id_4 || $product->option_id_5 ) {
+					$products = $db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $product->model_number ), "", "", "", "wpeasycart-product-only-".$product->model_number );
+					if ( count( $products ) ) {
+						$product_item = new ec_product( $products[0], 0, 1, 0 );
+						if ( $product_item->has_options ) {
+							if ( $product->option_id_1 && $product_item->options->optionset1->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset1->option_meta['url_var']] ) ) {
+								for ( $j=0; $j<count( $product_item->options->optionset1->optionset ); $j++ ) {
+									if ( $_GET[$product_item->options->optionset1->option_meta['url_var']] == $product_item->options->optionset1->optionset[$j]->optionitem_name ) {
+										$option_id_1 = $product_item->options->optionset1->optionset[$j]->optionitem_id;
+									}
+								}
+							}
+
+							if ( $product->option_id_2 && $product_item->options->optionset2->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset2->option_meta['url_var']] ) ) {
+								for ( $j=0; $j<count( $product_item->options->optionset2->optionset ); $j++ ) {
+									if ( $_GET[$product_item->options->optionset2->option_meta['url_var']] == $product_item->options->optionset2->optionset[$j]->optionitem_name ) {
+										$option_id_2 = $product_item->options->optionset2->optionset[$j]->optionitem_id;
+									}
+								}
+							}
+
+							if ( $product->option_id_3 && $product_item->options->optionset3->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset3->option_meta['url_var']] ) ) {
+								for ( $j=0; $j<count( $product_item->options->optionset3->optionset ); $j++ ) {
+									if ( $_GET[$product_item->options->optionset3->option_meta['url_var']] == $product_item->options->optionset3->optionset[$j]->optionitem_name ) {
+										$option_id_3 = $product_item->options->optionset3->optionset[$j]->optionitem_id;
+									}
+								}
+							}
+
+							if ( $product->option_id_4 && $product_item->options->optionset4->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset4->option_meta['url_var']] ) ) {
+								for ( $j=0; $j<count( $product_item->options->optionset4->optionset ); $j++ ) {
+									if ( $_GET[$product_item->options->optionset4->option_meta['url_var']] == $product_item->options->optionset4->optionset[$j]->optionitem_name ) {
+										$option_id_4 = $product_item->options->optionset4->optionset[$j]->optionitem_id;
+									}
+								}
+							}
+
+							if ( $product->option_id_5 && $product_item->options->optionset5->option_meta['url_var'] != '' && isset( $_GET[$product_item->options->optionset5->option_meta['url_var']] ) ) {
+								for ( $j=0; $j<count( $product_item->options->optionset5->optionset ); $j++ ) {
+									if ( $_GET[$product_item->options->optionset5->option_meta['url_var']] == $product_item->options->optionset5->optionset[$j]->optionitem_name ) {
+										$option_id_5 = $product_item->options->optionset5->optionset[$j]->optionitem_id;
+									}
+								}
+							}
+
+							$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart SET optionitem_id_1 = %d, optionitem_id_2 = %d, optionitem_id_3 = %d, optionitem_id_4 = %d, optionitem_id_5 = %d WHERE tempcart_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $tempcart_id ) );
+							do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
+						}
+					}
+				}
+			}
+
+			if ( $product->is_subscription_item ) {
+				header( "location: " . $cartpage . $permalinkdivider . "ec_page=subscription_info&subscription=" . $product->model_number );
+			} else {
+				header( "location: " . $cartpage );
+			}
 			die();
 		} else {
 			header( "location: " . $storepage . "?model_number=" . htmlspecialchars( sanitize_text_field( $_GET['ec_add_to_cart'] ), ENT_QUOTES ) );
@@ -1165,16 +1236,16 @@ function wpeasycart_seo_tags() {
 }
 
 function ec_show_facebook_meta( $model_number ) {
-
 	global $wpdb;
 	$ec_db = new ec_db();
 	$product = wp_cache_get( 'wpeasycart-product-only-'.$model_number, 'wpeasycart-product-list' );
-	if ( !$product ) {
-		$product = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s AND product.activate_in_store = 1", $model_number ), "", "", "", "wpeasycart-product-only-".$model_number );	
-		wp_cache_set( "wpeasycart-product-only-".$model_number, $product, 'wpeasycart-product-list' );
+	if ( ! $product ) {
+		$product = $ec_db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "", "wpeasycart-product-only-".$model_number );
+		wp_cache_set( 'wpeasycart-product-only-' . $model_number, $product, 'wpeasycart-product-list' );
 	}
-	if ( count( $product ) > 0 )
+	if ( count( $product ) > 0 ) {
 		$product = $product[0];
+	}
 	$product_id = $product['product_id'];
 	$prod_title = $product['title'];
 	$prod_model_number = $product['model_number'];
@@ -1192,7 +1263,6 @@ function ec_show_facebook_meta( $model_number ) {
 	$prod_image4 = $product['image4'];
 	$prod_image5 = $product['image5'];
 	$product_images = ( isset( $product['product_images'] ) && '' != $product['product_images'] ) ? explode( ',', $product['product_images'] ) : array();
-
 	if ( $prod_use_optionitem_images ) {
 		$optimgs = $wpdb->get_results( $wpdb->prepare( "SELECT optionitemimage.optionitemimage_id, optionitemimage.optionitem_id, optionitemimage.product_id, optionitemimage.image1, optionitemimage.image2, optionitemimage.image3, optionitemimage.image4, optionitemimage.image5, optionitemimage.product_images, optionitem.optionitem_order FROM ec_optionitemimage as optionitemimage, ec_optionitem as optionitem WHERE optionitemimage.product_id = %d AND optionitem.optionitem_id = optionitemimage.optionitem_id GROUP BY optionitemimage.optionitemimage_id ORDER BY optionitemimage.product_id, optionitem.optionitem_order", $product_id ) );
 		if ( count( $optimgs ) > 0 ) {
@@ -1204,7 +1274,6 @@ function ec_show_facebook_meta( $model_number ) {
 			$product_images = ( isset( $optimgs[0]->product_images ) && '' != $optimgs[0]->product_images ) ? explode( ',', $optimgs[0]->product_images ) : array();
 		}
 	}
-
 	if ( count( $product_images ) > 0 ) {
 		if( 'video:' == substr( $product_images[0], 0, 6 ) ) {
 			$video_str = substr( $product_images[0], 6, strlen( $product_images[0] ) - 6 );
@@ -1245,7 +1314,6 @@ function ec_show_facebook_meta( $model_number ) {
 			}
 		}
 	}
-
 	remove_action('wp_head', 'rel_canonical');
 
 	//this method places to early, before html tags open
@@ -1468,7 +1536,7 @@ function wp_easycart_dynamic_cart_display( $language = 'NONE' ) {
 			$cart_page = 1;
 			global $wpdb;
 			$model_number = preg_replace( "/[^A-Za-z0-9\-\_]/", '', sanitize_text_field( $_GET['subscription'] ) );
-			$products = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
+			$products = $ec_db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "" );
 			if ( count( $products ) > 0 ) {
 				$cart_page = 5;
 				$product_id = $products[0]['product_id'];
@@ -1584,6 +1652,45 @@ function load_ec_account_forgot( $atts ) {
 	} else {
 		$account_page = new ec_accountpage( $redirect );
 		$account_page->display_account_page( 'forgot_password' );
+	}
+	return ob_get_clean();
+}
+
+//[ec_account_register]
+function load_ec_account_register( $atts ) {
+	if ( ! get_option( 'ec_option_cache_prevent' ) ) {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( "DONOTCACHEPAGE", true );
+		}
+
+		if ( ! defined( 'DONOTCDN' ) ) {
+			define('DONOTCDN', true);
+		}
+	}
+
+	extract( shortcode_atts( array(
+		'language' => 'NONE',
+		'redirect' => false
+	), $atts ) );
+	$language = strtoupper( esc_attr( sanitize_text_field( $language ) ) );
+
+	if ( $language != 'NONE' ) {
+		wp_easycart_language()->update_selected_language( $language );
+		$GLOBALS['ec_cart_data']->cart_data->translate_to = $language;
+		$GLOBALS['ec_cart_data']->save_session_to_db( );
+	}
+
+	ob_start();
+	if ( isset( $_POST['ec_form_action'] ) ) {
+		$account_page = new ec_accountpage( $redirect );
+		$account_page->process_form_action( sanitize_key( $_POST['ec_form_action'] ) );	
+
+	} else if ( get_option( 'ec_option_cache_prevent' ) ) {
+		wp_easycart_dynamic_account_display( $language, 'register' );
+
+	} else {
+		$account_page = new ec_accountpage( $redirect );
+		$account_page->display_account_page( 'register' );
 	}
 	return ob_get_clean();
 }
@@ -1715,9 +1822,13 @@ function load_ec_product( $atts ) {
 	global $wpdb;
 	$mysqli = new ec_db();
 	if ( $model_number != "NOPRODUCT" ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "" );
 	} else {
-		$product_where = " WHERE product.activate_in_store = 1";
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) {
+			$product_where = " WHERE product.activate_in_store = 1";
+		} else {
+			$product_where = " WHERE ( product.activate_in_store = 1 OR product.activate_in_store = 0 )";
+		}
 		$product_order_default = ' ORDER BY ';
 		if ( $status == 'featured' ) {
 			$product_where .= ' AND product.show_on_startup = 1';
@@ -1941,6 +2052,26 @@ function load_ec_product( $atts ) {
 	return ob_get_clean();
 }
 
+function wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id ) {
+	global $wpdb;
+	$products = array();
+	$mysqli = new ec_db();
+	if ( $use_post_id ) {
+		global $post;
+		if ( isset( $post ) && isset( $post->ID ) ) {
+			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.post_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $post->ID ), "", "", "" );
+		}
+		if ( 0 == count( $products ) ) {
+			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
+		}
+	} else if ( 'NOPRODUCT' != $model_number ) {
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "" );
+	} else if ( '' != $product_id ) {
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.product_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $product_id ), "", "", "" );
+	}
+	return $products;
+}
+
 //[ec_product_details_images]
 function load_ec_product_details_images( $atts ) {
 	extract( shortcode_atts( array(
@@ -1957,23 +2088,7 @@ function load_ec_product_details_images( $atts ) {
 		'thumbnails_stack' => 'row',
 	), $atts ) );
 	$model_number = sanitize_text_field( $model_number );
-
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2017,22 +2132,7 @@ function load_ec_product_details_price( $attributes ) {
 		'list_price_font' => $list_price_font,
 		'list_price_color' => $list_price_color,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2064,22 +2164,7 @@ function load_ec_product_details_title( $attributes ) {
 	$atts = array(
 		'title_element' => $title_element,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2111,22 +2196,7 @@ function load_ec_product_details_breadcrumbs( $attributes ) {
 		'breadcrumb_element' => $breadcrumb_element,
 		'divider_character' => $divider_character,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2167,22 +2237,7 @@ function load_ec_product_details_rating( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2209,22 +2264,7 @@ function load_ec_product_details_stock( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2251,22 +2291,7 @@ function load_ec_product_details_description( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2293,22 +2318,7 @@ function load_ec_product_details_specifications( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2356,22 +2366,7 @@ function load_ec_product_details_customer_reviews( $attributes ) {
 		'enable_review_form_title' => $enable_review_form_title,
 		'form_button_text' => $form_button_text,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2398,22 +2393,7 @@ function load_ec_product_details_short_description( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2447,22 +2427,7 @@ function load_ec_product_details_tabs( $attributes ) {
 		'show_description' => $show_description,
 		'show_specifications' => $show_specifications,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2489,22 +2454,7 @@ function load_ec_product_details_social( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2534,22 +2484,7 @@ function load_ec_product_details_manufacturer( $attributes ) {
 	$atts = array(
 		'label_text' => $label_text,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2576,22 +2511,7 @@ function load_ec_product_details_sku( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2625,22 +2545,7 @@ function load_ec_product_details_category( $attributes ) {
 		'categories_label' => $categories_label,
 		'categories_divider' => $categories_divider,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2667,22 +2572,7 @@ function load_ec_product_details_meta( $attributes ) {
 	), $attributes ) );
 	$model_number = sanitize_text_field( $model_number );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2720,22 +2610,7 @@ function load_ec_product_details_featured_products( $attributes ) {
 		'enable_product4' => $enable_product4,
 		'product_visible_options' => $product_visible_options,
 	);
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2768,22 +2643,7 @@ function load_ec_product_details_addtocart( $attributes ) {
 	$minus_icon = trim( $minus_icon );
 	$plus_icon = trim( $plus_icon );
 	$atts = array();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.model_number = %s', $model_number ), "", "", "" );
-	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.product_id = %d', $product_id ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $product_id );
 	ob_start();
 	$GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1;
 	$wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count'];
@@ -2805,6 +2665,7 @@ function load_ec_addtocart( $atts ) {
 	extract( shortcode_atts( array(
 		'is_elementor' => false,
 		'use_post_id' => false,
+		'model_number' => 'NOPRODUCT',
 		'productid' => 'NOPRODUCTID',
 		'enable_quantity' => 1,
 		'button_width' => false,
@@ -2815,20 +2676,7 @@ function load_ec_addtocart( $atts ) {
 	), $atts ) );
 	$productid = (int) $productid;
 	ob_start();
-	global $wpdb;
-	$mysqli = new ec_db();
-	$products = array();
-	if ( $use_post_id ) {
-		global $post;
-		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.activate_in_store = 1 AND product.post_id = %d', $post->ID ), "", "", "" );
-		}
-		if ( 0 == count( $products ) ) {
-			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
-		}
-	} else {
-		$products = $mysqli->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", $productid ), "", "", "" );
-	}
+	$products = wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $productid );
 	if ( count( $products ) > 0 ) {
 		$product = new ec_product( $products[0], 0, 1, 1 );
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_add_to_cart_shortcode.php' ) ) {
@@ -3228,6 +3076,7 @@ if ( !is_admin() || wp_doing_ajax() || ( isset( $_GET['action'] ) && $_GET['acti
 	add_shortcode( 'ec_cart', 'load_ec_cart' );
 	add_shortcode( 'ec_account', 'load_ec_account' );
 	add_shortcode( 'ec_account_forgot', 'load_ec_account_forgot' );
+	add_shortcode( 'ec_account_register', 'load_ec_account_register' );
 	add_shortcode( 'ec_product', 'load_ec_product' );
 	add_shortcode( 'ec_product_details_images', 'load_ec_product_details_images' );
 	add_shortcode( 'ec_product_details_price', 'load_ec_product_details_price' );
@@ -8393,15 +8242,16 @@ function ec_create_post_type_menu() {
 	// Update store item posts, set to private if inactive in store
 	if ( !get_option( 'ec_option_published_check' ) || get_option( 'ec_option_published_check' ) != EC_CURRENT_VERSION ) {	
 		global $wpdb;
-		$inactive_products = $wpdb->get_results( "SELECT ec_product.post_id, ec_product.model_number, ec_product.title FROM ec_product WHERE ec_product.activate_in_store = 0" );
+		$inactive_products = $wpdb->get_results( 'SELECT ec_product.post_id, ec_product.model_number, ec_product.title FROM ec_product WHERE ec_product.activate_in_store = 0' );
 		foreach ( $inactive_products as $product ) {
-			$post = array(	'ID'			=> $product->post_id,
-							'post_content'	=> "[ec_store modelnumber=\"" . $product->model_number . "\"]",
-							'post_status'	=> "private",
-							'post_title'	=> wp_easycart_language()->convert_text( $product->title ),
-							'post_type'		=> "ec_store",
-							'post_name'		=> str_replace(' ', '-', wp_easycart_language()->convert_text( $product->title ) ),
-					 );
+			$post = array(
+				'ID' => $product->post_id,
+				'post_content' => "[ec_store modelnumber=\"" . $product->model_number . "\"]",
+				'post_status' => "private",
+				'post_title' => wp_easycart_language()->convert_text( $product->title ),
+				'post_type' => "ec_store",
+				'post_name' => str_replace(' ', '-', wp_easycart_language()->convert_text( $product->title ) ),
+			);
 			wp_update_post( $post );
 		}
 		update_option( 'ec_option_published_check', EC_CURRENT_VERSION );

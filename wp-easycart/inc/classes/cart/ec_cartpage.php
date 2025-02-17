@@ -6243,56 +6243,57 @@ class ec_cartpage {
 				$exp_year = $charge->payment_method_details->card->exp_year;
 				$card = new ec_credit_card( $payment_method, sanitize_text_field( $_POST['card']['name'] ), $last_4, $exp_month, $exp_year, '' );
 			}
+
+			$order_id = $this->mysqli->insert_subscription_order( 
+				$product,
+				$GLOBALS['ec_user'],
+				$card,
+				(int) $_POST['subscription_id'],
+				$coupon,
+				( isset( $_POST['order_notes'] ) ) ? strip_tags( sanitize_textarea_field( $_POST['order_notes'] ) ) : '',
+				$this->subscription_option1_name,
+				$this->subscription_option2_name,
+				$this->subscription_option3_name,
+				$this->subscription_option4_name,
+				$this->subscription_option5_name,
+				$this->subscription_option1_label,
+				$this->subscription_option2_label,
+				$this->subscription_option3_label,
+				$this->subscription_option4_label,
+				$this->subscription_option5_label,
+				$quantity,
+				$this->order_totals,
+				$shipping_method,
+				$this->tax,
+				$discount_total,
+				$stripe_charge_id,
+				sanitize_text_field( $_POST['paymentintent_id'] ),
+				$option_price_onetime_adjustment
+			);
+			$this->mysqli->update_user_default_card( $GLOBALS['ec_user'], $card );
+
+			do_action( 'wpeasycart_subscription_first_order_inserted', $order_id );
+			do_action( 'wpeasycart_order_paid', $order_id );
+
+			$order_row = $this->mysqli->get_order_row( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
+			$order = new ec_orderdisplay( $order_row );
+			$order_details = $this->mysqli->get_order_details( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
+			$subscription->send_email_receipt( $GLOBALS['ec_user'], $order, $order_details );
+			$this->mysqli->update_product_stock( $product->product_id, $quantity );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $order_id ) );
+			$order_log_id = $wpdb->insert_id;
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $product->product_id ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $quantity ) );
+
+			if ( $subscription->payment_duration > 0 && $subscription->payment_duration == 1 ) {
+				$stripe->cancel_subscription( $GLOBALS['ec_user'], $subscription->stripe_subscription_id );
+				$this->mysqli->cancel_stripe_subscription( $subscription->stripe_subscription_id );
+			}
+
+			return $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $order_id;
+		} else {
+			return $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $subscription->subscription_id;
 		}
-
-		$order_id = $this->mysqli->insert_subscription_order( 
-			$product,
-			$GLOBALS['ec_user'],
-			$card,
-			(int) $_POST['subscription_id'],
-			$coupon,
-			( isset( $_POST['order_notes'] ) ) ? strip_tags( sanitize_textarea_field( $_POST['order_notes'] ) ) : '',
-			$this->subscription_option1_name,
-			$this->subscription_option2_name,
-			$this->subscription_option3_name,
-			$this->subscription_option4_name,
-			$this->subscription_option5_name,
-			$this->subscription_option1_label,
-			$this->subscription_option2_label,
-			$this->subscription_option3_label,
-			$this->subscription_option4_label,
-			$this->subscription_option5_label,
-			$quantity,
-			$this->order_totals,
-			$shipping_method,
-			$this->tax,
-			$discount_total,
-			$stripe_charge_id,
-			sanitize_text_field( $_POST['paymentintent_id'] ),
-			$option_price_onetime_adjustment
-		);
-		$this->mysqli->update_user_default_card( $GLOBALS['ec_user'], $card );
-
-		do_action( 'wpeasycart_subscription_first_order_inserted', $order_id );
-		do_action( 'wpeasycart_order_paid', $order_id );
-
-		$order_row = $this->mysqli->get_order_row( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
-		$order = new ec_orderdisplay( $order_row );
-		$order_details = $this->mysqli->get_order_details( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
-		$subscription->send_email_receipt( $GLOBALS['ec_user'], $order, $order_details );
-		$this->mysqli->update_product_stock( $product->product_id, $quantity );
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $order_id ) );
-		$order_log_id = $wpdb->insert_id;
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $product->product_id ) );
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $quantity ) );
-
-		if ( $subscription->payment_duration > 0 && $subscription->payment_duration == 1 ) {
-			$stripe->cancel_subscription( $GLOBALS['ec_user'], $subscription->stripe_subscription_id );
-			$this->mysqli->cancel_stripe_subscription( $subscription->stripe_subscription_id );
-		}
-
-		return $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $order_id;
-
 	}
 
 	public function submit_stripe_quick_subscription( $payment_id ) {
@@ -7048,10 +7049,7 @@ class ec_cartpage {
 		}
 		$default_response = $stripe->set_default_payment_method( $card_response, $GLOBALS['ec_user'] );
 
-		$prorate = "false";
-		if ( $product->subscription_prorate ) {
-			$prorate = "true";
-		}
+		$prorate = $product->subscription_prorate;
 		$trial_end_date = NULL;
 		if ( $product->trial_period_days > 0 ) {
 			$trial_end_date = strtotime( "+" . $product->trial_period_days . " days" );
@@ -8972,10 +8970,7 @@ class ec_cartpage {
 										$stripe->update_customer( $GLOBALS['ec_user'], $this->order_totals->shipping_total );
 									}
 
-									$prorate = "false";
-									if ( $product->subscription_prorate ) {
-										$prorate = "true";
-									}
+									$prorate = $product->subscription_prorate;
 									$trial_end_date = NULL;
 									if ( $product->trial_period_days > 0 ) {
 										$trial_end_date = strtotime( "+" . $product->trial_period_days . " days" );

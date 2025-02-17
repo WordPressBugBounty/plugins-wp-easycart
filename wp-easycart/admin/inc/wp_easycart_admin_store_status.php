@@ -870,14 +870,20 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 						)
 					)
 				);
-				$usps_xml = new SimpleXMLElement( $usps_response );
-
-				if ( $usps_xml->Number )
-					$usps_error_reason = 1;
-				else if ( $usps_xml->Package[0]->Error )
-					$usps_error_reason = 2;
-				else
-					$usps_setup = true;
+				try {
+					$usps_xml = new SimpleXMLElement( $usps_response );
+					if ( isset( $usps_xml->Error ) ) {
+						$usps_error_reason = 3;
+					} else if ( $usps_xml->Number ) {
+						$usps_error_reason = 1;
+					} else if ( $usps_xml->Package[0]->Error ) {
+						$usps_error_reason = 2;
+					} else {
+						$usps_setup = true;
+					}
+				} catch ( Exception $e ) {
+					// Ignore errors
+				}
 			}
 
 			return ( $usps_has_settings && $usps_setup );
@@ -905,16 +911,22 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$setting_row = $db->get_settings();
 			$settings = new ec_setting( $setting_row );
 
-			if ( $setting_row->fedex_key && $setting_row->fedex_account_number && $setting_row->fedex_meter_number && $setting_row->fedex_password && $setting_row->fedex_ship_from_zip && $setting_row->fedex_weight_units && $setting_row->fedex_country_code ) {
+			if ( get_option( 'ec_option_fedex_use_oauth' ) && '' != get_option( 'ec_option_fedex_api_key' ) && '' != get_option( 'ec_option_fedex_api_secret_key' ) ) {
 				$fedex_has_settings = true;
-				// Run test of the settings
-
+				$fedex_class = new ec_fedex( $settings );
+				$fedex_response = $fedex_class->get_rate_test( 'FEDEX_GROUND', $setting_row->fedex_ship_from_zip, $setting_row->fedex_country_code, "1", 10, 10, 10, 10, array( (object) array( 'quantity' => 1, 'weight' => 1, 'width' => 10, 'length' => 10, 'height' => 10, 'is_shippable' => 1, 'unit_price' => 1.00 ) ) );
+				if ( is_string( $fedex_response ) && 'ERROR' == $fedex_response ) {
+					$fedex_error_reason ='error';
+				} else {
+					$fedex_setup = true;
+				}
+			} else if ( $setting_row->fedex_key && $setting_row->fedex_account_number && $setting_row->fedex_meter_number && $setting_row->fedex_password && $setting_row->fedex_ship_from_zip && $setting_row->fedex_weight_units && $setting_row->fedex_country_code ) {
+				$fedex_has_settings = true;
 				if ( $setting_row->fedex_weight_units != "LB" && $setting_row->fedex_weight_units != "KG" ) {
 					$fedex_error_reason = 2;
 				} else {
 					$fedex_class = new ec_fedex( $settings );
 					$fedex_response = $fedex_class->get_rate_test( "FEDEX_GROUND", $setting_row->fedex_ship_from_zip, $setting_row->fedex_country_code, "1", 10, 10, 10, 10, array( (object) array( 'quantity' => 1, 'weight' => 1, 'width' => 10, 'length' => 10, 'height' => 10, 'is_shippable' => 1, 'exclude_shippable_calculation' => 0, 'unit_price' => 1.00 ) ) );
-
 					if ( isset( $fedex_response->HighestSeverity ) && ( $fedex_response->HighestSeverity == 'FAILURE' || $fedex_response->HighestSeverity == 'ERROR' ) ) {
 						if ( isset( $fedex_response->Notifications->Code ) ) {
 							$fedex_error_reason = $fedex_response->Notifications->Code;
@@ -926,7 +938,6 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					}
 				}
 			}
-
 			return ( $fedex_has_settings && $fedex_setup );
 		}
 
@@ -958,15 +969,19 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				// Run test of the settings
 				$dhl_class = new ec_dhl( $settings );
 				$dhl_response = $dhl_class->get_rate_test( "N", $setting_row->dhl_ship_from_zip, $setting_row->dhl_ship_from_country, "1" );
-				$dhl_xml = new SimpleXMLElement( $dhl_response );
-
-				if ( $dhl_xml && $dhl_xml->Response && $dhl_xml->Response->Status && $dhl_xml->Response->Status->ActionStatus && $dhl_xml->Response->Status->ActionStatus == "Error" ) {
-					$dhl_error_code = $dhl_xml->Response->Status->Condition->ConditionCode;
-					$dhl_error_reason = $dhl_xml->Response->Status->Condition->ConditionData;
-				} else if ( $dhl_xml && $dhl_xml->Response && $dhl_xml->Response->Note && count( $dhl_xml->Response->Note ) > 0 && $dhl_xml->Response->Note[0]->Status && $dhl_xml->Response->Note[0]->Status->Condition && $dhl_xml->Response->Note[0]->Status->Condition->ConditionData ) {
-					$dhl_error_reason = $dhl_xml->Response->Note[0]->Status->Condition->ConditionData;
-				} else
-					$dhl_setup = true;
+				try {
+					$dhl_xml = new SimpleXMLElement( $dhl_response );
+					if ( $dhl_xml && $dhl_xml->Response && $dhl_xml->Response->Status && $dhl_xml->Response->Status->ActionStatus && $dhl_xml->Response->Status->ActionStatus == "Error" ) {
+						$dhl_error_code = $dhl_xml->Response->Status->Condition->ConditionCode;
+						$dhl_error_reason = $dhl_xml->Response->Status->Condition->ConditionData;
+					} else if ( $dhl_xml && $dhl_xml->Response && $dhl_xml->Response->Note && count( $dhl_xml->Response->Note ) > 0 && $dhl_xml->Response->Note[0]->Status && $dhl_xml->Response->Note[0]->Status->Condition && $dhl_xml->Response->Note[0]->Status->Condition->ConditionData ) {
+						$dhl_error_reason = $dhl_xml->Response->Note[0]->Status->Condition->ConditionData;
+					} else {
+						$dhl_setup = true;
+					}
+				} catch ( Exception $e ) {
+					// Ignore errors
+				}
 			}
 
 			return ( $dhl_has_settings && $dhl_setup );
@@ -1074,28 +1089,28 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$test_user->setup_shipping_info_data( "", "", "152-153 Fleet St", "", "London", "", "GB", "EC4A2DQ", "" );
 
 				$fraktjakt_response = $fraktjakt_class->get_shipping_options_test( $test_user );
-				$xml = new SimpleXMLElement( $fraktjakt_response );
-
-				if ( isset( $xml->shipping_products ) && isset( $xml->shipping_products->shipping_product ) && count( $xml->shipping_products->shipping_product ) > 0 )
-					$fraktjakt_setup = true;
-				else
-					$fraktjakt_error_reason = "1";
-
+				try {
+					$xml = new SimpleXMLElement( $fraktjakt_response );
+					if ( isset( $xml->shipping_products ) && isset( $xml->shipping_products->shipping_product ) && count( $xml->shipping_products->shipping_product ) > 0 ) {
+						$fraktjakt_setup = true;
+					} else {
+						$fraktjakt_error_reason = "1";
+					}
+				} catch( Exception $e ) {
+					// Ignore errors
+				}
 			}
-
 			return ( $fraktjakt_has_settings && $fraktjakt_setup );
 		}
-
-
-
 
 		public function ec_using_no_tax() {
 			$db = new ec_db_admin();
 			$taxrates = $db->get_taxrates();
-			if ( count( $taxrates ) > 0 || get_option( 'ec_option_enable_easy_canada_tax' ) )
+			if ( count( $taxrates ) > 0 || get_option( 'ec_option_enable_easy_canada_tax' ) ) {
 				return false;
-			else
+			} else {
 				return true;
+			}
 		}
 
 		public function ec_using_state_tax() {

@@ -195,7 +195,7 @@ class ec_stripe_connect extends ec_gateway {
 	////////////////////////////////////////////////
 	// PUBLIC SUBSCRIPTION FUNCTIONS
 	////////////////////////////////////////////////
-	public function insert_subscription( $product, $user, $card, $coupon = NULL, $prorate = "true", $trial_end = NULL, $quantity = 1, $tax_rate = 0.00, $subscription_options = array(), $tax_rates = array(), $subscription_option_quantities = array(), $shipping_plan_id = false ) {
+	public function insert_subscription( $product, $user, $card, $coupon = NULL, $prorate = true, $trial_end = NULL, $quantity = 1, $tax_rate = 0.00, $subscription_options = array(), $tax_rates = array(), $subscription_option_quantities = array(), $shipping_plan_id = false ) {
 		$data = $this->get_insert_subscription_data( $product, $user, $card, $coupon, $prorate, $trial_end, $quantity, $tax_rate, $subscription_options, $tax_rates, $subscription_option_quantities, $shipping_plan_id );
 		$response = $this->call_stripe( 'https://api.stripe.com/v1/customers/' . $user->stripe_customer_id . '/subscriptions', $data );
 		$json = json_decode( $response );
@@ -251,7 +251,7 @@ class ec_stripe_connect extends ec_gateway {
 		}
 	}
 
-	public function update_subscription( $product, $user, $card = NULL, $subscription_id = NULL, $coupon = NULL, $prorate = "true", $trial_end = NULL, $quantity = 1, $subscription_item_id = false ) {
+	public function update_subscription( $product, $user, $card = NULL, $subscription_id = NULL, $coupon = NULL, $prorate = true, $trial_end = NULL, $quantity = 1, $subscription_item_id = false ) {
 		$data = $this->get_update_subscription_data( $product, $user, $card, $coupon, $prorate, $trial_end, $quantity, $subscription_item_id );
 		$response = $this->call_stripe( 'https://api.stripe.com/v1/customers/' . $user->stripe_customer_id . '/subscriptions/' . $subscription_id, $data );
 		$json = json_decode( $response );
@@ -1389,6 +1389,12 @@ class ec_stripe_connect extends ec_gateway {
 		} else {
 			$product_id = $product->product_id;
 		}
+	
+		if ( ! $prorate ) {
+			$proration_behavior = 'none';
+		} else {
+			$proration_behavior = 'create_prorations';
+		}
 
 		$shipping_tax_rates = array();
 		$regular_tax_rates = array();
@@ -1408,20 +1414,20 @@ class ec_stripe_connect extends ec_gateway {
 
 		if( isset( $_POST['stripeToken'] ) ){
 			$gateway_data = array(	
-				"items"						=> array(
+				"items" => array(
 					array(
-						"quantity"			=> $quantity,
-						"tax_rates"			=> $regular_tax_rates,
+						"quantity" => $quantity,
+						"tax_rates" => $regular_tax_rates,
 					)
 				),
-				"coupon"					=> $coupon,
-				"default_source"			=> $card,
-				//"tax_percent"				=> $tax_rate,
-				"expand"					=> array(
+				"coupon" => $coupon,
+				"default_source" => $card,
+				'proration_behavior' => $proration_behavior,
+				"expand" => array(
 					"latest_invoice.payment_intent"
 				),
-				"trial_end"					=> $trial_end,
-				"application_fee_percent"	=> apply_filters( 'wp_easycart_stripe_connect_fee_rate', 2 )
+				"trial_end" => $trial_end,
+				"application_fee_percent" => apply_filters( 'wp_easycart_stripe_connect_fee_rate', 2 )
 			);
 			if ( $price_id ) {
 				$gateway_data['items'][0]['price'] = $price_id;
@@ -1498,7 +1504,7 @@ class ec_stripe_connect extends ec_gateway {
 	}
 
 	private function get_update_subscription_data( $product, $user, $card, $coupon, $prorate, $trial_end, $quantity, $subscription_item_id ) {
-		if ( '0' == $prorate ) {
+		if ( ! $prorate ) {
 			$prorate = 'none';
 		} else {
 			$prorate = 'create_prorations';

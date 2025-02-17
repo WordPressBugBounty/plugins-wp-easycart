@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.7
-Stable tag: 5.7.10
+Stable tag: 5.7.11
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,14 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.11 =
+* New Feature - If product is deactivated, a WordPress admin (or WP EasyCart user role) user can still view the product details.
+* New Feature - You can now use modifiers in your ec_add_to_cart URL (if all modifiers have URL keys and are of non-complex types). System will verify data before adding to the cart or redirect the user to the product if missing a parameter.
+* New Shortcode - [ec_account_register] to allow you to place the registration account form on any page.
+* Bug Fix - For live shipping that relies on SimpleXML, system now handles a failure in response from the live rate provider.
+* Bug Fix - Stripe subscriptions and proration fixed.
+* Bug Fix - Square with tax on shipping fixed so that orders are created properly in the Square dashbaord.
+* Bug Fix - Object cache issue with shipping settings fixed.
 = 5.7.10 =
 * Bug Fix - Store status tax section shows set up with Canada Tax.
 * Bug Fix - Button click in admin issue on somse systems fixed.

@@ -465,7 +465,9 @@ class ec_subscription{
 			$ret_string .= "s";
 		}
 
-		$ret_string = apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string );
+		global $wpdb;
+		$model_number = $wpdb->get_var( $wpdb->prepare( "SELECT ec_product.model_number FROM ec_product WHERE ec_product.product_id = %d", $this->product_id ) );
+		$ret_string = apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $model_number, $this->product_id );
 
 		return $ret_string;
 

@@ -865,7 +865,7 @@ class ec_product {
 				$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . esc_attr( $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( ) );
 
 			}
-			$ret_string = apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string );
+			$ret_string = apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 			$output .= "</span><span class=\"ec_product_price\">" . $ret_string;
 		}
 		$output .= "</span>";
@@ -893,7 +893,7 @@ class ec_product {
 			$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( );
 		}
 
-		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string );
+		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 
 		return $ret_string;
 
@@ -912,7 +912,7 @@ class ec_product {
 			$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( );
 		}
 
-		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string );
+		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 
 		return $ret_string;
 

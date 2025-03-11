@@ -497,12 +497,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d WHERE product_id = %d', $post_id, $newid ) );
 
-			if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
-				if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' )
+			if ( $original_record->is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
+				if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 					$stripe = new ec_stripe();
-				else if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' )
+				} else if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
 					$stripe = new ec_stripe_connect();
-
+				}
 				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, is_subscription_item, stripe_plan_added, subscription_unique_id, product_id, price, title, subscription_bill_period, subscription_bill_length, trial_period_days FROM ec_product WHERE product_id = %d', $newid ) );
 				$stripe_product = $stripe->insert_product( $product_row );
 				$stripe_price_id = $stripe_product->default_price;

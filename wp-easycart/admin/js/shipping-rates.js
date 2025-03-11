@@ -1,3 +1,28 @@
+jQuery( document ).ready( function() {
+	if( jQuery( '.ec_admin_live_rate_table' ).length ) {
+		jQuery( '.ec_admin_live_rate_table' ).sortable( {
+			update: function() {
+				var nonce = jQuery( '#ec_admin_live_shipping_rates_table' ).attr( 'data-nonce' );
+				var rows = jQuery( '#ec_admin_live_shipping_rates_table > div' );
+				var ids = Array();
+				for ( var i = 0; i < rows.length; i++ ) {
+					ids.push( { id:jQuery( rows[i] ).attr( 'data-id' ), order: Number( i ) } );
+				}
+				var data = {
+					sort_order: JSON.stringify( ids ),
+					action: 'ec_admin_ajax_save_live_rates_sort_order',
+					wp_easycart_nonce: nonce
+				};
+				jQuery.ajax( {
+					url: wpeasycart_admin_ajax_object.ajax_url,
+					type: 'post',
+					data: data
+				} );
+			}
+		} );
+	}
+} );
+
 function toggle_shipping_method( save_new ){
 	var current_selection = jQuery( document.getElementById( 'ec_option_shipping_method' ) ).val( );
 	jQuery( '.ec_admin_settings_shipping_section' ).hide( );

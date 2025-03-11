@@ -137,7 +137,7 @@ function ec_admin_save_cart_options() {
 
 <?php do_action( 'wp_easycart_subscription_top', $product ); ?>
 
-<section class="ec_cart_page">
+<section class="ec_cart_page ec_cart_subscription">
 
 	<?php if ( $product->is_subscription_item && $product->trial_period_days > 0 ) { ?>
 	<div class="ec_cart_success"><?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_1' ); ?> <?php echo esc_attr( $product->trial_period_days ); ?> <?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_2' ); ?></div>
@@ -326,9 +326,11 @@ function ec_admin_save_cart_options() {
 			<?php }?>
 
 			<div class="ec_cart_price_row ec_cart_price_row_grand_total">
-				<div class="ec_cart_price_row_label"><?php echo wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' )?></div>
+				<div class="ec_cart_price_row_label"><?php echo esc_attr( apply_filters( 'wp_easycart_subscription_grand_total_label', wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' ), $product ) ); ?></div>
 				<div class="ec_cart_price_row_total" id="ec_cart_total_mobile"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $grand_total ) ); ?></div>
 			</div>
+
+			<?php do_action( 'wp_easycart_cart_subscription_after_grand_total', $product ); ?>
 
 			<?php if ( $product->subscription_signup_fee > 0 ) { ?>
 			<div class="ec_cart_price_row_total ec_cart_price_row_fees">
@@ -1480,9 +1482,11 @@ function ec_admin_save_cart_options() {
 		<?php }?>
 
 		<div class="ec_cart_price_row ec_cart_price_row_grand_total">
-			<div class="ec_cart_price_row_label"><?php echo wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' )?></div>
+			<div class="ec_cart_price_row_label"><?php echo esc_attr( apply_filters( 'wp_easycart_subscription_grand_total_label', wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' ), $product ) ); ?></div>
 			<div class="ec_cart_price_row_total" id="ec_cart_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $grand_total ) ); ?></div>
 		</div>
+
+		<?php do_action( 'wp_easycart_cart_subscription_after_grand_total', $product ); ?>
 
 		<?php if ( $product->subscription_signup_fee > 0 ) { ?>
 		<div class="ec_cart_price_row_total ec_cart_price_row_fees">

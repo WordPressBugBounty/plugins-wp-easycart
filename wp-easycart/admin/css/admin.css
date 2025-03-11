@@ -1186,7 +1186,8 @@ input.ec_admin_taxcloud_field, select.ec_admin_taxcloud_field{ float:right; marg
 .ec_admin_shipping_live_trigger_row_new span{ float:left; width:175px; }
 .ec_admin_shipping_live_trigger_row_new input, .ec_admin_shipping_live_trigger_row_new select{ float:left; }
 .ec_admin_shipping_live_trigger_row_new{ margin-bottom:4px; }
-.ec_admin_live_rate_display{ position:relative; float:left; width:32%; text-align:left; border:1px solid #79af40; padding:10px; margin-right:1%; margin-bottom:15px; background:#efefef; }
+.ec_admin_live_rate_table{ position:relative; float:left; width:100%; }
+.ec_admin_live_rate_display{ position:relative; float:left; width:100%; cursor:move; text-align:left; border:1px solid #79af40; padding:10px; margin-right:1%; margin-bottom:15px; background:#efefef; }
 .ec_admin_live_rate_display select, .ec_admin_live_rate_display input[type="text"]{ float:none !important; width:100% !important; min-width:100% !important; text-align:left; }
 .ec_admin_live_rate_display input[type="number"]{ float:right; width:45%;; text-align:left; }
 .ec_admin_live_rate_display span{ width:18%; font-size:12px; float:left; text-align:right; }

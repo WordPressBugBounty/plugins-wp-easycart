@@ -1435,6 +1435,10 @@ class ec_stripe_connect extends ec_gateway {
 				$gateway_data['items'][0]['plan'] = $product_id;
 			}
 
+			if ( $billing_cycle_anchor = apply_filters( 'wp_easycart_stripe_subscription_billing_cycle_anchor', false, $product, $subscription_options, $user ) ) {
+				$gateway_data['billing_cycle_anchor'] = $billing_cycle_anchor;
+			}
+
 			for( $i=0; $i<count( $subscription_options ); $i++ ){
 				$gateway_data['items'][] = array(
 					"plan"					=> $subscription_options[$i],

@@ -23,6 +23,17 @@ class ec_options{
 		$option = wp_cache_get( 'wpeasycart-option-'.$option_id, 'wpeasycart-options' );
 		if( !$option ){
 			$option = $this->wpdb->get_row( $this->wpdb->prepare( "SELECT * FROM ec_option WHERE ec_option.option_id = %d ORDER BY ec_option.option_id", $option_id ) );
+			if ( $option->option_meta ) {
+				$option->option_meta = maybe_unserialize( $option->option_meta );
+			} else {
+				$option->option_meta = array(
+					"min" => "",
+					"max" => "",
+					"step" => "",
+					"url_var" => "",
+					"swatch_size" => "30"
+				);
+			}
 			wp_cache_set( 'wpeasycart-option-'.$option_id, $option, 'wpeasycart-options' );
 		}
 		return $option;

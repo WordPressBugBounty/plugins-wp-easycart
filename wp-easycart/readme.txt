@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.7
-Stable tag: 5.7.11
+Stable tag: 5.7.12
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,11 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.12 =
+* New Feature - Live shipping rates are now sortable via drag and drop.
+* New Feature - Basic options can be included in an add to cart direct link using the url variable feature.
+* Bug Fix - Duplication of a basic product with stripe fix to stop adding products incorrectly to your Stripe product catalog.
+* Bug Fix - Stripe prorate behavior fix.
 = 5.7.11 =
 * New Feature - If product is deactivated, a WordPress admin (or WP EasyCart user role) user can still view the product details.
 * New Feature - You can now use modifiers in your ec_add_to_cart URL (if all modifiers have URL keys and are of non-complex types). System will verify data before adding to the cart or redirect the user to the product if missing a parameter.

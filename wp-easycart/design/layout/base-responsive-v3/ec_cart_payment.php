@@ -162,17 +162,17 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						var formattedDate = jQuery.datepicker.formatDate( 'yy-mm-dd', date );
 						if ( pickup_rules.holidays.hasOwnProperty( formattedDate ) ) {
 							var holidayRule = pickup_rules.holidays[ formattedDate ];
-							if ( '1' == holidayRule.is_closed ) {
+							if ( typeof holidayRule !== 'undefined' && '1' == holidayRule.is_closed ) {
 								return [false, ''];
-							} else {
+							} else if ( typeof holidayRule !== 'undefined' ) {
 								minTime = holidayRule.min;
 								maxTime = holidayRule.max;
 							}
 						} else {
 							var dayRule = pickup_rules[ Object.keys( pickup_rules )[ day ] ];
-							if ( '1' == dayRule.is_closed ) {
+							if ( typeof dayRule !== 'undefined' && '1' == dayRule.is_closed ) {
 								return [false, ''];
-							} else {
+							} else if ( typeof dayRule !== 'undefined' ) {
 								minTime = dayRule.min;
 								maxTime = dayRule.max;
 							}
@@ -522,8 +522,8 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						clientSecret: '<?php echo esc_attr( $this->get_stripe_intent_client_secret() ); ?>',
 						appearance: {
 							theme: '<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>',
-
 						},
+						locale: wpeasycart_ajax_object.current_language
 					};
 					const elements = stripe.elements( options );
 					const paymentElement = elements.create( 'payment', {

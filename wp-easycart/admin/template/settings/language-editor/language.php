@@ -6,9 +6,9 @@
 	$languages = wp_easycart_language( )->get_languages_array( );
 	$language_data = wp_easycart_language( )->get_language_data( );
 	$file_name = get_option( 'ec_option_language' );
-
-	foreach ( $language_data->{$file_name}->options as $key_section => $language_section ) {
-		$section_label = $language_section->label;
+	if ( isset( $language_data->{$file_name} ) ) {
+		foreach ( $language_data->{$file_name}->options as $key_section => $language_section ) {
+			$section_label = $language_section->label;
 ?>
 
 <div class="ec_admin_list_line_item_fullwidth_language ec_admin_demo_data_line">
@@ -48,7 +48,10 @@
 	</div>
   </form>
 </div>
-<?php }?>
+<?php
+		}
+	}
+?>
 <input type="hidden" value="<?php echo esc_attr( get_option( 'ec_option_language' ) ); ?>" name="ec_option_language" id="ec_option_language"  />
 <script>
 function ec_hide_show_language_section( section ){

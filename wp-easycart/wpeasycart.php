@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.12
+ * Version: 5.7.13
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.12
+ * @version 5.7.13
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_12' );
+define( 'EC_CURRENT_VERSION', '5_7_13' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '93' );
 
@@ -839,8 +839,8 @@ function load_ec_pre() {
 		if ( $tempcart_row ) {
 			$GLOBALS['ec_cart_id'] = $tempcart_row->session_id;
 			setcookie( "ec_cart_id", "", time() - 3600 );
-			setcookie( "ec_cart_id", "", time() - 3600, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
-			setcookie( 'ec_cart_id', $GLOBALS['ec_cart_id'], time() + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+			setcookie( "ec_cart_id", "", time() - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+			setcookie( 'ec_cart_id', $GLOBALS['ec_cart_id'], time() + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 			$cart_page_id = get_option('ec_option_cartpage');
 			if ( function_exists( 'icl_object_id' ) )
 				$cart_page_id = icl_object_id( $cart_page_id, 'page', true, ICL_LANGUAGE_CODE );
@@ -876,7 +876,7 @@ function load_ec_pre() {
 
 			do_action( 'wpeasycart_subscriber_added', sanitize_email( $_POST['ec_newsletter_email'] ), $newsletter_name );
 		}
-		setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+		setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 	}
 
 	/* Manual Hide Video */
@@ -6372,7 +6372,6 @@ function ec_ajax_update_subscription_shipping_method() {
 add_action( 'wp_ajax_ec_ajax_update_shipping_method', 'ec_ajax_update_shipping_method' );
 add_action( 'wp_ajax_nopriv_ec_ajax_update_shipping_method', 'ec_ajax_update_shipping_method' );
 function ec_ajax_update_shipping_method() {
-	// wpeasycart_session()->handle_session();
 	$session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
 	if ( ! isset( $_POST['shipping_method'] ) ) {
 		die();
@@ -6385,39 +6384,15 @@ function ec_ajax_update_shipping_method() {
 
 	$cartpage = new ec_cartpage();
 	$ship_express = (int) sanitize_text_field( $_POST['ship_express'] );
-
-	//Create a new db and submit review
 	$GLOBALS['ec_cart_data']->cart_data->shipping_method = ( $cartpage->shipping->is_valid_shipping_method( $shipping_method ) ) ? $shipping_method : '';
 	$GLOBALS['ec_cart_data']->cart_data->expedited_shipping = $ship_express;
 
 	$GLOBALS['ec_cart_data']->save_session_to_db();
 	wp_cache_flush();
 	do_action( 'wpeasycart_cart_updated' );
-
-	$cart = new ec_cart( $GLOBALS['ec_cart_data']->ec_cart_id );
-	$order_totals = ec_get_order_totals( $cart );
-	$cart = new ec_cart( $GLOBALS['ec_cart_data']->ec_cart_id );
-	$shipping = new ec_shipping( $cart->subtotal, $cart->weight, $cart->shippable_total_items, 'RADIO', $GLOBALS['ec_user']->freeshipping );
-
-	if ( $GLOBALS['ec_setting']->get_shipping_method() == "live" ) {
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_totals->shipping_total ) ) . '***' .esc_attr( $GLOBALS['currency']->get_currency_display( $order_totals->grand_total ) ) . '***';
-		$shipping->print_shipping_options(
-			wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ),
-			wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ),
-			'RADIO'
-		);
-		echo '***' . esc_attr( $GLOBALS['currency']->get_currency_display( $order_totals->vat_total ) );
-	} else {
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_totals->shipping_total ) ) . '***' . esc_attr( $GLOBALS['currency']->get_currency_display( $order_totals->grand_total ) ) . '***';
-		$shipping->print_shipping_options(
-			wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ),
-			wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ),
-			'RADIO'
-		);
-	}
-
+	$return_array = ec_get_cart_data();
+	echo json_encode( $return_array );
 	die();
-
 }
 
 add_action( 'wp_ajax_ec_ajax_update_payment_method', 'ec_ajax_update_payment_method' );
@@ -6539,7 +6514,7 @@ function ec_ajax_close_newsletter() {
 		die();
 	}
 
-	setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+	setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 
 	die();
 
@@ -6573,7 +6548,7 @@ function ec_ajax_submit_newsletter_signup() {
 
 		do_action( 'wpeasycart_subscriber_added', sanitize_email( $_POST['email_address'] ), sanitize_text_field( $_POST['newsletter_name'] ) );
 	}
-	setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+	setcookie( 'ec_newsletter_popup', 'hide', time() + ( 10 * 365 * 24 * 60 * 60 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 
 	die();
 

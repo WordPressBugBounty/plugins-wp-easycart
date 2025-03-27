@@ -236,8 +236,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$valid_values = array( 10, 25, 50, 100, 250, 500 );
 				if( in_array( (int) $_GET['perpage'], $valid_values ) ){
 					setcookie( 'wpeasycart_admin_perpage', '', time() - 3600 );
-					setcookie( 'wpeasycart_admin_perpage', '', time() - 3600, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
-					setcookie( 'wpeasycart_admin_perpage', (int) $_GET['perpage'], time() + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+					setcookie( 'wpeasycart_admin_perpage', '', time() - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+					setcookie( 'wpeasycart_admin_perpage', (int) $_GET['perpage'], time() + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 				}
 			}
 		}

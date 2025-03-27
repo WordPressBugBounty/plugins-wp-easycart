@@ -69,6 +69,7 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .ec_product_li a > .image-overlay.overlay-type-extern{ display:none !important; }
 .ec_image_link_cover{ position:absolute; top:0; left:0; width:100%; height:100%; z-index:669; border:none; border-bottom:none !important; }
 .ec_image_link_cover:hover{ text-decoration:none; border:none; }
+.wpec-visually-hide{ position:absolute !important; clip:rect(1px, 1px, 1px, 1px); padding:0 !important; border:0 !important; height:1px !important; width:1px !important; overflow:hidden; white-space:nowrap; margin:-1px; }
 .ec_product_li.empty{ text-align:center; }
 .ec_product_li.hidden{ display:none; }
 .ec_productlist_ul{ padding-left:0px; }

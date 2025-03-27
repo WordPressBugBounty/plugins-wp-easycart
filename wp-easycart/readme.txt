@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.7
-Stable tag: 5.7.12
+Stable tag: 5.7.13
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,14 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.13 =
+* Bug Fix - Newsletter popup, switched h1 to h2 to prevent seo issues.
+* Bug Fix - Australian states/territories with 3 characters were not passing to PayPal correctly.
+* Bug Fix - Elementor product details template with modifier images that switch from a radio button selection were not working.
+* Bug Fix - For those using different languages, the locale is now passed to Stripe to allow the payment form language to match the selected language.
+* Bug Fix - Canada tax element IDs were incorrect, causing the values to not update dynamically.
+* Improvement - Tax rates update, if necessary, on update of shipping method selection.
+* Improvement - Live shipping rates update table, each item has it's own update button.
 = 5.7.12 =
 * New Feature - Live shipping rates are now sortable via drag and drop.
 * New Feature - Basic options can be included in an add to cart direct link using the url variable feature.

@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2024-12-20 13:30-0800\n"
-"PO-Revision-Date: 2024-12-20 13:30-0800\n"
+"POT-Creation-Date: 2025-03-26 15:04-0700\n"
+"PO-Revision-Date: 2025-03-26 15:04-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: fr\n"
@@ -2980,8 +2980,8 @@ msgstr "Terminé"
 #: admin/template/users/subscribers/subscribers-details.php:32
 #: admin/template/users/user-roles/user-role-details.php:18
 #: admin/template/users/user-roles/user-role-details.php:50
-#: admin/template/users/users/user-details.php:24
-#: admin/template/users/users/user-details.php:108
+#: admin/template/users/users/user-details.php:21
+#: admin/template/users/users/user-details.php:88
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -3014,7 +3014,7 @@ msgstr "Magasin par catégorie"
 #: admin/template/settings/pricepoint/pricepoint-list.php:62
 #: admin/template/users/subscribers/subscribers-list.php:62
 #: admin/template/users/user-roles/user-role-list.php:48
-#: admin/template/users/users/user-list.php:78
+#: admin/template/users/users/user-list.php:84
 msgid "Edit"
 msgstr "Modifier"
 
@@ -3131,8 +3131,8 @@ msgstr "Mettez à niveau dès aujourd'hui !"
 
 #: admin/inc/wp_easycart_admin.php:2103
 #: admin/inc/wp_easycart_admin_initial_setup.php:314
-#: admin/template/reports.php:45 admin/template/shell.php:94
-#: admin/template/shell.php:120
+#: admin/template/reports.php:45 admin/template/shell.php:81
+#: admin/template/shell.php:97
 msgid "Sales"
 msgstr "Ventes"
 
@@ -3235,7 +3235,7 @@ msgstr "Utilisateurs WP EasyCart"
 
 #: admin/inc/wp_easycart_admin.php:2324 admin/inc/wp_easycart_admin.php:2326
 #: admin/template/left_nav.php:139 admin/template/mobile_nav.php:50
-#: admin/template/users/users/user-list.php:99
+#: admin/template/users/users/user-list.php:105
 msgid "Users"
 msgstr "Utilisateurs"
 
@@ -3663,8 +3663,8 @@ msgstr "Utiliser la saisie manuelle des informations d'identification de l'API"
 #: admin/template/users/user-roles/user-role-list.php:40
 #: admin/template/users/user-roles/user-role-list.php:53
 #: admin/template/users/users/user-list.php:22
-#: admin/template/users/users/user-list.php:57
-#: admin/template/users/users/user-list.php:83
+#: admin/template/users/users/user-list.php:63
+#: admin/template/users/users/user-list.php:89
 msgid "Delete"
 msgstr "Supprimer"
 
@@ -5771,8 +5771,8 @@ msgstr "CHAQUE"
 #: admin/template/users/subscribers/subscribers-details.php:33
 #: admin/template/users/user-roles/user-role-details.php:19
 #: admin/template/users/user-roles/user-role-details.php:51
-#: admin/template/users/users/user-details.php:25
-#: admin/template/users/users/user-details.php:109
+#: admin/template/users/users/user-details.php:22
+#: admin/template/users/users/user-details.php:89
 msgid "Save"
 msgstr "Sauvegarder"
 
@@ -6097,7 +6097,7 @@ msgstr ""
 #: admin/inc/wp_easycart_admin_details_user_role.php:65
 #: admin/template/users/user-roles/user-role-list.php:12
 #: admin/template/users/user-roles/user-role-list.php:61
-#: admin/template/users/users/user-list.php:94
+#: admin/template/users/users/user-list.php:100
 msgid "User Role"
 msgstr "Rôle de l’utilisateur"
 
@@ -6716,12 +6716,12 @@ msgid "Guest"
 msgstr "Invité"
 
 #: admin/inc/wp_easycart_admin_payments.php:75
-#: admin/inc/wp_easycart_admin_store_status.php:1309
+#: admin/inc/wp_easycart_admin_store_status.php:1324
 msgid "Custom Gateway"
 msgstr "Passerelle personnalisée"
 
 #: admin/inc/wp_easycart_admin_payments.php:103
-#: admin/inc/wp_easycart_admin_store_status.php:1519
+#: admin/inc/wp_easycart_admin_store_status.php:1534
 msgid "Custom Payment Gateway"
 msgstr "Passerelle de paiement personnalisée"
 
@@ -9058,19 +9058,19 @@ msgstr ""
 msgid "UPS XML has occurred. Check your WP EasyCart UPS setup."
 msgstr "UPS XML s'est produit. Vérifiez votre configuration WP EasyCart UPS."
 
-#: admin/inc/wp_easycart_admin_store_status.php:1559
-#: admin/inc/wp_easycart_admin_store_status.php:1577
-#: admin/inc/wp_easycart_admin_store_status.php:1594
+#: admin/inc/wp_easycart_admin_store_status.php:1574
+#: admin/inc/wp_easycart_admin_store_status.php:1592
+#: admin/inc/wp_easycart_admin_store_status.php:1609
 #, php-format
 msgid "Rebuilding Menu %d"
 msgstr "Reconstruction du menu %d"
 
-#: admin/inc/wp_easycart_admin_store_status.php:1573
-#: admin/inc/wp_easycart_admin_store_status.php:1590
-#: admin/inc/wp_easycart_admin_store_status.php:1607
-#: admin/inc/wp_easycart_admin_store_status.php:1625
-#: admin/inc/wp_easycart_admin_store_status.php:1642
-#: admin/inc/wp_easycart_admin_store_status.php:1659
+#: admin/inc/wp_easycart_admin_store_status.php:1588
+#: admin/inc/wp_easycart_admin_store_status.php:1605
+#: admin/inc/wp_easycart_admin_store_status.php:1622
+#: admin/inc/wp_easycart_admin_store_status.php:1640
+#: admin/inc/wp_easycart_admin_store_status.php:1657
+#: admin/inc/wp_easycart_admin_store_status.php:1674
 #, php-format
 msgid "Item %s Done..."
 msgstr "Item %s Fait..."
@@ -9212,10 +9212,10 @@ msgstr "Mmm… On essaye de tricher ?"
 #: admin/template/users/subscribers/subscribers-details.php:16
 #: admin/template/users/user-roles/user-role-details.php:16
 #: admin/template/users/user-roles/user-role-details.php:38
-#: admin/template/users/users/user-details.php:18
-#: admin/template/users/users/user-details.php:47
-#: admin/template/users/users/user-details.php:74
-#: admin/template/users/users/user-details.php:93
+#: admin/template/users/users/user-details.php:15
+#: admin/template/users/users/user-details.php:40
+#: admin/template/users/users/user-details.php:61
+#: admin/template/users/users/user-details.php:76
 msgid "Help"
 msgstr "Aide"
 
@@ -11079,14 +11079,14 @@ msgstr "Changer le statut de la commande"
 #: admin/template/orders/orders/order-list.php:202
 #: admin/template/products/products/product-list.php:122
 #: admin/template/users/subscribers/subscribers-list.php:50
-#: admin/template/users/users/user-list.php:61
+#: admin/template/users/users/user-list.php:67
 msgid "Export Selected CSV"
 msgstr "Exporter"
 
 #: admin/template/orders/orders/order-list.php:206
 #: admin/template/products/products/product-list.php:126
 #: admin/template/users/subscribers/subscribers-list.php:54
-#: admin/template/users/users/user-list.php:65
+#: admin/template/users/users/user-list.php:71
 msgid "Export All CSV"
 msgstr "Tout Exporter au format CSV"
 
@@ -14956,6 +14956,11 @@ msgstr "Sélectionner la langue"
 #, php-format
 msgid "Export %s File"
 msgstr "Exporter le fichier %s"
+
+#: admin/template/settings/language-editor/language-settings.php:102
+#: admin/template/settings/language-editor/language-settings.php:105
+msgid "No Language File Available"
+msgstr "Pas de fichier de langue disponible"
 
 #: admin/template/settings/language-editor/language-settings.php:105
 #, php-format
@@ -19070,15 +19075,15 @@ msgstr ""
 msgid "VIEW DETAILS"
 msgstr "VOIR DÉTAILS"
 
-#: admin/template/shell.php:69
+#: admin/template/shell.php:63
 msgid "View My Store"
 msgstr "Afficher mon magasin"
 
-#: admin/template/shell.php:75
+#: admin/template/shell.php:67
 msgid "search docs..."
 msgstr "chercher un document…"
 
-#: admin/template/shell.php:122
+#: admin/template/shell.php:98
 msgid "of goal"
 msgstr "du but"
 
@@ -20032,27 +20037,27 @@ msgstr "Accès utilisateur à distance"
 msgid "Remote Admin Access"
 msgstr "Autoriser l'accès à distance"
 
-#: admin/template/users/users/user-details.php:15
+#: admin/template/users/users/user-details.php:12
 msgid "ADD NEW USER ACCOUNT"
 msgstr "Ajouter un nouveau compte d'utilisateur"
 
-#: admin/template/users/users/user-details.php:15
+#: admin/template/users/users/user-details.php:12
 msgid "EDIT USER ACCOUNT"
 msgstr "Modifier le compte utilisateur"
 
-#: admin/template/users/users/user-details.php:21
+#: admin/template/users/users/user-details.php:18
 msgid "View Orders"
 msgstr "Voir les commandes"
 
-#: admin/template/users/users/user-details.php:22
+#: admin/template/users/users/user-details.php:19
 msgid "Login as User"
 msgstr "Connexion en tant qu'utilisateur"
 
-#: admin/template/users/users/user-details.php:30
+#: admin/template/users/users/user-details.php:26
 msgid "User Account Setup"
 msgstr "Configuration du compte"
 
-#: admin/template/users/users/user-details.php:31
+#: admin/template/users/users/user-details.php:27
 msgid ""
 "EasyCart user accounts can store their billing and shipping address "
 "information as well as important shipping, tax, and user role preferences."
@@ -20061,15 +20066,15 @@ msgstr ""
 "d'adresse de facturation et de livraison ainsi que d'importantes préférences "
 "d'expédition, de taxes et de rôle d'utilisateur."
 
-#: admin/template/users/users/user-details.php:44
+#: admin/template/users/users/user-details.php:37
 msgid "EDIT OPTIONAL ACCOUNT SETTINGS"
 msgstr "MODIFIER LES PARAMÈTRES OPTIONNELS DU COMPTE"
 
-#: admin/template/users/users/user-details.php:53
+#: admin/template/users/users/user-details.php:45
 msgid "Optional User Account Settings"
 msgstr "Paramètres de compte d'utilisateur facultatifs"
 
-#: admin/template/users/users/user-details.php:54
+#: admin/template/users/users/user-details.php:46
 msgid ""
 "You may add various optional components to this account such as exclude them "
 "from shipping and taxes. You may also add administrative notes or VAT "
@@ -20080,15 +20085,15 @@ msgstr ""
 "ajouter des notes administratives ou des numéros d'immatriculation à la TVA "
 "en fonction de vos besoins."
 
-#: admin/template/users/users/user-details.php:70
+#: admin/template/users/users/user-details.php:57
 msgid "EDIT BILLING ADDRESS"
 msgstr "Modifier l’adresse de facturation"
 
-#: admin/template/users/users/user-details.php:72
+#: admin/template/users/users/user-details.php:59
 msgid "Copy to Shipping"
 msgstr "Copier à l'expédition"
 
-#: admin/template/users/users/user-details.php:90
+#: admin/template/users/users/user-details.php:73
 msgid "EDIT SHIPPING ADDRESS"
 msgstr "MODIFIER l’ADRESSE DE LIVRAISON"
 
@@ -20101,14 +20106,18 @@ msgid "Import Users"
 msgstr "Importer des utilisateurs"
 
 #: admin/template/users/users/user-list.php:42
+msgid "User ID"
+msgstr "ID de l’utilisateur"
+
+#: admin/template/users/users/user-list.php:48
 msgid "Security Level"
 msgstr "Niveau de sécurité"
 
-#: admin/template/users/users/user-list.php:69
+#: admin/template/users/users/user-list.php:75
 msgid "Force Selected to Reset Password"
 msgstr "Forcer la sélection à réinitialiser le mot de passe"
 
-#: admin/template/users/users/user-list.php:99
+#: admin/template/users/users/user-list.php:105
 msgid "User"
 msgstr "Utilisateur"
 
@@ -20187,6 +20196,12 @@ msgstr "%1$s avec les options %2$s est actuellement en rupture de stock."
 #, php-format
 msgid "%s is currently out of stock."
 msgstr "%s est actuellement en rupture de stock."
+
+#: design/layout/base-responsive-v3/ec_product_details_page.php:400
+msgid "This product is deactivated and only visible to admin users."
+msgstr ""
+"Ce produit est désactivé et n'est visible que par les utilisateurs "
+"administrateurs."
 
 #: inc/classes/account/ec_orderdetail.php:666
 msgid "This download is not available on the sever."
@@ -20368,60 +20383,60 @@ msgstr "Recherche produit"
 msgid "Product Limit"
 msgstr "Nombre d’Articles Maxi"
 
-#: wpeasycart.php:1992 wpeasycart.php:2049 wpeasycart.php:2094
-#: wpeasycart.php:2155 wpeasycart.php:2197 wpeasycart.php:2239
-#: wpeasycart.php:2281 wpeasycart.php:2323 wpeasycart.php:2386
-#: wpeasycart.php:2428 wpeasycart.php:2477 wpeasycart.php:2519
-#: wpeasycart.php:2564 wpeasycart.php:2606 wpeasycart.php:2655
-#: wpeasycart.php:2697 wpeasycart.php:2750 wpeasycart.php:2798
-#: wpeasycart.php:2840
+#: wpeasycart.php:2139 wpeasycart.php:2181 wpeasycart.php:2211
+#: wpeasycart.php:2257 wpeasycart.php:2284 wpeasycart.php:2311
+#: wpeasycart.php:2338 wpeasycart.php:2365 wpeasycart.php:2413
+#: wpeasycart.php:2440 wpeasycart.php:2474 wpeasycart.php:2501
+#: wpeasycart.php:2531 wpeasycart.php:2558 wpeasycart.php:2592
+#: wpeasycart.php:2619 wpeasycart.php:2657 wpeasycart.php:2690
+#: wpeasycart.php:2720
 msgid "Product not found."
 msgstr "Aucun produit trouvé."
 
-#: wpeasycart.php:8415
+#: wpeasycart.php:8272
 msgctxt "post type general name"
 msgid "Store Items"
 msgstr "Articles du magasin"
 
-#: wpeasycart.php:8416
+#: wpeasycart.php:8273
 msgctxt "post type singular name"
 msgid "Store Item"
 msgstr "Stocker élément"
 
-#: wpeasycart.php:8417
+#: wpeasycart.php:8274
 msgctxt "ec_store"
 msgid "Add New"
 msgstr "Ajouter"
 
-#: wpeasycart.php:8418
+#: wpeasycart.php:8275
 msgid "Add New Store Item"
 msgstr "Ajouter un Kiosque"
 
-#: wpeasycart.php:8419
+#: wpeasycart.php:8276
 msgid "Edit Store Item"
 msgstr "Modifier le point de vente"
 
-#: wpeasycart.php:8420
+#: wpeasycart.php:8277
 msgid "New Store Item"
 msgstr "Ajouter"
 
-#: wpeasycart.php:8421
+#: wpeasycart.php:8278
 msgid "All Store Items"
 msgstr "Tous les articles du magasin"
 
-#: wpeasycart.php:8422
+#: wpeasycart.php:8279
 msgid "View Store Item"
 msgstr "Voir la boutique"
 
-#: wpeasycart.php:8423
+#: wpeasycart.php:8280
 msgid "Search Store Items"
 msgstr "Rechercher des articles en magasin"
 
-#: wpeasycart.php:8424
+#: wpeasycart.php:8281
 msgid "No store items found"
 msgstr "Aucun article de magasin trouvé"
 
-#: wpeasycart.php:8425
+#: wpeasycart.php:8282
 msgid "No store items found in the Trash"
 msgstr "Aucun élément trouvé dans la corbeille"
 

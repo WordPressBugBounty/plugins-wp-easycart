@@ -5,7 +5,7 @@
             	<div class="ec_newsletter_content ec_newsletter_pre_submit">
                 <form action="" method="post">
                 	<div class="ec_newsletter_close" onclick="ec_close_popup_newsletter( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-close-newsletter' ) ); ?>' );"><a>X</a></div>
-                	<h1><?php echo wp_easycart_language( )->get_text( 'ec_newsletter_popup', 'signup_form_title' ); ?></h1>
+                	<h2><?php echo wp_easycart_language( )->get_text( 'ec_newsletter_popup', 'signup_form_title' ); ?></h2>
                     <h3><?php echo wp_easycart_language( )->get_text( 'ec_newsletter_popup', 'signup_form_subtitle' ); ?></h3>
                     <input type="text" name="ec_newsletter_name" id="ec_newsletter_name" placeholder="<?php echo wp_easycart_language( )->get_text( 'ec_newsletter_popup', 'signup_form_name_placeholder' ); ?>" />
                     <input type="email" name="ec_newsletter_email" id="ec_newsletter_email" placeholder="<?php echo wp_easycart_language( )->get_text( 'ec_newsletter_popup', 'signup_form_email_placeholder' ); ?>" />

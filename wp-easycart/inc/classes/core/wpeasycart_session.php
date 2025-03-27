@@ -18,8 +18,8 @@ class wpeasycart_session{
 		if( isset( $_COOKIE['ec_cart_id'] ) ){
 			$GLOBALS['ec_cart_id'] = preg_replace( '/[^A-Z]/', '', strtoupper( sanitize_text_field( $_COOKIE['ec_cart_id'] ) ) );
 			setcookie( "ec_cart_id", "", time( ) - 3600 );
-			setcookie( "ec_cart_id", "", time( ) - 3600, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN ); 
-			setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+			setcookie( "ec_cart_id", "", time( ) - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
+			setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 		}else{
 			$GLOBALS['ec_cart_id'] = "not-set";
 		}
@@ -32,8 +32,8 @@ class wpeasycart_session{
 			}else{
 				$GLOBALS['ec_cart_id'] = preg_replace( '/[^A-Z]/', '', strtoupper( $session_id ) );
 				setcookie( "ec_cart_id", "", time( ) - 3600 );
-				setcookie( "ec_cart_id", "", time( ) - 3600, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN ); 
-				setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+				setcookie( "ec_cart_id", "", time( ) - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
+				setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 				$GLOBALS['ec_cart_data'] = new ec_cart_data( preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ) );
 			}
 			
@@ -62,8 +62,8 @@ class wpeasycart_session{
 		}
 		$GLOBALS['ec_cart_id'] = preg_replace( '/[^A-Z]/', '', strtoupper( $session_cart_id ) );
 		setcookie( "ec_cart_id", "", time( ) - 3600 );
-		setcookie( "ec_cart_id", "", time( ) - 3600, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
-		setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+		setcookie( "ec_cart_id", "", time( ) - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_cart_id', preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ), time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
 		$GLOBALS['ec_cart_data'] = new ec_cart_data( preg_replace( '/[^A-Z]/', '', strtoupper( $GLOBALS['ec_cart_id'] ) ) );
 	}
 	

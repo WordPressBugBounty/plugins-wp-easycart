@@ -492,9 +492,6 @@ if( $use_quickview ){ ?>
 		</div>
 	</div>
 </div>
-<script>
-jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_attr( $product->model_number ); ?>" ) ).appendTo( document.body );
-</script>
 <?php }  ?>
 
 <?php ///////TAGS CODE//////// ?>
@@ -522,7 +519,7 @@ jQuery( document.getElementById( "ec_product_quickview_container_<?php echo esc_
 		<?php ///////////////// IMAGE HOLDER///////////// ?>
 		<div id="ec_product_image_effect_<?php echo esc_attr( $product->model_number ); ?>" class="ec_product_image_ele ec_image_container_<?php echo esc_attr( $product->image_effect_type ); ?> ec_dynamic_image_height<?php if( $dynamic_image_sizing ){ ?> dynamic_height_rule<?php }?>"<?php echo ( isset( $product_rounded_corners ) && $product_rounded_corners ) ? ' style="border-radius:0px;"' : ''; ?>>
 			<?php do_action( 'wp_easycart_product_image_holder_pre', $product ); ?>
-			<a href="<?php echo esc_attr( $product->get_product_link( ) ); ?>" class="ec_image_link_cover"></a>
+			<a href="<?php echo esc_attr( $product->get_product_link( ) ); ?>" class="ec_image_link_cover"><span class="wpec-visually-hide"><?php echo esc_attr( strip_tags( $product->title ) ); ?></span></a>
 
 			<?php ///////////////// IMAGE OPTIONS /////////////////////// ?>
 			<?php

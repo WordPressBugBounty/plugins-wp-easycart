@@ -87,19 +87,19 @@
 <?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->gst_total > 0 ){ ?>
 <div class="ec_cart_price_row ec_cart_price_row_gst_total">
 	<div class="ec_cart_price_row_label">GST (<?php echo esc_attr( $this->tax->gst_rate ); ?>%)</div>
-	<div class="ec_cart_price_row_total" id="ec_cart_tax"><?php echo esc_attr( $this->get_gst_total( ) ); ?></div>
+	<div class="ec_cart_price_row_total" id="ec_cart_gst"><?php echo esc_attr( $this->get_gst_total( ) ); ?></div>
 </div>
 <?php }?>
 <?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->pst_total > 0 ){ ?>
 <div class="ec_cart_price_row ec_cart_price_row_pst_total">
 	<div class="ec_cart_price_row_label">PST (<?php echo esc_attr( $this->tax->pst_rate ); ?>%)</div>
-	<div class="ec_cart_price_row_total" id="ec_cart_tax"><?php echo esc_attr( $this->get_pst_total( ) ); ?></div>
+	<div class="ec_cart_price_row_total" id="ec_cart_pst"><?php echo esc_attr( $this->get_pst_total( ) ); ?></div>
 </div>
 <?php }?>
 <?php if( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->hst_total > 0 ){ ?>
 <div class="ec_cart_price_row ec_cart_price_row_hst_total">
 	<div class="ec_cart_price_row_label">HST (<?php echo esc_attr( $this->tax->hst_rate ); ?>%)</div>
-	<div class="ec_cart_price_row_total" id="ec_cart_tax"><?php echo esc_attr( $this->get_hst_total( ) ); ?></div>
+	<div class="ec_cart_price_row_total" id="ec_cart_hst"><?php echo esc_attr( $this->get_hst_total( ) ); ?></div>
 </div>
 <?php }?>
 <?php if ( count( $this->tax->fees ) > 0 ) { ?>

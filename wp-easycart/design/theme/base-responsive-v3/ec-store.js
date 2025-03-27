@@ -764,6 +764,12 @@ jQuery( document ).ready( function( ){
 		var optionitem_id_1 = jQuery( this ).val( );
 		ec_option1_image_change( product_id, rand_id, optionitem_id_1, 1 );
 	} );
+	jQuery( '.ec_details_radio_row.ec_optionitem_images > label > input' ).click( function( ){
+		var product_id = jQuery( this ).attr( 'data-product-id' );
+		var rand_id = jQuery( this ).attr( 'data-rand-id' );
+		var optionitem_id_1 = jQuery( this ).val( );
+		ec_option1_image_change( product_id, rand_id, optionitem_id_1, 1 );
+	} );
 	jQuery( '.ec_option_type_combo .ec_optionitem_images' ).click( function( ){
 		var product_id = jQuery( this ).parent().parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().parent().attr( 'data-rand-id' );
@@ -3847,10 +3853,9 @@ function ec_cart_shipping_method_change( shipping_method, price, nonce ){
 		url: wpeasycart_ajax_object.ajax_url, 
 		type: 'post', 
 		data: data, 
-		success: function( data ){ 
-			var data_arr = data.split( '***' );
-			jQuery( document.getElementById( 'ec_cart_shipping' ) ).html( data_arr[0] );
-			jQuery( document.getElementById( 'ec_cart_total' ) ).html( data_arr[1] );
+		success: function( data ){
+			var response_obj = JSON.parse( data );
+			ec_update_cart( response_obj );
 			jQuery( '.ec_cart_price_row.ec_cart_price_row_shipping_total, .ec_cart_price_row.ec_order_total' ).removeClass( 'ec_cart_price_row_loading' );
 		}
 	} );

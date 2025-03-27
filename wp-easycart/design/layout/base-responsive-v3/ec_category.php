@@ -4,7 +4,7 @@
     	
         <div class="ec_image_container_none">
         	
-        	<a href="<?php echo esc_attr( $this->get_category_link( ) ); ?>" class="ec_image_link_cover"></a>
+        	<a href="<?php echo esc_attr( $this->get_category_link( ) ); ?>" class="ec_image_link_cover"><span class="wpec-visually-hide"><?php echo wp_easycart_language( )->convert_text( $this->options->category_name ); ?></span></a>
         
         	<div class="ec_category_image_display_type">
             	

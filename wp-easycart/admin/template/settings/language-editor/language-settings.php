@@ -99,7 +99,7 @@
 		$file_name = get_option( 'ec_option_language' );
 
 		?>
-		<a href="admin.php?page=wp-easycart-settings&subpage=language-editor&ec_action=export-language&ec_language=<?php echo esc_attr( $file_name ); ?>"><?php echo sprintf( esc_attr__( 'Export %s File', 'wp-easycart' ), esc_attr( $language_data->{$file_name}->label ) ); ?></a>
+		<a href="admin.php?page=wp-easycart-settings&subpage=language-editor&ec_action=export-language&ec_language=<?php echo esc_attr( $file_name ); ?>"><?php echo sprintf( esc_attr__( 'Export %s File', 'wp-easycart' ), esc_attr( ( isset( $language_data->{$file_name} ) ) ? $language_data->{$file_name}->label : esc_attr__( 'No Language File Available', 'wp-easycart' ) ) ); ?></a>
 	</div>
 </div>
-<div class="current_language_title"><?php echo sprintf( esc_attr__( 'Editing %s', 'wp-easycart' ), esc_attr( $language_data->{$file_name}->label ) ); ?></div>
+<div class="current_language_title"><?php echo sprintf( esc_attr__( 'Editing %s', 'wp-easycart' ), esc_attr( ( isset( $language_data->{$file_name} ) ) ? $language_data->{$file_name}->label : esc_attr__( 'No Language File Available', 'wp-easycart' ) ) ); ?></div>

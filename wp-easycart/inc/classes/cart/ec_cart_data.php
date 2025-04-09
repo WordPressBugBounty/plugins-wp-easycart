@@ -209,7 +209,7 @@ class ec_cart_data{
 		global $wpdb;
 		
 		setcookie('ec_cart_id', "", time( ) - 3600 ); 
-		setcookie('ec_cart_id', "", time( ) - 3600, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie('ec_cart_id', "", time( ) - 3600, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		unset( $GLOBALS['ec_cart_id'] );
 		
 		$vals = array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' );
@@ -225,7 +225,7 @@ class ec_cart_data{
 		
 		$this->ec_cart_id = $session_cart_id;
 		$GLOBALS['ec_cart_id'] = $this->ec_cart_id;
-		setcookie( 'ec_cart_id', $this->ec_cart_id, time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_cart_id', $this->ec_cart_id, time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		
 	}
 	

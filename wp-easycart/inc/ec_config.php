@@ -9,8 +9,8 @@ add_action( 'wp', 'wp_easycart_maybe_convert_language' );
 function wp_easycart_maybe_convert_language() {
 	if ( isset( $_POST['ec_language_conversion'] ) ) {
 		$wpeasycart_language = htmlspecialchars( sanitize_text_field( $_POST['ec_language_conversion'] ), ENT_QUOTES );
-		setcookie( 'ec_translate_to', '', time( ) - 300, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
-		setcookie( 'ec_translate_to', $wpeasycart_language, time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_translate_to', '', time( ) - 300, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' ); 
+		setcookie( 'ec_translate_to', $wpeasycart_language, time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		wp_easycart_language()->update_selected_language( $wpeasycart_language );
 		$GLOBALS['ec_cart_data']->cart_data->translate_to = $wpeasycart_language;
 		$GLOBALS['ec_cart_data']->save_session_to_db( );
@@ -19,8 +19,8 @@ function wp_easycart_maybe_convert_language() {
 
 	} else if ( isset( $_GET['eclang'] ) ) {
 		$wpeasycart_language = htmlspecialchars( sanitize_text_field( $_GET['eclang'] ), ENT_QUOTES );
-		setcookie( 'ec_translate_to', '', time( ) - 300, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
-		setcookie( 'ec_translate_to', $wpeasycart_language, time() + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_translate_to', '', time( ) - 300, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' ); 
+		setcookie( 'ec_translate_to', $wpeasycart_language, time() + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		wp_easycart_language()->update_selected_language( $wpeasycart_language );
 		$GLOBALS['ec_cart_data']->cart_data->translate_to = $wpeasycart_language;
 		$GLOBALS['ec_cart_data']->save_session_to_db( );
@@ -32,14 +32,14 @@ function wp_easycart_maybe_convert_language() {
 add_action( 'wp', 'wp_easycart_maybe_change_currency' );
 function wp_easycart_maybe_change_currency() {
 	if ( isset( $_POST['ec_currency_conversion'] ) ) {
-		setcookie( "ec_convert_to", "", time( ) - 300, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
-		setcookie( 'ec_convert_to', htmlspecialchars( sanitize_text_field( $_POST['ec_currency_conversion'] ), ENT_QUOTES ), time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( "ec_convert_to", "", time( ) - 300, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' ); 
+		setcookie( 'ec_convert_to', htmlspecialchars( sanitize_text_field( $_POST['ec_currency_conversion'] ), ENT_QUOTES ), time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		header( 'Location: ' . sanitize_text_field( $_SERVER['REQUEST_URI'] ) );
 		die;
 
 	} else if( isset( $_GET['eccurrency'] ) ) {
-		setcookie( 'ec_convert_to', '', time( ) - 300, defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' ); 
-		setcookie( 'ec_convert_to', htmlspecialchars( sanitize_text_field( $_GET['eccurrency'] ), ENT_QUOTES ), time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_convert_to', '', time( ) - 300, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' ); 
+		setcookie( 'ec_convert_to', htmlspecialchars( sanitize_text_field( $_GET['eccurrency'] ), ENT_QUOTES ), time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 		header( 'Location: ' . preg_replace( "/eccurrency\=[a-zA-Z]+/m", "", sanitize_text_field( $_SERVER['REQUEST_URI'] ) ) );
 		die;
 

@@ -19,7 +19,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		echo "]
 			});
 		</script>";
-		setcookie( 'ec_cart_facebook_order_id_tracked_' . $order->order_id, 1, time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '' );
+		setcookie( 'ec_cart_facebook_order_id_tracked_' . $order->order_id, 1, time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
 	}
 }
 ?>

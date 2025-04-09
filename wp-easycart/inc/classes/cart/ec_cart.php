@@ -222,8 +222,8 @@ class ec_cart{
 			$hour_end = ( isset( $timer_end[2] ) ) ? $timer_end[2] : '00';
 			$minute_end = ( isset( $timer_end[3] ) ) ? $timer_end[3] : '00';
 			$rules[ $day_of_weeks[ $schedule_day->day_of_week ] ] = array(
-				'min' => ( (int) $month_start * 31 * 24 * 60 ) + ( (int) $day_start * 24 * 60 ) + ( (int) $hour_start * 60 ) + (int) $minute_start,
-				'max' => ( (int) $month_end * 31 * 24 * 60 ) + ( (int) $day_end * 24 * 60 ) + ( (int) $hour_end * 60 ) + (int) $minute_end,
+				'min' => ( strtotime( '+' . $month_start . ' month +' . $day_start . ' day +' . $hour_start . ' hour +' . $minute_start . ' minute', strtotime( 'next ' . $schedule_day->day_of_week ) ) - strtotime( 'next ' . $schedule_day->day_of_week ) ) / 60,
+				'max' => ( strtotime( '+' . $month_end . ' month +' . $day_end . ' day +' . $hour_end . ' hour +' . $minute_end . ' minute', strtotime( 'next ' . $schedule_day->day_of_week ) ) - strtotime( 'next ' . $schedule_day->day_of_week ) ) / 60,
 				'open' => $schedule_day->preorder_open_time,
 				'close' => $schedule_day->preorder_close_time,
 				'is_closed' => $schedule_day->preorder_closed,
@@ -243,8 +243,8 @@ class ec_cart{
 			$hour_end = ( isset( $timer_end[2] ) ) ? $timer_end[2] : '00';
 			$minute_end = ( isset( $timer_end[3] ) ) ? $timer_end[3] : '00';
 			$rules['holidays'][ $holiday->holiday_date ] = array(
-				'min' => ( (int) $month_start * 31 * 24 * 60 ) + ( (int) $day_start * 24 * 60 ) + ( (int) $hour_start * 60 ) + (int) $minute_start,
-				'max' => ( (int) $month_end * 31 * 24 * 60 ) + ( (int) $day_end * 24 * 60 ) + ( (int) $hour_end * 60 ) + (int) $minute_end,
+				'min' => ( strtotime( '+' . $month_start . ' month +' . $day_start . ' day +' . $hour_start . ' hour +' . $minute_start . ' minute', strtotime( $holiday->holiday_date ) ) - strtotime( $holiday->holiday_date ) ) / 60,
+				'max' => ( strtotime( '+' . $month_end . ' month +' . $day_end . ' day +' . $hour_end . ' hour +' . $minute_end . ' minute', strtotime( $holiday->holiday_date ) ) - strtotime( $holiday->holiday_date ) ) / 60,
 				'open' => date( 'H:i', strtotime( date( 'Y-m-d' ) . ' ' . $holiday->preorder_open_time ) ),
 				'close' => date( 'H:i', strtotime( date( 'Y-m-d' ) . ' ' . $holiday->preorder_close_time ) ),
 				'is_closed' => $schedule_day->preorder_closed,

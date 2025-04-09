@@ -158,7 +158,6 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						var today = new Date();
 						var minTime = 0;
 						var maxTime = 0;
-						today.setHours(0, 0, 0, 0);
 						var formattedDate = jQuery.datepicker.formatDate( 'yy-mm-dd', date );
 						if ( pickup_rules.holidays.hasOwnProperty( formattedDate ) ) {
 							var holidayRule = pickup_rules.holidays[ formattedDate ];
@@ -239,7 +238,6 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						onClose: function( dateText, inst ) {
 							var selectedDate = jQuery( this ).datepicker( 'getDate' );
 							var is_valid_date = ( selectedDate ) ? wp_easycart_pickup_disable_invalid_dates( selectedDate ) : [ false ];
-							console.log( is_valid_date[0] );
 							if ( selectedDate && ! is_valid_date[0] ) {
 								jQuery( this ).val( '' );
 								wp_easycart_update_pickup_time_box( selectedDate, true );
@@ -703,7 +701,6 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 													jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn( ).html( result.paymentIntent.last_payment_error.message );
 												} else {
 													ec_create_ideal_order_redirect( result.paymentIntent.id, '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-create-stripe-ideal-order-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );
-													console.log( result );
 												}
 											}
 										} );

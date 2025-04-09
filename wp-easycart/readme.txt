@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.7
-Stable tag: 5.7.13
+Stable tag: 5.7.14
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,11 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.7.14 =
+* Bug Fix - Minification error in the JS file fixed.
+* Bug Fix - Cookie path upgraded for those that do not have one set.
+* Bug Fix - Pickup date/time small adjustment for disabling future dates at the correct time.
+* Bug Fix - Newletter popup second h1 bug fixed.
 = 5.7.13 =
 * Bug Fix - Newsletter popup, switched h1 to h2 to prevent seo issues.
 * Bug Fix - Australian states/territories with 3 characters were not passing to PayPal correctly.

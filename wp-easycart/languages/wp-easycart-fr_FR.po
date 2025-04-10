@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2025-03-26 15:04-0700\n"
-"PO-Revision-Date: 2025-03-26 15:04-0700\n"
+"POT-Creation-Date: 2025-04-10 08:58-0700\n"
+"PO-Revision-Date: 2025-04-10 08:58-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: fr\n"
@@ -10,14 +10,13 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
-"X-Generator: Poedit 3.5\n"
+"X-Generator: Poedit 3.6\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-Flags-xgettext: --add-comments=translators:\n"
 "X-Poedit-WPHeader: wpeasycart.php\n"
 "X-Poedit-SourceCharset: UTF-8\n"
-"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
-"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;"
-"_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-KeywordsList: "
+"__;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
 "X-Poedit-SearchPath-0: .\n"
 "X-Poedit-SearchPathExcluded-0: *.min.js\n"
 
@@ -12555,10 +12554,10 @@ msgstr "Vous avez oublié votre clé de licence?"
 
 #: admin/template/registration/registration_status.php:86
 msgid ""
-"All of your license keys are available by logging into our website at www."
-"wpeasycart.com and visiting your account. You can see past orders, license "
-"keys, days left of support & upgrades, as well as what sites are reigstered "
-"to what license keys."
+"All of your license keys are available by logging into our website at "
+"www.wpeasycart.com and visiting your account. You can see past orders, "
+"license keys, days left of support & upgrades, as well as what sites are "
+"reigstered to what license keys."
 msgstr ""
 "Toutes vos clés de licence sont disponibles en vous connectant à notre site "
 "Web à l'adresse www.wpeasycart.com et en visitant votre compte. Vous pouvez "
@@ -12605,8 +12604,8 @@ msgid ""
 "can purchase new licenses by visiting www.wpeasycart.com."
 msgstr ""
 "Nous le rendons facile et simple! Chaque site Web WordPress nécessite une "
-"licence, vous pouvez acheter de nouvelles licences en visitant www."
-"wpeasycart.com."
+"licence, vous pouvez acheter de nouvelles licences en visitant "
+"www.wpeasycart.com."
 
 #: admin/template/registration/registration_status.php:106
 #: admin/template/registration/registration_status.php:199
@@ -12666,10 +12665,10 @@ msgstr "Vous souhaitez étendre le support et les mises à niveau pour EasyCart?
 
 #: admin/template/registration/registration_status.php:151
 msgid ""
-"All of your license keys are available by logging into our website at www."
-"wpeasycart.com and visiting your account.  You can see past orders, license "
-"keys, days left of support & upgrades, as well as what sites are reigstered "
-"to what license keys."
+"All of your license keys are available by logging into our website at "
+"www.wpeasycart.com and visiting your account.  You can see past orders, "
+"license keys, days left of support & upgrades, as well as what sites are "
+"reigstered to what license keys."
 msgstr ""
 "Toutes vos clés de licence sont disponibles en vous connectant à notre site "
 "Web à l'adresse www.wpeasycart.com et en visitant votre compte. Vous pouvez "
@@ -13615,16 +13614,16 @@ msgid "Minutes"
 msgstr "Minutes"
 
 #: admin/template/settings/checkout/checkout-schedule.php:40
-msgid "Retaurant Orders: Scheduling Range"
-msgstr "Ordres des restaurateurs : Plage d'ordonnancement"
+msgid "Restaurant Orders: Scheduling Range"
+msgstr "Commandes de restaurants : Plage de programmation"
 
 #: admin/template/settings/checkout/checkout-schedule.php:40
 msgid "The difference in minutes between possible scheduling times."
 msgstr "La différence en minutes entre les heures de programmation possibles."
 
 #: admin/template/settings/checkout/checkout-schedule.php:49
-msgid "Retaurant Orders: Expected Prep Time"
-msgstr "Commandes des restaurants : Temps de préparation prévu"
+msgid "Restaurant Orders: Expected Prep Time"
+msgstr "Commandes de restaurants : Temps de préparation prévu"
 
 #: admin/template/settings/checkout/checkout-schedule.php:49
 msgid ""
@@ -15505,6 +15504,7 @@ msgstr "WP EasyCart Terms &amp ; Conditions"
 
 #: admin/template/settings/payments/payment.php:26
 #: admin/template/settings/wizard/payments.php:102
+#, no-php-format
 msgid ""
 "The WP EasyCart Free Edition is available to use with unlimited orders, "
 "unlimited products, and unlimited user accounts as well as Manual/Direct "
@@ -19271,8 +19271,8 @@ msgstr "Taille maximale de la publication PHP (recommandée> 10M)"
 #: admin/template/status/store-status/store-status.php:192
 msgid "Failed to Create Directories"
 msgstr ""
-"Impossible de créer les répertoires : <ph id=\"mtc_1\" equiv-text=\"base64:"
-"JXM=\"/>"
+"Impossible de créer les répertoires : <ph id=\"mtc_1\" equiv-"
+"text=\"base64:JXM=\"/>"
 
 #: admin/template/status/store-status/store-status.php:194
 msgid "Success Creating Directories"
@@ -20452,8 +20452,8 @@ msgid ""
 "directly from your store! Get a full ecommerce platform in WordPress! Sell "
 "products, downloadable goods, gift cards, clothing and more! Now with "
 "WordPress, the powerful features are still very easy to administrate! If you "
-"have any questions, please view our website at <a href=\"http://www."
-"wpeasycart.com\" target=\"_blank\">WP EasyCart</a>."
+"have any questions, please view our website at <a href=\"http://"
+"www.wpeasycart.com\" target=\"_blank\">WP EasyCart</a>."
 msgstr ""
 "Le panier WordPress de WP EasyCart est une solution de commerce électronique "
 "simple qui s'installe dans les blogs WordPress nouveaux ou existants. Les "
@@ -20922,8 +20922,8 @@ msgstr ""
 
 #~ msgid ""
 #~ "and manually upload as a Standard Feed with the same options as before "
-#~ "(non-test feed is the only diffence here) and be sure to choose &quot;"
-#~ "regular uploads by user&quot;."
+#~ "(non-test feed is the only diffence here) and be sure to choose "
+#~ "&quot;regular uploads by user&quot;."
 #~ msgstr ""
 #~ "et téléchargez manuellement en tant que flux standard avec les mêmes "
 #~ "options qu'auparavant (le flux non test est la seule différence ici) et "

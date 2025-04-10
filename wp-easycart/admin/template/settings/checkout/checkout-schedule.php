@@ -37,7 +37,7 @@
 				'label'	=> 60 . ' ' . esc_attr__( 'Minutes', 'wp-easycart-pro' ),
 			),
 		); ?>
-		<?php wp_easycart_admin( )->load_toggle_group_select( 'ec_option_restaurant_schedule_range', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_restaurant_schedule_range' ), __( 'Retaurant Orders: Scheduling Range', 'wp-easycart-pro' ), __( 'The difference in minutes between possible scheduling times.', 'wp-easycart-pro' ), $restaurant_schedule_ranges, 'ec_option_restaurant_pickup_asap_length_row' ); ?>
+		<?php wp_easycart_admin( )->load_toggle_group_select( 'ec_option_restaurant_schedule_range', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_restaurant_schedule_range' ), __( 'Restaurant Orders: Scheduling Range', 'wp-easycart-pro' ), __( 'The difference in minutes between possible scheduling times.', 'wp-easycart-pro' ), $restaurant_schedule_ranges, 'ec_option_restaurant_pickup_asap_length_row' ); ?>
 
 		<?php $restaurant_pickup_times = array();
 		for ( $i = 5; $i <= 90; $i=$i+5 ) {
@@ -46,7 +46,7 @@
 				'label'	=> $i . ' ' . esc_attr__( 'Minutes', 'wp-easycart-pro' ),
 			);
 		} ?>
-		<?php wp_easycart_admin( )->load_toggle_group_select( 'ec_option_restaurant_pickup_asap_length', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_restaurant_pickup_asap_length' ), __( 'Retaurant Orders: Expected Prep Time', 'wp-easycart-pro' ), __( 'This is the amount of time from order to pickup for ASAP restaurant orders.', 'wp-easycart-pro' ), $restaurant_pickup_times, 'ec_option_restaurant_pickup_asap_length_row' ); ?>
+		<?php wp_easycart_admin( )->load_toggle_group_select( 'ec_option_restaurant_pickup_asap_length', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_restaurant_pickup_asap_length' ), __( 'Restaurant Orders: Expected Prep Time', 'wp-easycart-pro' ), __( 'This is the amount of time from order to pickup for ASAP restaurant orders.', 'wp-easycart-pro' ), $restaurant_pickup_times, 'ec_option_restaurant_pickup_asap_length_row' ); ?>
 
 		<?php wp_easycart_admin( )->load_toggle_group_textarea( 'ec_option_shedule_pickup_preorder', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_shedule_pickup_preorder' ), __( 'Cart Schedule: Preorder for Pickup Instructions', 'wp-easycart' ), __( 'This applies to preorder for pickup products only and shows in the box where the customer chooses a pickup date.', 'wp-easycart' ), __( 'Enter a customer message', 'wp-easycart' ), 'ec_option_shedule_pickup_preorder_row' ); ?>
 

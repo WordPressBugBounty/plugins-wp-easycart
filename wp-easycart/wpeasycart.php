@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.7.15
+ * Version: 5.8.1
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.7.15
+ * @version 5.8.1
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +22,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_7_15' );
+define( 'EC_CURRENT_VERSION', '5_8_1' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '93' );
+define( 'EC_UPGRADE_DB', '94' );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 

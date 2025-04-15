@@ -2427,6 +2427,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_fee_details', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_schedule_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_schedule_details', array( $this, 'show_upgrade' ) );
+			add_action( 'wp_easycart_admin_location_list', array( $this, 'show_upgrade' ) );
+			add_action( 'wp_easycart_admin_location_details', array( $this, 'show_upgrade' ) );
 
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
 			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
@@ -2671,6 +2673,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_easycart_admin_pricepoint( )->load_pricepoint_list( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "schedule" ) {
 				wp_easycart_admin_schedule( )->load_schedule_list( );
+			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "location" ) {
+				wp_easycart_admin_location( )->load_location_list( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "logs" ) {
 				wp_easycart_admin_logging( )->load_log_list( );
 			} else {
@@ -2848,6 +2852,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return __( 'WP EasyCart Flex-Fee Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "schedule" ) {
 				return __( 'WP EasyCart Schedule Settings', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "location" ) {
+				return __( 'WP EasyCart Location Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-settings" ) {
 				return __( 'WP EasyCart Shipping Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-rates" ) {

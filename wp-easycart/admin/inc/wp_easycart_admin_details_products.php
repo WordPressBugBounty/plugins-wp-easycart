@@ -488,7 +488,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->description
 			)
 
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -618,7 +618,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->option_id_5
 			);
 		}
-		$fields = apply_filters( 'wp_easycart_admin_product_details_options_fields_list', $fields );
+		$fields = apply_filters( 'wp_easycart_admin_product_details_options_fields_list', $fields, $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -772,7 +772,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $image5
 			);
 		}
-		$fields = apply_filters( 'wp_easycart_admin_product_details_images_fields_list', $fields );
+		$fields = apply_filters( 'wp_easycart_admin_product_details_images_fields_list', $fields, $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -943,7 +943,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->menulevel3_id_3
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -954,7 +954,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"type"				=> "categories",
 				"label"				=> __( "Categories", 'wp-easycart' )
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1024,7 +1024,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->max_purchase_quantity
 			)
 
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1070,7 +1070,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"default"			=> "1.000",
 				"value"				=> $this->product->length
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1249,7 +1249,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> false,
 				"value"				=> $this->product->price_range_high
 			),
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1265,7 +1265,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"type"				=> "b2b_pricing",
 				"label"				=> __( "B2B Pricing", 'wp-easycart' )
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1360,7 +1360,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->shipping_restriction,
 			),
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1375,7 +1375,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->short_description
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1390,7 +1390,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->specifications
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1405,7 +1405,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->order_completed_note
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1420,7 +1420,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->order_completed_email_note
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1435,7 +1435,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->order_completed_details_note
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1491,7 +1491,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> $this->product->featured_product_id_4
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1650,7 +1650,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->sort_position,
 				"step"				=> 1,
 			),
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1686,7 +1686,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"read-only"			=> true,
 				"value"				=> $this->product->TIC
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1800,7 +1800,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> false,
 				"value"				=> $this->product->deconetwork_design_id
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -1998,7 +1998,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> false,
 				"value"				=> $this->product->membership_page
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -2040,7 +2040,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> true,
 				"value"				=> get_post_thumbnail_id( $this->product->post_id )
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -2177,7 +2177,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"visible"			=> false,
 				"value"				=> $this->product->download_timelimit_seconds
 			)
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 
@@ -2316,7 +2316,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->tag_text_color
 			)
 
-		) );
+		), $this->product );
 		$this->print_fields( $fields );
 	}
 

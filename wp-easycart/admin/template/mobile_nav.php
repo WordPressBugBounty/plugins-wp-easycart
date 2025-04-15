@@ -103,7 +103,8 @@
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=states"><?php esc_attr_e( 'States/Territories', 'wp-easycart' ); ?></a></li>
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=perpage"><?php esc_attr_e( 'Per Page Options', 'wp-easycart' ); ?></a></li>
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=pricepoint"><?php esc_attr_e( 'Price Points', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=schedule"><?php esc_attr_e( 'Store Schedule', 'wp-easycart' ); ?></a></li>
+						<li><a href="admin.php?page=wp-easycart-settings&subpage=schedule"><?php esc_attr_e( 'Store Schedule', 'wp-easycart' ); ?></a></li><?php /*
+						<li><a href="admin.php?page=wp-easycart-settings&subpage=location"><?php esc_attr_e( 'Store Locations', 'wp-easycart' ); ?></a></li>*/ ?>
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=third-party"><?php esc_attr_e( 'Third Party', 'wp-easycart' ); ?></a></li>
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_attr_e( 'Cart Importer', 'wp-easycart' ); ?></a></li>
 						<li><a href="admin.php?page=wp-easycart-settings&subpage=logs"><?php esc_attr_e( 'Log Entries', 'wp-easycart' ); ?></a></li>

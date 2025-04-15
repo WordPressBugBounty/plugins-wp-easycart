@@ -62,6 +62,7 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_extensions.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shortcodes.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_fee.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_schedule.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_location.php' );
 
 include( EC_PLUGIN_DIRECTORY . '/admin/gutenberg/class-wp-easycart-gutenberg.php' );
 

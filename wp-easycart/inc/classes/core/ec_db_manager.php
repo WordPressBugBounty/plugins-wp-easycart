@@ -245,6 +245,9 @@ class ec_db_manager {
 			'5.7.6' => array(
 				'wpeasycart_sql_5_7_6'
 			),
+			'5.8.1' => array(
+				'wpeasycart_sql_5_8_1'
+			),
 		);
 
 		$return_functions = array();
@@ -684,6 +687,27 @@ class ec_db_manager {
 		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_4 text NOT NULL DEFAULT ''" );
 		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_5 text NOT NULL DEFAULT ''" );
 	}
+
+	private function wpeasycart_sql_5_8_1() {
+		global $wpdb;
+		$wpdb->query( "CREATE TABLE ec_location (
+		  location_id int(11) NOT NULL AUTO_INCREMENT,
+		  location_label varchar(255) DEFAULT '',
+		  address_line_1 varchar(255) NOT NULL DEFAULT '',
+		  address_line_2 varchar(255) NOT NULL DEFAULT '',
+		  city varchar(255) NOT NULL DEFAULT '',
+		  state varchar(255) NOT NULL DEFAULT '',
+		  country varchar(255) NOT NULL DEFAULT '',
+		  zip varchar(255) NOT NULL DEFAULT '',
+		  phone varchar(255) NOT NULL DEFAULT '',
+		  email varchar(255) NOT NULL DEFAULT '',
+		  latitude decimal(9,6) DEFAULT NULL,
+		  longitude decimal(9,6) DEFAULT NULL,
+		  PRIMARY KEY (location_id),
+		  UNIQUE KEY location_id (location_id)
+		) $collate;" );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN pickup_locations text NULL" );
+	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
 	private function get_uninstall_tables( ){
@@ -704,6 +728,7 @@ class ec_db_manager {
 			"ec_fee",
 			"ec_giftcard",
 			"ec_live_rate_cache",
+			"ec_location",
 			"ec_manufacturer",
 			"ec_menulevel1",
 			"ec_menulevel2",
@@ -927,6 +952,22 @@ CREATE TABLE ec_live_rate_cache (
   ec_cart_id varchar(255) NOT NULL DEFAULT '',
   rate_data text,
   PRIMARY KEY  (live_rate_cache_id)
+) $collate;
+CREATE TABLE ec_location (
+  location_id int(11) NOT NULL AUTO_INCREMENT,
+  location_label varchar(255) DEFAULT '',
+  address_line_1 varchar(255) NOT NULL DEFAULT '',
+  address_line_2 varchar(255) NOT NULL DEFAULT '',
+  city varchar(255) NOT NULL DEFAULT '',
+  state varchar(255) NOT NULL DEFAULT '',
+  country varchar(255) NOT NULL DEFAULT '',
+  zip varchar(255) NOT NULL DEFAULT '',
+  phone varchar(255) NOT NULL DEFAULT '',
+  email varchar(255) NOT NULL DEFAULT '',
+  latitude decimal(9,6) DEFAULT NULL,
+  longitude decimal(9,6) DEFAULT NULL,
+  PRIMARY KEY (location_id),
+  UNIQUE KEY location_id (location_id)
 ) $collate;
 CREATE TABLE ec_manufacturer (
   manufacturer_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1476,6 +1517,7 @@ CREATE TABLE ec_product (
   stripe_default_price_id varchar(255) DEFAULT '',
   is_preorder_type tinyint(1) NOT NULL DEFAULT 0,
   is_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
+  pickup_locations text NULL,
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   UNIQUE KEY product_model_number (model_number($max_index_length)),

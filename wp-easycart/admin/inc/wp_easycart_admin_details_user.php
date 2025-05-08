@@ -76,11 +76,11 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 		if ( 'edit' == $type ) {
 			$this->init_data();
 		}
-		if ( $this->user->user_id ) {
+		if ( 'edit' == $type && ! $this->user->user_id ) {
+			return false;
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-details.php' );
 			return true;
-		} else {
-			return false;
 		}
 	}
 

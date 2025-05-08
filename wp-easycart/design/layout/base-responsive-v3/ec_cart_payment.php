@@ -140,6 +140,23 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		<div class="ec_cart_error_row" id="ec_preorder_pickup_error">
 			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'missing_preorder_pickup' )?> 
 		</div>
+		<?php if ( get_option( 'ec_option_pickup_enable_locations' ) ) { ?>
+		<?php wp_easycart_output_location_popup(); ?>
+		<div class="ec_cart_pickup_group">
+			<div class="ec_cart_pickup_label"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'preorder_location' ); ?></div>
+			<div class="ec_cart_pickup_items">
+				<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) { ?>
+					<?php
+						global $wpdb;
+						$selected_location = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) );
+					?>
+					<button class="ec_product_select_location ec_product_select_location_product" type="button" data-type="cart"><p><?php echo esc_attr( $selected_location->location_label ); ?>, <?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'change_location' ); ?></p></button>
+				<?php } else { ?>
+					<button class="ec_product_select_location ec_product_select_location_product" type="button" data-type="cart"><p><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'choose_location' ); ?></p></button>
+				<?php }?>
+			</div>
+		</div>
+		<?php }?>
 		<div class="ec_cart_pickup_group">
 			<div class="ec_cart_pickup_label"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'preorder_date' ); ?></div>
 			<div class="ec_cart_pickup_items">

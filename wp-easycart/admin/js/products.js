@@ -79,6 +79,11 @@ function wpeasycart_admin_update_sidebar_view() {
 	if ( jQuery( document.getElementById( 'ec_option_show_store_sidebar' ) ).is( ':checked' ) ){
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_position_row' ) ).show( );
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_filter_clear_row' ) ).show( );
+		if ( jQuery( document.getElementById( 'ec_option_pickup_enable_locations' ) ).length ) {
+			if ( 1 == Number( jQuery( document.getElementById( 'ec_option_pickup_enable_locations' ) ).val() ) ) {
+				jQuery( document.getElementById( 'ec_admin_store_sidebar_include_location_row' ) ).show( );
+			}
+		}
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_include_search_row' ) ).show( );
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_include_categories_row' ) ).show( );
 		if ( jQuery( document.getElementById( 'ec_option_store_sidebar_include_categories' ) ).is( ':checked' ) ) {
@@ -111,6 +116,9 @@ function wpeasycart_admin_update_sidebar_view() {
 	} else {
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_position_row' ) ).hide( );
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_filter_clear_row' ) ).hide( );
+		if( jQuery( document.getElementById( 'ec_admin_store_sidebar_include_location_row' ) ).length ) {
+			jQuery( document.getElementById( 'ec_admin_store_sidebar_include_location_row' ) ).hide( );
+		}
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_include_search_row' ) ).hide( );
 		jQuery( document.getElementById( 'ec_admin_store_sidebar_include_categories_row' ) ).hide( );
 		jQuery( document.getElementById( 'ec_admin_include_categories_first_row' ) ).hide( );

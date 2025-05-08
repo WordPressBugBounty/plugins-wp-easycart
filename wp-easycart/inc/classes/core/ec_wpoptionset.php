@@ -254,6 +254,8 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_manufacturers');		array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_store_sidebar_include_location');		array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_include_search');		array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_skip_shipping_page');					array_push($this->wp_option_defaults, '0' );
@@ -676,12 +678,21 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_restaurant_schedule_range');			array_push($this->wp_option_defaults, '15' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_restaurant_allow_scheduling');		array_push($this->wp_option_defaults, '1' );
+		array_push($this->wp_option_names, 'ec_option_restaurant_allow_scheduling');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_pickup_enable_locations');			array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_pickup_location_unavailable');		array_push($this->wp_option_defaults, '3' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pickup_location_google_site_key');	array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pickup_location_select_enabled');		array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_multiple_location_schedules_enabled');array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pickup_location_show_km');			array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		
 		
 		// Payment Options
 		array_push($this->wp_option_names, 'ec_option_use_direct_deposit');					array_push($this->wp_option_defaults, '1' );

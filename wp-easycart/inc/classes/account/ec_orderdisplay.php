@@ -103,6 +103,7 @@ class ec_orderdisplay{
 	public $pickup_date;
 	public $pickup_asap;
 	public $pickup_time;
+	public $location_id;
 
 	function __construct( $order_row, $is_order_details = false, $is_admin = false ){
 		$this->mysqli = new ec_db( );
@@ -199,6 +200,7 @@ class ec_orderdisplay{
 			$this->pickup_date = ( isset( $order_row->pickup_date ) ) ? $order_row->pickup_date : '';
 			$this->pickup_asap = ( isset( $order_row->pickup_asap ) ) ? $order_row->pickup_asap : '';
 			$this->pickup_time = ( isset( $order_row->pickup_time ) ) ? $order_row->pickup_time : '';
+			$this->location_id = ( isset( $order_row->location_id ) ) ? $order_row->location_id : 0;
 
 			$this->success_page_shown = $order_row->success_page_shown;
 		}// end check for valid order row
@@ -955,4 +957,8 @@ class ec_orderdisplay{
 		return false;
 	}
 
+	public function get_location() {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', $this->location_id ) );
+	}
 }

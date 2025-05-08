@@ -48,9 +48,69 @@
 		</div>
 		<?php }?>
 		<?php if ( $this->order->includes_preorder_items ) { ?>
-		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
-			<?php echo str_replace( '[pickup_date]', esc_attr( date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), strtotime( $this->order->pickup_date ) ) . ' - ' . date( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $this->order->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?>
-		</div>
+			<div class="ec_cart_notice_row" style="margin-bottom:20px;">
+				<?php echo str_replace( '[pickup_date]', esc_attr( date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y' ), strtotime( $this->order->pickup_date ) ) . ' - ' . date( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $this->order->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?>
+			</div>
+			<?php if ( $this->order->location_id ) { ?>
+				<?php $location = $this->order->get_location(); ?>
+				<?php if ( is_object( $location ) ) { ?>
+					<?php
+						$location_address_format = ( ( '' != $location->address_line_1 ) ? $location->address_line_1 : '' ) . ( ( '' != $location->address_line_2 ) ? ' ' . $location->address_line_2 : '' ) . ', ' . $location->city . ( ( '' != $location->state ) ? ' ' . $location->state : '' ) . ( ( '' != $location->zip ) ? ', ' . $location->zip : '' ) . ( ( '' != $location->country ) ? ', ' . $location->country : '' );
+						$location_address_format =apply_filters( 'wp_easycart_location_address', $location_address_format, $location );
+					?>
+					<div class="ec_cart_pickup_location_box_details">
+						<h2><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'preorder_location' ); ?></h2>
+						<?php if ( get_option( 'ec_option_pickup_location_select_enabled' ) && is_string( get_option( 'ec_option_pickup_location_google_site_key' ) ) && '' != get_option( 'ec_option_pickup_location_google_site_key' ) ) { ?>
+						<div class="ec_cart_pickup_location_map" id="pickup_location_map"></div>
+						<script>
+						(g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+							key: "<?php echo esc_attr( get_option( 'ec_option_pickup_location_google_site_key' ) ); ?>",
+							v: "weekly",
+						});
+						</script>
+						<script>
+							let map;
+							async function initMap() {
+								const position = { lat: <?php echo esc_attr( $location->latitude ); ?>, lng: <?php echo esc_attr( $location->longitude ); ?> };
+								const { Map } = await google.maps.importLibrary("maps");
+								const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+								map = new Map(
+									document.getElementById( 'pickup_location_map' ),
+									{
+										zoom: 15,
+										center: position,
+										mapId: 'mapid'
+									}
+								);
+								const marker = new google.maps.marker.AdvancedMarkerElement({
+									map: map,
+									position: position,
+									title: '<?php echo esc_attr( $location->location_label ); ?>'
+								} );
+							}
+							initMap();
+						</script>
+						<?php }?>
+						<div class="ec_cart_pickup_location_details">
+							<h3><?php echo esc_attr( $location->location_label ); ?></h3>
+							<p class="ec_cart_pickup_location_address"><?php echo esc_attr( $location_address_format ); ?></p>
+							<?php if ( isset( $location->hours_note ) && is_string( $location->hours_note ) && '' != trim( $location->hours_note ) ) { ?>
+								<p class="ec_cart_pickup_location_note"><?php echo esc_attr( $location->hours_note ); ?></p>
+							<?php } ?>
+							<?php if ( ( isset( $location->phone ) && '' != $location->phone ) || ( isset( $location->email ) && '' != $location->email ) ) { ?>
+							<div class="ec_cart_pickup_location_note_button_row">
+							<?php if ( isset( $location->phone ) && '' != $location->phone ) { ?>
+								<a href="tel:<?php echo esc_attr( $location->phone ); ?>" title="<?php echo esc_attr( $location->phone ); ?>" class="ec_cart_pickup_location_note_button_phone"><span class="dashicons dashicons-phone"></span> <?php echo esc_attr( $location->phone ); ?></a>
+							<?php } ?>
+							<?php if ( isset( $location->email ) && '' != $location->email ) { ?>
+								<a href="mailto:<?php echo esc_attr( $location->email ); ?>" title="<?php echo esc_attr( $location->email ); ?>" class="ec_cart_pickup_location_note_button_email"><span class="dashicons dashicons-email-alt"></span> <?php echo esc_attr( $location->email ); ?></a>
+							<?php } ?>
+							</div>
+							<?php }?>
+						</div>
+					</div>
+				<?php }?>
+			<?php }?>
 		<?php }?>
 		<?php if ( $this->order->includes_restaurant_type ) { ?>
 		<div class="ec_cart_notice_row" style="margin-bottom:20px;">

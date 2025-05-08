@@ -22,6 +22,7 @@ class ec_filter {
 	public $groupids;
 	public $group_filter_method = 'AND';
 	public $manufacturerids;
+	public $location_id;
 	private $store_page;
 	private $permalink_divider;
 
@@ -46,6 +47,7 @@ class ec_filter {
 		$this->category_filters = $this->get_category_filters();
 		$this->pricepoint_id = $this->get_pricepoint_id();
 		$this->model_number = $this->get_model_number();
+		$this->location_id = $this->get_location_id();
 
 		$this->show_on_startup = $this->get_show_on_startup();
 
@@ -105,6 +107,9 @@ class ec_filter {
 			$key .= '-ot'.str_replace( ',', '_', $this->get_optionitems_filters() );
 			if ( isset( $_GET['optionitem_id'] ) ) {
 				$key .= '-op'.(int)$_GET['optionitem_id'];
+			}
+			if ( $this->location_id ) {
+				$key .= '-l'.(int)$this->location_id;
 			}
 			return $key;
 		}
@@ -294,6 +299,13 @@ class ec_filter {
 		} else {
 			return '';
 		}
+	}
+
+	private function get_location_id() {
+		if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && 2 == (int) get_option( 'ec_option_pickup_location_unavailable' ) && isset( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) ) {
+			return (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location;
+		}
+		return 0;
 	}
 
 	public function get_menu_id() {
@@ -517,6 +529,9 @@ class ec_filter {
 				$left_joins .= ' LEFT JOIN ec_categoryitem AS ec_categoryitem_' . $i . ' ON ec_categoryitem_' . $i . '.product_id = product.product_id';
 			}
 		}
+		if ( $this->location_id ) {
+			$left_joins .= ' INNER JOIN ec_location_to_product ON product.product_id = ec_location_to_product.product_id';
+		}
 		return $left_joins;
 	}
 
@@ -536,6 +551,9 @@ class ec_filter {
 			}
 			if ( $this->get_menu_level() == 3 && $this->get_subsubmenu_id() != 0 ) {
 				$ret_string .= $wpdb->prepare( ' AND ( product.menulevel1_id_3 = %s OR product.menulevel2_id_3 = %s OR product.menulevel3_id_3 = %s )', $this->get_subsubmenu_id(), $this->get_subsubmenu_id(), $this->get_subsubmenu_id() );
+			}
+			if ( $this->location_id ) {
+				$ret_string .= $wpdb->prepare( ' AND ec_location_to_product.location_id = %d', $this->location_id );
 			}
 			if ( $this->search != '' ) {
 				global $wpdb;

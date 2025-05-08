@@ -538,6 +538,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"től"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Keresse meg üzletét"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Kb. %d km-re van"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Kb. %d mérföldre"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Válassza az Áruház lehetőséget"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Írja be az irányítószámot vagy várost, államot"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"pl. irányítószám vagy város, állam"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Keressen üzleteket"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"A Jelenlegi helyem használata"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"Ön elutasította a földrajzi helymeghatározási kérelmet"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"A helyadatok nem érhetők el"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"A felhasználó helyének lekérésére vonatkozó kérés időtúllépést szenvedett"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Ismeretlen hiba történt"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Ez a böngésző nem támogatja a földrajzi helymeghatározást"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Közeli üzletek"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"A termék nem elérhető a kiválasztott helyen"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Keresd meg ezt a terméket"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"Ez a termék jelenleg nem elérhető minden helyszínen."
 				}
 			}
 		},
@@ -1751,6 +1819,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"kor zár"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Átvételi hely"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Helyszín módosítása"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Válasszon helyet"
 				}
 			}
 		},

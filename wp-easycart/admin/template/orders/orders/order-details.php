@@ -244,6 +244,21 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 								</select>
 							</div>
 						</div>
+						<?php if ( get_option( 'ec_option_pickup_enable_locations' ) ) {
+							$locations = $wpdb->get_results( 'SELECT * FROM ec_location ORDER BY location_label ASC' );
+							if ( is_array( $locations ) && count( $locations ) > 0 ) { ?>
+						<div class="ec_admin_order_details_row">
+							<div style="padding:5px 0;">
+								<select class="select2" name="ec_order_location_id" id="ec_order_location_id" style="margin: 5px 0 0 0; float: left; width: 100%;">
+									<option value="0"><?php echo esc_attr__( 'Choose Pickup Location', 'wp-easycart' ); ?></option>
+									<?php foreach ( $locations as $location ) { ?>
+									<option value="<?php echo esc_attr( $location->location_id ); ?>"<?php if ( $location->location_id == $this->order->location_id ) { ?> selected="selected"<?php }?>><?php echo esc_attr( $location->location_label ); ?></option>
+									<?php } ?>
+								</select>
+							</div>
+						</div>
+						<?php }
+						}?>
 					</div>
 					<?php }?>
 

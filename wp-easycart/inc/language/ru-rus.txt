@@ -131,6 +131,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Начиная с"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Найдите свой магазин"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Примерно %d км."
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Примерно %d миль отсюда"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Выбрать магазин"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Введите почтовый индекс или город, штат"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"например, почтовый индекс или город, штат"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Найти магазины"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Использовать мое текущее местоположение"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"Вы отклонили запрос на геолокацию"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"Информация о местоположении недоступна."
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"Запрос на получение местоположения пользователя истек"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Произошла неизвестная ошибка"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Геолокация не поддерживается этим браузером"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Магазины поблизости"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Продукт недоступен в выбранном местоположении"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Найти этот продукт"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"В настоящее время этот продукт недоступен во всех регионах."
 				}
 			}
 		},
@@ -485,6 +553,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"закрывается в"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Место получения"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Изменить местоположение"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Выберите местоположение"
 				}
 			}
 		},

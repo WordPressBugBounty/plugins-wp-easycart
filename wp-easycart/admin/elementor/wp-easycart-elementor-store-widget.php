@@ -24,6 +24,7 @@ $args = shortcode_atts(
 		'sidebar' => false,
 		'sidebar_position' => 'left',
 		'sidebar_filter_clear' => true,
+		'sidebar_include_location' => false,
 		'sidebar_include_search' => true,
 		'sidebar_include_categories' => true,
 		'sidebar_include_categories_first' => true,
@@ -96,6 +97,7 @@ $sorting_default = $args['sorting_default'];
 $sidebar = $args['sidebar'];
 $sidebar_position = $args['sidebar_position'];
 $sidebar_filter_clear = $args['sidebar_filter_clear'];
+$sidebar_include_location = ( isset( $args['sidebar_include_location'] ) ) ? $args['sidebar_include_location'] : 'no';
 $sidebar_include_search = $args['sidebar_include_search'];
 $sidebar_include_categories = $args['sidebar_include_categories'];
 $sidebar_include_categories_first = $args['sidebar_include_categories_first'];
@@ -333,6 +335,7 @@ $more_atts['sorting_default'] = $sorting_default;
 $more_atts['sidebar'] = ( 'yes' == $sidebar ) ? 1 : 0;
 $more_atts['sidebar_position'] = $sidebar_position;
 $more_atts['sidebar_filter_clear'] = ( 'yes' == $sidebar_filter_clear ) ? 1 : 0;
+$more_atts['sidebar_include_location']  = ( 'yes' == $sidebar_include_location ) ? 1 : 0;
 $more_atts['sidebar_include_search']  = ( 'yes' == $sidebar_include_search ) ? 1 : 0;
 $more_atts['sidebar_include_categories']  = ( 'yes' == $sidebar_include_categories ) ? 1 : 0;
 $more_atts['sidebar_include_categories_first'] = ( 'yes' == $sidebar_include_categories_first ) ? 1 : 0;

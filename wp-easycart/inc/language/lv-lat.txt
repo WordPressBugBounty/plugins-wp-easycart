@@ -152,6 +152,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Sākot no"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Atrodiet savu veikalu"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Aptuveni %d km attālumā"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Aptuveni %d jūdžu attālumā"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Atlasiet Veikals"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Ievadiet pasta indeksu vai pilsētu, štatu"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"piemēram, pasta indekss vai pilsēta, valsts"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Atrodiet veikalus"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Izmantojiet manu pašreizējo atrašanās vietu"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"Jūs noraidījāt ģeolokācijas pieprasījumu"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"Informācija par atrašanās vietu nav pieejama"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"Pieprasījumam noskaidrot lietotāja atrašanās vietu iestājās noildze"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Radās nezināma kļūda"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Šī pārlūkprogramma neatbalsta ģeogrāfisko atrašanās vietu"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Tuvumā esošie veikali"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Produkts nav pieejams izvēlētajā atrašanās vietā"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Atrast šo produktu"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"Šis produkts pašlaik nav pieejams visās vietās."
 				}
 			}
 		},
@@ -519,6 +587,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"noslēdzas"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Saņemšanas vieta"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Mainīt atrašanās vietu"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Izvēlieties atrašanās vietu"
 				}
 			}
 		},

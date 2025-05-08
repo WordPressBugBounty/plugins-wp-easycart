@@ -62,10 +62,13 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-user';
-		$this->user = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_user.* FROM ec_user WHERE user_id = %d', (int) $_GET['user_id'] ) );
-		$this->id = $this->user->user_id;
-		$this->billing_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_billing_address_id ) );
-		$this->shipping_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_shipping_address_id ) );
+		$user = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_user.* FROM ec_user WHERE user_id = %d', (int) $_GET['user_id'] ) );
+		if ( is_object( $user ) ) {
+			$this->user = $user;
+			$this->id = $this->user->user_id;
+			$this->billing_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_billing_address_id ) );
+			$this->shipping_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_shipping_address_id ) );
+		}
 	}
 
 	public function output( $type = 'edit' ) {
@@ -73,7 +76,12 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 		if ( 'edit' == $type ) {
 			$this->init_data();
 		}
-		include( EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-details.php' );
+		if ( $this->user->user_id ) {
+			include( EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-details.php' );
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	public function basic_fields() {

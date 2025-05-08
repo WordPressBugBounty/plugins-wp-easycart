@@ -4141,7 +4141,7 @@ class ec_cartpage {
 							document.getElementById( \'ec_apple_pay_row\' ).style.display = \'none\';
 							document.getElementById( \'ec_apple_pay_form\' ).style.display = \'none\';';
 				}
-				if ( get_option( 'ec_option_onepage_checkout' ) ) {
+				if ( get_option( 'ec_option_onepage_checkout' ) && 'paypal' != get_option( 'ec_option_payment_third_party' ) ) {
 					echo '
 							jQuery( \'.ec_cart_express_checkout\' ).hide();';
 				}

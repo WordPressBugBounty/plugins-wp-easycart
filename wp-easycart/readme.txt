@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.8
-Stable tag: 5.8.1
+Stable tag: 5.8.3
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,17 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.3 =
+* Patch from 5.8.2 - Error in the main store js quick fix.
+* Improvement - Order list keeps the name visible.
+* Improvement - Order list combined first and last name into a customer name column.
+* Improvement - Order list, order date updated to show Today, Yesterday, Tuesday, and so on (if within last week).
+* Improvement - Order list, order date that is in the same year removed year from the display for better readability.
+* New Feature - Order list, customer name can be clicked to view customer details and quick copy for email and phone.
+* Bug Fix - Square importer added checks for missing data coming from Square for syncs.
+* Bug Fix - If the admin links to a user that was deleted, it displays the appropriate error message.
+* Bug Fix - Improved testing for remote server to use only when required to connect to PayPal or Stripe.
+* Bug Fix - PHPMailer file removed and replaced with WordPress version.
 = 5.8.1 =
 * Update - Works with WordPress 6.8!
 = 5.7.15 =

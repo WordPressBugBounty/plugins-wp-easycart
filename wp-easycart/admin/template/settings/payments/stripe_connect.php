@@ -24,11 +24,11 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 				<?php esc_attr_e( 'Stripe offers the ability to pay with a credit card directly on your website. Adding Stripe gives your shopping cart a more professional look and increases conversions.', 'wp-easycart' ); ?>
 				<?php if ( '' != get_option( 'ec_option_stripe_connect_production_access_token' ) ) { ?>
 				<br />
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->available_url ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production"><?php esc_attr_e( 'Switch Production Account', 'wp-easycart' ); ?></a>
+				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production"><?php esc_attr_e( 'Switch Production Account', 'wp-easycart' ); ?></a>
 				<?php }?>
 				<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) != '' ) { ?>
 				<br />
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->available_url ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox"><?php esc_attr_e( 'Switch Sandbox Account', 'wp-easycart' ); ?></a>
+				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox"><?php esc_attr_e( 'Switch Sandbox Account', 'wp-easycart' ); ?></a>
 				<?php } ?>
 			</div>
 			<?php if ( '' != get_option( 'ec_option_stripe_connect_sandbox_access_token' ) || '' != get_option( 'ec_option_stripe_connect_production_access_token' ) ) { ?>
@@ -790,7 +790,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 			<div class="ec_admin_toggle">
 				<span><?php esc_attr_e( 'Enable Live', 'wp-easycart' ); ?>:</span>
 				<?php if ( get_option( 'ec_option_stripe_connect_production_access_token' ) == '' ) { ?>
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->available_url ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production">
+				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production">
 				<span></span>
 				<?php }?>
 				<label class="ec_admin_switch">
@@ -804,7 +804,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 			<div class="ec_admin_toggle">
 				<span><?php esc_attr_e( 'Enable Sandbox', 'wp-easycart' ); ?>:</span>
 				<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) == '' ) { ?>
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->available_url ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox">
+				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox">
 				<span></span>
 				<?php }?>
 				<label class="ec_admin_switch">

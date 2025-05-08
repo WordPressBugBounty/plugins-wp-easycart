@@ -248,6 +248,9 @@ class ec_db_manager {
 			'5.8.1' => array(
 				'wpeasycart_sql_5_8_1'
 			),
+			'5.8.2' => array(
+				'wpeasycart_sql_5_8_2'
+			),
 		);
 
 		$return_functions = array();
@@ -690,6 +693,10 @@ class ec_db_manager {
 
 	private function wpeasycart_sql_5_8_1() {
 		global $wpdb;
+		$collate = "";
+		if ( $wpdb->has_cap( 'collation' ) ) {
+			$collate = $wpdb->get_charset_collate();
+		}
 		$wpdb->query( "CREATE TABLE ec_location (
 		  location_id int(11) NOT NULL AUTO_INCREMENT,
 		  location_label varchar(255) DEFAULT '',
@@ -707,6 +714,35 @@ class ec_db_manager {
 		  UNIQUE KEY location_id (location_id)
 		) $collate;" );
 		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN pickup_locations text NULL" );
+	}
+
+	private function wpeasycart_sql_5_8_2() {
+		global $wpdb;
+		$collate = "";
+		if ( $wpdb->has_cap( 'collation' ) ) {
+			$collate = $wpdb->get_charset_collate();
+		}
+		$wpdb->query( "CREATE TABLE ec_location_to_product (
+		  location_product_id int(11) NOT NULL AUTO_INCREMENT,
+		  location_id int(11) NOT NULL DEFAULT 0,
+		  product_id int(11) NOT NULL DEFAULT 0,
+		  PRIMARY KEY  (location_product_id),
+		  UNIQUE KEY location_product_id (location_product_id),
+		  KEY location_id (location_id),
+		  KEY product_id (product_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE ec_location_to_schedule (
+		  location_schedule_id int(11) NOT NULL AUTO_INCREMENT,
+		  location_id int(11) NOT NULL DEFAULT 0,
+		  schedule_id int(11) NOT NULL DEFAULT 0,
+		  PRIMARY KEY  (location_schedule_id),
+		  UNIQUE KEY location_schedule_id (location_schedule_id),
+		  KEY location_id (location_id),
+		  KEY product_id (schedule_id)
+		) $collate;" );
+		$wpdb->query( 'ALTER TABLE ec_order ADD COLUMN location_id int(11) NOT NULL DEFAULT 0' );
+		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_location int(11) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_location ADD COLUMN hours_note text NOT NULL DEFAULT ''" );
 	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
@@ -729,6 +765,8 @@ class ec_db_manager {
 			"ec_giftcard",
 			"ec_live_rate_cache",
 			"ec_location",
+			"ec_location_to_product",
+			"ec_location_to_schedule",
 			"ec_manufacturer",
 			"ec_menulevel1",
 			"ec_menulevel2",
@@ -966,8 +1004,27 @@ CREATE TABLE ec_location (
   email varchar(255) NOT NULL DEFAULT '',
   latitude decimal(9,6) DEFAULT NULL,
   longitude decimal(9,6) DEFAULT NULL,
+  hours_note text NOT NULL DEFAULT '',
   PRIMARY KEY (location_id),
   UNIQUE KEY location_id (location_id)
+) $collate;
+CREATE TABLE ec_location_to_product (
+  location_product_id int(11) NOT NULL AUTO_INCREMENT,
+  location_id int(11) NOT NULL DEFAULT 0,
+  product_id int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY  (location_product_id),
+  UNIQUE KEY location_product_id (location_product_id),
+  KEY location_id (location_id),
+  KEY product_id (product_id)
+) $collate;
+CREATE TABLE ec_location_to_schedule (
+  location_schedule_id int(11) NOT NULL AUTO_INCREMENT,
+  location_id int(11) NOT NULL DEFAULT 0,
+  schedule_id int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY  (location_schedule_id),
+  UNIQUE KEY location_schedule_id (location_schedule_id),
+  KEY location_id (location_id),
+  KEY product_id (schedule_id)
 ) $collate;
 CREATE TABLE ec_manufacturer (
   manufacturer_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1201,6 +1258,7 @@ CREATE TABLE ec_order (
   pickup_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   pickup_asap tinyint(1) NOT NULL DEFAULT 1,
   pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  location_id int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY  (order_id),
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
@@ -1989,6 +2047,7 @@ CREATE TABLE ec_tempcart_data (
   pickup_date varchar(32) NOT NULL DEFAULT '',
   pickup_asap tinyint(1) NOT NULL DEFAULT 1,
   pickup_time varchar(32) NOT NULL DEFAULT '',
+  pickup_location int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY  (tempcart_data_id)
 ) $collate;
 CREATE TABLE ec_tempcart_optionitem (

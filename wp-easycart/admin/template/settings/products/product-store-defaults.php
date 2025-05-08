@@ -71,6 +71,11 @@
 
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_store_sidebar_filter_clear', 'ec_admin_save_product_options', get_option( 'ec_option_store_sidebar_filter_clear' ), __( 'Store Defaults: Enable Clear Filter Feature', 'wp-easycart' ), __( 'Enable this to show a filter clear feature in your sidebar.', 'wp-easycart' ), 'ec_admin_store_sidebar_filter_clear_row', ( ( get_option( 'ec_option_show_store_sidebar' ) == '1' ) ? true : false ) ); ?>
 
+		<?php if ( apply_filters( 'wp_easycart_enable_multiple_locations', false ) ) { ?>
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_store_sidebar_include_location', 'wpeasycart_admin_update_sidebar_view(); ec_admin_save_product_options', get_option( 'ec_option_store_sidebar_include_location' ), __( 'Store Defaults: Enable Sidebar Locations', 'wp-easycart' ), __( 'Enable this to show a pickup location selector in your sidebar.', 'wp-easycart' ), 'ec_admin_store_sidebar_include_location_row', ( ( get_option( 'ec_option_show_store_sidebar' ) == '1' && get_option( 'ec_option_pickup_enable_locations' ) ) ? true : false ) ); ?>
+		<input type="hidden" value="<?php echo esc_attr( get_option( 'ec_option_pickup_enable_locations' ) ); ?>" id="ec_option_pickup_enable_locations" />
+		<?php }?>
+
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_store_sidebar_include_search', 'wpeasycart_admin_update_sidebar_view(); ec_admin_save_product_options', get_option( 'ec_option_store_sidebar_include_search' ), __( 'Store Defaults: Enable Sidebar Search', 'wp-easycart' ), __( 'Enable this to show a search box in your sidebar.', 'wp-easycart' ), 'ec_admin_store_sidebar_include_search_row', ( ( get_option( 'ec_option_show_store_sidebar' ) == '1' ) ? true : false ) ); ?>
 
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_store_sidebar_include_categories', 'wpeasycart_admin_update_sidebar_view(); ec_admin_save_product_options', get_option( 'ec_option_store_sidebar_include_categories' ), __( 'Store Defaults: Enable Sidebar Category Links', 'wp-easycart' ), __( 'Enable this to show simple category links that you can customize in your sidebar.', 'wp-easycart' ), 'ec_admin_store_sidebar_include_categories_row', ( ( get_option( 'ec_option_show_store_sidebar' ) == '1' ) ? true : false ) ); ?>

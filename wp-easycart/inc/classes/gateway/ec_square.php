@@ -1715,7 +1715,7 @@ class ec_square extends ec_gateway{
 						if ( isset( $optionitem->item_variation_data->price_money ) && isset( $optionitem->item_variation_data->price_money->amount ) ) {
 							$option_item_price = $optionitem->item_variation_data->price_money->amount / 100;
 						}
-						$option_item_sku = $optionitem->item_variation_data->sku;
+						$option_item_sku = ( isset( $optionitem->item_variation_data->sku ) ) ? $optionitem->item_variation_data->sku : '';
 						$option_item_id_1 = $option_item_id_2 = $option_item_id_3 = $option_item_id_4 = $option_item_id_5 = 0;
 						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 0 ) {
 							$option_item_id_1 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[0]->item_option_value_id, $option_id_1 ) );
@@ -1738,7 +1738,7 @@ class ec_square extends ec_gateway{
 						if( isset( $optionitem->item_variation_data ) && isset( $optionitem->item_variation_data->location_overrides ) && is_array( $optionitem->item_variation_data->location_overrides ) ){
 							for( $j=0; $j<count( $optionitem->item_variation_data->location_overrides ); $j++ ){
 								if( $optionitem->item_variation_data->location_overrides[$j]->location_id == $location_id ){
-									if( $optionitem->item_variation_data->location_overrides[$j]->track_inventory ){
+									if( isset( $optionitem->item_variation_data->location_overrides[$j]->track_inventory ) && $optionitem->item_variation_data->location_overrides[$j]->track_inventory ){
 										$option_item_quantity = $this->get_variance_stock_quantity( $optionitem->id );
 										$item_stock_tracking_enabled = 1;
 									} else {

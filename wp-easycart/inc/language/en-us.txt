@@ -538,6 +538,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Starting At"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Find Your Store"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Approx %d KM away"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Approx %d miles away"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Select Store"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Enter Zip Code or City, State"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"e.g., zip or city, state"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Find Stores"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Use My Current Location"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"You denied the request for Geolocation"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"Location information is unavailable"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"The request to get user location timed out"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"An unknown error occurred"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Geolocation is not supported by this browser"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Nearby Stores"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Product Unavailable at Selected Location"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Find this product"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"This product is currently unavailable at all locations."
 				}
 			}
 		},
@@ -1784,6 +1852,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"Closes in"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Pickup Location"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Change Location"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Choose Location"
 				}
 			}
 		},

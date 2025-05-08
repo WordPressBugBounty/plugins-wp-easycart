@@ -42,6 +42,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		private $price_tiers_index;
 		private $b2b_prices_index;
 		private $product_images_index;
+		private $pickup_locations_index;
 		private $headers;
 		private $limit;
 
@@ -636,7 +637,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				'ec_option_product_filter_4', 'ec_option_product_filter_5', 'ec_option_product_filter_6', 'ec_option_product_filter_7', 'ec_option_product_filter_8', 'ec_option_short_description_on_product',
 				'ec_option_show_featured_categories', 'ec_option_enable_product_paging', 'ec_option_hide_out_of_stock',
 				'ec_option_display_as_catalog', 'ec_option_subscription_one_only',
-				'ec_option_enable_product_paging', 'ec_option_show_store_sidebar', 'ec_option_store_sidebar_filter_clear', 'ec_option_store_sidebar_include_search', 'ec_option_store_sidebar_include_categories',
+				'ec_option_enable_product_paging', 'ec_option_show_store_sidebar', 'ec_option_store_sidebar_filter_clear', 'ec_option_store_sidebar_include_location', 'ec_option_store_sidebar_include_search', 'ec_option_store_sidebar_include_categories',
 				'ec_option_sidebar_include_categories_first', 'ec_option_sidebar_include_option_filters', 'ec_option_enable_inventory_notification', 'ec_option_product_add_to_cart_enable_quantity', 'ec_option_sidebar_include_category_filters', 'ec_option_product_no_checkout_button', 'ec_option_redirect_add_to_cart', 'ec_option_addtocart_return_to_product', 'ec_option_store_sidebar_include_manufacturers', 'ec_option_show_promotion_discount_total',
 			);
 			$options_text = array(
@@ -2166,6 +2167,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$this->price_tiers_index = -1;
 			$this->b2b_prices_index = -1;
 			$this->product_images_index = -1;
+			$this->pickup_locations_index = -1;
 			$this->limit = 20;
 
 			require_once( 'Encoding.php' );
@@ -2270,6 +2272,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 					} else if ($this->headers[ $i ] == 'product_images' ) { // use to check for errors
 						$this->product_images_index = $i;
+
+					} else if ($this->headers[ $i ] == 'pickup_locations' ) { // use to check for errors
+						$this->pickup_locations_index = $i;
 
 					} else if ( ! in_array( $this->headers[ $i ], $valid_headers ) ) { // error, invalid column
 						echo sprintf( esc_attr__( 'You have an invalid column header at column %d (value %s), please remove or correct the label of that column to continue.', 'wp-easycart' ), esc_attr( $i ), esc_attr( $this->headers[ $i ] ) );
@@ -2384,6 +2389,18 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 												$product_images_str .= $product_image;
 											}
 											$update_vals[] = $product_images_str;
+										} else if ( $j == $this->pickup_locations_index ) {
+											$pickup_locations = ( isset( $rows[ $i ][ $j ] ) && is_string( $rows[ $i ][ $j ] ) && strlen( $rows[ $i ][ $j ] ) > 0 ) ? explode( ',', $rows[ $i ][ $j ] ) : array();
+											$pickup_locations_str = '';
+											$pickup_locations_arr = array();
+											foreach ( $pickup_locations as $pickup_location ) {
+												if ( '' != $pickup_locations_str ) {
+													$pickup_locations_str .= ',';
+												}
+												$pickup_locations_str .= (int) $pickup_location;
+												$pickup_locations_arr[] = (int) $pickup_location;
+											}
+											$update_vals[] = $pickup_locations_str;
 										} else {
 											//$update_vals[] = \ForceUTF8\Encoding::fixUTF8( $rows[ $i ][ $j ] );
 											$update_vals[] = $rows[ $i ][ $j ];
@@ -2490,6 +2507,20 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 												$sql .= ',';
 											}
 											$sql .= $wpdb->prepare( '( %d, %s, %s)', $product_id, $b2b_prices_items[ $j ], $b2b_prices_items[ $j + 1 ] );
+										}
+										$wpdb->query( $sql );
+									}
+								}
+
+								if ( -1 != $this->pickup_locations_index ) {
+									$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_location_to_product WHERE product_id = %d', $product_id ) );
+									if ( isset( $pickup_locations_arr ) && count( $pickup_locations_arr ) > 0 ) {
+										$sql = 'INSERT INTO ec_location_to_product( product_id, location_id ) VALUES';
+										for ( $j = 0; $j < count( $pickup_locations_arr ); $j++ ) {
+											if ( $j > 0 ) {
+												$sql .= ',';
+											}
+											$sql .= $wpdb->prepare( '(%d,%d)', $product_id, $pickup_locations_arr[ $j ] );
 										}
 										$wpdb->query( $sql );
 									}
@@ -2675,6 +2706,21 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 									}
 								}
 
+								if ( -1 != $this->pickup_locations_index ) {
+									$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_location_to_product WHERE product_id = %d', $product_id ) );
+									$sql = 'INSERT INTO ec_location_to_product( product_id, location_id ) VALUES';
+									if ( isset( $pickup_locations_arr ) && count( $pickup_locations_arr ) > 0 ) {
+										$sql = '';
+										for ( $j = 0; $j < count( $pickup_locations_arr ); $j++ ) {
+											if ( $j > 0 ) {
+												$sql .= ',';
+											}
+											$sql .= $wpdb->prepare( '(%d,%d)', $product_id, $pickup_locations_arr[ $j ] );
+										}
+										$wpdb->query( $sql );
+									}
+								}
+
 							}// model number duplicate check
 
 						}// close check for insert or update
@@ -2690,8 +2736,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				unset( $this->headers );
 
 				fclose( $file );
-				wp_cache_delete( 'wpeasycart-all-categories' );
-				wp_cache_delete( 'wpeasycart-pricetiers' );
+				wp_cache_flush();
 
 				if ( $this->error_list == '' ) {
 					echo 'success' ;

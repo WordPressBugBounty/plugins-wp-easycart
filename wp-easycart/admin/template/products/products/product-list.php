@@ -161,36 +161,35 @@ $table->set_actions(
 global $wpdb;
 $manufacturer_list = $wpdb->get_results( "SELECT ec_manufacturer.manufacturer_id AS value, ec_manufacturer.name AS label FROM ec_manufacturer ORDER BY ec_manufacturer.name ASC" );
 $category_list = $wpdb->get_results( "SELECT ec_category.category_id AS value, ec_category.category_name AS label FROM ec_category ORDER BY ec_category.category_name ASC" );
-$table->set_filters(
+$filters = array(
 	array(
-		array(
-			'data' => $manufacturer_list,
-			'label' => __( 'All Manufacturers', 'wp-easycart' ),
-			'where' => 'ec_product.manufacturer_id = %d',
-		),
-		array(
-			'data' => $category_list,
-			'label' => __( 'All Categories', 'wp-easycart' ),
-			'select' => 'ec_categoryitem.category_id',
-			'join' => 'LEFT JOIN ec_categoryitem ON (ec_categoryitem.product_id = ec_product.product_id)',
-			'where' => 'ec_categoryitem.category_id = %d',
-		),
-		array(
-			'data' => array(
-				(object) array(
-					'value' => '1',
-					'label' => __( 'Activated Only', 'wp-easycart' ),
-				),
-				(object) array(
-					'value' => '0',
-					'label' => __( 'Deactivated Only', 'wp-easycart' ),
-				)
+		'data' => $manufacturer_list,
+		'label' => __( 'All Manufacturers', 'wp-easycart' ),
+		'where' => 'ec_product.manufacturer_id = %d',
+	),
+	array(
+		'data' => $category_list,
+		'label' => __( 'All Categories', 'wp-easycart' ),
+		'select' => 'ec_categoryitem.category_id',
+		'join' => 'LEFT JOIN ec_categoryitem ON (ec_categoryitem.product_id = ec_product.product_id)',
+		'where' => 'ec_categoryitem.category_id = %d',
+	),
+	array(
+		'data' => array(
+			(object) array(
+				'value' => '1',
+				'label' => __( 'Activated Only', 'wp-easycart' ),
 			),
-			'label' => __( 'All Products', 'wp-easycart' ),
-			'where' => 'ec_product.activate_in_store = %d',
+			(object) array(
+				'value' => '0',
+				'label' => __( 'Deactivated Only', 'wp-easycart' ),
+			)
 		),
-	)
+		'label' => __( 'All Products', 'wp-easycart' ),
+		'where' => 'ec_product.activate_in_store = %d',
+	),
 );
+$table->set_filters( apply_filters( 'wp_easycart_admin_product_list_filters', $filters ) );
 $table->set_label( __( 'Product', 'wp-easycart' ), __( 'Products', 'wp-easycart' ) );
 if ( ! get_option( 'ec_option_review_complete' ) ) {
 ?>

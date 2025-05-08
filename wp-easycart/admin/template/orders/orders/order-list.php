@@ -17,10 +17,11 @@ $columns[] = array(
 );
 $columns[] = array(
 	'name' => 'order_id', 
-	'label' => __( 'Order ID', 'wp-easycart' ),
+	'label' => __( 'Order', 'wp-easycart' ),
 	'format' => 'int',
 	'linked' => true,
 	'is_mobile' => true,
+	'is_id' => true,
 	'subactions' => array(
 		array(
 			'click' => 'return false',
@@ -38,6 +39,12 @@ $columns[] = array(
 	),
 	'mobile_extra' => array(
 		array(
+			'name' => 'billing_name',
+			'label' => __( 'Customer', 'wp-easycart' ),
+			'is_mobile' => true,
+			'format' => 'string',
+		),
+		array(
 			'select' => 'ec_orderstatus.order_status',
 			'name' => 'order_status',
 			'label' => __( 'Order Status', 'wp-easycart' ),
@@ -53,6 +60,55 @@ $columns[] = array(
 	'is_mobile' => true,
 	'format' => 'datetime',
 	'localize_timestamp' => true,
+);
+$columns[] = array(
+	'name' => 'billing_name',
+	'label' => __( 'Customer', 'wp-easycart' ),
+	'laptop_hide' => false,
+	'tablet_hide' => false,
+	'is_mobile' => true,
+	'format' => 'customer',
+	'is_concat' => true,
+	'concat' => 'CONCAT( ec_order.billing_first_name, " ", ec_order.billing_last_name ) AS billing_name',
+	'customer_elements' => array(
+		array(
+			'name' => 'billing_name',
+			'format' => 'string',
+		),
+		array(
+			'name' => 'user_email',
+			'format' => 'email',
+		),
+		array(
+			'name' => 'billing_phone',
+			'format' => 'phone',
+		),
+		array(
+			'name' => 'user_id',
+			'format' => 'customer_button',
+		),
+	),
+);
+$columns[] = array(
+	'select' => 'ec_order.user_email',
+	'name' => 'user_email',
+	'label' => __( 'Email', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'hidden',
+);
+$columns[] = array(
+	'select' => 'ec_order.user_id',
+	'name' => 'user_id',
+	'label' => __( 'User ID', 'wp-easycart' ),
+	'is_mobile' => false,
+	'format' => 'hidden',
+);
+$columns[] = array(
+	'select' => 'ec_order.billing_phone',
+	'name' => 'billing_phone',
+	'label' => __( 'Phone', 'wp-easycart' ),
+	'is_mobile' => true,
+	'format' => 'hidden',
 );
 if ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) ) {
 	$columns[] = array(
@@ -97,22 +153,6 @@ $columns[] = array(
 	'format' => 'currency',
 );
 $columns[] = array(
-	'name' => 'billing_first_name',
-	'label' => __( 'First Name', 'wp-easycart' ),
-	'laptop_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
-	'tablet_hide' => true,
-	'is_mobile' => true,
-	'format' => 'string',
-);
-$columns[] = array(
-	'name' => 'billing_last_name',
-	'label' => __( 'Last Name', 'wp-easycart' ),
-	'laptop_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
-	'tablet_hide' => ( get_option( 'ec_option_admin_orders_list_enable_pickup_date' ) || get_option( 'ec_option_admin_orders_list_enable_pickup_time' ) ) ? true : false,
-	'is_mobile' => true,
-	'format' => 'string',
-);
-$columns[] = array(
 	'select' => 'ec_orderstatus.is_approved, ec_order.orderstatus_id',
 	'name' => 'orderstatus_id',
 	'label' => __( 'Payment Status', 'wp-easycart' ),
@@ -140,29 +180,26 @@ global $wpdb;
 $order_status = $wpdb->get_results( "SELECT ec_orderstatus.status_id AS value, ec_orderstatus.order_status AS label FROM ec_orderstatus ORDER BY status_id ASC" );
 $products = $wpdb->get_results( "SELECT product_id AS value, title AS label FROM ec_product ORDER BY title ASC LIMIT 500" );
 $users = $wpdb->get_results( "SELECT user_id AS value, CONCAT(last_name, ', ', first_name) AS label FROM ec_user ORDER BY last_name, first_name ASC LIMIT 500" );
-
-$table->set_filters(
+$filters = array(
 	array(
-		array(
-			'data'		=> $order_status,
-			'label'		=> __( 'Order Status', 'wp-easycart' ),
-			'where'		=> 'ec_order.orderstatus_id = %s'
-		),
-		array(
-			'data'		=> $products,
-			'label'		=> __( 'Purchased Product', 'wp-easycart' ),
-			'where'		=> 'ec_orderdetail.product_id = %s',
-			'where2'	=> 'ec_orderdetail.model_number = %s',
-			'join'		=> 'LEFT JOIN ec_orderdetail ON ec_orderdetail.order_id = ec_order.order_id',
-		),
-		array(
-			'data'		=> $users,
-			'label'		=> __( 'By Customer', 'wp-easycart' ),
-			'where'		=> 'ec_order.user_id = %d'
-		)
-
+		'data'		=> $order_status,
+		'label'		=> __( 'Order Status', 'wp-easycart' ),
+		'where'		=> 'ec_order.orderstatus_id = %s'
+	),
+	array(
+		'data'		=> $products,
+		'label'		=> __( 'Purchased Product', 'wp-easycart' ),
+		'where'		=> 'ec_orderdetail.product_id = %s',
+		'where2'	=> 'ec_orderdetail.model_number = %s',
+		'join'		=> 'LEFT JOIN ec_orderdetail ON ec_orderdetail.order_id = ec_order.order_id',
+	),
+	array(
+		'data'		=> $users,
+		'label'		=> __( 'By Customer', 'wp-easycart' ),
+		'where'		=> 'ec_order.user_id = %d'
 	)
 );
+$table->set_filters( apply_filters( 'wp_easycart_admin_order_list_filters', $filters ) );
 
 $table->set_search_columns(
 	array( 'ec_order.order_id', 'ec_order.user_email', 'ec_order.billing_first_name', 'ec_order.billing_last_name', 'ec_order.shipping_first_name', 'ec_order.shipping_last_name', 'ec_orderstatus.order_status', 'ec_order.billing_company_name', 'ec_order.shipping_company_name' )

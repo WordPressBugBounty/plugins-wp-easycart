@@ -10,9 +10,9 @@
 		<div class="ec_admin_slider_row_description">
 			<div><?php esc_attr_e( 'PayPal gives your customers a payment method that most are comfortable using and does not require an SSL Certificate.', 'wp-easycart' ); ?></div>
 			<?php if ( 'paypal' == get_option( 'ec_option_payment_third_party' ) && ! get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_enable_pay_now' ) && '' != get_option( 'ec_option_paypal_production_merchant_id' ) ) { ?>
-			<a href="<?php echo esc_url( wp_easycart_admin( )->available_url ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>"><?php esc_attr_e( 'Switch Accounts', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin( )->get_available_url() ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>"><?php esc_attr_e( 'Switch Accounts', 'wp-easycart' ); ?></a>
 			<?php } else if ( 'paypal' == get_option( 'ec_option_payment_third_party' ) && get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_enable_pay_now' ) && '' != get_option( 'ec_option_paypal_sandbox_merchant_id' ) ) { ?>
-			<a href="<?php echo esc_url( wp_easycart_admin( )->available_url ); ?>/paypal-v2/sandbox_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>"><?php esc_attr_e( 'Switch Accounts', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin( )->get_available_url() ); ?>/paypal-v2/sandbox_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>"><?php esc_attr_e( 'Switch Accounts', 'wp-easycart' ); ?></a>
 			<?php } ?>
 			<a href="#" onclick="return paypal_show_advanced( );" id="paypal_advanced_link"><?php esc_attr_e( 'Advanced Options', 'wp-easycart' ); ?> &#9660;</a>
 			<input type="hidden" value="<?php echo esc_attr( get_option( 'ec_option_paypal_email' ) ); ?>" name="ec_option_paypal_email" id="ec_option_paypal_email" />
@@ -23,7 +23,7 @@
 			<div class="ec_admin_toggle">
 				<span><?php esc_attr_e( 'Enable Live', 'wp-easycart' ); ?>:</span>
 				<?php if ( ! get_option( 'ec_option_paypal_enable_pay_now' ) || '' == get_option( 'ec_option_paypal_production_merchant_id' ) ) { ?>
-				<a href="<?php echo esc_url( wp_easycart_admin( )->available_url ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>">
+				<a href="<?php echo esc_url( wp_easycart_admin( )->get_available_url() ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>">
 				<span></span>
 				<?php } ?>
 				<label class="ec_admin_switch">
@@ -37,7 +37,7 @@
 			<div class="ec_admin_toggle">
 				<span><?php esc_attr_e( 'Enable Sandbox', 'wp-easycart' ); ?>:</span>
 				<?php if ( ! get_option( 'ec_option_paypal_enable_pay_now' ) || '' == get_option( 'ec_option_paypal_sandbox_merchant_id' ) ) { ?>
-				<a href="<?php echo esc_url( wp_easycart_admin( )->available_url ); ?>/paypal-v2/sandbox_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>">
+				<a href="<?php echo esc_url( wp_easycart_admin( )->get_available_url() ); ?>/paypal-v2/sandbox_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) ); ?>">
 				<span></span>
 				<?php } ?>
 				<label class="ec_admin_switch">

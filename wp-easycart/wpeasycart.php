@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.1
+ * Version: 5.8.3
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.1
+ * @version 5.8.3
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +22,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_1' );
+define( 'EC_CURRENT_VERSION', '5_8_3' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '94' );
+define( 'EC_UPGRADE_DB', '95' );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 
@@ -1121,7 +1121,8 @@ function ec_load_js() {
 		'ga4_id' => esc_attr( get_option( 'ec_option_google_ga4_property_id' ) ),
 		'ga4_conv_id' => esc_attr( get_option( 'ec_option_google_adwords_tag_id' ) ),
 		'ajax_url' => ( ( isset( $_SERVER['HTTPS'] ) && 'on' == $_SERVER["HTTPS"] ) ? $https_link : admin_url( 'admin-ajax.php' ) ),
-		'current_language' => $current_language
+		'current_language' => $current_language,
+		'location_id' => (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location,
 	);
 	wp_localize_script( 'wpeasycart_js', 'wpeasycart_ajax_object', $ajax_array );
 }
@@ -1478,6 +1479,7 @@ function load_ec_store( $atts ) {
 		'sidebar' => get_option( 'ec_option_show_store_sidebar' ),
 		'sidebar_position' => get_option( 'ec_option_store_sidebar_position' ),
 		'sidebar_filter_clear' => get_option( 'ec_option_store_sidebar_filter_clear' ),
+		'sidebar_include_location' => get_option( 'ec_option_store_sidebar_include_location' ),
 		'sidebar_include_search' => get_option( 'ec_option_store_sidebar_include_search' ),
 		'sidebar_include_categories' => get_option( 'ec_option_store_sidebar_include_categories' ),
 		'sidebar_include_categories_first' => get_option( 'ec_option_sidebar_include_categories_first' ),
@@ -7338,7 +7340,174 @@ function ec_ajax_get_dynamic_account_page() {
 	$accountpage->display_account_dynamic( $account_page, (int) $_POST['page_id'], sanitize_key( $_POST['success_code'] ), sanitize_key( $_POST['error_code'] ) );
 	die();
 }
+
+add_action( 'wp_ajax_ec_ajax_location_find_by_geo', 'ec_ajax_location_find_by_geo' );
+add_action( 'wp_ajax_nopriv_ec_ajax_location_find_by_geo', 'ec_ajax_location_find_by_geo' );
+function ec_ajax_location_find_by_geo() {
+	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ), 'wp-easycart-location' ) ) {
+		die();
+	}
+	$ecdb = new ec_db();
+	$product_id = ( isset( $_POST['product_id'] ) ) ? (int) $_POST['product_id'] : false;
+	$type = ( isset( $_POST['type'] ) && 'cart' == $_POST['type'] ) ? 'cart' : false;
+	if ( ! isset( $_POST['lat'] ) || ! isset( $_POST['long'] ) ) {
+		$locations = $ecdb->get_locations_by_geo( false, false, $product_id, $type );
+	} else {
+		$target_lat = filter_var( $_POST['lat'], FILTER_VALIDATE_FLOAT );
+		$target_long = filter_var( $_POST['long'], FILTER_VALIDATE_FLOAT );
+		if ( $target_lat === false || $target_long === false || ! is_numeric( $_POST['lat'] ) || ! is_numeric( $_POST['long'] ) || $target_lat < -90.0 || $target_lat > 90.0 || $target_long < -180.0 || $target_long > 180.0 ) {
+			$locations = $ecdb->get_locations_by_geo( false, false, $product_id, $type );
+		} else {
+			$locations = $ecdb->get_locations_by_geo( $target_lat, $target_long, $product_id, $type );
+		}
+	}
+	$return_locations = wp_easycart_get_locations_response( $locations );
+	wp_send_json_success( array( 'locations' => $return_locations ) );
+}
+
+add_action( 'wp_ajax_ec_ajax_location_search', 'ec_ajax_location_search' );
+add_action( 'wp_ajax_nopriv_ec_ajax_location_search', 'ec_ajax_location_search' );
+function ec_ajax_location_search() {
+	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ), 'wp-easycart-location' ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['search'] ) ) {
+		wp_send_json_error( array( 'message' => 'invalid-request' ) );
+	}
+	if ( ! get_option( 'ec_option_pickup_location_google_site_key' ) || '' == get_option( 'ec_option_pickup_location_google_site_key' ) ) {
+		wp_send_json_error( array( 'message' => 'invalid-request' ) );
+	}
+	$ecdb = new ec_db();
+	$search_term = sanitize_text_field( $_POST['search'] );
+	$lat_long = wp_easycart_get_location_geocode( $search_term );
+	if ( false === $lat_long || ! is_array( $lat_long ) || ! isset( $lat_long['lat'] ) || ! isset( $lat_long['long'] ) ) {
+		$locations = $ecdb->get_locations_by_geo( false, false );
+	} else {
+		$locations = $ecdb->get_locations_by_geo( $lat_long['lat'], $lat_long['long'] );
+	}
+	$return_locations = wp_easycart_get_locations_response( $locations );
+	wp_send_json_success( array( 'locations' => $return_locations ) );
+}
+
+add_action( 'wp_ajax_ec_ajax_location_set_selected', 'ec_ajax_location_set_selected' );
+add_action( 'wp_ajax_nopriv_ec_ajax_location_set_selected', 'ec_ajax_location_set_selected' );
+function ec_ajax_location_set_selected() {
+	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ), 'wp-easycart-location' ) ) {
+		die();
+	}
+	if ( ! isset( $_POST['location_id'] ) ) {
+		wp_send_json_error( array( 'message' => 'invalid-request' ) );
+	}
+	global $wpdb;
+	$ecdb = new ec_db();
+	wpeasycart_session()->handle_session();
+	$location = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', (int) $_POST['location_id'] ) );
+	if ( is_object( $location ) && isset( $location->location_id ) ) {
+		$GLOBALS['ec_cart_data']->cart_data->pickup_location = (int) $location->location_id;
+		$GLOBALS['ec_cart_data']->save_session_to_db();
+		$total_removed = $ecdb->remove_invalid_cart_items_by_location( $GLOBALS['ec_cart_data']->ec_cart_id, $location->location_id );
+		wp_send_json_success( array( 'success' => 'saved', 'location' => (int) $location->location_id, 'total_removed' => (int) $total_removed ) );
+	} else {
+		wp_send_json_error( array( 'message' => 'invalid-request' ) );
+	}
+}
 // End AJAX helper function for cart.
+function wp_easycart_output_location_popup() {
+	if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_location_selector.php' ) ) {
+		include_once( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_location_selector.php' );
+	} else {
+		include_once( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_location_selector.php' );
+	}
+}
+function wp_easycart_get_locations_response( $locations ) {
+	$return_locations = array();
+	foreach ( $locations as $location ) {
+		$location_address_format = ( ( '' != $location->address_line_1 ) ? $location->address_line_1 : '' ) . ( ( '' != $location->address_line_2 ) ? ' ' . $location->address_line_2 : '' ) . ', ' . $location->city . ( ( '' != $location->state ) ? ' ' . $location->state : '' ) . ( ( '' != $location->zip ) ? ', ' . $location->zip : '' ) . ( ( '' != $location->country ) ? ', ' . $location->country : '' );
+		$location_address_format =apply_filters( 'wp_easycart_location_address', $location_address_format, $location );
+		$location_html = '<div class="wpeasycart-location-popup-store-item">
+			<div class="wpeasycart-location-popup-store-details">
+				<strong class="wpeasycart-location-popup-item-label">' . esc_attr( $location->location_label ) . '</strong>
+				<p class="">' . esc_attr( $location_address_format ) . '</p>';
+		if ( isset( $location->hours_note ) && is_string( $location->hours_note ) && '' != trim( $location->hours_note ) ) {
+			$location_html .= '<p class="wpeasycart-location-popup-item-note">' . esc_attr( $location->hours_note ) . '</p>';
+		}
+		if ( isset( $location->distance_miles ) ) {
+			if ( get_option( 'ec_option_pickup_location_show_km' ) ) {
+				$location_distance_format = apply_filters( 'wp_easycart_location_distance', sprintf( wp_easycart_language( )->get_text( 'product_details', 'store_select_distance_km' ), $location->distance_km ), $location );
+			} else {
+				$location_distance_format = apply_filters( 'wp_easycart_location_distance', sprintf( wp_easycart_language( )->get_text( 'product_details', 'store_select_distance_m' ), $location->distance_miles ), $location );
+			}
+			$location_html .= '
+				<span class="wpeasycart-location-popup-item-distance">' . esc_attr( $location_distance_format ) . '</span>';
+		}
+		if ( ( isset( $location->phone ) && '' != $location->phone ) || ( isset( $location->email ) && '' != $location->email ) ) {
+			$location_html .= '
+			<div class="wpeasycart-location-popup-button-row">';
+			if ( isset( $location->phone ) && '' != $location->phone ) {
+				$location_html .= '<a href="tel:' . esc_attr( $location->phone ) . '" title="' . esc_attr( $location->phone ) . '" class="wpeasycart-location-popup-item-phone"><span class="dashicons dashicons-phone"></span></a>';
+			}
+			if ( isset( $location->email ) && '' != $location->email ) {
+				$location_html .= '<a href="mailto:' . esc_attr( $location->email ) . '" title="' . esc_attr( $location->email ) . '" class="wpeasycart-location-popup-item-email"><span class="dashicons dashicons-email-alt"></span></a>';
+			}
+			$location_html .= '</div>';
+		}
+		$location_html .= '
+			</div>
+			<button class="wpeasycart-location-popup-select-store-btn" data-location-id="' . esc_attr( $location->location_id ) . '" data-store-name="' . esc_attr( $location->location_label ) . '">' . wp_easycart_language( )->get_text( 'product_details', 'store_select_button' ) . '</button>
+		</div>';
+		$return_locations[] = (object) array(
+			'location_info' => $location,
+			'location_html' => $location_html,
+		);
+	}
+	return $return_locations;
+}
+function wp_easycart_get_location_geocode( $search_term ) {
+	$api_key = get_option( 'ec_option_pickup_location_google_site_key' );
+	$base_url = 'https://maps.googleapis.com/maps/api/geocode/json';
+	$query_params = array(
+		'address' => $search_term,
+		'key' => $api_key
+	);
+	$url = add_query_arg( $query_params, $base_url );
+	$args = array(
+		'timeout' => 10,
+		'redirection' => 5,
+		'httpversion' => '1.0',
+		'user-agent'  => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url') . ' (WPEasyCart/1.0)',
+		'sslverify'   => true,
+	);
+	$response = wp_remote_get( $url, $args );
+	$ecdb = new ec_db();
+	$ecdb->insert_response( 0, 0, "Google Geolocation", print_r( $response, true ) );
+	if ( is_wp_error( $response ) ) {
+		return false;
+	}
+	$http_code = wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $http_code ) {
+		return false;
+	}
+	$body = wp_remote_retrieve_body( $response );
+	if ( empty( $body ) ) {
+		return false;
+	}
+	$data = json_decode( $body, true );
+	if ( JSON_ERROR_NONE !== json_last_error() ) {
+		return false;
+	}
+	if ( isset( $data['status'] ) && $data['status'] === 'OK' && ! empty( $data['results'] ) ) {
+		if ( isset( $data['results'][0]['geometry']['location']['lat'], $data['results'][0]['geometry']['location']['lng'] ) ) {
+			return array(
+				'lat' => (float) $data['results'][0]['geometry']['location']['lat'],
+				'long' => (float) $data['results'][0]['geometry']['location']['lng'],
+			 );
+		} else {
+			return false;
+		}
+	} else {
+		return false; 
+	}
+}
 
 add_filter( 'wp_title', 'ec_custom_title', 20 );
 

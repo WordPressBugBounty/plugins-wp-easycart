@@ -526,6 +526,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Vanaf"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Vind uw winkel"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Ongeveer %d KM verwijderd"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Ongeveer %d mijl verwijderd"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Selecteer winkel"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Voer postcode of stad, staat in"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"bijv. postcode of stad, staat"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Vind winkels"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Gebruik mijn huidige locatie"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"U heeft het verzoek om Geolocatie afgewezen"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"Locatie-informatie is niet beschikbaar"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"Het verzoek om de locatie van de gebruiker op te halen is verlopen"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Er is een onbekende fout opgetreden"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Geolocatie wordt niet ondersteund door deze browser"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Winkels in de buurt"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Product niet beschikbaar op geselecteerde locatie"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Vind dit product"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"Dit product is momenteel niet op alle locaties beschikbaar."
 				}
             }
         },
@@ -1739,6 +1807,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"sluit om"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Ophaallocatie"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Locatie wijzigen"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Kies locatie"
 				}
             }
         },

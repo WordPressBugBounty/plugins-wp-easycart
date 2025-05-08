@@ -1,6 +1,9 @@
 <?php $GLOBALS['wpeasycart_prod_details_count'] = ( isset( $GLOBALS['wpeasycart_prod_details_count'] ) ) ? (int) $GLOBALS['wpeasycart_prod_details_count'] + 1 : 1; ?>
 <?php $wpeasycart_addtocart_shortcode_rand = (int) $GLOBALS['wpeasycart_prod_details_count']; ?>
-
+<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) {
+	global $wpdb;
+	$selected_location = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) );
+} ?>
 <?php
 do_action( 'wp_easycart_product_details_before', $this->product );
 if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
@@ -399,6 +402,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 <?php if ( ! $this->product->activate_in_store ) { ?>
 <div style="float:left; width:100%; padding:10px 25px; background:#FFF8E1; border:2px solid #FF6F00; margin-bottom:20px;"><div style="float:left; width:100%; text-align:center; color:#222; font-size:1em;"><?php esc_attr_e( 'This product is deactivated and only visible to admin users.', 'wp-easycart' ); ?></div></div>
 <?php } ?>
+<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) ) {
+	wp_easycart_output_location_popup();
+}?>
 <section class="ec_product_details_page<?php echo ( isset( $this->atts['cols_desktop'] ) ) ? ' ec-product-details-cols-desktop-' . (int) $this->atts['cols_desktop'] : ''; ?><?php echo ( isset( $this->atts['columns'] ) ) ? ' ec-product-details-cols-' . (int) $this->atts['columns'] : ''; ?><?php echo ( isset( $this->atts['cols_tablet'] ) ) ? ' ec-product-details-cols-tablet-' . (int) $this->atts['cols_tablet'] : ''; ?><?php echo ( isset( $this->atts['cols_mobile'] ) ) ? ' ec-product-details-cols-mobile-' . (int) $this->atts['cols_mobile'] : ''; ?><?php echo ( isset( $this->atts['cols_mobile_small'] ) ) ? ' ec-product-details-cols-mobile-small-' . (int) $this->atts['cols_mobile_small'] : ''; ?><?php echo ( isset( $this->atts['details_sizing'] ) ) ? ' ec-product-details-sizing-' . (int) $this->atts['details_sizing'] : ''; ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php if( $this->product->has_promotion_text( ) ){ ?>
 	<div class="ec_cart_success"><div><?php $this->product->display_promotion_text( ); ?></div></div><?php }?>
 	<?php if( $this->product->is_subscription_item && $this->product->trial_period_days > 0 ){ ?>
@@ -2247,7 +2253,20 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 						<div class="ec_details_add_to_cart"><a href="<?php echo esc_attr( $this->account_page ); ?>" style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"><?php echo esc_attr( ( $this->product->login_for_pricing_label != '' ) ? $this->product->login_for_pricing_label : wp_easycart_language( )->get_text( 'product_page', 'product_page_login_for_price' ) ); ?></a></div>
 
 					<?php } else if( $this->product->is_catalog_mode ) { ?>
-						<div class="ec_details_seasonal_mode"><?php echo esc_attr( $this->product->catalog_mode_phrase ); ?></div>	
+						<div class="ec_details_seasonal_mode"><?php echo esc_attr( $this->product->catalog_mode_phrase ); ?></div>
+
+					<?php /* NOT AT LOCATION */ ?>
+					<?php } else if( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && ! $this->product->at_current_location() ) { ?>
+						<?php if ( '' == $this->product->pickup_locations ) { ?>
+							<div class="ec_product_no_locations_notice"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_unavailable_all_locations' ); ?></div>
+						<?php } else { ?>
+							<div class="ec_product_not_at_location_notice"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_not_at_location' ); ?></div>
+							<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) { ?>
+								<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>"><p><?php echo esc_attr( $selected_location->location_label ); ?>, <?php echo wp_easycart_language( )->get_text( 'product_details', 'find_this_product' ); ?></p></button>
+							<?php } else { ?>
+								<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>"><p><?php echo wp_easycart_language( )->get_text( 'product_details', 'find_this_product' ); ?></p></button>
+							<?php }?>
+						<?php }?>
 
 					<?php /* INQUIRY BUTTON */ ?>
 					<?php } else if( $this->product->is_inquiry_mode ) { ?>
@@ -2392,6 +2411,10 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 					<?php }?>
 				</div>
 			<?php } //END FILTER FOR HIDING ADD TO CART ?>
+
+			<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && isset( $selected_location ) && is_object( $selected_location ) ) { ?>
+				<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>"><p><span class="dashicons dashicons-store"></span> <?php echo esc_attr( $selected_location->location_label ); ?></p></button>
+			<?php }?>
 
 			<?php if( !$this->product->in_stock( ) && !$this->product->use_optionitem_quantity_tracking && $this->product->allow_backorders ){ ?>
 			<div class="ec_details_backorder_info" id="ec_back_order_info_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php echo ( ( isset( $this->atts['show_stock'] ) && !$this->atts['show_stock'] ) ) ? ' style="display:none;"' : ''; ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_out_of_stock' ); ?><?php if( $this->product->backorder_fill_date != "" ){ ?> <?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_until' ); ?> <?php echo wp_easycart_escape_html( $this->product->backorder_fill_date ); ?><?php }?></div>

@@ -538,6 +538,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Desde"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Encuentra tu tienda"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Aproximadamente %d KM de distancia"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Aproximadamente %d millas de distancia"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Seleccionar tienda"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Ingrese el código postal o ciudad, estado"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"p. ej., código postal o ciudad, estado"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Encuentra tiendas"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Usar mi ubicación actual"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"Rechazó la solicitud de Geolocalización"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"La información de ubicación no está disponible"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"Se agotó el tiempo de espera para la solicitud para obtener la ubicación del usuario"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Se produjo un error desconocido"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Este navegador no admite la geolocalización"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Tiendas cercanas"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Producto no disponible en la ubicación seleccionada"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Encuentra este producto"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"Este producto no está disponible actualmente en todas las ubicaciones."
 				}
 			}
 		},
@@ -1751,6 +1819,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"cierra en"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Lugar de recogida"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Cambiar ubicación"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Elija la ubicación"
 				}
 			}
 		},

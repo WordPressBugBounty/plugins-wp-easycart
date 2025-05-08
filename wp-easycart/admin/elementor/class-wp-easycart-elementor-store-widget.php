@@ -379,6 +379,20 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
+		if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) ) {
+			$this->add_control(
+				'sidebar_include_location',
+				array(
+					'type'  => Controls_Manager::SWITCHER,
+					'label' => esc_attr__( 'Enable Sidebar Location Selector', 'wp-easycart' ),
+					'default'   => 'no',
+					'condition' => array(
+						'sidebar' => 'yes',
+					),
+				)
+			);
+		}
+
 		$this->add_control(
 			'sidebar_include_search',
 			array(

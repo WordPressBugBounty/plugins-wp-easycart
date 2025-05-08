@@ -363,13 +363,13 @@ class ec_db{
 		}
 
 		$has_search = false;
-		if( isset( $_GET['ec_search'] ) ){
+		if ( isset( $_GET['ec_search'] ) ) {
 			$has_search = true;
 			$search_term = sanitize_text_field( $_GET['ec_search'] );
 		}
-		
+
 		self::$mysqli->query( "SET SQL_BIG_SELECTS=1" );
-		
+
 		$sql1 = "SELECT product.product_id, product.post_id, ec_roleprice.role_price
 				
 				FROM ec_product as product 
@@ -380,7 +380,7 @@ class ec_db{
 				
 				LEFT JOIN ec_categoryitem ON ec_categoryitem.product_id = product.product_id ";
 		$sql1 .= $extra_joins;		
-				if( get_option( 'ec_option_search_menu' ) ){
+		if( get_option( 'ec_option_search_menu' ) ){
 		$sql1 .= "
 
 				LEFT JOIN ec_menulevel1 ON ( ec_menulevel1.menulevel1_id = product.menulevel1_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel2_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel3_id_1 )
@@ -390,33 +390,33 @@ class ec_db{
 				LEFT JOIN ec_menulevel3 ON ( ec_menulevel3.menulevel3_id = product.menulevel1_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel2_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel3_id_3 )
 				
 				";
-				}
-		
-        if( $optionitem_filter != '' ){
-            $sql1 .= 'LEFT JOIN ec_option_to_product ON (
-                ec_option_to_product.product_id = product.product_id
-            )
-            LEFT JOIN ec_option ON (
-                (
-                    product.use_advanced_optionset = false AND 
-                    (
-                      product.option_id_1 = ec_option.option_id OR
-                      product.option_id_2 = ec_option.option_id OR
-                      product.option_id_3 = ec_option.option_id OR
-                      product.option_id_4 = ec_option.option_id OR
-                      product.option_id_5 = ec_option.option_id
-                    )
-                )
-                OR
-                (
-                    product.use_advanced_optionset = true AND
-                    ec_option_to_product.option_id = ec_option.option_id
-                )
-            ),
-            ec_optionitem,
+		}
+
+		if ( $optionitem_filter != '' ) {
+			$sql1 .= 'LEFT JOIN ec_option_to_product ON (
+				ec_option_to_product.product_id = product.product_id
+			)
+			LEFT JOIN ec_option ON (
+				(
+					product.use_advanced_optionset = false AND 
+					(
+					  product.option_id_1 = ec_option.option_id OR
+					  product.option_id_2 = ec_option.option_id OR
+					  product.option_id_3 = ec_option.option_id OR
+					  product.option_id_4 = ec_option.option_id OR
+					  product.option_id_5 = ec_option.option_id
+					)
+				)
+				OR
+				(
+					product.use_advanced_optionset = true AND
+					ec_option_to_product.option_id = ec_option.option_id
+				)
+			),
+			ec_optionitem,
 			ec_optionitemquantity ';
-        }
-		
+		}
+
 		if( isset( $_GET['ec_optionitem_id'] ) ){
 			
 			$sql1 .= self::$mysqli->prepare( "JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 )
@@ -424,13 +424,11 @@ class ec_db{
 			", (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'] );
 			
 		}
-		
+
 		$sql2 = "SELECT
-		
 					product.*, ec_roleprice.role_price,";
-		
-		if( $has_search ){
-			
+
+		if ( $has_search ) {
 		$sql2 .= self::$mysqli->prepare( "
 				CASE WHEN product.title = %s THEN 20 ELSE 0 END + 
 				CASE WHEN product.title LIKE %s THEN 3 ELSE 0 END + 
@@ -442,7 +440,7 @@ class ec_db{
 				"%" . $search_term );
 				
 		}
-		
+
 		$sql2 .= "  manufacturer.name as manufacturer_name,
 					
 					ec_product_google_attributes.attribute_value as google_attributes,
@@ -464,7 +462,7 @@ class ec_db{
 					LEFT JOIN ec_product_google_attributes ON ec_product_google_attributes.product_id = product.product_id";
 		$sql2 .= $extra_joins;
 					if( get_option( 'ec_option_search_menu' ) ){
-						
+
 		$sql2 .= "
 					
 					LEFT JOIN ec_menulevel1 ON ( ec_menulevel1.menulevel1_id = product.menulevel1_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel2_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel3_id_1 )
@@ -479,32 +477,32 @@ class ec_db{
 					LEFT JOIN ec_review ON ( ec_review.product_id = product.product_id AND ec_review.approved = 1 )
 				
 				";
-		
-        if( $optionitem_filter != '' ){
-            $sql2 .= 'LEFT JOIN ec_option_to_product ON (
-                ec_option_to_product.product_id = product.product_id
-            )
-            LEFT JOIN ec_option ON (
-                (
-                    product.use_advanced_optionset = false AND 
-                    (
-                      product.option_id_1 = ec_option.option_id OR
-                      product.option_id_2 = ec_option.option_id OR
-                      product.option_id_3 = ec_option.option_id OR
-                      product.option_id_4 = ec_option.option_id OR
-                      product.option_id_5 = ec_option.option_id
-                    )
-                )
-                OR
-                (
-                    product.use_advanced_optionset = true AND
-                    ec_option_to_product.option_id = ec_option.option_id
-                )
-            ),
-            ec_optionitem,
+
+		if ( $optionitem_filter != '' ) {
+			$sql2 .= 'LEFT JOIN ec_option_to_product ON (
+				ec_option_to_product.product_id = product.product_id
+			)
+			LEFT JOIN ec_option ON (
+				(
+					product.use_advanced_optionset = false AND 
+					(
+					  product.option_id_1 = ec_option.option_id OR
+					  product.option_id_2 = ec_option.option_id OR
+					  product.option_id_3 = ec_option.option_id OR
+					  product.option_id_4 = ec_option.option_id OR
+					  product.option_id_5 = ec_option.option_id
+					)
+				)
+				OR
+				(
+					product.use_advanced_optionset = true AND
+					ec_option_to_product.option_id = ec_option.option_id
+				)
+			),
+			ec_optionitem,
 			ec_optionitemquantity ';
-        }
-				
+		}
+
 		if( isset( $_GET['ec_optionitem_id'] ) ){
 			
 			$sql2 .= self::$mysqli->prepare( "JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 )
@@ -512,199 +510,183 @@ class ec_db{
 			", (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'] );
 			
 		}
-				
+
 		$group_query = " GROUP BY product.product_id ";
-		
-		// User Role Lock Down if Used
-		if( strtoupper( substr( trim( $where_query ), 0, 5 ) ) != 'WHERE' ){
+
+		if ( strtoupper( substr( trim( $where_query ), 0, 5 ) ) != 'WHERE' ) {
 			$where_query .= " WHERE ";
-		}else{
+		} else {
 			$where_query .= " AND ";
 		}
-		
-		if( $GLOBALS['ec_user']->role_id )
+
+		if ( $GLOBALS['ec_user']->role_id ) {
 			$where_query .= self::$mysqli->prepare( " ( product.role_id = 0 OR product.role_id = %d ) ", $GLOBALS['ec_user']->role_id );
-		else
+		} else {
 			$where_query .= " ( product.role_id = 0 OR product.role_id = -1 ) ";
-		// End User Role Lock Down Code
-				
+		}
 		$result = self::$mysqli->get_results( $sql1 . $where_query . $group_query );
 		$result_count = count($result);
-		
 		$result2 = self::$mysqli->get_results( $sql2 . $where_query . $group_query . $order_query . $limit_query );
-		
-		//Process the Result
+
 		$option_list = $GLOBALS['ec_options']->options;
 		$review_list = $GLOBALS['ec_customer_reviews']->customer_reviews;
 		$pricetier_list = $GLOBALS['ec_pricetiers']->pricetiers;
 		$optionitem_list = $GLOBALS['ec_options']->optionitems;
 		$optionitem_image_list = $GLOBALS['ec_options']->optionitemimages;
 		$product_list = array();
-		
-		foreach($result2 as $row){
-			
-			// Get the review data for the product
+
+		foreach ( $result2 as $row ) {
 			$review_data = array( );
-			foreach( $review_list as $review ){
-				if( $review->product_id == $row->product_id ){
+			foreach ( $review_list as $review ) {
+				if ( $review->product_id == $row->product_id ) {
 					$review_data[] = $review->rating;
 				}
 			}
-			
-			// Get the review average
-			if( count( $review_data ) > 0 ){
+			if ( count( $review_data ) > 0 ) {
 				$review_average = array_sum( $review_data ) / count( $review_data );
-			}else{
+			} else {
 				$review_average = 0;
 			}
-			
-			// Get the price tier data
 			$pricetier_data = array( );
-			foreach( $pricetier_list as $pricetier ){
-				if( $pricetier->product_id == $row->product_id ){
+			foreach ( $pricetier_list as $pricetier ) {
+				if ( $pricetier->product_id == $row->product_id ) {
 					$pricetier_data[] = array( $pricetier->price, $pricetier->quantity );
 				}
 			}
-			
-			//Setup Return Array
 			$temp_product = array(
-						"product_count" => $result_count,
-						"product_id" => $row->product_id,
-						"model_number" => $row->model_number,
-						"post_id" => $row->post_id,
-						"guid" => $row->guid,
-						"activate_in_store" => $row->activate_in_store,
-						"manufacturer_id" => $row->manufacturer_id, 
-						"manufacturer_name" => $row->manufacturer_name, 
-						"title" => $row->title, 
-						"description" => $row->description, 
-						"short_description" => $row->short_description, 
-						"seo_description" => $row->seo_description, 
-						"seo_keywords" => $row->seo_keywords, 
-						
-						"price" => $row->price, 
-						"list_price" => $row->list_price,
-						"login_for_pricing" => $row->login_for_pricing,
-						"login_for_pricing_user_level" => $row->login_for_pricing_user_level,
-						"login_for_pricing_label" => $row->login_for_pricing_label,
-						"show_custom_price_range" => $row->show_custom_price_range,
-						"price_range_low" => $row->price_range_low,
-						"price_range_high" => $row->price_range_high,
-						"enable_price_label" => $row->enable_price_label,
-						"replace_price_label" => $row->replace_price_label,
-						"custom_price_label" => $row->custom_price_label,
-						
-						"vat_rate" => $row->vat_rate,
-						"handling_price" => $row->handling_price,
-						"handling_price_each" => $row->handling_price_each,
-						"stock_quantity" => $row->stock_quantity,
-						"min_purchase_quantity" => $row->min_purchase_quantity,
-						"max_purchase_quantity" => $row->max_purchase_quantity,
-						"weight" => $row->weight,  
-						"width" => $row->width,  
-						"height" => $row->height,  
-						"length" => $row->length, 
-						"use_optionitem_quantity_tracking" => $row->use_optionitem_quantity_tracking, 
-						"use_specifications" => $row->use_specifications, 
-						"specifications" => $row->specifications, 
-						"use_customer_reviews" => $row->use_customer_reviews, 
-						"show_on_startup" => $row->show_on_startup,
-						"show_stock_quantity" => $row->show_stock_quantity, 
-						"is_special" => $row->is_special, 
-						"is_taxable" => $row->is_taxable, 
-						"is_shippable" => $row->is_shippable, 
-                        "exclude_shippable_calculation" => $row->exclude_shippable_calculation,
-						"is_giftcard" => $row->is_giftcard, 
-						"is_download" => $row->is_download,
-						"is_donation" => $row->is_donation,
-						"is_subscription_item" => $row->is_subscription_item,
-						"is_deconetwork" => $row->is_deconetwork,
-						"allow_backorders" => $row->allow_backorders,
-						"backorder_fill_date" => $row->backorder_fill_date,
-						"TIC" => $row->TIC,
-						
-						"include_code" => $row->include_code,
-						
-						"download_file_name" => $row->download_file_name,
-						"is_amazon_download" => $row->is_amazon_download,
-						"amazon_key" => $row->amazon_key,
-						"maximum_downloads_allowed" => $row->maximum_downloads_allowed,
-						"download_timelimit_seconds" => $row->download_timelimit_seconds,
-						
-						"subscription_bill_length" => $row->subscription_bill_length,
-						"subscription_bill_period" => $row->subscription_bill_period,
-						"subscription_bill_duration" => $row->subscription_bill_duration,
-						"subscription_shipping_recurring" => ( isset( $row->subscription_shipping_recurring ) ) ? $row->subscription_shipping_recurring : 0,
-						"trial_period_days" => $row->trial_period_days,
-						"stripe_plan_added" => $row->stripe_plan_added,
-						"subscription_signup_fee" => $row->subscription_signup_fee,
-						"subscription_unique_id" => $row->subscription_unique_id,
-						"subscription_prorate" => $row->subscription_prorate,
-						"subscription_recurring_email" => $row->subscription_recurring_email,
-						"allow_multiple_subscription_purchases" => $row->allow_multiple_subscription_purchases,
-						"stripe_product_id" => $row->stripe_product_id,
-						"stripe_default_price_id" => $row->stripe_default_price_id,
-						
-						"option_id_1" => $row->option_id_1, 
-						"option_id_2" => $row->option_id_2, 
-						"option_id_3" => $row->option_id_3,
-						"option_id_4" => $row->option_id_4,
-						"option_id_5" => $row->option_id_5,
-						
-						"use_both_option_types" => $row->use_both_option_types,
-						"use_advanced_optionset" => $row->use_advanced_optionset,
-						"use_optionitem_images" => $row->use_optionitem_images,
-						
-						"image1" => $row->image1,
-						"image2" => $row->image2,
-						"image3" => $row->image3,
-						"image4" => $row->image4,
-						"image5" => $row->image5,
-						"product_images" => $row->product_images,
-						
-						"featured_product_id_1" => $row->featured_product_id_1,
-						"featured_product_id_2" => $row->featured_product_id_2,
-						"featured_product_id_3" => $row->featured_product_id_3,
-						"featured_product_id_4" => $row->featured_product_id_4,
-						
-						"catalog_mode" => $row->catalog_mode,
-						"catalog_mode_phrase" => $row->catalog_mode_phrase,
-						"inquiry_mode" => $row->inquiry_mode,
-						"inquiry_url" => $row->inquiry_url,
-				
-						"deconetwork_mode" => $row->deconetwork_mode,
-						"deconetwork_product_id" => $row->deconetwork_product_id,
-						"deconetwork_size_id" => $row->deconetwork_size_id,
-						"deconetwork_color_id" => $row->deconetwork_color_id,
-						"deconetwork_design_id" => $row->deconetwork_design_id,
-						
-						"review_data" => $review_data,
-						"review_average" => $review_average,
-						"views" => $row->views,
-						"pricetier_data" => $pricetier_data,
-						"google_attributes" => $row->google_attributes,
-						
-						"display_type" => $row->display_type,
-						"image_hover_type" => $row->image_hover_type,
-						"image_effect_type" => $row->image_effect_type,
-						"tag_type" => $row->tag_type,
-						"tag_bg_color" => $row->tag_bg_color,
-						"tag_text_color" => $row->tag_text_color,
-						"tag_text" => $row->tag_text
+				"product_count" => $result_count,
+				"product_id" => $row->product_id,
+				"model_number" => $row->model_number,
+				"post_id" => $row->post_id,
+				"guid" => $row->guid,
+				"activate_in_store" => $row->activate_in_store,
+				"manufacturer_id" => $row->manufacturer_id, 
+				"manufacturer_name" => $row->manufacturer_name, 
+				"title" => $row->title, 
+				"description" => $row->description, 
+				"short_description" => $row->short_description, 
+				"seo_description" => $row->seo_description, 
+				"seo_keywords" => $row->seo_keywords, 
+
+				"price" => $row->price, 
+				"list_price" => $row->list_price,
+				"login_for_pricing" => $row->login_for_pricing,
+				"login_for_pricing_user_level" => $row->login_for_pricing_user_level,
+				"login_for_pricing_label" => $row->login_for_pricing_label,
+				"show_custom_price_range" => $row->show_custom_price_range,
+				"price_range_low" => $row->price_range_low,
+				"price_range_high" => $row->price_range_high,
+				"enable_price_label" => $row->enable_price_label,
+				"replace_price_label" => $row->replace_price_label,
+				"custom_price_label" => $row->custom_price_label,
+
+				"vat_rate" => $row->vat_rate,
+				"handling_price" => $row->handling_price,
+				"handling_price_each" => $row->handling_price_each,
+				"stock_quantity" => $row->stock_quantity,
+				"min_purchase_quantity" => $row->min_purchase_quantity,
+				"max_purchase_quantity" => $row->max_purchase_quantity,
+				"weight" => $row->weight,  
+				"width" => $row->width,  
+				"height" => $row->height,  
+				"length" => $row->length, 
+				"use_optionitem_quantity_tracking" => $row->use_optionitem_quantity_tracking, 
+				"use_specifications" => $row->use_specifications, 
+				"specifications" => $row->specifications, 
+				"use_customer_reviews" => $row->use_customer_reviews, 
+				"show_on_startup" => $row->show_on_startup,
+				"show_stock_quantity" => $row->show_stock_quantity, 
+				"is_special" => $row->is_special, 
+				"is_taxable" => $row->is_taxable, 
+				"is_shippable" => $row->is_shippable, 
+				"exclude_shippable_calculation" => $row->exclude_shippable_calculation,
+				"is_giftcard" => $row->is_giftcard, 
+				"is_download" => $row->is_download,
+				"is_donation" => $row->is_donation,
+				"is_subscription_item" => $row->is_subscription_item,
+				"is_deconetwork" => $row->is_deconetwork,
+				"allow_backorders" => $row->allow_backorders,
+				"backorder_fill_date" => $row->backorder_fill_date,
+				"TIC" => $row->TIC,
+
+				"include_code" => $row->include_code,
+
+				"download_file_name" => $row->download_file_name,
+				"is_amazon_download" => $row->is_amazon_download,
+				"amazon_key" => $row->amazon_key,
+				"maximum_downloads_allowed" => $row->maximum_downloads_allowed,
+				"download_timelimit_seconds" => $row->download_timelimit_seconds,
+
+				"subscription_bill_length" => $row->subscription_bill_length,
+				"subscription_bill_period" => $row->subscription_bill_period,
+				"subscription_bill_duration" => $row->subscription_bill_duration,
+				"subscription_shipping_recurring" => ( isset( $row->subscription_shipping_recurring ) ) ? $row->subscription_shipping_recurring : 0,
+				"trial_period_days" => $row->trial_period_days,
+				"stripe_plan_added" => $row->stripe_plan_added,
+				"subscription_signup_fee" => $row->subscription_signup_fee,
+				"subscription_unique_id" => $row->subscription_unique_id,
+				"subscription_prorate" => $row->subscription_prorate,
+				"subscription_recurring_email" => $row->subscription_recurring_email,
+				"allow_multiple_subscription_purchases" => $row->allow_multiple_subscription_purchases,
+				"stripe_product_id" => $row->stripe_product_id,
+				"stripe_default_price_id" => $row->stripe_default_price_id,
+
+				"option_id_1" => $row->option_id_1, 
+				"option_id_2" => $row->option_id_2, 
+				"option_id_3" => $row->option_id_3,
+				"option_id_4" => $row->option_id_4,
+				"option_id_5" => $row->option_id_5,
+
+				"use_both_option_types" => $row->use_both_option_types,
+				"use_advanced_optionset" => $row->use_advanced_optionset,
+				"use_optionitem_images" => $row->use_optionitem_images,
+
+				"image1" => $row->image1,
+				"image2" => $row->image2,
+				"image3" => $row->image3,
+				"image4" => $row->image4,
+				"image5" => $row->image5,
+				"product_images" => $row->product_images,
+
+				"featured_product_id_1" => $row->featured_product_id_1,
+				"featured_product_id_2" => $row->featured_product_id_2,
+				"featured_product_id_3" => $row->featured_product_id_3,
+				"featured_product_id_4" => $row->featured_product_id_4,
+
+				"catalog_mode" => $row->catalog_mode,
+				"catalog_mode_phrase" => $row->catalog_mode_phrase,
+				"inquiry_mode" => $row->inquiry_mode,
+				"inquiry_url" => $row->inquiry_url,
+
+				"deconetwork_mode" => $row->deconetwork_mode,
+				"deconetwork_product_id" => $row->deconetwork_product_id,
+				"deconetwork_size_id" => $row->deconetwork_size_id,
+				"deconetwork_color_id" => $row->deconetwork_color_id,
+				"deconetwork_design_id" => $row->deconetwork_design_id,
+
+				"review_data" => $review_data,
+				"review_average" => $review_average,
+				"views" => $row->views,
+				"pricetier_data" => $pricetier_data,
+				"google_attributes" => $row->google_attributes,
+				"pickup_locations" => $row->pickup_locations,
+
+				"display_type" => $row->display_type,
+				"image_hover_type" => $row->image_hover_type,
+				"image_effect_type" => $row->image_effect_type,
+				"tag_type" => $row->tag_type,
+				"tag_bg_color" => $row->tag_bg_color,
+				"tag_text_color" => $row->tag_text_color,
+				"tag_text" => $row->tag_text
 			);
-			
 			$product_list[] = $temp_product;
-			
 		}
-		
-		if( $cache_key != "" )
+		if ( '' != $cache_key ) {
 			wp_cache_set( $cache_key, $product_list, 'wpeasycart-product-list' );
-		
-		//Return Array
+		}
 		return $product_list;
-		
 	}
-	
+
 	public static function clean_search( $string ){
 		return self::$mysqli->prepare( '%s', $string );		
 	}
@@ -2544,6 +2526,10 @@ class ec_db{
 		) );
 		$order_id = self::$mysqli->insert_id;
 
+		if ( get_option( 'ec_option_pickup_enable_locations' ) && isset( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) && (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location > 0 ) {
+			self::$mysqli->query( self::$mysqli->prepare( 'UPDATE ec_order SET location_id = %d WHERE order_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location, $order_id ) );
+		}
+
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 		$order_log_id = self::$mysqli->insert_id;
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
@@ -3016,7 +3002,8 @@ class ec_db{
 					ec_order.includes_restaurant_type,
 					ec_order.pickup_date,
 					ec_order.pickup_asap,
-					ec_order.pickup_time
+					ec_order.pickup_time,
+					ec_order.location_id
 
 					FROM 
 					ec_order
@@ -3129,6 +3116,7 @@ class ec_db{
 				ec_order.pickup_date,
 				ec_order.pickup_asap,
 				ec_order.pickup_time,
+				ec_order.location_id,
 
 				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
 				
@@ -3259,6 +3247,7 @@ class ec_db{
 				ec_order.pickup_date,
 				ec_order.pickup_asap,
 				ec_order.pickup_time,
+				ec_order.location_id,
 
 				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data 
 				
@@ -5764,19 +5753,95 @@ class ec_db{
 		}
 		return $return_array;
 	}
-	
+
 	public function update_stripe_taxrate_id( $taxrate_id, $stripe_taxrate_id ){
 		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_taxrate SET stripe_taxrate_id = %s WHERE ec_taxrate.taxrate_id = %d", $stripe_taxrate_id, $taxrate_id ) );
 	}
-	
+
 	public function update_stripe_country_taxrate_id( $country_id, $stripe_taxrate_id ){
 		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_country SET stripe_taxrate_id = %s WHERE ec_country.id_cnt = %d", $stripe_taxrate_id, $country_id ) );
 	}
-	
+
 	public static function update_details_stock_adjusted( $orderdetail_id ){
 		self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_orderdetail SET ec_orderdetail.stock_adjusted = 1 WHERE ec_orderdetail.orderdetail_id = %d", $orderdetail_id ) );
 	}
-	
-}
 
-?>
+	public static function get_locations_by_geo( $target_lat, $target_long, $product_id = false, $type = false ) {
+		if ( $type ) {
+			if ( false === $target_lat || false === $target_long ) {
+				return self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT 
+						ec_location.*
+					FROM
+						ec_location
+					INNER JOIN (
+						SELECT
+							ec_location_to_product.location_id
+						FROM
+							ec_location_to_product
+						INNER JOIN
+							ec_tempcart ON 
+							ec_location_to_product.product_id = ec_tempcart.product_id AND 
+							ec_tempcart.session_id = %s
+						GROUP BY 
+							ec_location_to_product.location_id
+						HAVING
+							COUNT( DISTINCT ec_location_to_product.product_id ) = (
+								SELECT COUNT( DISTINCT product_id )
+								FROM ec_tempcart
+								WHERE ec_tempcart.session_id = %s
+							)
+					) AS available_locations ON ec_location.location_id = available_locations.location_id
+					ORDER BY
+						location_label ASC', $GLOBALS['ec_cart_data']->ec_cart_id, $GLOBALS['ec_cart_data']->ec_cart_id ) );
+			} else {
+				return self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT
+						ec_location.*,
+						( 3959 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( ec_location.latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( ec_location.latitude ) ) * POWER( SIN( ( RADIANS( ec_location.longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_miles,
+						( 6371 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( ec_location.latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( ec_location.latitude ) ) * POWER( SIN( ( RADIANS( ec_location.longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_km
+					FROM
+						ec_location
+					INNER JOIN (
+						SELECT
+							ec_location_to_product.location_id
+						FROM
+							ec_location_to_product
+						INNER JOIN
+							ec_tempcart ON 
+							ec_location_to_product.product_id = ec_tempcart.product_id AND 
+							ec_tempcart.session_id = %s
+						GROUP BY 
+							ec_location_to_product.location_id
+						HAVING
+							COUNT( DISTINCT ec_location_to_product.product_id ) = (
+								SELECT COUNT( DISTINCT product_id )
+								FROM ec_tempcart
+								WHERE ec_tempcart.session_id = %s
+							)
+					) AS available_locations ON ec_location.location_id = available_locations.location_id
+					ORDER BY
+						location_label ASC', $target_lat, $target_lat, $target_long, $target_lat, $target_lat, $target_long, $GLOBALS['ec_cart_data']->ec_cart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $GLOBALS['ec_cart_data']->ec_cart_id ) );
+			}
+		} else if ( $product_id ) {
+			if ( false === $target_lat || false === $target_long ) {
+				return self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT DISTINCT ec_location.* FROM ec_location INNER JOIN ec_location_to_product ON ec_location_to_product.location_id = ec_location.location_id WHERE ec_location_to_product.product_id = %d ORDER BY location_label ASC', $product_id ) );
+			} else {
+				return self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT DISTINCT ec_location.*, ( 3959 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( latitude ) ) * POWER( SIN( ( RADIANS( longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_miles, ( 6371 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( latitude ) ) * POWER( SIN( ( RADIANS( longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_km FROM ec_location INNER JOIN ec_location_to_product ON ec_location_to_product.location_id = ec_location.location_id WHERE ec_location_to_product.product_id = %d ORDER BY distance_miles ASC LIMIT 40', $target_lat, $target_lat, $target_long, $target_lat, $target_lat, $target_long, $product_id ) );
+			}
+		} else {
+			if ( false === $target_lat || false === $target_long ) {
+				return self::$mysqli->get_results( 'SELECT * FROM ec_location ORDER BY location_label ASC' );
+			} else {
+				return self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT ec_location.*, ( 3959 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( latitude ) ) * POWER( SIN( ( RADIANS( longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_miles, ( 6371 * 2 * ASIN( SQRT( POWER( SIN( ( RADIANS( latitude ) - RADIANS( %f ) ) / 2 ), 2 ) + COS( RADIANS( %f ) ) * COS( RADIANS( latitude ) ) * POWER( SIN( ( RADIANS( longitude ) - RADIANS( %f ) ) / 2 ), 2 ) ) ) ) AS distance_km FROM ec_location ORDER BY distance_miles ASC LIMIT 40', $target_lat, $target_lat, $target_long, $target_lat, $target_lat, $target_long ) );
+			}
+		}
+	}
+
+	public static function remove_invalid_cart_items_by_location( $session_id, $location_id ) {
+		$invalid_locations = self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT DISTINCT ec_tempcart.* FROM ec_tempcart WHERE ec_tempcart.session_id = %s AND NOT EXISTS ( SELECT 1 FROM ec_location_to_product WHERE ec_location_to_product.product_id = ec_tempcart.product_id AND ec_location_to_product.location_id = %d )', $session_id, $location_id ) );
+		if ( $invalid_locations && is_array( $invalid_locations ) ) {
+			self::$mysqli->get_results( self::$mysqli->prepare( 'DELETE FROM ec_tempcart WHERE ec_tempcart.session_id = %s AND NOT EXISTS ( SELECT 1 FROM ec_location_to_product WHERE ec_location_to_product.product_id = ec_tempcart.product_id AND ec_location_to_product.location_id = %d )', $session_id, $location_id ) );
+			return count( $invalid_locations );
+		}
+		return 0;
+	}
+}

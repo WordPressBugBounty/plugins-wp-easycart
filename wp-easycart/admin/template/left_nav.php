@@ -243,10 +243,12 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 	</div>
 	<div class="ec_admin_left_nav_subitem<?php if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "schedule" ) { ?> ec_admin_left_nav_selected<?php }?>">
 		<div class="ec_admin_left_nav_sublabel"><a href="admin.php?page=wp-easycart-settings&subpage=schedule"><?php esc_attr_e( 'Store Schedule', 'wp-easycart' ); ?></a></div>
-	</div><?php /*
+	</div>
+	<?php if ( apply_filters( 'wp_easycart_enable_multiple_locations', false ) ) { ?>
 	<div class="ec_admin_left_nav_subitem<?php if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "location" ) { ?> ec_admin_left_nav_selected<?php }?>">
 		<div class="ec_admin_left_nav_sublabel"><a href="admin.php?page=wp-easycart-settings&subpage=location"><?php esc_attr_e( 'Store Locations', 'wp-easycart' ); ?></a></div>
-	</div>*/ ?>
+	</div>
+	<?php }?>
 
 	<div class="ec_admin_left_nav_subitem_headitem"><?php esc_attr_e( 'Integrations', 'wp-easycart' ); ?></div>
 	<div class="ec_admin_left_nav_subitem<?php if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "third-party" ) { ?> ec_admin_left_nav_selected<?php }?>">

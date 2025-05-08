@@ -635,7 +635,7 @@ if( $admin_access || $use_quickview ){ ?>
 	<div style="padding:0px; margin:auto; vertical-align:middle;<?php if( $product_type == 0 ){ ?> display:none;<?php }?><?php if( isset( $product_rounded_corners ) && $product_rounded_corners ){ 
 					echo 'border-top-left-radius:' . esc_attr( ( isset( $product_rounded_corners_tl ) ) ? ( (int) $product_rounded_corners_tl ) . 'px' : '0px' ) . ' !important;';
 					echo 'border-top-right-radius:' . esc_attr( ( isset( $product_rounded_corners_tr ) ) ? ( (int) $product_rounded_corners_tr ) . 'px' : '0px' ) . ' !important;';
-				}?>" class="ec_product_type<?php echo esc_attr( $product_type ); ?>" id="ec_product_image_<?php echo esc_attr( $product->model_number ); ?>">
+				}?>" class="ec_product_type<?php echo esc_attr( $product_type ); ?><?php echo esc_attr( ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && 3 == get_option( 'ec_option_pickup_location_unavailable' ) && ! $product->at_current_location() ) ? ' ec_product_unavailable' : '' ); ?>" id="ec_product_image_<?php echo esc_attr( $product->model_number ); ?>">
 
 		<?php ///////////////// IMAGE HOLDER///////////// ?>
 		<div id="ec_product_image_effect_<?php echo esc_attr( $product->model_number ); ?>" class="ec_image_container_<?php echo esc_attr( $product->image_effect_type ); ?> ec_dynamic_image_height<?php if( $dynamic_image_sizing ){ ?> dynamic_height_rule<?php }?>"<?php echo ( isset( $product_rounded_corners ) && $product_rounded_corners ) ? ' style="border-radius:0px;"' : ''; ?>>
@@ -1707,6 +1707,10 @@ if( $admin_access || $use_quickview ){ ?>
 		<?php }?>
 		<?php if( $admin_access || $use_quickview ){ ?>
 		<span class="ec_product_quickview" <?php if( $product_type == 3 || $product_type == 4 ){ ?>style="top:<?php $quickview_top = substr( $image_height_desktop, 0, -2 ); echo esc_attr( ( $quickview_top - 21 ) . "px" ); ?>;<?php if( !$use_quickview ){ echo " display:none;"; } ?>"<?php }else{ ?><?php if( !$use_quickview ){ echo "style='display:none;'"; } ?><?php }?>><input type="button" onclick="ec_product_show_quick_view_link( '<?php echo esc_attr( $product->model_number ); ?>' ); return false;" value="<?php echo wp_easycart_language( )->get_text( 'product_page', 'product_quick_view' ); ?>" /></span>
+		<?php }?>
+
+		<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && ! $product->at_current_location() ) { ?>
+		<div class="ec_unavailable_at_location"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_not_at_location' ); ?></div>
 		<?php }?>
 
 		<div class="ec_product_successfully_added_container<?php echo ( isset( $product_align ) && ( $product_align == 'left' || $product_align == 'center' || $product_align == 'right' ) ) ? ' ec_product_success_align_' . esc_attr( $product_align ) : ''; ?>" id="ec_product_added_<?php echo esc_attr( $product->model_number ); ?>"><div class="ec_product_successfully_added"><div><?php echo wp_easycart_language( )->get_text( 'ec_success', 'add_to_cart_success' ); ?></div></div></div>

@@ -238,6 +238,7 @@ class ec_storepage{
 			'sidebar' => false,
 			'sidebar_position' => 'left',
 			'sidebar_filter_clear' => true,
+			'sidebar_include_location' => false,
 			'sidebar_include_search' => true,
 			'sidebar_include_categories' => true,
 			'sidebar_include_categories_first' => true,

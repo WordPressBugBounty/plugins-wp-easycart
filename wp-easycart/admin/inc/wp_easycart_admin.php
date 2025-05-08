@@ -85,15 +85,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			$this->gutenberg = new Wp_Easycart_Gutenberg();
 
-			if( is_callable( 'socket_create' ) && is_callable( 'socket_connect' ) && is_callable( 'socket_close' ) ){
-				$socket = socket_create( AF_INET, SOCK_STREAM, SOL_TCP );
-				$connection = @socket_connect( $socket, "connect.wpeasycart.com", 443 );
-				$this->available_url = ( $connection ) ? "https://connect.wpeasycart.com" : "https://support.wpeasycart.com";
-				@socket_close( $socket );
-			}else{
-				$this->available_url = "https://connect.wpeasycart.com";
-			}
-
 			$this->preloader = new wp_easycart_admin_preloader( );
 			$this->helpsystem = new wp_easycart_admin_online_docs( );
 
@@ -159,7 +150,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			// WordPress Filters
 			add_filter( 'admin_title', array( $this, 'set_title' ), 10, 2 );
 		}
-		
+
+		public function get_available_url() {
+			if ( ! isset( $this->available_url ) ) {
+				$this->available_url = "https://connect.wpeasycart.com";
+				// Backup removed of $this->available_url = "https://support.wpeasycart.com";
+			}
+			return $this->available_url;
+		}
+
 		public function add_user_role_editor_group( $groups ) {
 			if ( current_user_can( 'wpec_manager' ) ) {
 				$groups['wpeasycart'] = array(
@@ -826,7 +825,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $this->wpdb->get_var( "SELECT COUNT( ec_user.user_id ) as total FROM ec_user" );
 		}
 
-		private function get_sales_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false ){
+		private function get_sales_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 			$days_length = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 			if( $range == 'daily' && $days_length <= 2 ){
 				$days_length = ($days_length+1) * 24;
@@ -836,6 +835,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$product_where = "";
 			$country_where = "";
 			$billing_country_where = "";
+			$location_id_where = '';
 			if( $product_id ){
 				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
 			}
@@ -844,6 +844,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			if( $billing_country ){
 				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
+			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 			}
 
 			if( $range == 'hourly' ){
@@ -870,7 +873,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id ), 0 ) 
 					) as total,
 					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " ), 0 ) 
+						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . ' ' . $location_id_where . " ), 0 ) 
 					) as item_total,
 					SUM( ec_order.tax_total ) AS tax_total,
 					SUM( ec_order.vat_total ) AS vat_total,
@@ -892,7 +895,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				WHERE 
 					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
 					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					ec_orderstatus.is_approved = 1 " . $country_where . " " . $billing_country_where . "
+					ec_orderstatus.is_approved = 1 " . $country_where . " " . $billing_country_where . " " . $location_id_where . "
 				GROUP BY 
 					" . $groupby . " 
 				ORDER BY 
@@ -1032,7 +1035,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $data_items;
 		}
 
-		private function get_items_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false ){
+		private function get_items_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 			$days_length = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 			if( $range == 'daily' && $days_length <= 2 ){
 				$days_length = ($days_length+1) * 24;
@@ -1042,6 +1045,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$product_where = "";
 			$country_where = "";
 			$billing_country_where = "";
+			$location_id_where = '';
 			if( $product_id ){
 				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
 			}
@@ -1050,6 +1054,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			if( $billing_country ){
 				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
+			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 			}
 
 			if( $range == 'hourly' ){
@@ -1073,7 +1080,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			$sales_data = $this->wpdb->get_results( "SELECT 
 					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.quantity ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . "), 0 ) 
+						IFNULL( ( SELECT SUM( ec_orderdetail.quantity ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
 					) as total,
 					0 AS discount_total, 
 					0 AS refund_total, 
@@ -1192,7 +1199,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $data_items;
 		}
 
-		private function get_carts_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false ){
+		private function get_carts_dataset( $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 			$days_length = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 			if( $range == 'daily' && $days_length <= 2 ){
 				$days_length = ($days_length+1) * 24;
@@ -1202,6 +1209,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$product_where = "";
 			$country_where = "";
 			$billing_country_where = "";
+			$location_id_where = '';
 			if( $product_id ){
 				$product_where = $this->wpdb->prepare( "AND ec_tempcart.product_id = %d ", $product_id );
 			}
@@ -1210,6 +1218,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			if( $billing_country ){
 				$billing_country_where = $this->wpdb->prepare( "AND ec_tempcart_data.billing_country = %s ", $billing_country );
+			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 			}
 
 			if( $range == 'hourly' ){
@@ -1249,7 +1260,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					" . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' 
 					" . $product_where . "
 					" . $country_where . " 
-					" . $billing_country_where . "
+					" . $billing_country_where . " 
+					" . $location_id_where . "
 				GROUP BY 
 					" . $groupby . " 
 				ORDER BY 
@@ -1394,10 +1406,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $output;
 		}
 
-		public function get_tax_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false ) {
+		public function get_tax_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ) {
 			$product_where = '';
 			$country_where = '';
 			$billing_country_where = '';
+			$location_id_where = '';
 			if ( $product_id ) {
 				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
 			}
@@ -1406,6 +1419,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			if ( $billing_country ) {
 				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
+			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 			}
 
 			$date_diff = $this->date_diff;
@@ -1450,7 +1466,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59'
 					" . $product_where . "
 					" . $country_where . "
-					" . $billing_country_where . "
+					" . $billing_country_where . " 
+					" . $location_id_where . "
 				ORDER BY 
 					ec_order.order_date ASC, ec_orderdetail.order_id, ec_orderdetail.orderdetail_id", ARRAY_A
 			);
@@ -1553,10 +1570,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $url_link;
 		}
 
-		public function get_order_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false ){
+		public function get_order_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 			$product_where = "";
 			$country_where = "";
 			$billing_country_where = "";
+			$location_id_where = '';
 			if( $product_id ){
 				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
 			}
@@ -1565,6 +1583,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			if( $billing_country ){
 				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
+			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 			}
 
 			$date_diff = $this->date_diff;
@@ -1691,7 +1712,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59'
 					" . $product_where . "
 					" . $country_where . "
-					" . $billing_country_where . "
+					" . $billing_country_where . " 
+					" . $location_id_where . "
 				ORDER BY 
 					ec_order.order_date ASC, ec_orderdetail.order_id, ec_orderdetail.orderdetail_id", ARRAY_A
 			);
@@ -1845,7 +1867,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $url_link;
 		}
 
-		public function get_single_stats( $start_date, $end_date, $start_date2 = false, $end_date2 = false, $product_id = false, $country = false, $billing_country = false ){
+		public function get_single_stats( $start_date, $end_date, $start_date2 = false, $end_date2 = false, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 
 			$product_where = "";
 			$product_where_cart = "";
@@ -1853,6 +1875,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$country_where_cart = "";
 			$billing_country_where = "";
 			$billing_country_where_cart = "";
+			$location_id_where = '';
+			$location_id_where_cart = '';
 			if( $product_id ){
 				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
 				$product_where_cart = $this->wpdb->prepare( "AND ec_tempcart.product_id = %d ", $product_id );
@@ -1865,6 +1889,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
 				$billing_country_where_cart = $this->wpdb->prepare( "AND ec_tempcart_data.billing_country = %s ", $billing_country );
 			}
+			if( $location_id ){
+				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
+				$location_id_where_cart = $this->wpdb->prepare( "AND ec_tempcart_data.pickup_location = %d ", $location_id );
+			}
 			$date_diff = $this->date_diff;
 			$date_diff_type = 'DATE_ADD';
 			if( $this->date_diff < 0 ){
@@ -1876,16 +1904,16 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					COUNT( ec_order.order_id ) AS order_count,
 					COUNT( ec_order.user_id ) AS customer_count,
 					SUM( 
-						IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " ), 0 )
+						IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
 					) AS item_order_count,
 					SUM( 
-						IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " ), 0 )
+						IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
 					) AS item_customer_count,
 					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . "), 0 ) 
+						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
 					) as total,
 					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . "), 0 ) 
+						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
 					) as item_total,
 					SUM( ec_order.discount_total ) AS discount_total, 
 					SUM( ec_order.refund_total ) AS refund_total,  
@@ -1901,7 +1929,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				WHERE 
 					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . " 00:00:00' AND 
 					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where
+					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where
 			);
 
 			$sales_data_item = $this->wpdb->get_row( "SELECT 
@@ -1923,7 +1951,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id ) 
 				WHERE 
 					" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart
+					" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart . " " . $location_id_where_cart
 			);
 
 			$sales_data_flex_fees = $this->wpdb->get_results( "SELECT 
@@ -1936,7 +1964,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				WHERE 
 					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . " 00:00:00' AND 
 					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . "
+					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where . "
 				GROUP BY fee_label"
 			);
 
@@ -1946,16 +1974,16 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						COUNT( ec_order.order_id ) AS order_count,
 						COUNT( ec_order.user_id ) AS customer_count,
 						SUM( 
-							IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " ), 0 )
+							IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
 						) AS item_order_count,
 						SUM( 
-							IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " ), 0 )
+							IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
 						) AS item_customer_count,
 						SUM( 
-							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . "), 0 ) 
+							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
 						) as total,
 						SUM( 
-							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . "), 0 ) 
+							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
 						) as item_total,
 						SUM( ec_order.discount_total ) AS discount_total, 
 						SUM( ec_order.refund_total ) AS refund_total,  
@@ -1971,7 +1999,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					WHERE 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . "' AND 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where
+						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where
 				);
 
 				$sales_data_item2 = $this->wpdb->get_row( "SELECT 
@@ -1983,7 +2011,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					WHERE 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . " 00:00:00' AND 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $product_where . " " . $country_where . " " . $billing_country_where
+						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where
 				);
 
 				$sales_data_cart2 = $this->wpdb->get_row( "SELECT 
@@ -1993,7 +2021,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id )
 					WHERE 
 						" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . "' AND 
-						" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart
+						" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart . " " . $location_id_where_cart
 				);
 
 				$sales_data_flex_fees2 = $this->wpdb->get_results( "SELECT 
@@ -2006,7 +2034,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					WHERE 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . " 00:00:00' AND 
 						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " 
+						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where . " 
 					GROUP BY fee_label"
 				);
 			}
@@ -2098,7 +2126,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			);
 		}
 
-		public function get_stats( $type, $start_date, $end_date, $start_date2 = false, $end_date2 = false, $range = 'daily', $product_id = false, $country = false, $billing_country = false ){
+		public function get_stats( $type, $start_date, $end_date, $start_date2 = false, $end_date2 = false, $range = 'daily', $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 			if( $type == 'sales' ){
 				$chart_label = __( 'Sales', 'wp-easycart' );
 			}else if( $type == 'items' ){
@@ -2107,8 +2135,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$chart_label = __( 'Abandoned Carts', 'wp-easycart' );
 			}
 			if( $start_date2 ){
-				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country );
-				$data_items2 = $this->{'get_' . $type . '_dataset'}( $start_date2, $end_date2, $range, $product_id, $country, $billing_country );
+				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
+				$data_items2 = $this->{'get_' . $type . '_dataset'}( $start_date2, $end_date2, $range, $product_id, $country, $billing_country, $location_id );
 				$days1 = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 				if( $range == 'daily' && $days1 <= 2 ){
 					$days1 = ($days1+1) * 24;
@@ -2169,7 +2197,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				);
 
 			}else{
-				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country );
+				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
 				$days1 = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 				if( $range == 'daily' && $days1 <= 2 ){
 					$days1 = ( $days1 + 1 ) * 24;

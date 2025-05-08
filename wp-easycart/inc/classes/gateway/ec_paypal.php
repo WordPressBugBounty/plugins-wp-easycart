@@ -5,14 +5,8 @@ class ec_paypal extends ec_third_party{
 
 	public function get_available_url() {
 		if ( ! isset( $this->available_url ) ) {
-			if ( is_callable( 'socket_create' ) && is_callable( 'socket_connect' ) && is_callable( 'socket_close' ) ) {
-				$socket = socket_create( AF_INET, SOCK_STREAM, SOL_TCP );
-				$connection = @socket_connect( $socket, "connect.wpeasycart.com", 443 );
-				$this->available_url = ( $connection ) ? "https://connect.wpeasycart.com" : "https://support.wpeasycart.com";
-				@socket_close( $socket );
-			} else {
-				$this->available_url = "https://connect.wpeasycart.com";
-			}
+			$this->available_url = "https://connect.wpeasycart.com";
+			// Backup removed: $this->available_url = "https://connect.wpeasycart.com";
 		}
 		return $this->available_url;
 	}

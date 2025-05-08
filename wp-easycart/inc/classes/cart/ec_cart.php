@@ -209,7 +209,11 @@ class ec_cart{
 			'FRI' => 'friday',
 			'SAT' => 'saturday',
 		);
-		$schedule_standard = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 && is_holiday = 0 ORDER BY schedule_id ASC' );
+		if ( get_option( 'ec_option_multiple_location_schedules_enabled' ) && get_option( 'ec_option_pickup_enable_locations' ) && (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) {
+			$schedule_standard = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_schedule.* FROM ec_schedule INNER JOIN ec_location_to_schedule ON ec_location_to_schedule.schedule_id = ec_schedule.schedule_id WHERE ec_schedule.apply_to_preorder = 1 AND ec_schedule.is_holiday = 0 AND ec_location_to_schedule.location_id = %d ORDER BY ec_schedule.schedule_id ASC', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) );
+		} else {
+			$schedule_standard = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 AND is_holiday = 0 ORDER BY schedule_id ASC' );
+		}
 		foreach ( $schedule_standard as $schedule_day ) {
 			$timer_start = ( isset( $schedule_day->preorder_start ) && is_string( $schedule_day->preorder_start ) ) ? explode( ':', $schedule_day->preorder_start ) : array( '00', '00', '00', '00' );
 			$month_start = ( isset( $timer_start[0] ) ) ? $timer_start[0] : '00';
@@ -230,7 +234,11 @@ class ec_cart{
 			);
 		}
 		$rules['holidays'] = array();
-		$holidays = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 && is_holiday = 1 ORDER BY schedule_id ASC' );
+		if ( get_option( 'ec_option_multiple_location_schedules_enabled' ) && get_option( 'ec_option_pickup_enable_locations' ) && (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) {
+			$holidays = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_schedule.* FROM ec_schedule INNER JOIN ec_location_to_schedule ON ec_location_to_schedule.schedule_id = ec_schedule.schedule_id WHERE ec_schedule.apply_to_preorder = 1 AND ec_schedule.is_holiday = 1 AND ec_location_to_schedule.location_id = %d ORDER BY ec_schedule.schedule_id ASC', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) );
+		} else {
+			$holidays = $wpdb->get_results( 'SELECT * FROM ec_schedule WHERE apply_to_preorder = 1 AND is_holiday = 1 ORDER BY schedule_id ASC' );
+		}
 		foreach ( $holidays as $holiday ) {
 			$timer_start = ( isset( $holiday->preorder_start ) && is_string( $holiday->preorder_start ) ) ? explode( ':', $holiday->preorder_start ) : array( '00', '00', '00', '00' );
 			$month_start = ( isset( $timer_start[0] ) ) ? $timer_start[0] : '00';

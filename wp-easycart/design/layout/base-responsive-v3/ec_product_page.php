@@ -1,4 +1,5 @@
 <?php
+global $wpdb;
 // DISPLAY QUICK VIEW SETUP
 if( isset( $this->page_options->use_quickview ) )
 	$quick_view = $this->page_options->use_quickview;
@@ -511,7 +512,9 @@ function ec_admin_reorder_products( ids ){
 <?php }?>
 
 <?php // START MAIN CONTENT FOR PRODUCT PAGE // ?>
-
+<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) ) {
+	wp_easycart_output_location_popup();
+}?>
 <section class="ec_product_page<?php echo esc_attr( ( !isset( $product_border ) || $product_border ) ? '' : ' ec_product_shortcode_no_borders' ); ?><?php echo esc_attr( ( isset( $sidebar ) && $sidebar ) ? ' ec_product_page_with_sidebar ' . ( ( isset( $sidebar_position ) && in_array( $sidebar_position, array( 'right', 'left', 'slide-left', 'slide-right' ) ) ) ? 'ec_product_page_sidebar_' . $sidebar_position : '' ) : '' ); ?>" id="ec_product_page">
 
 	<?php if( apply_filters( 'wp_easycart_catalog_display', get_option( 'ec_option_display_as_catalog' ) ) && get_option( 'ec_option_vacation_mode_banner_text' ) && '' != get_option( 'ec_option_vacation_mode_banner_text' ) ) { ?>
@@ -523,6 +526,17 @@ function ec_admin_reorder_products( ids ){
 
 	<div class="ec_product_page_sidebar <?php echo ( isset( $sidebar_position ) && in_array( $sidebar_position, array( 'slide-left', 'slide-right' ) ) ) ? 'ec_product_page_sidebar_' . esc_attr( $sidebar_position ) : ''; ?>">
 		<div class="ec_product_sidebar_close <?php echo ( isset( $sidebar_position ) && in_array( $sidebar_position, array( 'slide-left', 'slide-right' ) ) ) ? '' : 'ec_product_sidebar_close_mobile_only'; ?>"><a href="#">X</a></div>
+
+		<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && isset( $sidebar_include_location ) && $sidebar_include_location ) { ?>
+		<div class="ec_product_sidebar_group ec_product_sidebar_locations">
+			<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) { 
+			$selected_location = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) ); ?>
+				<button class="ec_product_select_location"><span class="dashicons dashicons-store"></span><p><?php echo esc_attr( $selected_location->location_label ); ?></p></button>
+			<?php } else { ?>
+				<button class="ec_product_select_location"><span class="dashicons dashicons-store"></span><p><?php echo wp_easycart_language( )->get_text( 'product_details', 'store_select_button' ); ?></p></button>
+			<?php }?>
+		</div>
+		<?php }?>
 
 		<?php if( isset( $sidebar_include_search ) && $sidebar_include_search ){ ?>
 		<div class="ec_product_sidebar_group ec_product_sidebar_search">
@@ -568,7 +582,7 @@ function ec_admin_reorder_products( ids ){
 		
 		<?php do_action( 'wpeasycart_sidebar_position2', $this ); ?>
 		
-		<?php global $wpdb; 
+		<?php
 		if ( isset( $sidebar_include_category_filters ) && $sidebar_include_category_filters && isset( $sidebar_category_filter_id ) && $sidebar_category_filter_id ) {
 			$filter_categories = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_category WHERE parent_id = %d AND is_active = 1 ORDER BY priority DESC', $sidebar_category_filter_id ) );
 			if ( $filter_categories && is_array( $filter_categories ) ) {

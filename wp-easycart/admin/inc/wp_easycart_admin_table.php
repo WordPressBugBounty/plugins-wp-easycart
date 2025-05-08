@@ -534,7 +534,13 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 						$this->print_table_column_data_format( $result, $this->list_columns[ $i ] );
 						if ( isset( $this->list_columns[ $i ]['mobile_extra'] ) ) {
 							for ( $j = 0; $j < count( $this->list_columns[ $i ]['mobile_extra'] ); $j++ ) {
+								if ( 'string' == $this->list_columns[ $i ]['mobile_extra'][ $j ]['format'] ) {
+									echo '<span class="wpec-mobile-extra-string">';
+								}
 								$this->print_table_column_data_format( $result, $this->list_columns[ $i ]['mobile_extra'][ $j ] );
+								if ( 'string' == $this->list_columns[ $i ]['mobile_extra'][ $j ]['format'] ) {
+									echo '</span">';
+								}
 							}
 						}
 						echo '</div>';
@@ -655,13 +661,16 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 				case 'order_status':
 					$this->print_table_column_order_status( $result, $list_column );
 					break;
+				case 'customer':
+					$this->print_table_column_customer( $result, $list_column );
+					break;
 				default:
 					echo esc_attr( $result->{ $list_column['name'] } );
 					break;
 			}
 		}
 		private function print_table_column_int( $result, $list_column ) {
-			echo esc_attr( (integer) $result->{ $list_column['name'] } );
+			echo esc_attr( ( ( isset( $list_column['is_id'] ) && $list_column['is_id'] ) ? '#' : '' ) . (integer) $result->{ $list_column['name'] } );
 		}
 		private function print_table_column_stock( $result, $list_column ) {
 			if ( $result->show_stock_quantity || $result->use_optionitem_quantity_tracking ) {
@@ -688,12 +697,31 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private function print_table_column_datetime( $result, $list_column ) {
 			$date = $result->{ $list_column['name'] };
 			$date_timestamp = strtotime( $date );
+			$now_timestamp = time();
 			if ( isset( $list_column['localize_timestamp'] ) && $list_column['localize_timestamp'] ) {
 				$date_timestamp = $date_timestamp + $this->date_diff;
+				$now_timestamp = $now_timestamp + $this->date_diff;
 			}
 			$requires_valid = ( isset( $list_column['requires'] ) && isset( $result->{ $list_column['requires'] } ) ) ? $result->{ $list_column['requires'] } : true;
 			if ( $date_timestamp > 0 && $requires_valid ) {
-				echo esc_attr( date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ) );
+				echo esc_attr( $this->format_relative_date( $date_timestamp, $now_timestamp ) );
+			}
+		}
+		private function format_relative_date( $date_timestamp, $now_timestamp ) {
+			$date_compare = date( 'Ymd', $date_timestamp );
+			$today_compare = date( 'Ymd', $now_timestamp );
+			$yesterday_compare = date( 'Ymd', strtotime( 'Yesterday' ) );
+			$week_cutoff = strtotime( '-7 days 11:59pm' );
+			if ( $date_compare == $today_compare ) {
+				return apply_filters( 'wp_easycart_admin_datetime_format_today', esc_attr__( 'Today', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+			} else if ( $date_compare == $yesterday_compare ) {
+				return apply_filters( 'wp_easycart_admin_datetime_format_yesterday', esc_attr__( 'Yesterday', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+			} else if ( $date_timestamp > $week_cutoff ) {
+				return apply_filters( 'wp_easycart_admin_datetime_format_same_week', date( 'l ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+			} else if ( date( 'Y', $date_timestamp ) != date( 'Y', $now_timestamp ) ) {
+				return apply_filters( 'wp_easycart_admin_datetime_format_oldest', date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
+			} else {
+				return apply_filters( 'wp_easycart_admin_datetime_format_same_year', date( 'M j ' . get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
 			}
 		}
 		private function print_table_column_bool( $result, $list_column ) {
@@ -819,6 +847,32 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			} else {
 				echo '<span class="order_status_chip">' . esc_attr( $result->{ $list_column['name'] } ) . '</span>';
 			}
+		}
+		private function print_table_column_customer( $result, $list_column ) {
+			echo '<div class="wp-easycart-admin-customer">';
+				echo '<button class="wp-easycart-admin-customer-button">';
+				echo '<span class="wp-easycart-admin-customer-label">' . ( ( isset( $result->{ $list_column['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $list_column['name'] } ) ) ) : '' ) . '</span>';
+				echo '</button>';
+				if ( isset( $list_column['customer_elements'] ) && is_array( $list_column['customer_elements'] ) ) {
+					echo '<div class="wp-easycart-admin-customer-popup">';
+					foreach ( $list_column['customer_elements'] as $customer_element ) {
+						if ( isset( $customer_element['format'] ) && 'email' == $customer_element['format'] ) {
+							echo '<span class="wp-easycart-admin-customer-copy" data-copy-text="' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '">' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '</span>';
+						} else if ( isset( $customer_element['format'] ) && 'phone' == $customer_element['format'] ) {
+							if ( isset( $result->{ $customer_element['name'] } ) && '' != $result->{ $customer_element['name'] } ) {
+								echo '<span class="wp-easycart-admin-customer-copy" data-copy-text="' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '">' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '</span>';
+							}
+						} else if ( isset( $customer_element['format'] ) && 'customer_button' == $customer_element['format'] && isset( $result->{ $customer_element['name'] } ) ) {
+							if ( (int) $result->{ $customer_element['name'] } > 0 ) {
+								echo '<a href="admin.php?&page=wp-easycart-users&subpage=accounts&user_id=' . esc_attr( (int) $result->{ $customer_element['name'] } ) . '&ec_admin_form_action=edit&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-' . preg_replace( '/[^A-Za-z0-9\-\_]/', '', 'edit' ) ) . '" target="_blank">' . esc_attr__( 'View Customer', 'wp-easycart' ) . '</a>';
+							}
+						} else {
+							echo '<span class="wp-easycart-admin-customer-element">' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '</span>';
+						}
+					}
+					echo '</div>';
+				}
+			echo '</div>';
 		}
 		private function print_table_column_actions_mobile( $result ) {
 			$total_actions_printed = 0;
@@ -1001,6 +1055,8 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 				}
 				if ( isset( $list_column['select'] ) ) {
 					$sql .= $list_column['select'];
+				} else if( isset( $list_column['is_concat'] ) && $list_column['is_concat'] && isset( $list_column['concat'] ) ) {
+					$sql .= $list_column['concat'];
 				} else {
 					$sql .= $this->table . '.' . $list_column['name'];
 				}

@@ -539,6 +539,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"美元起"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"尋找您的商店"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"距離約%d公里"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"距離約%d英里"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"選擇商店"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"輸入郵遞區號或城市、州"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"例如郵遞區號、城市、州"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"尋找商店"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"使用我的當前位置"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"您拒絕了地理定位請求"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"位置資訊不可用"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"取得用戶位置的請求逾時"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"發生未知錯誤"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"此瀏覽器不支援地理定位"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"附近的商店"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"所選地點無商品"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"尋找此產品"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"目前該產品在所有地區均不提供。"
 				}
 			}
 		},
@@ -1752,6 +1820,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"結束"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"取貨地點"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"更改位置"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"選擇位置"
 				}
 			}
 		},

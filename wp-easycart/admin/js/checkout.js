@@ -18,6 +18,27 @@ function ec_admin_save_cart_settings_options( this_ele ){
 	} else {
 		jQuery( document.getElementById( 'ec_option_enable_company_name_required_row' ) ).hide();
 	}
+	if( jQuery( document.getElementById( 'ec_option_pickup_enable_locations' ) ).length ) {
+		if ( jQuery( document.getElementById( 'ec_option_pickup_enable_locations' ) ).is( ':checked' ) ) {
+			jQuery( document.getElementById( 'ec_option_pickup_location_select_enabled_row' ) ).show();
+			jQuery( document.getElementById( 'ec_option_multiple_location_schedules_enabled_row' ) ).show();
+			if ( jQuery( document.getElementById( 'ec_option_pickup_location_select_enabled' ) ).is( ':checked' ) ) {
+				jQuery( document.getElementById( 'ec_option_pickup_location_google_site_key_row' ) ).show();
+				jQuery( document.getElementById( 'ec_option_pickup_location_show_km_row' ) ).show();
+				jQuery( document.getElementById( 'ec_option_pickup_location_unavailable_row' ) ).show();
+			} else {
+				jQuery( document.getElementById( 'ec_option_pickup_location_google_site_key_row' ) ).hide();
+				jQuery( document.getElementById( 'ec_option_pickup_location_show_km_row' ) ).hide();
+				jQuery( document.getElementById( 'ec_option_pickup_location_unavailable_row' ) ).hide();
+			}
+		} else {
+			jQuery( document.getElementById( 'ec_option_pickup_location_select_enabled_row' ) ).hide();
+			jQuery( document.getElementById( 'ec_option_pickup_location_google_site_key_row' ) ).hide();
+			jQuery( document.getElementById( 'ec_option_multiple_location_schedules_enabled_row' ) ).hide();
+			jQuery( document.getElementById( 'ec_option_pickup_location_unavailable_row' ) ).hide();
+			jQuery( document.getElementById( 'ec_option_pickup_location_show_km_row' ) ).hide();
+		}
+	}
 	var data = {
 		action: 'ec_admin_ajax_save_cart_settings',
 		update_var: jQuery( this_ele ).attr( 'id' ),

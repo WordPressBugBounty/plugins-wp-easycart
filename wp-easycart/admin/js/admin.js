@@ -1,4 +1,33 @@
 jQuery( document ).ready( function( ){
+	var popup_target = false;
+	if( jQuery( '.wp-easycart-admin-customer-button' ).length ) {
+		jQuery( '.wp-easycart-admin-customer-button' ).on( 'click', function() {
+			var target = jQuery( this );
+			popup_target = jQuery( this ).parent().find( '.wp-easycart-admin-customer-popup' );
+			jQuery( '.wp-easycart-admin-customer-button' ).not( target ).removeClass( 'open' );
+			jQuery( '.wp-easycart-admin-customer-popup.open' ).not( popup_target ).removeClass( 'open' );
+			jQuery( this ).toggleClass( 'open' );
+			jQuery( this ).parent().find( '.wp-easycart-admin-customer-popup' ).toggleClass( 'open' );
+			return false;
+		} );
+		jQuery( document ).on( 'click', function( event ) {
+			if ( popup_target && popup_target.is( ':visible' ) && ! jQuery( event.target ).is( popup_target ) && popup_target.has( event.target ).length === 0 ) {
+				jQuery( '.wp-easycart-admin-customer-button' ).removeClass( 'open' );
+				jQuery( '.wp-easycart-admin-customer-popup.open' ).removeClass( 'open' );
+			}
+		} );
+	}
+	if ( jQuery( '.wp-easycart-admin-customer-copy' ).length ) {
+		jQuery( '.wp-easycart-admin-customer-copy' ).on( 'click', function() {
+			var element = jQuery( this );
+			var copy_text = element.attr( 'data-copy-text' );
+			navigator.clipboard.writeText( copy_text );
+			element.addClass( 'copied' );
+			setTimeout( function() {
+				jQuery( element ).removeClass( 'copied' );
+			}, 1500 );
+		} );
+	}
 	jQuery( 'select.select2-basic' ).select2( );
     jQuery( 'select.select2-add-new' ).select2( {
         tags: true,

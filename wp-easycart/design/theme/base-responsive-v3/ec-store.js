@@ -1,5 +1,68 @@
 // JavaScript Document
+function wp_easycart_init_location_buttons() {
+	if ( jQuery( '.wpeasycart-location-popup' ).length ) {
+		jQuery( '.wpeasycart-location-popup' ).appendTo( 'body' );
+		if ( 0 == Number( wpeasycart_ajax_object.location_id ) ) {
+			jQuery( '.wpeasycart-location-popup' ).fadeIn();
+			wpeasycart_trigger_location_geo();
+		}
+		jQuery( '.wpeasycart-location-popup-find-btn' ).on( 'click', function() {
+			jQuery( '.wpeasycart-location-list-loader' ).show();
+			jQuery( '.wpeasycart-location-list' ).html( '' );
+			var data = {
+				action: 'ec_ajax_location_search',
+				search: jQuery( '#wpeasycart_location_input' ).val(),
+				nonce: jQuery( '#wpeasycart_location_nonce' ).val()
+			};
+			jQuery.ajax( {
+				url: wpeasycart_ajax_object.ajax_url,
+				type: 'post',
+				data: data,
+				success: function( response ){
+					jQuery( '.wpeasycart-location-list-loader' ).hide();
+					if ( response.data.locations ) {
+						wpeasycart_load_locations( response.data.locations );
+					}
+				}
+			} );
+		} );
+		jQuery( '.wpeasycart-location-popup-use-location-btn' ).on( 'click', function() {
+			wpeasycart_trigger_location_geo();
+		} );
+		jQuery( document ).on( 'click', '.wpeasycart-location-popup-select-store-btn', function() {
+			jQuery( '.wpeasycart-location-list-loader' ).show();
+			jQuery( '.wpeasycart-location-list' ).html( '' );
+			var data = {
+				action: 'ec_ajax_location_set_selected',
+				location_id: jQuery( this ).attr( 'data-location-id' ),
+				nonce: jQuery( '#wpeasycart_location_nonce' ).val()
+			};
+			jQuery.ajax( {
+				url: wpeasycart_ajax_object.ajax_url,
+				type: 'post',
+				data: data,
+				success: function( response ){
+					location.reload();
+				}
+			} );
+		} );
+		jQuery( '.wpeasycart-location-popup-modal-close-btn' ).on( 'click', function() {
+			jQuery( '.wpeasycart-location-popup' ).fadeOut();
+		} );
+		jQuery( '.ec_product_select_location' ).on( 'click', function() {
+			jQuery( '.wpeasycart-location-popup' ).fadeIn();
+			if ( jQuery( this ).attr( 'data-product-id' ) ) {
+				wpeasycart_trigger_location_geo( Number( jQuery( this ).attr( 'data-product-id' ) ) );
+			} else if ( jQuery( this ).attr( 'data-type' ) && 'cart' == jQuery( this ).attr( 'data-type' ) ) {
+				wpeasycart_trigger_location_geo( false, 'cart' );
+			} else {
+				wpeasycart_trigger_location_geo();
+			}
+		} );
+	}
+}
 jQuery( document ).ready( function( ){
+	wp_easycart_init_location_buttons();
 	if ( jQuery( '#wpeasycart_cart_holder' ).length ) {
 		wpeasycart_load_cart( jQuery( '#wpeasycart_cart_holder' ).data( 'cart-page' ), jQuery( '#wpeasycart_cart_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'language' ), jQuery( '#wpeasycart_cart_holder' ).data( 'nonce' ) )
 	}
@@ -4402,17 +4465,18 @@ function wpeasycart_load_cart( cart_page, success_code, error_code, language = '
 	if( language == 'NONE' ){
 	   language = wpeasycart_ajax_object.current_language;
 	}
-    var data = {
-        action: 'ec_ajax_get_dynamic_cart_page',
-        cart_page: cart_page,
-        success_code: success_code,
-        error_code: error_code,
-        language: language,
+	var data = {
+		action: 'ec_ajax_get_dynamic_cart_page',
+		cart_page: cart_page,
+		success_code: success_code,
+		error_code: error_code,
+		language: language,
 		nonce: nonce
-    };
-    jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-        jQuery( document.getElementById( 'wpeasycart_cart_holder' ) ).replaceWith( data );
-    } } );
+	};
+	jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
+		jQuery( document.getElementById( 'wpeasycart_cart_holder' ) ).replaceWith( data );
+		wp_easycart_init_location_buttons();
+	} } );
 }
 
 function wpeasycart_load_account( account_page, page_id, success_code, error_code, language = 'NONE', nonce ){
@@ -6695,5 +6759,79 @@ function wpeasycart_mobile_summary() {
 		jQuery( '.ec_cart_mobile_summary_content' ).show();
 		jQuery( '.dashicons-arrow-down-alt2' ).hide();
 		jQuery( '.dashicons-arrow-up-alt2' ).show();
+	}
+}
+
+function wpeasycart_load_locations( locations ) {
+	for ( var i = 0; i < locations.length; i++ ) {
+		jQuery( '.wpeasycart-location-list' ).append( locations[ i ].location_html );
+	}
+}
+function wpeasycart_trigger_location_geo( product_id = false ) {
+	jQuery( '.wp-easycart-location-popup-error' ).hide();
+	if (navigator.geolocation) {
+		navigator.geolocation.getCurrentPosition(
+			( position ) => {
+				jQuery( '.wpeasycart-location-list-loader' ).show();
+				jQuery( '.wpeasycart-location-list' ).html( '' );
+				var lat = position.coords.latitude;
+				var long = position.coords.longitude;
+				var data = {
+					action: 'ec_ajax_location_find_by_geo',
+					lat: lat,
+					long: long,
+					product_id: product_id,
+					nonce: jQuery( '#wpeasycart_location_nonce' ).val()
+				};
+				jQuery.ajax( {
+					url: wpeasycart_ajax_object.ajax_url,
+					type: 'post',
+					data: data,
+					success: function( response ) {
+						jQuery( '.wpeasycart-location-list-loader' ).hide();
+						if ( response.data.locations ) {
+							wpeasycart_load_locations( response.data.locations );
+						}
+					}
+				} );
+			},
+			( error ) => {
+				switch( error.code ) {
+					case error.PERMISSION_DENIED:
+						jQuery( '.wp-easycart-location-popup-error.error1' ).show();
+						break;
+					case error.POSITION_UNAVAILABLE:
+						jQuery( '.wp-easycart-location-popup-error.error2' ).show();
+						break;
+					case error.TIMEOUT:
+						jQuery( '.wp-easycart-location-popup-error.error3' ).show();
+						break;
+					case error.UNKNOWN_ERROR:
+						jQuery( '.wp-easycart-location-popup-error.error4' ).show();
+						break;
+				}
+				jQuery( '.wpeasycart-location-list-loader' ).show();
+				jQuery( '.wpeasycart-location-list' ).html( '' );
+				var data = {
+					action: 'ec_ajax_location_find_by_geo',
+					lat: 0,
+					long: 0,
+					nonce: jQuery( '#wpeasycart_location_nonce' ).val()
+				};
+				jQuery.ajax( {
+					url: wpeasycart_ajax_object.ajax_url,
+					type: 'post',
+					data: data,
+					success: function( response ) {
+						jQuery( '.wpeasycart-location-list-loader' ).hide();
+						if ( response.data.locations ) {
+							wpeasycart_load_locations( response.data.locations );
+						}
+					}
+				} );
+			}
+		);
+	} else {
+		jQuery( '.wp-easycart-location-popup-error.error5' ).show();
 	}
 }

@@ -102,5 +102,8 @@ $table->set_filters(
 		),
 	)
 );
+if ( isset( $user_not_found ) && $user_not_found ) {
+	echo '<div id="ec_message" class="ec_admin_message_error">' . esc_attr__( 'The user no longer exists.', 'wp-easycart' ) . '</div>';
+}
 $table->set_label( __( 'User', 'wp-easycart' ), __( 'Users', 'wp-easycart' ) );
 $table->print_table();

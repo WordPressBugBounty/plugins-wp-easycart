@@ -142,6 +142,7 @@ class ec_product {
 	public $advanced_optionsets;				// Array of advanced option sets
 
 	public $using_role_price;					// BOOL
+	public $pickup_locations;
 
 	// DISPLAY VARS
 	public $display_type;						// INT
@@ -343,6 +344,7 @@ class ec_product {
 		$this->allow_multiple_subscription_purchases = $product_data['allow_multiple_subscription_purchases'];
 		$this->stripe_product_id = $product_data['stripe_product_id'];
 		$this->stripe_default_price_id = $product_data['stripe_default_price_id'];
+		$this->pickup_locations = $product_data['pickup_locations'];
 
 		$this->rating = new ec_rating( $product_data['review_data'] );
 
@@ -2519,5 +2521,13 @@ class ec_product {
 			}
 		}
 		return $is_visible;
+	}
+
+	public function at_current_location() {
+		if ( ! get_option( 'ec_option_pickup_enable_locations' ) || ! isset( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) || ! $GLOBALS['ec_cart_data']->cart_data->pickup_location ) {
+			return true;
+		}
+		$selected_locations = explode( ',', ( ( isset( $this->pickup_locations ) && is_string( $this->pickup_locations ) ) ? $this->pickup_locations : '' ) );
+		return in_array( $GLOBALS['ec_cart_data']->cart_data->pickup_location, $selected_locations );
 	}
 }

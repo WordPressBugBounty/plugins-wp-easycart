@@ -136,7 +136,11 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['user_id'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
 				include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_user.php' );
 				$details = new wp_easycart_admin_details_user();
-				$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
+				$valid = $details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
+				if ( ! $valid ) {
+					$user_not_found = true;
+					include( $this->users_list_file );
+				}
 			} else {
 				include( $this->users_list_file );
 			}

@@ -526,6 +526,74 @@
 				"product_details_starting_at":{
 					"title":"Starting At Price",
 					"value":"Starter ved"
+				},
+				"store_select_title":{
+					"title":"Store Select Title",
+					"value":"Find din butik"
+				},
+				"store_select_distance_km":{
+					"title":"Approx KM away",
+					"value":"Ca. %d KM væk"
+				},
+				"store_select_distance_m":{
+					"title":"Approx Miles away",
+					"value":"Ca. %d miles væk"
+				},
+				"store_select_button":{
+					"title":"Select Store Button",
+					"value":"Vælg Butik"
+				},
+				"store_select_location_label":{
+					"title":"Store search label",
+					"value":"Indtast postnummer eller by, stat"
+				},
+				"store_select_placeholder":{
+					"title":"Store search placeholder",
+					"value":"f.eks. postnummer eller by, stat"
+				},
+				"store_select_find_stores":{
+					"title":"Find Stores Button",
+					"value":"Find butikker"
+				},
+				"store_select_current_location":{
+					"title":"User Current Location Button",
+					"value":"Brug Min nuværende placering"
+				},
+				"store_select_error1":{
+					"title":"Store Search Geocode Error 1",
+					"value":"Du afviste anmodningen om Geolocation"
+				},
+				"store_select_error2":{
+					"title":"Store Search Geocode Error 2",
+					"value":"Placeringsoplysninger er ikke tilgængelige"
+				},
+				"store_select_error3":{
+					"title":"Store Search Geocode Error 3",
+					"value":"Anmodningen om at få brugerens placering fik timeout"
+				},
+				"store_select_error4":{
+					"title":"Store Search Geocode Error 4",
+					"value":"Der opstod en ukendt fejl"
+				},
+				"store_select_error5":{
+					"title":"Store Search Geocode Error 5",
+					"value":"Geolocation understøttes ikke af denne browser"
+				},
+				"store_select_nearby_stores":{
+					"title":"Nearby Stores Header",
+					"value":"Nærliggende butikker"
+				},
+				"product_details_not_at_location":{
+					"title":"Not at Selected Location",
+					"value":"Produktet er ikke tilgængeligt på den valgte lokation"
+				},
+				"find_this_product":{
+					"title":"Find this product",
+					"value":"Find dette produkt"
+				},
+				"product_unavailable_all_locations":{
+					"title":"Unavailable at all locations",
+					"value":"Dette produkt er i øjeblikket ikke tilgængeligt på alle lokationer."
 				}
             }
         },
@@ -1739,6 +1807,18 @@
 				"restaurant_closes":{
 					"title":"Cart, Restaurant Closes Timer",
 					"value":"lukker"
+				},
+				"preorder_location":{
+					"title":"Cart, Preorder Pickup Location",
+					"value":"Afhentningssted"
+				},
+				"change_location":{
+					"title":"Cart, Preorder Pickup Location Change",
+					"value":"Skift placering"
+				},
+				"choose_location":{
+					"title":"Cart, Preorder Pickup Location Choose",
+					"value":"Vælg placering"
 				}
             }
         },

@@ -61,6 +61,7 @@
 	</div>
 
 	<div class="ec_admin_dashboard_chart_filters">
+		<?php do_action( 'wp_easycart_admin_reports_filters_pre' ); ?>
 		<?php 
 		global $wpdb;
 		$products = $wpdb->get_results( "SELECT ec_product.title, ec_product.product_id FROM ec_product ORDER BY ec_product.title ASC LIMIT 500" );
@@ -88,6 +89,7 @@
 			<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_attr( $country->name_cnt ); ?></option>
 			<?php }?>
 		</select>
+		<?php do_action( 'wp_easycart_admin_reports_filters_post' ); ?>
 	</div>
 
 	<div class="ec_admin_dashboard_chart_editor">
@@ -665,6 +667,7 @@ function wpeasycart_admin_export_report( ){
 	var product_filter = jQuery( '#product_filter' ).val( );
 	var country_filter = jQuery( '#country_filter' ).val( );
 	var billing_country_filter = jQuery( '#billing_country_filter' ).val( );
+	var location_filter = ( jQuery( '#location_filter' ).length ) ? jQuery( '#location_filter' ).val() : 0;
 	var data = {
 		action: 'ec_admin_create_report_export',
 		start_date: start_date,
@@ -675,6 +678,7 @@ function wpeasycart_admin_export_report( ){
 		product: product_filter,
 		country: country_filter,
 		billing_country: billing_country_filter,
+		location_id: location_filter,
 		wp_easycart_nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-export-stats' ) ); ?>'
 	};
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){ 
@@ -709,6 +713,7 @@ function wpeasycart_admin_update_chart_data( ){
 	var product_filter = jQuery( '#product_filter' ).val( );
 	var country_filter = jQuery( '#country_filter' ).val( );
 	var billing_country_filter = jQuery( '#billing_country_filter' ).val( );
+	var location_filter = ( jQuery( '#location_filter' ).length ) ? jQuery( '#location_filter' ).val() : 0;
 	var data = {
 		action: 'ec_admin_get_updated_stat_list',
 		start_date: start_date,
@@ -719,6 +724,7 @@ function wpeasycart_admin_update_chart_data( ){
 		product: product_filter,
 		country: country_filter,
 		billing_country: billing_country_filter,
+		location_id: location_filter,
 		wp_easycart_nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-updated-stats' ) ); ?>'
 	};
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){ 

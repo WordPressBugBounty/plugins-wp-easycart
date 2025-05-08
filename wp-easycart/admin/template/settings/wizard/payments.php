@@ -6,7 +6,7 @@
 	<div class="ec_admin_wizard_page_row" style="padding:30px 0;">
 		<div class="ec_admin_wizard_page_row_title"><strong><?php esc_attr_e( 'PayPal', 'wp-easycart' ); ?></strong></div>
 		<div class="ec_admin_wizard_page_row_content" style="padding-right:100px;"><?php esc_attr_e( 'Accept payments with PayPal without an SSL certificate.', 'wp-easycart' ); ?></div>
-		<a target="_self" href="<?php echo esc_url_raw( wp_easycart_admin( )->available_url ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&is_wizard=true' ); ?>" onclick="return wp_easycart_wizard_use_paypal( );">
+		<a target="_self" href="<?php echo esc_url_raw( wp_easycart_admin( )->get_available_url() ); ?>/paypal-v2/production_onboard.php?redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?wpeasycart_paypal_onboard=production&is_wizard=true' ); ?>" onclick="return wp_easycart_wizard_use_paypal( );">
 			<span></span>
 			<label class="ec_admin_wizard_input_row_toggle">
 				<input type="checkbox" name="paypal_standard" id="wp_easycart_paypal_standard" onchange="wp_easycart_wizard_use_paypal( );"<?php if( get_option( 'ec_option_payment_third_party' ) == 'paypal' ){ ?> checked="checked"<?php }?> />
@@ -18,7 +18,7 @@
 	<div class="ec_admin_wizard_page_row" style="padding:30px 0;">
 		<div class="ec_admin_wizard_page_row_title"><strong><?php esc_attr_e( 'Stripe', 'wp-easycart' ); ?></strong></div>
 		<div class="ec_admin_wizard_page_row_content" style="padding-right:100px;"><?php esc_attr_e( 'Accept payments with Stripe (SSL certificate required).', 'wp-easycart' ); ?></div>
-		<a target="_self" href="<?php echo esc_url_raw( wp_easycart_admin( )->available_url ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?ec_admin_form_action=stripe_onboard&env=production&goto=wizard' ); ?>&env=production" onclick="return wp_easycart_wizard_use_stripe( );">
+		<a target="_self" href="<?php echo esc_url_raw( wp_easycart_admin( )->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url( ) ) . '?ec_admin_form_action=stripe_onboard&env=production&goto=wizard' ); ?>&env=production" onclick="return wp_easycart_wizard_use_stripe( );">
 			<span></span>
 			<label class="ec_admin_wizard_input_row_toggle">
 				<input type="checkbox" name="use_stripe" id="wp_easycart_use_stripe" onchange="wp_easycart_wizard_use_stripe( );"<?php if( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ){ ?> checked="checked"<?php }?> />

@@ -49,7 +49,7 @@
 			<?php if ( get_option( 'ec_option_packing_slip_show_order_id' ) || get_option( 'ec_option_packing_slip_show_order_date' ) ) { ?>
 			<tr>
 				<td align='left' class='style22'><?php if ( get_option( 'ec_option_packing_slip_show_order_id' ) ) { ?><strong><br><?php echo wp_easycart_language()->get_text( "cart_success", "cart_success_order_number_is" ) . ' ' . esc_attr( $order->order_id ); ?></strong><br><br><?php }?></td>
-				<td colspan="3" align='right' class='style22'><?php if ( get_option( 'ec_option_packing_slip_show_order_date' ) ) { ?><strong><?php $date = date_create($order->order_date); echo esc_attr( date_format($date , 'l - F jS, Y') ); ?></strong><?php }?></td>
+				<td colspan="3" align='right' class='style22'><?php if ( get_option( 'ec_option_packing_slip_show_order_date' ) ) { ?><strong><?php echo esc_attr( date( 'l - F jS, Y', $order_timestamp ) ); ?></strong><?php }?></td>
 			</tr>
 			<?php }?>
 			<tr>

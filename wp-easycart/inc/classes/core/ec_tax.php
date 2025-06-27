@@ -541,9 +541,9 @@ class ec_tax{
 						$this->pst = $pst_tax_sub_total;
 						$this->hst = $hst_tax_sub_total;
 					} else {
-						$this->gst = $this->taxable_subtotal * ( $this->gst_rate / 100 );
-						$this->pst = $this->taxable_subtotal * ( $this->pst_rate / 100 );
-						$this->hst = $this->taxable_subtotal * ( $this->hst_rate / 100 );
+						$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
+						$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+						$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 					}
 					if( $this->tax_shipping ){
 						$this->shipping_tax_total += round( $this->shipping_total * $this->gst_rate / 100, 2 );
@@ -554,63 +554,63 @@ class ec_tax{
 				}else{ // old canada tax
 
 					if( $this->collect_alberta && $this->shipping_state == "AB" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
 
 					}else if( $this->collect_british_columbia && $this->shipping_state == "BC" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = $this->taxable_subtotal * .07;
+						$this->pst = round( $this->taxable_subtotal * .07, 2 );
 						$this->pst_rate = 7;
 
 					}else if( $this->collect_manitoba && $this->shipping_state == "MB" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = $this->taxable_subtotal * .08;
+						$this->pst = round( $this->taxable_subtotal * .08, 2 );
 						$this->pst_rate = 8;
 
 					}else if( $this->collect_newfoundland && $this->shipping_state == "NF" ){
-						$this->hst = $this->taxable_subtotal * .13;
+						$this->hst = round( $this->taxable_subtotal * .13, 2 );
 						$this->hst_rate = 13;
 
 					}else if( $this->collect_new_brunswick && $this->shipping_state == "NB" ){
-						$this->hst = $this->taxable_subtotal * .13;
+						$this->hst = round( $this->taxable_subtotal * .13, 2 );
 						$this->hst_rate = 13;
 
 					}else if( $this->collect_nova_scotia && $this->shipping_state == "NS" ){
-						$this->hst = $this->taxable_subtotal * .15;
+						$this->hst = round( $this->taxable_subtotal * .15, 2 );
 						$this->hst_rate = 15;
 
 					}else if( $this->collect_northwest_territories && $this->shipping_state == "NT" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
 
 					}else if( $this->collect_nunavut && $this->shipping_state == "NU" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
 
 					}else if( $this->collect_ontario && $this->shipping_state == "ON" ){
-						$this->hst = $this->taxable_subtotal * .13;
+						$this->hst = round( $this->taxable_subtotal * .13, 2 );
 						$this->hst_rate = 13;
 
 					}else if( $this->collect_prince_edward_island && $this->shipping_state == "PE" ){
-						$this->hst = $this->taxable_subtotal * .14;
+						$this->hst = round( $this->taxable_subtotal * .14, 2 );
 						$this->hst_rate = 14;
 
 					}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = $this->taxable_subtotal * .09975;
+						$this->pst = round( $this->taxable_subtotal * .09975, 2 );
 						$this->pst_rate = 9.975;
 
 					}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = $this->taxable_subtotal * .05;
+						$this->pst = round( $this->taxable_subtotal * .05, 2 );
 						$this->pst_rate = 5;
 
 					}else if( $this->collect_yukon && $this->shipping_state == "YT" ){
-						$this->gst = $this->taxable_subtotal * .05;
+						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
 
 					}
@@ -1008,9 +1008,9 @@ class ec_tax{
 				$hst_square_id  = ( isset( $canada_tax_options[$hst_square_var] ) ) ? $canada_tax_options[$hst_square_var] : false;
 
 
-				$this->gst = $this->taxable_subtotal * ( $this->gst_rate / 100 );
-				$this->pst = $this->taxable_subtotal * ( $this->pst_rate / 100 );
-				$this->hst = $this->taxable_subtotal * ( $this->hst_rate / 100 );
+				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
+				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
 					$square_taxrates[] = array( $gst_tax_rule_name, $this->gst_rate, 'ADDITIVE', 'tax' );
@@ -1268,9 +1268,9 @@ class ec_tax{
 				$hst_stripe_id  = ( isset( $canada_tax_options[$hst_stripe_var] ) ) ? $canada_tax_options[$hst_stripe_var] : false;
 
 
-				$this->gst = $this->taxable_subtotal * ( $this->gst_rate / 100 );
-				$this->pst = $this->taxable_subtotal * ( $this->pst_rate / 100 );
-				$this->hst = $this->taxable_subtotal * ( $this->hst_rate / 100 );
+				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
+				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
 					if( $gst_stripe_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $gst_stripe_id, $gst_tax_rule_name, $this->gst_rate ) ){

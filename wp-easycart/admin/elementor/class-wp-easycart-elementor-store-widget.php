@@ -157,6 +157,15 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'use_dynamic',
+			array(
+				'type'  => Controls_Manager::SWITCHER,
+				'label' => esc_attr__( 'Dynamic (by post id)', 'wp-easycart' ),
+				'default'   => false,
+			)
+		);
+
+		$this->add_control(
 			'ids',
 			array(
 				'label'       => esc_attr__( 'Select products', 'wp-easycart' ),
@@ -164,6 +173,9 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'options'     => 'easycart_product',
 				'label_block' => true,
 				'multiple'    => 'true',
+				'condition' => array(
+					'use_dynamic' => '',
+				),
 			)
 		);
 
@@ -175,6 +187,9 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'options'     => 'easycart_product_cat',
 				'label_block' => true,
 				'multiple'    => 'true',
+				'condition' => array(
+					'use_dynamic' => '',
+				),
 			)
 		);
 
@@ -186,6 +201,9 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'options'     => 'easycart_product_brand',
 				'label_block' => true,
 				'multiple'    => 'true',
+				'condition' => array(
+					'use_dynamic' => '',
+				),
 			)
 		);
 

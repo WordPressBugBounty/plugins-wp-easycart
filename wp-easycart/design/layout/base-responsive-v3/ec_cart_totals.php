@@ -34,7 +34,7 @@
 	<div class="ec_cart_price_row_total" id="ec_cart_tax"><?php echo esc_attr( $this->get_tax_total( ) ); ?></div>
 </div>
 <?php }?>
-<?php if( get_option( 'ec_option_use_shipping' ) && ( ( $this->cart->shippable_total_items > 0 && $this->shipping->has_shipping_rates() ) || $this->order_totals->shipping_total > 0 ) ) { ?>
+<?php if ( get_option( 'ec_option_use_shipping' ) && ( ( $this->cart->shippable_total_items > 0 && $this->shipping->has_shipping_rates() ) || $this->order_totals->shipping_total > 0 ) && ( ! $is_page_1 || ! get_option( 'ec_option_hide_shipping_rate_page1' ) ) ) { ?>
 <div class="ec_cart_price_row ec_cart_price_row_shipping_total">
 	<div class="ec_cart_price_row_label">
 		<?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_shipping' )?>

@@ -596,7 +596,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 										$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
 										$video_arr = explode( ':::', $video_str );
 										if ( count( $video_arr ) >= 2 ) {
-											echo '<div class="wp-easycart-video-box"><video controls><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
+											echo '<div class="wp-easycart-video-box"><video ' . esc_attr( apply_filters( 'wp_easycart_prod_details_video_controls', 'controls' ) ) . '><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
 											echo '<img src="' . esc_attr( $video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
 											$first_image_found = true;
 										}
@@ -663,7 +663,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 						$video_str = substr( $this->product->images->product_images[0], 6, strlen( $this->product->images->product_images[0] ) - 6 );
 						$video_arr = explode( ':::', $video_str );
 						if ( count( $video_arr ) >= 2 ) {
-							echo '<div class="wp-easycart-video-box"><video controls><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
+							echo '<div class="wp-easycart-video-box"><video ' . esc_attr( apply_filters( 'wp_easycart_prod_details_video_controls', 'controls' ) ) . '><source src="' . esc_attr( $video_arr[0] ) . '" /></video></div>';
 							echo '<img src="' . esc_attr( $video_arr[1] ) . '" alt="' . esc_attr( strip_tags( stripslashes( $this->product->title ) ) ) . '" style="display:none" />';
 						}
 						$magbox_active = false;

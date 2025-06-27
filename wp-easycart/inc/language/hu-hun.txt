@@ -2149,6 +2149,31 @@
 				}
 			}
 		},
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Ez egy baráti emlékeztető, hogy az előfizetésed hamarosan automatikusan megújul."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"A kártyádat [total] összeggel terheljük meg [date] napon a nyilvántartásodban szereplő alapértelmezett kártyádra."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Ha a számlázási adatai megváltoztak, most frissítheti a fizetési adatait."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Fizetési mód frissítése"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Előfizetése hamarosan megújul"
+				}
+			}
+		},
 		"account_login":{
 			"label":"Fiók - Belépés",
 			"options":{
@@ -2972,6 +2997,22 @@
 				"subscription_details_past_payments":{
 					"title":"Fiók, Feliratkozás / előfizetés részletekDetails, A korábbi kifizetések címe",
 					"value":"Korábbi fizetések összege"
+				},
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Közelgő fizetési információk"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Fizetési mód frissítése"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Frissítés"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Változtasd meg a csomagodat"
 				}
 			}
 		},

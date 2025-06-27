@@ -7,6 +7,7 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 
 	public $order;
 	public $item;
+	public $order_timestamp;
 
 	public function __construct() {
 		parent::__construct();
@@ -96,6 +97,16 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 		$this->order = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_order.*, ec_user.first_name, ec_user.last_name, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name, ec_orderstatus.is_approved, ec_orderstatus.order_status FROM ec_order LEFT JOIN ec_orderstatus ON ( ec_orderstatus.status_id = ec_order.orderstatus_id ) LEFT JOIN ec_country AS billing_country ON ( billing_country.iso2_cnt = ec_order.billing_country ) LEFT JOIN ec_country AS shipping_country ON ( shipping_country.iso2_cnt = ec_order.shipping_country ) LEFT JOIN ec_user ON ( ec_user.user_id = ec_order.user_id ) WHERE order_id = %d', $order_id ) );
 		$this->id = $this->order->order_id;
 		$this->order->order_fees = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY order_fee_id ASC', $this->id ) );
+		$now_server = $this->wpdb->get_var( 'SELECT NOW() AS the_time' );
+		$now_timestamp = strtotime( $now_server );
+		$now_gmt_timestampt = time();
+		$storage_offset = $now_timestamp - $now_gmt_timestampt;
+		$local_offset = get_option( 'gmt_offset' ) * 60 * 60;
+		$date_diff = $local_offset - $storage_offset;
+		$date = $this->order->order_date;
+		$date_timestamp = strtotime( $date );
+		$date_timestamp = $date_timestamp + $date_diff;
+		$this->order_timestamp = $date_timestamp;
 	}
 
 	public function output( $type = 'edit' ) {

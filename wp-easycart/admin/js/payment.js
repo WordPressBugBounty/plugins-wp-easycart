@@ -1553,6 +1553,7 @@ function ec_admin_save_stripe_connect_options() {
 	var country = jQuery( document.getElementById( 'ec_option_stripe_company_country' ) ).val( );
 	var payment_theme = jQuery( document.getElementById( 'ec_option_stripe_payment_theme' ) ).val( );
 	var payment_layout = jQuery( document.getElementById( 'ec_option_stripe_payment_layout' ) ).val( );
+	var subscription_notices = jQuery( document.getElementById( 'ec_option_stripe_subscription_notices' ) ).val( );
 	var address_autocomplete = jQuery( document.getElementById( 'ec_option_stripe_address_autocomplete' ) ).val( );
 	var webhook_signature = jQuery( document.getElementById( 'ec_option_stripe_connect_webhook_secret' ) ).val( );
 
@@ -1611,6 +1612,7 @@ function ec_admin_save_stripe_connect_options() {
 		ec_option_stripe_company_country: country,
 		ec_option_stripe_payment_theme: payment_theme,
 		ec_option_stripe_payment_layout: payment_layout,
+		ec_option_stripe_subscription_notices: subscription_notices,
 		ec_option_stripe_address_autocomplete: address_autocomplete,
 		ec_option_stripe_connect_webhook_secret: webhook_signature,
 

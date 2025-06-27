@@ -2150,6 +2150,31 @@
 				}
 			}
 		},
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"這是一個友誼提醒，您的訂閱很快就會自動續訂。"
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"我們將於 [total] 從您存檔的預設卡中扣除 [date] 筆費用。"
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"如果您的帳單資訊已更改，您可以立即更新您的付款詳情。"
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"更新您的付款方式"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"您的訂閱即將續訂"
+				}
+			}
+		},
 		"account_login":{
 			"label":"賬戶 - 登入",
 			"options":{
@@ -2973,6 +2998,22 @@
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
 					"value":"過往付款記錄"
+				},
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"即將付款的信息"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"更新您的付款方式"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"更新"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"更改您的計劃"
 				}
 			}
 		},

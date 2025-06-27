@@ -206,13 +206,13 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			if ( 'fix-gateway-log' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-gateway-log' ) ) {
 					global $wpdb;
-					$gateway_log_items = $wpdb->get_results( 'SELECT * FROM ec_response ORDER BY response_time DESC LIMIT 10000000000000 OFFSET 100' );
+					$gateway_log_items = $wpdb->get_results( 'SELECT * FROM ec_response ORDER BY response_time DESC LIMIT 100' );
 					$response_ids = array();
 					foreach ( $gateway_log_items as $log_item ) {
 						$response_ids[] = $log_item->response_id;
 					}
 					if ( count( $response_ids ) > 0 ) {
-						$wpdb->query( 'DELETE FROM ec_response WHERE response_id IN (' . implode( ',', $response_ids ) . ')' );
+						$wpdb->query( 'DELETE FROM ec_response WHERE response_id NOT IN (' . implode( ',', $response_ids ) . ')' );
 					}
 					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-gateway-log' );
 					die();

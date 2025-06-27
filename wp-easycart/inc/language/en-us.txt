@@ -2182,6 +2182,31 @@
 				}
 			}
 		},
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"This is a friendly reminder that your subscription will automatically renew soon."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"You will be charged [total] on [date] to your default card on file."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"If your billing information has changed, you may update your payment details now."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Update Your Payment Method"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Your Subscription Will Renew Soon"
+				}
+			}
+		},
 		"account_login":{
 			"label":"Account - Login",
 			"options":{
@@ -3005,6 +3030,22 @@
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
 					"value":"Past Payments"
+				},
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Upcoming Payment Info"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Update Your Payment Method"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Update"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Change Your Plan"
 				}
 			}
 		},

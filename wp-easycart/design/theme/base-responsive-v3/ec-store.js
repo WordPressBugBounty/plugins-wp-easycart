@@ -340,7 +340,7 @@ jQuery( document ).ready( function( ){
 				jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).find( 'img' ).attr( 'data-src', src ).attr( 'src', src ).hide();
 				jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).find( '.wp-easycart-video-box' ).remove();
 				if( jQuery( this ).hasClass( 'videoType' ) ) {
-					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls><source src="' + video_src + '" /></video></div>' );
+					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls muted autoplay loop><source src="' + video_src + '" /></video></div>' );
 				} else {
 					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><iframe src="' + video_src + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>' );
 				}
@@ -393,8 +393,8 @@ jQuery( document ).ready( function( ){
 				jQuery( '.ec_details_large_popup_main_' + product_id + '_' + rand_id ).find( '.wp-easycart-video-box' ).remove();
 				
 				if( jQuery( this ).hasClass( 'videoType' ) ) {
-					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls><source src="' + video_src + '" /></video></div>' );
-					jQuery( '.ec_details_large_popup_main_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls><source src="' + video_src + '" /></video></div>' );
+					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls muted autoplay loop><source src="' + video_src + '" /></video></div>' );
+					jQuery( '.ec_details_large_popup_main_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><video controls muted autoplay loop><source src="' + video_src + '" /></video></div>' );
 				
 				} else {
 					jQuery( '.ec_details_main_image_' + product_id + '_' + rand_id ).append( '<div class="wp-easycart-video-box"><iframe src="' + video_src + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>' );
@@ -1034,7 +1034,7 @@ jQuery( document ).ready( function( ){
 		}
 		jQuery( this ).parent().toggleClass( 'ec_is_open' );
 	} );
-	jQuery( '.ec_details_review_input' ).hover( function() {
+	jQuery( '.ec_details_review_input' ).click( function() {
 		var product_id = jQuery( this ).parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().attr( 'data-rand-id' );
 		var score = jQuery( this ).attr( 'data-review-score' );
@@ -2276,6 +2276,9 @@ function ec_cart_toggle_login_v2() {
 		jQuery( '#ec_cart_onepage_info > div.ec_cart_input_row, #ec_cart_onepage_info > .ec_cart_header' ).show( );
 		jQuery( document.getElementById( 'ec_cart_onepage_shipping' ) ).show( );
 		jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).show( );
+		if ( jQuery( document.getElementById( 'shipping-address-element' ) ).length ) {
+			jQuery( document.getElementById( 'shipping-address-element' ) ).show();
+		}
 	} else {
 		jQuery( document.getElementById( 'ec_user_login_form' ) ).show( );
 		jQuery( document.getElementById( 'ec_user_contact_form' ) ).hide( );
@@ -2289,6 +2292,9 @@ function ec_cart_toggle_login_v2() {
 		jQuery( '#ec_cart_contact_header' ).show( );
 		jQuery( document.getElementById( 'ec_cart_onepage_shipping' ) ).hide( );
 		jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).hide( );
+		if ( jQuery( document.getElementById( 'shipping-address-element' ) ).length ) {
+			jQuery( document.getElementById( 'shipping-address-element' ) ).hide();
+		}
 	}
 	return false;
 }
@@ -4345,8 +4351,41 @@ function update_download_count( orderdetail_id ){
 	
 }
 
+function ec_show_update_subscription_payment() {
+	jQuery( '.ec_account_subscription_details_payment_form' ).show();
+	jQuery( '.ec_account_subscription_details_card_change' ).hide();
+	jQuery( '.ec_account_subscription_upgrade_row' ).hide();
+	jQuery( '.ec_account_subscription_details_plan_change' ).show();
+	return false;
+}
+
+function ec_show_update_subscription_details() {
+	jQuery( '.ec_account_subscription_details_payment_form' ).hide();
+	jQuery( '.ec_account_subscription_details_card_change' ).show();
+	jQuery( '.ec_account_subscription_upgrade_row' ).show();
+	jQuery( '.ec_account_subscription_details_plan_change' ).hide();
+	return false;
+}
+
 function show_billing_info( ){
 	jQuery( document.getElementById( 'ec_account_subscription_billing_information' ) ).slideToggle(600);
+	return false;
+}
+
+function ec_update_subscription_info( subscription_id, nonce ){
+	jQuery( document.getElementById( 'stripe-success-cover' ) ).show( );
+	var data = {
+		action: 'ec_ajax_stripe_update_customer_subscription_plan',
+		language: wpeasycart_ajax_object.current_language,
+		subscription_id: subscription_id,
+		quantity: jQuery( document.getElementById( 'ec_quantity_' + subscription_id ) ).val(),
+		ec_selected_plan: jQuery( document.getElementById( 'ec_selected_plan' ) ).val( ),
+		nonce: nonce
+	};
+	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
+		var json = JSON.parse( result );
+		jQuery( location ).attr( 'href', json.url );
+	} } );
 	return false;
 }
 
@@ -6475,7 +6514,7 @@ function ec_submit_product_review( product_id, rand_id, nonce ){
 	var review_title = jQuery( document.getElementById( 'ec_review_title_' + product_id + '_' + rand_id ) ).val( );
 	var review_score = 0;
 	for( var i=1; i<=5; i++ ){
-		if( jQuery( document.getElementById( 'ec_details_review_star' + i + '_' + product_id + '_' + rand_id ) ).hasClass( 'ec_product_details_star_on' ) ){
+		if( jQuery( document.getElementById( 'ec_details_review_star' + i + '_' + product_id + '_' + rand_id ) ).hasClass( 'ec_product_details_star_on' ) || jQuery( document.getElementById( 'ec_details_review_star' + i + '_' + product_id + '_' + rand_id ) ).hasClass( 'ec_product_details_star_on_ele' ) ){
 			review_score++;
 		}
 	}

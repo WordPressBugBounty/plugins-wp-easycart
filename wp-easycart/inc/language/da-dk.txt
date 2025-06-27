@@ -2137,6 +2137,31 @@
                 }
             }
         },
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Dette er en venlig påmindelse om, at dit abonnement snart automatisk fornyes."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"Du vil blive opkrævet [total] den [date] på dit registrerede standardkort."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Hvis dine faktureringsoplysninger er ændret, kan du opdatere dine betalingsoplysninger nu."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Opdater din betalingsmetode"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Dit abonnement fornyes snart"
+				}
+			}
+		},
         "account_login": {
             "label": "Account - Login",
             "options": {
@@ -2960,7 +2985,23 @@
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
                     "value": "Tidligere betalinger"
-                }
+                },
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Kommende betalingsoplysninger"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Opdater din betalingsmetode"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Opdatering"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Ændr din plan"
+				}
             }
         },
         "ec_errors": {

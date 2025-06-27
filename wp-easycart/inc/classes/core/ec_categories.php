@@ -144,6 +144,7 @@ class ec_categories {
 				}
 			}
 		}
+		return false;
 	}
 
 }

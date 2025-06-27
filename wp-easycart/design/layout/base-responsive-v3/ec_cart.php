@@ -236,7 +236,7 @@
 		<div class="ec_cart_header ec_top">
 			<?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_label' )?>
 		</div>
-		<?php $this->load_cart_total_lines(); ?>
+		<?php $this->load_cart_total_lines( true ); ?>
 		<input type="hidden" name="ec_cart_weight" id="ec_cart_weight" value="<?php echo esc_attr( $this->cart->weight ); ?>" />
 
 		<?php do_action( 'wp_easycart_totals_after' ); ?>

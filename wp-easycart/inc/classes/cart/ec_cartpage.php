@@ -210,25 +210,27 @@ class ec_cartpage {
 		// Duty (Based on Product Price) - already calculated in tax
 		// Get Total Without VAT, used only breifly
 		if ( get_option( 'ec_option_no_vat_on_shipping' ) ) {
-			$total_without_vat_or_discount = $this->cart->vat_subtotal + $this->tax->tax_total + $this->tax->duty_total;
+			$total_without_vat_or_discount = $this->cart->vat_subtotal + $this->tax->tax_total + $this->tax->pst + $this->tax->hst + $this->tax->gst + $this->tax->duty_total;
 		} else {
-			$total_without_vat_or_discount = $this->cart->vat_subtotal + $shipping_price + $this->tax->tax_total + $this->tax->duty_total;
+			$total_without_vat_or_discount = $this->cart->vat_subtotal + $shipping_price + $this->tax->tax_total + $this->tax->pst + $this->tax->hst + $this->tax->gst + $this->tax->duty_total;
 		}
 		//If a discount used, and no vatable subtotal, we need to set to 0
-		if ( $total_without_vat_or_discount < 0 )
+		if ( $total_without_vat_or_discount < 0 ) {
 			$total_without_vat_or_discount = 0;
+		}
 		// Discount for Coupon
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $total_without_vat_or_discount );
 		// Amount to Apply VAT on
 		$promotion = new ec_promotion();
 		$vatable_subtotal = $total_without_vat_or_discount - $this->tax->tax_total - $this->discount->coupon_discount - $promotion->get_discount_total( $this->cart->subtotal );
 		// If for some reason this is less than zero, we should correct
-		if ( $vatable_subtotal < 0 )
+		if ( $vatable_subtotal < 0 ) {
 			$vatable_subtotal = 0;
+		}
 		// Get Tax Again For VAT
 		$this->tax = new ec_tax( $this->cart->subtotal, $this->cart->taxable_subtotal - $sales_tax_discount->coupon_discount, $vatable_subtotal, $shipping_state, $shipping_country, $GLOBALS['ec_user']->taxfree, $shipping_price_tax, $this->cart );
 		// Discount for Gift Card
-		$grand_total = ( $this->cart->subtotal + $this->tax->tax_total + $shipping_price + $this->tax->duty_total );
+		$grand_total = ( $this->cart->subtotal + $this->tax->tax_total + $this->tax->pst + $this->tax->hst + $this->tax->gst + $shipping_price + $this->tax->duty_total );
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $grand_total );
 		// Order Totals
 		$this->order_totals = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount );
@@ -247,20 +249,22 @@ class ec_cartpage {
 				$exp_year = "20" . $exp_year;
 			}
 		}
-		if ( isset( $_POST['ec_cart_payment_type'] ) )
+		if ( isset( $_POST['ec_cart_payment_type'] ) ) {
 			$credit_card = new ec_credit_card( sanitize_text_field( $_POST['ec_cart_payment_type'] ), stripslashes( sanitize_text_field( $_POST['ec_card_holder_name'] ) ), $this->sanatize_card_number( sanitize_text_field( $_POST['ec_card_number'] ) ), $exp_month, $exp_year, sanitize_text_field( $_POST['ec_security_code'] ) );
-		else if ( isset( $_POST['ec_card_number'] ) )
+		} else if ( isset( $_POST['ec_card_number'] ) ) {
 			$credit_card = new ec_credit_card( $this->get_payment_type( $this->sanatize_card_number( sanitize_text_field( $_POST['ec_card_number'] ) ) ), stripslashes( sanitize_text_field( $_POST['ec_card_holder_name'] ) ),  $this->sanatize_card_number( sanitize_text_field( $_POST['ec_card_number'] ) ), $exp_month, $exp_year, sanitize_text_field( $_POST['ec_security_code'] ) );
-		else
+		} else {
 			$credit_card = new ec_credit_card( "", "", "", "", "", "" );
+		}
 
 		// Payment
-		if ( isset( $_POST['ec_cart_payment_selection'] ) )
+		if ( isset( $_POST['ec_cart_payment_selection'] ) ) {
 			$this->payment = new ec_payment( $credit_card, sanitize_text_field( $_POST['ec_cart_payment_selection'] ) );
-		else if ( $is_affirm )
+		} else if ( $is_affirm ) {
 			$this->payment = new ec_payment( $credit_card, "affirm" );
-		else
+		} else {
 			$this->payment = new ec_payment( $credit_card, "" );
+		}
 
 		// Order
 		$this->order = new ec_order( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount, $this->order_totals, $this->payment );
@@ -1455,7 +1459,7 @@ class ec_cartpage {
 		}
 	}
 
-	public function load_cart_total_lines() {
+	public function load_cart_total_lines( $is_page_1 = false ) {
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_totals.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_totals.php' );
 		} else {

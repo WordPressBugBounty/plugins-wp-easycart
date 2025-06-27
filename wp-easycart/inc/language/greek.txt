@@ -2153,6 +2153,31 @@
 				}
 			}
 		},
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Αυτή είναι μια φιλική υπενθύμιση ότι η συνδρομή σας θα ανανεωθεί αυτόματα σύντομα."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"Θα χρεωθείτε [total] στις [date] στην προεπιλεγμένη κάρτα σας που είναι καταχωρισμένη."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Εάν τα στοιχεία χρέωσής σας έχουν αλλάξει, μπορείτε να ενημερώσετε τα στοιχεία πληρωμής σας τώρα."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Ενημερώστε τη μέθοδο πληρωμής σας"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Η συνδρομή σας θα ανανεωθεί σύντομα"
+				}
+			}
+		},
 		"account_login":{
 			"label":"Account - Login",
 			"options":{
@@ -2976,6 +3001,22 @@
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
 					"value":"παρελθόν Πληρωμές"
+				},
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Πληροφορίες επερχόμενης πληρωμής"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Ενημερώστε τη μέθοδο πληρωμής σας"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Εκσυγχρονίζω"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Αλλάξτε το σχέδιό σας"
 				}
 			}
 		},

@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.8
-Stable tag: 5.8.4
+Stable tag: 5.8.5
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,14 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.5 =
+* New Feature - Elementor store widget now allows to show products by dynamic ID to help with category and manufacturer templates.
+* New Feature - Stripe subscriptions now allow an upcoming payment alert. Payment alerts are determined in your Stripe account and Stripe webhook.
+* Improvement - Feature to trim the gateway log adjusted to prevent memory overflow.
+* Improvement - Subscription details page upgraded.
+* Improvement - Rating system on front-end requires a click to select your rating, instead of hover.
+* Bug Fix - Gift card totals were not applying to Canadian taxes.
+* Bug Fix - Order details, order receipt print, and order packing slip (if date enabled) now convert the date to match the WordPress timezone. This should align with order list values. 
 = 5.8.4 =
 * Patch from 5.8.3 - Error in creating users from the admin fixed.
 * Patch from 5.8.2 - Error in the main store js quick fix.

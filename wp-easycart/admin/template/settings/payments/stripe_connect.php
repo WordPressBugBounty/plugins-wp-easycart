@@ -298,6 +298,13 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<option value="tabs"><?php esc_attr_e( 'Accordion (PRO &amp; Premium Only)', 'wp-easycart-pro' ); ?></option>
 				</select>
 			</div>
+			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
+				<label><?php _e( 'Subscription Notices', 'wp-easycart' ); ?></label>
+				<select name="ec_option_stripe_subscription_notices" id="ec_option_stripe_subscription_notices" onchange="ec_admin_save_stripe_connect_options( );">
+					<option value="0" selected="selected"><?php esc_attr_e( 'Disable Upcoming Payment Emails', 'wp-easycart-pro' ); ?></option>
+					<option value="0"><?php esc_attr_e( 'Enable Upcoming Payment Emails (PRO &amp; Premium Only)', 'wp-easycart-pro' ); ?></option>
+				</select>
+			</div>
 			<?php if ( get_option( 'ec_option_onepage_checkout' ) ) { ?>
 				<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
 					<label><?php _e( 'Stripe Address Auto-Complete', 'wp-easycart' ); ?></label>

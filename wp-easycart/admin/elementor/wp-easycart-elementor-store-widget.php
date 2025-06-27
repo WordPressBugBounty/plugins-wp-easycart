@@ -13,6 +13,7 @@ $args = shortcode_atts(
 		'title_link' => '',
 		'desc' => '',
 		'status' => '',
+		'use_dynamic' => false,
 		'ids'  => '',
 		'category'  => '',
 		'brands' => '',
@@ -87,6 +88,7 @@ $wpec_elem_title = $args['title'];
 $wpec_elem_title_link = $args['title_link'];
 $desc = $args['desc'];
 $wpec_elem_status = $args['status'];
+$use_dynamic = $args['use_dynamic'];
 $ids = $args['ids'];
 $category = $args['category'];
 $brands = $args['brands'];
@@ -319,6 +321,7 @@ if ( isset( $count ) && $count ) {
 
 $more_atts['elementor'] = true;
 $more_atts['status'] = $wpec_elem_status;
+$more_atts['use_dynamic'] = ( 'yes' == $use_dynamic ) ? 1 : 0;
 $more_atts['layout_mode'] = $layout_mode;
 $more_atts['product_style']  = $product_style;
 $more_atts['product_align']  = $product_align;

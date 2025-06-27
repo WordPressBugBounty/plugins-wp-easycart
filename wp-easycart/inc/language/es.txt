@@ -2149,6 +2149,31 @@
 				}
 			}
 		},
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Este es un recordatorio amistoso de que su suscripción se renovará automáticamente pronto."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"Se le cobrará [total] el [date] a su tarjeta predeterminada registrada."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Si su información de facturación ha cambiado, puede actualizar sus detalles de pago ahora."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Actualice su método de pago"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Su suscripción se renovará pronto"
+				}
+			}
+		},
 		"account_login":{
 			"label":"Account - Login",
 			"options":{
@@ -2972,6 +2997,22 @@
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
 					"value":"Los pagos anteriores"
+				},
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Información de próximos pagos"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Actualice su método de pago"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Actualizar"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Cambia tu plan"
 				}
 			}
 		},

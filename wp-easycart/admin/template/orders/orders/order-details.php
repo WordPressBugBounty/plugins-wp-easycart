@@ -63,7 +63,7 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 					<span class="ec_admin_order_details_order_id"><?php esc_attr_e( 'Order', 'wp-easycart' ); ?> #<?php echo esc_attr( $this->order->order_id ); ?></span>
 					<?php $edit_order_date_action = apply_filters( 'wp_easycart_admin_order_details_order_date_edit_action', 'show_pro_required' ); ?>
 					<span class="ec_admin_order_details_order_date" id="ec_admin_order_details_order_date_row">
-						<span id="ec_admin_order_details_order_date"><?php echo esc_attr( date( 'F d, Y', strtotime( $this->order->order_date ) ) ); ?></span>
+						<span id="ec_admin_order_details_order_date"><?php echo esc_attr( date( 'M j Y ' . get_option( 'time_format' ), $this->order_timestamp ) ); ?></span>
 						<div class="ec_admin_order_details_totals_edit" id="ec_admin_order_date_edit" style="top:13px; right:-68px;" onclick="<?php echo esc_attr( $edit_order_date_action ); ?>( ); return false;">
 							<div class="dashicons-before dashicons-edit"></div><span><?php esc_attr_e( 'Edit', 'wp-easycart' ); ?></span>
 						</div>

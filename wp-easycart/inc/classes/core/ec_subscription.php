@@ -249,6 +249,52 @@ class ec_subscription{
 
 	}
 
+	public function send_subscription_upcoming_payment_email( $subscription, $user, $webhook_data ) {
+		$email_logo_url = get_option( 'ec_option_email_logo' );
+		$total = $GLOBALS['currency']->get_currency_display( $webhook_data->amount_due / 100 );
+		$upcoming_charge_timestamp = null;
+		if ( isset( $webhook_data->next_payment_attempt ) && ! is_null( $webhook_data->next_payment_attempt ) ) {
+			$upcoming_charge_timestamp = $webhook_data->next_payment_attempt;
+		} else if ( isset( $webhook_data->lines->data[0]->period->end ) ) {
+			$upcoming_charge_timestamp = $webhook_data->lines->data[0]->period->end;
+		}
+		$date = ( $upcoming_charge_timestamp ) ? date_i18n( 'F j, Y', $upcoming_charge_timestamp ) : false;
+
+		$headers = array();
+		$headers[] = "MIME-Version: 1.0";
+		$headers[] = "Content-Type: text/html; charset=utf-8";
+		$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
+		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
+		$headers[] = "X-Mailer: PHP/" . phpversion( );
+
+		ob_start( );
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_subscription_upcoming_email.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_subscription_upcoming_email.php';
+		} else {
+			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_subscription_upcoming_email.php';
+		}
+		$message = ob_get_clean();
+
+		$email_send_method = get_option( 'ec_option_use_wp_mail' );
+		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
+
+		if ( $email_send_method == "1" ) {
+			wp_mail( $user->email, wp_easycart_language( )->get_text( "subscription_upcoming", "subscription_upcoming_email_title" ), $message, implode("\r\n", $headers) );
+			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "subscription_upcoming", "subscription_upcoming_email_title" ), $message, implode("\r\n", $headers) );
+
+		}else if( $email_send_method == "0" ){
+			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
+			$to = $user->email;
+			$subject = wp_easycart_language( )->get_text( "subscription_upcoming", "subscription_upcoming_email_title" );
+			$mailer = new wpeasycart_mailer( );
+			$mailer->send_order_email( $to, $subject, $message );
+			$mailer->send_order_email( $admin_email, $subject, $message );
+
+		}else{
+			do_action( 'wpeasycart_custom_subscription_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $user->email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "subscription_upcoming", "subscription_upcoming_email_title" ), $message );
+		}
+	}
+
 	public function send_subscription_ended_email( $user ){
 
 		$email_logo_url = get_option( 'ec_option_email_logo' );

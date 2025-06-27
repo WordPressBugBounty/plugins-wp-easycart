@@ -33,6 +33,13 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 	}?>
 ];
 </script>
+<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) {
+	global $wpdb;
+	$selected_location = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_location WHERE location_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location ) );
+} ?>
+<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) ) {
+	wp_easycart_output_location_popup();
+}?>
 
 <?php if ( isset( $_GET['ec_store_success'] ) && 'inquiry_sent' == $_GET['ec_store_success'] && isset( $_GET['model'] ) && $product->model_number == $_GET['model'] ) { ?>
 	<div class="ec_cart_success"><div><?php echo esc_attr( wp_easycart_language( )->get_text( "ec_success", "inquiry_sent" ) ); ?></div></div>
@@ -687,6 +694,18 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 			</div>
 		<?php } else if ( $product->is_catalog_mode ) { ?>
 			<div class="ec_details_seasonal_mode"><?php echo esc_attr( $product->catalog_mode_phrase ); ?></div>
+		<?php /* NOT AT LOCATION */ ?>
+		<?php } else if( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && ! $product->at_current_location() ) { ?>
+			<?php if ( '' == $product->pickup_locations ) { ?>
+				<div class="ec_product_no_locations_notice"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_unavailable_all_locations' ); ?></div>
+			<?php } else { ?>
+				<div class="ec_product_not_at_location_notice"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_not_at_location' ); ?></div>
+				<?php if ( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) { ?>
+					<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $product->product_id ); ?>"><p><?php echo esc_attr( $selected_location->location_label ); ?>, <?php echo wp_easycart_language( )->get_text( 'product_details', 'find_this_product' ); ?></p></button>
+				<?php } else { ?>
+					<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $product->product_id ); ?>"><p><?php echo wp_easycart_language( )->get_text( 'product_details', 'find_this_product' ); ?></p></button>
+				<?php }?>
+			<?php }?>
 		<?php } else if ( $product->is_inquiry_mode ) { /* INQUIRY BUTTON */
 			if( get_option( 'ec_option_use_inquiry_form' ) || $product->inquiry_url == "" ){ ?>
 				<div class="ec_details_option_row_error ec_inquiry_error" id="ec_details_inquiry_error_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo wp_easycart_language( )->get_text( 'ec_errors', 'missing_inquiry_options' ); ?></div>
@@ -790,6 +809,10 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 		<?php }?>
 	</div>
 	<?php } //END FILTER FOR HIDING ADD TO CART ?>
+
+	<?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) && isset( $selected_location ) && is_object( $selected_location ) ) { ?>
+		<button class="ec_product_select_location ec_product_select_location_product" type="button" data-product-id="<?php echo esc_attr( $product->product_id ); ?>"><p><span class="dashicons dashicons-store"></span> <?php echo esc_attr( $selected_location->location_label ); ?></p></button>
+	<?php }?>
 
 	<?php if( !$product->in_stock( ) && $product->allow_backorders ){ ?>
 	<div class="ec_details_backorder_info" id="ec_back_order_info_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_out_of_stock' ); ?><?php if( $product->backorder_fill_date != "" ){ ?> <?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_until' ); ?> <?php echo esc_attr( $product->backorder_fill_date ); ?><?php }?></div>

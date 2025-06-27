@@ -70,7 +70,7 @@
 			<tr>
 				<td colspan='4' align='left' class='style22'>  
 					<p><br><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_1" ) . " " . esc_attr( htmlspecialchars( $order->billing_first_name, ENT_QUOTES ) . " " . htmlspecialchars( $order->billing_last_name, ENT_QUOTES ) ); ?>:</p>
-					<p><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_2" ); ?> <strong><?php echo esc_attr( $order_id ); ?> ― <?php echo esc_attr( date_i18n( get_option( 'date_format' ), strtotime( $order->order_date ) ) ); ?></strong></p>
+					<p><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_2" ); ?> <strong><?php echo esc_attr( $order_id ); ?> ― <?php if ( isset( $order_timestamp ) ) { echo esc_attr( date_i18n( get_option( 'date_format' ), $order_timestamp ) ); } else { echo esc_attr( date_i18n( get_option( 'date_format' ), strtotime( $order->order_date ) ) ); } ?></strong></p>
 					<p><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_3" ); ?></p>
 					<p><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_4" ); ?></p><br />
 				</td>

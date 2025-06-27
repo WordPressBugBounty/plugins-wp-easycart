@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.4
+ * Version: 5.8.5
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.4
+ * @version 5.8.5
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_4' );
+define( 'EC_CURRENT_VERSION', '5_8_5' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '95' );
 
@@ -1432,6 +1432,7 @@ function load_ec_store( $atts ) {
 		'cols_mobile' => false,
 		'cols_mobile_small' => 1,
 		'spacing' => 20,
+		'use_dynamic' => false,
 		'productid' => false,
 		'category' => false,
 		'manufacturer' => false,
@@ -5917,16 +5918,72 @@ function ec_ajax_get_stripe_update_customer_card() {
 	$subscription = $ec_db->get_subscription_row( (int) $_POST['subscription_id'] );
 	$subscription_info = $stripe->get_subscription( $GLOBALS['ec_user']->stripe_customer_id, $subscription->stripe_subscription_id );
 	$subscription_item_id = false;
+	$quantity = (int) $subscription->quantity;
 	if ( $subscription_info ) {
 		$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
 		$card_info = $stripe->attach_payment_method( sanitize_text_field( $_POST['payment_id'] ), $GLOBALS['ec_user'] );
-		$update_response = $stripe->set_subscription_payment_method( sanitize_text_field( $_POST['payment_id'] ), $subscription_info, $subscription, (int) $_POST['quantity'] );
+		$update_response = $stripe->set_subscription_payment_method( sanitize_text_field( $_POST['payment_id'] ), $subscription_info, $subscription, $quantity );
 		if ( $update_response ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE ec_subscription SET quantity = %d WHERE subscription_id = %d", (int) $_POST['quantity'], $subscription->subscription_id ) );
 			$card = new ec_credit_card( $card_info->card->brand, ( ( isset( $card_info->card->billing_details ) && isset( $card_info->card->billing_details->name ) ) ? $card_info->card->billing_details->name : '' ), $card_info->card->last4, $card_info->card->exp_month, $card_info->card->exp_year, '' );
 			$ec_db->update_user_default_card( $GLOBALS['ec_user'], $card );
 		}
 	}
+
+	echo json_encode( 
+		array( 
+			'url' => $account_page . $permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id']
+		)
+	);
+	die();
+}
+
+add_action( 'wp_ajax_ec_ajax_stripe_update_customer_subscription_plan', 'ec_ajax_stripe_update_customer_subscription_plan' );
+add_action( 'wp_ajax_nopriv_ec_ajax_stripe_update_customer_subscription_plan', 'ec_ajax_stripe_update_customer_subscription_plan' );
+function ec_ajax_stripe_update_customer_subscription_plan() {
+	wpeasycart_session()->handle_session();
+	$session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
+
+	if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ), 'wp-easycart-get-stripe-update-customer-card-' . $session_id ) ) {
+		die();
+	}
+
+	global $wpdb;
+	$ec_db = new ec_db();
+
+	$account_page_id = apply_filters( 'wp_easycart_account_page_id', get_option( 'ec_option_accountpage' ) );
+	if ( function_exists( 'icl_object_id' ) ) {
+		$account_page_id = icl_object_id( $account_page_id, 'page', true, ICL_LANGUAGE_CODE );
+	}
+	$account_page = get_permalink( $account_page_id );
+	if ( class_exists( "WordPressHTTPS" ) && isset( $_SERVER['HTTPS'] ) ) {
+		$https_class = new WordPressHTTPS();
+		$account_page = $https_class->makeUrlHttps( $account_page );
+	}
+	if ( substr_count( $account_page, '?' ) ) {
+		$permalink_divider = "&";
+	} else {
+		$permalink_divider = "?";
+	}
+	$payment_method = get_option( 'ec_option_payment_process_method' );
+	if ( 'stripe' != $payment_method && 'stripe_connect' != $payment_method ) {
+		echo json_encode( 
+			array( 
+				'url' => $account_page . $permalink_divider . 'ec_page=subscription_details&subscription_id=' . (int) $_POST['subscription_id'] . '&error=stripe-setup',
+			)
+		);
+		die();
+	}
+
+	if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
+		$stripe = new ec_stripe();
+	} else {
+		$stripe = new ec_stripe_connect();
+	}
+
+	$subscription = $ec_db->get_subscription_row( (int) $_POST['subscription_id'] );
+	$subscription_info = $stripe->get_subscription( $GLOBALS['ec_user']->stripe_customer_id, $subscription->stripe_subscription_id );
+	$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
+	$quantity = (int) $_POST['quantity'];
 
 	// Update Plan if Changed
 	$products = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", sanitize_text_field( $_POST['ec_selected_plan'] ) ), "", "", "" );
@@ -5959,10 +6016,9 @@ function ec_ajax_get_stripe_update_customer_card() {
 			}
 
 			if ( $plan_added ) {
-				$success = $stripe->update_subscription( $product, $GLOBALS['ec_user'], NULL, sanitize_text_field( $_POST['stripe_subscription_id'] ), NULL, $product->subscription_prorate, NULL, (int) $_POST['quantity'], $subscription_item_id );
+				$success = $stripe->update_subscription( $product, $GLOBALS['ec_user'], NULL, sanitize_text_field( $subscription->stripe_subscription_id ), NULL, $product->subscription_prorate, NULL, $quantity, $subscription_item_id );
 				if ( $success ) {
-					$ec_db->update_subscription( (int) $_POST['subscription_id'], $GLOBALS['ec_user'], $product, $card, (int) $_POST['quantity'] );
-					$ec_db->update_user_default_card( $GLOBALS['ec_user'], $card );
+					$ec_db->update_subscription( $subscription->subscription_id, $GLOBALS['ec_user'], $product, null, $quantity );
 				}
 			}
 		}
@@ -5970,7 +6026,7 @@ function ec_ajax_get_stripe_update_customer_card() {
 
 	echo json_encode( 
 		array( 
-			'url' => $account_page . $permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id']
+			'url' => $account_page . $permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $subscription->subscription_id
 		)
 	);
 	die();
@@ -7148,9 +7204,9 @@ function ec_get_order_totals( $cart = false ) {
 	// Duty (Based on Product Price) - already calculated in tax
 	// Get Total Without VAT, used only breifly
 	if ( get_option( 'ec_option_no_vat_on_shipping' ) ) {
-		$total_without_vat_or_discount = $cart->vat_subtotal + $tax->tax_total + $tax->duty_total;
+		$total_without_vat_or_discount = $cart->vat_subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $tax->duty_total;
 	} else {
-		$total_without_vat_or_discount = $cart->vat_subtotal + $shipping_price + $tax->tax_total + $tax->duty_total;
+		$total_without_vat_or_discount = $cart->vat_subtotal + $shipping_price + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $tax->duty_total;
 	}
 	//If a discount used, and no vatable subtotal, we need to set to 0
 	if ( $total_without_vat_or_discount < 0 )
@@ -7166,7 +7222,7 @@ function ec_get_order_totals( $cart = false ) {
 	// Get Tax Again For VAT
 	$tax = new ec_tax( $cart->subtotal, $cart->taxable_subtotal - $sales_tax_discount->coupon_discount, $vatable_subtotal, $GLOBALS['ec_cart_data']->cart_data->shipping_state, $GLOBALS['ec_cart_data']->cart_data->shipping_country, $GLOBALS['ec_user']->taxfree, $shipping_price_tax, $cart );
 	// Discount for Gift Card
-	$grand_total = ( $cart->subtotal + $tax->tax_total + $shipping_price + $tax->duty_total );
+	$grand_total = ( $cart->subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $shipping_price + $tax->duty_total );
 	$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $grand_total );
 	// Order Totals
 	$order_totals = new ec_order_totals( $cart, $GLOBALS['ec_user'], $shipping, $tax, $discount );
@@ -7478,8 +7534,6 @@ function wp_easycart_get_location_geocode( $search_term ) {
 		'sslverify'   => true,
 	);
 	$response = wp_remote_get( $url, $args );
-	$ecdb = new ec_db();
-	$ecdb->insert_response( 0, 0, "Google Geolocation", print_r( $response, true ) );
 	if ( is_wp_error( $response ) ) {
 		return false;
 	}
@@ -7802,6 +7856,19 @@ function wp_easycart_webhook_catch() {
 					}
 
 				// Payment Intent Succeeded	
+				} else if ( $webhook_type == "invoice.upcoming" && get_option( 'ec_option_stripe_subscription_notices' ) ) {
+					$mysqli->insert_response( 0, 0, "STRIPE Upcoming Payment", print_r( $webhook_data, true ) );
+					$stripe_subscription_id = $webhook_data->subscription;
+					$subscription_row = $mysqli->get_stripe_subscription( $stripe_subscription_id );
+					if ( $subscription_row ) {
+						$mysqli->insert_response( 0, 0, "STRIPE Upcoming Payment Sub Row", print_r( $subscription_row, true ) );
+						$subscription = new ec_subscription( $subscription_row );
+						$user = $mysqli->get_stripe_user( $webhook_data->customer );
+						$subscription->send_subscription_upcoming_payment_email( $subscription, $user, $webhook_data );
+						do_action( 'wp_easycart_subscription_upcoming_payment', $subscription, $user, $webhook_data );
+					}
+
+				// Payment Intent Succeeded	
 				} else if ( $webhook_type == "payment_intent.succeeded" && isset( $webhook_data->id ) && isset( $webhook_data->client_secret ) && '' != $webhook_data->id && '' != $webhook_data->client_secret ) {
 					global $wpdb;
 					$ec_db_admin = new ec_db_admin();
@@ -7903,9 +7970,9 @@ function wp_easycart_webhook_catch() {
 											$tax = new ec_tax( $cart->subtotal, $cart->taxable_subtotal - $sales_tax_discount->coupon_discount, 0, $tempcart_data->shipping_state, $tempcart_data->shipping_country, $user->taxfree, $shipping_price_tax, $cart );
 
 											if ( get_option( 'ec_option_no_vat_on_shipping' ) ) {
-												$total_without_vat_or_discount = $cart->vat_subtotal + $tax->tax_total + $tax->duty_total;
+												$total_without_vat_or_discount = $cart->vat_subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $tax->duty_total;
 											} else {
-												$total_without_vat_or_discount = $cart->vat_subtotal + $shipping_price + $tax->tax_total + $tax->duty_total;
+												$total_without_vat_or_discount = $cart->vat_subtotal + $shipping_price + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $tax->duty_total;
 											}
 
 											if ( $total_without_vat_or_discount < 0 ) {
@@ -7922,7 +7989,7 @@ function wp_easycart_webhook_catch() {
 
 											$tax = new ec_tax( $cart->subtotal, $cart->taxable_subtotal - $sales_tax_discount->coupon_discount, $vatable_subtotal, $tempcart_data->shipping_state, $tempcart_data->shipping_country, $user->taxfree, $shipping_price_tax, $cart );
 
-											$grand_total = ( $cart->subtotal + $tax->tax_total + $shipping_price + $tax->duty_total );
+											$grand_total = ( $cart->subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $shipping_price + $tax->duty_total );
 											$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $grand_total );
 
 											$order_totals = new ec_order_totals( $cart, $user, $shipping, $tax, $discount );

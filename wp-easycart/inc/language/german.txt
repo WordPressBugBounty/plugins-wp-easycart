@@ -2145,6 +2145,31 @@
                 }
             }
         },
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Dies ist eine freundliche Erinnerung, dass Ihr Abonnement bald automatisch verlängert wird."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"Der Betrag von [total] wird Ihnen am [date] von Ihrer hinterlegten Standardkarte abgebucht."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Wenn sich Ihre Rechnungsinformationen geändert haben, können Sie Ihre Zahlungsdetails jetzt aktualisieren."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Aktualisieren Sie Ihre Zahlungsmethode"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Ihr Abonnement wird bald erneuert"
+				}
+			}
+		},
         "account_login": {
             "label": "Account - Login",
             "options": {
@@ -2968,7 +2993,23 @@
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
                     "value": "fr\u00fchere Zahlungen"
-                }
+                },
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Informationen zur bevorstehenden Zahlung"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Aktualisieren Sie Ihre Zahlungsmethode"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Aktualisieren"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Ändern Sie Ihren Plan"
+				}
             }
         },
         "ec_errors": {

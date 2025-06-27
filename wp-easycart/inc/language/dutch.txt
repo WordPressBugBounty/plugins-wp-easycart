@@ -2137,6 +2137,31 @@
                 }
             }
         },
+		"subscription_upcoming":{
+			"label":"Subscription Upcoming Payment Email",
+			"options":{
+				"upcoming_message_1":{
+					"title":"Subscription Reminder Part 1",
+					"value":"Wij willen u eraan herinneren dat uw abonnement binnenkort automatisch wordt verlengd."
+				},
+				"upcoming_message_2":{
+					"title":"Subscription Reminder Part 2",
+					"value":"Het bedrag [total] wordt op [date] in rekening gebracht op uw standaardcreditcard die wij in ons bestand hebben."
+				},
+				"upcoming_details":{
+					"title":"Subscription Reminder Part 3",
+					"value":"Als uw factuurgegevens zijn gewijzigd, kunt u nu uw betalingsgegevens bijwerken."
+				},
+				"upcoming_message_link":{
+					"title":"Update Button",
+					"value":"Werk uw betaalmethode bij"
+				},
+				"subscription_upcoming_email_title":{
+					"title":"Subscription Upcoming Email Title",
+					"value":"Uw abonnement wordt binnenkort verlengd"
+				}
+			}
+		},
         "account_login": {
             "label": "Account - Login",
             "options": {
@@ -2960,7 +2985,23 @@
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
                     "value": "Vorige betalingen"
-                }
+                },
+				"subscription_details_next_payment":{
+					"title":"Account, Subscription Details, Next Payment Info",
+					"value":"Aankomende betalingsinformatie"
+				},
+				"subscription_details_payment_method":{
+					"title":"Account, Subscription Details, Update Payment Title",
+					"value":"Werk uw betaalmethode bij"
+				},
+				"subscription_details_update_payment":{
+					"title":"Account, Subscription Details, Save Payment Method",
+					"value":"Update"
+				},
+				"subscription_details_change_plan":{
+					"title":"Account, Subscription Details, Change Plan",
+					"value":"Verander uw plan"
+				}
             }
         },
         "ec_errors": {

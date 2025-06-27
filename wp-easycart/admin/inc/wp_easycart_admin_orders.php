@@ -694,6 +694,17 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$order->shipping_country = $ship_country;
 			}
 			$order_details = $mysqli->get_order_details_admin( $order_id );
+			global $wpdb;
+			$now_server = $wpdb->get_var( 'SELECT NOW() AS the_time' );
+			$now_timestamp = strtotime( $now_server );
+			$now_gmt_timestampt = time();
+			$storage_offset = $now_timestamp - $now_gmt_timestampt;
+			$local_offset = get_option( 'gmt_offset' ) * 60 * 60;
+			$date_diff = $local_offset - $storage_offset;
+			$date = $order->order_date;
+			$date_timestamp = strtotime( $date );
+			$date_timestamp = $date_timestamp + $date_diff;
+			$order_timestamp = $date_timestamp;
 			$country_list = $mysqli->get_countries();
 			$tax_struct = new ec_tax( 0, 0, 0, '', '' );
 			$total = $GLOBALS['currency']->get_currency_display( $order->grand_total );
@@ -782,6 +793,18 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$mysqli = new ec_db_admin();
 			$order = $db->get_order_row_admin( $order_id );
 			$order_details = $db->get_order_details_admin( $order_id );
+
+			global $wpdb;
+			$now_server = $wpdb->get_var( 'SELECT NOW() AS the_time' );
+			$now_timestamp = strtotime( $now_server );
+			$now_gmt_timestampt = time();
+			$storage_offset = $now_timestamp - $now_gmt_timestampt;
+			$local_offset = get_option( 'gmt_offset' ) * 60 * 60;
+			$date_diff = $local_offset - $storage_offset;
+			$date = $order->order_date;
+			$date_timestamp = strtotime( $date );
+			$date_timestamp = $date_timestamp + $date_diff;
+			$order_timestamp = $date_timestamp;
 
 			$country_list = $db->get_countries();
 

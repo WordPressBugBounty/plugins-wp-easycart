@@ -57,6 +57,19 @@ class ec_productlist{
 
 		$this->filter = new ec_filter();
 		if ( isset( $this->atts['elementor'] ) && $this->atts['elementor'] ) {
+			if ( isset( $this->atts['use_dynamic'] ) && $this->atts['use_dynamic'] ) {
+				$post_id = get_the_ID();
+				$category_by_post = $GLOBALS['ec_categories']->get_category_id_from_post_id( $post_id );
+				if ( isset( $category_by_post ) && is_object( $category_by_post ) ) {
+					$this->atts['category'] = (int) $category_by_post->category_id;
+					$GLOBALS['ec_store_shortcode_options'][4] = (int) $category_by_post->category_id;
+				}
+				$manufacturer_by_post = $GLOBALS['ec_manufacturers']->get_manufacturer_id_from_post_id( $post_id );
+				if ( isset( $manufacturer_by_post ) && is_object( $manufacturer_by_post ) ) {
+					$this->atts['manufacturer'] = (int) $manufacturer_by_post->manufacturer_id;
+					$GLOBALS['ec_store_shortcode_options'][3] = (int) $manufacturer_by_post->manufacturer_id;
+				}
+			}
 			$this->filter->add_filter_atts( $this->atts['productid'], $this->atts['category'], $this->atts['manufacturer'], $this->atts['status'], $this->atts['sorting_default'], $this->atts['sidebar_category_filter_method'] );
 		}
 		$this->set_shortcode_vals( $menuid, $submenuid, $subsubmenuid, $manufacturerid, $groupid, $modelnumber );

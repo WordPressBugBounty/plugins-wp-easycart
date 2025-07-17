@@ -548,7 +548,7 @@ class ec_cartpage {
 				echo '</div>';
 				return;
 
-			} else if ( $stripe_pi_response && ( $stripe_pi_response->status == 'requires_action' || $stripe_pi_response->status == 'requires_source_action' ) ) {
+			} else if ( apply_filters( 'wp_easycart_stripe_return_listed_requires_action', true ) && $stripe_pi_response && ( $stripe_pi_response->status == 'requires_action' || $stripe_pi_response->status == 'requires_source_action' ) ) {
 				if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'redirect_to_url' == $stripe_pi_response->next_action->type ) {
 					echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 						echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';
@@ -1273,7 +1273,7 @@ class ec_cartpage {
 					echo '</div>';
 					return;
 					
-				} else if ( $stripe_pi_response && ( $stripe_pi_response->status == 'requires_action' || $stripe_pi_response->status == 'requires_source_action' ) ) {
+				} else if ( apply_filters( 'wp_easycart_stripe_return_listed_requires_action', true ) && $stripe_pi_response && ( $stripe_pi_response->status == 'requires_action' || $stripe_pi_response->status == 'requires_source_action' ) ) {
 					if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'redirect_to_url' == $stripe_pi_response->next_action->type ) {
 						echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 							echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';

@@ -3459,24 +3459,26 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 
 			if ( ! class_exists( 'Plugin_Upgrader', false ) ) {
-				require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+				include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 			}
+			include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+			include_once ABSPATH . 'wp-admin/includes/file.php';
 
-			$title     = "Installing WP EasyCart PRO";
 			$skin_args = array(
-				'type'   => 'web',
-				'title'  => sprintf( $title, 'WP EasyCart PRO' ),
+				'type'   => 'upload',
+				'title'  => esc_attr__( 'Installing WP EasyCart PRO', 'wp-easycart' ),
 				'url'    => esc_url_raw( $url ),
 				'nonce'  => 'install-plugin_wp-easycart-pro',
-				'plugin' => 'wp-easycart-pro',
-				'extra'  => array( ),
+				'plugin' => 'wp-easycart-pro/wp-easycart-admin-pro.php',
 			);
 
 			add_filter( 'install_plugin_complete_actions', array( $this, 'remove_actions_install', 3 ) );
 			$skin = new Plugin_Installer_Skin( $skin_args );
 			$upgrader = new Plugin_Upgrader( $skin );
 			try {
+				do_action( 'upgrader_pre_install', $upgrader, array() );
 				$installer_result = $upgrader->install( $url );
+				do_action( 'upgrader_post_install', $upgrader, array() );
 			} catch ( Throwable $t ) {
 				$installer_result = false;
 			}

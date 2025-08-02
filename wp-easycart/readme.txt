@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.8
-Stable tag: 5.8.6
+Stable tag: 5.8.7
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -84,7 +84,7 @@ The Professional & Premium shopping cart editions include all our live shipping 
 __Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
 
 = Order Management =
-WP EasyCart's FREE shopping cart edition lets you manage orders from within WordPress.  Print sales receipts & packaging slips, add shipping notes, email customers, and view order information in one easy location.
+WP EasyCart's FREE shopping cart edition lets you manage orders from within WordPress.  Print sales receipts & packing slips, add shipping notes, email customers, and view order information in one easy location.
 
 The Professional & Premium shopping cart editions allow you to edit line items, add new line items, and edit all the customers order data for a complete business solution.
 
@@ -214,6 +214,11 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.7 =
+* Bug Fix - Stripe error for specific combination of features.
+* Bug Fix - Object cache issue on updating state or country shipping options fixed.
+* Bug Fix - Subscription purchase, account creation, plus recaptcha enabled, and cart disabled fixed.
+* Bug Fix - Subscription purchase, account creation, duplicate email error was not properly reloading the recaptcha (if enabled).
 = 5.8.6 =
 * Bug Fix - Redsys api updated to remove deprecated PHP function.
 * New Feature - Filter added to allow Stripe automatic action handling to be disabled.

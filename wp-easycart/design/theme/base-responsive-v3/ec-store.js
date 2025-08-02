@@ -1685,6 +1685,10 @@ function subscription_create_account( nonce ) {
 				if ( data_arr['error'] ) {
 					jQuery( document.getElementById( 'ec_subscription_email_exists' ) ).show();
 					jQuery( document.getElementById( 'ec_cart_create_account_loader' ) ).hide();
+					if ( '' != recaptcha_response ) {
+						jQuery( document.getElementById( 'ec_grecaptcha_response_register' ) ).val( '' );
+						grecaptcha.reset( wpeasycart_register_recaptcha );
+					}
 				} else {
 					ec_reload_cart();
 					jQuery( document.getElementById( 'ec_subscription_email_exists' ) ).hide();
@@ -2334,6 +2338,10 @@ function ec_cart_validate_login_v2( nonce ) {
 						jQuery( document.getElementById( 'ec_cart_not_activated_error' ) ).show();
 					} else {
 						jQuery( document.getElementById( 'ec_cart_login_invalid_error' ) ).show();
+					}
+					if ( '' != recaptcha_response ) {
+						jQuery( document.getElementById( 'ec_grecaptcha_response_login' ) ).val( '' );
+						grecaptcha.reset( wpeasycart_login_recaptcha );
 					}
 				} else {
 					window.location.href = response_obj.url;
@@ -6806,7 +6814,7 @@ function wpeasycart_load_locations( locations ) {
 		jQuery( '.wpeasycart-location-list' ).append( locations[ i ].location_html );
 	}
 }
-function wpeasycart_trigger_location_geo( product_id = false ) {
+function wpeasycart_trigger_location_geo( product_id = false, type = false ) {
 	jQuery( '.wp-easycart-location-popup-error' ).hide();
 	if (navigator.geolocation) {
 		navigator.geolocation.getCurrentPosition(
@@ -6820,6 +6828,7 @@ function wpeasycart_trigger_location_geo( product_id = false ) {
 					lat: lat,
 					long: long,
 					product_id: product_id,
+					type: type,
 					nonce: jQuery( '#wpeasycart_location_nonce' ).val()
 				};
 				jQuery.ajax( {

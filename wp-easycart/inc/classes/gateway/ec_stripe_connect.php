@@ -1856,18 +1856,18 @@ class ec_stripe_connect extends ec_gateway {
 		$payment_method_types_list = apply_filters( 'wp_easycart_stripe_payment_methods', array( 'card' ) );
 		$min_purchase = 5000;
 		$min_afterpay = 100;
+		$subtotal_amount = number_format( $order_totals->sub_total * 100, 0, "", "" );
 		if ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) >= 50 ) {
-			$amount = number_format( $order_totals->sub_total * 100, 0, "", "" );
 			$min_purchase = $min_afterpay = (int) get_option( 'ec_option_stripe_pay_later_minimum' ) * 100;
 		}
 		foreach ( $payment_method_types_list as $payment_method_item ) {
 			if ( in_array( $payment_method_item, array( 'klarna', 'affirm' ) ) ) {
-				if ( $amount >= $min_purchase ) {
+				if ( $subtotal_amount >= $min_purchase ) {
 					$payment_method_types[] = $payment_method_item;
 				}
 
 			} else if ( in_array( $payment_method_item, array( 'afterpay_clearpay' ) ) ) {
-				if ( $amount >= $min_afterpay ) {
+				if ( $subtotal_amount >= $min_afterpay ) {
 					$payment_method_types[] = $payment_method_item;
 				}
 			} else {

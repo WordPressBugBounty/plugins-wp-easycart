@@ -379,7 +379,7 @@ function ec_admin_save_cart_options() {
 
 		<?php $this->display_subscription_form_start( $product->model_number ); ?>
 
-		<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+		<?php if( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
 			<input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
 		<?php }?>
 
@@ -447,7 +447,7 @@ function ec_admin_save_cart_options() {
 				</div>
 			</div>
 
-			<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
 				<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
 				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
 			<?php }?>
@@ -457,7 +457,7 @@ function ec_admin_save_cart_options() {
 				<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
 			</div>
 
-			<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
 				<script type="text/javascript">
 					if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
 						var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {

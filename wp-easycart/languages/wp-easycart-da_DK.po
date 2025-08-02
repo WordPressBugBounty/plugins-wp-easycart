@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2025-06-27 14:00-0700\n"
-"PO-Revision-Date: 2025-06-27 14:01-0700\n"
+"POT-Creation-Date: 2025-08-01 16:56-0700\n"
+"PO-Revision-Date: 2025-08-01 16:56-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: da\n"
@@ -3978,63 +3978,67 @@ msgstr ""
 msgid "Install WP EasyCart PRO"
 msgstr "Installer WP EasyCart PRO"
 
-#: admin/inc/wp_easycart_admin.php:3485
+#: admin/inc/wp_easycart_admin.php:3469
+msgid "Installing WP EasyCart PRO"
+msgstr "Installation af WP EasyCart PRO"
+
+#: admin/inc/wp_easycart_admin.php:3487
 msgid "AN ERROR HAS OCCURED. CLICK HERE FOR HELP."
 msgstr "DER ER OPSTÅET EN FEJL. KLIK HER FOR AT FÅ HJÆLP."
 
-#: admin/inc/wp_easycart_admin.php:3486
+#: admin/inc/wp_easycart_admin.php:3488
 msgid "RETURN TO WP EASYCART"
 msgstr "TILBAGE TIL WP EASYCART"
 
-#: admin/inc/wp_easycart_admin.php:3488 admin/inc/wp_easycart_admin.php:3490
+#: admin/inc/wp_easycart_admin.php:3490 admin/inc/wp_easycart_admin.php:3492
 msgid "CLICK HERE TO COMPLETE INSTALLATION"
 msgstr "KLIK HER FOR FÆLLES INSTALLATION"
 
-#: admin/inc/wp_easycart_admin.php:3492
+#: admin/inc/wp_easycart_admin.php:3494
 msgid ""
 "Did something go wrong? If so click here for manual install instructions."
 msgstr ""
 "Er der gået noget galt? Hvis det er tilfældet, kan du klikke her for at få "
 "vejledning til manuel installation."
 
-#: admin/inc/wp_easycart_admin.php:3576
+#: admin/inc/wp_easycart_admin.php:3578
 #: admin/template/settings/payments/manual-bill.php:16
 msgid "Show"
 msgstr "Vis"
 
-#: admin/inc/wp_easycart_admin.php:3760
+#: admin/inc/wp_easycart_admin.php:3762
 #: admin/inc/wp_easycart_admin_details.php:204
 #: admin/inc/wp_easycart_admin_details.php:303
 msgid "Upload Image"
 msgstr "Upload billede"
 
-#: admin/inc/wp_easycart_admin.php:3837
+#: admin/inc/wp_easycart_admin.php:3839
 msgid "Select an Action"
 msgstr "Vælg en handling"
 
-#: admin/inc/wp_easycart_admin.php:3842
+#: admin/inc/wp_easycart_admin.php:3844
 #: admin/inc/wp_easycart_admin_table.php:343
 #: admin/inc/wp_easycart_admin_table.php:397
 msgid "Apply"
 msgstr "Anvend"
 
-#: admin/inc/wp_easycart_admin.php:3847
+#: admin/inc/wp_easycart_admin.php:3849
 #: admin/inc/wp_easycart_admin_table.php:463
 #: inc/classes/widget/ec_searchwidget.php:19
 msgid "Search"
 msgstr "Søg"
 
-#: admin/inc/wp_easycart_admin.php:3856 admin/inc/wp_easycart_admin.php:3857
 #: admin/inc/wp_easycart_admin.php:3858 admin/inc/wp_easycart_admin.php:3859
+#: admin/inc/wp_easycart_admin.php:3860 admin/inc/wp_easycart_admin.php:3861
 msgid "rows"
 msgstr "rækker"
 
-#: admin/inc/wp_easycart_admin.php:3872
+#: admin/inc/wp_easycart_admin.php:3874
 #, php-format
 msgid "Showing %s of %s"
 msgstr "Viser %s af %s"
 
-#: admin/inc/wp_easycart_admin.php:3919
+#: admin/inc/wp_easycart_admin.php:3921
 msgid "No rows, add new below."
 msgstr "Ingen rækker, tilføj nye nedenfor."
 
@@ -8398,8 +8402,8 @@ msgstr "Prioritet 3 dages forsendelse"
 msgid "Priority 2 Day Shipping"
 msgstr "Prioritet 2 dages forsendelse"
 
-#: admin/inc/wp_easycart_admin_shipping.php:455
-#: admin/inc/wp_easycart_admin_shipping.php:623
+#: admin/inc/wp_easycart_admin_shipping.php:457
+#: admin/inc/wp_easycart_admin_shipping.php:625
 #: admin/template/settings/shipping/percentage-rates.php:12
 #: admin/template/settings/shipping/percentage-rates.php:54
 #: admin/template/settings/shipping/price-based.php:12
@@ -8407,11 +8411,11 @@ msgstr "Prioritet 2 dages forsendelse"
 msgid "Price Trigger"
 msgstr "Pristrigger"
 
-#: admin/inc/wp_easycart_admin_shipping.php:456
-#: admin/inc/wp_easycart_admin_shipping.php:512
-#: admin/inc/wp_easycart_admin_shipping.php:568
-#: admin/inc/wp_easycart_admin_shipping.php:624
-#: admin/inc/wp_easycart_admin_shipping.php:680
+#: admin/inc/wp_easycart_admin_shipping.php:458
+#: admin/inc/wp_easycart_admin_shipping.php:514
+#: admin/inc/wp_easycart_admin_shipping.php:570
+#: admin/inc/wp_easycart_admin_shipping.php:626
+#: admin/inc/wp_easycart_admin_shipping.php:682
 #: admin/template/settings/shipping/percentage-rates.php:19
 #: admin/template/settings/shipping/percentage-rates.php:61
 #: admin/template/settings/shipping/price-based.php:19
@@ -8425,11 +8429,11 @@ msgstr "Pristrigger"
 msgid "Shipping Rate"
 msgstr "Forsendelsespris"
 
-#: admin/inc/wp_easycart_admin_shipping.php:457
-#: admin/inc/wp_easycart_admin_shipping.php:513
-#: admin/inc/wp_easycart_admin_shipping.php:569
-#: admin/inc/wp_easycart_admin_shipping.php:625
-#: admin/inc/wp_easycart_admin_shipping.php:681
+#: admin/inc/wp_easycart_admin_shipping.php:459
+#: admin/inc/wp_easycart_admin_shipping.php:515
+#: admin/inc/wp_easycart_admin_shipping.php:571
+#: admin/inc/wp_easycart_admin_shipping.php:627
+#: admin/inc/wp_easycart_admin_shipping.php:683
 #: admin/template/settings/shipping/percentage-rates.php:25
 #: admin/template/settings/shipping/percentage-rates.php:67
 #: admin/template/settings/shipping/price-based.php:26
@@ -8443,11 +8447,11 @@ msgstr "Forsendelsespris"
 msgid "Shipping Zone"
 msgstr "Forsendelsesområde"
 
-#: admin/inc/wp_easycart_admin_shipping.php:458
-#: admin/inc/wp_easycart_admin_shipping.php:514
-#: admin/inc/wp_easycart_admin_shipping.php:570
-#: admin/inc/wp_easycart_admin_shipping.php:626
-#: admin/inc/wp_easycart_admin_shipping.php:682
+#: admin/inc/wp_easycart_admin_shipping.php:460
+#: admin/inc/wp_easycart_admin_shipping.php:516
+#: admin/inc/wp_easycart_admin_shipping.php:572
+#: admin/inc/wp_easycart_admin_shipping.php:628
+#: admin/inc/wp_easycart_admin_shipping.php:684
 #: admin/template/settings/shipping/percentage-rates.php:28
 #: admin/template/settings/shipping/percentage-rates.php:70
 #: admin/template/settings/shipping/price-based.php:29
@@ -8461,29 +8465,29 @@ msgstr "Forsendelsesområde"
 msgid "No Zone"
 msgstr "Ingen zone"
 
-#: admin/inc/wp_easycart_admin_shipping.php:511
+#: admin/inc/wp_easycart_admin_shipping.php:513
 #: admin/template/settings/shipping/weight-based.php:12
 #: admin/template/settings/shipping/weight-based.php:55
 msgid "Weight Trigger"
 msgstr "Vægtudløser"
 
-#: admin/inc/wp_easycart_admin_shipping.php:567
+#: admin/inc/wp_easycart_admin_shipping.php:569
 #: admin/template/settings/shipping/quantity-based.php:12
 #: admin/template/settings/shipping/quantity-based.php:54
 msgid "Quantity Trigger"
 msgstr "Mængdeudløser"
 
-#: admin/inc/wp_easycart_admin_shipping.php:679
+#: admin/inc/wp_easycart_admin_shipping.php:681
 #: admin/template/settings/shipping/static-rates.php:12
 #: admin/template/settings/shipping/static-rates.php:65
 msgid "Shipping Label"
 msgstr "Fragt-label"
 
-#: admin/inc/wp_easycart_admin_shipping.php:691
+#: admin/inc/wp_easycart_admin_shipping.php:693
 msgid "Free Shipping @"
 msgstr "Gratis fragt @"
 
-#: admin/inc/wp_easycart_admin_shipping.php:696
+#: admin/inc/wp_easycart_admin_shipping.php:698
 #: admin/template/settings/shipping/static-rates.php:41
 #: admin/template/settings/shipping/static-rates.php:86
 msgid "Rate Order"
@@ -10655,7 +10659,8 @@ msgid "Refund Order"
 msgstr "Refusionsordre"
 
 #: admin/template/orders/orders/order-details.php:109
-msgid "Print Packaging Slip"
+#: admin/template/orders/orders/order-list.php:223
+msgid "Print Packing Slip"
 msgstr "Udskriv emballageseddel"
 
 #: admin/template/orders/orders/order-details.php:110
@@ -11025,10 +11030,6 @@ msgstr "Kunde"
 #: admin/template/orders/orders/order-list.php:215
 msgid "Resend Email Receipt"
 msgstr "Send e-mail-kvittering igen"
-
-#: admin/template/orders/orders/order-list.php:223
-msgid "Print Packing Slip"
-msgstr "Udskriv emballageseddel"
 
 #: admin/template/orders/orders/order-list.php:231
 msgid "Change Order Status"
@@ -20314,6 +20315,9 @@ msgstr ""
 "de kraftfulde funktioner stadig meget nemme at administrere! Hvis du har "
 "spørgsmål, kan du se vores websted på <a href=\"http://www.wpeasycart.com\" "
 "target=\"_blank\">WP EasyCart</a> ."
+
+#~ msgid "Print Packaging Slip"
+#~ msgstr "Udskriv emballageseddel"
 
 #~ msgid "Choose a Pick Up Time"
 #~ msgstr "Vælg et afhentningstidspunkt"

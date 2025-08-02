@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2025-06-27 14:01-0700\n"
-"PO-Revision-Date: 2025-06-27 14:01-0700\n"
+"POT-Creation-Date: 2025-08-01 16:56-0700\n"
+"PO-Revision-Date: 2025-08-01 16:56-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: es\n"
@@ -3994,63 +3994,67 @@ msgstr ""
 msgid "Install WP EasyCart PRO"
 msgstr "Instalar WP EasyCart PRO"
 
-#: admin/inc/wp_easycart_admin.php:3485
+#: admin/inc/wp_easycart_admin.php:3469
+msgid "Installing WP EasyCart PRO"
+msgstr "Instalación de WP EasyCart PRO"
+
+#: admin/inc/wp_easycart_admin.php:3487
 msgid "AN ERROR HAS OCCURED. CLICK HERE FOR HELP."
 msgstr "SE HA PRODUCIDO UN ERROR. HAGA CLIC AQUÍ PARA OBTENER AYUDA."
 
-#: admin/inc/wp_easycart_admin.php:3486
+#: admin/inc/wp_easycart_admin.php:3488
 msgid "RETURN TO WP EASYCART"
 msgstr "VOLVER A WP EASYCART"
 
-#: admin/inc/wp_easycart_admin.php:3488 admin/inc/wp_easycart_admin.php:3490
+#: admin/inc/wp_easycart_admin.php:3490 admin/inc/wp_easycart_admin.php:3492
 msgid "CLICK HERE TO COMPLETE INSTALLATION"
 msgstr "HAZ CLIC AQUÍ PARA COMPLETAR LA INSTALACIÓN"
 
-#: admin/inc/wp_easycart_admin.php:3492
+#: admin/inc/wp_easycart_admin.php:3494
 msgid ""
 "Did something go wrong? If so click here for manual install instructions."
 msgstr ""
 "¿Algo ha ido mal? Si es así, haga clic aquí para ver las instrucciones de "
 "instalación manual."
 
-#: admin/inc/wp_easycart_admin.php:3576
+#: admin/inc/wp_easycart_admin.php:3578
 #: admin/template/settings/payments/manual-bill.php:16
 msgid "Show"
 msgstr "Mostrar"
 
-#: admin/inc/wp_easycart_admin.php:3760
+#: admin/inc/wp_easycart_admin.php:3762
 #: admin/inc/wp_easycart_admin_details.php:204
 #: admin/inc/wp_easycart_admin_details.php:303
 msgid "Upload Image"
 msgstr "Subir imagen"
 
-#: admin/inc/wp_easycart_admin.php:3837
+#: admin/inc/wp_easycart_admin.php:3839
 msgid "Select an Action"
 msgstr "Selecciona una acción"
 
-#: admin/inc/wp_easycart_admin.php:3842
+#: admin/inc/wp_easycart_admin.php:3844
 #: admin/inc/wp_easycart_admin_table.php:343
 #: admin/inc/wp_easycart_admin_table.php:397
 msgid "Apply"
 msgstr "Aplicar "
 
-#: admin/inc/wp_easycart_admin.php:3847
+#: admin/inc/wp_easycart_admin.php:3849
 #: admin/inc/wp_easycart_admin_table.php:463
 #: inc/classes/widget/ec_searchwidget.php:19
 msgid "Search"
 msgstr "Buscar"
 
-#: admin/inc/wp_easycart_admin.php:3856 admin/inc/wp_easycart_admin.php:3857
 #: admin/inc/wp_easycart_admin.php:3858 admin/inc/wp_easycart_admin.php:3859
+#: admin/inc/wp_easycart_admin.php:3860 admin/inc/wp_easycart_admin.php:3861
 msgid "rows"
 msgstr "filas"
 
-#: admin/inc/wp_easycart_admin.php:3872
+#: admin/inc/wp_easycart_admin.php:3874
 #, php-format
 msgid "Showing %s of %s"
 msgstr "Mostrando %s de %s"
 
-#: admin/inc/wp_easycart_admin.php:3919
+#: admin/inc/wp_easycart_admin.php:3921
 msgid "No rows, add new below."
 msgstr "No hay filas, añade una nueva debajo."
 
@@ -8443,8 +8447,8 @@ msgstr "Envío prioritario en 3 días"
 msgid "Priority 2 Day Shipping"
 msgstr "Envío prioritario en 2 días"
 
-#: admin/inc/wp_easycart_admin_shipping.php:455
-#: admin/inc/wp_easycart_admin_shipping.php:623
+#: admin/inc/wp_easycart_admin_shipping.php:457
+#: admin/inc/wp_easycart_admin_shipping.php:625
 #: admin/template/settings/shipping/percentage-rates.php:12
 #: admin/template/settings/shipping/percentage-rates.php:54
 #: admin/template/settings/shipping/price-based.php:12
@@ -8452,11 +8456,11 @@ msgstr "Envío prioritario en 2 días"
 msgid "Price Trigger"
 msgstr "Activador de precios"
 
-#: admin/inc/wp_easycart_admin_shipping.php:456
-#: admin/inc/wp_easycart_admin_shipping.php:512
-#: admin/inc/wp_easycart_admin_shipping.php:568
-#: admin/inc/wp_easycart_admin_shipping.php:624
-#: admin/inc/wp_easycart_admin_shipping.php:680
+#: admin/inc/wp_easycart_admin_shipping.php:458
+#: admin/inc/wp_easycart_admin_shipping.php:514
+#: admin/inc/wp_easycart_admin_shipping.php:570
+#: admin/inc/wp_easycart_admin_shipping.php:626
+#: admin/inc/wp_easycart_admin_shipping.php:682
 #: admin/template/settings/shipping/percentage-rates.php:19
 #: admin/template/settings/shipping/percentage-rates.php:61
 #: admin/template/settings/shipping/price-based.php:19
@@ -8470,11 +8474,11 @@ msgstr "Activador de precios"
 msgid "Shipping Rate"
 msgstr "Tarifa de envío"
 
-#: admin/inc/wp_easycart_admin_shipping.php:457
-#: admin/inc/wp_easycart_admin_shipping.php:513
-#: admin/inc/wp_easycart_admin_shipping.php:569
-#: admin/inc/wp_easycart_admin_shipping.php:625
-#: admin/inc/wp_easycart_admin_shipping.php:681
+#: admin/inc/wp_easycart_admin_shipping.php:459
+#: admin/inc/wp_easycart_admin_shipping.php:515
+#: admin/inc/wp_easycart_admin_shipping.php:571
+#: admin/inc/wp_easycart_admin_shipping.php:627
+#: admin/inc/wp_easycart_admin_shipping.php:683
 #: admin/template/settings/shipping/percentage-rates.php:25
 #: admin/template/settings/shipping/percentage-rates.php:67
 #: admin/template/settings/shipping/price-based.php:26
@@ -8488,11 +8492,11 @@ msgstr "Tarifa de envío"
 msgid "Shipping Zone"
 msgstr "Zona de envío"
 
-#: admin/inc/wp_easycart_admin_shipping.php:458
-#: admin/inc/wp_easycart_admin_shipping.php:514
-#: admin/inc/wp_easycart_admin_shipping.php:570
-#: admin/inc/wp_easycart_admin_shipping.php:626
-#: admin/inc/wp_easycart_admin_shipping.php:682
+#: admin/inc/wp_easycart_admin_shipping.php:460
+#: admin/inc/wp_easycart_admin_shipping.php:516
+#: admin/inc/wp_easycart_admin_shipping.php:572
+#: admin/inc/wp_easycart_admin_shipping.php:628
+#: admin/inc/wp_easycart_admin_shipping.php:684
 #: admin/template/settings/shipping/percentage-rates.php:28
 #: admin/template/settings/shipping/percentage-rates.php:70
 #: admin/template/settings/shipping/price-based.php:29
@@ -8506,29 +8510,29 @@ msgstr "Zona de envío"
 msgid "No Zone"
 msgstr "No hay zona"
 
-#: admin/inc/wp_easycart_admin_shipping.php:511
+#: admin/inc/wp_easycart_admin_shipping.php:513
 #: admin/template/settings/shipping/weight-based.php:12
 #: admin/template/settings/shipping/weight-based.php:55
 msgid "Weight Trigger"
 msgstr "Activador de peso"
 
-#: admin/inc/wp_easycart_admin_shipping.php:567
+#: admin/inc/wp_easycart_admin_shipping.php:569
 #: admin/template/settings/shipping/quantity-based.php:12
 #: admin/template/settings/shipping/quantity-based.php:54
 msgid "Quantity Trigger"
 msgstr "Activador de cantidad"
 
-#: admin/inc/wp_easycart_admin_shipping.php:679
+#: admin/inc/wp_easycart_admin_shipping.php:681
 #: admin/template/settings/shipping/static-rates.php:12
 #: admin/template/settings/shipping/static-rates.php:65
 msgid "Shipping Label"
 msgstr "Etiqueta de envío"
 
-#: admin/inc/wp_easycart_admin_shipping.php:691
+#: admin/inc/wp_easycart_admin_shipping.php:693
 msgid "Free Shipping @"
 msgstr "Envío gratuito @"
 
-#: admin/inc/wp_easycart_admin_shipping.php:696
+#: admin/inc/wp_easycart_admin_shipping.php:698
 #: admin/template/settings/shipping/static-rates.php:41
 #: admin/template/settings/shipping/static-rates.php:86
 msgid "Rate Order"
@@ -10728,8 +10732,9 @@ msgid "Refund Order"
 msgstr "Reembolsar pedido"
 
 #: admin/template/orders/orders/order-details.php:109
-msgid "Print Packaging Slip"
-msgstr "Imprimir la hoja de embalaje"
+#: admin/template/orders/orders/order-list.php:223
+msgid "Print Packing Slip"
+msgstr "Imprimir albarán de envío"
 
 #: admin/template/orders/orders/order-details.php:110
 #: admin/template/orders/orders/order-list.php:219
@@ -11100,10 +11105,6 @@ msgstr "Por cliente"
 #: admin/template/orders/orders/order-list.php:215
 msgid "Resend Email Receipt"
 msgstr "Reenviar recibo por correo electrónico"
-
-#: admin/template/orders/orders/order-list.php:223
-msgid "Print Packing Slip"
-msgstr "Imprimir albarán de envío"
 
 #: admin/template/orders/orders/order-list.php:231
 msgid "Change Order Status"
@@ -20538,6 +20539,9 @@ msgstr ""
 "WordPress, ¡las potentes características siguen siendo muy fáciles de "
 "administrar! Si tienes alguna duda, por favor, consulta nuestra web en <a "
 "href=\"http://www.wpeasycart.com\" target=\"_blank\">WP EasyCart</a>."
+
+#~ msgid "Print Packaging Slip"
+#~ msgstr "Imprimir la hoja de embalaje"
 
 #~ msgid "Choose a Pick Up Time"
 #~ msgstr "Elija una hora de recogida"

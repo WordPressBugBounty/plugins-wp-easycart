@@ -333,6 +333,7 @@ class wp_easycart_admin_shipping {
 		$ship_to_active = ( isset( $_POST['ship_to_active'] ) && $_POST['ship_to_active'] == '1' ) ? 1 : 0;
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_country SET ship_to_active = %d WHERE id_cnt = %d', $ship_to_active, $id_cnt ) );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_state SET ship_to_active = %d WHERE idcnt_sta = %d', $ship_to_active, $id_cnt ) );
+		wp_cache_delete( 'wpeasycart-countries' );
 	}
 
 	public function update_state_list() {
@@ -340,6 +341,7 @@ class wp_easycart_admin_shipping {
 		$id_sta = (int) $_POST['id'];
 		$ship_to_active = ( isset( $_POST['ship_to_active'] ) && $_POST['ship_to_active'] == '1' ) ? 1 : 0;
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_state SET ship_to_active = %d WHERE id_sta = %d', $ship_to_active, $id_sta ) );
+		wp_cache_delete( 'wpeasycart-states' );
 	}
 
 	public function add_zone() {

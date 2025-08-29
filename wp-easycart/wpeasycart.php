@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.7
+ * Version: 5.8.8
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.7
+ * @version 5.8.8
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_7' );
+define( 'EC_CURRENT_VERSION', '5_8_8' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '95' );
 
@@ -7690,7 +7690,7 @@ function wp_easycart_webhook_catch() {
 				$mysqli->insert_webhook( $webhook_id, $webhook_type, $webhook_data );
 				if ( $webhook_type == "charge.refunded" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
 					global $wpdb;
-					$order = $wpdb->get_row( $wpdb->prepare( "SELECT ec_order.orderstatus_id FROM ec_order WHERE ec_order.stripe_charge_id = %s", $webhook_data->id ) );
+					$order = $wpdb->get_row( $wpdb->prepare( "SELECT ec_order.* FROM ec_order WHERE ec_order.stripe_charge_id = %s", $webhook_data->id ) );
 					if ( is_object( $order ) ) {
 						$order_status = $order->orderstatus_id;
 						if ( $order_status != 16 && $order_status != 17 ) {
@@ -7707,10 +7707,19 @@ function wp_easycart_webhook_catch() {
 							}
 							$mysqli->update_stripe_order_status( $stripe_charge_id, $order_status, ( $refund_total / 100 ) );
 							if ( $status == "16" ) {
-								do_action( 'wpeasycart_full_order_refund', $orderid );
+								do_action( 'wpeasycart_full_order_refund', $order->order_id );
 							} else if ( $status == "17" ) {
-								do_action( 'wpeasycart_partial_order_refund', $orderid );
+								do_action( 'wpeasycart_partial_order_refund', $order->order_id );
 							}
+							if ( get_option( 'ec_option_auto_send_refund_email' ) ) {
+								$db_admin = new ec_db_admin();
+								$order_row = $db_admin->get_order_row_admin( $order->order_id );
+								if ( $order_row ) {
+									$order_display = new ec_orderdisplay( $order_row, true, true );
+									$order_display->send_refund_email();
+								}
+							}
+							do_action( 'wpeasycart_stripe_webhook_order_refunded', $order->order_id );
 						}
 					}
 

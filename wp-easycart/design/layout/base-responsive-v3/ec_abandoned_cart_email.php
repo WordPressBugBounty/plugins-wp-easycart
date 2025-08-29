@@ -419,7 +419,7 @@
 
 													}
 													?>
-													<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="70" alt="<?php echo esc_js( wp_easycart_language( )->convert_text( $tempcart_row->title ) ); ?>" />
+													<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="<?php echo esc_attr( apply_filters( 'wp_easycart_email_receipt_image_width', 70 ) ); ?>" alt="<?php echo esc_js( wp_easycart_language( )->convert_text( $tempcart_row->title ) ); ?>" />
 												</td>
 												<td class='style20' width="350">
 												<?php 

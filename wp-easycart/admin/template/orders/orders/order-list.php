@@ -174,6 +174,7 @@ $columns[] = array(
 	'is_mobile' => false,
 	'format' => 'hidden',
 );
+$columns = apply_filters( 'wp_easycart_admin_order_list_columns', $columns );
 $table->set_list_columns( $columns );
 
 global $wpdb;

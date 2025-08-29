@@ -42,9 +42,23 @@ if ( $product->optionitem_name_5 != '' ) {
 				<p><i><?php esc_attr_e( 'To turn off these notifications, go to your EasyCart Admin -> Store Setup -> Basic Settings.', 'wp-easycart' ); ?></i></p>
 			</td>
 		</tr>
+		<tr height="10"><td colspan='4'></td></tr>
+		<?php if ( get_option( 'ec_option_email_signature_text' ) ) { ?>
 		<tr>
-			<td colspan='4'></td>
+			<td class="style22" colspan='4'>
+				<?php echo nl2br( esc_html( get_option( 'ec_option_email_signature_text' ) ) ); ?>
+			</td>
 		</tr>
+		<tr height="10"><td colspan='4'></td></tr>
+		<? }?>
+		<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
+		<tr>
+			<td class="style22" colspan='4'>
+				<img src="<?php echo esc_url( get_option( 'ec_option_email_signature_image' ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-width:100%; height:auto;" />
+			</td>
+		</tr>
+		<tr height="10"><td colspan='4'></td></tr>
+		<? }?>
 	</table>
 </body>
 </html>

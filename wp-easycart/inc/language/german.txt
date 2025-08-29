@@ -2064,6 +2064,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Guthaben erforderlich"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Bestellung anzeigen"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"Ihre Rückerstattung wurde ausgestellt"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"Für diese Bestellung wurde eine Rückerstattung in Höhe von [amount] veranlasst"
 				}
             }
         },

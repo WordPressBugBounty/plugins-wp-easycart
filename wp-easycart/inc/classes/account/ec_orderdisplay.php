@@ -1,7 +1,5 @@
 <?php
-
-class ec_orderdisplay{
-
+class ec_orderdisplay {
 	protected $mysqli;							// ec_db structure
 
 	public $order_id; 							// INT
@@ -105,11 +103,10 @@ class ec_orderdisplay{
 	public $pickup_time;
 	public $location_id;
 
-	function __construct( $order_row, $is_order_details = false, $is_admin = false ){
+	function __construct( $order_row, $is_order_details = false, $is_admin = false ) {
 		$this->mysqli = new ec_db( );
 		$this->user =& $GLOBALS['ec_user'];
-
-		if( $order_row ){
+		if ( $order_row ) {
 			$this->order_id = $order_row->order_id; 
 			$this->order_date = $order_row->order_date; 
 			$this->orderstatus_id = $order_row->orderstatus_id;
@@ -205,13 +202,13 @@ class ec_orderdisplay{
 			$this->success_page_shown = $order_row->success_page_shown;
 		}// end check for valid order row
 
-		if( $this->subscription_id != 0 ){
+		if ( $this->subscription_id != 0 ){
 			$this->membership_page = $this->mysqli->get_membership_link( $this->subscription_id );
-		}else{
+		} else {
 			$this->membership_page = "";
 		}
 
-		if( $is_order_details ){
+		if ( $is_order_details ) {
 			$this->cart =(object) array('cart' => array( ) );
 			if( $is_admin ){
 				$db_admin = new ec_db_admin( );
@@ -796,11 +793,138 @@ class ec_orderdisplay{
 				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message );
 			}
 		}
-
 	}
 
-	public function send_failed_payment( ){
+	public function send_refund_email( $admin_only = false ) {
+		$tax_struct = new ec_tax( 0,0,0, "", "");
+		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
+		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
+		$tip = $GLOBALS['currency']->get_currency_display( $this->tip_total );
+		$tax = $GLOBALS['currency']->get_currency_display( $this->tax_total );
+		if ( $this->duty_total > 0 ) {
+			$has_duty = true;
+		} else {
+			$has_duty = false;
+		}
+		$duty = $GLOBALS['currency']->get_currency_display( $this->duty_total );
+		$vat = $GLOBALS['currency']->get_currency_display( $this->vat_total );
+		$shipping = $GLOBALS['currency']->get_currency_display( $this->shipping_total );
+		if ( $this->vat_rate > 0 ) {
+			$vat_rate_formatted = $vat_rate = $this->vat_rate;
+		} else if( ( $this->grand_total - $this->vat_total ) > 0 ) {
+			$vat_rate_formatted = $vat_rate = ( $this->vat_total / ( $this->grand_total - $this->vat_total ) ) * 100;
+		} else {
+			$vat_rate_formatted = $vat_rate = 0;
+		}
+		if( round( $vat_rate_formatted, 0 ) == $vat_rate ){
+			$vat_rate_formatted = number_format( round( $vat_rate_formatted, 0 ), 0, '', '' );
+		}else if( round( $vat_rate_formatted, 1 ) == $vat_rate ){
+			$vat_rate_formatted = number_format( $vat_rate_formatted, 1, '.', '' );
+		}else if( round( $vat_rate_formatted, 2 ) == $vat_rate ){
+			$vat_rate_formatted = number_format( $vat_rate_formatted, 2, '.', '' );
+		}else if( round( $vat_rate_formatted, 3 ) == $vat_rate ){
+			$vat_rate_formatted = number_format( $vat_rate_formatted, 3, '.', '' );
+		}
+		$vat_rate = $vat_rate_formatted;
+		$gst = $this->gst_total;
+		$gst_rate = $this->gst_rate;
+		$pst = $this->pst_total;
+		$pst_rate = $this->pst_rate;
+		$hst = $this->hst_total;
+		$hst_rate = $this->hst_rate;
 
+		$discount = $GLOBALS['currency']->get_currency_display( $this->discount_total );
+		$refund = $GLOBALS['currency']->get_currency_display( $this->refund_total );
+
+		$email_logo_url = get_option( 'ec_option_email_logo' );
+
+		$storepageid = get_option('ec_option_storepage');
+		if ( function_exists( 'icl_object_id' ) ) {
+			$storepageid = icl_object_id( $storepageid, 'page', true, ICL_LANGUAGE_CODE );
+		}
+		$store_page = get_permalink( $storepageid );
+		if ( class_exists( "WordPressHTTPS" ) && isset( $_SERVER['HTTPS'] ) ) {
+			$https_class = new WordPressHTTPS();
+			$store_page = $https_class->makeUrlHttps( $store_page );
+		}
+
+		if ( substr_count( $store_page, '?' ) ) {
+			$permalink_divider = "&";
+		} else {
+			$permalink_divider = "?";
+		}
+
+		$headers   = array();
+		$headers[] = "MIME-Version: 1.0";
+		$headers[] = "Content-Type: text/html; charset=utf-8";
+		$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
+		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
+		$headers[] = "X-Mailer: PHP/".phpversion();
+
+		ob_start();
+		$is_admin = false;
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php';	
+		} else {
+			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_refund.php';
+		}
+		$message = ob_get_clean();
+		$message = apply_filters( 'wpeasycart_refund_email_customer_content', $message, $this->order_id );
+		$customer_title = wp_easycart_language( )->get_text( "cart_success", "cart_refund_email_title" );
+		$customer_title= apply_filters( 'wpeasycart_refund_email_customer_title', $customer_title, $this->order_id );
+
+		ob_start();
+		$is_admin = true;
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_refund.php';
+		} else {
+			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_refund.php';
+		}
+		$admin_message = ob_get_clean();
+		$admin_message = apply_filters( 'wpeasycart_refund_email_admin_content', $admin_message, $this->order_id );
+		$admin_title = wp_easycart_language( )->get_text( "cart_success", "cart_refund_email_title" );
+		$admin_title= apply_filters( 'wpeasycart_refund_email_admin_title', $admin_title, $this->order_id );
+		$admin_email = apply_filters( 'wpeasycart_refund_email_admin_email', get_option( 'ec_option_bcc_email_addresses' ), $this->order_id );
+
+		$attachments = array();
+		$attachments = apply_filters( 'wpeasycart_refund_email_attachments', $attachments, $this->order_id );
+
+		$email_send_method = get_option( 'ec_option_use_wp_mail' );
+		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
+
+		if( $email_send_method == "1" ){
+			if( ! $admin_only ){
+				wp_mail( $this->user_email, $customer_title, $message, implode("\r\n", $headers), $attachments );
+				if ( '' != $this->email_other ) {
+					wp_mail( $this->email_other, $customer_title, $message, implode("\r\n", $headers), $attachments );
+				}
+			}
+			$headers   = array();
+			$headers[] = "MIME-Version: 1.0";
+			$headers[] = "Content-Type: text/html; charset=utf-8";
+			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
+			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
+			$headers[] = "X-Mailer: PHP/".phpversion();
+			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $attachments );
+		}else if( $email_send_method == "0" ){
+			$to = $this->user_email;
+			$mailer = new wpeasycart_mailer( );
+			if( ! $admin_only ) {
+				$mailer->send_order_email( $to, $customer_title, $message );
+				if ( '' != $this->email_other ) {
+					$mailer->send_order_email( $this->email_other, $customer_title, $message );
+				}
+			}
+			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message );
+		}else{
+			do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message );
+			if ( '' != $this->email_other ) {
+				do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( $admin_email ), $customer_title, $message );
+			}
+		}
+	}
+
+	public function send_failed_payment() {
 		$subscription = $this->mysqli->get_subscription_row( $this->subscription_id );
 		$email_logo_url = get_option( 'ec_option_email_logo' );
 
@@ -828,20 +952,20 @@ class ec_orderdisplay{
 		$headers[] = "X-Mailer: PHP/" . phpversion( );
 
 		ob_start();
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_payment_failed.php' ) )	
-			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_payment_failed.php';	
-		else
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_payment_failed.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_payment_failed.php';
+		} else {
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_payment_failed.php';
+		}
 		$message = ob_get_clean();
 
-
-		if( get_option( 'ec_option_use_wp_mail' ) ){
+		if ( get_option( 'ec_option_use_wp_mail' ) ) {
 			wp_mail( $this->user_email, wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
 			if ( '' != $this->email_other ) {
 				wp_mail( $this->email_other, wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
 			}
 			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
-		}else{
+		} else {
 			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
 			$to = $this->user_email;
 			$subject = wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" );
@@ -854,11 +978,9 @@ class ec_orderdisplay{
 		}
 	}
 
-	public function send_gift_cards( ){
-
-		foreach( $this->cart->cart as $cart_item ){
-			if( $cart_item->is_giftcard ){
-
+	public function send_gift_cards() {
+		foreach ( $this->cart->cart as $cart_item ) {
+			if ( $cart_item->is_giftcard ) {
 				global $wpdb;
 				$cart_item->gift_card_value = $cart_item->unit_price;
 				$cart_item->gift_card_value = $wpdb->get_var( $wpdb->prepare( "SELECT amount FROM ec_giftcard WHERE giftcard_id = %s", $cart_item->giftcard_id ) );

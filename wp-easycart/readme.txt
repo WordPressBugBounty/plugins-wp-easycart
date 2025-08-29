@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.8
-Stable tag: 5.8.7
+Stable tag: 5.8.8
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,13 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.8 =
+* New Feature - Automated email signature can be added in text format and/or image upload format.
+* New Feature - Enable automated refund email upon refund submitted.
+* New Feature - Send a refund issued email from the admin.
+* Improvement - Estimate shipping expanded to automatically detect Canadian provinces/territories from the postal code. Useful for live shipping rates.
+* Bug Fix - Subscriptions of zero price caused an error.
+* Bug Fix - If you have a one-time fee for subscriptions, next bill total was showing incorrectly.
 = 5.8.7 =
 * Bug Fix - Stripe error for specific combination of features.
 * Bug Fix - Object cache issue on updating state or country shipping options fixed.

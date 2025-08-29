@@ -2072,6 +2072,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Solde requis"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Voir la commande"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"Votre remboursement a été émis"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"Un remboursement de [amount] a été initié pour cette commande"
 				}
 			}
 		},

@@ -6944,7 +6944,9 @@ class ec_cartpage {
 
 		$this->cart->subtotal = ( ( $product->price + $option_price_adjustment ) * $quantity ) + $option_price_onetime_adjustment;
 		for ( $i = 0; $i < count( $subscription_cart ); $i++ ) {
-			$subscription_cart[$i]->item_total = $subscription_cart[$i]->item_total - round( ( $subscription_cart[$i]->item_total / ( $this->cart->subtotal + $shipping_total ) ) * $discount_total, 2 );
+			if ( $this->cart->subtotal + $shipping_total > 0 ) {
+				$subscription_cart[$i]->item_total = $subscription_cart[$i]->item_total - round( ( $subscription_cart[$i]->item_total / ( $this->cart->subtotal + $shipping_total ) ) * $discount_total, 2 );
+			}
 		}
 
 		if ( $product->is_taxable || $product->vat_rate ) {
@@ -7058,8 +7060,12 @@ class ec_cartpage {
 		if ( $product->trial_period_days > 0 ) {
 			$trial_end_date = strtotime( "+" . $product->trial_period_days . " days" );
 		}
-		$tax_rates = $this->tax->get_stripe_tax_rates(  $product->is_taxable, ( $product->vat_rate > 0 ), ( $this->order_totals->tax_total / ( $product->price * $quantity + $option_price_onetime_adjustment - $discount_total ) ) );
-		$tax_rates = apply_filters( 'wp_easycart_subscription_tax_rates_pre_insert', $tax_rates, $product, ( $product->vat_rate > 0 ), ( $this->order_totals->tax_total / ( $product->price * $quantity + $option_price_onetime_adjustment - $discount_total ) ), $this->order_totals->sub_total, $shipping_total );
+		if ( $product->price * $quantity + $option_price_onetime_adjustment - $discount_total > 0 ) {
+			$tax_rates = $this->tax->get_stripe_tax_rates(  $product->is_taxable, ( $product->vat_rate > 0 ), ( $this->order_totals->tax_total / ( $product->price * $quantity + $option_price_onetime_adjustment - $discount_total ) ) );
+			$tax_rates = apply_filters( 'wp_easycart_subscription_tax_rates_pre_insert', $tax_rates, $product, ( $product->vat_rate > 0 ), ( $this->order_totals->tax_total / ( $product->price * $quantity + $option_price_onetime_adjustment - $discount_total ) ), $this->order_totals->sub_total, $shipping_total );
+		} else {
+			$tax_rates = array();
+		}
 		$stripe_response = $stripe->insert_subscription( $product, $GLOBALS['ec_user'], $card_response, $coupon, $prorate, $trial_end_date, $quantity, number_format( $this->tax->get_tax_rate(), 2, '.', '' ), $subscription_plan_options, $tax_rates, $subscription_plan_quantities, $stripe_shipping_plan_id );
 		if ( $stripe_response === false ) {
 			return array( 'error' => 'subscription_fail' );

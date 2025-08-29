@@ -2056,6 +2056,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Balance påkrævet"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Se ordre"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"Din refusion er blevet udstedt"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"En refusion på [amount] blev iværksat for denne ordre"
 				}
             }
         },

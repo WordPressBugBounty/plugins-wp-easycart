@@ -674,6 +674,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Nepieciešams atlikums"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Skatīt pasūtījumu"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"Jūsu atmaksa ir izsniegta"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"Šim pasūtījumam tika uzsākta [amount] atmaksa"
 				}
 			}
 		},

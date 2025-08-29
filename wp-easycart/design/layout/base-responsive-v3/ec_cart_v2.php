@@ -255,7 +255,13 @@ if ( ! isset( $cartpage ) ) {
 
 		<?php if( apply_filters( 'wpeasycart_show_checkout_button', true ) ){ ?>
 		<div class="ec_cart_table_checkout_button_row">
-			<a class="ec_cart_table_checkout_button" href="<?php echo esc_url_raw( $cartpage->cart_page ); ?>" onclick="return true; return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $cartpage->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $cartpage->cart->total_items ); ?>', contents: [<?php
+			<?php
+				$checkout_page_url = $cartpage->cart_page;
+				if ( get_option( 'ec_option_onepage_checkout_cart_first' ) ) {
+					$checkout_page_url .= $cartpage->permalink_divider . 'eccheckout=information';
+				}
+			?>
+			<a class="ec_cart_table_checkout_button" href="<?php echo esc_url_raw( $checkout_page_url ); ?>" onclick="return true; return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $cartpage->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $cartpage->cart->total_items ); ?>', contents: [<?php
 				for( $i=0; $i<count( $cartpage->cart->cart ); $i++ ){
 					if( $i > 0 )
 						echo ", ";

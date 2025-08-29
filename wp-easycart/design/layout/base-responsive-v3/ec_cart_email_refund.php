@@ -35,49 +35,11 @@
 			.ec_option_label{font-family: Arial, Helvetica, sans-serif; font-size:11px; font-weight:bold; }
 			.ec_option_name{font-family: Arial, Helvetica, sans-serif; font-size:11px; }
 			.ec_admin_page_break{ page-break-before:always; }
-			a{ color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>; }
-			.ec-pill-button{ font-size: 16px; font-family: Arial, Helvetica, sans-serif; color: #ffffff; font-weight:normal; text-decoration: none; border-radius:35px; padding:8px 24px; border: 1px solid <?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>; display: inline-block; }
+			.ecrefunded{ font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 16px; line-height:1.5em; text-align:center; background:#1e73be; color:#FFF; padding:15px; }
 		</style>
 	</head>
 	<body>
 		<table width="539" border="0" align="center" cellpadding="0" cellspacing="0">
-			<?php if ( ! $this->is_approved && ( 7 == $this->orderstatus_id || 9 == $this->orderstatus_id || 19 == $this->orderstatus_id )  ) { ?>
-			<tr>
-				<td align="center" class="stylefailed">
-					<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'delayed_payment_failed' )?>
-				</td>
-			</tr>
-			<tr>
-				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
-			</td>
-			<?php } else if ( ! $this->is_approved && 16 == $this->orderstatus_id ) { ?>
-			<tr>
-				<td align="center" class="stylefailed">
-					<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'order_refunded' )?>
-				</td>
-			</tr>
-			<tr>
-				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
-			</td>
-			<?php } else if ( ! $this->is_approved ) { ?>
-			<tr>
-				<td align="center" class="stylefailed">
-					<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?>
-				</td>
-			</tr>
-			<tr>
-				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
-			</td>
-			<?php } else if ( 15 == $this->orderstatus_id ) { ?>
-			<tr>
-				<td align="center" class="stylesuccess">
-					<?php echo wp_easycart_language( )->get_text( 'ec_success', 'payment_received' )?>
-				</td>
-			</tr>
-			<tr>
-				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
-			</td>
-			<?php } ?>
 			<?php if ( $this->includes_preorder_items ) { ?>
 			<tr>
 				<td align="center" class="stylesuccess">
@@ -102,9 +64,19 @@
 			<?php do_action( 'wp_easycart_email_receipt_top', $this->order_id, $is_admin ); ?>
 			<tr>
 				<td align="left" class="style22">
-					<a href="<?php echo esc_url_raw( $store_page ); ?>" target="_blank"><img src="<?php echo esc_attr( $email_logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-height:250px; max-width:100%; height:auto; color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;" /></a>
+					<a href="<?php echo esc_url_raw( $store_page ); ?>" target="_blank"><img src="<?php echo esc_attr( $email_logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-height:250px; max-width:100%; height:auto;" /></a>
 				</td>
 			</tr>
+			<tr class="ecrefunded" height="25"><td></td></tr>
+			<tr class="ecrefunded">
+				<td align="center">
+					<?php echo esc_attr( str_replace( '[amount]', $refund, wp_easycart_language( )->get_text( "cart_success", "cart_refund_email_message" ) ) ); ?>
+				</td>
+			</tr>
+			<tr class="ecrefunded" height="25"><td></td></tr>
+			<tr>
+				<td align="center" class="style22">&nbsp;&nbsp;&nbsp;</td>
+			</td>
 			<tr>
 				<td align="left" class="style22">
 					<p><br><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_line_1" ) . " " . esc_attr( htmlspecialchars( $this->billing_first_name, ENT_QUOTES ) . " " . htmlspecialchars( $this->billing_last_name, ENT_QUOTES ) ); ?>,</p>
@@ -125,19 +97,10 @@
 					<?php }?>
 
 					<p>
-						<?php if ( apply_filters( 'wpeasycart_email_receipt_enable_view_order_button', false ) ) { ?>
-						<table border="0" cellspacing="0" cellpadding="0">
-							<tr>
-								<td align="center" style="border-radius:35px; background-color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;">
-									<a rel="noopener" target="_blank" rel="noopener" target="_blank" href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( '' != $this->guest_key ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank" style="font-size: 16px; font-family: Arial, Helvetica, sans-serif; color: #ffffff; font-weight:normal; text-decoration: none; border-radius:35px; padding:8px 24px; border: 1px solid <?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>; display: inline-block;" class="ec-pill-button"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_view_order" ); ?></a>
-								</td>
-							</tr>
-						</table>
-						<?php } else { ?>
-						<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( '' != $this->guest_key ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank" style="color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;">
+						<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( $this->guest_key != "" ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank">
 							<?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_click_here" ); ?>
 						</a> <?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_to_view_order" ); ?>
-						<?php }?>
+
 					</p>
 
 					<?php if( $has_shipping && isset( $this->cart->shipping_subtotal ) && $this->cart->shipping_subtotal > 0 ){
@@ -352,7 +315,7 @@
 
 												}
 												?>
-												<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="<?php echo esc_attr( apply_filters( 'wp_easycart_email_receipt_image_width', 70 ) ); ?>" alt="<?php echo esc_js( wp_easycart_language( )->convert_text( $this->cart->cart[$i]->title ) ); ?>" />
+												<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="70" alt="<?php echo esc_js( wp_easycart_language( )->convert_text( $this->cart->cart[$i]->title ) ); ?>" />
 											</td>
 											<?php }?>
 											<td>
@@ -499,10 +462,10 @@
 															}
 
 															if( $this->cart->cart[$i]->is_giftcard && $this->is_approved ){
-																echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->cart->cart[ $i ]->orderdetail_id . '&giftcard_id=' . $this->cart->cart[ $i ]->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank" style="color:' . esc_attr( get_option( 'ec_option_details_main_color' ) ) . ';">' . wp_easycart_language()->get_text( "account_order_details", "account_orders_details_print_online" ) . '</a>';
+																echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->cart->cart[ $i ]->orderdetail_id . '&giftcard_id=' . $this->cart->cart[ $i ]->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank">' . wp_easycart_language()->get_text( "account_order_details", "account_orders_details_print_online" ) . '</a>';
 
 															}else if( $this->cart->cart[$i]->is_download ){
-																echo '<a href="' . esc_url( $account_page . $permalink_divider . 'ec_page=order_details&order_id=' . $this->order_id ) . '" target="_blank" style="color:' . esc_attr( get_option( 'ec_option_details_main_color' ) ) . ';">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
+																echo '<a href="' . esc_url( $account_page . $permalink_divider . 'ec_page=order_details&order_id=' . $this->order_id ) . '" target="_blank">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
 
 															}
 														?>

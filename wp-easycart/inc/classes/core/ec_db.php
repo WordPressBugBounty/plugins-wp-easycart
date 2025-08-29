@@ -4161,7 +4161,7 @@ class ec_db{
 	}
 	
 	public static function insert_stripe_subscription( $subscription, $product, $user, $card, $quantity ){
-		$price = ( isset( $subscription->latest_invoice->amount_due ) ) ? round( $subscription->latest_invoice->amount_due / 100, 2 ) : $product->price;
+		$price = ( isset( $subscription->total ) ) ? round( $subscription->total / 100, 2 ) : $product->price;
 		$sql = "INSERT INTO ec_subscription( subscription_type, title, user_id, email, first_name, last_name, user_country, product_id, price, payment_length, payment_period, payment_duration, stripe_subscription_id, last_payment_date, next_payment_date, quantity ) VALUES( 'stripe', %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %d, %s, %s, %s, %d )";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->user_id, $user->email, $user->billing->first_name, $user->billing->last_name, $user->billing->country, $product->product_id, $price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $subscription->id, $subscription->current_period_start, $subscription->current_period_end, $quantity ) );
 		

@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WP EasyCart\n"
-"POT-Creation-Date: 2025-08-01 16:56-0700\n"
-"PO-Revision-Date: 2025-08-01 16:56-0700\n"
+"POT-Creation-Date: 2025-08-29 15:48-0700\n"
+"PO-Revision-Date: 2025-08-29 15:48-0700\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: de\n"
@@ -10,7 +10,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 3.6\n"
+"X-Generator: Poedit 3.7\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-Flags-xgettext: --add-comments=translators:\n"
 "X-Poedit-WPHeader: wpeasycart.php\n"
@@ -2996,14 +2996,14 @@ msgstr "Nach Kategorie speichern"
 
 #: admin/gutenberg/class-wp-easycart-gutenberg.php:230
 #: admin/template/orders/orders/order-details.php:68
-#: admin/template/orders/orders/order-details.php:198
-#: admin/template/orders/orders/order-details.php:319
-#: admin/template/orders/orders/order-details.php:342
-#: admin/template/orders/orders/order-details.php:381
-#: admin/template/orders/orders/order-details.php:405
-#: admin/template/orders/orders/order-details.php:418
-#: admin/template/orders/orders/order-details.php:436
-#: admin/template/orders/orders/order-list.php:273
+#: admin/template/orders/orders/order-details.php:201
+#: admin/template/orders/orders/order-details.php:322
+#: admin/template/orders/orders/order-details.php:345
+#: admin/template/orders/orders/order-details.php:384
+#: admin/template/orders/orders/order-details.php:408
+#: admin/template/orders/orders/order-details.php:421
+#: admin/template/orders/orders/order-details.php:439
+#: admin/template/orders/orders/order-list.php:274
 #: admin/template/products/categories/category-list.php:120
 #: admin/template/products/manufacturers/manufacturer-list.php:55
 #: admin/template/products/menus/menu-list.php:70
@@ -3613,8 +3613,8 @@ msgstr "Verwenden Sie die manuelle Eingabe von API-Anmeldeinformationen"
 #: admin/inc/wp_easycart_admin_products.php:3480
 #: admin/inc/wp_easycart_admin_table.php:101
 #: admin/template/orders/orders/order-list.php:35
-#: admin/template/orders/orders/order-list.php:211
-#: admin/template/orders/orders/order-list.php:278
+#: admin/template/orders/orders/order-list.php:212
+#: admin/template/orders/orders/order-list.php:279
 #: admin/template/products/categories/category-list.php:37
 #: admin/template/products/categories/category-list.php:90
 #: admin/template/products/categories/category-list.php:135
@@ -6735,7 +6735,7 @@ msgid "Order failed to create due to duplicate"
 msgstr "Bestellung konnte aufgrund von Duplikaten nicht erstellt werden"
 
 #: admin/inc/wp_easycart_admin_orders.php:971
-#: admin/template/orders/orders/order-details.php:310
+#: admin/template/orders/orders/order-details.php:313
 msgid "Guest"
 msgstr "Gast"
 
@@ -9392,42 +9392,42 @@ msgstr "Erweitert: Abmessungen (Sub-Zoll)"
 
 #: admin/inc/wp_easycart_admin_table.php:831
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:207
+#: admin/template/orders/orders/order-details.php:210
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Partial Refund"
 msgstr "Teilerstattung"
 
 #: admin/inc/wp_easycart_admin_table.php:833
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:209
+#: admin/template/orders/orders/order-details.php:212
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Refunded"
 msgstr "Rückerstattet"
 
 #: admin/inc/wp_easycart_admin_table.php:835
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:211
+#: admin/template/orders/orders/order-details.php:214
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Paid"
 msgstr "Bezahlt"
 
 #: admin/inc/wp_easycart_admin_table.php:837
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:213
+#: admin/template/orders/orders/order-details.php:216
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Canceled"
 msgstr "Abgebrochen"
 
 #: admin/inc/wp_easycart_admin_table.php:839
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:215
+#: admin/template/orders/orders/order-details.php:218
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Failed"
 msgstr "Fehlgeschlagen"
 
 #: admin/inc/wp_easycart_admin_table.php:841
 #: admin/template/orders/orders/order-details.php:81
-#: admin/template/orders/orders/order-details.php:217
+#: admin/template/orders/orders/order-details.php:220
 #: admin/template/orders/orders/order-quick-edit-slideout.php:34
 msgid "Processing"
 msgstr "In Bearbeitung"
@@ -9787,7 +9787,7 @@ msgid "Taxes"
 msgstr "Steuern"
 
 #: admin/template/dashboard.php:149
-#: admin/template/orders/orders/order-details.php:190
+#: admin/template/orders/orders/order-details.php:193
 msgid "Discount Total"
 msgstr "Rabatt gesamt"
 
@@ -10299,7 +10299,7 @@ msgstr "Mitgliedschaften"
 
 #: admin/template/left_nav.php:119 admin/template/left_nav.php:124
 #: admin/template/mobile_nav.php:38 admin/template/mobile_nav.php:43
-#: admin/template/orders/orders/order-list.php:284
+#: admin/template/orders/orders/order-list.php:285
 #: admin/template/reports.php:18 admin/template/reports.php:32
 msgid "Orders"
 msgstr "Bestellungen"
@@ -10719,13 +10719,13 @@ msgid "Email Setup"
 msgstr "Email Einstellungen"
 
 #: admin/template/orders/orders/order-details.php:55
-#: admin/template/orders/orders/order-details.php:459
+#: admin/template/orders/orders/order-details.php:462
 msgid "Back to Orders"
 msgstr "Zurück zu Bestellungen"
 
 #: admin/template/orders/orders/order-details.php:63
 #: admin/template/orders/orders/order-list.php:20
-#: admin/template/orders/orders/order-list.php:284
+#: admin/template/orders/orders/order-list.php:285
 #: admin/template/orders/orders/order-quick-edit-slideout.php:21
 msgid "Order"
 msgstr "Bestellung"
@@ -10746,141 +10746,145 @@ msgstr "Bestellbestätigung erneut versenden"
 msgid "Send Invoice"
 msgstr "Rechnung senden"
 
-#: admin/template/orders/orders/order-details.php:105
+#: admin/template/orders/orders/order-details.php:100
+msgid "Send Refund Email"
+msgstr "Erstattungs-E-Mail senden"
+
+#: admin/template/orders/orders/order-details.php:108
 msgid "Add Line"
 msgstr "Linie hinzufügen"
 
-#: admin/template/orders/orders/order-details.php:107
+#: admin/template/orders/orders/order-details.php:110
 msgid "Refund Order"
 msgstr "Rückerstattungsauftrag"
 
-#: admin/template/orders/orders/order-details.php:109
-#: admin/template/orders/orders/order-list.php:223
+#: admin/template/orders/orders/order-details.php:112
+#: admin/template/orders/orders/order-list.php:224
 msgid "Print Packing Slip"
 msgstr "Vytisknout dodací list"
 
-#: admin/template/orders/orders/order-details.php:110
-#: admin/template/orders/orders/order-list.php:219
+#: admin/template/orders/orders/order-details.php:113
+#: admin/template/orders/orders/order-list.php:220
 msgid "Print Receipt"
 msgstr "Beleg drucken"
 
-#: admin/template/orders/orders/order-details.php:111
-#: admin/template/orders/orders/order-list.php:227
+#: admin/template/orders/orders/order-details.php:114
+#: admin/template/orders/orders/order-list.php:228
 msgid "Send Order Shipped Email"
 msgstr "Bestellung senden Versand E-Mail"
 
-#: admin/template/orders/orders/order-details.php:114
+#: admin/template/orders/orders/order-details.php:117
 msgid "There was an error completing the refund."
 msgstr "Beim Abschluss der Rückerstattung ist ein Fehler aufgetreten."
 
-#: admin/template/orders/orders/order-details.php:131
+#: admin/template/orders/orders/order-details.php:134
 msgid "Private Order Notes"
 msgstr "In privaten Auftragsanmerkungen"
 
-#: admin/template/orders/orders/order-details.php:132
+#: admin/template/orders/orders/order-details.php:135
 msgid "Enter Private Order Notes"
 msgstr "Geben Sie private Bestellnotizen ein"
 
-#: admin/template/orders/orders/order-details.php:136
+#: admin/template/orders/orders/order-details.php:139
 #: admin/template/orders/orders/order-quick-edit-slideout.php:89
 #: admin/template/settings/language-editor/language.php:46
 msgid "Save Changes"
 msgstr "Änderungen speichern"
 
-#: admin/template/orders/orders/order-details.php:142
+#: admin/template/orders/orders/order-details.php:145
 msgid "Sub Total"
 msgstr "Zwischensumme"
 
-#: admin/template/orders/orders/order-details.php:146
+#: admin/template/orders/orders/order-details.php:149
 msgid "Tip Total"
 msgstr "Tipp Gesamt"
 
-#: admin/template/orders/orders/order-details.php:150
+#: admin/template/orders/orders/order-details.php:153
 msgid "VAT Total"
 msgstr "Gesamt MwSt"
 
-#: admin/template/orders/orders/order-details.php:154
+#: admin/template/orders/orders/order-details.php:157
 msgid "VAT Registration #"
 msgstr "Registrierungspflicht"
 
-#: admin/template/orders/orders/order-details.php:158
+#: admin/template/orders/orders/order-details.php:161
 msgid "GST Total"
 msgstr "Gesamtsumme"
 
-#: admin/template/orders/orders/order-details.php:162
+#: admin/template/orders/orders/order-details.php:165
 msgid "HST Total"
 msgstr "Gesamtsumme"
 
-#: admin/template/orders/orders/order-details.php:166
+#: admin/template/orders/orders/order-details.php:169
 msgid "PST Total"
 msgstr "Gesamtsumme"
 
-#: admin/template/orders/orders/order-details.php:170
+#: admin/template/orders/orders/order-details.php:173
 msgid "Duty Total"
 msgstr "Zoll insgesamt"
 
-#: admin/template/orders/orders/order-details.php:174
+#: admin/template/orders/orders/order-details.php:177
 msgid "Tax Total"
 msgstr "Steuern gesamt"
 
-#: admin/template/orders/orders/order-details.php:186
+#: admin/template/orders/orders/order-details.php:189
 msgid "Shipping Total"
 msgstr "Versandkosten gesamt"
 
-#: admin/template/orders/orders/order-details.php:194
+#: admin/template/orders/orders/order-details.php:197
 msgid "Refund Total"
 msgstr "Rückerstattung Gesamtsumme"
 
-#: admin/template/orders/orders/order-details.php:201
+#: admin/template/orders/orders/order-details.php:204
 msgid "Grand Total"
 msgstr "Gesamtsumme"
 
-#: admin/template/orders/orders/order-details.php:230
+#: admin/template/orders/orders/order-details.php:233
 msgid "Preorder Pick Up Details"
 msgstr "Vorbestellung Abholung Details"
 
-#: admin/template/orders/orders/order-details.php:238
-#: admin/template/orders/orders/order-details.php:276
+#: admin/template/orders/orders/order-details.php:241
+#: admin/template/orders/orders/order-details.php:279
 msgid "Choose a Pick Up Date"
 msgstr "Wählen Sie ein Abholdatum"
 
-#: admin/template/orders/orders/order-details.php:253
+#: admin/template/orders/orders/order-details.php:256
 msgid "Choose Pickup Location"
 msgstr "Abholort wählen"
 
-#: admin/template/orders/orders/order-details.php:267
+#: admin/template/orders/orders/order-details.php:270
 msgid "Pick Up Details"
 msgstr "Details Abholung"
 
-#: admin/template/orders/orders/order-details.php:306
+#: admin/template/orders/orders/order-details.php:309
 msgid "User Account"
 msgstr "Benutzerkonto"
 
-#: admin/template/orders/orders/order-details.php:321
+#: admin/template/orders/orders/order-details.php:324
 #: admin/template/orders/orders/order-quick-edit-slideout.php:24
 msgid "Shipping Address"
 msgstr "Lieferadresse"
 
-#: admin/template/orders/orders/order-details.php:344
+#: admin/template/orders/orders/order-details.php:347
 msgid "Shipping Info"
 msgstr "Versandinformation"
 
-#: admin/template/orders/orders/order-details.php:345
-#: admin/template/orders/orders/order-details.php:357
+#: admin/template/orders/orders/order-details.php:348
+#: admin/template/orders/orders/order-details.php:360
 #: admin/template/orders/orders/order-quick-edit-slideout.php:46
 msgid "Expedite Shipping"
 msgstr "Beschleunigen Sie den Versand"
 
-#: admin/template/orders/orders/order-details.php:349
+#: admin/template/orders/orders/order-details.php:352
 msgid "Edit Shipping/Tracking Info"
 msgstr "Versand- / Sendungsverfolgungsinformationen bearbeiten"
 
-#: admin/template/orders/orders/order-details.php:356
+#: admin/template/orders/orders/order-details.php:359
 #: admin/template/orders/orders/order-quick-edit-slideout.php:45
 msgid "Standard Shipping"
 msgstr "Standardversand"
 
-#: admin/template/orders/orders/order-details.php:363
+#: admin/template/orders/orders/order-details.php:366
 #: admin/template/orders/orders/order-quick-edit-slideout.php:51
 #: admin/template/orders/orders/order-quick-edit-slideout.php:53
 #: admin/template/settings/shipping/shipping-rates.php:14
@@ -10888,37 +10892,37 @@ msgstr "Standardversand"
 msgid "Shipping Method"
 msgstr "Versandart"
 
-#: admin/template/orders/orders/order-details.php:368
+#: admin/template/orders/orders/order-details.php:371
 #: admin/template/orders/orders/order-quick-edit-slideout.php:57
 #: admin/template/orders/orders/order-quick-edit-slideout.php:59
 msgid "Shipping Carrier"
 msgstr "Spedition"
 
-#: admin/template/orders/orders/order-details.php:373
+#: admin/template/orders/orders/order-details.php:376
 #: admin/template/orders/orders/order-quick-edit-slideout.php:63
 #: admin/template/orders/orders/order-quick-edit-slideout.php:65
 msgid "Tracking Number"
 msgstr "Sendungsnummer"
 
-#: admin/template/orders/orders/order-details.php:383
+#: admin/template/orders/orders/order-details.php:386
 msgid "Billing Address"
 msgstr "Rechnungsadresse"
 
-#: admin/template/orders/orders/order-details.php:407
+#: admin/template/orders/orders/order-details.php:410
 msgid "Billing Info"
 msgstr "Rechnungsinformationen"
 
-#: admin/template/orders/orders/order-details.php:420
-#: admin/template/orders/orders/order-details.php:429
+#: admin/template/orders/orders/order-details.php:423
+#: admin/template/orders/orders/order-details.php:432
 #: admin/template/settings/checkout/checkout-form-settings.php:43
 msgid "Customer Notes"
 msgstr "Kunden Notizen"
 
-#: admin/template/orders/orders/order-details.php:422
+#: admin/template/orders/orders/order-details.php:425
 msgid "Edit Customer Notes"
 msgstr "Kundenhinweise"
 
-#: admin/template/orders/orders/order-details.php:439
+#: admin/template/orders/orders/order-details.php:442
 msgid "Agreed to Terms"
 msgstr "Vereinbarte Bedingungen"
 
@@ -11058,7 +11062,7 @@ msgid "View Subscription Information"
 msgstr "Abonnement-Informationen"
 
 #: admin/template/orders/orders/order-list.php:28
-#: admin/template/orders/orders/order-list.php:267
+#: admin/template/orders/orders/order-list.php:268
 #: admin/template/products/products/product-list.php:26
 msgid "Quick Edit"
 msgstr "Schnellbearbeitung"
@@ -11070,7 +11074,7 @@ msgstr "Debitor"
 
 #: admin/template/orders/orders/order-list.php:50
 #: admin/template/orders/orders/order-list.php:166
-#: admin/template/orders/orders/order-list.php:186
+#: admin/template/orders/orders/order-list.php:187
 #: admin/template/orders/orders/order-quick-edit-slideout.php:32
 msgid "Order Status"
 msgstr "Bestellstatus"
@@ -11117,64 +11121,64 @@ msgstr "Zahlungsstatus"
 msgid "Color Code"
 msgstr "Farbcode"
 
-#: admin/template/orders/orders/order-list.php:191
+#: admin/template/orders/orders/order-list.php:192
 msgid "Purchased Product"
 msgstr "Gekauftes Produkt"
 
-#: admin/template/orders/orders/order-list.php:198
+#: admin/template/orders/orders/order-list.php:199
 msgid "By Customer"
 msgstr "Kunde"
 
-#: admin/template/orders/orders/order-list.php:215
+#: admin/template/orders/orders/order-list.php:216
 msgid "Resend Email Receipt"
 msgstr "E-Mail-Empfang erneut senden"
 
-#: admin/template/orders/orders/order-list.php:231
+#: admin/template/orders/orders/order-list.php:232
 msgid "Change Order Status"
 msgstr "Bestellstatus ändern"
 
-#: admin/template/orders/orders/order-list.php:239
+#: admin/template/orders/orders/order-list.php:240
 #: admin/template/products/products/product-list.php:122
 #: admin/template/users/subscribers/subscribers-list.php:50
 #: admin/template/users/users/user-list.php:67
 msgid "Export Selected CSV"
 msgstr "Ausgewähltes exportieren"
 
-#: admin/template/orders/orders/order-list.php:243
+#: admin/template/orders/orders/order-list.php:244
 #: admin/template/products/products/product-list.php:126
 #: admin/template/users/subscribers/subscribers-list.php:54
 #: admin/template/users/users/user-list.php:71
 msgid "Export All CSV"
 msgstr "Alle (CSV) exportieren"
 
-#: admin/template/orders/orders/order-list.php:247
+#: admin/template/orders/orders/order-list.php:248
 msgid "Mark Selected Viewed"
 msgstr "Markieren Sie Selected Viewed"
 
-#: admin/template/orders/orders/order-list.php:251
+#: admin/template/orders/orders/order-list.php:252
 msgid "Mark Selected Not Viewed"
 msgstr "Markieren Sie Ausgewählt Nicht angezeigt"
 
-#: admin/template/orders/orders/order-list.php:255
+#: admin/template/orders/orders/order-list.php:256
 msgid "Mark All Viewed"
 msgstr "Alle angezeigten markieren"
 
-#: admin/template/orders/orders/order-list.php:259
+#: admin/template/orders/orders/order-list.php:260
 msgid "Mark All Not Viewed"
 msgstr "Alle nicht gesehen markieren"
 
-#: admin/template/orders/orders/order-list.php:288
+#: admin/template/orders/orders/order-list.php:289
 #: admin/template/products/products/product-list.php:197
 msgid "Do you like WP EasyCart? If you do, please take a moment to"
 msgstr ""
 "Gefällt dir WP EasyCart? Wenn ja, nehmen Sie sich bitte einen Moment Zeit"
 
-#: admin/template/orders/orders/order-list.php:288
+#: admin/template/orders/orders/order-list.php:289
 #: admin/template/products/products/product-list.php:197
 msgid "submit a review"
 msgstr "Eine Bewertung verfassen"
 
-#: admin/template/orders/orders/order-list.php:288
+#: admin/template/orders/orders/order-list.php:289
 #: admin/template/products/products/product-list.php:197
 msgid "it really helps us!"
 msgstr "es hilft uns wirklich!"
@@ -15640,7 +15644,6 @@ msgstr "WP EasyCart Bedingungen & Konditionen"
 
 #: admin/template/settings/payments/payment.php:26
 #: admin/template/settings/wizard/payments.php:102
-#, no-php-format
 msgid ""
 "The WP EasyCart Free Edition is available to use with unlimited orders, "
 "unlimited products, and unlimited user accounts as well as Manual/Direct "
@@ -20564,50 +20567,50 @@ msgstr "Produkt Limit"
 msgid "Product not found."
 msgstr "Kein Produkt gefunden."
 
-#: wpeasycart.php:8508
+#: wpeasycart.php:8517
 msgctxt "post type general name"
 msgid "Store Items"
 msgstr "OBJEKTE IM SHOP"
 
-#: wpeasycart.php:8509
+#: wpeasycart.php:8518
 msgctxt "post type singular name"
 msgid "Store Item"
 msgstr "Speichern"
 
-#: wpeasycart.php:8510
+#: wpeasycart.php:8519
 msgctxt "ec_store"
 msgid "Add New"
 msgstr "Neu hinzufügen"
 
-#: wpeasycart.php:8511
+#: wpeasycart.php:8520
 msgid "Add New Store Item"
 msgstr "Add new store"
 
-#: wpeasycart.php:8512
+#: wpeasycart.php:8521
 msgid "Edit Store Item"
 msgstr "Geschäft bearbeiten"
 
-#: wpeasycart.php:8513
+#: wpeasycart.php:8522
 msgid "New Store Item"
 msgstr "Neuer Shop"
 
-#: wpeasycart.php:8514
+#: wpeasycart.php:8523
 msgid "All Store Items"
 msgstr "Alle Store-Artikel"
 
-#: wpeasycart.php:8515
+#: wpeasycart.php:8524
 msgid "View Store Item"
 msgstr "Shop anzeigen"
 
-#: wpeasycart.php:8516
+#: wpeasycart.php:8525
 msgid "Search Store Items"
 msgstr "Store-Artikel suchen"
 
-#: wpeasycart.php:8517
+#: wpeasycart.php:8526
 msgid "No store items found"
 msgstr "Keine Shop-Artikel gefunden"
 
-#: wpeasycart.php:8518
+#: wpeasycart.php:8527
 msgid "No store items found in the Trash"
 msgstr "Keine Artikel im Papierkorb gefunden"
 

@@ -450,6 +450,8 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_onepage_checkout_cart_first');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_onepage_checkout_quantity_adjust_on');array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_default_tips');						array_push($this->wp_option_defaults, '15,18,20,25' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_show_stock_quantity');				array_push($this->wp_option_defaults, '1' );
@@ -692,8 +694,13 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_pickup_location_show_km');			array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		
-		
+		array_push($this->wp_option_names, 'ec_option_auto_send_refund_email');				array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_email_signature_text');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_email_signature_image');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+
 		// Payment Options
 		array_push($this->wp_option_names, 'ec_option_use_direct_deposit');					array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');

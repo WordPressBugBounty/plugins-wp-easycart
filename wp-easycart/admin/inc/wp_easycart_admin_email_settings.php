@@ -90,6 +90,8 @@ class wp_easycart_admin_email_settings {
 		$options = array( 'ec_option_password_use_smtp', 'ec_option_order_use_smtp', 'ec_option_show_email_on_receipt', 'ec_option_show_image_on_receipt', 'ec_option_use_wp_mail', 'ec_option_send_signup_email' );
 		$email_fields = array( 'ec_option_password_from_email', 'ec_option_order_from_email' );
 		$options_text = array( 'ec_option_password_from_smtp_host', 'ec_option_password_from_smtp_encryption_type', 'ec_option_password_from_smtp_port', 'ec_option_password_from_smtp_username', 'ec_option_password_from_smtp_password', 'ec_option_order_from_smtp_host', 'ec_option_order_from_smtp_encryption_type', 'ec_option_order_from_smtp_port', 'ec_option_order_from_smtp_username', 'ec_option_order_from_smtp_password', 'ec_option_email_logo', 'ec_option_bcc_email_addresses' );
+		$options_textarea = array( 'ec_option_email_signature_text' );
+		$options_url = array( 'ec_option_email_signature_image' );
 
 		if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $email_fields ) ) {
 			preg_match( '/^(.*)<(.*)>$/', wp_unslash( $_POST['val'] ), $email_arr );
@@ -103,6 +105,10 @@ class wp_easycart_admin_email_settings {
 			update_option( sanitize_text_field( wp_unslash( $_POST['update_var'] ) ), (int) $val );
 		} else if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $options_text ) ) {
 			update_option( sanitize_text_field( wp_unslash( $_POST['update_var'] ) ), sanitize_text_field( wp_unslash( $_POST['val'] ) ) );
+		} else if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $options_textarea ) ) {
+			update_option( sanitize_text_field( $_POST['update_var'] ), sanitize_textarea_field( $_POST['val'] ) );
+		} else if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $options_url ) ) {
+			update_option( sanitize_text_field( $_POST['update_var'] ), sanitize_url( $_POST['val'] ) );
 		} else if ( isset( $_POST['update_var'] ) && $_POST['update_var'] == 'ec_option_current_order_id' ) {
 			global $wpdb;
 			$prevent_max = ( (int) $_POST['val'] > 2140000000 ) ? 2140000000 : (int) $_POST['val'];

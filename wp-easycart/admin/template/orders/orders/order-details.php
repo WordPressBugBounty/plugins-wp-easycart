@@ -96,6 +96,9 @@ $next_order_id = $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM ec_order 
 						<?php if( apply_filters( 'wp_easycart_admin_enable_invoice_button', false ) && $selected_order_status && !$selected_order_status->is_approved ){ ?>
 						<a class="ec_admin_order_edit_button" href="admin.php?page=wp-easycart-orders&subpage=orders&order_id=<?php echo esc_attr( $this->order->order_id ); ?>&ec_admin_form_action=resend-invoice&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-bulk-orders' ) ); ?>" style="margin-top:10px;"><?php esc_attr_e( 'Send Invoice', 'wp-easycart' ); ?></a>
 						<?php }?>
+						<?php if( apply_filters( 'wp_easycart_admin_enable_refund_email_button', false ) && $selected_order_status && ( 16 == $selected_order_status->status_id || 17 == $selected_order_status->status_id ) ){ ?>
+						<a class="ec_admin_order_edit_button" href="admin.php?page=wp-easycart-orders&subpage=orders&order_id=<?php echo esc_attr( $this->order->order_id ); ?>&ec_admin_form_action=send-refund-email&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-bulk-orders' ) ); ?>" style="margin-top:10px;"><?php esc_attr_e( 'Send Refund Email', 'wp-easycart' ); ?></a>
+						<?php }?>
 					</div>
 				</div>
 				<div class="ec_admin_order_items_header">

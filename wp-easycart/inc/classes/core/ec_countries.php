@@ -331,6 +331,9 @@ class ec_countries {
 	}
 
 	public function get_state_from_zip( $iso2_cnt, $zip ) {
+		if ( 'CA' == strtoupper( $iso2_cnt ) ) {
+			return $this->get_ca_state_from_zip( $zip );
+		}
 		if ( 'US' != strtoupper( $iso2_cnt ) ) {
 			return false;
 		}
@@ -443,6 +446,44 @@ class ec_countries {
 			$state_code = 'WY';
 		}
 		return $state_code;
+	}
+
+	public function get_ca_state_from_zip( $postal_code ) {
+		$postal_code = strtoupper( str_replace( array( ' ', '-' ), '', trim( $postal_code ) ) );
+		if ( empty( $postal_code ) ) {
+			return '';
+		}
+		$first_char = $postal_code[0];
+		$province_map = array(
+			'A' => 'NL', // Newfoundland and Labrador
+			'B' => 'NS', // Nova Scotia
+			'C' => 'PE', // Prince Edward Island
+			'E' => 'NB', // New Brunswick
+			'G' => 'QC', // Quebec
+			'H' => 'QC', // Quebec
+			'J' => 'QC', // Quebec
+			'K' => 'ON', // Ontario
+			'L' => 'ON', // Ontario
+			'M' => 'ON', // Ontario
+			'N' => 'ON', // Ontario
+			'P' => 'ON', // Ontario
+			'R' => 'MB', // Manitoba
+			'S' => 'SK', // Saskatchewan
+			'T' => 'AB', // Alberta
+			'V' => 'BC', // British Columbia
+			'Y' => 'YT', // Yukon
+		);
+		if ( $firstChar === 'X' ) {
+			$fsa = substr( $postal_code, 0, 3 );
+			if ( in_array( $fsa, array( 'X0A', 'X0B', 'X0C' ) ) ) {
+				return 'NU'; // Nunavut
+			}
+			if ( in_array( $fsa, array( 'X0E', 'X0G' ) ) ) {
+				return 'NT'; // Northwest Territories
+			}
+			return '';
+		}
+		return isset( $province_map[ $first_char ] ) ? $province_map[ $first_char ] : '';
 	}
 
 }

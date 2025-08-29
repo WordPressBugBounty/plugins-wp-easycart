@@ -44,7 +44,14 @@
 				<img src="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_image_url() ); ?>" alt="<?php echo esc_attr( str_replace( '"', '&quot;', $this->cart->cart[$cartitem_index]->title ) ); ?>" />
 			</div>
 
-			<div class="ec_cart_price_row_label_v2"><?php $this->cart->cart[$cartitem_index]->display_title( ); ?><?php if( $this->cart->cart[$cartitem_index]->grid_quantity > 1 ){ ?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->grid_quantity ); ?><?php }else if( $this->cart->cart[$cartitem_index]->quantity > 1 ){ ?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?><?php }?>
+			<div class="ec_cart_price_row_label_v2"><?php $this->cart->cart[$cartitem_index]->display_title( ); ?><?php
+			if ( ! get_option( 'ec_option_onepage_checkout_quantity_adjust_on' ) ) {
+				if ( $this->cart->cart[$cartitem_index]->grid_quantity > 1 ) {
+					?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->grid_quantity ); ?><?php
+				} else if ( $this->cart->cart[$cartitem_index]->quantity > 1 ) {
+					?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?><?php
+				}
+			} ?>
 
 			<?php if( $this->cart->cart[$cartitem_index]->stock_quantity <= 0 && $this->cart->cart[$cartitem_index]->allow_backorders ){ ?>
 			<div class="ec_cart_backorder_date"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backordered' ); ?><?php if( $this->cart->cart[$cartitem_index]->backorder_fill_date != "" ){ ?> <?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_until' ); ?> <?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->backorder_fill_date ); ?><?php }?></div>
@@ -131,6 +138,11 @@
 			<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 			</div>
+
+			<?php if ( get_option( 'ec_option_onepage_checkout_quantity_adjust_on' ) ) { ?>
+				<input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity_small_v2" />
+			<?php }?>
+
 			<div class="ec_cart_price_row_total_v2"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 		</div>
 		<?php }?>
@@ -260,7 +272,14 @@
 			<img src="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_image_url() ); ?>" alt="<?php echo esc_attr( str_replace( '"', '&quot;', $this->cart->cart[$cartitem_index]->title ) ); ?>" />
 		</div>
 		
-		<div class="ec_cart_price_row_label_v2"><?php $this->cart->cart[$cartitem_index]->display_title( ); ?><?php if( $this->cart->cart[$cartitem_index]->grid_quantity > 1 ){ ?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->grid_quantity ); ?><?php }else if( $this->cart->cart[$cartitem_index]->quantity > 1 ){ ?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?><?php }?>
+		<div class="ec_cart_price_row_label_v2"><?php $this->cart->cart[$cartitem_index]->display_title( ); ?><?php
+		if ( ! get_option( 'ec_option_onepage_checkout_quantity_adjust_on' ) ) {
+			if ( $this->cart->cart[$cartitem_index]->grid_quantity > 1 ) {
+				?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->grid_quantity ); ?><?php
+			} else if ( $this->cart->cart[$cartitem_index]->quantity > 1 ) {
+				?> x <?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?><?php
+			}
+		} ?>
 
 		<?php if( $this->cart->cart[$cartitem_index]->stock_quantity <= 0 && $this->cart->cart[$cartitem_index]->allow_backorders ){ ?>
 		<div class="ec_cart_backorder_date"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backordered' ); ?><?php if( $this->cart->cart[$cartitem_index]->backorder_fill_date != "" ){ ?> <?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_until' ); ?> <?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->backorder_fill_date ); ?><?php }?></div>
@@ -347,6 +366,11 @@
 		<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 		</div>
+
+		<?php if ( get_option( 'ec_option_onepage_checkout_quantity_adjust_on' ) ) { ?>
+			<input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity_small_v2" />
+		<?php }?>
+
 		<div class="ec_cart_price_row_total_v2"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 	<?php }?>

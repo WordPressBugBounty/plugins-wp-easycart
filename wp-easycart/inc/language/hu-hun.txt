@@ -2068,6 +2068,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Egyenleg szükséges"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Rendelés megtekintése"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"A visszatérítést kifizettük"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"[amount] összegű visszatérítést kezdeményeztünk erre a megrendelésre vonatkozóan."
 				}
 			}
 		},

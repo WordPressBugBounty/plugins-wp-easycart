@@ -2072,6 +2072,18 @@
 				"cart_payment_complete_order_totals_balance_left":{
 					"title":"Cart, Balance Required",
 					"value":"Απαιτείται υπόλοιπο"
+				},
+				"cart_payment_view_order":{
+					"title":"Order Receipt, View Order Button",
+					"value":"Προβολή παραγγελίας"
+				},
+				"cart_refund_email_title":{
+					"title":"Order Refund Email, Email Title",
+					"value":"επιστροφή χρημάτων σας έχει εκδοθεί"
+				},
+				"cart_refund_email_message":{
+					"title":"Order Refund Email, Email Message",
+					"value":"Ξεκίνησε μια επιστροφή χρημάτων ύψους [amount] για αυτήν την παραγγελία"
 				}
 			}
 		},

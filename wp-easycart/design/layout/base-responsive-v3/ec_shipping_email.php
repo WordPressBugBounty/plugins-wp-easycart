@@ -166,7 +166,7 @@
 													$img_url = plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_latest_theme' ) . "/images/ec_image_not_found.jpg", EC_PLUGIN_DIRECTORY );
 												}
 												?>
-												<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="70" alt="<?php echo esc_attr( $orderdetails[$i]->title ); ?>" />
+												<img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="<?php echo esc_attr( apply_filters( 'wp_easycart_email_receipt_image_width', 70 ) ); ?>" alt="<?php echo esc_attr( $orderdetails[$i]->title ); ?>" />
 											</td>
 											<?php }?>
 											<td>
@@ -544,12 +544,25 @@
 						<hr />
 					<?php }?>
 					<?php echo wp_easycart_language( )->get_text( 'ec_shipping_email', 'shipping_final_note1' )?><br><br><?php echo wp_easycart_language( )->get_text( 'ec_shipping_email', 'shipping_final_note2' )?></p>
-					<p>&nbsp;</p>
 				</td>
 			</tr>
+			<tr height="10"><td></td></tr>
+			<?php if ( get_option( 'ec_option_email_signature_text' ) ) { ?>
 			<tr>
-				<td></td>
+				<td class="style22">
+					<?php echo nl2br( esc_html( get_option( 'ec_option_email_signature_text' ) ) ); ?>
+				</td>
 			</tr>
+			<tr height="10"><td></td></tr>
+			<? }?>
+			<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
+			<tr>
+				<td class="style22">
+					<img src="<?php echo esc_url( get_option( 'ec_option_email_signature_image' ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-width:100%; height:auto;" />
+				</td>
+			</tr>
+			<tr height="10"><td></td></tr>
+			<? }?>
 		</table>
 	</body>
 </html>

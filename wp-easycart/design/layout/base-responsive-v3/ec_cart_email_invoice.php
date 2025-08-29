@@ -69,7 +69,7 @@
 									$img_url = plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_latest_theme' ) . "/images/ec_image_not_found.jpg", EC_PLUGIN_DIRECTORY );
 								}
 								?>
-								<div style="ec_lineitem_image"><img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="70" alt="<?php echo esc_attr( wp_easycart_language( )->convert_text( $this->cart->cart[$i]->title ) ); ?>" /></div>
+								<div style="ec_lineitem_image"><img src="<?php echo esc_attr( str_replace( "https://", "http://", $img_url ) ); ?>" width="<?php echo esc_attr( apply_filters( 'wp_easycart_email_receipt_image_width', 70 ) ); ?>" alt="<?php echo esc_attr( wp_easycart_language( )->convert_text( $this->cart->cart[$i]->title ) ); ?>" /></div>
 							</td>
 							<?php }?>
 							<td>
@@ -326,6 +326,23 @@
 				<td width='91' align='center' class='style22'><strong><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_order_totals_grand_total" ); ?></strong></td>
 				<td align='center' class='style22'><strong><?php echo esc_attr( $total ); ?></strong></td>
 			</tr>
+			<tr height="10"><td colspan="4"></td></tr>
+			<?php if ( get_option( 'ec_option_email_signature_text' ) ) { ?>
+			<tr>
+				<td class="style22" colspan="4">
+					<?php echo nl2br( esc_html( get_option( 'ec_option_email_signature_text' ) ) ); ?>
+				</td>
+			</tr>
+			<tr height="10"><td colspan="4"></td></tr>
+			<? }?>
+			<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
+			<tr>
+				<td class="style22" colspan="4">
+					<img src="<?php echo esc_url( get_option( 'ec_option_email_signature_image' ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-width:100%; height:auto;" />
+				</td>
+			</tr>
+			<tr height="10"><td colspan="4"></td></tr>
+			<? }?>
 		</table>
 	</body>
 </html>

@@ -665,12 +665,12 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					$this->print_table_column_customer( $result, $list_column );
 					break;
 				default:
-					echo esc_attr( $result->{ $list_column['name'] } );
+					echo esc_attr( apply_filters( 'wp_easycart_table_cell_data_default', $result->{ $list_column['name'] }, $result, $list_column['name'] ) );
 					break;
 			}
 		}
 		private function print_table_column_int( $result, $list_column ) {
-			echo esc_attr( ( ( isset( $list_column['is_id'] ) && $list_column['is_id'] ) ? '#' : '' ) . (integer) $result->{ $list_column['name'] } );
+			echo esc_attr( apply_filters( 'wp_easycart_table_cell_data_int', ( ( ( isset( $list_column['is_id'] ) && $list_column['is_id'] ) ? '#' : '' ) . (integer) $result->{ $list_column['name'] } ), $result, $list_column['name'] ) );
 		}
 		private function print_table_column_stock( $result, $list_column ) {
 			if ( $result->show_stock_quantity || $result->use_optionitem_quantity_tracking ) {

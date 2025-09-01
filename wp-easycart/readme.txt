@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.8
-Stable tag: 5.8.8
+Stable tag: 5.8.10
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,7 +214,9 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
-= 5.8.8 =
+= 5.8.10 =
+* Bug Fix - 5.8.10: Same issue for email receipts fixed where the new signature feature was added in 5.8.8.
+* Bug Fix - 5.8.9: Some versions of php had an email receipt error and has been resolved.
 * New Feature - Automated email signature can be added in text format and/or image upload format.
 * New Feature - Enable automated refund email upon refund submitted.
 * New Feature - Send a refund issued email from the admin.

@@ -256,7 +256,7 @@ if ( $price_multiplier > 0 ) {
 			</td>
 		</tr>
 		<tr height="10"><td colspan='4'></td></tr>
-		<? }?>
+		<?php }?>
 		<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
 		<tr>
 			<td class="style22" colspan='4'>
@@ -264,7 +264,7 @@ if ( $price_multiplier > 0 ) {
 			</td>
 		</tr>
 		<tr height="10"><td colspan='4'></td></tr>
-		<? }?>
+		<?php }?>
 	</table>
 </body>
 </html>

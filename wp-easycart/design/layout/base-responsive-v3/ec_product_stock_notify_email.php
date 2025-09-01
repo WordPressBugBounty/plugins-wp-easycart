@@ -151,7 +151,7 @@
 					</td>
 				</tr>
 				<tr height="10"><td colspan='3'></td></tr>
-				<? }?>
+				<?php }?>
 				<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
 				<tr>
 					<td class="style22" colspan='3'>
@@ -159,7 +159,7 @@
 					</td>
 				</tr>
 				<tr height="10"><td colspan='3'></td></tr>
-				<? }?>
+				<?php }?>
 				<tr>
 					<td></td>
 					<td></td>

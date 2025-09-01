@@ -833,7 +833,7 @@
 				</td>
 			</tr>
 			<tr height="10"><td></td></tr>
-			<? }?>
+			<?php }?>
 			<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
 			<tr>
 				<td class="style22">
@@ -841,7 +841,7 @@
 				</td>
 			</tr>
 			<tr height="10"><td></td></tr>
-			<? }?>
+			<?php }?>
 		</table>
 	</body>
 </html>

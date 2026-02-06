@@ -1072,6 +1072,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"Coupon does not apply to the items in your cart"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Ez a kupon csak az első rendelésre használható fel"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Alkalmaz"
@@ -3218,6 +3222,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Megrendelését megkaptuk, és átveheti a következő időpontban: [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Nem található érvényes rendelés ezzel az azonosítóval és az e-mail címeddel."
 				}
 			}
 		},
@@ -3287,6 +3295,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Megkaptuk a rendelés kifizetését!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Rendelését sikeresen összekapcsoltuk a fiókjával!"
 				}
 			}
 		},

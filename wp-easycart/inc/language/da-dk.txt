@@ -1060,6 +1060,10 @@
                     "title": "Cart, Coupon Code Not Applicable",
                     "value": "Rabatkoden gælder ikke for varerne i din kurv"
                 },
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Denne kupon kan kun bruges til din første ordre"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"ansøge"
@@ -3202,6 +3206,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Din ordre er modtaget, og du kan afhente den på [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Der blev ikke fundet nogen gyldig ordre med det ID og din e-mailadresse."
 				}
             }
         },
@@ -3271,6 +3279,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Vi har modtaget betalingen for din ordre!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Din ordre er blevet knyttet til din konto!"
 				}
             }
         },

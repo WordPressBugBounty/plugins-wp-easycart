@@ -293,10 +293,10 @@
 																$permalink_divider = "?";
 
 															if( $orderdetails[$i]->is_giftcard ){
-																echo "<a href=\"" . esc_attr( $account_page . $permalink_divider . "ec_page=order_details&order_id=" . $this->order_id ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( "account_order_details", "account_orders_details_print_online" ) . "</a>";
+																echo "<a href=\"" . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( "account_order_details", "account_orders_details_print_online" ) . "</a>";
 
 															}else if( $orderdetails[$i]->is_download ){
-																echo "<a href=\"" . esc_attr( $account_page . $permalink_divider . "ec_page=order_details&order_id=" . $this->order_id ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_download' ) . "</a>";
+																echo "<a href=\"" . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_download' ) . "</a>";
 
 															}
 														?>

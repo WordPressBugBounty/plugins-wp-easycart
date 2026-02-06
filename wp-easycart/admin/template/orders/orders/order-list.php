@@ -275,6 +275,11 @@ $table->set_actions(
 			'icon' 	=> 'edit'
 		),
 		array(
+			'name' => 'duplicate-order',
+			'label' => __( 'Duplicate', 'wp-easycart' ),
+			'icon' => 'admin-page',
+		),
+		array(
 			'name'	=> 'delete-order',
 			'label'	=> __( 'Delete', 'wp-easycart' ),
 			'icon'  => 'trash'

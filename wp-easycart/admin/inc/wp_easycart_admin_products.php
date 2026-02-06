@@ -288,7 +288,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, $product_id ) );
 			wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
-			do_action( 'wpeasycart_product_deactivated', $product_id );
+			if ( 0 == $active_status ) {
+				do_action( 'wpeasycart_product_deactivated', $product_id );
+			} else {
+				do_action( 'wpeasycart_product_activated', $product_id );
+			}
 
 			if ( $active_status ) {
 				$args = array( 'success' => 'product-activate-single' );
@@ -507,7 +511,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, is_subscription_item, stripe_plan_added, subscription_unique_id, product_id, price, title, subscription_bill_period, subscription_bill_length, trial_period_days FROM ec_product WHERE product_id = %d', $newid ) );
 				$stripe_product = $stripe->insert_product( $product_row );
 				$stripe_price_id = $stripe_product->default_price;
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product, $stripe_price_id, $newid ) );
+				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
+				if ( ! $is_sandbox ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product, $stripe_price_id, $newid ) );
+				} else {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product, $stripe_price_id, $newid ) );
+				}
 			}
 
 			$args = array( 'success' => 'product-duplicated' );
@@ -638,7 +647,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				'ec_option_show_featured_categories', 'ec_option_enable_product_paging', 'ec_option_hide_out_of_stock',
 				'ec_option_display_as_catalog', 'ec_option_subscription_one_only',
 				'ec_option_enable_product_paging', 'ec_option_show_store_sidebar', 'ec_option_store_sidebar_filter_clear', 'ec_option_store_sidebar_include_location', 'ec_option_store_sidebar_include_search', 'ec_option_store_sidebar_include_categories',
-				'ec_option_sidebar_include_categories_first', 'ec_option_sidebar_include_option_filters', 'ec_option_enable_inventory_notification', 'ec_option_product_add_to_cart_enable_quantity', 'ec_option_sidebar_include_category_filters', 'ec_option_product_no_checkout_button', 'ec_option_redirect_add_to_cart', 'ec_option_addtocart_return_to_product', 'ec_option_store_sidebar_include_manufacturers', 'ec_option_show_promotion_discount_total',
+				'ec_option_sidebar_include_categories_first', 'ec_option_sidebar_include_option_filters', 'ec_option_enable_inventory_notification', 'ec_option_product_add_to_cart_enable_quantity', 'ec_option_sidebar_include_category_filters', 'ec_option_product_no_checkout_button', 'ec_option_redirect_add_to_cart', 'ec_option_addtocart_return_to_product', 'ec_option_store_sidebar_include_manufacturers', 'ec_option_show_promotion_discount_total', 'ec_option_show_coupon_discount_total',
 			);
 			$options_text = array(
 				'ec_option_tempcart_stock_hours', 'ec_option_tempcart_stock_timeframe',
@@ -1074,6 +1083,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, show_on_startup, title, model_number, manufacturer_id, price, image1, post_id, use_advanced_optionset, use_both_option_types, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, is_shippable, weight, length, width, height, is_taxable, vat_rate, show_stock_quantity, stock_quantity, use_optionitem_quantity_tracking, is_giftcard, is_download, is_donation, is_subscription_item, is_deconetwork, inquiry_mode, catalog_mode, is_restaurant_type, is_preorder_type ) VALUES( %d, %d, %s, %s, %d, %s, %s, %d, %d, 1, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d )', $activate_in_store, $show_on_startup, $title, $sku, $manufacturer, $price, $image, $post_id, $use_advanced_optionset, $option1, $option2, $option3, $option4, $option5, $is_shippable, $weight, $length, $width, $height, $is_taxable, $vat_rate, $show_stock_quantity, $stock_quantity, $use_optionitem_quantity_tracking, $is_giftcard, $is_download, $is_donation, $is_subscription, $is_deconetwork, $is_inquiry, $is_seasonal, $is_restaurant_item, $is_preorder_item ) );
 				$product_id = $wpdb->insert_id;
 
+				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
 				if ( $is_subscription ) {
 					if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
 						if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
@@ -1084,7 +1094,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, is_subscription_item, stripe_plan_added, subscription_unique_id, product_id, price, title, subscription_bill_period, subscription_bill_length, trial_period_days FROM ec_product WHERE product_id = %d', $product_id ) );
 						$stripe_product = $stripe->insert_product( $product_row );
 						$stripe_price_id = $stripe_product->default_price;
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						if ( ! $is_sandbox ) {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						} else {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						}
 					}
 				}
 
@@ -1217,6 +1231,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							wp_set_post_tags( $post_id, array( 'product' ), true );
 						}
 
+						$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
 						if ( $product_row->is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
 							if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 								$stripe = new ec_stripe();
@@ -1251,7 +1266,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								if ( $plan === false || $price != ( $plan->amount / 100 ) ) {
 									$stripe_product = $stripe->insert_product( $product_row );
 									$stripe_price_id = $stripe_product->default_price;
-									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+									if ( ! $is_sandbox ) {
+										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+									} else {
+										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+									}
 
 								} else if ( $plan->name != $product_row->title ) {
 									$result = $stripe->update_product( $stripe_arr );
@@ -1260,7 +1279,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							} else {
 								$stripe_product = $stripe->insert_product( $product_row );
 								$stripe_price_id = $stripe_product->default_price;
-								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+								if ( ! $is_sandbox ) {
+									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+								} else {
+									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+								}
 							}
 						}
 						wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
@@ -2034,6 +2057,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET is_subscription_item = %d, subscription_bill_length = %s, subscription_bill_period = %s, subscription_bill_duration = %s, subscription_shipping_recurring = %d, subscription_recurring_email = %d, trial_period_days = %s, subscription_signup_fee = %s, allow_multiple_subscription_purchases = %s, subscription_prorate = %s, subscription_plan_id = %s, membership_page = %s WHERE product_id = %d', $is_subscription_item, $subscription_bill_length, $subscription_bill_period, $subscription_bill_duration, $subscription_shipping_recurring, $subscription_recurring_email, $trial_period_days, $subscription_signup_fee, $allow_multiple_subscription_purchases, $subscription_prorate, $subscription_plan_id, $membership_page, $product_id ) );
 				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ) );
 
+				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
 				if ( $is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
 					if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 						$stripe = new ec_stripe();
@@ -2046,7 +2070,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							$new_stripe_price = $stripe->insert_price( $product_row );
 							$product_row->stripe_default_price_id = $new_stripe_price->id;
 							$stripe->update_product( $product_row );
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $new_stripe_price->id, $product_id ) );
+							if ( ! $is_sandbox ) {
+								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $new_stripe_price->id, $product_id ) );
+							} else {
+								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $new_stripe_price->id, $product_id ) );
+							}
 						}
 					} else if ( $product_row->stripe_plan_added ) {
 						$stripe_arr = (object) array( 'product_id' => $product_row->product_id, 'title' => $product_row->title, 'trial_period_days' => $product_row->trial_period_days );
@@ -2058,7 +2086,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						if ( $plan === false || ( $plan->amount / 100 ) != $product_row->price || $intervals[ $plan->interval ] != $subscription_bill_period || $plan->interval_count != $subscription_bill_length ) {
 							$stripe_product = $stripe->insert_product( $product_row );
 							$stripe_price_id = $stripe_product->default_price;
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+							if ( ! $is_sandbox ) {
+								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+							} else {
+								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+							}
 
 						} else if ( ( ! isset( $plan->trial_period_days ) && $trial_period_days != 0 ) || ( isset( $plan->trial_period_days ) && $trial_period_days != $plan->trial_period_days ) ) {
 							$stripe->update_plan( $stripe_arr );
@@ -2067,7 +2099,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					} else {
 						$stripe_product = $stripe->insert_product( $product_row );
 						$stripe_price_id = $stripe_product->default_price;
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						if ( ! $is_sandbox ) {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						} else {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
+						}
 
 					}
 				}

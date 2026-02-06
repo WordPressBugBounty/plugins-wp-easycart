@@ -332,7 +332,11 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 			/* Manually Update Post */
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $category->post_id ) );
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_category SET is_active = %d WHERE category_id = %d', $active_status, $category_id ) );
-			do_action( 'wpeasycart_category_deactivated', $category_id );
+			if ( 0 == $active_status ) {
+				do_action( 'wpeasycart_category_deactivated', $category_id );
+			} else {
+				do_action( 'wpeasycart_category_activated', $category_id );
+			}
 
 			if ( $active_status ) {
 				$args = array( 'success' => 'category-activate-single' );

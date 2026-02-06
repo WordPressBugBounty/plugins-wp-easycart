@@ -67,11 +67,11 @@ class WP_EasyCart_Elementor {
 	 * @param object $self reference to the elementor editor.
 	 */
 	public function register_elementor_controls( $self ) {
-
-		include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wpeasycart-control-ajax-select2.php' );
-		$class_name = '\WPEasyCart_Control_Ajax_Select2';
-		$self->register_control( 'wpecajaxselect2', new $class_name() );
-
+		if ( current_user_can( 'edit_posts' ) ) {
+			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wpeasycart-control-ajax-select2.php' );
+			$class_name = '\WPEasyCart_Control_Ajax_Select2';
+			$self->register_control( 'wpecajaxselect2', new $class_name() );
+		}
 	}
 
 	/**
@@ -84,6 +84,20 @@ class WP_EasyCart_Elementor {
 		if ( ! defined( 'ELEMENTOR_VERSION' ) ) {
 			return;
 		}
+
+		if ( apply_filters( 'wp_easycart_enable_elementor_account_elements', false ) ) {
+			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wp-easycart-elementor-account-forms-widget.php' );
+			$class_name = 'Wp_Easycart_Elementor_Account_Forms_Widget';
+			$self->register_widget_type( new $class_name( array(), array( 'widget_name' => $class_name ) ) );
+
+			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wp-easycart-elementor-account-dashboard-widget.php' );
+			$class_name = 'Wp_Easycart_Elementor_Account_Dashboard_Widget';
+			$self->register_widget_type( new $class_name( array(), array( 'widget_name' => $class_name ) ) );
+		}
+
+		include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wp-easycart-elementor-cart-icon-widget.php' );
+		$class_name = 'Wp_Easycart_Elementor_Cart_Icon_Widget';
+		$self->register_widget_type( new $class_name( array(), array( 'widget_name' => $class_name ) ) );
 
 		include( EC_PLUGIN_DIRECTORY . '/admin/elementor/class-wp-easycart-elementor-store-widget.php' );
 		$class_name = 'Wp_Easycart_Elementor_Store_Widget';

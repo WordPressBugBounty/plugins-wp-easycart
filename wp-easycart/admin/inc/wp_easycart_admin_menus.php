@@ -341,6 +341,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			if ( 0 != $featured_image ) {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_added', $menu_id, 1 );
 
 			return array( 'success' => 'menulevel1-inserted' );
 		}
@@ -381,6 +382,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			} else {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_updated', $menulevel1_id, 1 );
 
 			return array( 'success' => 'menulevel1-updated' );	
 		}
@@ -398,9 +400,11 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			$level2_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel2_id, post_id FROM ec_menulevel2 WHERE menulevel1_id = %d', $menulevel1_id ) );
 
 			foreach ( $level2_items as $level2_item ) {
+				do_action( 'wpeasycart_menu_deleting', $level2_item->menulevel2_id, 2 );
 				$level3_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel3_id, post_id FROM ec_menulevel3 WHERE menulevel2_id = %d', $level2_item->menulevel2_id ) );
 
 				foreach ( $level3_items as $level3_item ) {
+					do_action( 'wpeasycart_menu_deleting', $level3_item->menulevel3_id, 3 );
 					wp_delete_post( $level3_item->post_id, true );
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $level3_item->menulevel3_id ) );
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel2_id_3 = 0 WHERE menulevel2_id_3 = %d', $level3_item->menulevel3_id ) );
@@ -414,6 +418,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 
 				wp_delete_post( $level2_item->post_id, true );
 			}
+			do_action( 'wpeasycart_menu_deleting', $menulevel1_id, 1 );
 
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel2 WHERE menulevel1_id = %d', $menulevel1_id ) );
 			wp_delete_post( $post_id, true );
@@ -438,11 +443,14 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 				$bulk_id = (int) $bulk_id;
 				$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_menulevel1 WHERE menulevel1_id = %d', $bulk_id ) );
 				$level2_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel2_id, post_id FROM ec_menulevel2 WHERE menulevel1_id = %d', $bulk_id ) );
+				do_action( 'wpeasycart_menu_deleting', $bulk_id, 1 );
 
 				foreach ( $level2_items as $level2_item ) {
+					do_action( 'wpeasycart_menu_deleting', $level2_item->menulevel2_id, 2 );
 					$level3_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel3_id, post_id FROM ec_menulevel3 WHERE menulevel2_id = %d', $level2_item->menulevel2_id ) );
 
 					foreach ( $level3_items as $level3_item ) {
+						do_action( 'wpeasycart_menu_deleting', $level3_item->menulevel3_id, 3 );
 						wp_delete_post( $level3_item->post_id, true );
 						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $level3_item->menulevel3_id ) );
 						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel2_id_3 = 0 WHERE menulevel2_id_3 = %d', $level3_item->menulevel3_id ) );
@@ -501,6 +509,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			if ( 0 != $featured_image ) {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_added', $$menulevel2_id, 2 );
 
 			return array(
 				'success' => 'menulevel2-inserted',
@@ -545,6 +554,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			} else {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_updated', $menulevel2_id, 2 );
 
 			return array(
 				'success' => 'menulevel2-updated',
@@ -562,8 +572,10 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			$menulevel2_id = (int) $_GET['menulevel2_id'];
 			$menulevel2_item = $wpdb->get_row( $wpdb->prepare( 'SELECT menulevel1_id, post_id FROM ec_menulevel2 WHERE menulevel2_id = %d', $menulevel2_id ) );
 			$level3_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel3_id, post_id FROM ec_menulevel3 WHERE menulevel2_id = %d', $menulevel2_id ) );
+			do_action( 'wpeasycart_menu_deleting', $menulevel2_id, 2 );
 
 			foreach ( $level3_items as $level3_item ) {
+				do_action( 'wpeasycart_menu_deleting', $level3_item->menulevel3_id, 3 );
 				wp_delete_post( $level3_item->post_id, true );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $level3_item->menulevel3_id ) );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel2_id_3 = 0 WHERE menulevel2_id_3 = %d', $level3_item->menulevel3_id ) );
@@ -596,8 +608,10 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 
 				$menulevel2_item = $wpdb->get_row( $wpdb->prepare( 'SELECT menulevel1_id, post_id FROM ec_menulevel2 WHERE menulevel2_id = %d', $bulk_id ) );
 				$level3_items = $wpdb->get_results( $wpdb->prepare( 'SELECT menulevel3_id, post_id FROM ec_menulevel3 WHERE menulevel2_id = %d', $bulk_id ) );
+				do_action( 'wpeasycart_menu_deleting', $bulk_id, 2 );
 
 				foreach ( $level3_items as $level3_item ) {
+					do_action( 'wpeasycart_menu_deleting', $level3_item->menulevel3_id, 3 );
 					wp_delete_post( $level3_item->post_id, true );
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $level3_item->menulevel3_id ) );
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel2_id_3 = 0 WHERE menulevel2_id_3 = %d', $level3_item->menulevel3_id ) );
@@ -651,6 +665,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			if ( 0 != $featured_image ) {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_added', $menulevel3_id, 3 );
 
 			return array(
 				'success' => 'menulevel3-inserted',
@@ -694,6 +709,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			} else {
 				set_post_thumbnail( $post_id, $featured_image );
 			}
+			do_action( 'wpeasycart_menu_updated', $menulevel3_id, 3 );
 
 			return array(
 				'success' => 'menulevel3-updated',
@@ -711,6 +727,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 
 			$menulevel3_id = (int) $_GET['menulevel3_id'];
 			$menulevel3_item = $wpdb->get_row( $wpdb->prepare( 'SELECT menulevel2_id, post_id FROM ec_menulevel3 WHERE menulevel3_id = %d', $menulevel3_id ) );
+			do_action( 'wpeasycart_menu_deleting', $menulevel3_id, 3 );
 			wp_delete_post( $menulevel3_item->post_id, true );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel3 WHERE menulevel3_id = %s', $menulevel3_id ) );
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $menulevel3_id ) );
@@ -734,6 +751,7 @@ if ( ! class_exists( 'wp_easycart_admin_menus' ) ) :
 			foreach ( $bulk_ids as $bulk_id ) {
 				$bulk_id = (int) $bulk_id;
 				$menulevel3_item = $wpdb->get_row( $wpdb->prepare( 'SELECT menulevel2_id, post_id FROM ec_menulevel3 WHERE menulevel3_id = %d', $bulk_id ) );
+				do_action( 'wpeasycart_menu_deleting', $bulk_id, 3 );
 				wp_delete_post( $menulevel3_item->post_id, true );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel3 WHERE menulevel3_id = %s', $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET menulevel1_id_3 = 0 WHERE menulevel1_id_3 = %d', $bulk_id ) );

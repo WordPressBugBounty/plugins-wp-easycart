@@ -266,6 +266,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"Купон не распространяется на товары в вашей корзине"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Этот купон можно использовать только для вашего первого заказа"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Применять"
@@ -946,6 +950,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Ваш заказ получен, и вы можете забрать его в [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Не удалось найти действительный заказ с указанным идентификатором и вашим адресом электронной почты."
 				}
 			}
 		},
@@ -960,6 +968,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Мы получили оплату за ваш заказ!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Ваш заказ успешно подключен к вашей учетной записи!"
 				}
 			}
 		},

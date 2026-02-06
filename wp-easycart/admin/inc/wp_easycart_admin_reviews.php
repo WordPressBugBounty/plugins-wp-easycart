@@ -180,6 +180,7 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 				$approved = 1;
 			}
 			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET review_id = %s, product_id = %s, user_id = %s, approved = %s, rating = %s , title = %s , description = %s , date_submitted = %s, reviewer_name = %s  WHERE review_id = %s", $review_id, $product_id, $user_id, $approved, $rating, $title, $description, $date_submitted, $reviewer_name, $review_id ) );
+			do_action( 'wpeasycart_review_updated', $review_id );
 			return array( 'success' => 'review-updated' );	
 		}
 
@@ -188,6 +189,7 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 			global $wpdb;
 			$review_id = (int) $_GET['review_id'];
 			$query_vars = array();
+			do_action( 'wpeasycart_review_deleting', $review_id );
 			$wpdb->query( $wpdb->prepare( "DELETE FROM ec_review WHERE ec_review.review_id = %s", $review_id ) );
 			$query_vars['success'] = 'review-deleted';
 			return $query_vars;
@@ -195,7 +197,9 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 
 		public function approve_review() {
 			global $wpdb;
-			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 1 WHERE review_id = %d", (int) $_GET['review_id'] ) );
+			$review_id = (int) $_GET['review_id'];
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 1 WHERE review_id = %d", $review_id ) );
+			do_action( 'wpeasycart_review_approved', $review_id );
 			$query_vars = array( 'success' => 'review-approved' );
 			return $query_vars;
 		}
@@ -207,6 +211,7 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 
 			foreach ( $bulk_ids as $bulk_id ) {
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 1 WHERE review_id = %d", (int) $bulk_id ) );
+				do_action( 'wpeasycart_review_approved', (int) $bulk_id );
 			}
 
 			$query_vars['success'] = 'review-approved';
@@ -215,7 +220,9 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 
 		public function unapprove_review() {
 			global $wpdb;
-			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 0 WHERE review_id = %d", (int) $_GET['review_id'] ) );
+			$review_id = (int) $_GET['review_id'];
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 0 WHERE review_id = %d", $review_id ) );
+			do_action( 'wpeasycart_review_unapproved', $review_id );
 			$query_vars = array( 'success' => 'review-unapproved' );
 			return $query_vars;
 		}
@@ -227,6 +234,7 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 
 			foreach ( $bulk_ids as $bulk_id ) {
 				$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET approved = 0 WHERE review_id = %d", (int) $bulk_id ) );
+				do_action( 'wpeasycart_review_unapproved', (int) $bulk_id );
 			}
 
 			$query_vars['success'] = 'review-unapproved';
@@ -239,6 +247,7 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 
 			foreach ( $bulk_ids as $bulk_id ) {
+				do_action( 'wpeasycart_review_deleting', (int) $bulk_id );
 				$wpdb->query( $wpdb->prepare( "DELETE FROM ec_review WHERE review_id = %d", (int) $bulk_id ) );
 			}
 

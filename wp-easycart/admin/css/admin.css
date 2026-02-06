@@ -1567,6 +1567,7 @@ input.ec_admin_settings_simple_delete_button, .ec_admin_settings_simple_delete_b
 .ec_admin_slideout_error_text{ display:none; float:left; width:100%; margin:5px 0; color:red; text-align:left; }
 .ec_admin_slideout_container_simple_row{ background:#76b033; color:#FFF; padding:10px; font-size:16px; }
 .ec_admin_slideout_container_simple_row:nth-child(even){ background:#e4eaef; color:#222; }
+.ec_admin_slideout_container_notice{ float: left; width: 100%; margin: 0 0 25px; font-size: 1.2em; line-height: 1.6em; font-weight: 500; color:#812222; }
 
 .ec_live_shipping_status_good{ float:left; width:175px; background-color:#f2ffe0; border-radius:5px; -bottom:5px; -style:solid; border-width:1px; border-color:#378e42; box-shadow:none !important; height:auto !important; padding:0 5px; margin-right:5px; }
 .ec_live_shipping_status_bad{ float:left; width:175px; background-color:#ffe6e6; border-radius:5px; margin-bottom:5px; border-style: solid; border-width: 1px; border-color: #ff0000; box-shadow: none !important; padding:0 5px; margin-right:5px; }

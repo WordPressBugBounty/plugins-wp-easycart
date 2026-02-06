@@ -124,20 +124,6 @@
 	<?php }?>
 	<?php }?>
 
-	<?php
-	if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
-		echo "<script>
-			fbq('track', 'AddPaymentInfo', {value: " . esc_js( number_format( $cartpage->order_totals->grand_total, 2, '.', '' ) ) . ", currency: '" . esc_js( $GLOBALS['currency']->get_currency_code( ) ) . "', contents: [";
-			for( $i=0; $i<count( $cartpage->cart->cart ); $i++ ){
-				if( $i > 0 )
-					echo ", ";
-				echo "{ id: '" . esc_js( $cartpage->cart->cart[$i]->product_id ) . "', quantity: " . esc_js( $cartpage->cart->cart[$i]->quantity ) . ", price: " . esc_js( $cartpage->cart->cart[$i]->unit_price ) . " }";
-			}		
-			echo "]});
-		</script>";
-	}
-	?>
-
 	<?php if ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { $cartpage->display_page_three_form_start( ); } ?>
 
 	<?php if( $cartpage->order_totals->grand_total > 0 ){ ?>
@@ -197,8 +183,8 @@
 								financial_product_key:		"<?php echo esc_attr( get_option( 'ec_option_affirm_financial_product' ) ); ?>"
 							},
 							merchant: {
-								user_confirmation_url:		"<?php echo esc_attr( $cartpage->cart_page . $cartpage->permalink_divider ); ?>ec_page=process_affirm",
-								user_cancel_url:			"<?php echo esc_attr( $cartpage->cart_page . $cartpage->permalink_divider ); ?>ec_page=checkout_payment"
+								user_confirmation_url:		"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'process_affirm' ) ); ?>",
+								user_cancel_url:			"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ); ?>"
 							},
 							billing: {
 								name: {
@@ -281,7 +267,7 @@
 							};
 							jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: "post", data: data, success: function( data ){
 								<?php if( get_option( 'ec_option_realex_thirdparty_test_mode' ) ){ ?>RealexHpp.setHppUrl('https://pay.sandbox.realexpayments.com/pay');
-								<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_attr( $cartpage->cart_page . $cartpage->permalink_divider ) . "ec_page=checkout_success&order_id="; ?>" + data.order_id, data.response );
+								<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_url( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => '' ) ) ); ?>" + data.order_id, data.response );
 							} } );
 						} );
 						</script>
@@ -461,14 +447,10 @@
 			</div>
 			<?php do_action( 'wp_easycart_end_live_payment_box_inner', $cartpage ); ?>
 		</div>
-
 		<?php } //close if/else check for live gateway ?>
-
 		<?php do_action( 'wp_easycart_cart_payment_payment_methods_end', $cartpage ); ?>
-
-		<?php } //close if/else check for free order ?>
-
 	</div>
+	<?php } //close if/else check for free order ?>
 
 	<?php if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && ( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_klarna' ) ) && ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) ) { ?>
 	<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $cartpage->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?></div>

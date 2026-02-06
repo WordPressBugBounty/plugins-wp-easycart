@@ -120,7 +120,9 @@
 				$data .= ',"';
 				$is_first_ao = true;
 				for ( $ao_index = $last_advanced_option_read; $ao_index < count( $advanced_options ); $ao_index++ ) {
-					if( $advanced_options[$ao_index]->product_id == $result['product_id'] ){
+					if( $advanced_options[$ao_index]->product_id < $result['product_id'] ){
+						// Skip
+					} else if( $advanced_options[$ao_index]->product_id == $result['product_id'] ){
 						if( !$is_first_ao ) {
 							$data .= ',';
 						}

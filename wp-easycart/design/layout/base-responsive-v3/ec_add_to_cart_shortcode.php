@@ -838,6 +838,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $product->product_id ); ?>_<?ph
 
 	<input type="hidden" id="ec_allow_backorders_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->allow_backorders ); ?>" />
 	<input type="hidden" id="ec_default_sku_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->model_number ); ?>" />
+	<input type="hidden" id="ec_product_title_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->title ); ?>" />
 	<?php if ( ( ! $product->login_for_pricing || $product->is_login_for_pricing_valid() ) && ( ! $product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) { ?>
 	<input type="hidden" id="ec_default_price_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->price ); ?>" />
 	<input type="hidden" id="price_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $product->price ); ?>" />

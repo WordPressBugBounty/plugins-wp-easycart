@@ -67,7 +67,7 @@ if ( ! isset( $cartpage ) ) {
 				</div>
 				<div class="ec_cart_table_details_content">
 					<a href="<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_title_link( ) ); ?>" class="ec_cartitem_title"><?php $cartpage->cart->cart[$cartitem_index]->display_title( ); ?></a>
-					<div class="ec_cart_table_mobile_price" id="ec_cartitem_price_mobile_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_unit_price( ) ); ?></div>
+					<div class="ec_cart_table_mobile_price" id="ec_cartitem_price_mobile_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cartpage->cart->cart[$cartitem_index]->get_unit_price( ) ); ?></div>
 					<?php if( 
 						$cartpage->cart->cart[$cartitem_index]->use_optionitem_quantity_tracking && 
 						$cartpage->cart->cart[$cartitem_index]->allow_backorders
@@ -184,7 +184,7 @@ if ( ! isset( $cartpage ) ) {
 					<?php do_action( 'wp_easycart_cartitem_post_optionitems', $cartpage->cart->cart[$cartitem_index] ); ?>
 				</div>
 			</div>
-			<div class="ec_cart_table_column_price ec_cart_table_price" id="ec_cartitem_price_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_unit_price( ) ); ?></div>
+			<div class="ec_cart_table_column_price ec_cart_table_price" id="ec_cartitem_price_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cartpage->cart->cart[$cartitem_index]->get_unit_price( ) ); ?></div>
 			<div class="ec_cart_table_column_quantity ec_cart_table_quantity">
 				<?php if( $cartpage->cart->cart[$cartitem_index]->grid_quantity > 0 ){ ?>
 					<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->grid_quantity ); ?>
@@ -201,7 +201,7 @@ if ( ! isset( $cartpage ) ) {
 				?>">Remove</div>
 				<div class="ec_cartitem_deleting" id="ec_cartitem_deleting_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"></div>
 			</div>
-			<div class="ec_cart_table_column_total ec_cart_table_total" id="ec_cartitem_total_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+			<div class="ec_cart_table_column_total ec_cart_table_total" id="ec_cartitem_total_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cartpage->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 		</div>
 		<?php }?>
 	</div>
@@ -218,6 +218,7 @@ if ( ! isset( $cartpage ) ) {
 		} else {
 			$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
 		}
+		$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 		?>
 		<?php if ( ( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_afterpay' ) || get_option( 'ec_option_stripe_klarna' ) ) && ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) ) { ?>
 		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $cartpage->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?></div>

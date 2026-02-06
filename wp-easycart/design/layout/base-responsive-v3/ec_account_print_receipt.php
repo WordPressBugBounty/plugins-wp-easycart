@@ -196,8 +196,24 @@
 				<td align='center' bgcolor='#F3F1ED' class='style20'><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_details_header_4" ); ?></td>
 			</tr>
 			<?php for ( $i = 0; $i < count( $order_details ); $i++ ) {
-				$unit_price = $GLOBALS['currency']->get_currency_display( $order_details[$i]->unit_price );
-				$total_price = $GLOBALS['currency']->get_currency_display( $order_details[$i]->total_price ); ?>
+				$unit_discount_promotion = $order_details[$i]->unit_discount_promotion;
+				$unit_discount_coupon = $order_details[$i]->unit_discount_coupon;
+				$unit_price_base = $order_details[$i]->unit_price;
+				if ( get_option( 'ec_option_show_promotion_discount_total' ) && $unit_discount_promotion > 0 ) {
+					$unit_price_base += $unit_discount_promotion;
+				}
+				$unit_price = $GLOBALS['currency']->get_currency_display( $unit_price_base );
+				$has_unit_discount = ( apply_filters( 'wp_easycart_order_details_show_discount_unit', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $unit_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $unit_discount_coupon > 0 ) ) );
+
+				$total_discount_promotion = $order_details[$i]->total_discount_promotion;
+				$total_discount_coupon = $order_details[$i]->total_discount_coupon;
+				$total_price_base = $order_details[$i]->total_price;
+				if ( get_option( 'ec_option_show_promotion_discount_total' ) && $total_discount_promotion > 0 ) {
+					$total_price_base += $total_discount_promotion;
+				}
+				$total_price = $GLOBALS['currency']->get_currency_display( $total_price_base );
+				$has_total_discount = ( apply_filters( 'wp_easycart_order_details_show_discount_total', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $total_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $total_discount_coupon > 0 ) ) );
+			?>
 			<tr>
 				<td width='269' class='style22'>
 					<?php if( get_option( 'ec_option_show_image_on_receipt' ) ){ ?>
@@ -317,8 +333,40 @@
 					</table>
 				</td>
 				<td width='80' align='center' class='style22'><?php echo esc_attr( $order_details[$i]->quantity ); ?></td>
-				<td width='91' align='center' class='style22'><?php echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $order_details[$i]->product_id ) ); ?></td>
-				<td align='center' class='style22'><?php echo esc_attr( $total_price ); ?></td>
+				<td width='91' align='center' class='style22'><?php
+				if ( $has_unit_discount ) {?>
+					<table>
+						<tr>
+							<td class='style22' style="color:red; text-decoration:line-through;"><?php echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $order_details[$i]->product_id ) ); ?></td>
+						</tr>
+						<tr>
+							<td class='style22' style="font-weight:bold;"><?php if ( get_option( 'ec_option_show_coupon_discount_total' ) ) {
+								echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->unit_price - round( $unit_discount_coupon, 2 ) ) );
+							} else { 
+								echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->unit_price ) );
+							} ?></td>
+						</tr>
+					</table>
+				<?php } else {
+					echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $order_details[$i]->product_id ) );
+				}?></td>
+				<td align='center' class='style22'><?php
+				if ( $has_total_discount ) {?>
+					<table>
+						<tr>
+							<td class='style22' style="color:red; text-decoration:line-through;"><?php echo esc_attr( $total_price ); ?></td>
+						</tr>
+						<tr>
+							<td class='style22' style="font-weight:bold;"><?php if ( get_option( 'ec_option_show_coupon_discount_total' ) ) {
+								echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->total_price - round( $total_discount_coupon, 2 ) ) );
+							} else {
+								echo esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->total_price ) );
+							} ?></td>
+						</tr>
+					</table>
+				<?php } else {
+					echo esc_attr( $total_price );
+				} ?></td>
 			</tr>
 			<?php }//end for loop ?>
 			<tr>
@@ -357,7 +405,7 @@
 				<td align='center'  class='style22'><?php echo esc_attr( $shipping ); ?></td>
 			</tr>
 			<?php } ?>
-			<?php if( $order->discount_total > 0 ){ ?>
+			<?php if( $order->discount_total > 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $order ) ){ ?>
 			<tr>
 				<td>&nbsp;</td>
 				<td align='center' class='style22'>&nbsp;</td>

@@ -92,15 +92,19 @@
 					<p><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_downloads_unavailable' ); ?> <?php $this->display_order_link( wp_easycart_language( )->get_text( 'cart_success', 'cart_downloads_click_to_go' ) ); ?></p>
 					<?php }?>
 
-					<?php if( $this->promo_code != '' ){ ?>
-					<p><b><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' ) . ': ' . esc_attr( $this->promo_code ); ?></b></p>
+					<?php if( $this->promo_code != '' ){
+						$promo_val = $this->promo_code;
+						if ( get_option( 'ec_option_show_coupon_message' ) && '' != $this->promo_code_message ) {
+							$promo_val = $this->promo_code_message;
+						}
+					?>
+					<p><b><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' ) . ': ' . esc_attr( $promo_val ); ?></b></p>
 					<?php }?>
 
 					<p>
-						<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( $this->guest_key != "" ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank">
+						<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'ec_guest_key' => ( ( '' != $this->guest_key ) ? esc_attr( $this->guest_key ) : null ) ) ) ); ?>" target="_blank">
 							<?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_click_here" ); ?>
 						</a> <?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_to_view_order" ); ?>
-
 					</p>
 
 					<?php if( $has_shipping && isset( $this->cart->shipping_subtotal ) && $this->cart->shipping_subtotal > 0 ){
@@ -463,10 +467,8 @@
 
 															if( $this->cart->cart[$i]->is_giftcard && $this->is_approved ){
 																echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->cart->cart[ $i ]->orderdetail_id . '&giftcard_id=' . $this->cart->cart[ $i ]->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank">' . wp_easycart_language()->get_text( "account_order_details", "account_orders_details_print_online" ) . '</a>';
-
 															}else if( $this->cart->cart[$i]->is_download ){
-																echo '<a href="' . esc_url( $account_page . $permalink_divider . 'ec_page=order_details&order_id=' . $this->order_id ) . '" target="_blank">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
-
+																echo '<a href="' . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . '" target="_blank">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
 															}
 														?>
 														</td>

@@ -120,8 +120,13 @@
 					<p><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_downloads_unavailable' ); ?> <?php $this->display_order_link( wp_easycart_language( )->get_text( 'cart_success', 'cart_downloads_click_to_go' ) ); ?></p>
 					<?php }?>
 
-					<?php if( $this->promo_code != '' ){ ?>
-					<p><b><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' ) . ': ' . esc_attr( $this->promo_code ); ?></b></p>
+					<?php if( $this->promo_code != '' ){
+						$promo_val = $this->promo_code;
+						if ( get_option( 'ec_option_show_coupon_message' ) && '' != $this->promo_code_message ) {
+							$promo_val = $this->promo_code_message;
+						}
+					?>
+					<p><b><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' ) . ': ' . esc_attr( $promo_val ); ?></b></p>
 					<?php }?>
 
 					<p>
@@ -129,12 +134,12 @@
 						<table border="0" cellspacing="0" cellpadding="0">
 							<tr>
 								<td align="center" style="border-radius:35px; background-color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;">
-									<a rel="noopener" target="_blank" rel="noopener" target="_blank" href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( '' != $this->guest_key ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank" style="font-size: 16px; font-family: Arial, Helvetica, sans-serif; color: #ffffff; font-weight:normal; text-decoration: none; border-radius:35px; padding:8px 24px; border: 1px solid <?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>; display: inline-block;" class="ec-pill-button"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_view_order" ); ?></a>
+									<a rel="noopener" target="_blank" rel="noopener" target="_blank" href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'ec_guest_key' => ( ( '' != $this->guest_key ) ? $this->guest_key : null ) ) ) ); ?>" target="_blank" style="font-size: 16px; font-family: Arial, Helvetica, sans-serif; color: #ffffff; font-weight:normal; text-decoration: none; border-radius:35px; padding:8px 24px; border: 1px solid <?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>; display: inline-block;" class="ec-pill-button"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_view_order" ); ?></a>
 								</td>
 							</tr>
 						</table>
 						<?php } else { ?>
-						<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( '' != $this->guest_key ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank" style="color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;">
+						<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'ec_guest_key' => ( ( '' != $this->guest_key ) ? $this->guest_key : null ) ) ) ); ?>" target="_blank" style="color:<?php echo esc_attr( get_option( 'ec_option_details_main_color' ) ); ?>;">
 							<?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_click_here" ); ?>
 						</a> <?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_to_view_order" ); ?>
 						<?php }?>
@@ -502,7 +507,7 @@
 																echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->cart->cart[ $i ]->orderdetail_id . '&giftcard_id=' . $this->cart->cart[ $i ]->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank" style="color:' . esc_attr( get_option( 'ec_option_details_main_color' ) ) . ';">' . wp_easycart_language()->get_text( "account_order_details", "account_orders_details_print_online" ) . '</a>';
 
 															}else if( $this->cart->cart[$i]->is_download ){
-																echo '<a href="' . esc_url( $account_page . $permalink_divider . 'ec_page=order_details&order_id=' . $this->order_id ) . '" target="_blank" style="color:' . esc_attr( get_option( 'ec_option_details_main_color' ) ) . ';">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
+																echo '<a href="' . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . '" target="_blank" style="color:' . esc_attr( get_option( 'ec_option_details_main_color' ) ) . ';">' . wp_easycart_language()->get_text( 'account_order_details', 'account_orders_details_download' ) . '</a>';
 
 															}
 														?>

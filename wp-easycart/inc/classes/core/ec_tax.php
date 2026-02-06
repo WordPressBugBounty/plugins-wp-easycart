@@ -533,7 +533,11 @@ class ec_tax{
 						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 							if ( $this->cart[$i]->is_taxable ) {
 								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								if ( 'QC' == $this->shipping_state ) {
+									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
+								} else {
+									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								}
 								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
 							}
 						}
@@ -542,7 +546,11 @@ class ec_tax{
 						$this->hst = $hst_tax_sub_total;
 					} else {
 						$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-						$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+						if ( 'QC' == $this->shipping_state ) {
+							$this->pst = round( ( $this->taxable_subtotal + round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 ) ) * ( $this->pst_rate / 100 ), 2 );
+						} else {
+							$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+						}
 						$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 					}
 					if( $this->tax_shipping ){
@@ -600,7 +608,7 @@ class ec_tax{
 					}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
 						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = round( $this->taxable_subtotal * .09975, 2 );
+						$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * .09975, 2 );
 						$this->pst_rate = 9.975;
 
 					}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
@@ -622,7 +630,11 @@ class ec_tax{
 						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 							if ( $this->cart[$i]->is_taxable ) {
 								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								if( $this->collect_quebec && $this->shipping_state == "QC" ){
+									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
+								} else {
+									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								}
 								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
 							}
 						}
@@ -1009,7 +1021,11 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				if ( 'QC' == $this->shipping_state ) {
+					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+				} else {
+					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				}
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
@@ -1269,7 +1285,11 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				if ( 'QC' == $this->shipping_state ) {
+					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+				} else {
+					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				}
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){

@@ -546,11 +546,13 @@ class ec_square extends ec_gateway{
 		if( $this->order_totals->discount_total > 0 ){
 			$json_arr['order']['discounts'] = array(
 				array(
+					'name' => wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_discounts' ),
+					'type' => 'FIXED_AMOUNT',
 					'amount_money'      => array(
 						'amount'        => $this->order_totals->discount_total * 100,
-						'currency'      => (string) get_option( 'ec_option_square_currency' ),
-						'name'          => wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_discounts' )
-					)
+						'currency'      => (string) get_option( 'ec_option_square_currency' )
+					),
+					'scope' => 'ORDER',
 				)
 			);
 		}

@@ -182,6 +182,8 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$is_subscriber = ( isset( $_POST['is_subscriber'] ) ) ? 1 : 0;
 			$exclude_tax = ( isset( $_POST['exclude_tax'] ) ) ? 1 : 0;
 			$exclude_shipping = ( isset( $_POST['exclude_shipping'] ) ) ? 1 : 0;
+			$allow_shipping_bypass = ( isset( $_POST['allow_shipping_bypass'] ) ) ? 1 : 0;
+			$is_stripe_test_user = ( isset( $_POST['is_stripe_test_user'] ) ) ? 1 : 0;
 
 			$billing_first_name = ( isset( $_POST['billing_first_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['billing_first_name'] ) ) : '';
 			$billing_last_name = ( isset( $_POST['billing_last_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['billing_last_name'] ) ) : '';
@@ -208,7 +210,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$duplicate = $wpdb->query( $wpdb->prepare( 'SELECT * FROM ec_user WHERE ec_user.email = %s', $email ) );
 
 			if ( ! $duplicate ) {
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_user( email, password, first_name, last_name, user_level, is_subscriber, exclude_tax, exclude_shipping, user_notes, vat_registration_number, email_other ) VALUES( %s, %s, %s, %s, %s, %d, %d, %d, %s, %s, %s )', $email, $password, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $user_notes, $vat_registration_number, $email_other ) );
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_user( email, password, first_name, last_name, user_level, is_subscriber, exclude_tax, exclude_shipping, allow_shipping_bypass, is_stripe_test_user, user_notes, vat_registration_number, email_other ) VALUES( %s, %s, %s, %s, %s, %d, %d, %d, %d, %d, %s, %s, %s )', $email, $password, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other ) );
 				$user_id = $wpdb->insert_id;
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_address( user_id, first_name, last_name, company_name, address_line_1, address_line_2, city, state, zip, country, phone ) VALUES( %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )', $user_id, $billing_first_name, $billing_last_name, $billing_company_name, $billing_address_line_1, $billing_address_line_2, $billing_city, $billing_state, $billing_zip, $billing_country, $billing_phone ) );
 				$billing_id = $wpdb->insert_id;
@@ -269,6 +271,8 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$is_subscriber = ( isset( $_POST['is_subscriber'] ) ) ? 1 : 0;
 			$exclude_tax = ( isset( $_POST['exclude_tax'] ) ) ? 1 : 0;
 			$exclude_shipping = ( isset( $_POST['exclude_shipping'] ) ) ? 1 : 0;
+			$allow_shipping_bypass = ( isset( $_POST['allow_shipping_bypass'] ) ) ? 1 : 0;
+			$is_stripe_test_user = ( isset( $_POST['is_stripe_test_user'] ) ) ? 1 : 0;
 
 			$default_billing_address_id = ( isset( $_POST['default_billing_address_id'] ) ) ? (int) $_POST['default_billing_address_id'] : 0;
 			$billing_first_name = ( isset( $_POST['billing_first_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['billing_first_name'] ) ) : '';
@@ -327,10 +331,10 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			}
 
 			if ( '' == $password ) {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE ec_user.user_id = %d', $email, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $user_notes, $vat_registration_number, $email_other, $user_id ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE ec_user.user_id = %d', $email, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
 
 			} else {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, password = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE user_id = %d', $email, md5( $password ), $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $user_notes, $vat_registration_number, $email_other, $user_id ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, password = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE user_id = %d', $email, md5( $password ), $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
 			}
 
 			if ( file_exists( '../../../../wp-easycart-quickbooks/QuickBooks.php' ) ) {

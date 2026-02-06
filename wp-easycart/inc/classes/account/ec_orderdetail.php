@@ -8,8 +8,12 @@ class ec_orderdetail{
 	public $title;// VARCHAR 255
 	public $model_number;// VARCHAR 255
 	public $order_date;// DATETIME
-	public $unit_price;// FLOAT 7,2 
-	public $total_price;// FLOAT 7,2
+	public $unit_price;
+	public $unit_discount_promotion;
+	public $unit_discount_coupon;
+	public $total_price;
+	public $total_discount_promotion;
+	public $total_discount_coupon;
 	public $quantity;// INT
 	public $image1;// VARCHAR 255
 	public $optionitem_name_1;// VARCHAR 128
@@ -71,9 +75,7 @@ class ec_orderdetail{
 	public $permalink_divider;// CHAR
 
 	function __construct( $orderdetail_row, $download_now = 0 ) {
-
 		$this->mysqli = new ec_db();
-
 		$this->orderdetail_id = $orderdetail_row->orderdetail_id;
 		$this->order_id = $orderdetail_row->order_id;
 		$this->product_id = $orderdetail_row->product_id;
@@ -81,7 +83,11 @@ class ec_orderdetail{
 		$this->model_number = $orderdetail_row->model_number;
 		$this->order_date = $orderdetail_row->order_date;
 		$this->unit_price = $orderdetail_row->unit_price;
+		$this->unit_discount_promotion = $orderdetail_row->unit_discount_promotion;
+		$this->unit_discount_coupon = $orderdetail_row->unit_discount_coupon;
 		$this->total_price = $orderdetail_row->total_price;
+		$this->total_discount_promotion = $orderdetail_row->total_discount_promotion;
+		$this->total_discount_coupon = $orderdetail_row->total_discount_coupon;
 		$this->quantity = $orderdetail_row->quantity;
 		$this->image1 = $orderdetail_row->image1;
 		$this->optionitem_name_1 = $orderdetail_row->optionitem_name_1;
@@ -109,7 +115,7 @@ class ec_orderdetail{
 		$this->is_giftcard = $orderdetail_row->is_giftcard;
 		$this->is_taxable = $orderdetail_row->is_taxable;
 		$this->is_shippable = $orderdetail_row->is_shippable;
-		$this->manufacturer_name = $orderdetail_row->manufacturer_name;
+		$this->manufacturer_name = ( isset( $orderdetail_row->manufacturer_name ) ) ? $orderdetail_row->manufacturer_name : '';
 		$this->download_file_name = $orderdetail_row->download_file_name;
 		$this->download_id = $orderdetail_row->download_key;
 		$this->maximum_downloads_allowed = $orderdetail_row->maximum_downloads_allowed;
@@ -492,7 +498,23 @@ class ec_orderdetail{
 	}
 
 	public function display_unit_price() {
-		echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( $this->unit_price ), $this->product_id ) );
+		$unit_price = $this->unit_price;
+		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->unit_discount_promotion > 0 ) {
+			$unit_price += $this->unit_discount_promotion;
+		}
+		echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( $unit_price ), $this->product_id ) );
+	}
+
+	public function has_discounted_unit_price() {
+		return ( apply_filters( 'wp_easycart_order_details_show_discount_unit', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->unit_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->unit_discount_coupon > 0 ) ) );
+	}
+
+	public function display_discounted_unit_price() {
+		$unit_price = $this->unit_price;
+		if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->unit_discount_coupon > 0 ) {
+			$unit_price -= $this->unit_discount_coupon;
+		}
+		echo esc_attr( $GLOBALS['currency']->get_currency_display( $unit_price ) );
 	}
 
 	public function display_quantity() {
@@ -500,7 +522,23 @@ class ec_orderdetail{
 	}
 
 	public function display_item_total() {
-		echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->total_price ) );
+		$total_price = $this->total_price;
+		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->total_discount_promotion > 0 ) {
+			$total_price += $this->total_discount_promotion;
+		}
+		echo esc_attr( $GLOBALS['currency']->get_currency_display( $total_price ) );
+	}
+
+	public function has_discounted_total_price() {
+		return ( apply_filters( 'wp_easycart_order_details_show_discount_total', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->total_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->total_discount_coupon > 0 ) ) );
+	}
+
+	public function display_discounted_total_price() {
+		$total_price = $this->total_price;
+		if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->total_discount_coupon > 0 ) {
+			$total_price -= $this->total_discount_coupon;
+		}
+		echo esc_attr( $GLOBALS['currency']->get_currency_display( $total_price ) );
 	}
 
 	public function display_custom_fields( $divider, $seperator ) {
@@ -518,18 +556,19 @@ class ec_orderdetail{
 
 	public function display_download_link( $link_text, $additional_downloads = array() ) {
 		if ( $this->is_download ) {
-			echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=order_details&amp;order_id=" . $this->order_id . "&amp;orderdetail_id=" . $this->orderdetail_id . "&amp;download_id=" . $this->download_id ) . "\" class=\"ec_account_order_item_download_button\" onclick=\"update_download_count( '" . esc_attr( $this->orderdetail_id ) . "' );\">" . esc_attr( $link_text . ( ( count( $additional_downloads ) > 0 ) ? ' 1' : '' ) ) . "</a>";
+			echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'orderdetail_id' => (int) $this->orderdetail_id, 'download_id' => esc_attr( $this->download_id ) ) ) ) . "\" class=\"ec_account_order_item_download_button\" onclick=\"update_download_count( '" . esc_attr( $this->orderdetail_id ) . "' );\">" . esc_attr( $link_text . ( ( count( $additional_downloads ) > 0 ) ? ' 1' : '' ) ) . "</a>";
 		}
 		if ( count( $additional_downloads ) > 0 ) {
 			for( $i=0;$i<count( $additional_downloads );$i++ ) {
-				echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=order_details&amp;order_id=" . $this->order_id . "&amp;orderdetail_id=" . $this->orderdetail_id . "&amp;download_id=" . $additional_downloads[$i] ) . "\" class=\"ec_account_order_item_download_button\">" . esc_attr( $link_text . " " . ( $i+2 ) ) . "</a>";
+				echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'orderdetail_id' => (int) $this->orderdetail_id, 'download_id' => esc_attr( $additional_downloads[$i] ) ) ) ) . "\" class=\"ec_account_order_item_download_button\">" . esc_attr( $link_text . " " . ( $i+2 ) ) . "</a>";
 			}
 		}
 	}
 
-	public function get_download_link(  ) {
-		if ( $this->is_download )
-			return $this->account_page . $this->permalink_divider . "ec_page=order_details&amp;order_id=" . $this->order_id . "&amp;orderdetail_id=" . $this->orderdetail_id . "&amp;download_id=" . $this->download_id;
+	public function get_download_link() {
+		if ( $this->is_download ) {
+			return esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id, 'orderdetail_id' => (int) $this->orderdetail_id, 'download_id' => esc_attr( $this->download_id ) ) ) );
+		}
 	}
 
 	public function display_download_error() {

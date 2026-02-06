@@ -225,11 +225,11 @@
 
 	<td class="ec_account_orderitem_price">
 
-		<div class="ec_account_order_details_item_display_unit_price">
+		<div class="ec_account_order_details_item_display_unit_price<?php echo ( $order_item->has_discounted_unit_price() ) ? ' ec-order-item-discounted' : ''; ?>"><?php $order_item->display_unit_price(); ?></div>
 
-		  <?php $order_item->display_unit_price(); ?>
-
-		</div>
+		<?php if ( $order_item->has_discounted_unit_price() ) { ?>
+		<div class="ec_account_order_details_item_display_unit_price_discounted"><?php $order_item->display_discounted_unit_price(); ?></div>
+		<?php }?>
 
 	</td>
 
@@ -245,11 +245,11 @@
 
 	<td class="ec_account_orderitem_total">
 
-		<div class="ec_account_order_details_item_display_total_price">
+		<div class="ec_account_order_details_item_display_total_price<?php echo ( $order_item->has_discounted_total_price() ) ? ' ec-order-item-discounted' : ''; ?>"><?php $order_item->display_item_total(); ?></div>
 
-			<?php $order_item->display_item_total(); ?>
-
-		</div>
+		<?php if ( $order_item->has_discounted_total_price() ) { ?>
+		<div class="ec_account_order_details_item_display_total_price_discounted"><?php $order_item->display_discounted_total_price(); ?></div>
+		<?php }?>
 
 	</td>
 

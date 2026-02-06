@@ -58,7 +58,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_info" class="wpeasycart_edit_billing_address_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_billing_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>" class="wpeasycart_edit_billing_address_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_billing_link' ); ?></a>
 	</div>
 
 	<?php if( get_option( 'ec_option_use_shipping' ) && ( $this->cart->shippable_total_items > 0 || $this->order_totals->handling_total > 0 || $this->cart->excluded_shippable_total_items > 0 ) ){ ?>
@@ -102,7 +102,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_info" class="wpeasycart_edit_shipping_address_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>" class="wpeasycart_edit_shipping_address_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_link' ); ?></a>
 	</div>
 	
 	<?php do_action( 'wp_easycart_cart_payment_after_edit_shipping_link', $this ); ?>
@@ -112,7 +112,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	</div>
 	<div class="ec_cart_input_row">
 		<?php $this->display_selected_shipping_method( ); ?>
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_shipping" class="wpeasycart_edit_shipping_method_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_shipping' ) ); ?>" class="wpeasycart_edit_shipping_method_link_mobile"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
 	</div>
 	<?php }?>
 </div>
@@ -384,8 +384,8 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						financial_product_key:		"<?php echo esc_attr( get_option( 'ec_option_affirm_financial_product' ) ); ?>"
 					},
 					merchant: {
-						user_confirmation_url:		"<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=process_affirm",
-						user_cancel_url:			"<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_payment"
+						user_confirmation_url:		"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'process_affirm' ) ); ?>",
+						user_cancel_url:			"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ); ?>"
 					},
 					billing: {
 						name: {
@@ -465,7 +465,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 					};
 					jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: "post", data: data, success: function( data ){
 						<?php if( get_option( 'ec_option_realex_thirdparty_test_mode' ) ){ ?>RealexHpp.setHppUrl('https://pay.sandbox.realexpayments.com/pay');
-						<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_success&order_id="; ?>" + data.order_id, data.response );
+						<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => '' ) ) ); ?>" + data.order_id, data.response );
 					} } );
 				} );
 				</script>
@@ -529,6 +529,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 				} else {
 					$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
 				}
+				$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 				?>
 				jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
 				try {
@@ -659,7 +660,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 										stripe.confirmPayment( {
 											elements,
 											confirmParams: {
-												return_url: '<?php echo esc_url_raw( $this->cart_page . $this->permalink_divider . "ec_page=checkout_payment&stripe=returning&wpecnonce=" . wp_create_nonce( 'wp-easycart-stripe-pi-order-complete-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>',
+												return_url: '<?php echo esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'stripe' => 'returning', 'wpecnonce' => wp_create_nonce( 'wp-easycart-stripe-pi-order-complete-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) ) ); ?>',
 												shipping: {
 													address: {
 														line1: shipping_address1,
@@ -1010,7 +1011,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 		</div>
-		<div class="ec_cart_price_row_total"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+		<div class="ec_cart_price_row_total"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 
 	<?php }?>
@@ -1152,7 +1153,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	<?php }?>
 
 	<div class="ec_cart_input_row">
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_info" class="wpeasycart_edit_billing_address_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_billing_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>" class="wpeasycart_edit_billing_address_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_billing_link' ); ?></a>
 	</div>
 
 	<?php if( get_option( 'ec_option_use_shipping' ) && ( $this->cart->shippable_total_items > 0 || $this->order_totals->handling_total > 0 || $this->cart->excluded_shippable_total_items > 0 ) ){ ?>
@@ -1196,7 +1197,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 
 	<?php $this->display_page_two_form_start( ); ?>
 	<div class="ec_cart_input_row">
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_info" class="wpeasycart_edit_shipping_address_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>" class="wpeasycart_edit_shipping_address_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_link' ); ?></a>
 	</div>
 	<?php }?>
 	
@@ -1208,7 +1209,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	</div>
 	<div class="ec_cart_input_row">
 		<?php $this->display_selected_shipping_method( ); ?>
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_shipping" class="wpeasycart_edit_shipping_method_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_shipping' ) ); ?>" class="wpeasycart_edit_shipping_method_link"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
 	</div>
 	<?php } // Close if for shipping ?>
 

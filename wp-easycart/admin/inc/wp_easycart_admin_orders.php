@@ -963,6 +963,37 @@ function ec_admin_ajax_update_order_quick_edit() {
 	echo json_encode( $response );
 	die();
 }
+
+add_action( 'wp_ajax_ec_admin_ajax_complete_order_duplicate', 'ec_admin_ajax_complete_order_duplicate' );
+function ec_admin_ajax_complete_order_duplicate() {
+	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-duplicate' ) ) {
+		return false;
+	}
+
+	global $wpdb;
+	$order_id = (int) $_POST['order_id'];
+	$orderstatus_id = (int) $_POST['orderstatus_id'];
+
+	$original_order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE order_id = %d', $order_id ), ARRAY_A );
+	$original_order_details = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d', $order_id ), ARRAY_A );
+	unset( $original_order['order_id'] );
+	$original_order['orderstatus_id'] = $orderstatus_id;
+	unset( $original_order['order_date'] );
+	$original_order = apply_filters( 'wp_easycart_admin_duplicate_order_original', $original_order );
+	$wpdb->insert( 'ec_order', $original_order );
+	$new_order_id = $wpdb->insert_id;
+	foreach ( $original_order_details as $original_order_detail ) {
+		unset( $original_order_detail['orderdetail_id'] );
+		$original_order_detail['order_id'] = $new_order_id;
+		$wpdb->insert( 'ec_orderdetail', $original_order_detail );
+	}
+	$response = (object) array(
+		'order_link' => 'admin.php?&page=wp-easycart-orders&subpage=orders&order_id=' . (int) $new_order_id . '&ec_admin_form_action=edit&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-action-edit' ) ),
+	);
+	echo json_encode( $response );
+	die();
+}
+
 add_action( 'wp_ajax_ec_admin_ajax_get_order_users', 'ec_admin_ajax_get_order_users' );
 function ec_admin_ajax_get_order_users() {
 	global $wpdb;
@@ -985,6 +1016,7 @@ function ec_admin_ajax_get_order_users() {
 	echo json_encode( $results );
 	die();
 }
+
 add_action( 'wp_ajax_ec_admin_ajax_update_order_user', 'ec_admin_ajax_update_order_user' );
 function ec_admin_ajax_update_order_user() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {

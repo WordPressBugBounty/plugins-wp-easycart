@@ -38,7 +38,7 @@
 		</div>
 
 		<div class="ec_cart_input_row">
-			<a href="<?php echo esc_attr( $this->account_page ); ?>?ec_page=forgot_password" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
+			<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
 		</div>
 
 		<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
@@ -545,7 +545,7 @@
 		<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 		</div>
-		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 
 	<?php }?>

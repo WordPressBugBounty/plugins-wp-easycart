@@ -600,7 +600,8 @@ class ec_stripe_connect extends ec_gateway {
 		$currency = get_option( 'ec_option_stripe_currency' );
 		$option = $GLOBALS['ec_options']->get_option( $option_item->option_id );
 		$optionitem_name = $option->option_label;
-		if ( 'swatch' == $option->option_type || 'combo' == $option->option_type || 'radio' == $option->option_type ) {
+		$name_types = array( 'basic-swatch', 'basic-combo', 'checkbox', 'combo', 'swatch', 'grid', 'radio' );
+		if ( in_array( $option->option_type, $name_types ) ) {
 			$optionitem_name = $option_item->optionitem_name;
 		}
 		$price = 0;
@@ -959,7 +960,9 @@ class ec_stripe_connect extends ec_gateway {
 		if( '' != $response ) {
 			$json = json_decode( $response );
 			if ( isset( $json->error ) && ( isset( $json->error->code ) && 'payment_intent_invalid_parameter' == $json->error->code ) || ( isset( $json->error->type ) && 'invalid_request_error' == $json->error->type ) ) {
-				$data['payment_method_types'] = array( 'card' );
+				if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
+					$data['payment_method_types'] = array( 'card' );
+				}
 				$response2 = $this->call_stripe( "https://api.stripe.com/v1/payment_intents", $data );
 				if( '' != $response2 ) {
 					return json_decode( $response2 );
@@ -983,7 +986,9 @@ class ec_stripe_connect extends ec_gateway {
 		if( '' != $response ) {
 			$json = json_decode( $response );
 			if ( isset( $json->error ) && ( isset( $json->error->code ) && 'payment_intent_invalid_parameter' == $json->error->code ) || ( isset( $json->error->type ) && 'invalid_request_error' == $json->error->type ) ) {
-				$data['payment_method_types'] = array( 'card' );
+				if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
+					$data['payment_method_types'] = array( 'card' );
+				}
 				$response2 = $this->call_stripe( "https://api.stripe.com/v1/payment_intents", $data );
 				if( '' != $response2 ) {
 					return json_decode( $response2 );
@@ -1064,9 +1069,8 @@ class ec_stripe_connect extends ec_gateway {
 	}
 
 	public function create_setup_intent( $customer_id = false ){
-		$payment_method_types = apply_filters( 'wp_easycart_stripe_payment_methods', array( 'card' ) );
 		$data = array(
-			"payment_method_types"		 => $payment_method_types,
+			'payment_method_types' => array( 'card' )
 		);
 		if( $customer_id ){
 			$data['customer'] = $customer_id;
@@ -1140,7 +1144,7 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$is_sandbox = get_option( 'ec_option_stripe_connect_use_sandbox' );
-		$api_key = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' );
+		$api_key = apply_filters( 'wp_easycart_stripe_connect_api_key', ( ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' ) ) );
 		$account_id = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_user_id' ) : get_option( 'ec_option_stripe_connect_production_user_id' );
 
 		$headr = array( 
@@ -1180,7 +1184,7 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$is_sandbox = get_option( 'ec_option_stripe_connect_use_sandbox' );
-		$api_key = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' );
+		$api_key = apply_filters( 'wp_easycart_stripe_connect_api_key', ( ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' ) ) );
 		$account_id = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_user_id' ) : get_option( 'ec_option_stripe_connect_production_user_id' );
 
 		$headr = array( 
@@ -1219,7 +1223,7 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$is_sandbox = get_option( 'ec_option_stripe_connect_use_sandbox' );
-		$api_key = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' );
+		$api_key = apply_filters( 'wp_easycart_stripe_connect_api_key', ( ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_access_token' ) : get_option( 'ec_option_stripe_connect_production_access_token' ) ) );
 		$account_id = ( $is_sandbox ) ? get_option( 'ec_option_stripe_connect_sandbox_user_id' ) : get_option( 'ec_option_stripe_connect_production_user_id' );
 
 		$headr = array( 
@@ -1857,12 +1861,13 @@ class ec_stripe_connect extends ec_gateway {
 		$min_purchase = 5000;
 		$min_afterpay = 100;
 		$subtotal_amount = number_format( $order_totals->sub_total * 100, 0, "", "" );
+		$grand_total_amount = number_format( $order_totals->grand_total * 100, 0, "", "" );
 		if ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) >= 50 ) {
 			$min_purchase = $min_afterpay = (int) get_option( 'ec_option_stripe_pay_later_minimum' ) * 100;
 		}
 		foreach ( $payment_method_types_list as $payment_method_item ) {
 			if ( in_array( $payment_method_item, array( 'klarna', 'affirm' ) ) ) {
-				if ( $subtotal_amount >= $min_purchase ) {
+				if ( $grand_total_amount >= $min_purchase ) {
 					$payment_method_types[] = $payment_method_item;
 				}
 
@@ -1878,8 +1883,10 @@ class ec_stripe_connect extends ec_gateway {
 		$data = array( 
 			"amount" 					=> $amount,
 			"currency" 					=> $currency,
-			"payment_method_types"		=> $payment_method_types,
 		);
+		if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
+			$data['payment_method_types'] = $payment_method_types;
+		}
 
 		if( $application_fee > 0 )
 			$data["application_fee_amount"] = $application_fee;
@@ -1958,4 +1965,18 @@ function wpeasycart_stripe_connect_update_intent( ){
 			wp_cache_flush();
 		}
 	}
+}
+
+add_filter( 'wp_easycart_is_stripe_sandbox', 'wp_easycart_filter_stripe_is_sandbox' );
+function wp_easycart_filter_stripe_is_sandbox( $is_sandbox ) {
+	if ( get_option( 'ec_option_stripe_connect_use_sandbox' ) ) {
+		return true;
+	}
+	if ( wp_doing_ajax() && $GLOBALS['ec_user']->user_id && isset( $GLOBALS['ec_user']->is_stripe_test_user ) && $GLOBALS['ec_user']->is_stripe_test_user ) {
+		return true;
+	}
+	if ( ! is_admin() && $GLOBALS['ec_user']->user_id && isset( $GLOBALS['ec_user']->is_stripe_test_user ) && $GLOBALS['ec_user']->is_stripe_test_user ) {
+		return true;
+	}
+	return $is_sandbox;
 }

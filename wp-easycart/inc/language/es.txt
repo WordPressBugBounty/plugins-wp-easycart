@@ -1072,6 +1072,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"El cupón no se aplica a los artículos en su carrito"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Este cupón solo se puede utilizar para tu primer pedido."
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Aplicar"
@@ -3218,6 +3222,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Tu pedido ha sido recibido y podrás recogerlo a las [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"No se encontró ningún pedido válido con esa identificación y su dirección de correo electrónico."
 				}
 			}
 		},
@@ -3287,6 +3295,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"¡Hemos recibido el pago de tu pedido!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"¡Tu pedido se ha vinculado correctamente a tu cuenta!"
 				}
 			}
 		},

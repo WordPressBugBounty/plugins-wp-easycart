@@ -27,7 +27,7 @@
 						echo ' x ';
 						echo '<span id="ec_cartitem_items_' . esc_attr( $cart->cart[$i]->cartitem_id ) . '">' . esc_attr( $cart->cart[$i]->quantity ) . '</span>';
 						echo ' @ ';
-						echo '<span id="ec_cartitem_unit_price_' . esc_attr( $cart->cart[$i]->cartitem_id ) . '">' . esc_attr( $cart->cart[$i]->get_unit_price() ) . '</span>';
+						echo '<span id="ec_cartitem_unit_price_' . esc_attr( $cart->cart[$i]->cartitem_id ) . '">' . wp_easycart_escape_html( $cart->cart[$i]->get_unit_price() ) . '</span>';
 						echo '</div>';
 
 					}?>

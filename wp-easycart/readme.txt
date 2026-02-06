@@ -1,8 +1,8 @@
 ===Shopping Cart & eCommerce Store===
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
-Tested up to: 6.8
-Stable tag: 5.8.10
+Tested up to: 6.9
+Stable tag: 5.8.13
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,33 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.13 =
+* New Feature - Option to show line item discounts for coupons in the cart, order details, and print receipt.
+* New Feature - System passing line item discounts through to the order (future orders only).
+* New Feature - Option to show coupon code message on receipt and order details instead of coupon code.
+* New Feature - Coupon code message stored to the order (future orders only).
+* Bug Fix - USPS V3 fix for some rates not returning.
+* Bug Fix - Modifier issue when adding to cart fixed.
+* Bug Fix - CSV product export fixed for those that have data errors in their modifiers system.
+= 5.8.12 =
+* New Feature - USPS V3 now available, toggle it on in your shipping settings.
+* New Feature - If you are connected to Stripe sandbox and live site, you may enable an EasyCart user as a test user. Test users can checkout through the sandbox for testing while your store is live.
+* Improvement - UPS now using updated oAuth API version, which means almost no disconnects moving forward.
+* Improvement - Cart session does not start until something is added to the cart to prevent caching issues.
+* Improvement - AJAX calls now specifically state top not cache in hopes some server setups do not cache the responses.
+* Improvement - The order stores a converted cart ID, which can be used in tracking conversions more easily for third party integrations.
+= 5.8.11 =
+* New Feature - Choose coupons to apply to the first order only.
+* New Feature - Enable and connect direct Google Tags integration.
+* New Feature - Allow a specific user to enter a different billing from shipping address to override global option.
+* New Feature - You may now dupicate an order from the admin.
+* New Feature - New Elementor element for cart icon display (typically used in custom menus).
+* New Feature - New shortcode for cart icon display: [ec_cart_icon]
+* Bug Fix - Advanced swatches, checkboxes, and radio selects (with price changes) display fixed for Elementor product templates.
+* Bug Fix - Square coupon fix to prevent order insert errors to Square display.
+* Bug Fix - Canada Tax for Quebec calculation fixed.
+* Bug Fix - Added US military APO states.
+* Bug Fix - BOGO coupon calculation for order display.
 = 5.8.10 =
 * Bug Fix - 5.8.10: Same issue for email receipts fixed where the new signature feature was added in 5.8.8.
 * Bug Fix - 5.8.9: Some versions of php had an email receipt error and has been resolved.

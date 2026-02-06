@@ -66,8 +66,8 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"charset\" id=\"charset\" type=\"hidden\" value=\"" . esc_attr( $paypal_charset ) . "\" />";
 		echo "<input name=\"rm\" id=\"rm\" type=\"hidden\" value=\"2\" />";
 		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
-		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $this->order_id ) . "\" />";
-		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_payment\" />";
+		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 
 		//customer billing information and address info
 		if( get_option( 'ec_option_paypal_send_shipping_address' ) ){
@@ -283,8 +283,8 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"charset\" id=\"charset\" type=\"hidden\" value=\"" . esc_attr( $paypal_charset ) . "\" />";
 		echo "<input name=\"rm\" id=\"rm\" type=\"hidden\" value=\"2\" />";
 		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
-		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $this->order_id ) . "\" />";
-		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_payment\" />";
+		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 
 		//customer billing information and address info
 		if( get_option( 'ec_option_paypal_send_shipping_address' ) ){
@@ -464,8 +464,8 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"currency_code\" id=\"currency_code\" type=\"hidden\" value=\"" . esc_attr( strtoupper( $paypal_currency_code ) ) . "\" />";
 		echo "<input name=\"lc\" id=\"lc\" type=\"hidden\" value=\"" . esc_attr( $paypal_lc ) . "\" />";
 		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
-		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $this->order_id ) . "\" />";
-		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_payment\" />";
+		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
+		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"cmd\" value=\"_xclick-subscriptions\" />";
 
 		//customer billing information and address info
@@ -1601,7 +1601,7 @@ class ec_paypal extends ec_third_party{
 			$order_id = $cartpage->submit_paypal_order( $order_status );
 			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET gateway_transaction_id = %s, order_gateway = 'paypal-express' WHERE order_id = %d", $payment_id, $order_id ) );
 
-			return $cartpage->cart_page . $cartpage->permalink_divider . "ec_page=checkout_success&order_id=" . $order_id;
+			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id ) ) );
 		} else {
 			return false;
 		}
@@ -1908,7 +1908,7 @@ function wpeasycart_complete_paypal( ){
 		}
 
 		// Redirect either way. Third party pending when not able to verify payment.
-		wp_redirect( $cart_page . $permalink_divider . "ec_page=checkout_success&order_id=" . $order_id );
+		wp_redirect( esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id ) ) ) );
 		die( );
 	}
 }
@@ -1985,18 +1985,12 @@ function wpeasycart_paypal_express_authorized( ){
 		$db = new ec_db( );
 
 		// Setup Linking Info
-		$cart_page_id = get_option( 'ec_option_cartpage' );
-		if( function_exists( 'icl_object_id' ) ){
-			$cart_page_id = icl_object_id( $cart_page_id, 'page', true, ICL_LANGUAGE_CODE );
+		$cart_page = wpeasycart_links()->get_cart_page();
+		if ( substr_count( $cart_page, '?' ) ) {
+			$permalink_divider = "&";
+		} else {
+			$permalink_divider = "?";
 		}
-		$cart_page = get_permalink( $cart_page_id );
-		if( class_exists( "WordPressHTTPS" ) && isset( $_SERVER['HTTPS'] ) ){
-			$https_class = new WordPressHTTPS( );
-			$cart_page = $https_class->makeUrlHttps( $cart_page );
-		}
-
-		if( substr_count( $cart_page, '?' ) )						$permalink_divider = "&";
-		else														$permalink_divider = "?";
 
 		// Verify the payment is Legit
 		if( apply_filters( 'wp_easycart_allow_paypal_express', false ) && isset( $_GET['paymentID'] ) && $_GET['paymentID'] != 'undefined' ){

@@ -65,7 +65,7 @@
 		</div>
 
 		<div class="ec_cart_button_row">
-			<a href="<?php echo esc_attr( $this->account_page ); ?>?ec_page=register" class="ec_account_login_create_account_button"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_new_user_button' ); ?></a>
+			<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'register' ) ); ?>" class="ec_account_login_create_account_button"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_new_user_button' ); ?></a>
 		</div>
 	</div>
 	<?php }?>

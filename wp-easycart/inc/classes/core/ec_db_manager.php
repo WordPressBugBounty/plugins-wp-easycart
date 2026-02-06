@@ -251,6 +251,15 @@ class ec_db_manager {
 			'5.8.2' => array(
 				'wpeasycart_sql_5_8_2'
 			),
+			'5.8.11' => array(
+				'wpeasycart_sql_5_8_11'
+			),
+			'5.8.12' => array(
+				'wpeasycart_sql_5_8_12'
+			),
+			'5.8.13' => array(
+				'wpeasycart_sql_5_8_13'
+			),
 		);
 
 		$return_functions = array();
@@ -744,6 +753,28 @@ class ec_db_manager {
 		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_location int(11) NOT NULL DEFAULT 0" );
 		$wpdb->query( "ALTER TABLE ec_location ADD COLUMN hours_note text NOT NULL DEFAULT ''" );
 	}
+
+	private function wpeasycart_sql_5_8_11() {
+		global $wpdb;
+		$wpdb->query( 'ALTER TABLE ec_promocode ADD COLUMN first_order_only tinyint(1) NOT NULL DEFAULT 0' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN allow_shipping_bypass tinyint(1) NOT NULL DEFAULT 0' );
+	}
+
+	private function wpeasycart_sql_5_8_12() {
+		global $wpdb;
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN converted_cart_id varchar(100) NOT NULL DEFAULT ''" );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN is_stripe_test_user tinyint(1) NOT NULL DEFAULT 0' );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_product_id_sandbox varchar(255) DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_default_price_id_sandbox varchar(255) DEFAULT ''" );
+	}
+
+	private function wpeasycart_sql_5_8_13() {
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
+	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
 	private function get_uninstall_tables( ){
@@ -1197,6 +1228,7 @@ CREATE TABLE ec_order (
   grand_total float(15,3) NOT NULL DEFAULT '0.000',
   refund_total float(15,3) NOT NULL DEFAULT '0.000',
   promo_code varchar(255) NOT NULL DEFAULT '',
+  promo_code_message varchar(1024) NOT NULL DEFAULT '',
   giftcard_id varchar(20) NOT NULL DEFAULT '',
   use_expedited_shipping tinyint(1) NOT NULL DEFAULT '0',
   shipping_method varchar(255) NOT NULL DEFAULT '',
@@ -1259,6 +1291,7 @@ CREATE TABLE ec_order (
   pickup_asap tinyint(1) NOT NULL DEFAULT 1,
   pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   location_id int(11) NOT NULL DEFAULT 0,
+  converted_cart_id varchar(100) NOT NULL DEFAULT '',
   PRIMARY KEY  (order_id),
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
@@ -1331,7 +1364,11 @@ CREATE TABLE ec_orderdetail (
   model_number varchar(255) NOT NULL,
   order_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   unit_price float(15,3) NOT NULL DEFAULT '0.000',
+  unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
+  unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
   total_price float(15,3) NOT NULL DEFAULT '0.000',
+  total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
+  total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
   quantity int(11) NOT NULL DEFAULT '0',
   image1 text NOT NULL,
   optionitem_id_1 int(11) NOT NULL DEFAULT '0',
@@ -1572,7 +1609,9 @@ CREATE TABLE ec_product (
   replace_price_label int(11) NOT NULL DEFAULT 0,
   custom_price_label varchar(512) NOT NULL DEFAULT '',
   stripe_product_id varchar(255) DEFAULT '',
+  stripe_product_id_sandbox varchar(255) DEFAULT '',
   stripe_default_price_id varchar(255) DEFAULT '',
+  stripe_default_price_id_sandbox varchar(255) DEFAULT '',
   is_preorder_type tinyint(1) NOT NULL DEFAULT 0,
   is_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
   pickup_locations text NULL,
@@ -1637,6 +1676,7 @@ CREATE TABLE ec_promocode (
   duration_in_months int(11) NOT NULL DEFAULT '1',
   minimum_required int(11) NOT NULL DEFAULT '0',
   apply_to_shipping tinyint(1) NOT NULL DEFAULT '0',
+  first_order_only tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY  (promocode_id),
   KEY promo_manufacturer_id (manufacturer_id),
   KEY promo_product_id (product_id)
@@ -2095,6 +2135,8 @@ CREATE TABLE ec_user (
   user_notes text,
   vat_registration_number varchar(255) NOT NULL DEFAULT '',
   email_other varchar(255) NOT NULL DEFAULT '',
+  allow_shipping_bypass tinyint(1) NOT NULL DEFAULT 0,
+  is_stripe_test_user tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY  (user_id),
   UNIQUE KEY user_user_id (user_id),
   UNIQUE KEY user_email (email($max_index_length)),
@@ -10234,6 +10276,42 @@ CREATE TABLE ec_zone_to_location (
 				"code_sta" => "T",
 				"name_sta" => "Tucumán",
 				"sort_order" => "366",
+				"group_sta" => ""
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_state",
+			array(
+				"id_sta" => "337",
+				"idcnt_sta" => "223",
+				"code_sta" => "AA",
+				"name_sta" => "Armed Forces of the Americas ",
+				"sort_order" => "63",
+				"group_sta" => ""
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_state",
+			array(
+				"id_sta" => "338",
+				"idcnt_sta" => "223",
+				"code_sta" => "AE",
+				"name_sta" => "Armed Forces of Europe",
+				"sort_order" => "64",
+				"group_sta" => ""
+			)
+		);
+
+		$wpdb->insert( 
+			"ec_state",
+			array(
+				"id_sta" => "339",
+				"idcnt_sta" => "223",
+				"code_sta" => "AP",
+				"name_sta" => "Armed Forces of the Pacific",
+				"sort_order" => "65",
 				"group_sta" => ""
 			)
 		);

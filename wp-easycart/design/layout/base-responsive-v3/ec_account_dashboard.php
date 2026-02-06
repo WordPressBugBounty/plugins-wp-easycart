@@ -79,7 +79,7 @@
 			</div>
 			<div class="ec_account_order_header_column_left ec_account_order_header_column_left_div4">
 				<span><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_order_label' )?> <?php echo esc_attr( $order->order_id ); ?></span>
-				<div><a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=order_details&order_id=<?php echo esc_attr( $order->order_id ); ?>"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' )?></a> | <a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=print_receipt&order_id=<?php echo esc_attr( $order->order_id ); ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' )?></a></div>
+				<div><a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order->order_id ) ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' )?></a> | <a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $order->order_id ) ) ); ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' )?></a></div>
 			</div>
 		</div>
 
@@ -217,7 +217,7 @@
 		?>
 		<div class="ec_account_download_line">
 			<div class="ec_account_download_line_title">
-				<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=order_details&amp;order_id=" . esc_attr( $download->order_id ) . "&amp;orderdetail_id=" . esc_attr( $download->orderdetail_id ) . "&amp;download_id=" . esc_attr( $download->download_id ); ?>" target="_blank" onclick="update_download_count( '<?php echo esc_attr( $order_item->orderdetail_id ); ?>' );"><?php echo esc_attr( $download->title ); ?></a>
+				<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $download->order_id, 'orderdetail_id' => (int) $download->orderdetail_id, 'download_id' => esc_attr( $download->download_id ) ) ) ); ?>" target="_blank" onclick="update_download_count( '<?php echo esc_attr( $order_item->orderdetail_id ); ?>' );"><?php echo esc_attr( $download->title ); ?></a>
 			</div>
 			<?php if( isset( $download->maximum_downloads_allowed ) && $download->maximum_downloads_allowed > 0 ){ ?>
 			<div class="ec_account_download_line_limit">

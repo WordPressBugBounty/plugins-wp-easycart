@@ -108,7 +108,13 @@ class ec_cart{
 		//If a promotion happened, need to recalculate subtotal!
 		$this->update_cart_totals( );
 	}
-	
+
+	public function apply_coupons_to_cart( $discount ) {
+		for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+			$this->cart[ $i ]->apply_coupon_to_cartitem( $discount );
+		}
+	}
+
 	public function update_cart_totals() {
 		$this->subtotal = 0;
 		$this->shipping_subtotal = 0;

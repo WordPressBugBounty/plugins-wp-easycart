@@ -115,7 +115,7 @@
 				<?php }?>
 			</td>
 			</td>
-			<td class="ec_cartitem_price" id="ec_cartitem_price_<?php echo esc_attr( $cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $cart->cart[$cartitem_index]->get_unit_price( ) ); ?></td>
+			<td class="ec_cartitem_price" id="ec_cartitem_price_<?php echo esc_attr( $cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cart->cart[$cartitem_index]->get_unit_price( ) ); ?></td>
 			<td class="ec_cartitem_quantity">
 				<?php if( $cart->cart[$cartitem_index]->grid_quantity > 0 ){ ?>
 					<?php echo esc_attr( $cart->cart[$cartitem_index]->grid_quantity ); ?>
@@ -138,7 +138,7 @@
 				</table>
 				<?php }?>
 			</td>
-			<td class="ec_cartitem_total" id="ec_cartitem_total_<?php echo esc_attr( $cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $cart->cart[$cartitem_index]->get_total( ) ); ?></td>
+			<td class="ec_cartitem_total" id="ec_cartitem_total_<?php echo esc_attr( $cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cart->cart[$cartitem_index]->get_total( ) ); ?></td>
 		</tr>
 		<?php }?>
 	</tbody>

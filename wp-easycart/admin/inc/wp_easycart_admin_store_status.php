@@ -20,8 +20,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		}
 
 		public function __construct() { 
-			$this->store_status_file			= EC_PLUGIN_DIRECTORY . '/admin/template/status/store-status/store-status.php';		
-			$this->settings 					= EC_PLUGIN_DIRECTORY . '/admin/template/status/store-status/settings.php';
+			$this->store_status_file = EC_PLUGIN_DIRECTORY . '/admin/template/status/store-status/store-status.php';
+			$this->settings = EC_PLUGIN_DIRECTORY . '/admin/template/status/store-status/settings.php';
 
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_action( 'wpeasycart_admin_store_status', array( $this, 'load_store_status' ) );
@@ -777,10 +777,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$setting_row = $db->get_settings();
 			$settings = new ec_setting( $setting_row );
 
-			if ( ( get_option( 'ec_option_ups_use_oauth' ) && get_option( 'ec_option_ups_token_info' ) ) || ( ! get_option( 'ec_option_ups_use_oauth' ) && $setting_row->ups_access_license_number && $setting_row->ups_user_id && $setting_row->ups_password && $setting_row->ups_ship_from_zip && $setting_row->ups_shipper_number && $setting_row->ups_country_code && $setting_row->ups_weight_type ) ) {
+			if ( get_option( 'ec_option_ups_use_oauth' ) && get_option( 'ec_option_ups_token_info' ) ) {
 				$ups_has_settings = true;
-
-				// Run test of the settings
 				$ups_class = new ec_ups( $settings );
 				$ups_response = $ups_class->get_rate_test(
 					"01",
@@ -800,30 +798,12 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 						)
 					)
 				);
-				if ( get_option( 'ec_option_ups_use_oauth' ) ) {
-					if ( isset( $ups_response->RateResponse ) && isset( $ups_response->RateResponse->Response ) && isset( $ups_response->RateResponse->Response->ResponseStatus ) && isset( $ups_response->RateResponse->Response->ResponseStatus->Code ) && '1' == $ups_response->RateResponse->Response->ResponseStatus->Code ) {
-						$ups_setup = true;
-					} else {
-						$ups_error_reason = esc_attr__( 'UPS is not connected properly. Check your WP EasyCart UPS setup.', 'wp-easycart' );
-					}
+				if ( isset( $ups_response->RateResponse ) && isset( $ups_response->RateResponse->Response ) && isset( $ups_response->RateResponse->Response->ResponseStatus ) && isset( $ups_response->RateResponse->Response->ResponseStatus->Code ) && '1' == $ups_response->RateResponse->Response->ResponseStatus->Code ) {
+					$ups_setup = true;
 				} else {
-					$ups_response = preg_replace("/(<\/?)(\w+):([^>]*>)/", "$1$2$3", $ups_response );
-					try {
-						$ups_xml = new SimpleXMLElement($ups_response);
-						$body = $ups_xml->xpath('//soapenvBody');
-						$body = $body[0];
-
-						if ( !isset( $body->soapenvFault ) && $body->rateRateResponse->commonResponse->commonResponseStatus->commonCode == "1" ) {
-							$ups_setup = true;
-						} else {
-							$ups_error_reason = $body->soapenvFault->detail->errErrors->errErrorDetail->errPrimaryErrorCode->errDescription;
-						}
-					} catch( Exception $e ) {
-						$ups_error_reason = esc_attr__( 'UPS XML has occurred. Check your WP EasyCart UPS setup.', 'wp-easycart' );
-					}
+					$ups_error_reason = esc_attr__( 'UPS is not connected properly. Check your WP EasyCart UPS setup.', 'wp-easycart' );
 				}
 			}
-
 			return ( $ups_has_settings && $ups_setup );
 		}
 
@@ -844,14 +824,38 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$usps_has_settings = false;
 			$usps_setup = false;
 			$usps_error_reason = 0;
-
 			$db = new ec_db_admin();
 			$setting_row = $db->get_settings();
 			$settings = new ec_setting( $setting_row );
-
-			if ( $setting_row->usps_user_name && $setting_row->usps_ship_from_zip ) {
+			if ( ! get_option( 'ec_option_usps_v3_custom_old' ) && get_option( 'ec_option_usps_v3_enable' ) && class_exists( 'ec_usps_v3' ) ) {
+				if ( ! get_option( 'ec_option_usps_v3_custom' ) || ( '' != get_option( 'ec_option_usps_v3_client_id' ) && '' != get_option( 'ec_option_usps_v3_client_secret' ) ) ) {
+					$usps_has_settings = true;
+					$usps_class = new ec_usps_v3( $settings );
+					$usps_response = $usps_class->get_rate_test(
+						"PRIORITY",
+						$setting_row->usps_ship_from_zip,
+						"US", "1", 0, 0, 0, 0,
+						array(
+							(object) array(
+								'quantity' => 1,
+								'weight' => 1,
+								'width' => 1,
+								'length' => 1,
+								'height' => 1,
+								'is_shippable' => 1,
+								'exclude_shippable_calculation' => 0,
+								'unit_price' => 1,
+							)
+						)
+					);
+					if ( $usps_response ) {
+						$usps_setup = true;
+					} else {
+						$usps_error_reason = 3;
+					}
+				}
+			} else if ( $setting_row->usps_user_name && $setting_row->usps_ship_from_zip ) {
 				$usps_has_settings = true;
-				// Run test of the settings
 				$usps_class = new ec_usps( $settings );
 				$usps_response = $usps_class->get_rate_test(
 					"PRIORITY",
@@ -885,7 +889,6 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					// Ignore errors
 				}
 			}
-
 			return ( $usps_has_settings && $usps_setup );
 		}
 
@@ -919,23 +922,6 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					$fedex_error_reason ='error';
 				} else {
 					$fedex_setup = true;
-				}
-			} else if ( $setting_row->fedex_key && $setting_row->fedex_account_number && $setting_row->fedex_meter_number && $setting_row->fedex_password && $setting_row->fedex_ship_from_zip && $setting_row->fedex_weight_units && $setting_row->fedex_country_code ) {
-				$fedex_has_settings = true;
-				if ( $setting_row->fedex_weight_units != "LB" && $setting_row->fedex_weight_units != "KG" ) {
-					$fedex_error_reason = 2;
-				} else {
-					$fedex_class = new ec_fedex( $settings );
-					$fedex_response = $fedex_class->get_rate_test( "FEDEX_GROUND", $setting_row->fedex_ship_from_zip, $setting_row->fedex_country_code, "1", 10, 10, 10, 10, array( (object) array( 'quantity' => 1, 'weight' => 1, 'width' => 10, 'length' => 10, 'height' => 10, 'is_shippable' => 1, 'exclude_shippable_calculation' => 0, 'unit_price' => 1.00 ) ) );
-					if ( isset( $fedex_response->HighestSeverity ) && ( $fedex_response->HighestSeverity == 'FAILURE' || $fedex_response->HighestSeverity == 'ERROR' ) ) {
-						if ( isset( $fedex_response->Notifications->Code ) ) {
-							$fedex_error_reason = $fedex_response->Notifications->Code;
-						} else {
-							$fedex_error_reason = $fedex_response->Notifications[0]->Code;
-						}
-					} else {
-						$fedex_setup = true;
-					}
 				}
 			}
 			return ( $fedex_has_settings && $fedex_setup );

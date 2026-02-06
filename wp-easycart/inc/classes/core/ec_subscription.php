@@ -98,15 +98,13 @@ class ec_subscription{
 	}
 
 	public function display_subscription_link( $text ){
-
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=subscription_details&subscription_id=" . esc_attr( $this->subscription_id ) . "\">" . esc_attr( $text ) . "</a>";
-
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $this->subscription_id ) ) ) . "\">" . esc_attr( $text ) . "</a>";
 	}
 
 	public function has_membership_page( ){
-		if( $this->membership_page != "" ){
+		if ( '' != $this->membership_page ) {
 			return true;
-		}else{
+		} else {
 			return false;
 		}
 	}
@@ -347,21 +345,17 @@ class ec_subscription{
 
 		}else{
 			do_action( 'wpeasycart_custom_subscription_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $user->email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "subscription_ended", "subscription_ended_email_title" ), $message );
-
 		}
-
 	}
 
-	public function get_subscription_purchase_link( ){
+	public function get_subscription_purchase_link() {
 		global $wpdb;
 		$model_number = $wpdb->get_var( $wpdb->prepare( "SELECT ec_product.model_number FROM ec_product WHERE ec_product.product_id = %d", $this->product_id ) );
-		return $this->cart_page . $this->permalink_divider . "ec_page=subscription_info&subscription=" . $model_number;
+		return esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $model_number ) ) ) );
 	}
 
 	public function print_receipt( $order, $order_details ){
-
 		$email_logo_url = get_option( 'ec_option_email_logo' );
-
 		$storepageid = get_option('ec_option_storepage');
 		if ( function_exists( 'icl_object_id' ) ) {
 			$storepageid = icl_object_id( $storepageid, 'page', true, ICL_LANGUAGE_CODE );
@@ -437,13 +431,13 @@ class ec_subscription{
 
 		if( $this->past_payments ){
 			foreach( $this->past_payments as $payment ){
-				echo '<div class="ec_account_subscriptions_past_payment_item">' . esc_attr( date( $date_format, strtotime( $payment->order_date ) ) ) . " | " . esc_attr( $GLOBALS['currency']->get_currency_display( $payment->grand_total ) ) . " | <a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=order_details&order_id=" . esc_attr( $payment->order_id ) . "\">" . wp_easycart_language( )->get_text( 'account_orders', 'account_orders_view_order_button' ) . "</a></div>";
+				echo '<div class="ec_account_subscriptions_past_payment_item">' . esc_attr( date( $date_format, strtotime( $payment->order_date ) ) ) . " | " . esc_attr( $GLOBALS['currency']->get_currency_display( $payment->grand_total ) ) . " | <a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $payment->order_id ) ) ) . "\">" . wp_easycart_language( )->get_text( 'account_orders', 'account_orders_view_order_button' ) . "</a></div>";
 			}
 		}
 	}
 
 	public function display_cancel_form( $button_text, $confirm_text ){
-		echo "<form method=\"POST\" action=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=subscriptions\">";
+		echo "<form method=\"POST\" action=\"" . esc_url( wpeasycart_links()->get_account_page( 'subscriptions' ) ) . "\">";
 		echo "<input type=\"hidden\" name=\"ec_account_subscription_id\" value=\"" . esc_attr( $this->subscription_id ) . "\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" value=\"cancel_subscription\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-cancel-subscription-' . (int) $this->subscription_id ) ) . "\" />";

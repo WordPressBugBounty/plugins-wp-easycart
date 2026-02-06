@@ -30,6 +30,8 @@
 
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_show_coupons', 'ec_admin_save_cart_settings_options', get_option( 'ec_option_show_coupons' ), __( 'Coupons', 'wp-easycart' ), __( 'Enabling this adds a coupon entry box to the first page of the cart.', 'wp-easycart' ) ); ?>
 
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_show_coupon_message', 'ec_admin_save_cart_settings_options', get_option( 'ec_option_show_coupon_message' ), __( 'Coupon Display: Message', 'wp-easycart' ), __( 'Enabling this replaces the coupon code with coupon message post checkout.', 'wp-easycart' ) ); ?>
+
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_enable_tips', 'wpeasycart_admin_update_tips_view( ); ec_admin_save_cart_settings_options', get_option( 'ec_option_enable_tips' ), __( 'Enable Tips / Gratuity', 'wp-easycart' ), __( 'This allows customers to add a tip or gratuity during checkout, edit text in the language editor.', 'wp-easycart' ) ); ?>
 
 		<?php wp_easycart_admin( )->load_toggle_group_text( 'ec_option_default_tips', 'ec_admin_save_checkout_text_setting', get_option( 'ec_option_default_tips' ), __( 'Default Tip Values', 'wp-easycart' ), __( 'Enter a comma separated list, e.g. &quot;15,20,25&quot;.', 'wp-easycart' ), '10,15,20,25', 'ec_admin_tips_row', ( ( get_option( 'ec_option_enable_tips' ) == "1" ) ? true : false ), false ); ?>  

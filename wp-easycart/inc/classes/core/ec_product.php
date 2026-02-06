@@ -331,6 +331,7 @@ class ec_product {
 		$this->deconetwork_color_id = $product_data['deconetwork_color_id'];
 		$this->deconetwork_design_id = $product_data['deconetwork_design_id'];
 
+		$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
 		$this->subscription_bill_length = $product_data['subscription_bill_length'];
 		$this->subscription_bill_period = $product_data['subscription_bill_period'];
 		$this->subscription_bill_duration = $product_data['subscription_bill_duration'];
@@ -342,8 +343,8 @@ class ec_product {
 		$this->subscription_unique_id = $product_data['subscription_unique_id'];
 		$this->subscription_prorate = $product_data['subscription_prorate'];
 		$this->allow_multiple_subscription_purchases = $product_data['allow_multiple_subscription_purchases'];
-		$this->stripe_product_id = $product_data['stripe_product_id'];
-		$this->stripe_default_price_id = $product_data['stripe_default_price_id'];
+		$this->stripe_product_id = ( ! $is_sandbox ) ? $product_data['stripe_product_id'] : $product_data['stripe_product_id_sandbox'];
+		$this->stripe_default_price_id = ( ! $is_sandbox ) ? $product_data['stripe_default_price_id'] : $product_data['stripe_default_price_id_sandbox'];
 		$this->pickup_locations = $product_data['pickup_locations'];
 
 		$this->rating = new ec_rating( $product_data['review_data'] );
@@ -2139,11 +2140,11 @@ class ec_product {
 	}
 
 	public function get_add_to_cart_link( ){
-		return $this->cart_page . $this->permalink_divider . "ec_action=addtocart&model_number=" . $this->model_number;
+		return esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'ec_action' => 'addtocart', 'model_number' => esc_attr( $this->model_number ) ) ) );
 	}
 
 	public function get_subscription_link( ){
-		return $this->cart_page . $this->permalink_divider . "ec_page=subscription_info&subscription=" . $this->model_number;
+		return esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $this->model_number ) ) ) );
 	}
 
 	public function get_advanced_optionitems( $option_id ){

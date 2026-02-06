@@ -26,7 +26,7 @@
 				<td colspan='4' align='left' class='style22'>    
 					<p><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_invoice_line_1" ); ?></p>
 					<p>
-						<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=invoice&order_id=<?php echo esc_attr( $this->order_id ); ?><?php if( $this->guest_key != "" ){ ?>&ec_guest_key=<?php echo esc_attr( $this->guest_key ); } ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_click_here" ); ?> <?php echo wp_easycart_language( )->get_text( "cart_success", "cart_invoice_pay_online" ); ?></a>
+						<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'invoice', array( 'order_id' => (int) $this->order_id, 'ec_guest_key' => ( ( '' != $this->guest_key ) ? $this->guest_key : null ) ) ) ); ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( "cart_success", "cart_payment_complete_click_here" ); ?> <?php echo wp_easycart_language( )->get_text( "cart_success", "cart_invoice_pay_online" ); ?></a>
 					</p>
 				</td>
 			</tr>
@@ -190,7 +190,7 @@
 												echo '<a href="' . esc_url( get_site_url() . '?wpeasycarthook=print-giftcard&order_id=' . $this->order_id . '&orderdetail_id=' . $this->cart->cart[$i]->orderdetail_id . '&giftcard_id=' . $this->giftcard_id . ( ( $this->guest_key != '' ) ? '&ec_guest_key=' . $this->guest_key : '' ) ) . '" target="_blank">' . wp_easycart_language( )->get_text( "account_order_details", "account_orders_details_print_online" ) . '</a>';
 
 											}else if( $this->cart->cart[$i]->is_download ){
-												echo "<a href=\"" . esc_url( $account_page . $permalink_divider . "ec_page=order_details&order_id=" . $this->order_id ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_download' ) . "</a>";
+												echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\" target=\"_blank\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_download' ) . "</a>";
 
 											}
 										?>

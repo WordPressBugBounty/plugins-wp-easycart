@@ -18,6 +18,7 @@ function wp_easycart_init_location_buttons() {
 				url: wpeasycart_ajax_object.ajax_url,
 				type: 'post',
 				data: data,
+				cache: false,
 				success: function( response ){
 					jQuery( '.wpeasycart-location-list-loader' ).hide();
 					if ( response.data.locations ) {
@@ -41,6 +42,7 @@ function wp_easycart_init_location_buttons() {
 				url: wpeasycart_ajax_object.ajax_url,
 				type: 'post',
 				data: data,
+				cache: false,
 				success: function( response ){
 					location.reload();
 				}
@@ -67,7 +69,7 @@ jQuery( document ).ready( function( ){
 		wpeasycart_load_cart( jQuery( '#wpeasycart_cart_holder' ).data( 'cart-page' ), jQuery( '#wpeasycart_cart_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_cart_holder' ).data( 'language' ), jQuery( '#wpeasycart_cart_holder' ).data( 'nonce' ) )
 	}
 	if ( jQuery( '#wpeasycart_account_holder' ).length ) {
-		wpeasycart_load_account( jQuery( '#wpeasycart_account_holder' ).data( 'account-page' ), jQuery( '#wpeasycart_account_holder' ).data( 'page-id' ), jQuery( '#wpeasycart_account_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'language' ), jQuery( '#wpeasycart_account_holder' ).data( 'nonce' ) )
+		wpeasycart_load_account( jQuery( '#wpeasycart_account_holder' ).data( 'account-page' ), jQuery( '#wpeasycart_account_holder' ).data( 'page-id' ), jQuery( '#wpeasycart_account_holder' ).data( 'success-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'error-code' ), jQuery( '#wpeasycart_account_holder' ).data( 'language' ), jQuery( '#wpeasycart_account_holder' ).data( 'nonce' ), jQuery( '#wpeasycart_account_holder' ).data( 'form-only' ) )
 	}
 	if ( jQuery( '.ec_product_quickview_container' ).length ) {
 		jQuery( '.ec_product_quickview_container' ).each( function() {
@@ -140,9 +142,31 @@ jQuery( document ).ready( function( ){
 			language: wpeasycart_ajax_object.current_language,
 			nonce: jQuery( '.ec_menu_mini_cart' ).attr( 'data-nonce' )
 		};
-		jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( '.ec_menu_mini_cart' ).html( data );
-		} } );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.ec_menu_mini_cart' ).html( data );
+			}
+		} );
+	}
+	if ( jQuery( '.wp-easycart-widget-cart-quantity' ).length ) {
+		var data = {
+			action: 'ec_ajax_get_dynamic_cart_total',
+			language: wpeasycart_ajax_object.current_language,
+			nonce: jQuery( '.wp-easycart-widget-cart-quantity' ).attr( 'data-nonce' )
+		};
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.wp-easycart-widget-cart-quantity' ).html( data );
+			}
+		} );
 	}
 	if( wpeasycart_isTouchDevice( ) ){
 		jQuery( '.ec_product_quickview' ).hide( );
@@ -283,38 +307,44 @@ jQuery( document ).ready( function( ){
 				data[ input_eles[i].name ] = jQuery( input_eles[i] ).val();
 			}
 		}
-		jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){ 
-			var json_data = JSON.parse( result );
-			jQuery( ".ec_cart_items_total" ).html( json_data[0].total_items );
-			jQuery( ".ec_cart_price_total" ).html( json_data[0].total_price );
-			
-			if( json_data[0].total_items == 1 ){
-				jQuery( ".ec_menu_cart_singular_text" ).show( );
-				jQuery( ".ec_menu_cart_plural_text" ).hide( );
-			}else{
-				jQuery( ".ec_menu_cart_singular_text" ).hide( );
-				jQuery( ".ec_menu_cart_plural_text" ).show( );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( result ){ 
+				var json_data = JSON.parse( result );
+				jQuery( ".ec_cart_items_total" ).html( json_data[0].total_items );
+				jQuery( ".ec_cart_price_total" ).html( json_data[0].total_price );
+
+				if( json_data[0].total_items == 1 ){
+					jQuery( ".ec_menu_cart_singular_text" ).show( );
+					jQuery( ".ec_menu_cart_plural_text" ).hide( );
+				}else{
+					jQuery( ".ec_menu_cart_singular_text" ).hide( );
+					jQuery( ".ec_menu_cart_plural_text" ).show( );
+				}
+
+				if( json_data[0].total_items == 0 ){
+					jQuery( ".ec_cart_price_total" ).hide( );
+				}else{
+					jQuery( ".ec_cart_price_total" ).show( );
+				}
+
+				if( jQuery( '.ec_cart_widget_minicart_product_padding' ).length ){
+
+					jQuery( '.ec_cart_widget_minicart_product_padding' ).append( '<div class="ec_cart_widget_minicart_product_title" id="ec_cart_widget_row_' + json_data[0].cartitem_id + '">' + json_data[0].title + ' x 1 @ ' + json_data[0].price + '</div>' );
+
+				}
+
+				jQuery( input_submit ).parent().find( '.dashicons-update-alt' ).remove();
+				jQuery( input_submit ).parent().append( '<span class="dashicons dashicons-saved"></span>' );
+				jQuery( input_submit ).removeClass( 'loading' ).addClass( 'added' );
+				setTimeout(function() {
+					jQuery( input_submit ).removeClass( 'added' ).parent().find( '.dashicons-saved' ).remove();
+				}, 2000 );
 			}
-			
-			if( json_data[0].total_items == 0 ){
-				jQuery( ".ec_cart_price_total" ).hide( );
-			}else{
-				jQuery( ".ec_cart_price_total" ).show( );
-			}
-			
-			if( jQuery( '.ec_cart_widget_minicart_product_padding' ).length ){
-				
-				jQuery( '.ec_cart_widget_minicart_product_padding' ).append( '<div class="ec_cart_widget_minicart_product_title" id="ec_cart_widget_row_' + json_data[0].cartitem_id + '">' + json_data[0].title + ' x 1 @ ' + json_data[0].price + '</div>' );
-				
-			}
-			
-			jQuery( input_submit ).parent().find( '.dashicons-update-alt' ).remove();
-			jQuery( input_submit ).parent().append( '<span class="dashicons dashicons-saved"></span>' );
-			jQuery( input_submit ).removeClass( 'loading' ).addClass( 'added' );
-			setTimeout(function() {
-				jQuery( input_submit ).removeClass( 'added' ).parent().find( '.dashicons-saved' ).remove();
-			}, 2000 );
-		} } );
+		} );
 	} );
 	
 	if( jQuery( '.ec_details_thumbnail' ).length ) {
@@ -515,6 +545,12 @@ jQuery( document ).ready( function( ){
 	jQuery( '.ec_details_checkbox_row > input, .ec_details_radio_row > input' ).click( function( ){
 		var product_id = jQuery( this ).parent().parent().parent().attr( 'data-product-id' );
 		var rand_id = jQuery( this ).parent().parent().parent().attr( 'data-rand-id' );
+		ec_details_advanced_conditional_logic( product_id, rand_id );
+		ec_details_advanced_adjust_price( product_id, rand_id );
+	} );
+	jQuery( '.ec_details_checkbox_row_ele input, .ec_details_radio_row_ele input' ).click( function( ){
+		var product_id = jQuery( this ).parent().parent().parent().parent().attr( 'data-product-id' );
+		var rand_id = jQuery( this ).parent().parent().parent().parent().attr( 'data-rand-id' );
 		ec_details_advanced_conditional_logic( product_id, rand_id );
 		ec_details_advanced_adjust_price( product_id, rand_id );
 	} );
@@ -1156,6 +1192,94 @@ jQuery( document ).ready( function( ){
 	jQuery( document ).on( 'change', '#restaurant_pickup_time', function() {
 		ec_cart_save_pickup_date_time();
 	} );
+	jQuery( '.wp-easycart-orders-pagination' ).each( function() {
+        const pagination_container = jQuery( this );
+		const order_wrapper = pagination_container.parent();
+		if ( order_wrapper.length === 0 ) {
+			return;
+		}
+		const all_order_rows = order_wrapper.find( '.wp-easycart-order-item' );
+		const all_page_links = pagination_container.find( '.wp-easycart-orders-pagination-page-num' );
+		const page_numbers_container = pagination_container.find( '.wp-easycart-orders-page-numbers' );
+		const per_page = parseInt( pagination_container.find('.wp-easycart-orders-pagination-per-page').val(), 10 );
+		const total_pages = parseInt( pagination_container.find( '.wp-easycart-orders-pagination-total-pages').val(), 10 );
+		let current_page = 1;
+		const page_next_to = 2;
+		function wp_easycart_pagination_show_page( page ) {
+			const start_i = ( page - 1 ) * per_page;
+			const end_i = start_i + per_page;
+			all_order_rows.hide();
+			all_order_rows.slice( start_i, end_i ).css( 'display', 'flex' );
+		}
+		function wp_easycart_pagination_update_display( page ) {
+			all_page_links.removeClass( 'active' );
+			all_page_links.filter( '[data-page="' + page + '"]' ).addClass( 'active' );
+			pagination_container.find( '.wp-easycart-orders-pagination-first-page, .wp-easycart-orders-pagination-prev-page' ).toggleClass( 'disabled', page === 1 );
+			pagination_container.find( '.wp-easycart-orders-pagination-next-page, .wp-easycart-orders-pagination-last-page' ).toggleClass( 'disabled', page === total_pages );
+			all_page_links.hide();
+			page_numbers_container.find( '.wp-easycart-orders-pagination-ellipsis' ).remove();
+			const ellipsis = jQuery( '<span class="wp-easycart-orders-pagination-ellipsis">...</span>' );
+			let pagesToShow = [];
+			pagesToShow.push( all_page_links.eq(0) );
+			let start = Math.max( 1, page - page_next_to );
+			let end = Math.min( total_pages - 2, page + page_next_to );
+			if ( page - page_next_to <= 1 ) {
+				end = Math.min(total_pages - 2, 1 + (page_next_to * 2));
+			}
+			if (page + page_next_to >= total_pages - 2) {
+				start = Math.max(1, total_pages - 2 - (page_next_to * 2));
+			}
+			if ( start > 1 ) {
+				pagesToShow.push( ellipsis.clone() );
+			}
+			for ( let i = start; i <= end; i++ ) {
+				pagesToShow.push( all_page_links.eq(i) );
+			}
+			if ( end < total_pages - 2 ) {
+				pagesToShow.push( ellipsis.clone() );
+			}
+			if ( total_pages > 1 ) {
+				pagesToShow.push( all_page_links.eq( total_pages - 1 ) );
+			}
+			jQuery.each( pagesToShow, function() {
+				if ( jQuery( this ).is( 'a' ) ) {
+					jQuery( this ).show();
+				} else {
+					page_numbers_container.append( this );
+				}
+			} );
+			if ( total_pages > 1 ) {
+				all_page_links.eq( total_pages - 1 ).show();
+			}
+		}
+		pagination_container.on( 'click', 'a[data-page]', function(e) {
+			e.preventDefault();
+			const target = jQuery( this );
+			if ( target.hasClass( 'disabled' ) || target.hasClass( 'active' ) ) {
+				return;
+			}
+			const page_control = target.data( 'page' );
+			let new_page = current_page;
+			switch ( page_control ) {
+				case 'first': new_page = 1; break;
+				case 'last': new_page = total_pages; break;
+				case 'prev': new_page = Math.max( 1, current_page - 1 ); break;
+				case 'next': new_page = Math.min( total_pages, current_page + 1 ); break;
+				default: new_page = parseInt( page_control, 10 );
+			}
+			if ( new_page !== current_page ) {
+				current_page = new_page;
+				wp_easycart_pagination_show_page( current_page );
+				wp_easycart_pagination_update_display( current_page );
+			}
+		} );
+		if ( all_order_rows.length > 0 && total_pages > 0 ) {
+			wp_easycart_pagination_show_page( 1 );
+			wp_easycart_pagination_update_display( 1 );
+		} else {
+			pagination_container.hide();
+		}
+	} );
 } );
 function ec_cart_restaurant_start_timer() {
 	var restaurant_timer_minutes = parseInt( jQuery( '.ec_cart_restaurant_timer_min' ).html() );
@@ -1202,7 +1326,8 @@ function ec_cart_save_pickup_date_time() {
 	jQuery.ajax( { 
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
-		data: data
+		data: data,
+		cache: false
 	} );
 }
 var wpeasycart_login_recaptcha;
@@ -1433,53 +1558,60 @@ function ec_add_to_cart( product_id, model_number, quantity, use_quantity_tracki
 			nonce: nonce
 		};
 		
-		jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( "ec_product_loader_" + model_number ) ).hide( );
-			jQuery( document.getElementById( "ec_product_added_" + model_number ) ).show( ).delay( 2500 ).fadeOut( 'slow' );
-			
-			if ( jQuery( document.getElementById( "ec_added_to_cart_" + product_id ) ).length ) {
-				jQuery( document.getElementById( "ec_add_to_cart_" + product_id ) ).css( 'display', 'none' );
-				jQuery( document.getElementById( "ec_added_to_cart_" + product_id ) ).css( 'display', 'inline-block' );
-			}
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( "ec_product_loader_" + model_number ) ).hide( );
+				jQuery( document.getElementById( "ec_product_added_" + model_number ) ).show( ).delay( 2500 ).fadeOut( 'slow' );
 
-			if ( jQuery( document.getElementById( "ec_added_to_cart_type6_" + product_id  ) ).length ) {
-				jQuery( document.getElementById( "ec_add_to_cart_" + product_id ) ).css( 'display', 'none' );
-				jQuery( document.getElementById( "ec_added_to_cart_type6_" + product_id ) ).css( 'display', 'inline-block' );
-			}
+				if ( jQuery( document.getElementById( "ec_added_to_cart_" + product_id ) ).length ) {
+					jQuery( document.getElementById( "ec_add_to_cart_" + product_id ) ).css( 'display', 'none' );
+					jQuery( document.getElementById( "ec_added_to_cart_" + product_id ) ).css( 'display', 'inline-block' );
+				}
 
-			jQuery( '.ec_product_added_to_cart' ).fadeIn( 'slow' );
-			jQuery( ".ec_cart_items_total" ).html( json_data[0].total_items );
-			jQuery( ".ec_cart_price_total" ).html( json_data[0].total_price );
-			
-			if( json_data[0].total_items == 1 ){
-				jQuery( ".ec_menu_cart_singular_text" ).show( );
-				jQuery( ".ec_menu_cart_plural_text" ).hide( );
-			}else{
-				jQuery( ".ec_menu_cart_singular_text" ).hide( );
-				jQuery( ".ec_menu_cart_plural_text" ).show( );
-			}
-			
-			if( json_data[0].total_items == 0 ){
-				jQuery( ".ec_cart_price_total" ).hide( );
-			}else{
-				jQuery( ".ec_cart_price_total" ).show( );
-			}
-			
-			if( jQuery( '.ec_cart_widget_minicart_product_padding' ).length ){
-				jQuery( '.ec_cart_widget_minicart_product_padding' ).html('');
-				for( var i=0; i<json_data.length; i++ ) {
-					jQuery( '.ec_cart_widget_minicart_product_padding' ).append( '<div class="ec_cart_widget_minicart_product_title" id="ec_cart_widget_row_' + json_data[i].cartitem_id + '"><a href="' + json_data[i].link + '">' + json_data[i].title + '</a> x <span>' + json_data[i].quantity + '</span> @ <span>' + json_data[i].price + '</span></div>' );
+				if ( jQuery( document.getElementById( "ec_added_to_cart_type6_" + product_id  ) ).length ) {
+					jQuery( document.getElementById( "ec_add_to_cart_" + product_id ) ).css( 'display', 'none' );
+					jQuery( document.getElementById( "ec_added_to_cart_type6_" + product_id ) ).css( 'display', 'inline-block' );
+				}
+
+				jQuery( '.ec_product_added_to_cart' ).fadeIn( 'slow' );
+				jQuery( ".ec_cart_items_total" ).html( json_data[0].total_items );
+				jQuery( ".ec_cart_price_total" ).html( json_data[0].total_price );
+
+				if( json_data[0].total_items == 1 ){
+					jQuery( ".ec_menu_cart_singular_text" ).show( );
+					jQuery( ".ec_menu_cart_plural_text" ).hide( );
+				}else{
+					jQuery( ".ec_menu_cart_singular_text" ).hide( );
+					jQuery( ".ec_menu_cart_plural_text" ).show( );
+				}
+
+				if( json_data[0].total_items == 0 ){
+					jQuery( ".ec_cart_price_total" ).hide( );
+				}else{
+					jQuery( ".ec_cart_price_total" ).show( );
+				}
+
+				if( jQuery( '.ec_cart_widget_minicart_product_padding' ).length ){
+					jQuery( '.ec_cart_widget_minicart_product_padding' ).html('');
+					for( var i=0; i<json_data.length; i++ ) {
+						jQuery( '.ec_cart_widget_minicart_product_padding' ).append( '<div class="ec_cart_widget_minicart_product_title" id="ec_cart_widget_row_' + json_data[i].cartitem_id + '"><a href="' + json_data[i].link + '">' + json_data[i].title + '</a> x <span>' + json_data[i].quantity + '</span> @ <span>' + json_data[i].price + '</span></div>' );
+					}
+				}
+				if ( jQuery( '.wp-easycart-widget-cart-quantity' ).length ) {
+					jQuery( '.wp-easycart-widget-cart-quantity' ).html( json_data[0].total_items );
 				}
 			}
-			
-		} } );
-		
-	}else{
-		if( !isNaN( quantity ) && ( quantity < min_quantity || quantity < 1 ) ){
+		} );
+	} else {
+		if ( ! isNaN( quantity ) && ( quantity < min_quantity || quantity < 1 ) ) {
 			jQuery( document.getElementById( 'ec_addtocart_quantity_minimum_error_' + model_number ) ).show( );
 			jQuery( document.getElementById( 'ec_addtocart_quantity_exceeded_error_' + model_number ) ).hide( );
-		}else{
+		} else {
 			jQuery( document.getElementById( 'ec_addtocart_quantity_exceeded_error_' + model_number ) ).show( );
 			jQuery( document.getElementById( 'ec_addtocart_quantity_minimum_error_' + model_number ) ).hide( );
 		}
@@ -1528,20 +1660,21 @@ function ec_cartitem_delete( cartitem_id, model_number, nonce ){
 	jQuery( document.getElementById( 'ec_cartitem_delete_' + cartitem_id ) ).hide( );
 	jQuery( document.getElementById( 'ec_cartitem_deleting_' + cartitem_id ) ).show( );
 	
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		jQuery( document.getElementById( 'ec_cartitem_row_' + cartitem_id ) ).remove( );
-		jQuery( '.ec_cartitem_' + cartitem_id ).remove();
-		jQuery( document.getElementById( 'ec_cartitem_min_error_' + cartitem_id ) ).remove( );
-		jQuery( document.getElementById( 'ec_cartitem_max_error_' + cartitem_id ) ).remove( );
-		jQuery( document.getElementById( 'ec_cart_widget_row_' + cartitem_id ) ).remove( );
-		
-		// Get Response Data
-		var response_obj = JSON.parse( data );
-		
-		// Update Cart
-		ec_update_cart( response_obj );
-		
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function(data){ 
+			jQuery( document.getElementById( 'ec_cartitem_row_' + cartitem_id ) ).remove( );
+			jQuery( '.ec_cartitem_' + cartitem_id ).remove();
+			jQuery( document.getElementById( 'ec_cartitem_min_error_' + cartitem_id ) ).remove( );
+			jQuery( document.getElementById( 'ec_cartitem_max_error_' + cartitem_id ) ).remove( );
+			jQuery( document.getElementById( 'ec_cart_widget_row_' + cartitem_id ) ).remove( );
+			var response_obj = JSON.parse( data );
+			ec_update_cart( response_obj );
+		}
+	} );
 }
 
 var ec_cartitem_update_clickTimeout;
@@ -1563,17 +1696,17 @@ function ec_cartitem_update( cartitem_id, model_number, nonce ){
 
 	jQuery( document.getElementById( 'ec_cartitem_updating_' + cartitem_id ) ).show( );
 
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-
-		jQuery( document.getElementById( 'ec_cartitem_updating_' + cartitem_id ) ).hide( );
-
-		// Get Response Data
-		var response_obj = JSON.parse( data );
-
-		// Update Cart
-		ec_update_cart( response_obj );
-
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){ 
+			jQuery( document.getElementById( 'ec_cartitem_updating_' + cartitem_id ) ).hide( );
+			var response_obj = JSON.parse( data );
+			ec_update_cart( response_obj );
+		}
+	} );
 }
 
 function ec_apply_coupon( nonce, is_mobile = false ){
@@ -1603,10 +1736,11 @@ function ec_apply_coupon( nonce, is_mobile = false ){
 	};
 	
 	jQuery.ajax( {
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
-		success: function( data ){ 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ) {
 			jQuery( document.getElementById( 'ec_apply_coupon' ) ).show( );
 			if ( jQuery( '#ec_applying_coupon_v2' ).length ) {
 				jQuery( '#ec_applying_coupon_v2' ).removeClass( 'ec_cart_button_working_active' );
@@ -1615,27 +1749,27 @@ function ec_apply_coupon( nonce, is_mobile = false ){
 			} else {
 				jQuery( document.getElementById( 'ec_applying_coupon' ) ).hide( );
 			}
-			
-			// Get Response Data
 			var response_obj = JSON.parse( data );
-			
-			// Update Cart
 			ec_update_cart( response_obj );
-			
-			// Update Coupon Info
-			if( response_obj.is_coupon_valid ){
+			if ( response_obj.is_coupon_valid ) {
 				jQuery( document.getElementById( 'ec_coupon_error' ) ).hide( );
 				jQuery( document.getElementById( 'ec_coupon_success' ) ).html( response_obj.coupon_message ).show( );
 				if ( jQuery( '#ec_applying_coupon_v2' ).length ) {
 					jQuery( document.getElementById( 'ec_coupon_error_mobile' ) ).hide( );
 					jQuery( document.getElementById( 'ec_coupon_success_mobile' ) ).html( response_obj.coupon_message ).show( );
 				}
-			}else{
+			} else {
 				jQuery( document.getElementById( 'ec_coupon_success' ) ).hide( );
 				jQuery( document.getElementById( 'ec_coupon_error' ) ).html( response_obj.coupon_message ).show( );
 				if ( jQuery( '#ec_applying_coupon_v2' ).length ) {
 					jQuery( document.getElementById( 'ec_coupon_success_mobile' ) ).hide( );
 					jQuery( document.getElementById( 'ec_coupon_error_mobile' ) ).html( response_obj.coupon_message ).show( );
+				}
+				if ( jQuery( document.getElementById( 'ec_coupon_code_mobile' ) ).length ) {
+					jQuery( document.getElementById( 'ec_coupon_code_mobile' ) ).val( '' );
+				}
+				if ( jQuery( document.getElementById( 'ec_coupon_code' ) ).length ) {
+					jQuery( document.getElementById( 'ec_coupon_code' ) ).val( '' );
 				}
 			}
 		} 
@@ -1680,6 +1814,7 @@ function subscription_create_account( nonce ) {
 			url: wpeasycart_ajax_object.ajax_url,
 			type: 'post',
 			data: data,
+			cache: false,
 			success: function( response ){
 				var data_arr = JSON.parse( response );
 				if ( data_arr['error'] ) {
@@ -1807,10 +1942,11 @@ function update_subscription_totals( product_id, nonce ){
 		};
 
 		jQuery.ajax( {
-			url: wpeasycart_ajax_object.ajax_url, 
-			type: 'post', 
-			data: data, 
-			success: function( response ){
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( response ) {
 				var data_arr = JSON.parse( response );
 				wpeasycart_subscription_cart_update_totals( data_arr );
 				jQuery( document.getElementById( 'ec_cart_billing_form' ) ).hide();
@@ -1939,9 +2075,10 @@ function ec_apply_subscription_coupon( product_id, manufacturer_id, nonce, is_mo
 	};
 	
 	jQuery.ajax( {
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
 		success: function( data ){ 
 			jQuery( document.getElementById( 'ec_apply_coupon' ) ).show( );
 			jQuery( document.getElementById( 'ec_applying_coupon' ) ).hide( );
@@ -1994,9 +2131,10 @@ function ec_apply_gift_card( nonce, is_mobile = false ){
 	};
 	
 	jQuery.ajax( {
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
 		success: function( data ){ 
 			jQuery( document.getElementById( 'ec_apply_gift_card' ) ).show( );
 			if ( jQuery( '#ec_applying_gift_card_v2' ).length ) {
@@ -2047,9 +2185,10 @@ function ec_estimate_shipping( nonce ){
 	};
 	
 	jQuery.ajax({
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
 		success: function( data ){ 
 			jQuery( document.getElementById( 'ec_estimate_shipping' ) ).show( );
 			jQuery( document.getElementById( 'ec_estimating_shipping' ) ).hide( );
@@ -2075,18 +2214,13 @@ function ec_update_cart( response_obj ){
 		// Update Cart Data
 		for( var i=0; i<response_obj.cart.length; i++ ){
 			jQuery( document.getElementById( 'ec_cartitem_details_' + response_obj.cart[i].id ) ).find( '.ec_details_price_promo_discount' ).remove();
+			jQuery( document.getElementById( 'ec_cartitem_details_' + response_obj.cart[i].id ) ).find( '.ec_details_price_coupon_discount' ).remove();
 			if ( '' != response_obj.cart[i].promo_message ) {
 				jQuery( document.getElementById( 'ec_cartitem_details_' + response_obj.cart[i].id ) ).append( response_obj.cart[i].promo_message );
 			}
 			jQuery( document.getElementById( 'ec_quantity_' + response_obj.cart[i].id ) ).val( response_obj.cart[i].quantity );
 			jQuery( document.getElementById( 'ec_cartitem_price_' + response_obj.cart[i].id ) ).html( response_obj.cart[i].unit_price );
-			if ( '' != response_obj.cart[i].unit_discount ) {
-				jQuery( document.getElementById( 'ec_cartitem_price_' + response_obj.cart[i].id ) ).append( response_obj.cart[i].unit_discount );
-			}
 			jQuery( document.getElementById( 'ec_cartitem_total_' + response_obj.cart[i].id ) ).html( response_obj.cart[i].total_price );
-			if ( '' != response_obj.cart[i].total_discount ) {
-				jQuery( document.getElementById( 'ec_cartitem_total_' + response_obj.cart[i].id ) ).append( response_obj.cart[i].total_discount );
-			}
 
 			jQuery( '.ec_cartitem_' + response_obj.cart[i].id + ' > .ec_cart_price_row_total_v2' ).html( response_obj.cart[i].total_price );
 
@@ -2194,6 +2328,10 @@ function ec_update_cart( response_obj ){
 		}
 		jQuery( document.getElementById( 'ec_cart_total' ) ).html( response_obj.order_totals.grand_total );
 		
+		if ( jQuery( '.wp-easycart-widget-cart-quantity' ).length ) {
+			jQuery( '.wp-easycart-widget-cart-quantity' ).html( response_obj.items_total );
+		}
+		
 		jQuery( ".ec_cart_items_total" ).html( response_obj.items_total );
 		jQuery( ".ec_cart_price_total" ).html( response_obj.order_totals.grand_total );
 		
@@ -2237,6 +2375,20 @@ function ec_update_cart( response_obj ){
 		if( response_obj.paypal_express_button ){
 			jQuery( document.getElementById( 'paypal-button-container' ) ).find( '.paypal-button' ).remove( );
 			jQuery( document.getElementById( 'paypal-button-container' ) ).append( response_obj.paypal_express_button );
+		}
+
+		if ( jQuery( '#ec_cart_onepage_payment' ).length ) {
+			var header_html = jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).find( '.ec_cart_header' );
+			if ( jQuery( '#ec_cart_onepage_payment' ).length && jQuery( '.ec_cart_payment_table' ).length && response_obj.order_totals.grand_total_amt <= 0 ) {
+				if ( jQuery( '.ec_cart_payment_table' ).length ) {
+					jQuery( '.ec_cart_payment_table' ).remove();
+				}
+				jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).html( '<div id="ec_cart_shipping_loader"><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div></div>' ).prepend( header_html );
+				ec_reload_cart();
+			} else if ( jQuery( '#ec_cart_onepage_payment' ).length && ! jQuery( '.ec_cart_payment_table' ).length && response_obj.order_totals.grand_total_amt > 0 ) {
+				jQuery( document.getElementById( 'ec_cart_onepage_payment' ) ).html( '<div id="ec_cart_shipping_loader"><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div><div class="ec_cart_shipping_animate_pulse"><div class="ec_cart_shipping_rounded_loader"></div><div class="ec_cart_shipping_animate_line_container"><div class="ec_cart_shipping_animate_line_top"></div><div class="ec_cart_shipping_animate_line_bottom"></div></div></div></div>' ).prepend( header_html );
+				ec_reload_cart();
+			}
 		}
 	}
 }
@@ -2328,6 +2480,7 @@ function ec_cart_validate_login_v2( nonce ) {
 			url: wpeasycart_ajax_object.ajax_url,
 			type: 'post',
 			data: data,
+			cache: false,
 			success: function( data ) {
 				var response_obj = JSON.parse( data );
 				jQuery( document.getElementById( 'ec_cart_login_invalid_error' ) ).hide();
@@ -2405,6 +2558,7 @@ function wp_easycart_update_contact_email_v2() {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false,
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			if ( response_obj.error && 'user_create_error' == response_obj.error && jQuery( document.getElementById( 'ec_user_create_form' ) ).length ) {
@@ -2412,6 +2566,21 @@ function wp_easycart_update_contact_email_v2() {
 			} else {
 				jQuery( document.getElementById( 'ec_create_account_email_error' ) ).hide();
 			}
+			if ( response_obj.coupon_message ) {
+				jQuery( document.getElementById( 'ec_coupon_success' ) ).hide( );
+				jQuery( document.getElementById( 'ec_coupon_error' ) ).html( response_obj.coupon_message ).show( );
+				if ( jQuery( '#ec_applying_coupon_v2' ).length ) {
+					jQuery( document.getElementById( 'ec_coupon_success_mobile' ) ).hide( );
+					jQuery( document.getElementById( 'ec_coupon_error_mobile' ) ).html( response_obj.coupon_message ).show( );
+				}
+				if ( jQuery( document.getElementById( 'ec_coupon_code_mobile' ) ).length ) {
+					jQuery( document.getElementById( 'ec_coupon_code_mobile' ) ).val( '' );
+				}
+				if ( jQuery( document.getElementById( 'ec_coupon_code' ) ).length ) {
+					jQuery( document.getElementById( 'ec_coupon_code' ) ).val( '' );
+				}
+			}
+			ec_update_cart( response_obj.cart_data );
 		},
 	} );
 }
@@ -2443,6 +2612,7 @@ function wp_easycart_goto_page_v2( page, nonce, add_state = true ) {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false,
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			ec_update_cart( response_obj.cart_data );
@@ -2525,6 +2695,7 @@ function wp_easycart_save_order_notes_v2() {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false
 	} );
 }
 
@@ -2538,6 +2709,7 @@ function wp_easycart_save_email_other_v2() {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false
 	} );
 }
 
@@ -2698,6 +2870,7 @@ function wp_easycart_goto_shipping_v2( should_scroll = false ) {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false,
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			jQuery( document.getElementById( 'ec_cart_shipping_loader' ) ).remove();
@@ -2769,6 +2942,7 @@ function wp_easycart_goto_payment_v2() {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false,
 		success: function( data ) {
 			var response_obj = JSON.parse( data );
 			jQuery( '.ec_cart_left' ).html( response_obj.html_content );
@@ -2954,6 +3128,7 @@ function ec_update_payment_display( nonce ) {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false,
 		success: function( response ){
 			var response_obj = JSON.parse( response );
 			ec_update_cart( response_obj.cart_data );
@@ -3008,6 +3183,7 @@ function ec_update_billing_address_display( billing_address_type, nonce ) {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
 		data: data,
+		cache: false
 	} );
 }
 
@@ -3882,9 +4058,10 @@ function ec_cart_subscription_shipping_method_change( shipping_method, price, no
 	};
 	
 	jQuery.ajax({
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
 		success: function( response ){
 			var data_arr = JSON.parse( response );
 			wpeasycart_subscription_cart_update_totals( data_arr );
@@ -3927,9 +4104,10 @@ function ec_cart_shipping_method_change( shipping_method, price, nonce ){
 	};
 	
 	jQuery.ajax({
-		url: wpeasycart_ajax_object.ajax_url, 
-		type: 'post', 
-		data: data, 
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
 		success: function( data ){
 			var response_obj = JSON.parse( data );
 			ec_update_cart( response_obj );
@@ -4050,37 +4228,37 @@ function ec_live_search_update( nonce ){
 			nonce: nonce
 		};
 		
-		jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){
-			if( wpeasycart_last_search == search_val ){
-				data = JSON.parse( data );
-				jQuery( document.getElementById( 'ec_search_suggestions' ) ).empty( );
-				for( var i=0; i<data.length; i++ ){
-					jQuery( document.getElementById( 'ec_search_suggestions' ) ).append( "<option value='" + data[i].title + "'>" );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){
+				if( wpeasycart_last_search == search_val ){
+					data = JSON.parse( data );
+					jQuery( document.getElementById( 'ec_search_suggestions' ) ).empty( );
+					for( var i=0; i<data.length; i++ ){
+						jQuery( document.getElementById( 'ec_search_suggestions' ) ).append( "<option value='" + data[i].title + "'>" );
+					}
 				}
 			}
-		} } );
-		
+		} );
 	}
-	
 }
 
-function ec_account_forgot_password_button_click( ){
-	
+function ec_account_forgot_password_button_click() {
 	var errors = false;
-	var email = jQuery( document.getElementById( 'ec_account_forgot_password_email' ) ).val( );
-	
-	if( !ec_validate_email( email ) ){
+	var email = jQuery( document.getElementById( 'ec_account_forgot_password_email' ) ).val();
+	if ( ! ec_validate_email( email ) ) {
 		errors = true;
 		ec_show_error( 'ec_account_forgot_password_email' );
-	}else{
+	} else {
 		ec_hide_error( 'ec_account_forgot_password_email' );
 	}
-	
-	return( !errors );
-	
+	return( ! errors );
 }
 
-function ec_account_register_button_click2( ){
+function ec_account_register_button_click2() {
 	var top_half = ec_account_register_button_click( );
 	var bottom_half = true;
 	
@@ -4298,8 +4476,12 @@ function ec_close_popup_newsletter( nonce ){
 		nonce: nonce
 	};
 	
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ } } );
-	
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false
+	} );
 }
 
 function ec_submit_newsletter_signup( nonce ){
@@ -4319,13 +4501,15 @@ function ec_submit_newsletter_signup( nonce ){
 		nonce: nonce
 	};
 	
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-	} } );
-	
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false
+	} );
 }
 
-function ec_submit_newsletter_signup_widget( nonce ){
-	
+function ec_submit_newsletter_signup_widget( nonce ) {
 	jQuery( '.ec_newsletter_pre_submit' ).hide( );
 	jQuery( '.ec_newsletter_post_submit' ).show( );
 		
@@ -4341,9 +4525,12 @@ function ec_submit_newsletter_signup_widget( nonce ){
 		nonce: nonce
 	};
 	
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-	} } );
-	
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false
+	} );
 }
 
 function update_download_count( orderdetail_id ){
@@ -4390,10 +4577,16 @@ function ec_update_subscription_info( subscription_id, nonce ){
 		ec_selected_plan: jQuery( document.getElementById( 'ec_selected_plan' ) ).val( ),
 		nonce: nonce
 	};
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
-		var json = JSON.parse( result );
-		jQuery( location ).attr( 'href', json.url );
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( result ){
+			var json = JSON.parse( result );
+			jQuery( location ).attr( 'href', json.url );
+		}
+	} );
 	return false;
 }
 
@@ -4445,9 +4638,15 @@ function ec_create_ideal_order_redirect( source, nonce ){
 		source: source,
 		nonce: nonce
 	};
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){
-		window.location.href = redirect;
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ) {
+			window.location.href = redirect;
+		}
+	} );
 }
 
 function ec_stripe_check_order_status( source, nonce, count = 1 ) {
@@ -4457,14 +4656,20 @@ function ec_stripe_check_order_status( source, nonce, count = 1 ) {
 		nonce: nonce,
 		count: count,
 	};
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){
-		var response_obj = JSON.parse( data );
-		if ( 'requires_confirmation' == response_obj.status ) {
-			ec_stripe_check_order_status( source, nonce, count++ );
-		} else {
-			window.location.href = response_obj.redirect;
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){
+			var response_obj = JSON.parse( data );
+			if ( 'requires_confirmation' == response_obj.status ) {
+				ec_stripe_check_order_status( source, nonce, count++ );
+			} else {
+				window.location.href = response_obj.redirect;
+			}
 		}
-	} } );
+	} );
 }
 
 function ec_notify_submit( product_id, rand_id, nonce ){
@@ -4498,12 +4703,18 @@ function ec_notify_submit( product_id, rand_id, nonce ){
 			recaptcha_response: recaptcha_response,
 			nonce: nonce
 		};
-		jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){
-			jQuery( document.getElementById( 'ec_product_details_stock_notify_complete_' + product_id + '_' + rand_id ) ).show( );
-			jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id ) ).hide( );
-		jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id + '_loader_cover' ) ).hide( );
-		jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id + '_loader' ) ).hide( );
-		} } );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){
+				jQuery( document.getElementById( 'ec_product_details_stock_notify_complete_' + product_id + '_' + rand_id ) ).show( );
+				jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id ) ).hide( );
+				jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id + '_loader_cover' ) ).hide( );
+				jQuery( document.getElementById( 'ec_product_details_stock_notify_' + product_id + '_' + rand_id + '_loader' ) ).hide( );
+			}
+		} );
 	}
 	
 }
@@ -4520,48 +4731,67 @@ function wpeasycart_load_cart( cart_page, success_code, error_code, language = '
 		language: language,
 		nonce: nonce
 	};
-	jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-		jQuery( document.getElementById( 'wpeasycart_cart_holder' ) ).replaceWith( data );
-		wp_easycart_init_location_buttons();
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){ 
+			jQuery( document.getElementById( 'wpeasycart_cart_holder' ) ).replaceWith( data );
+			wp_easycart_init_location_buttons();
+		}
+	} );
 }
 
-function wpeasycart_load_account( account_page, page_id, success_code, error_code, language = 'NONE', nonce ){
+function wpeasycart_load_account( account_page, page_id, success_code, error_code, language = 'NONE', nonce = '', form_only = false ){
 	if( language == 'NONE' ){
 	   language = wpeasycart_ajax_object.current_language;
 	}
-    var data = {
-        action: 'ec_ajax_get_dynamic_account_page',
-        account_page: account_page,
-        page_id: page_id,
-        success_code: success_code,
-        error_code: error_code,
-        language: language,
-		nonce: nonce
-    };
-    jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-        jQuery( document.getElementById( 'wpeasycart_account_holder' ) ).replaceWith( data );
-    } } );
+	var data = {
+		action: 'ec_ajax_get_dynamic_account_page',
+		account_page: account_page,
+		page_id: page_id,
+		success_code: success_code,
+		error_code: error_code,
+		language: language,
+		nonce: nonce,
+		form_only: form_only
+	};
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){ 
+			jQuery( document.getElementById( 'wpeasycart_account_holder' ) ).replaceWith( data );
+		}
+	} );
 }
 
 function wpeasycart_update_tip( tip_rate, nonce ){
-    jQuery( '.ec_cart_tip_item' ).removeClass( 'ec_tip_selected' );
-    var tip_amount = Number( jQuery( document.getElementById( 'ec_cart_tip_custom' ) ).val( ) );
-    jQuery( document.getElementById( 'ec_apply_tip_button' ) ).hide( );
-    jQuery( document.getElementById( 'ec_applying_tip' ) ).show( );
-    var data = {
-        action: 'ec_ajax_update_tip_amount',
-        tip_rate: tip_rate,
-        tip_amount: tip_amount,
-        language: wpeasycart_ajax_object.current_language,
+	jQuery( '.ec_cart_tip_item' ).removeClass( 'ec_tip_selected' );
+	var tip_amount = Number( jQuery( document.getElementById( 'ec_cart_tip_custom' ) ).val( ) );
+	jQuery( document.getElementById( 'ec_apply_tip_button' ) ).hide( );
+	jQuery( document.getElementById( 'ec_applying_tip' ) ).show( );
+	var data = {
+		action: 'ec_ajax_update_tip_amount',
+		tip_rate: tip_rate,
+		tip_amount: tip_amount,
+		language: wpeasycart_ajax_object.current_language,
 		nonce: nonce
-    };
-    jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-        var response_obj = JSON.parse( data );
-		ec_update_cart( response_obj );
-        jQuery( document.getElementById( 'ec_apply_tip_button' ) ).show( );
-        jQuery( document.getElementById( 'ec_applying_tip' ) ).hide( );
-    } } );
+	};
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){ 
+			var response_obj = JSON.parse( data );
+			ec_update_cart( response_obj );
+			jQuery( document.getElementById( 'ec_apply_tip_button' ) ).show( );
+			jQuery( document.getElementById( 'ec_applying_tip' ) ).hide( );
+		}
+	} );
 }
 
 function wp_easycart_text_notification_subscribe( wpeasycart_text_iti ) {
@@ -4581,18 +4811,17 @@ function wp_easycart_text_notification_subscribe( wpeasycart_text_iti ) {
 		text_number: text_number,
 		order_id: order_id
 	};
-	jQuery.ajax( 
-		{
-			url: wpeasycart_ajax_object.ajax_url,
-			type: 'post',
-			data: data,
-			success: function( data ){
-				jQuery( document.getElementById( 'text_notification_loader' ) ).hide();
-				jQuery( document.getElementById( 'text_notification_success' ) ).fadeIn( 'fast' );
-				jQuery( document.getElementById( 'text_phone_number' ) ).val( '' )
-			}
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function( data ){
+			jQuery( document.getElementById( 'text_notification_loader' ) ).hide();
+			jQuery( document.getElementById( 'text_notification_success' ) ).fadeIn( 'fast' );
+			jQuery( document.getElementById( 'text_phone_number' ) ).val( '' )
 		}
-	);
+	} );
 }
 function ec_details_advanced_adjust_price( product_id, rand_id ) {
 	if( jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).length == 0 ) {
@@ -4677,7 +4906,7 @@ function ec_details_advanced_adjust_price( product_id, rand_id ) {
 			}
 		}
 	} );
-	jQuery( '.ec_details_checkbox_row:visible > input:checked' ).each( function( ){
+	jQuery( '.ec_details_checkbox_row:visible > input:checked, .ec_details_checkbox_row_ele:visible > label > input:checked' ).each( function( ){
 		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
 			if( grid_quantity )
 				checkbox_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
@@ -4749,7 +4978,7 @@ function ec_details_advanced_adjust_price( product_id, rand_id ) {
 			}
 		}
 	} );
-	jQuery( '.ec_details_swatch.ec_advanced.ec_selected:visible' ).each( function( ){
+	jQuery( '.ec_details_swatch.ec_advanced.ec_selected:visible, .ec_details_swatch_ele.ec_advanced.ec_selected:visible' ).each( function( ){
 		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
 			if( grid_quantity )
 				swatch_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
@@ -4766,7 +4995,7 @@ function ec_details_advanced_adjust_price( product_id, rand_id ) {
 			price_multiplier = price_multiplier * Number( jQuery( this ).attr( 'data-optionitem-price-multiplier' ) );
 		}
 	} );
-	jQuery( '.ec_details_radio_row:visible > input:checked' ).each( function( ){
+	jQuery( '.ec_details_radio_row:visible > input:checked, .ec_details_radio_row_ele:visible > label > input:checked' ).each( function( ){
 		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-optionitem-price' ) != 0 ){
 			if( grid_quantity )
 				radio_adj += Number( jQuery( this ).attr( 'data-optionitem-price' ) ) * grid_quantity;
@@ -5629,36 +5858,42 @@ function ec_option1_selected( product_id, rand_id, optionitem_id_1, quantity ){
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_2_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ) {
-					jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
-					if ( ! json_data[ found_i ].is_enabled ) {
-						jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
-					} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).attr( 'data-optionitem-id' ) + '000'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).attr( 'data-optionitem-id' ) + '000'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide();
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_2_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ) {
+						jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
+						if ( ! json_data[ found_i ].is_enabled ) {
+							jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
+						} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).attr( 'data-optionitem-id' ) + '000'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).attr( 'data-optionitem-id' ) + '000'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide();
+							}
+						}
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}else{
 		next_options = jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id + ' option' );
 		next_options.each( function( ){
@@ -5670,39 +5905,45 @@ function ec_option1_selected( product_id, rand_id, optionitem_id_1, quantity ){
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_2_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).val( ) == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ) {
-					jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
-					if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().attr( 'disabled', false );
-					} else {
-						jQuery( this ).hide().attr( 'disabled', true );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).val() + '000'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).val() + '000'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide().prop( 'disabled', true );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.ec_details_combo.ec_option2_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_2_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).val( ) == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				} else {
-					jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ) {
+						jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
+						if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().attr( 'disabled', false );
+						} else {
+							jQuery( this ).hide().attr( 'disabled', true );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).val() + '000'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + jQuery( this ).val() + '000'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide().prop( 'disabled', true );
+							}
+						}
+					} else {
+						jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}
 }
 function ec_option2_updated( product_id, rand_id, optionitem_id_1, optionitem_id_2 ) {
@@ -5786,36 +6027,42 @@ function option2_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_3_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ){
-					jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
-					if ( ! json_data[ found_i ].is_enabled ) {
-						jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
-					} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).attr( 'data-optionitem-id' ) + '00'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).attr( 'data-optionitem-id' ) + '00'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide();
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_3_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ){
+						jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
+						if ( ! json_data[ found_i ].is_enabled ) {
+							jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
+						} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).attr( 'data-optionitem-id' ) + '00'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).attr( 'data-optionitem-id' ) + '00'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide();
+							}
+						}
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}else{
 		next_options = jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id + ' option' );
 		next_options.each( function( ){
@@ -5828,39 +6075,45 @@ function option2_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_3_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ) {
-					jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
-					if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().attr( 'disabled', false );
-					} else {
-						jQuery( this ).hide().attr( 'disabled', true );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).val() + '00'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).val() + '00'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide().prop( 'disabled', true );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.ec_details_combo.ec_option3_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_3_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				} else {
-					jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ) {
+						jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
+						if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().attr( 'disabled', false );
+						} else {
+							jQuery( this ).hide().attr( 'disabled', true );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).val() + '00'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + jQuery( this ).val() + '00'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide().prop( 'disabled', true );
+							}
+						}
+					} else {
+						jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}
 }
 function ec_option3_updated( product_id, rand_id, optionitem_id_1, optionitem_id_2, optionitem_id_3 ) {
@@ -5943,37 +6196,43 @@ function option3_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_4_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length > found_i ){
-					jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
-					if ( ! json_data[ found_i ].is_enabled ) {
-						jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
-					} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).attr( 'data-optionitem-id' ) + '0'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).attr( 'data-optionitem-id' ) + '0'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide();
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_4_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				}
-				found_i = -1;
-			} );
-		} } );
-	}else{
+					if ( -1 != found_i && found_i < json_data.length > found_i ){
+						jQuery( this ).attr( 'data-optionitem-quantity', json_data[ found_i ].quantity );
+						if ( ! json_data[ found_i ].is_enabled ) {
+							jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
+						} else if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).attr( 'data-optionitem-id' ) + '0'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).attr( 'data-optionitem-id' ) + '0'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide();
+							}
+						}
+					}
+					found_i = -1;
+				} );
+			}
+		} );
+	} else {
 		next_options = jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id + ' option' );
 		next_options.each( function( ){
 			jQuery( this ).removeClass( 'ec_active' );
@@ -5986,39 +6245,45 @@ function option3_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_4_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ) {
-					jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
-					if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().attr( 'disabled', false );
-					} else {
-						jQuery( this ).hide().attr( 'disabled', true );
-					}
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).val() + '0'] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).val() + '0'];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide().prop( 'disabled', true );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.ec_details_combo.ec_option4_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_4_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				}else{
-					jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ) {
+						jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
+						if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().attr( 'disabled', false );
+						} else {
+							jQuery( this ).hide().attr( 'disabled', true );
+						}
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).val() + '0'] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + jQuery( this ).val() + '0'];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide().prop( 'disabled', true );
+							}
+						}
+					}else{
+						jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}
 }
 function ec_option4_updated( product_id, rand_id, optionitem_id_1, optionitem_id_2, optionitem_id_3, optionitem_id_4 ) {
@@ -6100,38 +6365,44 @@ function option4_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_5_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length > found_i ){
-					jQuery( this ).attr( 'data-optionitem-quantity', json_data[i].quantity );
-					if ( ! json_data[ found_i ].is_enabled ) {
-						jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
-					} else if( json_data[i].quantity > 0 || '0' == json_data[i].tracking ){
-						jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
-					}
-					i++;
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).attr( 'data-optionitem-id' ) ] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).attr( 'data-optionitem-id' ) ];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide();
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_5_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).attr( 'data-optionitem-id' ) == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				}
-				found_i = -1;
-			} );
-		} } );
-	}else{
+					if ( -1 != found_i && found_i < json_data.length > found_i ){
+						jQuery( this ).attr( 'data-optionitem-quantity', json_data[i].quantity );
+						if ( ! json_data[ found_i ].is_enabled ) {
+							jQuery( this ).show().addClass( 'ec_disabled_variant' ).removeClass( 'ec_no_data_variant' );
+						} else if( json_data[i].quantity > 0 || '0' == json_data[i].tracking ){
+							jQuery( this ).show().addClass( 'ec_active' ).removeClass( 'ec_no_data_variant' );
+						}
+						i++;
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).attr( 'data-optionitem-id' ) ] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).attr( 'data-optionitem-id' ) ];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide();
+							}
+						}
+					}
+					found_i = -1;
+				} );
+			}
+		} );
+	} else {
 		next_options = jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id + ' option' );
 		next_options.each( function( ){
 			jQuery( this ).removeClass( 'ec_active' );
@@ -6145,40 +6416,46 @@ function option4_selected( product_id, rand_id, optionitem_id_1, optionitem_id_2
 			product_id: product_id,
 			nonce: jQuery( document.getElementById( 'product_details_nonce_' + product_id + '_' + rand_id ) ).val()
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
-			var json_data = JSON.parse( data );
-			jQuery( document.getElementById( 'ec_option_loading_5_' + product_id + '_' + rand_id ) ).hide( );
-			var found_i = -1;
-			next_options.each( function( ){
-				for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
-					if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
-						found_i = i;
-					}
-				}
-				if ( -1 != found_i && found_i < json_data.length ) {
-					jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
-					if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
-						jQuery( this ).show().attr( 'disabled', false );
-					} else {
-						jQuery( this ).hide().attr( 'disabled', true );
-					}
-					i++;
-					var subitem_variation = false;
-					if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).val() ] ) {
-						subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).val() ];
-					}
-					if( subitem_variation ) {
-						if ( ! subitem_variation.enabled ) {
-							jQuery( this ).hide().prop( 'disabled', true );
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( '.ec_details_combo.ec_option5_' + product_id + '_' + rand_id ).prop( 'disabled', false ).removeClass( 'ec_inactive' );
+				var json_data = JSON.parse( data );
+				jQuery( document.getElementById( 'ec_option_loading_5_' + product_id + '_' + rand_id ) ).hide( );
+				var found_i = -1;
+				next_options.each( function( ){
+					for ( var i = 0; i < json_data.length && -1 == found_i; i++ ) {
+						if ( jQuery( this ).val() == json_data[i].optionitem_id ) { 
+							found_i = i;
 						}
 					}
-				} else {
-					jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
-				}
-				found_i = -1;
-			} );
-		} } );
+					if ( -1 != found_i && found_i < json_data.length ) {
+						jQuery( this ).attr( 'data-optionitem-quantity', ( ( '1' == json_data[ found_i ].tracking ) ? json_data[ found_i ].quantity : 'inf' ) );
+						if( json_data[ found_i ].quantity > 0 || '0' == json_data[ found_i ].tracking ){
+							jQuery( this ).show().attr( 'disabled', false );
+						} else {
+							jQuery( this ).hide().attr( 'disabled', true );
+						}
+						i++;
+						var subitem_variation = false;
+						if ( window['varitation_data_' + product_id + '_' + rand_id ] && window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).val() ] ) {
+							subitem_variation = window['varitation_data_' + product_id + '_' + rand_id][optionitem_id_1 + optionitem_id_2 + optionitem_id_3 + optionitem_id_4 + jQuery( this ).val() ];
+						}
+						if( subitem_variation ) {
+							if ( ! subitem_variation.enabled ) {
+								jQuery( this ).hide().prop( 'disabled', true );
+							}
+						}
+					} else {
+						jQuery( this ).attr( 'data-optionitem-quantity', 0 ).hide().attr( 'disabled', true );
+					}
+					found_i = -1;
+				} );
+			}
+		} );
 	}
 }
 
@@ -6214,6 +6491,18 @@ function ec_details_submit_inquiry( product_id, rand_id ){
 }
 
 function ec_details_add_to_cart( product_id, rand_id ) {
+	// In cases where sites only integrate with stand alone add to carts, caching can cause problems with initial adds, this should resolve that.
+	var data = {
+		action: 'ec_ajax_try_wpec_session',
+		product_id: product_id,
+		nonce: jQuery( '#ec_cart_form_nonce' ).val()
+	};
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false
+	} );
 	var errors = 0; 
 	// Basic Option 1 Error Check
 	if( jQuery( '.ec_details_swatch.ec_option1_' + product_id + '_' + rand_id + ', .ec_details_swatch_ele.ec_option1_' + product_id + '_' + rand_id ).length && !jQuery( '.ec_option1_' + product_id + '_' + rand_id + '.ec_selected' ).attr( 'data-optionitem-id' ) ){ 
@@ -6509,10 +6798,17 @@ function ec_details_add_to_cart( product_id, rand_id ) {
 	} else {
 		if ( typeof gtag !== "undefined" ) {
 			var final_price = '';
-			if ( jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).length ) {
-				final_price = jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html().replace( /[^\d\.\,]/g, '' );
+			if ( jQuery( '.ec_details_title_' + product_id + '_' + rand_id ).length ) {
+				if ( jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).length ) {
+					final_price = jQuery( document.getElementById( 'ec_final_price_' + product_id + '_' + rand_id ) ).html().replace( /[^\d\.\,]/g, '' );
+				}
+				ec_ga4_add_to_cart( jQuery( '.ec_details_model_number_sku_' + product_id + '_' + rand_id ).html(), jQuery( '.ec_details_title_' + product_id + '_' + rand_id ).html(), entered_quantity, final_price, jQuery( document.getElementById( 'currency_code_' + product_id + '_' + rand_id ) ).val() );
+			} else if ( jQuery( document.getElementById( 'ec_product_title_' + product_id + '_' + rand_id ) ).length ) {
+				if ( jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).length ) {
+					final_price = jQuery( document.getElementById( 'ec_base_price_' + product_id + '_' + rand_id ) ).html().replace( /[^\d\.\,]/g, '' );
+				}
+				ec_ga4_add_to_cart( jQuery( document.getElementById( 'ec_default_sku_' + product_id + '_' + rand_id ) ).val(), jQuery( document.getElementById( 'ec_product_title_' + product_id + '_' + rand_id ) ).val(), entered_quantity, final_price, jQuery( document.getElementById( 'currency_code_' + product_id + '_' + rand_id ) ).val() );
 			}
-			ec_ga4_add_to_cart( jQuery( '.ec_details_model_number_sku_' + product_id + '_' + rand_id ).html(), jQuery( '.ec_details_title_' + product_id + '_' + rand_id ).html(), entered_quantity, final_price, jQuery( document.getElementById( 'currency_code_' + product_id + '_' + rand_id ) ).val() );
 		}
 		return true;
 	}
@@ -6539,14 +6835,19 @@ function ec_submit_product_review( product_id, rand_id, nonce ){
 			product_id: product_id,
 			nonce: nonce
 		};
-		jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-			jQuery( document.getElementById( 'ec_details_customer_review_loader_' + product_id + '_' + rand_id ) ).hide( ); 
-			jQuery( document.getElementById( 'ec_details_submit_review_button_row_' + product_id + '_' + rand_id ) ).hide( );
-			jQuery( document.getElementById( 'ec_details_review_submitted_button_row_' + product_id + '_' + rand_id ) ).show( );
-			jQuery( document.getElementById( 'ec_details_customer_review_success_' + product_id + '_' + rand_id ) ).show( ).delay( 1500 ).fadeOut( 'slow' ); 
-		} } );
-	}else{
-		// Something is missing, display error.
+		jQuery.ajax( {
+			url: wpeasycart_ajax_object.ajax_url,
+			type: 'post',
+			data: data,
+			cache: false,
+			success: function( data ){ 
+				jQuery( document.getElementById( 'ec_details_customer_review_loader_' + product_id + '_' + rand_id ) ).hide( ); 
+				jQuery( document.getElementById( 'ec_details_submit_review_button_row_' + product_id + '_' + rand_id ) ).hide( );
+				jQuery( document.getElementById( 'ec_details_review_submitted_button_row_' + product_id + '_' + rand_id ) ).show( );
+				jQuery( document.getElementById( 'ec_details_customer_review_success_' + product_id + '_' + rand_id ) ).show( ).delay( 1500 ).fadeOut( 'slow' ); 
+			}
+		} );
+	} else {
 		jQuery( document.getElementById( 'ec_details_review_error_' + product_id + '_' + rand_id ) ).show( );
 	}
 }
@@ -6651,12 +6952,18 @@ function ec_admin_save_product_details_options( ){
 		ec_option_use_dark_bg: jQuery( document.getElementById( 'ec_option_use_dark_bg' ) ).val( ),
 		nonce: jQuery( '#product_details_save_options_nonce' ).val()
 	}
-	jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		jQuery( document.getElementById( 'ec_admin_page_updated_loader' ) ).hide( );
-		jQuery( document.getElementById( 'ec_admin_page_updated' ) ).show( );
-		jQuery( document.getElementById( 'ec_admin_loader_bg' ) ).fadeOut( 'slow' );
-		location.reload( );
-	} } );
+	jQuery.ajax( {
+		url: wpeasycart_ajax_object.ajax_url,
+		type: 'post',
+		data: data,
+		cache: false,
+		success: function(data){ 
+			jQuery( document.getElementById( 'ec_admin_page_updated_loader' ) ).hide( );
+			jQuery( document.getElementById( 'ec_admin_page_updated' ) ).show( );
+			jQuery( document.getElementById( 'ec_admin_loader_bg' ) ).fadeOut( 'slow' );
+			location.reload( );
+		}
+	} );
 	jQuery( document.getElementById( 'ec_page_editor' ) ).animate( { left:'-290px' }, {queue:false, duration:220} ).removeClass( 'ec_display_editor_true' ).addClass( 'ec_display_editor_false' );
 }
 function ec_admin_show_description_editor( product_id, rand_id ) {
@@ -6676,7 +6983,8 @@ function ec_admin_save_description_editor( model_number, product_id, rand_id ) {
 	jQuery.ajax( {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
-		data: data
+		data: data,
+		cache: false
 	} );
 }
 function ec_admin_show_specifications_editor( product_id, rand_id ) {
@@ -6696,7 +7004,8 @@ function ec_admin_save_specifications_editor( model_number, product_id, rand_id 
 	jQuery.ajax( {
 		url: wpeasycart_ajax_object.ajax_url,
 		type: 'post',
-		data: data
+		data: data,
+		cache: false
 	} );
 }
 
@@ -6733,7 +7042,7 @@ function ec_ga4_remove_from_cart( model_number, title, quantity, price, currency
 					item_id: model_number,
 					item_name: title,
 					index: 0,
-					price: price,
+					price: parseFloat( price ),
 					item_brand: manufacturer_name,
 					quantity: quantity
 				} ]
@@ -6747,7 +7056,7 @@ function ec_ga4_remove_from_cart( model_number, title, quantity, price, currency
 				item_id: model_number,
 				item_name: title,
 				index: 0,
-				price: price,
+				price: parseFloat( price ),
 				item_brand: manufacturer_name,
 				quantity: quantity
 			} ]
@@ -6767,7 +7076,7 @@ function ec_ga4_add_to_cart( model_number, title, quantity, price, currency, man
 					item_id: model_number,
 					item_name: title,
 					index: 0,
-					price: price,
+					price: parseFloat( price ),
 					item_brand: manufacturer_name,
 					quantity: quantity
 				} ]
@@ -6781,7 +7090,7 @@ function ec_ga4_add_to_cart( model_number, title, quantity, price, currency, man
 				item_id: model_number,
 				item_name: title,
 				index: 0,
-				price: price,
+				price: parseFloat( price ),
 				item_brand: manufacturer_name,
 				quantity: quantity
 			} ]
@@ -6835,6 +7144,7 @@ function wpeasycart_trigger_location_geo( product_id = false, type = false ) {
 					url: wpeasycart_ajax_object.ajax_url,
 					type: 'post',
 					data: data,
+					cache: false,
 					success: function( response ) {
 						jQuery( '.wpeasycart-location-list-loader' ).hide();
 						if ( response.data.locations ) {
@@ -6870,6 +7180,7 @@ function wpeasycart_trigger_location_geo( product_id = false, type = false ) {
 					url: wpeasycart_ajax_object.ajax_url,
 					type: 'post',
 					data: data,
+					cache: false,
 					success: function( response ) {
 						jQuery( '.wpeasycart-location-list-loader' ).hide();
 						if ( response.data.locations ) {

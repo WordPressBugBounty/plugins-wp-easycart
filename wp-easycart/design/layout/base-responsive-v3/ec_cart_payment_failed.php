@@ -22,7 +22,7 @@
 					<strong><?php echo wp_easycart_language( )->get_text( 'ec_errors', 'subscription_payment_failed_title' ); ?></strong>
 					<p><br><?php echo wp_easycart_language( )->get_text( 'ec_errors', 'subscription_payment_failed_text' ); ?></p>
 					<p><?php echo esc_attr( $this->orderdetails[0]->title ); ?> - <?php echo esc_attr( $this->billing_first_name . " " . $this->billing_last_name ); ?></p>
-					<p><a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . $this->subscription_id ); ?>"><?php echo wp_easycart_language( )->get_text( 'ec_errors', 'subscription_payment_failed_link' ); ?></a></p>
+					<p><a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $this->subscription_id ) ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'ec_errors', 'subscription_payment_failed_link' ); ?></a></p>
 				</td>
 			</tr>
 		</table>

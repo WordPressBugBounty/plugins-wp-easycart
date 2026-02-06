@@ -21,7 +21,6 @@ class ec_accountpage {
 	public $redirect_login;
 
 	function __construct( $redirect_login = false ) {
-
 		$this->user =& $GLOBALS['ec_user'];
 		$this->mysqli = new ec_db();
 		$this->orders = new ec_orderlist( $GLOBALS['ec_user']->user_id );
@@ -94,7 +93,7 @@ class ec_accountpage {
 		$this->account_page = apply_filters( 'wp_easycart_account_page_url', $this->account_page );
 	}
 
-	public function display_account_dynamic( $account_page, $page_id, $success_code, $error_code ) {
+	public function display_account_dynamic( $account_page, $page_id, $success_code, $error_code, $form_only = false ) {
 
 		$this->display_account_error( $error_code );
 		$this->display_account_success( $success_code );
@@ -201,7 +200,7 @@ class ec_accountpage {
 					$this->order = new ec_orderdisplay( $order_row, true );
 					$this->display_order_details_page();
 				} else {
-					$this->display_account_login_page( $page_id );
+					$this->display_account_login_page( $page_id, array( 'form_only' => $form_only ) );
 
 				}
 
@@ -212,7 +211,7 @@ class ec_accountpage {
 				$this->display_forgot_password_page();
 
 			} else {
-				$this->display_account_login_page( $page_id );
+				$this->display_account_login_page( $page_id, array( 'form_only' => $form_only ) );
 
 			}
 
@@ -225,6 +224,8 @@ class ec_accountpage {
 			$this->display_register_page();
 		} else if ( $force_page && 'forgot_password' == $force_page ) {
 			$this->display_forgot_password_page();
+		} else if ( $force_page && 'login' == $force_page ) {
+			$this->display_account_login_page( false, $shortcode_atts );
 		} else {
 			do_action( 'wpeasycart_account_page_pre' );
 			if ( apply_filters( 'wpeasycart_show_account_page', true ) ) {
@@ -235,7 +236,7 @@ class ec_accountpage {
 					include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_page.php' );
 				echo "<input type=\"hidden\" name=\"ec_account_base_path\" id=\"ec_account_base_path\" value=\"" . esc_url( plugins_url() ) . "\" />";
 				echo "<input type=\"hidden\" name=\"ec_account_session_id\" id=\"ec_account_session_id\" value=\"" . esc_attr( $GLOBALS['ec_cart_data']->ec_cart_id ) . "\" />";
-				echo "<input type=\"hidden\" name=\"ec_account_email\" id=\"ec_account_email\" value=\"" . esc_attr( htmlspecialchars( $this->user_email, ENT_QUOTES ) ) . "\" />";
+				echo "<input type=\"hidden\" name=\"ec_account_email\" id=\"ec_account_email\" value=\"" . esc_attr( htmlspecialchars( ( isset( $this->user->email ) ) ? $this->user->email : '', ENT_QUOTES ) ) . "\" />";
 
 				$page_name = "";
 				if ( $force_page ) {
@@ -296,46 +297,67 @@ class ec_accountpage {
 	}
 
 	public function is_page_visible( $page_name ) {
-		if ( isset( $_GET['ec_page'] ) ) { //Check for a ec_page variable, act differently if set.
-			if ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" ) { //If logged in we can show any page accept login
-				if ( $page_name == 'login' )															return false;
-				else if ( $page_name == $_GET['ec_page'] )												return true;
-				else if ( $_GET['ec_page'] == 'login' && $page_name == 'dashboard')						return true;
-				else																					return false;
-
-			} else if ( $GLOBALS['ec_cart_data']->cart_data->is_guest != "" ) { // checked out guests can see order details
-				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' )			return true;
-				else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' )					return true;
-				else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' && $_GET['ec_page'] != 'order_details' )	
-																										return true;
-				else if ( $page_name == 'order_details' && $_GET['ec_page'] == 'order_details' && $this->order )			
-																										return true;
-				else if ( $page_name == 'login' && $_GET['ec_page'] == 'order_details' && !$this->order )
-																										return true;
-				else																					return false; 
-
-			} else if ( isset( $_GET['ec_guest_key'] ) && (bool) $_GET['ec_guest_key'] ) { // guests can see their order with a key
-				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' )			return true;
-				else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' )					return true;
-				else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' && $_GET['ec_page'] != 'order_details' )	
-																										return true;
-				else if ( $page_name == 'order_details' && $_GET['ec_page'] == 'order_details' )			return true;
-				else																					return false; 
-
-			} else { //If not logged in we can only show login or register
-				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' )			return true;
-				else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' )					return true;
-				else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' )	
-																										return true;
-				else																					return false;
+		if ( isset( $_GET['ec_page'] ) ) {
+			if ( '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) {
+				if ( $page_name == 'login' ) {
+					return false;
+				} else if ( $page_name == $_GET['ec_page'] ) {
+					return true;
+				} else if ( $_GET['ec_page'] == 'login' && $page_name == 'dashboard') {
+					return true;
+				} else {
+					return false;
+				}
+			} else if ( '' != $GLOBALS['ec_cart_data']->cart_data->is_guest ) {
+				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' ) {
+					return true;
+				} else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' ) {
+					return true;
+				} else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' && $_GET['ec_page'] != 'order_details' ) {
+					return true;
+				} else if ( $page_name == 'order_details' && $_GET['ec_page'] == 'order_details' && $this->order ) {
+					return true;
+				} else if ( $page_name == 'login' && $_GET['ec_page'] == 'order_details' && !$this->order ) {
+					return true;
+				} else {
+					return false;
+				}
+			} else if ( isset( $_GET['ec_guest_key'] ) && (bool) $_GET['ec_guest_key'] ) {
+				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' ) {
+					return true;
+				} else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' ) {
+					return true;
+				} else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' && $_GET['ec_page'] != 'order_details' ) {
+					return true;
+				} else if ( $page_name == 'order_details' && $_GET['ec_page'] == 'order_details' ) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				if ( $page_name == 'forgot_password' && $_GET['ec_page'] == 'forgot_password' ) {
+					return true;
+				} else if ( $page_name == 'register' && $_GET['ec_page'] == 'register' ) {
+					return true;
+				} else if ( $page_name == 'login' && $_GET['ec_page'] != 'register' && $_GET['ec_page'] != 'forgot_password' ) {
+					return true;
+				} else {
+					return false;
+				}
 			}
-		} else { //ec_page variable is not set
-			if ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" ) { //If logged in we should only show dashboard here
-				if ( $page_name == 'dashboard' )										return true;
-				else																return false;
-			} else { //If not logged in we should only show login here
-				if ( $page_name == 'login' )											return true;
-				else																return false;
+		} else {
+			if ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" ) {
+				if ( $page_name == 'dashboard' ) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				if ( $page_name == 'login' ) {
+					return true;
+				} else {
+					return false;
+				}
 			}
 		}
 	}
@@ -347,20 +369,24 @@ class ec_accountpage {
 		}
 	}
 
-	public function display_account_login_page( $page_id = false ) {
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_login.php' ) )	
+	public function display_account_login_page( $page_id = false, $shortcode_atts = array() ) {
+		$form_only = false;
+		if ( is_array( $shortcode_atts ) && isset( $shortcode_atts['form_only'] ) ) {
+			$form_only = (bool) $shortcode_atts['form_only'];
+		}
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_login.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_login.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_login.php' );
+		}
 		do_action( 'wpeasycart_account_login_post' );
 	}
 
 	public function display_account_login_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 	}
 
 	public function display_account_login_form_end() {
-
 		if ( $this->redirect_login ) {
 			echo "<input type=\"hidden\" name=\"ec_custom_login_redirect\" value=\"" . esc_url_raw( wp_unslash( $this->redirect_login ) ) . "\" />";
 		}
@@ -376,7 +402,6 @@ class ec_accountpage {
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" value=\"login\" />";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-login' ) ) . "\" />";
 		echo "</form>";	
-
 	}
 
 	public function display_account_login_email_input() {
@@ -392,11 +417,11 @@ class ec_accountpage {
 	}
 
 	public function display_account_login_forgot_password_link( $link_text ) {
-		echo wp_easycart_escape_html( apply_filters( 'wpeasycart_forgot_password_link', "<a href=\"" . $this->account_page . $this->permalink_divider . "ec_page=forgot_password\" class=\"ec_account_login_link\">" . esc_attr( $link_text ) . "</a>" ) );
+		echo wp_easycart_escape_html( apply_filters( 'wpeasycart_forgot_password_link', "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'forgot_password' ) ) . "\" class=\"ec_account_login_link\">" . esc_attr( $link_text ) . "</a>" ) );
 	}
 
 	public function display_account_login_create_account_button( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=register\" class=\"ec_account_login_create_account_button\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'register' ) ) . "\" class=\"ec_account_login_create_account_button\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	/* END ACCOUNT LOGIN FUNCTIONS */
@@ -409,14 +434,15 @@ class ec_accountpage {
 	}
 
 	public function display_forgot_password_page() {
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_forgot_password.php' ) )	
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_forgot_password.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_forgot_password.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_forgot_password.php' );
+		}
 	}
 
 	public function display_account_forgot_password_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";	
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";	
 	}
 
 	public function display_account_forgot_password_form_end() {
@@ -442,14 +468,15 @@ class ec_accountpage {
 	}
 
 	public function display_register_page() {
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_register.php' ) )	
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_register.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_register.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_register.php' );
+		}
 	}
 
 	public function display_account_register_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-register' ) ) . "\" />";
 	}
 
@@ -491,10 +518,11 @@ class ec_accountpage {
 	}
 
 	public function display_account_register_button( $button_text ) {
-		if ( get_option( 'ec_option_require_account_address' ) )
+		if ( get_option( 'ec_option_require_account_address' ) ) {
 			echo "<input type=\"submit\" name=\"ec_account_register_button\" id=\"ec_account_register_button\" class=\"ec_account_register_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"return ec_account_register_button_click2();\">";
-		else
+		} else {
 			echo "<input type=\"submit\" name=\"ec_account_register_button\" id=\"ec_account_register_button\" class=\"ec_account_register_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"return ec_account_register_button_click();\">";
+		}
 	}
 	/* END REGISTER FUNCTIONS */
 
@@ -536,39 +564,39 @@ class ec_accountpage {
 	}
 
 	public function display_dashboard_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";	
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";	
 	}
 
 	public function display_orders_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=orders\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";	
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'orders' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";	
 	}
 
 	public function display_personal_information_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=personal_information\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'personal_information' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_billing_information_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=billing_information\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'billing_information' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_shipping_information_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=shipping_information\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'shipping_information' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_password_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=password\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'password' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_subscriptions_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=subscriptions\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'subscriptions' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_payment_methods_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=payment_methods\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'payment_methods' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function display_logout_link( $link_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=logout\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'logout' ) ) . "\" class=\"ec_account_dashboard_link\">" . esc_attr( $link_text ) . "</a>";
 	}
 	/* END DASHBOARD FUNCTIONS */
 
@@ -609,10 +637,11 @@ class ec_accountpage {
 
 	public function display_print_order_icon() {
 		if ( $this->order ) {
-			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png" ) )	
-				echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=print_receipt&order_id=" . esc_attr( $this->order->order_id ) . "\" target=\"_blank\"><img src=\"" . esc_url( plugins_url( "wp-easycart-data/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png", EC_PLUGIN_DATA_DIRECTORY ) ) . "\" alt=\"print\" /></a>";
-			else
-				echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=print_receipt&order_id=" . esc_attr( $this->order->order_id ) . "\" target=\"_blank\"><img src=\"" . esc_url( plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png", EC_PLUGIN_DIRECTORY ) ) . "\" alt=\"print\" /></a>";
+			if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png" ) ) {
+				echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => $this->order->order_id ) ) ) . "\" target=\"_blank\"><img src=\"" . esc_url( plugins_url( "wp-easycart-data/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png", EC_PLUGIN_DATA_DIRECTORY ) ) . "\" alt=\"print\" /></a>";
+			} else {
+				echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => $this->order->order_id ) ) ) . "\" target=\"_blank\"><img src=\"" . esc_url( plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_base_theme' ) . "/ec_account_order_details/print_icon.png", EC_PLUGIN_DIRECTORY ) ) . "\" alt=\"print\" /></a>";
+			}
 		}
 	}
 
@@ -625,7 +654,7 @@ class ec_accountpage {
 
 	public function display_complete_payment_link() {
 		if ( $this->order && $this->order->orderstatus_id == 8 ) {
-			echo "<a href=\"" . esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=third_party&order_id=" . esc_attr( $this->order->order_id ) . "\" class=\"ec_account_complete_order_link\">" . wp_easycart_language()->get_text( 'account_order_details', 'complete_payment' ) . "</a> ";
+			echo "<a href=\"" . esc_url( wpeasycart_links()->get_cart_page( 'third_party', array( 'order_id' => (int) $this->order->order_id ) ) ) . "\" class=\"ec_account_complete_order_link\">" . wp_easycart_language()->get_text( 'account_order_details', 'complete_payment' ) . "</a> ";
 		}
 	}
 	/* END ORDER DETAILS FUNCTIONS*/
@@ -645,7 +674,7 @@ class ec_accountpage {
 	}
 
 	public function display_account_personal_information_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" id=\"ec_account_personal_information_form_action\" value=\"update_personal_information\" />";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-update-personal-info-' . (int) $GLOBALS['ec_user']->user_id ) ) . "\" />";
 	}
@@ -689,7 +718,7 @@ class ec_accountpage {
 		echo "<input type=\"submit\" name=\"ec_account_personal_information_button\" id=\"ec_account_personal_information_button\" class=\"ec_account_personal_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"return ec_account_personal_information_update_click();\" />";
 	}
 	public function display_account_personal_information_cancel_link( $button_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard\" class=\"ec_account_personal_information_link\"><input type=\"button\" name=\"ec_account_personal_information_button\" id=\"ec_account_personal_information_button\" class=\"ec_account_personal_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard'\" /></a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "\" class=\"ec_account_personal_information_link\"><input type=\"button\" name=\"ec_account_personal_information_button\" id=\"ec_account_personal_information_button\" class=\"ec_account_personal_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "'\" /></a>";
 	}
 
 
@@ -710,7 +739,7 @@ class ec_accountpage {
 	}
 
 	public function display_account_password_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" id=\"ec_account_password_form_action\" value=\"update_password\" />";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-update-password-' . (int) $GLOBALS['ec_user']->user_id ) ) . "\" />";
 	}
@@ -735,7 +764,7 @@ class ec_accountpage {
 		echo "<input type=\"submit\" name=\"ec_account_password_button\" id=\"ec_account_password_button\" class=\"ec_account_password_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"return ec_account_password_button_click();\" />";
 	}
 	public function display_account_password_cancel_link( $button_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard\" class=\"ec_account_password_link\"><input type=\"button\" name=\"ec_account_password_button\" id=\"ec_account_password_button\" class=\"ec_account_password_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard'\" /></a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "\" class=\"ec_account_password_link\"><input type=\"button\" name=\"ec_account_password_button\" id=\"ec_account_password_button\" class=\"ec_account_password_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "'\" /></a>";
 	}
 
 	/* END PASSWORD FUNCTIONS */
@@ -755,7 +784,7 @@ class ec_accountpage {
 	}
 
 	public function display_account_billing_information_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" id=\"ec_account_billing_information_form_action\" value=\"update_billing_information\" />";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-update-billing-info-' . (int) $GLOBALS['ec_user']->user_id ) ) . "\" />";
 	}
@@ -867,7 +896,6 @@ class ec_accountpage {
 			if ( get_option( 'ec_option_use_state_dropdown' ) ) {
 				$states = $this->mysqli->get_states();
 				$selected_state = $GLOBALS['ec_user']->billing->state;
-
 				echo "<select name=\"ec_account_billing_information_state\" id=\"ec_account_billing_information_state\" class=\"ec_account_billing_information_input_field\">";
 				echo "<option value=\"0\">" . wp_easycart_language()->get_text( "account_billing_information", "account_billing_information_default_no_state" ) . "</option>";
 				foreach ($states as $state) {
@@ -881,7 +909,6 @@ class ec_accountpage {
 				echo "<input type=\"text\" name=\"ec_account_billing_information_state\" id=\"ec_account_billing_information_state\" class=\"ec_account_billing_information_input_field\" value=\"" . esc_attr( htmlspecialchars( $GLOBALS['ec_user']->billing->state, ENT_QUOTES ) ) . "\" />";
 			}
 		}// Close if/else for state display type
-
 	}
 
 	public function display_account_billing_information_zip_input() {
@@ -891,21 +918,22 @@ class ec_accountpage {
 	public function display_account_billing_information_country_input() {
 		if ( get_option( 'ec_option_use_country_dropdown' ) ) {
 			$countries = $GLOBALS['ec_countries']->countries;
-			if ( $GLOBALS['ec_user']->billing->country )
+			if ( $GLOBALS['ec_user']->billing->country ) {
 				$selected_country = $GLOBALS['ec_user']->billing->country;
-			else if ( count( $countries ) == 1 )
+			} else if ( count( $countries ) == 1 ) {
 				$selected_country = $countries[0]->iso2_cnt;
-			else if ( get_option( 'ec_option_default_country' ) )
+			} else if ( get_option( 'ec_option_default_country' ) ) {
 				$selected_country = get_option( 'ec_option_default_country' );
-			else
+			} else {
 				$selected_country = $GLOBALS['ec_user']->billing->country;
-
+			}
 			echo "<select name=\"ec_account_billing_information_country\" id=\"ec_account_billing_information_country\" class=\"ec_account_billing_information_input_field\">";
 			echo "<option value=\"0\">" . wp_easycart_language()->get_text( "account_billing_information", "account_billing_information_default_no_country" ) . "</option>";
 			foreach ($countries as $country) {
 				echo "<option value=\"" . esc_attr( $country->iso2_cnt ) . "\"";
-				if ( $country->iso2_cnt == $selected_country )
-				echo " selected=\"selected\"";
+				if ( $country->iso2_cnt == $selected_country ) {
+					echo " selected=\"selected\"";
+				}
 				echo ">" . esc_attr( $country->name_cnt ) . "</option>";
 			}
 			echo "</select>";
@@ -922,10 +950,8 @@ class ec_accountpage {
 		echo "<input type=\"submit\" name=\"ec_account_billing_information_button\" id=\"ec_account_billing_information_button\" class=\"ec_account_billing_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"return ec_account_billing_information_update_click();\" />";
 	}
 	public function display_account_billing_information_cancel_link( $button_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard\" class=\"ec_account_billing_information_link\">" . "<input type=\"button\" name=\"ec_account_billing_information_button\" id=\"ec_account_billing_information_button\" class=\"ec_account_billing_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard'\" /></a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "\" class=\"ec_account_billing_information_link\">" . "<input type=\"button\" name=\"ec_account_billing_information_button\" id=\"ec_account_billing_information_button\" class=\"ec_account_billing_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "'\" /></a>";
 	}
-
-
 	/* END BILLING INFORMATION FUNCTIONS */
 
 	/* START SHIPPING INFORMATION FUNCTIONS */
@@ -943,7 +969,7 @@ class ec_accountpage {
 	}
 
 	public function display_account_shipping_information_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
 		echo "<input type=\"hidden\" name=\"ec_account_form_action\" id=\"ec_account_shipping_information_form_action\" value=\"update_shipping_information\" />";
 		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-update-shipping-info-' . (int) $GLOBALS['ec_user']->user_id ) ) . "\" />";
 	}
@@ -1084,8 +1110,9 @@ class ec_accountpage {
 			echo "<option value=\"0\">" . wp_easycart_language()->get_text( "account_shipping_information", "account_shipping_information_default_no_country" ) . "</option>";
 			foreach ($countries as $country) {
 				echo "<option value=\"" . esc_attr( $country->iso2_cnt ) . "\"";
-				if ( $country->iso2_cnt == $selected_country )
-				echo " selected=\"selected\"";
+				if ( $country->iso2_cnt == $selected_country ) {
+					echo " selected=\"selected\"";
+				}
 				echo ">" . esc_attr( $country->name_cnt ) . "</option>";
 			}
 			echo "</select>";
@@ -1103,12 +1130,9 @@ class ec_accountpage {
 	}
 
 	public function display_account_shipping_information_cancel_link( $button_text ) {
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard\" class=\"ec_account_shipping_information_link\">" ."<input type=\"button\" name=\"ec_account_shipping_information_button\" id=\"ec_account_shipping_information_button\" class=\"ec_account_shipping_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( $this->account_page . $this->permalink_divider ) . "ec_page=dashboard'\" /></a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "\" class=\"ec_account_shipping_information_link\">" ."<input type=\"button\" name=\"ec_account_shipping_information_button\" id=\"ec_account_shipping_information_button\" class=\"ec_account_shipping_information_button\" value=\"" . esc_attr( $button_text ) . "\" onclick=\"window.location='" . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) . "'\" /></a>";
 	}
-
-
 	/* END SHIPPING INFORMATION FUNCTIONS */
-
 
 	/* START SUBSCRIPTIONS FUNCTIONS */
 	public function display_account_subscriptions() {
@@ -1184,53 +1208,53 @@ class ec_accountpage {
 	/* START FORM ACTION FUNCTIONS */
 	public function process_form_action( $action ) {
 		wpeasycart_session()->handle_session();
-		if ( $action == "login" )
+		if ( $action == "login" ) {
 			$this->process_login();
-		else if ( $action == "register" )
+		} else if ( $action == "register" ) {
 			$this->process_register();
-		else if ( $action == "retrieve_password" )
+		} else if ( $action == "retrieve_password" ) {
 			$this->process_retrieve_password();
-		else if ( $action == "update_personal_information" )
+		} else if ( $action == "update_personal_information" ) {
 			$this->process_update_personal_information();
-		else if ( $action == "update_password" )
+		} else if ( $action == "update_password" ) {
 			$this->process_update_password();
-		else if ( $action == "update_billing_information" )
+		} else if ( $action == "update_billing_information" ) {
 			$this->process_update_billing_information();
-		else if ( $action == "update_shipping_information" )
+		} else if ( $action == "update_shipping_information" ) {
 			$this->process_update_shipping_information();
-		else if ( $action == "logout" )
+		} else if ( $action == "logout" ) {
 			$this->process_logout();
-		else if ( $action == "update_subscription" )
+		} else if ( $action == "update_subscription" ) {
 			$this->process_update_subscription();
-		else if ( $action == "cancel_subscription" )
+		} else if ( $action == "cancel_subscription" ) {
 			$this->process_cancel_subscription();
-		else if ( $action == "order_create_account" )
+		} else if ( $action == "order_create_account" ) {
 			$this->process_order_create_account();
-
+		} else if ( $action == "connect_order" ) {
+			$this->process_connect_order();
+		}
 		do_action( 'wpeasycart_user_updated' );
 	}
 
 	private function process_login() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-login' ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
 
 		$recaptcha_valid = true;
 		if ( get_option( 'ec_option_enable_recaptcha' ) ) {
-
-			if ( !isset( $_POST['ec_grecaptcha_response_login'] ) || $_POST['ec_grecaptcha_response_login'] == '' ) {
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=login&account_error=login_failed" );
+			if ( ! isset( $_POST['ec_grecaptcha_response_login'] ) || $_POST['ec_grecaptcha_response_login'] == '' ) {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'login_failed' ) ) ) );
 				die();
-
 			}
 
 			$db = new ec_db_admin();
 			$recaptcha_response = sanitize_text_field( $_POST['ec_grecaptcha_response_login'] );
 
 			$data = array(
-				"secret"	=> get_option( 'ec_option_recaptcha_secret_key' ),
-				"response"	=> $recaptcha_response
+				"secret" => get_option( 'ec_option_recaptcha_secret_key' ),
+				"response" => $recaptcha_response
 			);
 
 			$request = new WP_Http;
@@ -1250,22 +1274,21 @@ class ec_accountpage {
 				$response = json_decode( $response['body'] );
 				$db->insert_response( 0, 0, "Google Recaptcha Response", print_r( $response, true ) );
 			}
-
 			$recaptcha_valid = ( isset( $response->success ) && $response->success ) ? true : false;
 		}
 
 		if ( $recaptcha_valid ) {
-
 			if ( isset( $_POST['ec_account_login_email_widget'] ) ) {
 				$email = sanitize_email( $_POST['ec_account_login_email_widget'] );
 			} else {
 				$email = sanitize_email( $_POST['ec_account_login_email'] );
 			}
 
-			if ( isset( $_POST['ec_account_login_password_widget'] ) )
+			if ( isset( $_POST['ec_account_login_password_widget'] ) ) {
 				$password = sanitize_text_field( $_POST['ec_account_login_password_widget'] );
-			else
+			} else {
 				$password = sanitize_text_field( $_POST['ec_account_login_password'] );
+			}
 
 			$password_hash = md5( $password );
 			$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $password );
@@ -1274,11 +1297,9 @@ class ec_accountpage {
 			$user = $this->mysqli->get_user_login( $email, $password, $password_hash );
 
 			if ( $user && $user->user_level == "pending" ) {
-
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=login&account_error=not_activated" );
-
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'not_activated' ) ) ) );
+				die();
 			} else if ( $user ) {
-
 				$GLOBALS['ec_cart_data']->cart_data->billing_first_name = $user->billing_first_name;
 				$GLOBALS['ec_cart_data']->cart_data->billing_last_name = $user->billing_last_name;
 				$GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 = $user->billing_address_line_1;
@@ -1332,73 +1353,74 @@ class ec_accountpage {
 				do_action( 'wpeasycart_login_success', $email );
 
 				if ( isset( $_POST['ec_goto_page'] ) && $_POST['ec_goto_page'] == "store" ) {
-					header( "location: " . $this->store_page );
-
+					header( "location: " . esc_url_raw( $this->store_page ) );
+					die();
 				} else if ( isset( $_POST['ec_custom_login_redirect'] ) ) {
-
-					if ( substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 7 ) == "http://" || substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 8 ) == "https://" )
+					if ( substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 7 ) == "http://" || substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 8 ) == "https://" ) {
 						$redirect_url = htmlspecialchars( esc_url_raw( $_POST['ec_custom_login_redirect'] ), ENT_QUOTES );
-					else
+					} else {
 						$redirect_url = get_page_link( esc_url_raw( $_POST['ec_custom_login_redirect'] ) );
-
-					header( "location: " . $redirect_url );
-
-
+					}
+					header( "location: " . esc_url_raw( $redirect_url ) );
+					die();
 				} else if ( isset( $_POST['ec_goto_page'] ) && $_POST['ec_goto_page'] != "forgot_password" && $_POST['ec_goto_page'] != "register" && $_POST['ec_goto_page'] != "login" ) {
-					$goto = $this->account_page . $this->permalink_divider . "ec_page=" . htmlspecialchars( sanitize_key( $_POST['ec_goto_page'] ), ENT_QUOTES );
-					if ( isset( $_POST['ec_order_id'] ) )
-						$goto .= "&order_id=" . (int) $_POST['ec_order_id'];
-					if ( isset( $_POST['ec_subscription_id'] ) )
-						$goto .= "&subscription_id=" . (int) $_POST['ec_subscription_id'];
-					header( "location: " . $goto );
-
+					$atts = array();
+					if ( isset( $_POST['ec_order_id'] ) ) {
+						$atts['order_id'] = (int) $_POST['ec_order_id'];
+					}
+					if ( isset( $_POST['ec_subscription_id'] ) ) {
+						$atts['subscription_id'] = (int) $_POST['ec_subscription_id'];
+					}
+					$goto = wpeasycart_links()->get_account_page( htmlspecialchars( sanitize_key( $_POST['ec_goto_page'] ) ), $atts );
+					header( "location: " . esc_url_raw( $goto ) );
 				} else {
 					$page_id = (int) $_POST['ec_account_page_id'];
 					$page_content = get_post( $page_id );
 					if ( preg_match( "/\[ec_account redirect\=[\'\\\"](.*)[\'\\\"]\]/", $page_content->post_content, $matches ) ) {
-						header( "location: " . $matches[1] );
+						header( "location: " . esc_url_raw( $matches[1] ) );
 					} else {
-						header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=login_success" );
+						header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'login_success' ) ) ) );
 					}
 				}
-
 			} else {
-
 				do_action( 'wpeasycart_login_failed', $email );
 				if ( isset( $_POST['ec_goto_page'] ) && $_POST['ec_goto_page'] == "store" ) {
 					header( "location: " . $this->store_page . $this->permalink_divider . "ec_page=login&account_error=login_failed" );
-
 				} else {
 					$page_id = (int) $_POST['ec_account_page_id'];
 					do_action( 'wpeasycart_account_pre_login_failed_redirect', $email, $password );
 					header( "location: " . get_permalink( $page_id ) . $this->permalink_divider . "ec_page=login&account_error=login_failed" );
-
 				}
-
 			}
-
 		} else { // close recaptcha check
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=login&account_error=recaptcha_failed" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'recaptcha_failed' ) ) ) );
 			die();
-
 		}
-
 	}
 
 	private function process_register() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-register' ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
 
-		
-		if ( isset( $_POST['ec_account_register_email'] ) && isset( $_POST['ec_account_register_password'] ) && $_POST['ec_account_register_email'] != "" && $_POST['ec_account_register_password'] != "" ) {
+		$account_page = $this->account_page;
+		$permalink_divider = $this->permalink_divider;
+		if ( isset( $_POST['ec_account_page_id'] ) ) {
+			$page_id = (int) $_POST['ec_account_page_id'];
+			$account_page = get_permalink( $page_id );
+			if ( substr_count( $account_page, '?' ) ) {
+				$permalink_divider = '&';
+			} else {
+				$permalink_divider = '?';
+			}
+		}
 
+		if ( isset( $_POST['ec_account_register_email'] ) && isset( $_POST['ec_account_register_password'] ) && $_POST['ec_account_register_email'] != "" && $_POST['ec_account_register_password'] != "" ) {
 			$recaptcha_valid = true;
 			if ( get_option( 'ec_option_enable_recaptcha' ) ) {
-
 				if ( !isset( $_POST['ec_grecaptcha_response_register'] ) || $_POST['ec_grecaptcha_response_register'] == '' ) {
-					header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=register_invalid" );
+					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_invalid' ) ) ) );
 					die();
 				}
 
@@ -1431,43 +1453,44 @@ class ec_accountpage {
 			}
 
 			if ( $recaptcha_valid ) {
-
 				$first_name = "";
-				if ( isset( $_POST['ec_account_register_first_name'] ) )
+				if ( isset( $_POST['ec_account_register_first_name'] ) ) {
 					$first_name = sanitize_text_field( $_POST['ec_account_register_first_name'] );
-
+				}
 				$last_name = "";
-				if ( isset( $_POST['ec_account_register_last_name'] ) )
+				if ( isset( $_POST['ec_account_register_last_name'] ) ) {
 					$last_name = sanitize_text_field( $_POST['ec_account_register_last_name'] );
-
+				}
 				$email = sanitize_email( $_POST['ec_account_register_email'] );
 				$password = md5( $_POST['ec_account_register_password'] ); // XSS OK, Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, sanitize_text_field( $_POST['ec_account_register_password'] ) );
 
 				// Check if account already exists
 				if ( $this->mysqli->does_user_exist( sanitize_email( $_POST['ec_account_register_email'] ) ) ) {
-					header("location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=register_email_error");
-					die();   
+					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_email_error' ) ) ) );
+					die();
 				}
 
 				$is_subscriber = false;
-				if ( isset( $_POST['ec_account_register_is_subscriber'] ) )
+				if ( isset( $_POST['ec_account_register_is_subscriber'] ) ) {
 					$is_subscriber = true;
+				}
 
 				$billing_id = 0;
 				$vat_registration_number = "";
 
 				// Insert billing address if enabled
 				if ( get_option( 'ec_option_require_account_address' ) ) {
-					$billing = array( "first_name" 	=> sanitize_text_field( $_POST['ec_account_billing_information_first_name'] ),
-									  "last_name"	=> sanitize_text_field( $_POST['ec_account_billing_information_last_name'] ),
-									  "address"		=> sanitize_text_field( $_POST['ec_account_billing_information_address'] ),
-									  "city"		=> sanitize_text_field( $_POST['ec_account_billing_information_city'] ),
-									  "zip_code"	=> sanitize_text_field( $_POST['ec_account_billing_information_zip'] ),
-									  "country"		=> sanitize_text_field( $_POST['ec_account_billing_information_country'] ),
-									);
+					$billing = array(
+						"first_name" => sanitize_text_field( $_POST['ec_account_billing_information_first_name'] ),
+						"last_name" => sanitize_text_field( $_POST['ec_account_billing_information_last_name'] ),
+						"address" => sanitize_text_field( $_POST['ec_account_billing_information_address'] ),
+						"city" => sanitize_text_field( $_POST['ec_account_billing_information_city'] ),
+						"zip_code" => sanitize_text_field( $_POST['ec_account_billing_information_zip'] ),
+						"country" => sanitize_text_field( $_POST['ec_account_billing_information_country'] ),
+					);
 
-					if ( isset( $_POST['ec_account_billing_information_state_' . $billing['country']] ) ) {
+					if ( isset( $_POST[ 'ec_account_billing_information_state_' . $billing['country'] ] ) ) {
 						$billing['state'] = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_state_' . sanitize_text_field( $billing['country'] )] ) );
 					} else {
 						$billing['state'] = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_state'] ) );
@@ -1549,7 +1572,6 @@ class ec_accountpage {
 
 				// Send registration email if needed
 				if ( get_option( 'ec_option_send_signup_email' ) ) {
-
 					$headers   = array();
 					$headers[] = "MIME-Version: 1.0";
 					$headers[] = "Content-Type: text/html; charset=utf-8";
@@ -1567,79 +1589,63 @@ class ec_accountpage {
 						$mailer = new wpeasycart_mailer();
 						$mailer->send_customer_email( $admin_email, $subject, $message );
 					}
-
 				}
 
 				if ( $user_id ) {
-
 					if ( get_option( 'ec_option_require_email_validation' ) ) {
-
-						header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=login&account_success=validation_required" );
-
+						header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'validation_required' ) ) ) );
+						die();
 					} else {
-
 						$GLOBALS['ec_cart_data']->cart_data->user_id = $user_id;
 						$GLOBALS['ec_cart_data']->cart_data->email = $email;
 						$GLOBALS['ec_cart_data']->cart_data->username = $first_name . " " . $last_name;
 						$GLOBALS['ec_cart_data']->cart_data->first_name = $first_name;
 						$GLOBALS['ec_cart_data']->cart_data->last_name = $last_name;
-
 						$GLOBALS['ec_cart_data']->cart_data->is_guest = "";
 						$GLOBALS['ec_cart_data']->cart_data->guest_key = "";
-
 						$GLOBALS['ec_cart_data']->save_session_to_db();
-						header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard" );
-
+						header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard' ) ) );
+						die();
 					}
-
 				} else {
-
-					header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=register_email_error" );
-
+					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_email_error' ) ) ) );
+					die();
 				}
-
 			} else { // close recaptcha check
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=recaptcha_failed" );
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'recaptcha_failed' ) ) ) );
 				die();
-
 			}
-
 		} else {
-
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=register_invalid" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_invalid' ) ) ) );
+			die();
 		}
-
 	}
 
 	private function process_retrieve_password() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-retrieve-password' ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
-
 		$email = sanitize_email( $_POST['ec_account_forgot_password_email'] );
 		$new_password = $this->get_random_password();
 		$password = md5( $new_password );
 		$password = apply_filters( 'wpeasycart_password_hash', $password, $new_password );
-
 		$success = $this->mysqli->reset_password( $email, $password );
-
 		if ( $success ) {
 			$this->send_new_password_email( $email, $new_password );
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=login&account_success=reset_email_sent" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'reset_email_sent' ) ) ) );
+			die();
 		} else {
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=register&account_error=no_reset_email_found" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'no_reset_email_found' ) ) ) );
+			die();
 		}
-
 	}
 
 	private function process_update_personal_information() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-update-personal-info-' . (int) $GLOBALS['ec_user']->user_id ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
-
 		$old_email = $GLOBALS['ec_cart_data']->cart_data->email;
 		$user_id = $GLOBALS['ec_cart_data']->cart_data->user_id;
 		$first_name = sanitize_text_field( $_POST['ec_account_personal_information_first_name'] );
@@ -1652,12 +1658,11 @@ class ec_accountpage {
 			$vat_registration_number = "";
 		}
 		$is_subscriber = ( isset( $_POST['ec_account_personal_information_is_subscriber'] ) && (bool) $_POST['ec_account_personal_information_is_subscriber'] ) ? 1 : 0;
-
 		$success = $this->mysqli->update_personal_information( $old_email, $user_id, $first_name, $last_name, $email, $is_subscriber, $vat_registration_number, $email_other );
 
 		//Update Custom Fields if They Exist
 		if ( count( $GLOBALS['ec_user']->customfields ) > 0 ) {
-			for ( $i=0; $i<count( $GLOBALS['ec_user']->customfields ); $i++ ) {
+			for ( $i = 0; $i<count( $GLOBALS['ec_user']->customfields ); $i++ ) {
 				$this->mysqli->update_customfield_data( $GLOBALS['ec_user']->customfields[$i][0], sanitize_text_field( $_POST['ec_user_custom_field_' . $GLOBALS['ec_user']->customfields[$i][0]] ) );
 			}
 		}
@@ -1673,38 +1678,33 @@ class ec_accountpage {
 			$GLOBALS['ec_cart_data']->cart_data->username = $first_name . " " . $last_name;
 			$GLOBALS['ec_cart_data']->cart_data->first_name = $first_name;
 			$GLOBALS['ec_cart_data']->cart_data->last_name = $last_name;
-
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-
 			if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
 				$wp_user = get_user_by( 'email', $GLOBALS['ec_user']->email );
 				if ( $wp_user ) {
 					wp_update_user( array( 'ID' => $wp_user->ID, 'user_email' => $email ) );
 				}
 			}
-
 			do_action( 'wpeasycart_account_updated', $user_id );
-
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=personal_information_updated" );
-		} else
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=personal_information&account_error=personal_information_update_error" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'personal_information_updated' ) ) ) );
+			die();
+		} else {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'personal_information_update_error' ) ) ) );
+			die();
+		}
 	}
 
 	private function process_update_password() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-update-password-' . (int) $GLOBALS['ec_user']->user_id ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'password', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
-
 		$user_id = $GLOBALS['ec_user']->user_id;
-
 		if ( apply_filters( 'wpeasycart_custom_verify_new_password', false, $_POST['ec_account_password_new_password'] ) ) { // XSS OK, Password Should not be sanitized
 			do_action( 'wpeasycart_custom_verify_new_password_failed', $_POST['ec_account_password_new_password'] ); // XSS OK, Password Should not be sanitized
-
 		} else if ( $_POST['ec_account_password_new_password'] != $_POST['ec_account_password_retype_new_password'] ) { // XSS OK, Password Should not be sanitized
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=password&account_error=password_no_match" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'password', array( 'account_error' => 'password_no_match' ) ) ) );
+			die();
 		} else {
 			$success = $this->mysqli->update_password( 
 				$user_id, $_POST['ec_account_password_current_password'],  // XSS OK, Password Should not be sanitized
@@ -1720,20 +1720,21 @@ class ec_accountpage {
 
 			if ( $success ) {
 				$GLOBALS['ec_cart_data']->save_session_to_db();
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=password_updated" );
-			} else
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=password&account_error=password_wrong_current" );
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'password_updated' ) ) ) );
+				die();
+			} else {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'password', array( 'account_error' => 'password_wrong_current' ) ) ) );
+				die();
+			}
 		}
 	}
 
 	private function process_update_billing_information() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-update-billing-info-' . (int) $GLOBALS['ec_user']->user_id ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'billing_information', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
-
 		$country = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_country'] ) );
-
 		$first_name = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_first_name'] ) );
 		$last_name = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_last_name'] ) );
 		if ( isset( $_POST['ec_account_billing_information_company_name'] ) ) {
@@ -1752,14 +1753,12 @@ class ec_accountpage {
 		} else {
 			$address2 = "";
 		}
-
 		$city = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_city'] ) );
 		if ( isset( $_POST['ec_account_billing_information_state_' . $country] ) ) {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_state_' . $country] ) );
 		} else {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_state'] ) );
 		}
-
 		$zip = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_zip'] ) );
 		$phone = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_phone'] ) );
 
@@ -1787,8 +1786,8 @@ class ec_accountpage {
 			$phone == $GLOBALS['ec_user']->billing->phone ) {
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=billing_information_updated" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'billing_information_updated' ) ) ) );
+			die();
 		} else {
 			$this->mysqli->update_user( $GLOBALS['ec_user']->user_id, $vat_registration_number );
 			$address_id = $GLOBALS['ec_user']->billing_id;
@@ -1797,27 +1796,24 @@ class ec_accountpage {
 			else {
 				$success = $this->mysqli->insert_user_address( $first_name, $last_name, $company_name, $address, $address2, $city, $state, $zip, $country, $phone, $GLOBALS['ec_user']->user_id, "billing" );
 			}
-
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-
 			do_action( 'wpeasycart_account_updated', $GLOBALS['ec_user']->user_id );
-
-			if ( $success >= 0 )
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=billing_information_updated" );
-			else
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=billing_information&account_error=billing_information_error" );
-
+			if ( $success >= 0 ) {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'billing_information_updated' ) ) ) );
+				die();
+			} else {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'billing_information', array( 'account_error' => 'billing_information_error' ) ) ) );
+				die();
+			}
 		}
 	}
 
 	private function process_update_shipping_information() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-update-shipping-info-' . (int) $GLOBALS['ec_user']->user_id ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'shipping_information', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
-
 		$country = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_country'] ) );
-
 		$first_name = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_first_name'] ) );
 		$last_name = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_last_name'] ) );
 		if ( isset( $_POST['ec_account_shipping_information_company_name'] ) ) {
@@ -1831,14 +1827,12 @@ class ec_accountpage {
 		} else {
 			$address2 = "";
 		}
-
 		$city = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_city'] ) );
 		if ( isset( $_POST['ec_account_shipping_information_state_' . $country] ) ) {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_state_' . $country] ) );
 		} else {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_state'] ) );
 		}
-
 		$zip = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_zip'] ) );
 		$phone = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_phone'] ) );
 
@@ -1852,7 +1846,6 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->shipping_zip = $zip;
 		$GLOBALS['ec_cart_data']->cart_data->shipping_country = $country;
 		$GLOBALS['ec_cart_data']->cart_data->shipping_phone = $phone;
-
 		if ( $first_name == $GLOBALS['ec_user']->shipping->first_name && 
 			$last_name == $GLOBALS['ec_user']->shipping->last_name && 
 			$company_name == $GLOBALS['ec_user']->shipping->company_name && 
@@ -1865,41 +1858,36 @@ class ec_accountpage {
 			$phone == $GLOBALS['ec_user']->shipping->phone ) {
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=shipping_information_updated" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'shipping_information_updated' ) ) ) );
+			die();
 		} else {
-
 			$address_id = $GLOBALS['ec_user']->shipping_id;
 			if ( $address_id )
 				$success = $this->mysqli->update_user_address( $address_id, $first_name, $last_name, $address, $address2, $city, $state, $zip, $country, $phone, $company_name, $GLOBALS['ec_user']->user_id );
 			else {
 				$success = $this->mysqli->insert_user_address( $first_name, $last_name, $company_name, $address, $address2, $city, $state, $zip, $country, $phone, $GLOBALS['ec_user']->user_id, "shipping" );
 			}
-
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-
 			do_action( 'wpeasycart_account_updated', $GLOBALS['ec_user']->user_id );
-
-			if ( $success >= 0 )
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=dashboard&account_success=shipping_information_updated" );
-			else
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=shipping_information&account_error=shipping_information_error" );
-
+			if ( $success >= 0 ) {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'shipping_information_updated' ) ) ) );
+				die();
+			} else {
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'shipping_information', array( 'account_error' => 'shipping_information_error' ) ) ) );
+				die();
+			}
 		}
 	}
 
 	private function process_logout() {
-		$account_logout_url = apply_filters( 'wp_easycart_account_logout_redirect_url', $this->account_page . $this->permalink_divider . "ec_page=login" );
-
+		$account_logout_url = apply_filters( 'wp_easycart_account_logout_redirect_url', wpeasycart_links()->get_account_page( 'login' ) );
 		$GLOBALS['ec_cart_data']->cart_data->user_id = "";
 		$GLOBALS['ec_cart_data']->cart_data->email = "";
 		$GLOBALS['ec_cart_data']->cart_data->username = "";
 		$GLOBALS['ec_cart_data']->cart_data->first_name = "";
 		$GLOBALS['ec_cart_data']->cart_data->last_name = "";
-
 		$GLOBALS['ec_cart_data']->cart_data->is_guest = "";
 		$GLOBALS['ec_cart_data']->cart_data->guest_key = "";
-
 		$GLOBALS['ec_cart_data']->cart_data->billing_first_name = "";
 		$GLOBALS['ec_cart_data']->cart_data->billing_last_name = "";
 		$GLOBALS['ec_cart_data']->cart_data->billing_company_name = "";
@@ -1910,7 +1898,6 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->billing_zip = "";
 		$GLOBALS['ec_cart_data']->cart_data->billing_country = "";
 		$GLOBALS['ec_cart_data']->cart_data->billing_phone = "";
-
 		$GLOBALS['ec_cart_data']->cart_data->shipping_first_name = "";
 		$GLOBALS['ec_cart_data']->cart_data->shipping_last_name = "";
 		$GLOBALS['ec_cart_data']->cart_data->shipping_company_name = "";
@@ -1921,41 +1908,31 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->shipping_zip = "";
 		$GLOBALS['ec_cart_data']->cart_data->shipping_country = "";
 		$GLOBALS['ec_cart_data']->cart_data->shipping_phone = "";
-
 		$GLOBALS['ec_cart_data']->cart_data->shipping_selector = "";
 		$GLOBALS['ec_cart_data']->cart_data->shipping_method = "";
 		$GLOBALS['ec_cart_data']->cart_data->expedited_shipping = ""; 
-
 		$GLOBALS['ec_cart_data']->cart_data->create_account = "";
 		$GLOBALS['ec_cart_data']->cart_data->coupon_code = "";
 		$GLOBALS['ec_cart_data']->cart_data->giftcard = "";
-
 		$GLOBALS['ec_cart_data']->cart_data->stripe_paymentintent_id = "";
 		$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = "";
-
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		wp_cache_flush();
-
 		if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
 			wp_logout();
 		}
-
-		header( "location: " . $account_logout_url );
+		header( "location: " . esc_url_raw( $account_logout_url ) );
 	}
 
 	private function process_update_subscription() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-update-subscription-' . (int) $_POST['subscription_id'] ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscriptions', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
 
 		global $wpdb;
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['ec_selected_plan'] ), "", "", "" );
-
-		// Check that a product was found
 		if ( count( $products ) > 0 ) {
-
-			// Setup Re-usable vars
 			$product = new ec_product( $products[0] );
 			$payment_method = get_option( 'ec_option_payment_process_method' );
 			$success = false;
@@ -1963,6 +1940,7 @@ class ec_accountpage {
 			$quantity = ( isset( $_POST['ec_quantity'] ) ) ? (int) $_POST['ec_quantity'] : 1;
 
 			if ( $payment_method == "stripe" ||$payment_method == "stripe_connect" ) {
+				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
 				if ( $payment_method == "stripe" ) {
 					$stripe = new ec_stripe();
 				} else {
@@ -1976,35 +1954,39 @@ class ec_accountpage {
 					$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
 				}
 
-				if ( '' != $product->stripe_product_id && '' != $product->stripe_default_price_id ) {
-					$plan_added = true;
-					$product_check = $stripe->get_product( $product->stripe_product_id );
-					if ( ! $product_check ) {
-						$stripe_product_new = $stripe->insert_product( $product );
-						$product->stripe_product_id = $stripe_product_new->id;
-						$product->stripe_default_price_id = $stripe_product_new->default_price;
+				$product_check = $stripe->get_product( $product->stripe_product_id );
+				if ( ! $product_check ) {
+					$stripe_product_new = $stripe->insert_product( $product );
+					$product->stripe_product_id = $stripe_product_new->id;
+					$product->stripe_default_price_id = $stripe_product_new->default_price;
+					if ( ! $is_sandbox ) {
 						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
 					} else {
-						$price_check = $stripe->get_price( $product->stripe_default_price_id );
-						if ( ! $price_check ) {
-							$stripe_price_new = $stripe->insert_price( $product );
-							$product->stripe_default_price_id = $stripe_price_new->id;
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-						}
+						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
 					}
-
 				} else {
-					$plan_check = $stripe->get_plan( $product );
-					if ( !$product->stripe_plan_added ) {
-						$plan_added = $stripe->insert_plan( $product );
-						$this->mysqli->update_product_stripe_added( $product->product_id );
-					} else if ( !$plan_check || $plan_check->amount != (int) ( $product->price * 100 ) ) {
-						$plan_added = $stripe->insert_plan( $product );
+					$price_check = $stripe->get_price( $product->stripe_default_price_id );
+					if ( ! $price_check ) {
+						$stripe_price_new = $stripe->insert_price( $product );
+						$product->stripe_default_price_id = $stripe_price_new->id;
+						if ( ! $is_sandbox ) {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
+						} else {
+							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
+						}
 					}
 				}
 
+				$plan_added = true;
+				$plan_check = $stripe->get_plan( $product );
+				if ( ! $plan_check || $plan_check->amount != (int) ( $product->price * 100 ) ) {
+					$plan_added = $stripe->insert_plan( $product );
+					$this->mysqli->update_product_stripe_added( $product->product_id );
+				}
+
 				if ( ! $plan_added ) {
-					header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id'] . "&account_error=subscription_update_failed&errcode=01" );
+					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'], 'account_error' => 'subscription_update_failed', 'errcode' => '01' ) ) ) );
+					die();
 				}
 			}
 
@@ -2015,22 +1997,21 @@ class ec_accountpage {
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
 			if ( $success ) {
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id'] . "&account_success=subscription_updated" );
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'], 'account_success' => 'subscription_updated' ) ) ) );
+				die();
 			} else {
-				header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id'] . "&account_error=subscription_update_failed&errcode=03" );
+				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'], 'account_error' => 'subscription_update_failed', 'errcode' => '03' ) ) ) );
+				die();
 			}
-
 		} else { // No product has been found error
-
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . (int) $_POST['subscription_id'] . "&account_error=subscription_update_failed&errcode=04" );
-
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'], 'account_error' => 'subscription_update_failed', 'errcode' => '04' ) ) ) );
+			die();
 		}
-
 	}// End process update subscription
 
 	private function process_cancel_subscription() {
 		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-cancel-subscription-' . (int) $_POST['ec_account_subscription_id'] ) ) {
-			header( "location: " . $this->account_page . $this->permalink_divider . 'account_error=invalid_nonce' );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscriptions', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
 
@@ -2045,13 +2026,20 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		if ( $cancel_success ) {
 			$this->mysqli->cancel_subscription( $subscription_id );
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscriptions&account_success=subscription_canceled" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscriptions', array( 'account_success' => 'subscription_canceled' ) ) ) );
+			die();
 		} else {
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . $subscription_id . "&account_error=subscription_cancel_failed" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription_id, 'account_error' => 'subscription_cancel_failed' ) ) ) );
+			die();
 		}
 	}
 
 	private function process_order_create_account() {
+		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-order-create-account' ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
+			die();
+		}
+
 		$order_id = (int) $_POST['order_id'];
 		$email = sanitize_email( $_POST['email_address'] );
 		$password = $_POST['ec_password']; // XSS OK. Password Hashed, not sanitized.
@@ -2060,7 +2048,7 @@ class ec_accountpage {
 		$order_row = $ec_db_admin->get_order_row( $order_id );
 
 		if ( $this->mysqli->does_user_exist( $email ) ) {
-			header( "location: " . $this->cart_page . $this->permalink_divider . "ec_page=checkout_success&order_id=" . $order_id . "&ec_cart_error=email_exists" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id, 'ec_cart_error' => 'email_exists' ) ) ) );
 		} else if ( $order_row->user_id == 0 ) {
 			$billing_id = $this->mysqli->insert_address( $order_row->billing_first_name, $order_row->billing_last_name, $order_row->billing_address_line_1, $order_row->billing_address_line_2, $order_row->billing_city, $order_row->billing_state, $order_row->billing_zip, $order_row->billing_country, $order_row->billing_phone );
 			$shipping_id = $this->mysqli->insert_address( $order_row->shipping_first_name, $order_row->shipping_last_name, $order_row->shipping_address_line_1, $order_row->shipping_address_line_2, $order_row->shipping_city, $order_row->shipping_state, $order_row->shipping_zip, $order_row->shipping_country, $order_row->shipping_phone );
@@ -2087,14 +2075,53 @@ class ec_accountpage {
 			$GLOBALS['ec_cart_data']->cart_data->last_name = $order_row->billing_last_name;
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-			header( "location: " . $this->account_page . $this->permalink_divider . "ec_page=order_details&order_id=" . $order_id . "&account_success=cart_account_created" );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order_id, 'account_success' => 'cart_account_created' ) ) ) );
+			die();
 		}
+	}
+	
+	public function process_connect_order() {
+		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-connect-order' ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
+			die();
+		}
+		
+		if ( ! isset( $_POST['ec_account_connect_order_id'] ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_order_id' ) ) ) );
+			die();
+		}
+
+		$order_id = (int) $_POST['ec_account_connect_order_id'];
+		
+		global $wpdb;
+		$order_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE ec_order.user_email = %s AND ec_order.order_id = %d AND ec_order.user_id = 0', $GLOBALS['ec_user']->email, $order_id ) );
+		
+		if ( ! $order_row ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_order_id' ) ) ) );
+			die();
+		}
+		
+		$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE ec_order.user_email = %s AND ec_order.order_id = %d', $GLOBALS['ec_user']->user_id, $GLOBALS['ec_user']->email, $order_id ) );
+		
+		if ( isset( $_POST['ec_account_page_id'] ) ) {
+			$page_id = (int) $_POST['ec_account_page_id'];
+			$account_page = get_permalink( $page_id );
+			if ( substr_count( $store_page, '?' ) ) {
+				$permalink_divider = "&";
+			} else {
+				$permalink_divider = "?";
+			}
+			$account_page .= $permalink_divider . 'account_success=order_connected';
+		} else {
+			$account_page = wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'order_connected' ) );
+		}
+		
+		header( "location: " . esc_url_raw( $account_page ) );
+		die();
 	}
 
 	/* END FORM ACTION FUNCTIONS */
-
 	private function send_new_password_email( $email, $new_password ) {
-
 		$password_hash = md5( $new_password );
 		$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $new_password );
 		$user = $this->mysqli->get_user_login( $email, $new_password, $password_hash );
@@ -2163,7 +2190,7 @@ class ec_accountpage {
 
 		// Get receipt
 		$message = wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_message" ) . "\r\n";
-		$message .= "<a href=\"" . $this->account_page . $this->permalink_divider . "ec_page=activate_account&email=" . $email . "&key=" . $key . "\" target=\"_blank\">" . wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_link" ) . "</a>";
+		$message .= "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'activate_account', array( 'email' => $email, 'key' => $key ) ) ) . "\" target=\"_blank\">" . wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_link" ) . "</a>";
 
 		$headers   = array();
 		$headers[] = "MIME-Version: 1.0";
@@ -2225,7 +2252,7 @@ class ec_accountpage {
 	}
 
 	public function display_subscription_update_form_start() {
-		echo "<form action=\"" . esc_attr( $this->account_page ) . "\" method=\"POST\" id=\"ec_submit_update_form\">";
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\" id=\"ec_submit_update_form\">";
 	}
 
 	public function display_subscription_update_form_end() {

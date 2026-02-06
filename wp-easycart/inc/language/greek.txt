@@ -1076,6 +1076,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"Το κουπόνι δεν ισχύει για τα στοιχεία του καλαθιού σας"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Αυτό το κουπόνι μπορεί να χρησιμοποιηθεί μόνο για την πρώτη σας παραγγελία"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Ισχύουν"
@@ -3222,6 +3226,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Η παραγγελία σας έχει παραληφθεί και μπορείτε να την παραλάβετε στο [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Δεν βρέθηκε έγκυρη παραγγελία με αυτό το αναγνωριστικό και τη διεύθυνση email σας."
 				}
 			}
 		},
@@ -3291,6 +3299,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Λάβαμε την πληρωμή για την παραγγελία σας!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Η παραγγελία σας έχει συνδεθεί με επιτυχία στον λογαριασμό σας!"
 				}
 			}
 		},

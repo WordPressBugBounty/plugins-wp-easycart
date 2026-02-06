@@ -146,8 +146,8 @@ function ec_admin_save_cart_options( ){
 	<div class="ec_cart_breadcrumbs">
 		<div class="ec_cart_breadcrumb<?php if( $page_num < 1 ){ ?> ec_inactive<?php }?>"><a href="<?php echo esc_url( $this->cart_page ); ?>"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_title' ); ?></a></div>
 		<div class="ec_cart_breadcrumb_divider"></div>
-		<div class="ec_cart_breadcrumb<?php if( $page_num < 2 ){ ?> ec_inactive<?php }?>"><?php if( $page_num > 1 ){ ?><a href="<?php echo esc_url( $this->cart_page . $this->permalink_divider . 'ec_page=checkout_info' ); ?>"><?php }?><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout_details_title' ); ?><?php if( $page_num > 1 ){ ?></a><?php }?></div>
+		<div class="ec_cart_breadcrumb<?php if( $page_num < 2 ){ ?> ec_inactive<?php }?>"><?php if( $page_num > 1 ){ ?><a href="<?php echo esc_url( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>"><?php }?><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout_details_title' ); ?><?php if( $page_num > 1 ){ ?></a><?php }?></div>
 		<div class="ec_cart_breadcrumb_divider"></div>
-		<div class="ec_cart_breadcrumb<?php if( $page_num < 3 ){ ?> ec_inactive<?php }?>"><?php if( $page_num > 2 ){ ?><a href="<?php echo esc_url( $this->cart_page . $this->permalink_divider . 'ec_page=checkout_payment' ); ?>"><?php }?><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_submit_payment_title' ); ?></div>
+		<div class="ec_cart_breadcrumb<?php if( $page_num < 3 ){ ?> ec_inactive<?php }?>"><?php if( $page_num > 2 ){ ?><a href="<?php echo esc_url( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ); ?>"><?php }?><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_submit_payment_title' ); ?></div>
 	</div>
 <?php } ?>

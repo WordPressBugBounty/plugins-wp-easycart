@@ -13,7 +13,8 @@ jQuery( window ).on(
 				onReady: function() {
 					var self = this,
 						el = self.ui.select,
-						url = el.attr( 'data-ajax-url' );
+						url = el.attr( 'data-ajax-url' ),
+						nonce = el.attr( 'data-ajax-nonce' );
 
 					el.select2(
 						{
@@ -26,6 +27,9 @@ jQuery( window ).on(
 									}
 									return query;
 								},
+								beforeSend: function ( xhr ) {
+									xhr.setRequestHeader( 'X-WP-Nonce', nonce );
+								}
 							},
 							cache: true
 						}
@@ -42,6 +46,9 @@ jQuery( window ).on(
 							dataType: 'json',
 							data: {
 								ids: String( ids ),
+							},
+							beforeSend: function ( xhr ) {
+								xhr.setRequestHeader( 'X-WP-Nonce', nonce );
 							}
 						}
 					).then(

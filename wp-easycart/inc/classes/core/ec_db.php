@@ -19,8 +19,12 @@ class ec_db{
 				ec_orderdetail.title, 
 				ec_orderdetail.model_number, 
 				ec_orderdetail.order_date, 
-				ec_orderdetail.unit_price, 
-				ec_orderdetail.total_price, 
+				ec_orderdetail.unit_price,
+				ec_orderdetail.unit_discount_promotion,
+				ec_orderdetail.unit_discount_coupon,
+				ec_orderdetail.total_price,
+				ec_orderdetail.total_discount_promotion,
+				ec_orderdetail.total_discount_coupon,
 				ec_orderdetail.quantity, 
 				ec_orderdetail.image1, 
 				ec_orderdetail.optionitem_name_1, 
@@ -120,8 +124,12 @@ class ec_db{
 				ec_orderdetail.title, 
 				ec_orderdetail.model_number, 
 				ec_orderdetail.order_date, 
-				ec_orderdetail.unit_price, 
-				ec_orderdetail.total_price, 
+				ec_orderdetail.unit_price,
+				ec_orderdetail.unit_discount_promotion,
+				ec_orderdetail.unit_discount_coupon,
+				ec_orderdetail.total_price,
+				ec_orderdetail.total_discount_promotion,
+				ec_orderdetail.total_discount_coupon,
 				ec_orderdetail.quantity, 
 				ec_orderdetail.image1, 
 				ec_orderdetail.optionitem_name_1, 
@@ -629,7 +637,9 @@ class ec_db{
 				"subscription_recurring_email" => $row->subscription_recurring_email,
 				"allow_multiple_subscription_purchases" => $row->allow_multiple_subscription_purchases,
 				"stripe_product_id" => $row->stripe_product_id,
+				"stripe_product_id_sandbox" => $row->stripe_product_id_sandbox,
 				"stripe_default_price_id" => $row->stripe_default_price_id,
+				"stripe_default_price_id_sandbox" => $row->stripe_default_price_id_sandbox,
 
 				"option_id_1" => $row->option_id_1, 
 				"option_id_2" => $row->option_id_2, 
@@ -1830,188 +1840,192 @@ class ec_db{
 			return false;
 	}
 	
-	public static function add_to_cart( $product_id, $session_id, $quantity, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $gift_card_message="", $gift_card_to_name="", $gift_card_from_name="", $donation_price=0.00, $use_advanced_optionset=false, $return_tempcart=1, $gift_card_email="" ){
-		
+	public static function add_to_cart( $product_id, $session_id, $quantity, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $gift_card_message="", $gift_card_to_name="", $gift_card_from_name="", $donation_price=0.00, $use_advanced_optionset=false, $return_tempcart=0, $gift_card_email="" ) {
 		// Get the limit on this product
 		$hours = ( get_option( 'ec_option_tempcart_stock_hours' ) ) ? get_option( 'ec_option_tempcart_stock_hours' ) : 1;
 		$product_sql = "SELECT stock_quantity, use_optionitem_quantity_tracking, show_stock_quantity, allow_backorders, max_purchase_quantity, min_purchase_quantity, is_donation FROM ec_product WHERE product_id = %d";
 		$optionitem_sql = "SELECT * FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$tempcart_optionitem_sql = "SELECT quantity FROM ec_tempcart WHERE session_id = '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$tempcart_optionitem_other_sql = "SELECT quantity FROM ec_tempcart WHERE session_id != '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d AND last_changed_date >= NOW( ) - INTERVAL %d " . get_option( 'ec_option_tempcart_stock_timeframe' );
-		
+
 		$tempcart_sql = "SELECT SUM(quantity) as quantity FROM ec_tempcart WHERE session_id = '%s' AND product_id = %d";
 		$tempcart_other_sql = "SELECT SUM(quantity) as quantity FROM ec_tempcart WHERE session_id != '%s' AND product_id = %d AND last_changed_date >= NOW( ) - INTERVAL %d " . get_option( 'ec_option_tempcart_stock_timeframe' );
-		
+
 		$stock_quantity = 99999999999; // very large limit... nearly infinite really
-		
+
 		//Get this product stock quantity and use_optionitem_quantity tracking
 		$product = self::$mysqli->get_row( self::$mysqli->prepare( $product_sql, $product_id ) );
+
 		//Get this tempcart item quantity
 		$tempcart_optionitem = self::$mysqli->get_row( self::$mysqli->prepare( $tempcart_optionitem_sql, $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
+
 		//Get this tempcart total quantity
 		$tempcart = self::$mysqli->get_row( self::$mysqli->prepare( $tempcart_sql, $session_id, $product_id ) );
-		
 		$optionitem_quantity = self::$mysqli->get_row( self::$mysqli->prepare( $optionitem_sql, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
-		
-		if( $product->use_optionitem_quantity_tracking == 1 && $optionitem_quantity ){
+
+		if ( $product->use_optionitem_quantity_tracking == 1 && $optionitem_quantity ) {
 			if ( $optionitem_quantity->is_stock_tracking_enabled ) {
 				$stock_quantity = $optionitem_quantity->quantity;
 			}
-			if( get_option( 'ec_option_stock_removed_in_cart' ) ){
+			if ( get_option( 'ec_option_stock_removed_in_cart' ) ) {
 				$tempcart_opt_item_quantity = self::$mysqli->get_var( self::$mysqli->prepare( $tempcart_optionitem_other_sql, $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $hours ) );
 				$stock_quantity -= $tempcart_opt_item_quantity;
 			}
-			
-		}else if( isset( $product->show_stock_quantity ) && $product->show_stock_quantity == 1 ){
+		} else if ( isset( $product->show_stock_quantity ) && $product->show_stock_quantity == 1 ) {
 			$stock_quantity = $product->stock_quantity;
-			if( get_option( 'ec_option_stock_removed_in_cart' ) ){
+			if ( get_option( 'ec_option_stock_removed_in_cart' ) ) {
 				$tempcart_other_quantity = self::$mysqli->get_var( self::$mysqli->prepare( $tempcart_other_sql, $session_id, $product_id, $hours ) );
 				$stock_quantity -= $tempcart_other_quantity;
 			}
-			
-		}else{
+		} else {
 			$stock_quantity = 1000000;
 		}
-		
-		if( $product->allow_backorders )
+
+		if ( $product->allow_backorders ) {
 			$stock_quantity = 1000000;
-		
-		if( $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_from_name != "" || $gift_card_email != "" ){
+		}
+		if ( $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_from_name != "" || $gift_card_email != "" ) {
 			// Do nothing, use quantity entered.
-			
+
 		// OPTION ITEM QUANTITY TRACKING AND ENTERED QUANITTY GOES OVER ITEM LIMIT
 		// IF    1. Using advanced option items
 		//		 2. using basic quantity tracking
 		//       2. quantity in cart + new quantity is greater than the amount in stock
 		// THEN     use max for that option item set
-		}else if( $use_advanced_optionset && isset( $product->show_stock_quantity ) && $quantity + $tempcart->quantity > $stock_quantity ){
+		} else if ( $use_advanced_optionset && isset( $product->show_stock_quantity ) && $quantity + $tempcart->quantity > $stock_quantity ) {
 			$quantity = $stock_quantity - $tempcart->quantity;
 			if( $quantity == 0 ){
 				return 0;
 			}
-			
+
 		// OPTION ITEM QUANTITY TRACKING AND ENTERED QUANITTY GOES OVER ITEM LIMIT
 		// IF    1. using advanced option items
 		//       2. quantity must not be exceding stock quantity OR we are not tracking it for this product
 		// THEN     use the actual quantity value
-		}else if( $use_advanced_optionset || $product->is_donation ){
+		} else if ( $use_advanced_optionset || $product->is_donation ) {
 			// Do nothing to the quantity value
-			
+
 		//Get the quantity for the new tempcart item (insert or update)
 		// OPTION ITEM QUANTITY TRACKING AND ENTERED QUANITTY GOES OVER ITEM LIMIT
 		// IF    1. using option item quantity tracking
 		//       2. quantity + item in cart with same options quantity > amount available for this option
 		// THEN     use max for that option item set
-		}else if( $product->use_optionitem_quantity_tracking == 1 && isset( $tempcart_optionitem ) && $quantity + $tempcart_optionitem->quantity > $stock_quantity ){
+		} else if ( $product->use_optionitem_quantity_tracking == 1 && isset( $tempcart_optionitem ) && $quantity + $tempcart_optionitem->quantity > $stock_quantity ) {
 			$quantity = $stock_quantity;
-		
+
 		// OPTION ITEM QUANTITY TRACKING AND AMOUNT ENTERED IS TOO MUCH
 		// IF    1. using option item quanitty tracking
 		//       2. item with theme options is not in the cart yet
 		// THEN     use the quantity entered by the user
-		}else if( $product->use_optionitem_quantity_tracking == 1 && $quantity > $stock_quantity ){
+		} else if ( $product->use_optionitem_quantity_tracking == 1 && $quantity > $stock_quantity ) {
 			$quantity = $stock_quantity;
-		
-		
+
 		// OIQT + Valid Quantity -- Add the quantities up for updating the item
-		}else if( $product->use_optionitem_quantity_tracking == 1 && isset( $tempcart_optionitem )  ){
+		} else if( $product->use_optionitem_quantity_tracking == 1 && isset( $tempcart_optionitem ) ) {
 			$quantity = $quantity + $tempcart_optionitem->quantity;
-		
+
 		// OIQT + Valid quantity and none in cart, use value entered
-		}else if( $product->use_optionitem_quantity_tracking == 1 ){
-			
+		} else if ( $product->use_optionitem_quantity_tracking == 1 ) {
+
 		// BASIC QUANTITY TRACKING and THIS OPTION CHOICE IS IN CART and ENTERED QUANTITY + ALL QUANITY OF SAME PROD IDS MORE THAN QUANTITY IN STOCK
 		// IF    1. using general quantity tracking
 		//       2. quantity + the quantity of all items with same product id > amount available
 		// THEN     use the total in stock - the total in cart so far
-		}else if( isset( $product->show_stock_quantity ) && isset( $tempcart_optionitem ) && $quantity + $tempcart->quantity > $stock_quantity ){			
+		} else if ( isset( $product->show_stock_quantity ) && isset( $tempcart_optionitem ) && $quantity + $tempcart->quantity > $stock_quantity ) {
 			$quantity = $stock_quantity - $tempcart->quantity + $tempcart_optionitem->quantity;
-		
+
 		// BASIC QUANTITY TRACKING and THIS OPTION CHOICE IS NOT IN CART and ENTERED QUANTITY + ALL QUANITY OF SAME PROD IDS MORE THAN QUANTITY IN STOCK
 		// IF    1. using general quantity tracking
 		//       2. quantity + the quantity of all items with same product id > amount available
 		// THEN     use the total in stock - the total in cart so far
-		}else if( isset( $product->show_stock_quantity ) && $quantity + $tempcart->quantity > $stock_quantity ){			
+		} else if ( isset( $product->show_stock_quantity ) && $quantity + $tempcart->quantity > $stock_quantity ) {
 			$quantity = $stock_quantity - $tempcart->quantity;
-		
+
 		// BASIC QUANTITY TRACKING and THIS OPTION CHOICE IS IN CART
 		// IF    1. using general quantity tracking
 		//       2. quantity + the quantity of all items with same product id > amount available
 		// THEN     use the total in stock - the total in cart so far
-		}else if( isset( $product->show_stock_quantity ) && isset( $tempcart_optionitem ) ){			
+		} else if ( isset( $product->show_stock_quantity ) && isset( $tempcart_optionitem ) ) {
 			$quantity = $quantity + $tempcart_optionitem->quantity;	
-		
+
 		// BASIC QUANTITY TRACKING and THIS OPTION CHOICE IS NOT IN CART
 		// IF    1. using general quantity tracking
 		//       2. quantity + the quantity of all items with same product id > amount available
 		// THEN     use the total in stock - the total in cart so far
-		}else if( isset( $product->show_stock_quantity ) ){			
+		} else if ( isset( $product->show_stock_quantity ) ){
 			// USE QUANTITY ENTERED
-		
+
 		// NO QUANITTY TRACKING
 		// THEN     use the quantity entered + the quantity for this option item in cart
-		}else{																		
-			if( isset( $tempcart_optionitem ) )
+		} else {
+			if ( isset( $tempcart_optionitem ) ) {
 				$quantity = $quantity + $tempcart_optionitem->quantity;
+			}
 		}
-		
+
 		// First check for an item with the same option items IF NOT a gift card
 		$sql = "SELECT COUNT(tempcart_id) AS total_rows FROM ec_tempcart WHERE session_id = '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$insert = self::$mysqli->get_var( self::$mysqli->prepare( $sql, $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
-		
-		if( $use_advanced_optionset || $product->is_donation || $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_to_name != "" || ( $insert == 0 && $quantity > 0 ) || apply_filters( 'wp_easycart_add_to_cart_optional_always_add', false, $product_id ) ){
-			
-			if( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 )
+
+		if( $use_advanced_optionset || $product->is_donation || $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_to_name != "" || ( $insert == 0 && $quantity > 0 ) || apply_filters( 'wp_easycart_add_to_cart_optional_always_add', false, $product_id ) ) {
+			if ( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 ) {
 				$quantity = $product->min_purchase_quantity;
-				
-			if( $quantity > $product->max_purchase_quantity && $product->max_purchase_quantity != 0 )
+			}
+			if ( $quantity > $product->max_purchase_quantity && $product->max_purchase_quantity != 0 ) {
 				$quantity = $product->max_purchase_quantity;
-				
-			self::$mysqli->insert( 'ec_tempcart', 
-										array( 	'product_id' 					=> $product_id,
-												'session_id' 					=> $session_id, 
-												'quantity'						=> apply_filters( 'wp_easycart_add_to_cart_quantity', $quantity, $product_id ),
-												'optionitem_id_1' 				=> $optionitem_id_1, 
-												'optionitem_id_2' 				=> $optionitem_id_2, 
-												'optionitem_id_3'				=> $optionitem_id_3, 
-												'optionitem_id_4' 				=> $optionitem_id_4, 
-												'optionitem_id_5' 				=> $optionitem_id_5, 
-												'gift_card_message' 			=> $gift_card_message, 
-												'gift_card_from_name' 			=> $gift_card_from_name, 
-												'gift_card_to_name' 			=> $gift_card_to_name,
-												'gift_card_email' 				=> $gift_card_email,
-												'donation_price'				=> $donation_price
-										), 
-										array( '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s' )
-									);							
-		}else if($insert != 0){
-			
-			if( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 )
+			}
+			self::$mysqli->insert(
+				'ec_tempcart', array(
+					'product_id' => $product_id,
+					'session_id' => $session_id,
+					'quantity' => apply_filters( 'wp_easycart_add_to_cart_quantity', $quantity, $product_id ),
+					'optionitem_id_1' => $optionitem_id_1,
+					'optionitem_id_2' => $optionitem_id_2,
+					'optionitem_id_3' => $optionitem_id_3,
+					'optionitem_id_4' => $optionitem_id_4,
+					'optionitem_id_5' => $optionitem_id_5,
+					'gift_card_message' => $gift_card_message,
+					'gift_card_from_name' => $gift_card_from_name,
+					'gift_card_to_name' => $gift_card_to_name,
+					'gift_card_email' => $gift_card_email,
+					'donation_price' => $donation_price
+				), array(
+					'%d', '%s', '%d', '%d', '%d',
+					'%d', '%d', '%d', '%s', '%s',
+					'%s', '%s', '%s'
+				)
+			);
+			$tempcart_id = self::$mysqli->insert_id;
+			do_action( 'wpeasycart_cartitem_added', $tempcart_id );
+		} else if ( $insert != 0 ) {
+			if ( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 ) {
 				$quantity = $product->min_purchase_quantity;
-				
-			if( $quantity > $product->max_purchase_quantity && $product->max_purchase_quantity != 0 )
+			}
+			if ( $quantity > $product->max_purchase_quantity && $product->max_purchase_quantity != 0 ) {
 				$quantity = $product->max_purchase_quantity;
-				
-			self::$mysqli->update(	'ec_tempcart', 
-										array(	'quantity'						=> $quantity ),
-										array( 	'product_id' 					=> $product_id,
-												'session_id' 					=> $session_id, 
-												'optionitem_id_1' 				=> $optionitem_id_1, 
-												'optionitem_id_2' 				=> $optionitem_id_2, 
-												'optionitem_id_3'				=> $optionitem_id_3, 
-												'optionitem_id_4' 				=> $optionitem_id_4, 
-												'optionitem_id_5' 				=> $optionitem_id_5
-										), 
-										array( '%d', '%d', '%s', '%d', '%d', '%d', '%d', '%d' )
-								  );	
+			}
+			self::$mysqli->update(
+				'ec_tempcart',
+				array( 'quantity' => $quantity ),
+				array(
+					'product_id' => $product_id,
+					'session_id' 					=> $session_id, 
+					'optionitem_id_1' 				=> $optionitem_id_1, 
+					'optionitem_id_2' 				=> $optionitem_id_2, 
+					'optionitem_id_3'				=> $optionitem_id_3, 
+					'optionitem_id_4' 				=> $optionitem_id_4, 
+					'optionitem_id_5' 				=> $optionitem_id_5
+				),
+				array( '%d', '%d', '%s', '%d', '%d', '%d', '%d', '%d' )
+			);
 		}
-		
-		if( $return_tempcart )
+		if ( $return_tempcart ) {
 			return self::get_temp_cart( $session_id );
-		else
-			return self::$mysqli->insert_id;
+		} else {
+			return $tempcart_id;
+		}
 	}
-	
+
 	public static function update_cartitem( $tempcart_id, $session_id, $quantity ) {
 		if ( $quantity <= 0 ) { // If someone tries to update to 0 or less, just remove it from the cart
 			self::delete_cartitem( $tempcart_id, $session_id );
@@ -2413,8 +2427,10 @@ class ec_db{
 		$coupon = $GLOBALS['ec_coupons']->redeem_coupon_code( $GLOBALS['ec_cart_data']->cart_data->coupon_code );
 		if( $coupon && !$coupon->coupon_expired && ( $coupon->max_redemptions == 999 || $coupon->times_redeemed < $coupon->max_redemptions ) ){
 			$coupon_code = $GLOBALS['ec_cart_data']->cart_data->coupon_code;
+			$coupon_code_message = $coupon->message;
 		}else{
 			$coupon_code = '';
+			$coupon_code_message = '';
 		}
 		$gift_card = $GLOBALS['ec_cart_data']->cart_data->giftcard;
 			
@@ -2462,6 +2478,7 @@ class ec_db{
 
 			'grand_total' => $order_totals->grand_total,
 			'promo_code' => $coupon_code,
+			'promo_code_message' => $coupon_code_message,
 			'giftcard_id' => $gift_card,
 			'use_expedited_shipping' => $expedited_shipping,
 			'shipping_method' => $shipping_method,
@@ -2511,11 +2528,13 @@ class ec_db{
 			'pickup_date' => date( 'Y-m-d H:i:00', strtotime( $GLOBALS['ec_cart_data']->cart_data->pickup_date ) ),
 			'pickup_asap' => $GLOBALS['ec_cart_data']->cart_data->pickup_asap,
 			'pickup_time' => $formatted_pickup_time,
+
+			'converted_cart_id' => $GLOBALS['ec_cart_data']->ec_cart_id,
 		), array(
 			'%d', '%s', '%d', '%s', '%s',
 			'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
 			'%s', '%s', '%s',
-			'%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%s', '%s', '%s',
 			'%s', '%s', '%s', '%s', '%s', '%s', '%s',
 			'%s', '%s', '%s', '%s', '%s',
 			'%s', '%s', '%s', '%s', '%s', '%s',
@@ -2523,6 +2542,7 @@ class ec_db{
 			'%s', '%s', '%s', '%s', '%s', '%s', '%s',
 			'%s', '%d', '%s',
 			'%d', '%d', '%s', '%d', '%s',
+			'%s',
 		) );
 		$order_id = self::$mysqli->insert_id;
 
@@ -2679,8 +2699,12 @@ class ec_db{
 								'title'							=> $cart_item->title,
 								'model_number'					=> $cart_item->orderdetails_model_number,
 								'unit_price'					=> $cart_item->unit_price,
-								
+								'unit_discount_promotion'		=> $cart_item->promotion_discount_total,
+								'unit_discount_coupon'			=> $cart_item->coupon_discount_total,
+
 								'total_price'					=> $cart_item->total_price,
+								'total_discount_promotion'		=> $cart_item->promotion_discount_line_total,
+								'total_discount_coupon'			=> $cart_item->coupon_discount_line_total,
 								'quantity'						=> $cart_item->quantity,
 								'image1'						=> $image1,
 								
@@ -2744,8 +2768,8 @@ class ec_db{
                                 'order_date'                    => date( 'Y-m-d H:i:s' ) );
 								
 										
-		$percent_array = array( '%d', '%d', '%s', '%s', '%s',
-								'%s', '%d', '%s', 
+		$percent_array = array( '%d', '%d', '%s', '%s', '%s', '%s', '%s',
+								'%s', '%s', '%s', '%d', '%s', 
 								'%d', '%d', '%d', '%d', '%d',
 								'%s', '%s', '%s', '%s', '%s', 
 								'%s', '%s', '%s', '%s', '%s', 
@@ -2944,7 +2968,8 @@ class ec_db{
 					ec_order.hst_total,
 					ec_order.hst_rate,
 					
-					ec_order.promo_code, 
+					ec_order.promo_code,
+					ec_order.promo_code_message,
 					ec_order.giftcard_id, 
 					
 					ec_order.use_expedited_shipping,
@@ -3057,7 +3082,8 @@ class ec_db{
 				ec_order.hst_rate,
 				ec_order.tip_total,
 				
-				ec_order.promo_code, 
+				ec_order.promo_code,
+				ec_order.promo_code_message,
 				ec_order.giftcard_id, 
 				
 				ec_order.use_expedited_shipping, 
@@ -3188,7 +3214,8 @@ class ec_db{
 				ec_order.hst_rate,
 				ec_order.tip_total,
 				
-				ec_order.promo_code, 
+				ec_order.promo_code,
+				ec_order.promo_code_message,
 				ec_order.giftcard_id, 
 				
 				ec_order.use_expedited_shipping, 
@@ -3303,8 +3330,12 @@ class ec_db{
 				ec_orderdetail.title, 
 				ec_orderdetail.model_number, 
 				ec_orderdetail.order_date, 
-				ec_orderdetail.unit_price, 
-				ec_orderdetail.total_price, 
+				ec_orderdetail.unit_price,
+				ec_orderdetail.unit_discount_promotion,
+				ec_orderdetail.unit_discount_coupon,
+				ec_orderdetail.total_price,
+				ec_orderdetail.total_discount_promotion,
+				ec_orderdetail.total_discount_coupon,
 				ec_orderdetail.quantity, 
 				ec_orderdetail.image1, 
 				ec_orderdetail.optionitem_name_1, 
@@ -3387,8 +3418,12 @@ class ec_db{
 				ec_orderdetail.title, 
 				ec_orderdetail.model_number, 
 				ec_orderdetail.order_date, 
-				ec_orderdetail.unit_price, 
-				ec_orderdetail.total_price, 
+				ec_orderdetail.unit_price,
+				ec_orderdetail.unit_discount_promotion,
+				ec_orderdetail.unit_discount_coupon,
+				ec_orderdetail.total_price,
+				ec_orderdetail.total_discount_promotion,
+				ec_orderdetail.total_discount_coupon,
 				ec_orderdetail.quantity, 
 				ec_orderdetail.image1, 
 				ec_orderdetail.optionitem_name_1, 
@@ -3461,24 +3496,9 @@ class ec_db{
 		$user = wp_cache_get( 'wpeasycart-user-'.$user_id, 'wpeasycart-user' );
 		if( !$user ){
 			$sql = "SELECT 
-					ec_user.user_id,
-					ec_user.first_name, 
-					ec_user.last_name,
-					ec_user.vat_registration_number,
-					ec_user.user_level, 
-					ec_user.default_billing_address_id,
-					ec_user.default_shipping_address_id,
-					ec_user.is_subscriber,
-					ec_user.realauth_registered,
-					ec_user.stripe_customer_id,
-					ec_user.default_card_type, 
-					ec_user.default_card_last4,
-					ec_user.exclude_tax,
-					ec_user.exclude_shipping,
-					ec_user.email_other,
-					
+					ec_user.*,
 					ec_role.role_id,
-					
+
 					billing.first_name as billing_first_name, 
 					billing.last_name as billing_last_name, 
 					billing.address_line_1 as billing_address_line_1, 
@@ -3489,7 +3509,7 @@ class ec_db{
 					billing.country as billing_country, 
 					billing.phone as billing_phone, 
 					billing.company_name as billing_company_name, 
-					
+
 					shipping.first_name as shipping_first_name, 
 					shipping.last_name as shipping_last_name, 
 					shipping.address_line_1 as shipping_address_line_1, 
@@ -3500,34 +3520,34 @@ class ec_db{
 					shipping.country as shipping_country, 
 					shipping.phone as shipping_phone,
 					shipping.company_name as shipping_company_name,
-					
+
 					GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
 					
 					FROM 
 					ec_user 
-					
+
 					LEFT JOIN ec_address as billing 
 					ON ( ec_user.default_billing_address_id = billing.address_id AND billing.user_id = ec_user.user_id )
-					
+
 					LEFT JOIN ec_address as shipping 
 					ON ( ec_user.default_shipping_address_id = shipping.address_id AND shipping.user_id = ec_user.user_id )
-					
+
 					LEFT JOIN ec_role
 					ON ec_role.role_label = ec_user.user_level
-					
+
 					LEFT JOIN ec_customfield
 					ON ec_customfield.table_name = 'ec_user'
-					
+
 					LEFT JOIN ec_customfielddata
 					ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_user.user_id
-					
+
 					WHERE 
 					ec_user.user_id = %s AND
 					ec_user.email = %s
-					
+
 					GROUP BY
 					ec_user.user_id";
-			
+
 			$user = self::$mysqli->get_row( self::$mysqli->prepare( $sql, $user_id, $email ) );
 			wp_cache_set( 'wpeasycart-user-'.$user_id, $user, 'wpeasycart-user', 3600 );
 		}

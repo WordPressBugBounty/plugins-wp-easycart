@@ -170,42 +170,48 @@ class ec_storepage{
 		echo "<div class=\"ec_cart_error\"><div>" . esc_attr( $error_notes[ sanitize_key( $_GET['ec_store_error'] ) ] ) . "</div></div>";
 	}
 
-	public function display_store_page( ){
-
+	public function display_store_page() {
 		if( get_option( 'ec_option_restrict_store' ) ){
 			$restricted = explode( "***", get_option( 'ec_option_restrict_store' ) );
 		}
-		//current_user_can('wpec_manager') || 
-		if( !get_option( 'ec_option_restrict_store' ) || $GLOBALS['ec_user']->user_level == "admin" || in_array( $GLOBALS['ec_user']->user_level, $restricted ) ){
+		if ( ! get_option( 'ec_option_restrict_store' ) || 'admin' == $GLOBALS['ec_user']->user_level || in_array( $GLOBALS['ec_user']->user_level, $restricted ) ) {
 			$paging = 1;
-			if( isset( $_GET['pagenum'] ) )
+			if ( isset( $_GET['pagenum'] ) ) {
 				$paging = (int) $_GET['pagenum'];
-			if( isset( $_GET['ec_store_success'] ) )			$this->display_store_success( );
-			if( isset( $_GET['ec_store_error'] ) )				$this->display_store_error( );
-			if( !$this->is_details && $this->category_list->num_categories > 0 && get_option( 'ec_option_show_featured_categories' ) && $paging == 1 )
-																$this->display_category_view( );
-			if(	!$this->is_details )							$this->display_products_page( );
-			else												$this->display_product_details_page( );
-		}else{
-
+			}
+			if ( isset( $_GET['ec_store_success'] ) ) {
+				$this->display_store_success();
+			}
+			if ( isset( $_GET['ec_store_error'] ) ) {
+				$this->display_store_error();
+			}
+			if ( ! $this->is_details && $this->category_list->num_categories > 0 && get_option( 'ec_option_show_featured_categories' ) && 1 == $paging ) {
+				$this->display_category_view();
+			}
+			if ( ! $this->is_details ) {
+				$this->display_products_page();
+			} else {
+				$this->display_product_details_page();
+			}
+		} else {
 			$this->show_restricted_store( );
-
 		}
-
 	}
 
-	public function display_category_page( ){
+	public function display_category_page() {
 		$this->display_category_view( );
 	}
 
-	private function display_category_view( ){
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_category_view.php' ) )	
-			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_category_view.php' );	
-		else
+	private function display_category_view() {
+		do_action( 'wp_easycart_category_view', $this->group_id, $this->category_list, $this->product_list );
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_category_view.php' ) ) {
+			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_category_view.php' );
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_category_view.php' );
+		}
 	}
 
-	private function display_products_page( ){
+	private function display_products_page() {
 		extract( shortcode_atts( array(
 			'status' => '',
 			'columns' => false,
@@ -302,6 +308,7 @@ class ec_storepage{
 				</script>';
 			}
 		}
+		do_action( 'wp_easycart_view_product_list', $this->product_list, $this->category_list, $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id, $this->atts );
 
 		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_page.php' ) )	
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_page.php' );	
@@ -534,7 +541,7 @@ class ec_storepage{
 		} else {
 			$permalink_divider = '?';
 		}
-		echo wp_easycart_escape_html( apply_filters( 'wpeasycart_forgot_password_link', "<a href=\"" . $account_page . $permalink_divider . "ec_page=forgot_password\" class=\"ec_account_login_link\">" . esc_attr( $link_text ) . "</a>" ) );
+		echo wp_easycart_escape_html( apply_filters( 'wpeasycart_forgot_password_link', "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'forgot_password' ) ) . "\" class=\"ec_account_login_link\">" . esc_attr( $link_text ) . "</a>" ) );
 	}
 
 	public function get_manufacturer_link( $manufacturer ) {

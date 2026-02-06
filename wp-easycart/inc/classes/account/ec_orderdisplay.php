@@ -29,6 +29,7 @@ class ec_orderdisplay {
 	public $order_fees;							// Array ( ec_order_fee )
 
 	public $promo_code;  						// VARCHAR 255
+	public $promo_code_message;  				// VARCHAR 1024
 	public $giftcard_id;  						// VARCHAR 20
 
 	public $use_expedited_shipping; 			// BOOL
@@ -123,7 +124,7 @@ class ec_orderdisplay {
 			$this->vat_total = $order_row->vat_total;
 			$this->vat_rate = $order_row->vat_rate;
 			$this->order_fees = $this->mysqli->get_order_fees( $order_row->order_id );
-			$this->grand_total = $order_row->grand_total; 
+			$this->grand_total = apply_filters( 'wp_easycart_order_display_grand_total', $order_row->grand_total, $order_row );
 			$this->refund_total = $order_row->refund_total; 
 
 			$this->gst_total = $order_row->gst_total;
@@ -139,7 +140,8 @@ class ec_orderdisplay {
 			if( floor( $this->hst_rate ) == $this->hst_rate )
 				$this->hst_rate = number_format( $this->hst_rate, 0, '', '' );
 
-			$this->promo_code = $order_row->promo_code; 
+			$this->promo_code = $order_row->promo_code;
+			$this->promo_code_message = $order_row->promo_code_message;
 			$this->giftcard_id = $order_row->giftcard_id; 
 
 			$this->use_expedited_shipping = $order_row->use_expedited_shipping;
@@ -228,7 +230,11 @@ class ec_orderdisplay {
 						'orderdetail_id' => $item->orderdetail_id,
 						'product_id' => $item->product_id,
 						'unit_price' => $item->unit_price,
+						'unit_discount_promotion' => $item->unit_discount_promotion,
+						'unit_discount_coupon' => $item->unit_discount_coupon,
 						'total_price' => $item->total_price,
+						'total_discount_promotion' => $item->total_discount_promotion,
+						'total_discount_coupon' => $item->total_discount_coupon,
 						'title' => $item->title,
 						'quantity' => $item->quantity,
 						'image1' => $item->image1,
@@ -307,8 +313,17 @@ class ec_orderdisplay {
 		}
 	}
 
-	public function display_sub_total( ){
-		echo esc_attr( $this->currency->get_currency_display( $this->sub_total ) );
+	public function display_sub_total() {
+		$sub_total = $this->sub_total;
+		if ( get_option( 'ec_option_show_coupon_discount_total' ) ) {
+			foreach ( $this->orderdetails as $line_item ) {
+				if ( get_option( 'ec_option_show_coupon_discount_total' ) && $line_item->total_discount_coupon > 0 ) {
+					$sub_total -= $line_item->total_discount_coupon;
+				}
+			}
+		}
+		$sub_total = apply_filters( 'wp_easycart_order_display_sub_total', $sub_total, $this->sub_total, $this->orderdetails );
+		echo esc_attr( $this->currency->get_currency_display( $sub_total ) );
 	}
 
 	public function display_tip_total( ){
@@ -428,7 +443,11 @@ class ec_orderdisplay {
 	}
 
 	public function display_order_promocode( ){
-		echo esc_attr( $this->promo_code );
+		$output_value = $this->promo_code;
+		if ( get_option( 'ec_option_show_coupon_message' ) && '' != $this->promo_code_message ) {
+			$output_value = $this->promo_code_message;
+		}
+		echo esc_attr( $output_value );
 	}
 
 	public function display_order_giftcard( ){
@@ -559,11 +578,10 @@ class ec_orderdisplay {
 	}
 
 	public function display_order_link( $link_text ){
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=order_details&amp;order_id=". $this->order_id ) ."\">" . esc_attr( $link_text ) . "</a>";
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\">" . esc_attr( $link_text ) . "</a>";
 	}
 
 	public function send_email_receipt( $admin_only = false ){
-
 		$tax_struct = new ec_tax( 0,0,0, "", "");
 		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
 		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
@@ -1020,8 +1038,8 @@ class ec_orderdisplay {
 		}
 	}
 
-	public function display_subscription_link( $text ){
-		echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=subscription_details&amp;subscription_id=". $this->subscription_id ) ."\">" . esc_attr( $text ) . "</a>";
+	public function display_subscription_link( $text ) {
+		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $this->subscription_id ) ) ) . "\">" . esc_attr( $text ) . "</a>";
 	}
 
 	public function display_order_customer_notes( ){

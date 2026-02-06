@@ -325,6 +325,9 @@ if( ( $shipping_method == 'live' && $use_usps ) || is_admin( ) ){
 	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/shipping/ec_usps.php' ) ){
 		include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/shipping/ec_usps.php' );
 	}
+	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/shipping/ec_usps_v3.php' ) ){
+		include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/shipping/ec_usps_v3.php' );
+	}
 }
 if( ( $shipping_method == 'live' && $use_canadapost ) || is_admin( ) ){
 	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/shipping/ec_canadapost.php' ) ){
@@ -392,6 +395,7 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_validation.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoption.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoptionset.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpstyle.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/wpeasycart_links.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/wpeasycart_cache_management.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/wpeasycart_mailer.php' );
 

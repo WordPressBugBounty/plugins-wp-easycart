@@ -136,7 +136,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 
 			}else if( data != '0' ){
 				clearInterval( ec_ideal_timer );
-				window.location.href = '<?php echo esc_url_raw( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_success&order_id=" ?>' + data
+				window.location.href = '<?php echo esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => '' ) ) ); ?>' + data
 			}
 		} } );
 	}
@@ -397,8 +397,8 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						financial_product_key:		"<?php echo esc_attr( get_option( 'ec_option_affirm_financial_product' ) ); ?>"
 					},
 					merchant: {
-						user_confirmation_url:		"<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=process_affirm",
-						user_cancel_url:			"<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_payment"
+						user_confirmation_url:		"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'process_affirm' ) ); ?>",
+						user_cancel_url:			"<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ); ?>"
 					},
 					billing: {
 						name: {
@@ -478,7 +478,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 					};
 					jQuery.ajax( { url: wpeasycart_ajax_object.ajax_url, type: "post", data: data, success: function( data ){
 						<?php if( get_option( 'ec_option_realex_thirdparty_test_mode' ) ){ ?>RealexHpp.setHppUrl('https://pay.sandbox.realexpayments.com/pay');
-						<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_success&order_id="; ?>" + data.order_id, data.response );
+						<?php }?>RealexHpp.init( "ec_cart_submit_order", "<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => '' ) ) ); ?>" + data.order_id, data.response );
 					} } );
 				} );
 				</script>
@@ -697,12 +697,14 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 				</div>
 			</div>
 			<script><?php
-				if( get_option( 'ec_option_payment_process_method' ) == 'stripe' )
+				if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 					$pkey = get_option( 'ec_option_stripe_public_api_key' );
-				else if( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) )
+				} else if( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) ) {
 					$pkey = get_option( 'ec_option_stripe_connect_sandbox_publishable_key' );
-				else
-					$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );	
+				} else {
+					$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
+				}
+				$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 				?>
 				<?php $stripe_payment_intent_client_secret = $this->get_stripe_intent_client_secret( $invoice ); ?>
 				jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
@@ -1063,7 +1065,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 										name: jQuery( document.getElementById( 'ec_stripe_ideal_name' ) ).val( ),
 									},
 									redirect: {
-										return_url: '<?php echo esc_attr( $this->cart_page . $this->permalink_divider . "ec_page=checkout_payment&ideal=returning" ); ?>',
+										return_url: '<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment', array( 'ideal' => 'returning' ) ) ); ?>',
 									},
 								};
 								stripe.createSource(idealBank, sourceData).then(

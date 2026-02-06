@@ -25,7 +25,7 @@
 
 					<p><?php echo wp_easycart_language( )->get_text( 'subscription_trial', 'trial_ending_message_4' ); ?></p>
 
-				   <p><a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . $this->subscription_id ); ?>"><?php echo wp_easycart_language( )->get_text( 'subscription_trial', 'trial_ending_message_link' ); ?></a></p>
+				   <p><a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $this->subscription_id ) ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'subscription_trial', 'trial_ending_message_link' ); ?></a></p>
 				</td>
 			</tr>
 			<tr height="10"><td colspan='4'></td></tr>

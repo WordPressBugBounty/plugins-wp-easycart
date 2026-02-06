@@ -1060,6 +1060,10 @@
                     "title": "Cart, Coupon Code Not Applicable",
                     "value": "Coupon is niet van toepassing op de items in uw winkelwagen"
                 },
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Deze coupon kan alleen worden gebruikt voor uw eerste bestelling"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Toepassen"
@@ -3202,6 +3206,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Uw bestelling is ontvangen en u kunt deze ophalen op [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Er is geen geldige bestelling gevonden met die ID en uw e-mailadres."
 				}
             }
         },
@@ -3271,6 +3279,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Wij hebben de betaling voor uw bestelling ontvangen!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Uw bestelling is succesvol aan uw account gekoppeld!"
 				}
             }
         },

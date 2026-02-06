@@ -1,47 +1,100 @@
 <?php
 
 class ec_user{
-	protected $mysqli;									// ec_db structure
+	protected $mysqli;
 
-	public $user_id;									// INT
-	public $email;										// VARCHAR 255
-	public $email_other;								// VARCHAR 255
-	public $user_level;									// VARCHAR 255
-	public $role_id;									// INT
-	public $is_subscriber;								// BOOLEAN
+	public $user_id;
+	public $email;
+	public $email_other;
+	public $user_level;
+	public $role_id;
+	public $is_subscriber;
 
-	public $first_name;									// VARCHAR 255
-	public $last_name;									// VARCHAR 255
-	public $vat_registration_number;					// VARCHAR 255
+	public $first_name;
+	public $last_name;
+	public $vat_registration_number;
 
-	public $billing_id;									// INT
-	public $shipping_id;								// INT
+	public $billing_id;
+	public $shipping_id;
 
-	public $billing;									// ec_address structure
-	public $shipping;									// ec_address structure
+	public $billing;
+	public $shipping;
 
-	public $realauth_registered;						// BOOL
-	public $stripe_customer_id;							// VARCHAR 128
+	public $realauth_registered;
+	public $stripe_customer_id;
 
 	public $card_type;
 	public $last4;
-	private $password;									// VARCHAR 255
+	private $password;
 
-	public $customfields = array();						// array of customfield objects
+	public $customfields = array();
 
-	public $taxfree;									// Boolean
-	public $freeshipping;								// Boolean
+	public $taxfree;
+	public $freeshipping;
+	public $allow_shipping_bypass;
+	public $is_stripe_test_user;
 
-	function __construct( $email = "" ){ 
-
+	function __construct( $email = "" ) {
 		$this->mysqli = new ec_db();
+		if ( apply_filters( 'wp_easycart_use_wordpress_user', false ) ) {
+			add_action( 'init', array( $this, 'init_wp_user' ) );
+		} else {
+			$this->user_id = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0 );
+			$this->email = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->email ) ) ? $GLOBALS['ec_cart_data']->cart_data->email : '' );
+			$this->init_wp_easycart_user();
+		}
+	}
 
-		$this->user_id = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0 );
-		$this->email = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->email ) ) ? $GLOBALS['ec_cart_data']->cart_data->email : '' );
+	function init_wp_user() {
+		global $wpdb;
+		if ( ! is_user_logged_in() ) {
+			$this->user_id = 0;
+			$this->email = '';
+			$user = false;
+		} else {
+			$wp_user_id = get_current_user_id();
+			$wp_user = get_userdata( $wp_user_id );
+			$this->email = $wp_user->user_email;
+			$this->first_name = $wp_user->first_name;
+			$this->last_name = $wp_user->last_name;
+			$wpec_user_id = get_user_meta( $wp_user_id, 'wp_easycart_user_id', true ) ?: 0;
+			if ( ! $wpec_user_id ) {
+				$wpec_user_id = $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s', $this->email ) );
+				if ( ! $wpec_user_id ) {
+					$this->password = bin2hex( random_bytes(16) );
+					$this->billing = new ec_address( $wp_user->first_name, $wp_user->last_name, '', '', '', '', '', '', '', '' );
+					$this->shipping = new ec_address( $wp_user->first_name, $wp_user->last_name, '', '', '', '', '', '', '', '' );
+					$this->vat_registration_number = '';
+					$this->user_level = 'shopper';
+					$this->role_id = 0;
+					$this->is_subscriber = false;
+					$this->billing_id = $this->billing->address_id;
+					$this->shipping_id = $this->shipping->address_id;
+					$this->stripe_customer_id = '';
+					$this->taxfree = false;
+					$this->freeshipping = false;
+					$this->allow_shipping_bypass = false;
+					$this->is_stripe_test_user = false;
+					$wpec_user_id = $this->mysqli->insert_user( $this->email, $this->password, $this->first_name, $this->last_name, $this->billing_id, $this->shipping_id, $this->user_level, $this->is_subscriber );
+					$this->mysqli->update_address_user_id( $this->billing_id, $wpec_user_id );
+					$this->mysqli->update_address_user_id( $this->shipping_id, $wpec_user_id );
+				}
+				update_user_meta( $wp_user_id, 'wp_easycart_user_id', $wpec_user_id );
+			}
+			$this->user_id = $wpec_user_id;
+			$GLOBALS['ec_cart_data']->cart_data->user_id = $this->user_id;
+			$GLOBALS['ec_cart_data']->cart_data->email = $this->email;
+			$GLOBALS['ec_cart_data']->cart_data->is_guest = false;
+			$GLOBALS['ec_cart_data']->cart_data->guest_key = '';
+			$GLOBALS['ec_cart_data']->cart_data->first_name = $this->first_name;
+			$GLOBALS['ec_cart_data']->cart_data->last_name = $this->last_name;
+		}
+		$this->init_wp_easycart_user();
+	}
 
+	public function init_wp_easycart_user() {
 		$user = $this->mysqli->get_user( $this->user_id, $this->email );
-
-		if( $user && $user->user_level ){
+		if ( $user && $user->user_level ) {
 			$this->first_name = $user->first_name;
 			$this->last_name = $user->last_name;
 			$this->email_other = $user->email_other;
@@ -56,7 +109,9 @@ class ec_user{
 			$this->last4 = $user->default_card_last4;
 			$this->taxfree = $user->exclude_tax;
 			$this->freeshipping = $user->exclude_shipping;
-		}else{
+			$this->allow_shipping_bypass = $user->allow_shipping_bypass;
+			$this->is_stripe_test_user = $user->is_stripe_test_user;
+		} else {
 			$this->first_name = "";
 			$this->last_name = "";
 			$this->vat_registration_number = "";
@@ -68,20 +123,19 @@ class ec_user{
 			$this->stripe_customer_id = "";
 			$this->taxfree = false;
 			$this->freeshipping = false;
+			$this->allow_shipping_bypass = false;
+			$this->is_stripe_test_user = false;
 		}
 
-		if( $user && $user->billing_first_name ){
+		if ( $user && $user->billing_first_name ) {
 			$this->billing = new ec_address( $user->billing_first_name, $user->billing_last_name, $user->billing_address_line_1, $user->billing_address_line_2, $user->billing_city, $user->billing_state, $user->billing_zip, $user->billing_country, $user->billing_phone, $user->billing_company_name );
-		}else{
+		} else {
 			$this->billing = new ec_address( "", "", "", "", "", "", "", "", "", "" );
 		}
 
-		// User has gone through the checkout info page
-		if( $user && $user->shipping_first_name ){
+		if ( $user && $user->shipping_first_name ) {
 			$this->shipping = new ec_address( $user->shipping_first_name, $user->shipping_last_name, $user->shipping_address_line_1, $user->shipping_address_line_2, $user->shipping_city, $user->shipping_state, $user->shipping_zip, $user->shipping_country, $user->shipping_phone, $user->shipping_company_name );
-
-		// Fall back option
-		}else{
+		} else {
 			$this->shipping = new ec_address( "", "", "", "", "", "", "", "", "", "" );
 		}
 
@@ -95,7 +149,6 @@ class ec_user{
 				array_push($this->customfields, $temp_arr);
 			}
 		}
-
 	}
 
 	private function setup_billing_info(){

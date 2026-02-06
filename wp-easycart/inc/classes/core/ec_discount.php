@@ -5,11 +5,13 @@ class ec_discount {
 	public $discount_total;
 	public $coupon_discount;
 	public $coupon_matches;
+	public $coupon_matches_unit;
 	public $giftcard_discount;
 	public $shipping_discount;
 	public $coupon_code;
 	public $giftcard_code;
 	public $shipping_subtotal;
+	public $coupon_first_failed;
 
 	private $cart;
 	private $cart_subtotal;
@@ -26,6 +28,8 @@ class ec_discount {
 		$this->giftcard_code = $giftcard_code;
 		$this->cart_apply_quantity = 1;
 		$this->coupon_matches = 0;
+		$this->coupon_matches_unit = 0;
+		$this->coupon_first_failed = 0;
 		$this->set_discounts();
 	}
 
@@ -72,6 +76,7 @@ class ec_discount {
 			}
 		}
 		if ( $total_found >= $min_required ) {
+			$this->coupon_matches_unit = $total_found;
 			$this->coupon_matches++;
 		}
 		return ( $total_found >= $min_required ) ? $return_val : false;
@@ -89,6 +94,7 @@ class ec_discount {
 			}
 		}
 		if( $total_found >= $min_required ) {
+			$this->coupon_matches_unit = $total_found;
 			$this->coupon_matches++;
 		}
 		return ( $total_found >= $min_required ) ? $return_val : false;
@@ -108,6 +114,7 @@ class ec_discount {
 			}
 		}
 		if( $total_found >= $min_required ) {
+			$this->coupon_matches_unit = $total_found;
 			$this->coupon_matches++;
 		}
 		return ( $total_found >= $min_required ) ? $return_val : false;
@@ -125,12 +132,21 @@ class ec_discount {
 			$total_items = $this->cart->total_items;
 		}
 		if ( $total_items >= $min_required ) {
+			$this->coupon_matches_unit = $total_found;
 			$this->coupon_matches++;
 		}
 		return ( $total_items >= $min_required ) ? true : false;
 	}
 
 	private function get_coupon_amount( $promocode_row ) {
+		global $wpdb;
+		if ( $promocode_row->first_order_only && '' != $GLOBALS['ec_cart_data']->cart_data->email ) {
+			$past_orders = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order WHERE promo_code = %s AND user_email = %s', $promocode_row->promocode_id, $GLOBALS['ec_cart_data']->cart_data->email ) );
+			if ( is_array( $past_orders ) && count( $past_orders ) > 0 ) {
+				$this->coupon_first_failed = 1;
+				return 0;
+			}
+		}
 		if ( $promocode_row->is_dollar_based ) {
 			$cart_subtotal = ( $promocode_row->apply_to_shipping ) ? $this->cart_subtotal + $this->shipping_subtotal : $this->cart_subtotal;
 			if ( $cart_subtotal > ( $promocode_row->promo_dollar * $this->cart_apply_quantity ) ) {
@@ -154,9 +170,7 @@ class ec_discount {
 		} else if ( $promocode_row->is_bogo_based ) {
 			$matches = array();
 			$discount_amount = 0;
-
 			if ( $promocode_row->by_category_id ) {
-				global $wpdb;
 				$category = $GLOBALS['ec_categories']->get_category( $promocode_row->category_id );
 				$promo_cat_products = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_categoryitem WHERE category_id = %d", $promocode_row->category_id ) );
 				$products_in_cat = array();
@@ -243,4 +257,43 @@ class ec_discount {
 		return $shipping_rate;
 	}
 
+	public function single_product_discount( $product_id, $manufacturer_id, $unit_price, &$coupon_code, &$coupon_message ) {
+		global $wpdb;
+		$promocode_row = $GLOBALS['ec_coupons']->redeem_coupon_code( $this->coupon_code );
+		if ( $promocode_row && ! $promocode_row->coupon_expired && ( $promocode_row->max_redemptions == 999 || $promocode_row->times_redeemed < $promocode_row->max_redemptions ) ) {
+			$coupon_applies = false;
+			if ( $promocode_row->by_manufacturer_id && $this->has_manufacturer_match( $promocode_row->manufacturer_id, $promocode_row->minimum_required ) ) {
+				if ( $promocode_row->manufacturer_id == $manufacturer_id ) {
+					$coupon_applies = true;
+				}
+			} else if ( $promocode_row->by_category_id && $this->has_category_match( $promocode_row->category_id, $promocode_row->minimum_required ) ) {
+				$has_category_matches = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_categoryitem WHERE category_id = %d AND product_id = %d", $promocode_row->category_id, $product_id ) );
+				if ( is_array( $has_category_matches ) && count( $has_category_matches ) > 0 ) {
+					$coupon_applies = true;
+				}
+			} else if ( $promocode_row->by_product_id && $this->has_product_match( $promocode_row->product_id, $promocode_row->minimum_required ) ) {
+				if ( $promocode_row->product_id == $product_id ) {
+					$coupon_applies = true;
+				}
+			} else if ( $promocode_row->by_all_products && $this->has_all_match( $promocode_row->minimum_required ) ) {
+				$coupon_applies = true;
+			}
+			if ( $coupon_applies && $promocode_row->first_order_only && '' != $GLOBALS['ec_cart_data']->cart_data->email ) {
+				$past_orders = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order WHERE promo_code = %s AND user_email = %s', $promocode_row->promocode_id, $GLOBALS['ec_cart_data']->cart_data->email ) );
+				if ( is_array( $past_orders ) && count( $past_orders ) > 0 ) {
+					$coupon_applies = false; // Failed first order verification
+				}
+			}
+			if ( $coupon_applies ) {
+				$coupon_code = $this->coupon_code;
+				$coupon_message = $promocode_row->message;
+				if ( $promocode_row->is_dollar_based || $promocode_row->is_bogo_based ) {
+					return ( $unit_price - ( $this->coupon_discount / $this->coupon_matches_unit ) );
+				} else if ( $promocode_row->is_percentage_based ) {
+					return $unit_price - ( $unit_price * $promocode_row->promo_percentage / 100 );
+				}
+			}
+		}
+		return $unit_price;
+	}
 }

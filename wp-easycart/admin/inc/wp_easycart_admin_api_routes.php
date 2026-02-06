@@ -27,7 +27,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_product' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);
@@ -37,7 +39,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_product_cat' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);
@@ -47,7 +51,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_product_brand' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);
@@ -57,7 +63,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_categories' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);
@@ -67,7 +75,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_optionsets' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);
@@ -77,7 +87,9 @@ if ( ! class_exists( 'wp_easycart_admin_api_routes' ) ) :
 				array(
 					'methods' => 'GET',
 					'callback' => array( $this, 'wp_eayscart_ajax_select_products_by_categories' ),
-					'permission_callback' => '__return_true',
+					'permission_callback' => function () {
+						return current_user_can( 'edit_posts' );
+					},
 				),
 				true
 			);

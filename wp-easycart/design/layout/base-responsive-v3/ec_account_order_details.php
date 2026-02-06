@@ -27,10 +27,8 @@
 <section class="ec_account_page" id="ec_account_order_details">
 	<?php if ( $this->order ) { ?>
 	<div class="right">
-		<a href="<?php echo esc_attr( $this->account_page . $this->permalink_divider ); ?>ec_page=print_receipt&order_id=<?php echo esc_attr( $this->order->order_id );
-			if ( '' != $this->order->guest_key ) {
-				echo '&ec_guest_key=' . esc_attr( $this->order->guest_key );
-			} ?>" target="_blank"><img src="<?php echo esc_attr( $this->get_print_order_icon_url( ) ); ?>" /></a>
+		<?php do_action( 'wp_easycart_order_details_header_right', $this->order ); ?>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $this->order->order_id, 'ec_guest_key' => ( ( '' != $this->order->guest_key ) ? $this->order->guest_key : null ) ) ) ); ?>" target="_blank"><img src="<?php echo esc_attr( $this->get_print_order_icon_url( ) ); ?>" /></a>
 	</div>
 
 	<div class="ec_account_order_details_main_holder">
@@ -135,7 +133,7 @@
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_email_other' )?></strong> <?php $this->order->display_order_email_other( ); ?></div>
 			<?php } ?>
 
-			<?php if ( $this->order->promo_code ) { ?>
+			<?php if ( $this->order->promo_code && apply_filters( 'wp_easycart_order_details_promo_code_display', true, $this->order ) ) { ?>
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_coupon_code' )?></strong> <?php $this->order->display_order_promocode( ); ?></div>
 			<?php } ?>
 
@@ -219,7 +217,7 @@
 			<?php if ( $this->order->tax_total > 0 ) {?>
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_tax_total' )?></strong> <?php $this->order->display_tax_total( ); ?></div>
 			<?php } ?>
-			<?php if ( $this->order->discount_total != 0 ) { ?>
+			<?php if ( $this->order->discount_total != 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $this->order ) ) { ?>
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_discount_total' )?></strong> -<?php $this->order->display_discount_total(); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->has_duty() ) { ?>

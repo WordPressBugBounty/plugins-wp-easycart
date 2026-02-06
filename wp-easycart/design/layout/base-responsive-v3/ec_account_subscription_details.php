@@ -89,12 +89,14 @@
 			</div>
 		</div>
 		<script><?php
-			if( get_option( 'ec_option_payment_process_method' ) == 'stripe' )
+			if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 				$pkey = get_option( 'ec_option_stripe_public_api_key' );
-			else if( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) )
+			} else if( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) ) {
 				$pkey = get_option( 'ec_option_stripe_connect_sandbox_publishable_key' );
-			else
-				$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );	
+			} else {
+				$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
+			}
+			$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 			?>
 			<?php 
 				$stripe_payment_intent_client_secret = $this->get_stripe_intent_client_secret( );

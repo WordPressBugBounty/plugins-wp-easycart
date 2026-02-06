@@ -1073,6 +1073,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"优惠券不适用于购物车中的商品"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"此優惠券僅可用於您的第一筆訂單"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"申請"
@@ -3219,6 +3223,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"您的訂單已收到，您可以在 [pickup_time] 取貨。"
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"未找到與您的ID和電子郵件地址相符的有效訂單。"
 				}
 			}
 		},
@@ -3288,6 +3296,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"我們已收到您訂單的付款！"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"您的訂單已成功關聯到您的帳戶！"
 				}
 			}
 		},

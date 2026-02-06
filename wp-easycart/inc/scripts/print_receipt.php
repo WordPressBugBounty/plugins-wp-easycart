@@ -37,8 +37,17 @@ if ( $order ) {
 	$country_list = $mysqli->get_countries( );
 	$tax_struct = new ec_tax( 0,0,0, "", "");
 
-	$total = $GLOBALS['currency']->get_currency_display( $order->grand_total );
-	$subtotal = $GLOBALS['currency']->get_currency_display( $order->sub_total );
+	$total = $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_order_display_grand_total', $order->grand_total, $order ) );
+	$sub_total = $order->sub_total;
+	if ( get_option( 'ec_option_show_coupon_discount_total' ) ) {
+		foreach ( $order_details as $line_item ) {
+			if ( get_option( 'ec_option_show_coupon_discount_total' ) && $line_item->total_discount_coupon > 0 ) {
+				$sub_total -= $line_item->total_discount_coupon;
+			}
+		}
+	}
+	$sub_total = apply_filters( 'wp_easycart_order_display_sub_total', $sub_total, $order->sub_total, $order_details );
+	$subtotal = $GLOBALS['currency']->get_currency_display( $sub_total );
 	$tip = $GLOBALS['currency']->get_currency_display( $order->tip_total );
 	$tax = $GLOBALS['currency']->get_currency_display( $order->tax_total );
 	if ( $order->duty_total > 0 ) {

@@ -13,7 +13,9 @@
 
 	<div class="ec_admin_settings_input ec_admin_settings_products_section">
 
-		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_show_promotion_discount_total', 'ec_admin_save_product_options', get_option( 'ec_option_show_promotion_discount_total' ), __( 'Promotions: Show Discount Total', 'wp-easycart' ), __( 'Enabling this shows the discount total for a promotion on the product and in the cart, when it applies.', 'wp-easycart' ) ); ?>
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_show_promotion_discount_total', 'ec_admin_save_product_options', get_option( 'ec_option_show_promotion_discount_total' ), __( 'Discounts: Show Promotion Line Discount', 'wp-easycart' ), __( 'Enabling this shows the discount total for a promotion on the product and in the cart, when it applies.', 'wp-easycart' ) ); ?>
+
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_show_coupon_discount_total', 'ec_admin_save_product_options', get_option( 'ec_option_show_coupon_discount_total' ), __( 'Discounts: Show Coupon Line Discount', 'wp-easycart' ), __( 'Enabling this shows the discount total for a coupon on the product and in the cart, when it applies.', 'wp-easycart' ) ); ?>
 
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_hide_price_seasonal', 'ec_admin_save_product_options', get_option( 'ec_option_hide_price_seasonal' ), __( 'Seasonal Products: Hide Price', 'wp-easycart' ), __( 'Enabling this hides the price for any seasonal products.', 'wp-easycart' ) ); ?>
 

@@ -109,7 +109,7 @@
 		<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 		</div>
-		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 
 	<?php }?>

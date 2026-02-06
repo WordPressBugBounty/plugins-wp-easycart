@@ -247,12 +247,12 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 			<?php }?>
 
 			<?php if ( $order->subscription_id > 0 ) {
-				echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=subscription_details&subscription_id=" . $order->subscription_id ) . "\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_view_subscription' ) . "</a>";
+				echo "<a href=\"" . esc_attr( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $order->subscription_id ) ) ) . "\">" . wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_view_subscription' ) . "</a>";
 			} else {
 				if ( $GLOBALS['ec_cart_data']->cart_data->is_guest == "" ) {
-					echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=order_details&order_id=" . $order_id ) . "\"> " . wp_easycart_language( )->get_text( 'cart_success', 'cart_payment_receipt_order_details_link' ) . "</a>";
+					echo "<a href=\"" . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order_id ) ) ) . "\"> " . wp_easycart_language( )->get_text( 'cart_success', 'cart_payment_receipt_order_details_link' ) . "</a>";
 				} else {
-					echo "<a href=\"" . esc_attr( $this->account_page . $this->permalink_divider . "ec_page=order_details&order_id=" . $order_id . "&ec_guest_key=" . $GLOBALS['ec_cart_data']->cart_data->guest_key ) . "\">" . wp_easycart_language( )->get_text( 'cart_success', 'cart_payment_receipt_order_details_link' ) . "</a>";
+					echo "<a href=\"" . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order_id, 'ec_guest_key' => $GLOBALS['ec_cart_data']->cart_data->guest_key ) ) ) . "\">" . wp_easycart_language( )->get_text( 'cart_success', 'cart_payment_receipt_order_details_link' ) . "</a>";
 				}
 			} ?>
 

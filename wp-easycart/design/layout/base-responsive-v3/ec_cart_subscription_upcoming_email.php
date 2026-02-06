@@ -25,7 +25,7 @@
 					<p><?php echo esc_attr( str_replace( '[total]', $total, str_replace( '[date]', $date, $GLOBALS['language']->get_text( 'subscription_upcoming', 'upcoming_message_2' ) ) ) ); ?></p>
 					<?php }?>
 					<p><br><?php echo $GLOBALS['language']->get_text( 'subscription_upcoming', 'upcoming_details' ); ?> <?php echo $this->title; ?></p>
-					<p><a href="<?php echo esc_url( $this->account_page . $this->permalink_divider . 'ec_page=subscription_details&subscription_id=' . $subscription->subscription_id ); ?>"><?php echo $GLOBALS['language']->get_text( 'subscription_upcoming', 'upcoming_message_link' ); ?></a></p>
+					<p><a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription->subscription_id ) ) ); ?>"><?php echo $GLOBALS['language']->get_text( 'subscription_upcoming', 'upcoming_message_link' ); ?></a></p>
 				</td>
 			</tr>
 			<tr height="10"><td colspan='4'></td></tr>

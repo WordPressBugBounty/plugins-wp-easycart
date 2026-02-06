@@ -58,7 +58,6 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_google_ga4_design' ) );
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_google_adwords_design' ) );
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_facebook_settings' ) );
-			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_shareasale_settings' ) );
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_mailerlite_settings' ) );
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_convertkit_settings' ) );
 			add_action( 'wpeasycart_admin_third_party', array( $this, 'load_activecampaign_settings' ) );
@@ -161,18 +160,6 @@ if ( ! class_exists( 'wp_easycart_admin_third_party' ) ) :
 			$upgrade_title = __( 'Facebook Pixel Setup', 'wp-easycart' );
 			$upgrade_subtitle = '';
 			$upgrade_checkbox_label = apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:5px;"></span>' ) . __( 'Enable Facebook Pixel for Your Cart', 'wp-easycart' );
-			$upgrade_button_label = __( 'Save Setup', 'wp-easycart' );
-			include( $this->upgrade_file );
-		}
-
-		/**
-		 * Load the locked Share A Sale section
-		 */
-		public function load_shareasale_settings() {
-			$upgrade_icon = 'dashicons-admin-generic';
-			$upgrade_title = __( 'ShareASale Setup', 'wp-easycart' );
-			$upgrade_subtitle = '';
-			$upgrade_checkbox_label = apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:5px;"></span>' ) . __( 'Enable ShareASale for Your Cart', 'wp-easycart' );
 			$upgrade_button_label = __( 'Save Setup', 'wp-easycart' );
 			include( $this->upgrade_file );
 		}

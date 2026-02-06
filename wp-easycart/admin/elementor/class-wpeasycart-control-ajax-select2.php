@@ -63,7 +63,8 @@ class WPEasyCart_Control_Ajax_Select2 extends \Elementor\Base_Data_Control {
 					class="elementor-ajaxselect2" 
 					type="wpecajaxselect2" {{ multiple }} 
 					data-setting="{{ data.name }}"
-					data-ajax-url="<?php echo esc_url( $restapi ) . '/{{data.options}}/'; ?>""
+					data-ajax-url="<?php echo esc_url( $restapi ) . '/{{data.options}}/'; ?>"
+					data-ajax-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
 				>
 				</select>
 			</div>

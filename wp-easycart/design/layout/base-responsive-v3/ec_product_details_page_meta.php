@@ -2,18 +2,22 @@
 do_action( 'wp_easycart_product_details_before', $product );
 if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	echo "<script>
-			fbq('track', 'ViewContent', {
-				content_name: '" . esc_attr( ucwords( strtolower( strip_tags( $product->title ) ) ) ) . "',
-				content_ids: ['" . esc_attr( $product->product_id ) . "'],
-				content_type: 'product',";
-	if ( ( ! $product->login_for_pricing || $product->is_login_for_pricing_valid() ) && ( ! $product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) {
-	echo "
-				value: " . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ",
-				currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',";
-	}
-	echo "
-			});
-		</script>";
+		jQuery( document ).ready( function() {
+			setTimeout(function() {
+				fbq('track', 'ViewContent', {
+					content_name: '" . esc_attr( ucwords( strtolower( strip_tags( $product->title ) ) ) ) . "',
+					content_ids: ['" . esc_attr( $product->product_id ) . "'],
+					content_type: 'product',";
+		if ( ( ! $product->login_for_pricing || $product->is_login_for_pricing_valid() ) && ( ! $product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) {
+		echo "
+					value: " . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ",
+					currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',";
+		}
+		echo "
+				} );
+			}, 1000 );
+		} );
+	</script>";
 }
 ?>
 
@@ -231,3 +235,46 @@ if ( ! $first_image_found ) {
 	"image": <?php echo wp_json_encode( esc_url( $first_image_url ) ); ?>
 }
 </script>
+
+<?php
+if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
+	if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) {
+		echo '<script>
+		document.addEventListener( \'DOMContentLoaded\', function() {
+			dataLayer.push( { ecommerce: null } );
+			dataLayer.push( {
+				event: "view_item",
+				ecommerce: {
+					currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
+					value: ' . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ',
+					items: [ {
+						item_id: "' . esc_attr( $product->model_number ) . '",
+						item_name: "' . esc_attr( $product->title ) . '",
+						index: 0,
+						price: ' . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ',
+						item_brand: "' . esc_attr( $product->manufacturer_name ) . '",
+						quantity: 1
+					} ]
+				}
+			} );
+		} );
+		</script>';
+	} else {
+		echo '<script>
+		document.addEventListener( \'DOMContentLoaded\', function() {
+			gtag( "event", "view_item", {
+				currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
+				value: ' . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ',
+				items: [ {
+					item_id: "' . esc_attr( $product->model_number ) . '",
+					item_name: "' . esc_attr( $product->title ) . '",
+					index: 0,
+					price: ' . esc_attr( number_format( $product->price, 2, '.', '' ) ) . ',
+					item_brand: "' . esc_attr( $product->manufacturer_name ) . '",
+					quantity: 1
+				} ]
+			} );
+		} );
+		</script>';
+	}
+}

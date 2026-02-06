@@ -27,7 +27,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_paypal_final_note' ); ?>
 	</div>
 	<div class="wp-easycart-paypal-express-logo-box" style="float:left; width:100%; background:#FFF; padding:10px 20px; border:1px solid #e1e1e1; text-align:center;"><img src="<?php echo esc_attr( $this->get_payment_image_source( "paypal.jpg" ) ); ?>" alt="PayPal" /></div>
-	<div class="wp-easycart-paypal-express-back-link" style="float:left; width:100%; text-align:right;"><a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_payment"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_change_payment_method' ); ?></a></div>
+	<div class="wp-easycart-paypal-express-back-link" style="float:left; width:100%; text-align:right;"><a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_change_payment_method' ); ?></a></div>
 	<div class="ec_cart_header">
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_review_title' )?>
 	</div>
@@ -122,7 +122,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		<?php do_action( 'wp_easycart_cartitem_post_optionitems', $this->cart->cart[$cartitem_index] ); ?>
 
 		</div>
-		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+		<div class="ec_cart_price_row_total" id="ec_cart_subtotal"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 
 	<?php }?>
@@ -232,7 +232,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		</div>
 		<div class="ec_cart_input_row">
 			<?php $this->display_selected_shipping_method( ); ?>
-			<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_shipping"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
+			<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_shipping' ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
 		</div>
 		<?php }?>
 
@@ -456,7 +456,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	</div>
 	<div class="ec_cart_input_row">
 		<?php $this->display_selected_shipping_method( ); ?>
-		<a href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ); ?>ec_page=checkout_shipping"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_shipping' ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_edit_shipping_method_link' ); ?></a>
 	</div>
 	<?php } // Close if for shipping ?>
 

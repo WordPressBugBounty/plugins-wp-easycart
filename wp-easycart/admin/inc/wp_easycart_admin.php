@@ -3357,7 +3357,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			}else if( $slide == 'order' ){
 				include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-quick-edit-slideout.php' );
-
+				include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-duplicate-slideout.php' );
 			}
 		}
 
@@ -3379,54 +3379,46 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $url;
 		}
 
-		public function start_pro_trial( ){
-
-			// Required Trial Info
+		public function start_pro_trial() {
 			$current_user = wp_get_current_user( );
 			$name = $current_user->user_firstname . " " . $current_user->user_lastname;
 			$email = $current_user->user_email;
 
-			// Try and Install PRO
-			if( !file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ){
+			if ( ! file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
 				$this->install_pro_plugin(  );
 			}
 
-			if( !file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ){
-				echo esc_attr__( "Error installing the WP EasyCart PRO plugin. Please try again or contact support@wpeasycart.com for assistance.", 'wp-easyart' );
+			if ( ! file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
+				echo esc_attr( sprintf( __( 'Error installing the WP EasyCart PRO plugin. Please try again or contact %s for assistance.', 'wp-easyart' ), 'support@wpeasycart.com' ) );
 				die( );
 			}
 
-			if( !is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ){
+			if ( ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ) {
 				activate_plugin( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php', NULL, 0, 1 );
 			}
 
-			if( !is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ){
-				echo esc_attr__( "Error activating WP EasyCart PRO, please visit your plugins page and click activate or contact support@wpeasycart.com for assistance.", 'wp-easycart' );
+			if ( ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ) {
+				echo esc_attr( sprintf( __( 'Error activating WP EasyCart PRO, please visit your plugins page and click activate or contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) );
 				die( );
 			}
 
-			if( !class_exists( 'ec_license_manager' ) ){
+			if ( ! class_exists( 'ec_license_manager' ) ) {
 				include( EC_PLUGIN_DIRECTORY . '-pro/license/ec_license_manager.php' );
 			}
 
-			// Get Key and License the Trial
 			$license_key = $this->create_trial_license( $name, $email );
-			if( !$license_key ){
-				echo esc_attr__( "Error creating trial key. Something may be wrong with our server, please contact support@wpeasycart.com for assistance.", 'wp-easyart' ) . "<br>";
+			if ( ! $license_key ) {
+				echo esc_attr( sprintf( __( 'Error creating trial key. Something may be wrong with our server, please contact %s for assistance.', 'wp-easyart' ), 'support@wpeasycart.com' ) ) . '<br>';
 				die( );
-
-			}else if( $license_key == "key_exists" ){
-				// Should load from 
-
-			}else{
+			} else if ( $license_key == "key_exists" ) {
+				// Should load from
+			} else {
 				$license_manager = new ec_license_manager( );
 				$license_manager->ec_activate_license( $name, $email, $license_key );
 			}
 		}
 
 		private function install_pro_plugin( $is_trial = 1 ){
-
-			// Echo out html for screen
 			echo '<html>';
 				echo '<head>';
 					echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
@@ -3545,7 +3537,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( ! isset( $color ) ) {
 				return 'rgb( 255, 255, 255, ' . esc_attr( $opacity ) . ' )';
 			}
-			if ( '#' == $color[0] ) {
+			if ( strlen( $color ) > 0 && '#' == $color[0] ) {
 				$color = substr( $color, 1 );
 			}
 			if ( 6 == strlen( $color ) ) {

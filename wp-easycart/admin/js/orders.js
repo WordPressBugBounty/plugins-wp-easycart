@@ -127,6 +127,11 @@ jQuery( document ).ready( function( ){
 		return false;
 	} );
 	jQuery( '.wpeasycart-timeline-item-info > a' ).on( 'click', function( ){ return false; } );
+	jQuery( '.duplicate-order > a' ).on( 'click', function() {
+		var order_id = jQuery( this ).parent().parent().parent().attr( 'data-id' );
+		wp_easycart_open_order_duplicate( order_id );
+		return false;
+	} );
 } );
 
 function ec_admin_resend_giftcard( script_order_id, script_orderdetail_id ){
@@ -459,5 +464,75 @@ function ec_admin_enable_download_item( orderdetail_id ) {
 		ec_admin_hide_loader( 'ec_admin_order_management' );
 		jQuery( '#ec_details_option_no_downloads_' + orderdetail_id ).hide();
 		jQuery( '#ec_details_option_yes_downloads_' + orderdetail_id ).show();
+	} } );
+}
+
+function wp_easycart_open_order_duplicate( order_id ){
+	wp_easycart_admin_clear_order_duplicate( );
+	jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeIn( 'fast' );
+	wp_easycart_admin_open_slideout( 'order_duplicate_box' );
+
+	var data = {
+		action: 'ec_admin_ajax_get_order_quick_edit',
+		order_id: order_id,
+	};
+
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+		var json_data = JSON.parse( data );
+		jQuery( document.getElementById( 'ec_dup_order_id' ) ).html( json_data.order.order_id );
+		jQuery( document.getElementById( 'ec_dup_order_name' ) ).html( json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name );
+		var shipping_address = json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name + "<br>";
+		if( json_data.order.shipping_company_name ){
+			shipping_address += json_data.order.shipping_company_name + "<br>";
+		}
+		shipping_address += json_data.order.shipping_address_line_1 + "<br>";
+		if( json_data.order.shipping_address_line_2 ){
+			shipping_address += json_data.order.shipping_address_line_2 + "<br>";
+		}
+		shipping_address += json_data.order.shipping_city + ", " + json_data.order.shipping_state + " " + json_data.order.shipping_zip + "<br>";
+		shipping_address += json_data.order.shipping_country;
+		if( json_data.order.shipping_phone ){
+			shipping_address += "<br>" + json_data.order.shipping_phone;
+		}
+		var items = "";
+		for( var i=0; i<json_data.order.items.length; i++ ){
+			if( json_data.order.items[i].title.length > 20 )
+				items += json_data.order.items[i].title.substring( 0, 20 ) + "...";
+			else
+				items += json_data.order.items[i].title;
+
+			items += " (" + json_data.order.items[i].model_number + ") x " + json_data.order.items[i].quantity + "<br>";
+		}
+		jQuery( document.getElementById( 'ec_dup_order_shipping_address' ) ).html( shipping_address );
+		jQuery( document.getElementById( 'ec_dup_order_items' ) ).html( items );
+		jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( json_data.order.orderstatus_id ).trigger('change');
+		jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeOut( 'fast' );
+		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
+			ec_order_history_refresh();
+		}
+	} } );
+
+	return false;
+}
+
+function wp_easycart_admin_clear_order_duplicate( ){
+	jQuery( document.getElementById( 'ec_dup_order_id' ) ).html( '' );
+	jQuery( document.getElementById( 'ec_dup_order_name' ) ).html( '' );
+	jQuery( document.getElementById( 'ec_dup_order_shipping_address' ) ).html( '' );
+	jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( 0 ).trigger('change');
+}
+
+function ec_admin_complete_order_duplicate( ){
+	jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeIn( 'fast' );
+	var order_id = Number( jQuery( document.getElementById( 'ec_dup_order_id' ) ).html() );
+	var data = {
+		action: 'ec_admin_ajax_complete_order_duplicate',
+		order_id: order_id,
+		orderstatus_id: jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( ),
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_duplicate_nonce', 'text' )
+	};
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){
+		var json_data = JSON.parse( response );
+		window.location.href = json_data.order_link;
 	} } );
 }

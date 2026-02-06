@@ -8,18 +8,22 @@
 do_action( 'wp_easycart_product_details_before', $this->product );
 if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 	echo "<script>
-			fbq('track', 'ViewContent', {
-				content_name: '" . esc_attr( ucwords( strtolower( strip_tags( $this->product->title ) ) ) ) . "',
-				content_ids: ['" . esc_attr( $this->product->product_id ) . "'],
-				content_type: 'product',";
-	if ( ( ! $this->product->login_for_pricing || $this->product->is_login_for_pricing_valid() ) && ( ! $this->product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $this->product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) {
-	echo "
-				value: " . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ",
-				currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',";
-	}
-	echo "
-			});
-		</script>";
+		jQuery( document ).ready( function() {
+			setTimeout(function() {
+				fbq('track', 'ViewContent', {
+					content_name: '" . esc_attr( ucwords( strtolower( strip_tags( $this->product->title ) ) ) ) . "',
+					content_ids: ['" . esc_attr( $this->product->product_id ) . "'],
+					content_type: 'product',";
+		if ( ( ! $this->product->login_for_pricing || $this->product->is_login_for_pricing_valid() ) && ( ! $this->product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $this->product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) {
+		echo "
+					value: " . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ",
+					currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',";
+		}
+		echo "
+				});
+			}, 1000 );
+		} );
+	</script>";
 }
 ?>
 <?php
@@ -1808,6 +1812,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				$first_optionitem_image_type = true;
 				foreach( $this->product->advanced_optionsets as $optionset ){
 					$optionitems = $this->product->get_advanced_optionitems( $optionset->option_id );
+					do_action( 'wp_easycart_product_details_advanced_option_set_before', $optionset, $optionitems, $this->product );
 				?>
 				<?php 
 				if( $optionset->option_required ){ 
@@ -2215,8 +2220,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 					}
 				?>
 					</div>
-				</div>				
+				</div>
 				<?php
+					do_action( 'wp_easycart_product_details_advanced_option_set_after', $optionset, $optionitems, $this->product );
 				}
 				?>
 			</div>

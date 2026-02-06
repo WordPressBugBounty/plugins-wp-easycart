@@ -48,6 +48,12 @@ class ec_cartitem {
 	public $promotion_discount_total;
 	public $promotion_discount_line_total;
 
+	public $coupon_code;
+	public $coupon_message;
+	public $coupon_price;
+	public $coupon_discount_total;
+	public $coupon_discount_line_total;
+
 	public $options_price_onetime;
 	public $grid_price_change;
 
@@ -174,6 +180,11 @@ class ec_cartitem {
 
 		$this->promotion_discount_total = 0;
 		$this->promotion_discount_line_total = 0;
+		$this->coupon_code = '';
+		$this->coupon_message = '';
+		$this->coupon_price = 0;
+		$this->coupon_discount_total = 0;
+		$this->coupon_discount_line_total = 0;
 		$this->cartitem_id = $cartitem_data->cartitem_id;
 		$this->product_id = $cartitem_data->product_id;
 		$this->model_number = $cartitem_data->model_number;
@@ -737,6 +748,17 @@ class ec_cartitem {
 		if ( ! $this->is_subscription_item ) {
 			if ( $this->promotion_price < $this->unit_price ) {
 				$this->promotion_discount_total = $this->unit_price - $this->promotion_price;
+				$this->promotion_discount_line_total = round( $this->promotion_discount_total * $this->quantity, 2 );
+			}
+		}
+	}
+	
+	public function apply_coupon_to_cartitem( $discount ) {
+		$this->coupon_price = $discount->single_product_discount( $this->product_id, $this->manufacturer_id, $this->unit_price, $this->coupon_code, $this->coupon_message );
+		if ( ! $this->is_subscription_item ) {
+			if ( $this->coupon_price < $this->unit_price ) {
+				$this->coupon_discount_total = $this->unit_price - $this->coupon_price;
+				$this->coupon_discount_line_total = round( $this->coupon_discount_total * $this->quantity, 2 );
 			}
 		}
 	}
@@ -1107,9 +1129,9 @@ class ec_cartitem {
 	public function display_update_form_start() {
 		if ( !$this->is_deconetwork ) {
 			if ( isset( $_GET['ec_page'] ) ) {
-				echo '<form action="' . esc_attr( $this->cart_page . $this->permalink_divider ) . 'ec_page=' . esc_attr( htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES ) ) . '" method="post">';
+				echo '<form action="' . esc_attr( wpeasycart_links()->get_cart_page( esc_attr( htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES ) ) ) ) . '" method="post">';
 			} else {
-				echo '<form action="' . esc_attr( $this->cart_page ) . '" method="post">';
+				echo '<form action="' . esc_attr( wpeasycart_links()->get_cart_page() ) . '" method="post">';
 			}
 		}
 	}
@@ -1143,9 +1165,9 @@ class ec_cartitem {
 
 	public function display_delete_button( $remove_text ) {
 		if ( isset( $_GET['ec_page'] ) ) {
-			echo '<form action="' . esc_attr( $this->cart_page . $this->permalink_divider ) . 'ec_page=' . esc_attr( htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES ) ) . '" method="post">';
+			echo '<form action="' . esc_attr( wpeasycart_links()->get_cart_page( esc_attr( htmlspecialchars( sanitize_key( $_GET['ec_page'] ), ENT_QUOTES ) ) ) ) . '" method="post">';
 		} else {
-			echo '<form action="' . esc_attr( $this->cart_page ) . '" method="post">';
+			echo '<form action="' . esc_attr( wpeasycart_links()->get_cart_page() ) . '" method="post">';
 		}
 		echo '<input type="submit" id="remove_' . esc_attr( $this->cartitem_id ) . '" name="remove_' . esc_attr( $this->cartitem_id ) . '" value="' . esc_attr( $remove_text ) . '" onclick="';
 		if ( get_option( 'ec_option_googleanalyticsid' ) != "UA-XXXXXXX-X" && get_option( 'ec_option_googleanalyticsid' ) != "" ) {
@@ -1182,32 +1204,69 @@ class ec_cartitem {
 			if ( ! $this->replace_price_label && in_array( $this->enable_price_label, array( 3, 5, 6, 7 ) ) ) {
 				$extra_label .= wp_easycart_escape_html( $this->custom_price_label );
 			}
-			return apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( $this->unit_price ) . $extra_label, $this->product_id );
+			$unit_price = $this->unit_price;
+			if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) {
+				$unit_price += $this->promotion_discount_total;
+			}
+			$display_html = '';
+			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) );
+			if ( $has_discount ) {
+				$display_html .= '<span class="ec_cartitem_price_discounted">';
+			}
+			$display_html .= apply_filters( 'wp_easycart_cart_item_unit_price_display', $GLOBALS['currency']->get_currency_display( $unit_price ) . $extra_label, $this->product_id );
+			if ( $has_discount ) {
+				$display_html .= '</span>';
+			}
+			if ( $has_discount ) {
+				$display_html .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_unit_price_discounted() ) . '</div>';
+			}
+			return $display_html;
+		}
+	}
+
+	public function get_unit_price_discounted() {
+		if ( $this->is_deconetwork ) {
+			return $GLOBALS['currency']->get_currency_display( $this->deconetwork_total / $this->quantity );
+		} else if ( $this->replace_price_label && in_array( $this->enable_price_label, array( 3, 5, 6, 7 ) ) ) {
+			return wp_easycart_escape_html( $this->custom_price_label );
+		} else {
+			$extra_label = '';
+			if ( ! $this->replace_price_label && in_array( $this->enable_price_label, array( 3, 5, 6, 7 ) ) ) {
+				$extra_label .= wp_easycart_escape_html( $this->custom_price_label );
+			}
+			$unit_price = $this->unit_price;
+			if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) {
+				$unit_price -= $this->coupon_discount_total;
+			}
+			return apply_filters( 'wp_easycart_cart_item_unit_price_discounted_display', $GLOBALS['currency']->get_currency_display( $unit_price ) . $extra_label, $this->product_id );
 		}
 	}
 
 	public function get_unit_discount() {
-		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) {
-			return '<div class="ec_caritem_price_promo_discount">-' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->promotion_discount_total ) ) . '</div>';
-		} else {
-			return '';
+		$unit_discount = '';
+		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) ) {
+			$unit_discount .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_unit_price_discounted() ) . '</div>';
 		}
+		return $unit_discount;
 	}
-	
+
 	public function get_total_discount() {
-		if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 && $this->promotion_discount_line_total != $this->promotion_discount_total ) {
-			return '<div class="ec_caritem_price_promo_discount">-' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->promotion_discount_line_total ) ) . '</div>';
-		} else {
-			return '';
+		$total_discount = '';
+		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) ) {
+			$total_discount .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_total_discounted() ) . '</div>';
 		}
+		return $total_discount;
 	}
-	
+
 	public function get_promo_message() {
+		$promo_mesage = '';
 		if ( get_option( 'ec_option_show_promotion_discount_total' ) && ( $this->promotion_discount_total > 0 || $this->promotion_discount_line_total > 0 ) ) {
-			return '<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> ' . esc_attr( $this->promotion_text ) . '</span></div>';
-		} else {
-			return '';
+			$promo_mesage .= '<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> ' . esc_attr( $this->promotion_text ) . '</span></div>';
 		}
+		if ( get_option( 'ec_option_show_coupon_discount_total' ) && ( $this->coupon_discount_total > 0 || $this->coupon_discount_line_total > 0 ) ) {
+			$promo_mesage .= '<div class="ec_details_price_coupon_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> ' . esc_attr( $this->coupon_code ) . '</span></div>';
+		}
+		return $promo_mesage;
 	}
 
 	public function display_item_total() {
@@ -1222,7 +1281,35 @@ class ec_cartitem {
 		if ( $this->is_deconetwork ) {
 			return $GLOBALS['currency']->get_currency_display( $this->deconetwork_total );
 		} else {
-			return ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $GLOBALS['currency']->get_currency_display( $this->total_price, false ) : $GLOBALS['currency']->get_currency_display( $this->converted_total_price, false );
+			$total_price = ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $this->total_price : $this->converted_total_price;
+			if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) {
+				$total_price += $this->promotion_discount_line_total;
+			}
+			$display_html = '';
+			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) );
+			if ( $has_discount ) {
+				$display_html .= '<span class="ec_cartitem_price_discounted">';
+			}
+			$display_html .= $GLOBALS['currency']->get_currency_display( $total_price );
+			if ( $has_discount ) {
+				$display_html .= '</span>';
+			}
+			if ( $has_discount ) {
+				$display_html .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_total_discounted() ) . '</div>';
+			}
+			return $display_html;
+		}
+	}
+
+	public function get_total_discounted() {
+		if ( $this->is_deconetwork ) {
+			return $GLOBALS['currency']->get_currency_display( $this->deconetwork_total );
+		} else {
+			$total_price = ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $this->total_price : $this->converted_total_price;
+			if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) {
+				$total_price -= $this->coupon_discount_line_total;
+			}
+			return $GLOBALS['currency']->get_currency_display( $total_price, false );
 		}
 	}
 

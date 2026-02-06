@@ -198,10 +198,11 @@
 						<?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && ( $this->cart->cart[$cartitem_index]->promotion_discount_total > 0 || $this->cart->cart[$cartitem_index]->promotion_discount_line_total > 0 ) ) { ?>
 							<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> <?php echo esc_attr( $this->cart->cart[$cartitem_index]->promotion_text ); ?></span></div>
 						<?php }?>
+						<?php if ( get_option( 'ec_option_show_coupon_discount_total' ) && ( $this->cart->cart[$cartitem_index]->coupon_discount_total > 0 || $this->cart->cart[$cartitem_index]->coupon_discount_line_total > 0 ) ) { ?>
+							<div class="ec_details_price_coupon_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_coupon_discount_label"> <?php echo esc_attr( $this->cart->cart[$cartitem_index]->coupon_code ); ?></span></div>
+						<?php }?>
 					</td>
-					<td class="ec_cartitem_price" id="ec_cartitem_price_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_unit_price( ) ); ?><?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->cart->cart[$cartitem_index]->promotion_discount_total > 0 ) { ?>
-						<div class="ec_caritem_price_promo_discount">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->cart->cart[$cartitem_index]->promotion_discount_total ) ); ?></div>
-					<?php }?></td>
+					<td class="ec_cartitem_price" id="ec_cartitem_price_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_unit_price() ); ?></td>
 					<td class="ec_cartitem_quantity">
 						<?php if( $this->cart->cart[$cartitem_index]->grid_quantity > 0 ){ ?>
 							<?php echo esc_attr( $this->cart->cart[$cartitem_index]->grid_quantity ); ?>
@@ -224,9 +225,7 @@
 						</table>
 						<?php }?>
 					</td>
-					<td class="ec_cartitem_total" id="ec_cartitem_total_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?><?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->cart->cart[$cartitem_index]->promotion_discount_line_total > 0 && $this->cart->cart[$cartitem_index]->promotion_discount_line_total != $this->cart->cart[$cartitem_index]->promotion_discount_total ) { ?>
-						<div class="ec_caritem_price_promo_discount">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->cart->cart[$cartitem_index]->promotion_discount_line_total ) ); ?></div>
-					<?php }?></td>
+					<td class="ec_cartitem_total" id="ec_cartitem_total_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total() ); ?>
 				</tr>
 				<?php }?>
 			</tbody>
@@ -248,7 +247,7 @@
 
 			<?php if( apply_filters( 'wpeasycart_show_checkout_button', true ) ){ ?>
 			<div class="ec_cart_button_row ec_cart_button_row_checkout">
-				<a class="ec_cart_button ec_cart_button_checkout" href="<?php echo esc_attr( $this->cart_page . $this->permalink_divider ) . "ec_page=checkout_info"; ?>"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $this->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $this->cart->total_items ); ?>', contents: [<?php
+				<a class="ec_cart_button ec_cart_button_checkout" href="<?php echo esc_attr( wpeasycart_links()->get_cart_page( 'checkout_info' ) ); ?>"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $this->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $this->cart->total_items ); ?>', contents: [<?php
 					for( $i=0; $i<count( $this->cart->cart ); $i++ ){
 						if( $i > 0 )
 							echo ", ";

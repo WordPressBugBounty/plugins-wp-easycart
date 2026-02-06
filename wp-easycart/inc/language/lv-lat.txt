@@ -285,6 +285,10 @@
 					"title":"Cart, Coupon Code Not Applicable",
 					"value":"Kupons neattiecas uz groziem"
 				},
+				"coupon_first_only":{
+					"title":"Cart, Coupon Code First Order Only",
+					"value":"Šo kuponu var izmantot tikai pirmajam pasūtījumam"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Pieteikties"
@@ -951,6 +955,10 @@
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
 					"value":"Jūsu pasūtījums ir saņemts, un jūs varat to izņemt [pickup_time]."
+				},
+				"invalid_order_id":{
+					"title":"Cart, Invalid Order ID",
+					"value":"Ar šo ID un jūsu e-pasta adresi netika atrasts derīgs pasūtījums."
 				}
 			}
 		},
@@ -965,6 +973,10 @@
 				"payment_received":{
 					"title":"Direct Deposit Received",
 					"value":"Esam saņēmuši samaksu par jūsu pasūtījumu!"
+				},
+				"order_connected":{
+					"title":"Order Connect to Account",
+					"value":"Jūsu pasūtījums ir veiksmīgi pievienots jūsu kontam!"
 				}
 			}
 		},

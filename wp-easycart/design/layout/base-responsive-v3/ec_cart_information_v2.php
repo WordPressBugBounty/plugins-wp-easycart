@@ -11,6 +11,7 @@ if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option(
 	} else {
 		$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
 	}
+	$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 }
 ?>
 
@@ -143,12 +144,12 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 		</div>
 
 		<div class="ec_cart_button_row">
-			<a href="<?php echo esc_attr( $cartpage->account_page ); ?>?ec_page=forgot_password" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
+			<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
 			<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_button' ); ?>" class="ec_cart_button" onclick="return ec_cart_validate_login_v2( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-login-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" style="width:unset; padding:14px 25px;" />
 			<a href="" onclick="return ec_cart_toggle_login_v2();" class="ec_account_login_cancel_link"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ); ?></a>
 		</div>
 		<div class="ec_cart_create_account_row_v2">
-			<a href="<?php echo esc_url( $cartpage->account_page . $cartpage->permalink_divider . 'ec_page=register' ); ?>">Create Account</a>
+			<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'register' ) ); ?>">Create Account</a>
 		</div>
 
 		<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>

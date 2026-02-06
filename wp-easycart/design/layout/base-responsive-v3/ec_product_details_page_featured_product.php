@@ -291,7 +291,7 @@ if( $use_quickview ){ ?>
 					<div class="ec_product_quickview_trial_notice"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_page_start_trial_1' ); ?> <?php echo esc_attr( $product->trial_period_days ); ?> <?php echo wp_easycart_language( )->get_text( 'product_page', 'product_page_start_trial_2' ); ?></div>
 					<?php }?>
 
-					<h1 class="ec_product_quickview_content_title"><a href="<?php echo esc_attr( $product->get_product_link( ) ); ?>"><?php echo wp_easycart_escape_html( $product->title ); ?></a></h1>
+					<h2 class="ec_product_quickview_content_title"><a href="<?php echo esc_attr( $product->get_product_link( ) ); ?>"><?php echo wp_easycart_escape_html( $product->title ); ?></a></h2>
 					<div class="ec_product_quickview_content_divider"></div>
 					<?php if( $product->login_for_pricing && !$product->is_login_for_pricing_valid( ) ){
 							  // No Pricing

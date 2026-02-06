@@ -5,7 +5,9 @@
 		$pkey = get_option( 'ec_option_stripe_connect_sandbox_publishable_key' );
 	} else {
 		$pkey = get_option( 'ec_option_stripe_connect_production_publishable_key' );
-	} ?>
+	}
+	$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
+?>
 <script>
 	const stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
 </script>
@@ -143,7 +145,7 @@
 				<input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity_small_v2" />
 			<?php }?>
 
-			<div class="ec_cart_price_row_total_v2"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+			<div class="ec_cart_price_row_total_v2"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 		</div>
 		<?php }?>
 
@@ -371,7 +373,7 @@
 			<input type="number" value="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $this->cart->cart[$cartitem_index]->cartitem_id ); ?>" autocomplete="off" step="1" min="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->min_quantity ); ?>" max="<?php echo esc_attr( $this->cart->cart[$cartitem_index]->max_quantity ); ?>" class="ec_quantity_small_v2" />
 		<?php }?>
 
-		<div class="ec_cart_price_row_total_v2"><?php echo esc_attr( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
+		<div class="ec_cart_price_row_total_v2"><?php echo wp_easycart_escape_html( $this->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
 	</div>
 	<?php }?>
 	

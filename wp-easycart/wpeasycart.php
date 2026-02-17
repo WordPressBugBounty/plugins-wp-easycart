@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.13
+ * Version: 5.8.14
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.13
+ * @version 5.8.14
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_13' );
+define( 'EC_CURRENT_VERSION', '5_8_14' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '98' );
 
@@ -1964,8 +1964,8 @@ function load_ec_product( $atts ) {
 						$product_where .= ' OR ';
 						$product_order_default .= ', ';
 					}
-					$product_where .= 'product.product_id = ' . $product_id;
-					$product_order_default .= 'product.product_id = ' . $product_id . ' DESC';
+					$product_where .= $wpdb->prepare( 'product.product_id = %d', (int) $product_id );
+					$product_order_default .= $wpdb->prepare( 'product.product_id = %d DESC', (int) $product_id );
 					$ids++;
 				}
 
@@ -1980,7 +1980,7 @@ function load_ec_product( $atts ) {
 				if ( $ids > 0 ) {
 					$product_where .= " OR ";
 				}
-				$product_where .= 'product.manufacturer_id = ' . (int) $manufacturer_id;
+				$product_where .= $wpdb->prepare( 'product.manufacturer_id = %d', (int) $manufacturer_id );
 				$ids++;
 			}
 		}
@@ -2995,7 +2995,7 @@ function load_ec_store_table_display( $atts ) {
 			if ( $i > 0 ) {
 				$where_query .= " OR";
 			}
-			$where_query .= $wpdb->prepare( " product.product_id = %d", $product_ids[$i] );
+			$where_query .= $wpdb->prepare( " product.product_id = %d", (int) $product_ids[$i] );
 		}
 		$where_query .= ")";
 		$has_added_to_where = true;

@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 6.9
-Stable tag: 5.8.13
+Stable tag: 5.8.14
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,8 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.14 =
+* Bug Fix - Small fix to shortcodes.
 = 5.8.13 =
 * New Feature - Option to show line item discounts for coupons in the cart, order details, and print receipt.
 * New Feature - System passing line item discounts through to the order (future orders only).

@@ -58,9 +58,9 @@ class ec_wpoptionset{
 		//Use this to track the db																					
 		array_push($this->wp_option_names, 'ec_option_db_version');							array_push($this->wp_option_defaults, '1_30' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
-		array_push($this->wp_option_names, 'ec_option_db_version_verified');				array_push($this->wp_option_defaults, '5.6.4' );
+		array_push($this->wp_option_names, 'ec_option_db_version_verified');				array_push($this->wp_option_defaults, '5.8.15' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
-		array_push($this->wp_option_names, 'ec_option_db_version_updated');				    array_push($this->wp_option_defaults, '5.6.4' );
+		array_push($this->wp_option_names, 'ec_option_db_version_updated');				    array_push($this->wp_option_defaults, '5.8.15' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		array_push($this->wp_option_names, 'ec_option_show_lite_message');					array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
@@ -69,6 +69,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_show_install_message');				array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		array_push($this->wp_option_names, 'ec_option_added_custom_post_type');				array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-store-db-group');
+		array_push($this->wp_option_names, 'ec_option_store_rules_checked_version');		array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		array_push($this->wp_option_names, 'ec_option_hide_admin_notice');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');

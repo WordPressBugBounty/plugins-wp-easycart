@@ -1,135 +1,168 @@
 <?php
 global $wpdb;
+
 // DISPLAY QUICK VIEW SETUP
-if( isset( $this->page_options->use_quickview ) )
+if ( isset( $this->page_options->use_quickview ) ) {
 	$quick_view = $this->page_options->use_quickview;
-else
+} else {
 	$quick_view = get_option( 'ec_option_default_quick_view' );
+}
 
 // DISPLAY WIDTH SETUP
-if( isset( $this->page_options->product_type ) )
+if ( isset( $this->page_options->product_type ) ) {
 	$product_type = $this->page_options->product_type;
-else
+} else {
 	$product_type = get_option( 'ec_option_default_product_type' );
+}
 
 // DISPLAY QUICK VIEW SETUP
-if( isset( $this->page_options->use_quickview ) )
+if ( isset( $this->page_options->use_quickview ) ) {
 	$quick_view = $this->page_options->use_quickview;
-else
+} else {
 	$quick_view = get_option( 'ec_option_default_quick_view' );
+}
 
 // DISPLAY WIDTH SETUP
-if( isset( $this->page_options->dynamic_image_sizing ) )  
+if ( isset( $elementor ) && $elementor && isset( $image_display_mode ) && 'dynamic' === $image_display_mode ) {
+	$dynamic_sizing = 1;
+} else if ( isset( $elementor ) && $elementor && isset( $image_display_mode ) && 'fixed' === $image_display_mode ) {
+	$dynamic_sizing = 0;
+} else if( isset( $this->page_options->dynamic_image_sizing ) ) {
 	$dynamic_sizing = $this->page_options->dynamic_image_sizing;
-else
+} else {
 	$dynamic_sizing = get_option( 'ec_option_default_dynamic_sizing' );
+}
 
-if( isset( $this->page_options->columns_smartphone ) )  
+if ( isset( $this->page_options->columns_smartphone ) ) {
 	$display_width_smartphone = (100/$this->page_options->columns_smartphone) . "%";
-else if( get_option( 'ec_option_default_smartphone_columns' ) )
+} else if( get_option( 'ec_option_default_smartphone_columns' ) ) {
 	$display_width_smartphone = (100/get_option( 'ec_option_default_smartphone_columns' ) ) . "%";
-else
+} else {
 	$display_width_smartphone = (100/1) . "%";
+}
 
-if( isset( $this->page_options->columns_tablet ) )  
+if ( isset( $this->page_options->columns_tablet ) ) {
 	$display_width_tablet = (100/$this->page_options->columns_tablet) . "%";
-else if( get_option( 'ec_option_default_tablet_columns' ) )
+} else if( get_option( 'ec_option_default_tablet_columns' ) ) {
 	$display_width_tablet = (100/get_option( 'ec_option_default_tablet_columns' ) ) . "%";
-else
+} else {
 	$display_width_tablet = (100/2) . "%";
+}
 
-if( isset( $this->page_options->columns_tablet_wide ) )  
+if ( isset( $this->page_options->columns_tablet_wide ) ) {
 	$display_width_tablet_wide = (100/$this->page_options->columns_tablet_wide) . "%";
-else if( get_option( 'ec_option_default_tablet_wide_columns' ) )
+} else if( get_option( 'ec_option_default_tablet_wide_columns' ) ) {
 	$display_width_tablet_wide = (100/get_option( 'ec_option_default_tablet_wide_columns' ) ) . "%";
-else
+} else {
 	$display_width_tablet_wide = (100/2) . "%";
+}
 
-if( isset( $this->page_options->columns_laptop ) )  
+if ( isset( $this->page_options->columns_laptop ) ) {
 	$display_width_laptop = (100/$this->page_options->columns_laptop) . "%";
-else if( get_option( 'ec_option_default_laptop_columns' ) )
+} else if( get_option( 'ec_option_default_laptop_columns' ) ) {
 	$display_width_laptop = (100/get_option( 'ec_option_default_laptop_columns' ) ) . "%";
-else
+} else {
 	$display_width_laptop = (100/3) . "%";
+}
 
-if( isset( $this->page_options->columns_desktop ) )  
+if ( isset( $this->page_options->columns_desktop ) ) {
 	$display_width_desktop = (100/$this->page_options->columns_desktop ) . "%";
-else if( get_option( 'ec_option_default_desktop_columns' ) )
+} else if( get_option( 'ec_option_default_desktop_columns' ) ) {
 	$display_width_desktop = (100/get_option( 'ec_option_default_desktop_columns' ) ) . "%";
-else
+} else {
 	$display_width_desktop = (100/3) . "%";
+}
 
 // COLUMNS SETUP
-if( isset( $this->page_options->columns_smartphone ) )  
+if ( isset( $this->page_options->columns_smartphone ) ) {
 	$columns_smartphone = $this->page_options->columns_smartphone;
-else if( get_option( 'ec_option_default_smartphone_columns' ) )
+} else if( get_option( 'ec_option_default_smartphone_columns' ) ) {
 	$columns_smartphone = get_option( 'ec_option_default_smartphone_columns' );
-else
+} else {
 	$columns_smartphone = 1;
+}
 
-if( isset( $this->page_options->columns_tablet ) )  
+if ( isset( $this->page_options->columns_tablet ) ) {
 	$columns_tablet = $this->page_options->columns_tablet;
-else if( get_option( 'ec_option_default_tablet_columns' ) )
+} else if( get_option( 'ec_option_default_tablet_columns' ) ) {
 	$columns_tablet = get_option( 'ec_option_default_tablet_columns' );
-else
+} else {
 	$columns_tablet = 2;
+}
 
-if( isset( $this->page_options->columns_tablet_wide ) )  
+if ( isset( $this->page_options->columns_tablet_wide ) ) {
 	$columns_tablet_wide = $this->page_options->columns_tablet_wide;
-else if( get_option( 'ec_option_default_tablet_wide_columns' ) )
+} else if( get_option( 'ec_option_default_tablet_wide_columns' ) ) {
 	$columns_tablet_wide = get_option( 'ec_option_default_tablet_wide_columns' );
-else
+} else {
 	$columns_tablet_wide = 2;
+}
 
-if( isset( $this->page_options->columns_laptop ) )  
+if ( isset( $this->page_options->columns_laptop ) ) {
 	$columns_laptop = $this->page_options->columns_laptop;
-else if( get_option( 'ec_option_default_laptop_columns' ) )
+} else if ( get_option( 'ec_option_default_laptop_columns' ) ) {
 	$columns_laptop = get_option( 'ec_option_default_laptop_columns' );
-else
+} else {
 	$columns_laptop = 3;
+}
 
-if( isset( $this->page_options->columns_desktop ) )  
+if ( isset( $this->page_options->columns_desktop ) ) {
 	$columns_desktop = $this->page_options->columns_desktop;
-else if( get_option( 'ec_option_default_desktop_columns' ) )
+} else if ( get_option( 'ec_option_default_desktop_columns' ) ) {
 	$columns_desktop = get_option( 'ec_option_default_desktop_columns' );
-else
+} else {
 	$columns_desktop = 3;
+}
 
 // Image Height Setup
-if( isset( $this->page_options->image_height_smartphone ) )
-	$image_height_smartphone = $this->page_options->image_height_smartphone;
-else if( get_option( 'ec_option_default_smartphone_image_height' ) )
-	$image_height_smartphone = get_option( 'ec_option_default_smartphone_image_height' );
-else
-	$image_height_smartphone = '225px';
+if ( isset( $elementor ) && $elementor && isset( $image_display_mode ) && 'fixed' === $image_display_mode && isset( $image_height ) && '' !== $image_height && (int) $image_height > 0 ) {
+	$ec_elementor_fixed_height = (int) $image_height . 'px';
+	$image_height_smartphone  = $ec_elementor_fixed_height;
+	$image_height_tablet      = $ec_elementor_fixed_height;
+	$image_height_tablet_wide = $ec_elementor_fixed_height;
+	$image_height_laptop      = $ec_elementor_fixed_height;
+	$image_height_desktop     = $ec_elementor_fixed_height;
+} else {
+	if( isset( $this->page_options->image_height_smartphone ) ) {
+		$image_height_smartphone = $this->page_options->image_height_smartphone;
+	} else if( get_option( 'ec_option_default_smartphone_image_height' ) ) {
+		$image_height_smartphone = get_option( 'ec_option_default_smartphone_image_height' );
+	} else {
+		$image_height_smartphone = '225px';
+	}
 
-if( isset( $this->page_options->image_height_tablet ) )
-	$image_height_tablet = $this->page_options->image_height_tablet;
-else if( get_option( 'ec_option_default_tablet_image_height' ) )
-	$image_height_tablet = get_option( 'ec_option_default_tablet_image_height' );
-else
-	$image_height_tablet = '250px';
+	if( isset( $this->page_options->image_height_tablet ) ) {
+		$image_height_tablet = $this->page_options->image_height_tablet;
+	} else if( get_option( 'ec_option_default_tablet_image_height' ) ) {
+		$image_height_tablet = get_option( 'ec_option_default_tablet_image_height' );
+	} else {
+		$image_height_tablet = '250px';
+	}
 
-if( isset( $this->page_options->image_height_tablet_wide ) )
-	$image_height_tablet_wide = $this->page_options->image_height_tablet_wide;
-else if( get_option( 'ec_option_default_tablet_wide_image_height' ) )
-	$image_height_tablet_wide = get_option( 'ec_option_default_tablet_wide_image_height' );
-else
-	$image_height_tablet_wide = '275px';
+	if( isset( $this->page_options->image_height_tablet_wide ) ) {
+		$image_height_tablet_wide = $this->page_options->image_height_tablet_wide;
+	} else if( get_option( 'ec_option_default_tablet_wide_image_height' ) ) {
+		$image_height_tablet_wide = get_option( 'ec_option_default_tablet_wide_image_height' );
+	} else {
+		$image_height_tablet_wide = '275px';
+	}
 
-if( isset( $this->page_options->image_height_laptop ) )
-	$image_height_laptop = $this->page_options->image_height_laptop;
-else if( get_option( 'ec_option_default_laptop_image_height' ) )
-	$image_height_laptop = get_option( 'ec_option_default_laptop_image_height' );
-else
-	$image_height_laptop = '205px';
+	if( isset( $this->page_options->image_height_laptop ) ) {
+		$image_height_laptop = $this->page_options->image_height_laptop;
+	} else if( get_option( 'ec_option_default_laptop_image_height' ) ) {
+		$image_height_laptop = get_option( 'ec_option_default_laptop_image_height' );
+	} else {
+		$image_height_laptop = '205px';
+	}
 
-if( isset( $this->page_options->image_height_desktop ) )
-	$image_height_desktop = $this->page_options->image_height_desktop;
-else if( get_option( 'ec_option_default_desktop_image_height' ) )
-	$image_height_desktop = get_option( 'ec_option_default_desktop_image_height' );
-else
-	$image_height_desktop = '205px';
+	if( isset( $this->page_options->image_height_desktop ) ) {
+		$image_height_desktop = $this->page_options->image_height_desktop;
+	} else if( get_option( 'ec_option_default_desktop_image_height' ) ) {
+		$image_height_desktop = get_option( 'ec_option_default_desktop_image_height' );
+	} else {
+		$image_height_desktop = '205px';
+	}
+}
 
 // COLOR SETUP
 if( get_option( 'ec_option_details_main_color' ) != '' )
@@ -515,7 +548,7 @@ function ec_admin_reorder_products( ids ){
 <?php if ( get_option( 'ec_option_pickup_enable_locations' ) && get_option( 'ec_option_pickup_location_select_enabled' ) ) {
 	wp_easycart_output_location_popup();
 }?>
-<section class="ec_product_page<?php echo esc_attr( ( !isset( $product_border ) || $product_border ) ? '' : ' ec_product_shortcode_no_borders' ); ?><?php echo esc_attr( ( isset( $sidebar ) && $sidebar ) ? ' ec_product_page_with_sidebar ' . ( ( isset( $sidebar_position ) && in_array( $sidebar_position, array( 'right', 'left', 'slide-left', 'slide-right' ) ) ) ? 'ec_product_page_sidebar_' . $sidebar_position : '' ) : '' ); ?>" id="ec_product_page">
+<section class="ec_product_page<?php echo esc_attr( ( !isset( $product_border ) || $product_border ) ? '' : ' ec_product_shortcode_no_borders' ); ?><?php echo esc_attr( ( isset( $sidebar ) && $sidebar ) ? ' ec_product_page_with_sidebar ' . ( ( isset( $sidebar_position ) && in_array( $sidebar_position, array( 'right', 'left', 'slide-left', 'slide-right' ) ) ) ? 'ec_product_page_sidebar_' . $sidebar_position : '' ) : '' ); ?>" id="<?php echo ( isset( $ec_image_display_id ) && '' !== $ec_image_display_id ) ? esc_attr( $ec_image_display_id ) : 'ec_product_page'; ?>">
 
 	<?php if( apply_filters( 'wp_easycart_catalog_display', get_option( 'ec_option_display_as_catalog' ) ) && get_option( 'ec_option_vacation_mode_banner_text' ) && '' != get_option( 'ec_option_vacation_mode_banner_text' ) ) { ?>
 		<div class="ec_seasonal_mode ec_vacation_mode_header"><?php echo esc_attr( wp_easycart_language( )->convert_text( get_option( 'ec_option_vacation_mode_banner_text' ) ) ); ?></div>
@@ -607,7 +640,7 @@ function ec_admin_reorder_products( ids ){
 						echo '>';
 						foreach ( $items as $item ){
 							echo '<li class="ec_product_sidebar_filter_item ec_product_sidebar_filter_item_option' . ( ( in_array( $item->category_id, $selected_sidebar_filters ) ) ? ' selected' : '' ) . '" data-parent-categoryid="" data-categoryid="' . esc_attr( $item->category_id ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-store-filter' ) ) . '">';
-							echo '<a href="' . $this->get_option_filter_url( '', $i, $item->category_id ) . '">'; // add link later?
+							echo '<a href="' . esc_url( $this->get_option_filter_url( '', $i, $item->category_id ) ) . '">'; // add link later?
 							echo '<span class="ec_product_sidebar_filter_checkbox"></span>';
 							echo '<span class="ec_product_sidebar_filter_label">' . esc_attr( $item->category_name ) . '</span>';
 							echo '</a>';

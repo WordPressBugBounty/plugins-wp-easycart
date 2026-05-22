@@ -138,11 +138,22 @@ class ec_productlist{
 			'product_rounded_corners_tl' => 10,
 			'product_rounded_corners_tr' => 10,
 			'product_rounded_corners_bl' => 10,
-			'product_rounded_corners_br' => 10
+			'product_rounded_corners_br' => 10,
+			'image_display_mode' => '',
+			'image_hover_effect' => '',
 		), $this->atts ) );
+
+		if ( isset( $image_display_mode ) && '' !== $image_display_mode ) {
+			$product_rounded_corners = false;
+		}
 
 		for ( $prod_index = 0; $prod_index < count( $this->products ); $prod_index++ ) {
 			$product = $this->products[ $prod_index ];
+
+			if ( isset( $image_hover_effect ) && '' !== $image_hover_effect ) {
+				$product->image_hover_type = (int) $image_hover_effect;
+			}
+
 			$list_view = false;
 			if ( get_option( "ec_option_product_layout_type" ) == "list_only" ) {
 				$list_view = true;

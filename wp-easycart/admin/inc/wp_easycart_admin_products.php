@@ -87,6 +87,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_delete_product' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_product' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_export_products_csv' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_export_products_csv_staged' ) );
 			add_action( 'wp_easycart_admin_product_details_googlemerchant_fields', array( $this, 'google_merchant_fields' ) );
 		}
 
@@ -179,6 +180,43 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					die();
 				}
 			}
+		}
+
+		public function process_export_products_csv_staged() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+				return;
+			}
+
+			if ( ! isset( $_GET['ec_admin_form_action'] ) || 'ecv2-export-staged' !== $_GET['ec_admin_form_action'] ) {
+				return;
+			}
+
+			$token = isset( $_GET['ecv2_export_token'] ) ? sanitize_key( wp_unslash( $_GET['ecv2_export_token'] ) ) : '';
+			if ( empty( $token ) || strlen( $token ) !== 32 || ! ctype_alnum( $token ) ) {
+				wp_die( esc_html__( 'Invalid export link.', 'wp-easycart' ), '', array( 'response' => 400 ) );
+			}
+
+			if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'ecv2-export-' . $token ) ) {
+				wp_die( esc_html__( 'Security check failed.', 'wp-easycart' ), '', array( 'response' => 403 ) );
+			}
+
+			$ids = get_transient( 'ecv2_export_' . $token );
+			delete_transient( 'ecv2_export_' . $token );
+
+			if ( ! is_array( $ids ) || empty( $ids ) ) {
+				wp_die( esc_html__( 'This export link has expired or was already used. Please return to the product list and try again.', 'wp-easycart' ), '', array( 'response' => 410 ) );
+			}
+
+			$ids = array_values( array_filter( array_map( 'intval', $ids ) ) );
+			if ( empty( $ids ) ) {
+				wp_die( esc_html__( 'No products to export.', 'wp-easycart' ), '', array( 'response' => 400 ) );
+			}
+
+			$_GET['bulk'] = $ids;
+			$_GET['ec_admin_form_action'] = 'export-products-csv';
+
+			include( $this->export_products_csv );
+			die();
 		}
 
 		public function add_success_messages( $messages ) {
@@ -3149,7 +3187,7 @@ function ec_admin_ajax_product_details_add_price_tier() {
 
 	$pricetier_id = wp_easycart_admin_products()->add_price_tier();
 	global $wpdb;
-	$price_tier = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_pricetier.* FROM ec_pricetier WHERE pricetier_id = %d', $pricetier_id ) );
+	$price_tier = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_pricetier.* FROM ec_pricetier WHERE pricetier_id = %d ORDER BY quantity ASC', $pricetier_id ) );
 	echo '<div class="ec_admin_price_tier_row" id="ec_admin_product_details_price_tier_row_' . esc_attr( $price_tier->pricetier_id ) . '"><span><input type="number" value="' . esc_attr( $price_tier->quantity ) . '" id="ec_admin_product_details_price_tier_row_' . esc_attr( $price_tier->pricetier_id ) . '_quantity" onchange="ec_admin_product_details_edit_price_tier( \'' . esc_attr( $price_tier->pricetier_id ) . '\' );" /></span><span><input type="number" min="0" step=".001" value="' . esc_attr( number_format( $price_tier->price, 2, '.', '' ) ) . '" id="ec_admin_product_details_price_tier_row_' . esc_attr( $price_tier->pricetier_id ) . '_price" onchange="ec_admin_product_details_edit_price_tier( \'' . esc_attr( $price_tier->pricetier_id ) . '\' );" /></span><span><a href="" onclick="return ec_admin_product_details_delete_price_tier( \'' . esc_attr( $price_tier->pricetier_id ) . '\' );" title="' . esc_attr__( 'Delete', 'wp-easycart' ) . '"><div class="dashicons-before dashicons-trash"></div></a><a href="" onclick="return ec_admin_product_details_edit_price_tier( \'' . esc_attr( $price_tier->pricetier_id ) . '\' );" title="' . esc_attr__( 'Save', 'wp-easycart' ) . '"><div class="dashicons-before dashicons-yes"></div></a></span></div>';
 	die();
 }
@@ -3179,7 +3217,7 @@ function ec_admin_ajax_product_details_add_role_price() {
 
 	$roleprice_id = wp_easycart_admin_products()->add_role_price();
 	global $wpdb;
-	$role_price = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_roleprice.* FROM ec_roleprice WHERE roleprice_id = %d', $roleprice_id ) );
+	$role_price = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_roleprice.* FROM ec_roleprice WHERE roleprice_id = %d ORDER BY role_label ASC', $roleprice_id ) );
 	echo '<div class="ec_admin_role_price_row" id="ec_admin_product_details_role_price_row_' . esc_attr( $role_price->roleprice_id ) . '"><span>' . esc_attr( $role_price->role_label ) . '</span><span>' . esc_attr( $GLOBALS['currency']->get_currency_display( $role_price->role_price ) ) . '</span><span><a href="" onclick="return ec_admin_product_details_delete_role_price( \'' . esc_attr( $role_price->roleprice_id ) . '\' );"><div class="dashicons-before dashicons-trash"></div></a></span></div>';
 	die();
 }

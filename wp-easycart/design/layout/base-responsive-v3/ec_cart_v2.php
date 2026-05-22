@@ -221,7 +221,7 @@ if ( ! isset( $cartpage ) ) {
 		$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 		?>
 		<?php if ( ( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_afterpay' ) || get_option( 'ec_option_stripe_klarna' ) ) && ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) ) { ?>
-		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $cartpage->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?></div>
+		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $cartpage->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo esc_html( $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ) ); ?></div>
 		<?php } ?>
 		<div id="wpec-payment-method-messaging-element" data-theme="<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>" data-currency="<?php echo esc_attr( $GLOBALS['currency']->get_currency_code() ); ?>" data-types="<?php
 		$payment_types = array();
@@ -234,7 +234,7 @@ if ( ! isset( $cartpage ) ) {
 		if ( get_option( 'ec_option_stripe_afterpay' ) ) {
 			$payment_types[] = 'afterpay_clearpay';
 		}
-		echo implode( ',', $payment_types ); ?>" data-country="<?php echo esc_attr( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_country ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_country : get_option( 'ec_option_stripe_company_country' ) ); ?>"<?php if ( 
+		echo esc_attr( implode( ',', $payment_types ) ); ?>" data-country="<?php echo esc_attr( ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_country ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_country : get_option( 'ec_option_stripe_company_country' ) ); ?>"<?php if ( 
 			( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_afterpay' ) || get_option( 'ec_option_stripe_klarna' ) ) && 
 			( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) && 
 			$cartpage->order_totals->sub_total < (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; }?>></div>

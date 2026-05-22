@@ -86,5 +86,14 @@ $table->set_actions(
 $table->set_filters(
 	array( )
 );
+$table->set_page_action_buttons(
+	array(
+		array(
+			'action'  => 'restore-default-countries',
+			'label'   => __( 'Restore Default Countries', 'wp-easycart' ),
+			'confirm' => __( 'This will add any missing default countries and states back to your list (disabled by default). Existing countries and their settings will not be changed. Continue?', 'wp-easycart' ),
+		),
+	)
+);
 $table->set_label( __( 'Country', 'wp-easycart' ), __( 'Countries', 'wp-easycart' ) );
 $table->print_table();

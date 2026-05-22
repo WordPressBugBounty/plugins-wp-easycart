@@ -50,7 +50,17 @@
 			<?php if ( $order->includes_preorder_items ) { ?>
 			<tr>
 				<td colspan='4' align="center" class="stylesuccess">
-					<?php echo str_replace( '[pickup_date]', esc_attr( date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y g:i A' ), strtotime( $order->pickup_date ) ) . ' - ' . date( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $this->pickup_date . ' +1 hour' ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'preorder_message' ) ); ?> 
+					<?php
+					$ec_pickup_open  = date( apply_filters( 'wp_easycart_pickup_date_placeholder_format', 'F d, Y g:i A' ), strtotime( $order->pickup_date ) );
+					$ec_pickup_close = date( apply_filters( 'wp_easycart_pickup_time_close_placeholder_format', 'g:i A' ), strtotime( $order->pickup_date . ' +1 hour' ) );
+					echo esc_html(
+						str_replace(
+							'[pickup_date]',
+							$ec_pickup_open . ' - ' . $ec_pickup_close,
+							wp_easycart_language()->get_text( 'ec_errors', 'preorder_message' )
+						)
+					);
+					?>
 				</td>
 			</tr>
 			<tr>
@@ -60,7 +70,16 @@
 			<?php if ( $order->includes_restaurant_type ) { ?>
 			<tr>
 				<td colspan='4' align="center" class="stylesuccess">
-					<?php echo str_replace( '[pickup_time]', esc_attr( date( apply_filters( 'wp_easycart_pickup_time_placeholder_format', 'g:i A F d, Y' ), strtotime( $order->pickup_time ) ) ), wp_easycart_language( )->get_text( 'ec_errors', 'restaurant_message' ) ); ?> 
+					<?php
+					$ec_pickup_time = date( apply_filters( 'wp_easycart_pickup_time_placeholder_format', 'g:i A F d, Y' ), strtotime( $order->pickup_time ) );
+					echo esc_html(
+						str_replace(
+							'[pickup_time]',
+							$ec_pickup_time,
+							wp_easycart_language()->get_text( 'ec_errors', 'restaurant_message' )
+						)
+					);
+					?>
 				</td>
 			</tr>
 			<tr>

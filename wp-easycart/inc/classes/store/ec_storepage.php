@@ -256,7 +256,13 @@ class ec_storepage{
 			'sidebar_include_manufacturers' => false,
 			'sidebar_manufacturers' => '',
 			'sidebar_include_option_filters' => true,
-			'sidebar_option_filters' => ''
+			'sidebar_option_filters' => '',
+			'image_display_mode' => '',
+			'image_height' => '',
+			'image_object_fit' => 'cover',
+			'image_object_position' => 'center center',
+			'image_contain_bg' => '',
+			'image_hover_effect' => '',
 		), $this->atts ) );
 
 		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
@@ -274,7 +280,7 @@ class ec_storepage{
 								echo '{
 									item_id: "' . esc_attr( $this->product_list->products[$i]->model_number ) . '",
 									item_name: "' . esc_attr( $this->product_list->products[$i]->title ) . '",
-									index: ' . $i . ',
+									index: ' . esc_attr( $i ) . ',
 									price: ' . esc_attr( number_format( $this->product_list->products[$i]->price, 2, '.', '' ) ) . ',
 									item_brand: "' . esc_attr( $this->product_list->products[$i]->manufacturer_name ) . '",
 									quantity: 1
@@ -296,7 +302,7 @@ class ec_storepage{
 							echo '{
 								item_id: "' . esc_attr( $this->product_list->products[$i]->model_number ) . '",
 								item_name: "' . esc_attr( $this->product_list->products[$i]->title ) . '",
-								index: ' . $i . ',
+								index: ' . esc_attr( $i ) . ',
 								price: ' . esc_attr( number_format( $this->product_list->products[$i]->price, 2, '.', '' ) ) . ',
 								item_brand: "' . esc_attr( $this->product_list->products[$i]->manufacturer_name ) . '",
 								quantity: 1
@@ -310,10 +316,11 @@ class ec_storepage{
 		}
 		do_action( 'wp_easycart_view_product_list', $this->product_list, $this->category_list, $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id, $this->atts );
 
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_page.php' ) )	
-			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_page.php' );	
-		else
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_page.php' ) ) {
+			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_page.php' );
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_page.php' );
+		}
 	}
 
 	public function has_products( ){
@@ -332,8 +339,11 @@ class ec_storepage{
 		$cartpage = get_permalink( $cartpageid );
 		$accountpage = get_permalink( $accountpageid );
 
-		if(substr_count($storepage, '?'))							$permalinkdivider = "&";
-		else														$permalinkdivider = "?";
+		if ( substr_count( $storepage, '?' ) ) {
+			$permalinkdivider = "&";
+		} else {
+			$permalinkdivider = "?";
+		}
 
 		if ( get_option( 'ec_option_googleanalyticsid' ) != "UA-XXXXXXX-X" && get_option( 'ec_option_googleanalyticsid' ) != "" ) {
 			echo "<script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create', '" . esc_js( get_option( 'ec_option_googleanalyticsid' ) ) . "', 'auto');ga('send', 'pageview');ga('require', 'ec');ga('ec:addImpression',{'id': '" . esc_js( $this->product->model_number ) . "','name': '" . esc_js( $this->product->title ) . "','price': '" . esc_js( number_format( $this->product->price, 2, '.', '' ) ) . "',});ga('send', 'pageview');function  ec_google_addToCart( ){ga('create', '" . esc_js( get_option( 'ec_option_googleanalyticsid' ) ) . "', 'auto');ga('require', 'ec');ga('ec:addProduct', {'id': '" . esc_js( $this->product->model_number ) . "','name': '" . esc_js( $this->product->title ) . "','price': '" . esc_js( number_format( $this->product->price, 2, '.', '' ) ) . "','quantity': document.getElementById( 'product_quantity_" . esc_js( $this->product->model_number ) . "' )});ga('ec:setAction', 'add');ga('send', 'event', 'UX', 'click', 'add to cart');}</script>";
@@ -381,23 +391,26 @@ class ec_storepage{
 			}
 		}
 
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_page.php' ) )	
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_page.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_details_page.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_details_page.php' );
+		}
 
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/admin_panel.php" ) )
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/admin_panel.php" ) ) {
 			echo "<script>ec_initialize_options();</script>";
+		}
 	}
 
 	////////////////////////////////////////////////////////
 	// PRODUCT MENU FILTER BAR DISPLAY FUNCTIONS
 	////////////////////////////////////////////////////////
 	private function product_menu_filter( ){
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_menu_filter.php' ) )	
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_menu_filter.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_menu_filter.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_menu_filter.php' );
+		}
 	}
 
 	private function product_filter_menu_items( $divider ){
@@ -408,10 +421,11 @@ class ec_storepage{
 	// PRODUCT FILTER AND PAGESET BAR DISPLAY FUNCTIONS
 	////////////////////////////////////////////////////////
 	private function product_filter_bar( ){
-		if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_filter_bar.php' ) )	
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_filter_bar.php' ) ) {
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_filter_bar.php' );
-		else
+		} else {
 			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_filter_bar.php' );
+		}
 	}
 
 	private function product_filter_combo( $default = false ){
@@ -449,10 +463,11 @@ class ec_storepage{
 	// PRODUCT DETAILS DISPLAY FUNCTIONS
 	////////////////////////////////////////////////////////	
 	public function display_product_previous_category_link( $link_text ){
-		if( $this->previous_model_number != "" && $this->product->product_id )
+		if ( $this->previous_model_number != "" && $this->product->product_id ) {
 			echo "<a href=\"" . esc_attr( $this->store_page . $this->permalink_divider ) . "model_number=" . esc_attr( $this->previous_model_number . $this->product->get_additional_link_options( ) ) . "\" class=\"ec_product_title_link\">" . esc_attr( $link_text ) . "</a>";
-		else
+		} else {
 			echo esc_attr( $link_text );
+		}
 	}
 
 	public function display_product_number_in_category_list( ){
@@ -464,10 +479,11 @@ class ec_storepage{
 	}
 
 	public function display_product_next_category_link( $link_text ){
-		if( $this->next_model_number )
-		  echo "<a href=\"" . esc_attr( $this->store_page . $this->permalink_divider ) . "model_number=" . esc_attr( $this->next_model_number . $this->product->get_additional_link_options( ) ) . "\" class=\"ec_product_title_link\">" . esc_attr( $link_text ) . "</a>";
-		else
-		  echo esc_attr( $link_text );
+		if ( $this->next_model_number ) {
+			echo "<a href=\"" . esc_attr( $this->store_page . $this->permalink_divider ) . "model_number=" . esc_attr( $this->next_model_number . $this->product->get_additional_link_options( ) ) . "\" class=\"ec_product_title_link\">" . esc_attr( $link_text ) . "</a>";
+		} else {
+			echo esc_attr( $link_text );
+		}
 	}
 
 	public function display_optional_banner( ){
@@ -482,12 +498,13 @@ class ec_storepage{
 
 		if( isset( $menu_row ) ){
 			if( $menu_row->banner_image != "" ){
-				if( substr( $menu_row->banner_image, 0, 7 ) == 'http://' || substr( $menu_row->banner_image, 0, 8 ) == 'https://' )
-					echo "<img src=\"" . esc_attr( $menu_row->banner_image ) . "\" alt=\"" . esc_attr( $menu_row->name ) . "\" />";	
-				else if( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/products/banners/" . $menu_row->banner_image ) )	
+				if ( substr( $menu_row->banner_image, 0, 7 ) == 'http://' || substr( $menu_row->banner_image, 0, 8 ) == 'https://' ) {
+					echo "<img src=\"" . esc_attr( $menu_row->banner_image ) . "\" alt=\"" . esc_attr( $menu_row->name ) . "\" />";
+				} else if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/products/banners/" . $menu_row->banner_image ) ) {
 					echo "<img src=\"" . esc_attr( plugins_url( "wp-easycart-data/products/banners/" . $menu_row->banner_image, EC_PLUGIN_DATA_DIRECTORY ) ) . "\" alt=\"" . esc_attr( $menu_row->name ) . "\" />";	
-				else
-					echo "<img src=\"" . esc_attr( plugins_url( "wp-easycart/products/banners/" . $menu_row->banner_image, EC_PLUGIN_DIRECTORY ) ) . "\" alt=\"" . esc_attr( $menu_row->name ) . "\" />";	
+				} else {
+					echo "<img src=\"" . esc_attr( plugins_url( "wp-easycart/products/banners/" . $menu_row->banner_image, EC_PLUGIN_DIRECTORY ) ) . "\" alt=\"" . esc_attr( $menu_row->name ) . "\" />";
+				}
 			}
 		}
 	}
@@ -502,17 +519,15 @@ class ec_storepage{
 			$menu_row = $GLOBALS['ec_menu']->get_menu_row( $this->product_list->filter->menulevel3->menu_id, 3 );
 		}
 
-		if( isset( $menu_row ) && isset( $menu_row->banner_image ) && $menu_row->banner_image != "" ){
+		if ( isset( $menu_row ) && isset( $menu_row->banner_image ) && $menu_row->banner_image != "" ) {
 			return true;
-		}else{
+		} else {
 			return false;
 		}
 	}
 
-	public function get_products_no_limit( ){
-
+	public function get_products_no_limit() {
 		return $this->product_list->get_products_no_limit( );
-
 	}
 
 	private function show_restricted_store() {
@@ -525,7 +540,6 @@ class ec_storepage{
 
 	public function display_account_login_forgot_password_link( $link_text ) {
 		$accountpageid = apply_filters( 'wp_easycart_account_page_id', get_option( 'ec_option_accountpage' ) );
-		
 		if ( function_exists( 'icl_object_id' ) ) {
 			$accountpageid = icl_object_id( $accountpageid, 'page', true, ICL_LANGUAGE_CODE );
 		}
@@ -552,9 +566,8 @@ class ec_storepage{
 		}
 	}
 
-	public function get_option_filter_url( $optionitem_id, $cat_i = 0, $category_id = false ){
-		$url = $this->get_current_url( );
-
+	public function get_option_filter_url( $optionitem_id, $cat_i = 0, $category_id = false ) {
+		$url = $this->get_current_url();
 		$amp_status = '';
 
 		if( isset( $_GET['perpage'] ) ){
@@ -663,7 +676,7 @@ class ec_storepage{
 		return $url;
 	}
 
-	private function get_current_url( ){
+	private function get_current_url() {
 		$page_url = 'http';
 		if( isset( $_SERVER["HTTPS"] ) && $_SERVER["HTTPS"] == "on" ){
 			$page_url .= "s";
@@ -673,16 +686,15 @@ class ec_storepage{
 
 		if( (int) $_SERVER["SERVER_PORT"] != 80 && (int) $_SERVER["SERVER_PORT"] != 443 ) {
 			$page_url .= sanitize_text_field( $_SERVER["SERVER_NAME"] ) . ":" . (int) $_SERVER["SERVER_PORT"];
-
 		}else{
 			$page_url .= sanitize_text_field( $_SERVER["SERVER_NAME"] );
-
 		}
 
-		if( substr_count( $page_url, '?' ) )						
+		if ( substr_count( $page_url, '?' ) ) {
 			$page_url .= "&";
-		else																
+		} else {
 			$page_url = "?";
+		}
 
 		return $page_url;
 	}
@@ -690,21 +702,23 @@ class ec_storepage{
 	////////////////////////////////////////////////////////
 	// MAIN HELPER FUNCTIONS
 	////////////////////////////////////////////////////////
-	private function get_is_details( ){
-		if( isset( $_GET['model_number'] ) )					return true;
-		else													return false;
+	private function get_is_details() {
+		if ( isset( $_GET['model_number'] ) ) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
-	private function update_statistics( $menuid, $submenuid, $subsubmenuid, $manufacturerid, $groupid, $modelnumber ){
-
+	private function update_statistics( $menuid, $submenuid, $subsubmenuid, $manufacturerid, $groupid, $modelnumber ) {
 		$db = new ec_db( );
-		if( $modelnumber != "NOMODELNUMBER" ){
+		if( $modelnumber != "NOMODELNUMBER" ) {
 			$db->update_product_views( $modelnumber );
-		}else if( $menuid != "NOMENU" ){
+		} else if( $menuid != "NOMENU" ) {
 			$db->update_menu_views( $menuid );
-		}else if( $submenuid != "NOSUBMENU" ){
+		} else if( $submenuid != "NOSUBMENU" ) {
 			$db->update_submenu_views( $submenuid );
-		}else if( $subsubmenuid != "NOSUBSUBMENU" ){
+		} else if( $subsubmenuid != "NOSUBSUBMENU" ) {
 			$db->update_subsubmenu_views( $subsubmenuid );
 		}
 	}

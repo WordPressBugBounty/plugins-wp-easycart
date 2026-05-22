@@ -812,6 +812,8 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'range'      => array(
 					'px' => array(
 						'step' => 1,
+
+
 						'min'  => 0,
 						'max'  => 500,
 					),
@@ -989,6 +991,964 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'condition'   => array(
 					'type' => 'custom',
 					'product_rounded_corners' => 'yes',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// IMAGE DISPLAY SECTION
+		// ============================================================
+		$this->start_controls_section(
+			'section_image_display',
+			array(
+				'label' => esc_attr__( 'Image Display', 'wp-easycart' ),
+			)
+		);
+
+		$this->add_control(
+			'image_display_mode',
+			array(
+				'label'   => esc_attr__( 'Image Height Mode', 'wp-easycart' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => '',
+				'options' => array(
+					''         => esc_attr__( 'Use WP EasyCart Default', 'wp-easycart' ),
+					'fixed'    => esc_attr__( 'Fixed Height (Custom)', 'wp-easycart' ),
+					'dynamic'  => esc_attr__( 'Dynamic Height (Auto)', 'wp-easycart' ),
+				),
+				'description' => esc_attr__( 'Default uses your WP EasyCart admin settings. Fixed Height lets you set a custom image window per breakpoint. Dynamic Height lets images scale naturally.', 'wp-easycart' ),
+				'prefix_class' => 'ec-img-mode-',
+			)
+		);
+
+		$this->add_responsive_control(
+			'image_height',
+			array(
+				'type'       => Controls_Manager::SLIDER,
+				'label'      => esc_attr__( 'Image Height', 'wp-easycart' ),
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'step' => 1,
+						'min'  => 50,
+						'max'  => 800,
+					),
+				),
+				'default'    => array(
+					'size' => 250,
+					'unit' => 'px',
+				),
+				'condition'  => array(
+					'image_display_mode' => 'fixed',
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_image_container_none, {{WRAPPER}} .ec_image_container_none > div, {{WRAPPER}} .ec_image_container_border, {{WRAPPER}} .ec_image_container_border > div, {{WRAPPER}} .ec_image_container_shadow, {{WRAPPER}} .ec_image_container_shadow > div' => 'min-height: {{SIZE}}{{UNIT}} !important; height: {{SIZE}}{{UNIT}} !important;',
+					'{{WRAPPER}} .ec_product_image_container, {{WRAPPER}} .ec_product_image_1, {{WRAPPER}} .ec_product_image_2' => 'width: 100% !important; height: 100% !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'image_object_fit',
+			array(
+				'label'   => esc_attr__( 'Image Fit', 'wp-easycart' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => 'cover',
+				'options' => array(
+					'cover'   => esc_attr__( 'Cover (Crop to Fill)', 'wp-easycart' ),
+					'contain' => esc_attr__( 'Contain (Show Full Image)', 'wp-easycart' ),
+					'fill'    => esc_attr__( 'Fill (Stretch)', 'wp-easycart' ),
+				),
+				'description' => esc_attr__( 'How images fit within the image window. Cover crops to fill, Contain shows the full image, Fill stretches to fit.', 'wp-easycart' ),
+				'condition'   => array(
+					'image_display_mode' => 'fixed',
+				),
+				'selectors'   => array(
+					'{{WRAPPER}} .ec_image_container_none img, {{WRAPPER}} .ec_image_container_border img, {{WRAPPER}} .ec_image_container_shadow img, {{WRAPPER}} .ec_product_image_container > img, {{WRAPPER}} .ec_product_image_1 > img, {{WRAPPER}} .ec_product_image_2 > img, {{WRAPPER}} .ec_flipbook > img' => 'object-fit: {{VALUE}} !important; width: 100% !important; height: 100% !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'image_object_position',
+			array(
+				'label'   => esc_attr__( 'Image Position', 'wp-easycart' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => 'center center',
+				'options' => array(
+					'center center' => esc_attr__( 'Center', 'wp-easycart' ),
+					'center top'    => esc_attr__( 'Top', 'wp-easycart' ),
+					'center bottom' => esc_attr__( 'Bottom', 'wp-easycart' ),
+				),
+				'description' => esc_attr__( 'Anchor point for image cropping when using Cover fit.', 'wp-easycart' ),
+				'condition'   => array(
+					'image_display_mode' => 'fixed',
+					'image_object_fit'   => 'contain',
+				),
+				'selectors'   => array(
+					'{{WRAPPER}} .ec_image_container_none img, {{WRAPPER}} .ec_image_container_border img, {{WRAPPER}} .ec_image_container_shadow img, {{WRAPPER}} .ec_product_image_container > img, {{WRAPPER}} .ec_product_image_1 > img, {{WRAPPER}} .ec_product_image_2 > img, {{WRAPPER}} .ec_flipbook > img' => 'object-position: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'image_contain_bg',
+			array(
+				'label'   => esc_attr__( 'Container Background', 'wp-easycart' ),
+				'type'    => Controls_Manager::COLOR,
+				'default' => '',
+				'condition'   => array(
+					'image_display_mode' => 'fixed',
+					'image_object_fit'   => 'contain',
+				),
+				'selectors'   => array(
+					'{{WRAPPER}} .ec_image_container_none, {{WRAPPER}} .ec_image_container_border, {{WRAPPER}} .ec_image_container_shadow' => 'background-color: {{VALUE}};',
+				),
+				'description' => esc_attr__( 'Background color visible behind images when using Contain fit.', 'wp-easycart' ),
+			)
+		);
+
+		$this->add_control(
+			'image_hover_effect',
+			array(
+				'label'   => esc_attr__( 'Hover Effect Override', 'wp-easycart' ),
+				'type'    => Controls_Manager::SELECT,
+				'default' => '',
+				'options' => array(
+					''   => esc_attr__( 'Use Product Default', 'wp-easycart' ),
+					'1'  => esc_attr__( 'Image Flip', 'wp-easycart' ),
+					'2'  => esc_attr__( 'Image Crossfade', 'wp-easycart' ),
+					'3'  => esc_attr__( 'Lighten', 'wp-easycart' ),
+					'7'  => esc_attr__( 'Grey-Color', 'wp-easycart' ),
+					'8'  => esc_attr__( 'Brighten', 'wp-easycart' ),
+					'9'  => esc_attr__( 'Image Slide', 'wp-easycart' ),
+					'10' => esc_attr__( 'FlipBook', 'wp-easycart' ),
+					'4'  => esc_attr__( 'No Effect', 'wp-easycart' ),
+				),
+				'description' => esc_attr__( 'Override the per-product hover effect for all products in this widget.', 'wp-easycart' ),
+				'condition'   => array(
+					'image_display_mode!' => '',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PRODUCT CONTAINER
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_product_container',
+			array(
+				'label' => esc_attr__( 'Product Container', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'product_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_li .ec_product_type1, {{WRAPPER}} .ec_product_li .ec_product_type2, {{WRAPPER}} .ec_product_li .ec_product_type3, {{WRAPPER}} .ec_product_li .ec_product_type4, {{WRAPPER}} .ec_product_li .ec_product_type5, {{WRAPPER}} .ec_product_li .ec_product_type5' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Border::get_type(),
+			array(
+				'name'     => 'product_container_border',
+				'label'    => esc_attr__( 'Border', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_product_li .ec_product_type1, {{WRAPPER}} .ec_product_li .ec_product_type2, {{WRAPPER}} .ec_product_li .ec_product_type3, {{WRAPPER}} .ec_product_li .ec_product_type4, {{WRAPPER}} .ec_product_li .ec_product_type5, {{WRAPPER}} .ec_product_li .ec_product_type5',
+			)
+		);
+
+		$this->add_control(
+			'product_container_border_radius',
+			array(
+				'label'      => esc_attr__( 'Border Radius', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_li .ec_product_type1, {{WRAPPER}} .ec_product_li .ec_product_type2, {{WRAPPER}} .ec_product_li .ec_product_type3, {{WRAPPER}} .ec_product_li .ec_product_type4, {{WRAPPER}} .ec_product_li .ec_product_type5, {{WRAPPER}} .ec_product_li .ec_product_type5' => 'border-top-left-radius: {{TOP}}{{UNIT}} !important; border-top-right-radius: {{RIGHT}}{{UNIT}} !important; border-bottom-right-radius: {{BOTTOM}}{{UNIT}} !important; border-bottom-left-radius: {{LEFT}}{{UNIT}} !important; overflow: hidden;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Box_Shadow::get_type(),
+			array(
+				'name'     => 'product_container_shadow',
+				'label'    => esc_attr__( 'Box Shadow', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_product_li .ec_product_type1, {{WRAPPER}} .ec_product_li .ec_product_type2, {{WRAPPER}} .ec_product_li .ec_product_type3, {{WRAPPER}} .ec_product_li .ec_product_type4, {{WRAPPER}} .ec_product_li .ec_product_type5, {{WRAPPER}} .ec_product_li .ec_product_type5',
+			)
+		);
+
+		$this->add_responsive_control(
+			'product_container_padding',
+			array(
+				'label'      => esc_attr__( 'Padding', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_li .ec_product_type1, {{WRAPPER}} .ec_product_li .ec_product_type2, {{WRAPPER}} .ec_product_li .ec_product_type3, {{WRAPPER}} .ec_product_li .ec_product_type4, {{WRAPPER}} .ec_product_li .ec_product_type5, {{WRAPPER}} .ec_product_li .ec_product_type5' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PRODUCT IMAGE
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_product_image',
+			array(
+				'label' => esc_attr__( 'Product Image', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Border::get_type(),
+			array(
+				'name'     => 'image_border',
+				'label'    => esc_attr__( 'Border', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_image_container_none img, {{WRAPPER}} .ec_image_container_border img, {{WRAPPER}} .ec_image_container_shadow img',
+			)
+		);
+
+		$this->add_control(
+			'image_border_radius',
+			array(
+				'label'      => esc_attr__( 'Border Radius', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_image_container_none, {{WRAPPER}} .ec_image_container_border, {{WRAPPER}} .ec_image_container_shadow, {{WRAPPER}} .ec_image_container_none img, {{WRAPPER}} .ec_image_container_border img, {{WRAPPER}} .ec_image_container_shadow img' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}; overflow: hidden;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Box_Shadow::get_type(),
+			array(
+				'name'     => 'image_shadow',
+				'label'    => esc_attr__( 'Box Shadow', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_image_container_none, {{WRAPPER}} .ec_image_container_border, {{WRAPPER}} .ec_image_container_shadow',
+			)
+		);
+
+		$this->add_responsive_control(
+			'image_container_margin',
+			array(
+				'label'      => esc_attr__( 'Margin', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_image_container_none, {{WRAPPER}} .ec_image_container_border, {{WRAPPER}} .ec_image_container_shadow' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PRODUCT TITLE
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_product_title',
+			array(
+				'label' => esc_attr__( 'Product Title', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'title_color',
+			array(
+				'label'     => esc_attr__( 'Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_title a, {{WRAPPER}} .ec_product_title_type1 a, {{WRAPPER}} .ec_product_title_type2 a, {{WRAPPER}} .ec_product_title_type3 a, {{WRAPPER}} .ec_product_title_type4 a, {{WRAPPER}} .ec_product_title_type5 a, {{WRAPPER}} .ec_product_title' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'title_hover_color',
+			array(
+				'label'     => esc_attr__( 'Hover Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_title a:hover, {{WRAPPER}} .ec_product_title_type1 a:hover, {{WRAPPER}} .ec_product_title_type2 a:hover, {{WRAPPER}} .ec_product_title_type3 a:hover, {{WRAPPER}} .ec_product_title_type4 a:hover, {{WRAPPER}} .ec_product_title_type5 a:hover, {{WRAPPER}} .ec_product_title:hover' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'title_typography',
+				'label'    => esc_attr__( 'Typography', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_product_title a, {{WRAPPER}} .ec_product_title_type1 a, {{WRAPPER}} .ec_product_title_type2 a, {{WRAPPER}} .ec_product_title_type3 a, {{WRAPPER}} .ec_product_title_type4 a, {{WRAPPER}} .ec_product_title_type5 a, {{WRAPPER}} .ec_product_title',
+			)
+		);
+
+		$this->add_responsive_control(
+			'title_margin',
+			array(
+				'label'      => esc_attr__( 'Margin', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_title, {{WRAPPER}} .ec_product_title_type1, {{WRAPPER}} .ec_product_title_type2, {{WRAPPER}} .ec_product_title_type3, {{WRAPPER}} .ec_product_title_type4, {{WRAPPER}} .ec_product_title_type5, {{WRAPPER}} .ec_product_title' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}} !important;',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PRODUCT PRICE
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_product_price',
+			array(
+				'label' => esc_attr__( 'Product Price', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'price_color',
+			array(
+				'label'     => esc_attr__( 'Price Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_price_type1, {{WRAPPER}} .ec_price_type2, {{WRAPPER}} .ec_price_type3, {{WRAPPER}} .ec_price_type4, {{WRAPPER}} .ec_price_type5, {{WRAPPER}} .ec_price_type6' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'sale_price_color',
+			array(
+				'label'     => esc_attr__( 'Original Price Color (Strikethrough)', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_list_price_type1, {{WRAPPER}} .ec_list_price_type2, {{WRAPPER}} .ec_list_price_type3, {{WRAPPER}} .ec_list_price_type4, {{WRAPPER}} .ec_list_price_type5, {{WRAPPER}} .ec_list_price_type6' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'price_typography',
+				'label'    => esc_attr__( 'Typography', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_price_type1, {{WRAPPER}} .ec_price_type2, {{WRAPPER}} .ec_price_type3, {{WRAPPER}} .ec_price_type4, {{WRAPPER}} .ec_price_type5, {{WRAPPER}} .ec_price_type6, {{WRAPPER}} .ec_list_price_type1, {{WRAPPER}} .ec_list_price_type2, {{WRAPPER}} .ec_list_price_type3, {{WRAPPER}} .ec_list_price_type4, {{WRAPPER}} .ec_list_price_type5, {{WRAPPER}} .ec_list_price_type6',
+			)
+		);
+
+		$this->add_responsive_control(
+			'price_margin',
+			array(
+				'label'      => esc_attr__( 'Margin', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_price_container_type1, {{WRAPPER}} .ec_price_container_type2, {{WRAPPER}} .ec_price_container_type3, {{WRAPPER}} .ec_price_container_type4, {{WRAPPER}} .ec_price_container_type5, {{WRAPPER}} .ec_price_container_type6' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: ADD TO CART BUTTON
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_add_to_cart',
+			array(
+				'label' => esc_attr__( 'Add to Cart Button', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->start_controls_tabs( 'tabs_cart_button_style' );
+
+		$this->start_controls_tab(
+			'tab_cart_button_normal',
+			array(
+				'label' => esc_attr__( 'Normal', 'wp-easycart' ),
+			)
+		);
+
+		$this->add_control(
+			'cart_button_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_addtocart, {{WRAPPER}} .ec_product_addtocart_container a' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'cart_button_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_addtocart' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->start_controls_tab(
+			'tab_cart_button_hover',
+			array(
+				'label' => esc_attr__( 'Hover', 'wp-easycart' ),
+			)
+		);
+
+		$this->add_control(
+			'cart_button_hover_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_addtocart:hover, {{WRAPPER}} .ec_product_addtocart:hover a' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'cart_button_hover_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_addtocart:hover' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->end_controls_tabs();
+
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'      => 'cart_button_typography',
+				'label'     => esc_attr__( 'Typography', 'wp-easycart' ),
+				'selector'  => '{{WRAPPER}} .ec_product_addtocart a, {{WRAPPER}} .ec_product_addtocart_container a',
+				'separator' => 'before',
+			)
+		);
+
+		$this->add_control(
+			'cart_button_border_radius',
+			array(
+				'label'      => esc_attr__( 'Border Radius', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_addtocart' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'cart_button_padding',
+			array(
+				'label'      => esc_attr__( 'Padding', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_addtocart' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PRODUCT RATING
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_product_rating',
+			array(
+				'label' => esc_attr__( 'Product Rating', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'rating_star_color',
+			array(
+				'label'     => esc_attr__( 'Star Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_star_on' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'rating_star_empty_color',
+			array(
+				'label'     => esc_attr__( 'Empty Star Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_star_off' => 'color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'rating_margin',
+			array(
+				'label'      => esc_attr__( 'Margin', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_star_rating' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: QUICK VIEW BUTTON
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_quick_view',
+			array(
+				'label' => esc_attr__( 'Quick View Button', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'quickview_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_quickview input' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'quickview_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_quickview input' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'quickview_hover_color',
+			array(
+				'label'     => esc_attr__( 'Hover Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_quickview input:hover' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'quickview_hover_bg_color',
+			array(
+				'label'     => esc_attr__( 'Hover Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_quickview input:hover' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: PAGING
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_paging',
+			array(
+				'label' => esc_attr__( 'Paging & Sort Bar', 'wp-easycart' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+ 
+		// --- Bar Text ---
+		$this->add_control(
+			'paging_text_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sort, {{WRAPPER}} .ec_product_page_showing, {{WRAPPER}} .ec_product_page_perpage' => 'color: {{VALUE}};',
+				),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_link_color',
+			array(
+				'label'     => esc_attr__( 'Link Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sort a, {{WRAPPER}} .ec_product_page_perpage a, {{WRAPPER}} .ec_num_page' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+ 
+		// --- Page Buttons Heading ---
+		$this->add_control(
+			'paging_buttons_heading',
+			array(
+				'label'     => esc_attr__( 'Page Buttons', 'wp-easycart' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'before',
+			)
+		);
+ 
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'paging_button_typography',
+				'label'    => esc_attr__( 'Typography', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_product_page_perpage > a',
+				'exclude'  => array( 'line_height' ),
+			)
+		);
+ 
+		$this->add_responsive_control(
+			'paging_button_size',
+			array(
+				'label'      => esc_attr__( 'Button Size', 'wp-easycart' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'min'  => 16,
+						'max'  => 60,
+						'step' => 1,
+					),
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_product_page_perpage > a' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}}; display: inline-flex; align-items: center; justify-content: center; line-height: 1;',
+					'{{WRAPPER}} .ec_product_page_perpage, {{WRAPPER}} .ec_product_page_sort' => 'display: inline-flex; align-items: center; line-height: normal;',
+					'{{WRAPPER}} .ec_product_page_perpage > span' => 'float: none;',
+					'{{WRAPPER}} .ec_product_page_showing' => 'display: inline-flex; align-items: center;',
+				),
+			)
+		);
+ 
+		$this->add_responsive_control(
+			'paging_button_spacing',
+			array(
+				'label'      => esc_attr__( 'Button Spacing', 'wp-easycart' ),
+				'type'       => Controls_Manager::SLIDER,
+				'size_units' => array( 'px' ),
+				'range'      => array(
+					'px' => array(
+						'min'  => 0,
+						'max'  => 20,
+						'step' => 1,
+					),
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_product_page_perpage > a' => 'margin: {{SIZE}}{{UNIT}};',
+				),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_button_border_radius',
+			array(
+				'label'      => esc_attr__( 'Border Radius', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_product_page_perpage > a' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+ 
+		// --- Default / Active Tabs ---
+		$this->start_controls_tabs( 'tabs_paging_button_style' );
+ 
+		// -- Default Tab --
+		$this->start_controls_tab(
+			'tab_paging_button_default',
+			array(
+				'label' => esc_attr__( 'Default', 'wp-easycart' ),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_button_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_product_page_perpage > a' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_button_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_product_page_perpage > a' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+ 
+		$this->add_group_control(
+			Group_Control_Border::get_type(),
+			array(
+				'name'     => 'paging_button_border',
+				'label'    => esc_attr__( 'Border', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_num_page, {{WRAPPER}} .ec_product_page_perpage > a',
+			)
+		);
+ 
+		$this->end_controls_tab();
+ 
+		// -- Active Tab --
+		$this->start_controls_tab(
+			'tab_paging_button_active',
+			array(
+				'label' => esc_attr__( 'Active', 'wp-easycart' ),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_active_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_num_page:hover, {{WRAPPER}} .ec_product_page_perpage > a.ec_selected, {{WRAPPER}} .ec_product_page_perpage > a:hover' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_active_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_num_page:hover, {{WRAPPER}} .ec_product_page_perpage > a.ec_selected, {{WRAPPER}} .ec_product_page_perpage > a:hover' => 'background-color: {{VALUE}} !important;',
+				),
+			)
+		);
+ 
+		$this->add_group_control(
+			Group_Control_Border::get_type(),
+			array(
+				'name'     => 'paging_button_active_border',
+				'label'    => esc_attr__( 'Border', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_num_page_selected, {{WRAPPER}} .ec_num_page:hover, {{WRAPPER}} .ec_product_page_perpage > a.ec_selected, {{WRAPPER}} .ec_product_page_perpage > a:hover',
+			)
+		);
+ 
+		$this->end_controls_tab();
+ 
+		$this->end_controls_tabs();
+ 
+		// --- Sort Dropdown Heading ---
+		$this->add_control(
+			'paging_sort_heading',
+			array(
+				'label'     => esc_attr__( 'Sort Dropdown', 'wp-easycart' ),
+				'type'      => Controls_Manager::HEADING,
+				'separator' => 'before',
+			)
+		);
+ 
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'paging_sort_typography',
+				'label'    => esc_attr__( 'Typography', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_product_page_sort select',
+			)
+		);
+ 
+		$this->add_control(
+			'paging_sort_color',
+			array(
+				'label'     => esc_attr__( 'Text Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sort select' => 'color: {{VALUE}};',
+				),
+			)
+		);
+ 
+		$this->add_control(
+			'paging_sort_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sort select' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+ 
+		$this->add_group_control(
+			Group_Control_Border::get_type(),
+			array(
+				'name'     => 'paging_sort_border',
+				'label'    => esc_attr__( 'Border', 'wp-easycart' ),
+				'selector' => '{{WRAPPER}} .ec_product_page_sort select',
+			)
+		);
+ 
+		$this->add_control(
+			'paging_sort_border_radius',
+			array(
+				'label'      => esc_attr__( 'Border Radius', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_page_sort select' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+ 
+		$this->add_responsive_control(
+			'paging_sort_padding',
+			array(
+				'label'      => esc_attr__( 'Padding', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_page_sort select' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+			)
+		);
+ 
+		$this->end_controls_section();
+
+		// ============================================================
+		// STYLE TAB: SIDEBAR
+		// ============================================================
+		$this->start_controls_section(
+			'section_style_sidebar',
+			array(
+				'label'     => esc_attr__( 'Sidebar', 'wp-easycart' ),
+				'tab'       => Controls_Manager::TAB_STYLE,
+				'condition' => array(
+					'sidebar' => 'yes',
+				),
+			)
+		);
+
+		$this->add_control(
+			'sidebar_bg_color',
+			array(
+				'label'     => esc_attr__( 'Background Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sidebar' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'sidebar_title_color',
+			array(
+				'label'     => esc_attr__( 'Title Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_sidebar_group_title' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'sidebar_link_color',
+			array(
+				'label'     => esc_attr__( 'Link Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sidebar a' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_control(
+			'sidebar_link_hover_color',
+			array(
+				'label'     => esc_attr__( 'Link Hover Color', 'wp-easycart' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '',
+				'selectors' => array(
+					'{{WRAPPER}} .ec_product_page_sidebar a:hover' => 'color: {{VALUE}} !important;',
+				),
+			)
+		);
+
+		$this->add_responsive_control(
+			'sidebar_padding',
+			array(
+				'label'      => esc_attr__( 'Padding', 'wp-easycart' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .ec_product_page_sidebar' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				),
 			)
 		);

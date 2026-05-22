@@ -286,6 +286,7 @@ jQuery( '#wpeasycart_admin_report_range1' ).daterangepicker( {
 	   '<?php esc_attr_e( 'This Quarter', 'wp-easycart' ); ?>': [moment().startOf('quarter'), moment().endOf('quarter')],
 	   '<?php esc_attr_e( 'Last Quarter', 'wp-easycart' ); ?>': [moment().subtract(1, 'quarter').startOf('quarter'), moment().subtract(1, 'quarter').endOf('quarter')],
 	   '<?php esc_attr_e( 'This Year', 'wp-easycart' ); ?>': [moment().startOf('year'), moment().endOf('year')],
+	   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')],
 	   '<?php esc_attr_e( 'Last 2 Years', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().endOf('year')],
 	   '<?php esc_attr_e( 'Last 3 Years', 'wp-easycart' ); ?>': [moment().subtract(2, 'year').startOf('year'), moment().endOf('year')],
 	   '<?php esc_attr_e( 'Last 5 Years', 'wp-easycart' ); ?>': [moment().subtract(4, 'year').startOf('year'), moment().endOf('year')]
@@ -449,6 +450,18 @@ function wpeasycart_admin_report_update_range2( ){
 			ranges: {
 			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
 			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+			}
+		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
+			wpeasycart_admin_update_chart_data( );
+		} );
+	}else if( selected_range == '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>' ){
+		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
+			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
+			startDate: start2,
+			endDate: end2,
+			ranges: {
+			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
+			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(2, 'year').startOf('year'), moment().subtract(2, 'year').endOf('year')]
 			}
 		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
 			wpeasycart_admin_update_chart_data( );
@@ -687,11 +700,11 @@ function wpeasycart_admin_export_report( ){
 		var modal = '<div class="wpeasycart_admin_modal"><div class="wpeasycart_admin_modal_content">';
 		modal += '<div class="wpeasycart_admin_modal_close" onclick="jQuery( this ).parent( ).parent( ).remove( )">X</div>';
 		<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
-		modal += '<a href="' + reports.report1 + '" target="_blank" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
+		modal += '<a href="' + reports.report1 + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
 		if( reports.report2 ){
-			modal += '<a href="' + reports.report2 + '" target="_blank" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
+			modal += '<a href="' + reports.report2 + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
 		}
-		modal += '<a href="' + reports.reporttax + '" target="_blank" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
+		modal += '<a href="' + reports.reporttax + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
 		<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
 		modal += '</div></div>';
 		jQuery( 'body' ).append( modal );

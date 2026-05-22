@@ -1161,6 +1161,12 @@ function ec_admin_delete_image( id ){
 
 function show_pro_required( custom_view ){
 	custom_view = custom_view || 0;
+	if ( ! jQuery( '#ec_admin_upsell_popup' ).length ) {
+		if ( window.wpec_gate && typeof window.wpec_gate.show_popup === 'function' ) {
+			var gate = ( window.ecv2_lang && ecv2_lang.pro_gate ) ? ecv2_lang.pro_gate : { state: 'upsell' };
+			return window.wpec_gate.show_popup( gate );
+		}
+	}
 	jQuery( document.body ).addClass( 'ec_admin_upsell_noscroll' );
 	jQuery( document.getElementById( 'ec_admin_upsell_popup' ) ).show( );
 	jQuery( document.getElementById( 'wp_easycart_trial_upsell' ) ).show( );
@@ -1171,6 +1177,98 @@ function show_pro_required( custom_view ){
 	}
 	return false;
 }
+
+window.wpec_gate = window.wpec_gate || {
+	is_enabled: function( gate ) {
+		return !!( gate && gate.state === 'enabled' );
+	},
+	is_locked: function( gate ) {
+		return !!( gate && gate.state && gate.state !== 'enabled' );
+	},
+
+	locked_action: function( gate ) {
+		return window.wpec_gate.show_popup( gate || {} );
+	},
+
+	show_popup: function( gate ) {
+		gate = gate || {};
+		var state = ( gate.state && gate.state !== 'enabled' ) ? gate.state : 'upsell';
+		var i18n  = window.wpec_gate_i18n || {};
+
+		var titles = {
+			upsell:   i18n.title_upsell   || 'Unlock with WP EasyCart PRO',
+			inactive: i18n.title_inactive || 'Activate WP EasyCart PRO',
+			update:   i18n.title_update   || 'Update WP EasyCart PRO',
+			license:  i18n.title_license  || 'Activate your PRO license'
+		};
+		var bodies = {
+			upsell:   i18n.body_upsell   || 'This is a WP EasyCart PRO feature. Upgrade to unlock advanced pricing, variant tracking and more.',
+			inactive: i18n.body_inactive || 'WP EasyCart PRO is installed but not activated. Activate it to use this feature.',
+			update:   i18n.body_update   || 'Your installed version of WP EasyCart PRO does not include this feature yet. Update to the latest version to unlock it.',
+			license:  i18n.body_license  || 'This feature requires an active WP EasyCart PRO license. You can review your license under Store Status.'
+		};
+		var ctas = {
+			upsell:   i18n.cta_upsell   || 'Get WP EasyCart PRO',
+			inactive: i18n.cta_inactive || 'Go to Plugins',
+			update:   i18n.cta_update   || 'Update Now',
+			license:  i18n.cta_license  || 'Manage License'
+		};
+		var dismiss = i18n.dismiss || 'Maybe later';
+		var url = gate.url || 'admin.php?page=wp-easycart-registration';
+
+		var $ = jQuery;
+		var $overlay = $( '#ecv2-gate-overlay' );
+		if ( ! $overlay.length ) {
+			$overlay = $( '<div id="ecv2-gate-overlay" class="ecv2-gate-overlay" role="dialog" aria-modal="true" aria-labelledby="ecv2-gate-title"></div>' );
+			$( 'body' ).append( $overlay );
+			$overlay.on( 'click', function( e ) { if ( e.target === this ) { window.wpec_gate.hide_popup(); } } );
+			$( document ).on( 'keydown.wpecgate', function( e ) { if ( e.key === 'Escape' || e.keyCode === 27 ) { window.wpec_gate.hide_popup(); } } );
+		}
+
+		$overlay.html(
+			'<div class="ecv2-gate-card">'
+			+   '<button type="button" class="ecv2-gate-x" aria-label="Close"><span class="dashicons dashicons-no-alt"></span></button>'
+			+   '<div class="ecv2-gate-top">'
+			+     '<div class="ecv2-gate-icon"><span class="dashicons dashicons-lock"></span></div>'
+			+     '<div class="ecv2-gate-heading">'
+			+       '<span class="ecv2-gate-badge">PRO</span>'
+			+       '<div id="ecv2-gate-title" class="ecv2-gate-title"></div>'
+			+     '</div>'
+			+   '</div>'
+			+   '<div class="ecv2-gate-body"></div>'
+			+   '<div class="ecv2-gate-actions">'
+			+     '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-gate-dismiss"></button>'
+			+     '<a class="ecv2-btn ecv2-btn-primary ecv2-gate-cta" href="#"></a>'
+			+   '</div>'
+			+ '</div>'
+		);
+
+		// Text content set via .text()/.attr() — never interpolated into HTML.
+		$overlay.find( '.ecv2-gate-title' ).text( titles[ state ] );
+		$overlay.find( '.ecv2-gate-body' ).text( ( gate.desc ? gate.desc + ' ' : '' ) + bodies[ state ] );
+		$overlay.find( '.ecv2-gate-dismiss' ).text( dismiss ).off( 'click' ).on( 'click', function() { window.wpec_gate.hide_popup(); } );
+		$overlay.find( '.ecv2-gate-x' ).off( 'click' ).on( 'click', function() { window.wpec_gate.hide_popup(); } );
+		$overlay.find( '.ecv2-gate-cta' ).text( ctas[ state ] ).attr( 'href', url );
+
+		$( 'body' ).addClass( 'ecv2-gate-open' );
+		$overlay.css( 'display', 'flex' );
+		if ( window.requestAnimationFrame ) {
+			window.requestAnimationFrame( function() { $overlay.addClass( 'ecv2-gate-show' ); } );
+		} else {
+			$overlay.addClass( 'ecv2-gate-show' );
+		}
+		return false;
+	},
+
+	hide_popup: function() {
+		var $ = jQuery;
+		var $overlay = $( '#ecv2-gate-overlay' );
+		$overlay.removeClass( 'ecv2-gate-show' );
+		$( 'body' ).removeClass( 'ecv2-gate-open ec_admin_upsell_noscroll' );
+		setTimeout( function() { $overlay.css( 'display', 'none' ); }, 180 );
+		return false;
+	}
+};
 
 function show_pro_required_optionitem_images( custom_view_unused ) {
 	if ( ! jQuery( document.getElementById( 'use_optionitem_images' ) ).is( ':checked' ) ) {

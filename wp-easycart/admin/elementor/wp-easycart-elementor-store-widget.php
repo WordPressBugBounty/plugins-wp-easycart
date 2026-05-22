@@ -79,6 +79,13 @@ $args = shortcode_atts(
 			'size' => '10',
 			'sizes' => array(),
 		),
+
+		'image_display_mode' => '',
+		'image_height' => '',
+		'image_object_fit' => 'cover',
+		'image_object_position' => 'center center',
+		'image_contain_bg' => '',
+		'image_hover_effect' => '',
 	),
 	$atts
 );
@@ -128,6 +135,12 @@ $product_rounded_corners_tl = $args['product_rounded_corners_tl'];
 $product_rounded_corners_tr = $args['product_rounded_corners_tr'];
 $product_rounded_corners_bl = $args['product_rounded_corners_bl'];
 $product_rounded_corners_br = $args['product_rounded_corners_br'];
+$image_display_mode = $args['image_display_mode'];
+$image_height = $args['image_height'];
+$image_object_fit = $args['image_object_fit'];
+$image_object_position = $args['image_object_position'];
+$image_contain_bg = $args['image_contain_bg'];
+$image_hover_effect = $args['image_hover_effect'];
 
 if ( is_string( $wpec_elem_title_link ) ) {
 	$wpec_elem_title_link = json_decode( $wpec_elem_title_link, true );
@@ -332,6 +345,31 @@ $more_atts['product_rounded_corners_tr']  = (int) $product_rounded_corners_tr['s
 $more_atts['product_rounded_corners_bl']  = (int) $product_rounded_corners_bl['size'];
 $more_atts['product_rounded_corners_br']  = (int) $product_rounded_corners_br['size'];
 $more_atts['product_border'] = $product_border;
+
+if ( '' !== $image_display_mode ) {
+	$more_atts['image_display_mode'] = sanitize_text_field( $image_display_mode );
+
+	if ( 'fixed' === $image_display_mode ) {
+		if ( is_array( $image_height ) && isset( $image_height['size'] ) && '' !== $image_height['size'] ) {
+			$more_atts['image_height'] = (int) $image_height['size'];
+		}
+		$more_atts['image_object_fit'] = sanitize_text_field( $image_object_fit );
+		if ( 'cover' === $image_object_fit && '' !== $image_object_position ) {
+			$more_atts['image_object_position'] = sanitize_text_field( $image_object_position );
+		}
+		if ( 'contain' === $image_object_fit && '' !== $image_contain_bg ) {
+			$more_atts['image_contain_bg'] = sanitize_hex_color( $image_contain_bg );
+		}
+	}
+}
+
+if ( '' !== $image_hover_effect ) {
+	$allowed_effects = array( '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' );
+	if ( in_array( $image_hover_effect, $allowed_effects, true ) ) {
+		$more_atts['image_hover_effect'] = $image_hover_effect;
+	}
+}
+
 $more_atts['paging'] = ( 'yes' == $paging ) ? 1 : 0;
 $more_atts['sorting'] = ( 'yes' == $sorting ) ? 1 : 0;
 $more_atts['sorting_default'] = $sorting_default;

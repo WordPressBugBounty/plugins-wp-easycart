@@ -398,8 +398,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				$this->wpdb->query( $query );
 			}
 		}
-		$this->price_tiers = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_pricetier.* FROM ec_pricetier WHERE product_id = %d", $this->id ) );
-		$this->b2b_prices = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_roleprice.* FROM ec_roleprice WHERE product_id = %d", $this->id ) );
+		$this->price_tiers = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_pricetier.* FROM ec_pricetier WHERE product_id = %d ORDER BY quantity ASC", $this->id ) );
+		$this->b2b_prices = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_roleprice.* FROM ec_roleprice WHERE product_id = %d ORDER BY role_label ASC", $this->id ) );
 		$this->option_item_images = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_optionitemimage.* FROM ec_optionitemimage WHERE product_id = %d", $this->id ) );
 		$this->advanced_options = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT ec_option.*, ec_option_to_product.product_id, ec_option_to_product.option_to_product_id, ec_option_to_product.conditional_logic FROM ec_option_to_product, ec_option WHERE ec_option_to_product.product_id = %d AND ec_option.option_id = ec_option_to_product.option_id ORDER BY ec_option_to_product.option_order ASC, ec_option.option_name ASC", $this->id ) );
 		$this->categories = $this->wpdb->get_results( $this->wpdb->prepare( "SELECT * FROM ec_categoryitem, ec_category WHERE ec_categoryitem.product_id = %d AND ec_category.category_id = ec_categoryitem.category_id", $this->id ) );

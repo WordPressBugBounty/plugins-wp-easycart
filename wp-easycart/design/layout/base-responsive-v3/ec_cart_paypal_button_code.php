@@ -55,7 +55,7 @@
 					if ( ! $first_country ) {
 						echo ',';
 					}
-					echo '"' . $country->iso2_cnt . '"';
+					echo '"' . esc_attr( $country->iso2_cnt ) . '"';
 					$first_country = false;
 				} ?>];
 				if ( ! allowed_countries.includes( data.shipping_address.country_code ) ) {

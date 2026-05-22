@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.14
+ * Version: 5.8.15
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.14
+ * @version 5.8.15
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +22,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_14' );
+define( 'EC_CURRENT_VERSION', '5_8_15' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '98' );
+define( 'EC_UPGRADE_DB', '99' );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 
@@ -1495,9 +1495,21 @@ function load_ec_store( $atts ) {
 		'sidebar_option_filters' => get_option( 'ec_option_store_sidebar_option_filters' ),
 		'sidebar_include_manufacturers' => get_option( 'ec_option_store_sidebar_include_manufacturers' ),
 		'sidebar_manufacturers' => get_option( 'ec_option_store_sidebar_manufacturers' ),
+		'image_display_mode' => '',
+		'image_height' => '',
+		'image_object_fit' => 'cover',
+		'image_object_position' => 'center center',
+		'image_contain_bg' => '',
+		'image_hover_effect' => '',
 	), $atts );
 	$args['language'] = strtoupper( esc_attr( sanitize_text_field( $args['language'] ) ) );
 	$args['modelnumber'] = sanitize_text_field( $args['modelnumber'] );
+	$args['image_display_mode'] = in_array( $args['image_display_mode'], array( '', 'fixed', 'dynamic' ), true ) ? $args['image_display_mode'] : '';
+	$args['image_height'] = ( '' !== $args['image_height'] ) ? (int) $args['image_height'] : '';
+	$args['image_object_fit'] = in_array( $args['image_object_fit'], array( 'cover', 'contain', 'fill' ), true ) ? $args['image_object_fit'] : 'cover';
+	$args['image_object_position'] = in_array( $args['image_object_position'], array( 'center center', 'center top', 'center bottom', 'left center', 'right center' ), true ) ? $args['image_object_position'] : 'center center';
+	$args['image_contain_bg'] = ( '' !== $args['image_contain_bg'] ) ? sanitize_hex_color( $args['image_contain_bg'] ) : '';
+	$args['image_hover_effect'] = in_array( $args['image_hover_effect'], array( '', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10' ), true ) ? $args['image_hover_effect'] : '';
 
 	if ( $args['language'] != 'NONE' ) {
 		wp_easycart_language()->update_selected_language( $args['language'] );
@@ -2798,7 +2810,7 @@ function load_ec_cartdisplay( $atts ) {
 function load_ec_cart_count( $atts ) {
 	ob_start();
 	$cart = new ec_cart( $GLOBALS['ec_cart_data']->ec_cart_id );
-	echo $cart->total_items;
+	echo esc_attr( $cart->total_items );
 	return ob_get_clean();
 }
 
@@ -7280,7 +7292,7 @@ function ec_ajax_get_dynamic_cart_total() {
 
 	if ( wpeasycart_session()->handle_session( false, false ) ) {
 		$cart = new ec_cart( $GLOBALS['ec_cart_data']->ec_cart_id );
-		echo $cart->total_items;
+		echo esc_attr( $cart->total_items );
 	} else {
 		echo 0;
 	}
@@ -7789,11 +7801,54 @@ function wp_easycart_add_rewrite_webhooks() {
 	add_rewrite_rule( '(.*)/redsys_success.php', '?wpeasycarthook=redsys-webhook', 'top' );
 	add_rewrite_rule( '(.*)/sagepay_paynow_za_payment_complete.php', '?wpeasycarthook=sagepay-webhook', 'top' );
 	add_rewrite_rule( '(.*)/stripe_webhook.php', '?wpeasycarthook=stripe-webhook', 'top' );
-	if ( get_option( 'ec_option_added_custom_post_type' ) < 3 ) {
-		global $wp_rewrite;
-		$wp_rewrite->flush_rules();
-		update_option( 'ec_option_added_custom_post_type', 3 );
+}
+
+add_action( 'admin_init', 'wp_easycart_verify_rewrite_rules' );
+function wp_easycart_verify_rewrite_rules() {
+	if ( get_option( 'ec_option_store_rules_checked_version' ) === EC_CURRENT_VERSION ) {
+		return;
 	}
+
+	$store_id = get_option( 'ec_option_storepage' );
+	if ( ! $store_id ) {
+		return;
+	}
+
+	if ( ! get_option( 'permalink_structure' ) ) {
+		update_option( 'ec_option_store_rules_checked_version', EC_CURRENT_VERSION, true );
+		return;
+	}
+
+	$store_slug = ec_get_the_slug( $store_id );
+	if ( '' === $store_slug ) {
+		return;
+	}
+
+	$rules = get_option( 'rewrite_rules' );
+	$has_rule = false;
+	if ( is_array( $rules ) ) {
+		if ( isset( $rules[ '^' . $store_slug . '/([^/]*)/?$' ] ) ) {
+			$has_rule = true;
+		} else {
+			foreach ( $rules as $rewrite ) {
+				if ( false !== strpos( $rewrite, 'ec_store=' ) ) {
+					$has_rule = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if ( ! $has_rule ) {
+		flush_rewrite_rules();
+	}
+
+	update_option( 'ec_option_store_rules_checked_version', EC_CURRENT_VERSION, true );
+}
+
+add_action( 'update_option_ec_option_storepage', 'wp_easycart_reset_rewrite_check' );
+function wp_easycart_reset_rewrite_check() {
+	delete_option( 'ec_option_store_rules_checked_version' );
 }
 
 function wp_easycart_verify_stripe_webhook( $payload ) {
@@ -8739,12 +8794,6 @@ function ec_create_post_type_menu() {
 		global $wp_rewrite;
 		$wp_rewrite->add_permastruct( 'ec_store', $store_slug . '/%ec_store%/', true, 1 );
 		add_rewrite_rule( '^' . $store_slug . '/([^/]*)/?$', 'index.php?ec_store=$matches[1]', 'top');
-
-		// Only Flush Once!
-		if ( get_option( 'ec_option_added_custom_post_type' ) < 2 ) {	
-			$wp_rewrite->flush_rules();
-			update_option( 'ec_option_added_custom_post_type', 2 );
-		}
 	}
 }
 

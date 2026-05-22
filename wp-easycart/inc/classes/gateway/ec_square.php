@@ -1016,12 +1016,15 @@ class ec_square extends ec_gateway{
 
 	}
 
-	function insert_option( $object, $sync = true ){
+	function insert_option( $object, $sync = truee, $skip_existing = false ){
 		if ( $this->allowed_at_location( $object ) && ! $object->is_deleted ){
 			global $wpdb;
-			if( $sync ){
+			if( $sync || $skip_existing ){
 				$option = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_option WHERE square_id = %s", $object->id ) );
 				if( $option ){
+					if( $skip_existing ){
+						return array( 'success' => 'option-skipped' );
+					}
 					return $this->update_option( $object, $option, $sync );
 				}
 			}
@@ -1036,7 +1039,7 @@ class ec_square extends ec_gateway{
 			$wpdb->query( $wpdb->prepare( "INSERT INTO ec_option( option_name, option_label, option_type, square_id ) VALUES( %s, %s, %s, %s )", $option_name . " Variation", $option_name, $option_type, $object->id ) );
 			$option_id = $wpdb->insert_id;
 			foreach( $object->modifier_list_data->modifiers as $modifier ){
-				$this->insert_option_item( $modifier, $option_id, $sync );
+				$this->insert_option_item( $modifier, $option_id, $sync, $skip_existing );
 			}
 
 			return array( 'success' => 'option-inserted' );
@@ -1188,12 +1191,15 @@ class ec_square extends ec_gateway{
 		
 	}
 
-	function insert_option_item( $object, $option_id, $sync = true ){
+	function insert_option_item( $object, $option_id, $sync = true, $skip_existing = false ){
 		if( $this->allowed_at_location( $object ) && !$object->is_deleted ){
 			global $wpdb;
-			if( $sync ){
+			if( $sync || $skip_existing ){
 				$optionitem = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_optionitem WHERE square_id = %s", $object->id ) );
 				if( $optionitem ){
+					if( $skip_existing ){
+						return array( 'success' => 'optionitem-skipped' );
+					}
 					return $this->update_option_item( $object, $optionitem );
 				}
 			}
@@ -1244,7 +1250,7 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'optionitem-updated' );
 	}
 
-	function insert_category( $object, $sync = true ){
+	function insert_category( $object, $sync = true, $skip_existing = false ){
 		if( $this->allowed_at_location( $object ) && !$object->is_deleted ){
 			global $wpdb;
 
@@ -1256,9 +1262,12 @@ class ec_square extends ec_gateway{
 			$short_description = "";
 			$square_id = $object->id;
 
-			if( $sync ){
+			if( $sync || $skip_existing ){
 				$category = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_category WHERE square_id = %s", $square_id ) );
 				if( $category ){
+					if( $skip_existing ){
+						return array( 'success' => 'category-skipped' );
+					}
 					return $this->update_category( $object, $category );
 				}
 			}
@@ -1304,15 +1313,18 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'category-updated' );
 	}
 
-	function insert_product( $object, $sync = true, $sync_inventory = true ){
+	function insert_product( $object, $sync = true, $sync_inventory = true, $skip_existing = false ){
 		if ( $this->allowed_at_location( $object ) && !$object->is_deleted ) {
 			global $wpdb;
 			$square_id = $object->id;
 			$stock_quantity = 0;
 
-			if( $sync ){
+			if( $sync || $skip_existing ){
 				$product = $wpdb->get_row( $wpdb->prepare( "SELECT product_id, post_id, option_id_1, model_number FROM ec_product WHERE square_id = %s", $square_id ) );
 				if( $product ){
+					if( $skip_existing ){
+						return array( 'success' => 'product-skipped' );
+					}
 					return $this->update_product( $object, $product, $sync_inventory );
 				}
 			}
@@ -1367,7 +1379,7 @@ class ec_square extends ec_gateway{
 			$show_stock_quantity = $use_optionitem_quantity_tracking = 0;
 
 			$activate_in_store = 1;
-			if ( isset( $object->item_data->ecom_visibility ) && 'HIDDEN' == $object->item_data->ecom_visibility ) {
+			if ( isset( $object->item_data->ecom_visibility ) && in_array( $object->item_data->ecom_visibility, array( 'HIDDEN', 'UNAVAILABLE' ), true ) ) {
 				$activate_in_store = 0;
 			} else if ( isset( $object->item_data->visibility ) && ( 'HIDDEN' == $object->item_data->visibility ) ) {
 				$activate_in_store = 0;
@@ -1621,7 +1633,7 @@ class ec_square extends ec_gateway{
 		}
 
 		$activate_in_store = 1;
-		if ( isset( $object->item_data->ecom_visibility ) && 'HIDDEN' == $object->item_data->ecom_visibility ) {
+		if ( isset( $object->item_data->ecom_visibility ) && in_array( $object->item_data->ecom_visibility, array( 'HIDDEN', 'UNAVAILABLE' ), true ) ) {
 			$activate_in_store = 0;
 		} else if ( isset( $object->item_data->visibility ) && ( 'HIDDEN' == $object->item_data->visibility ) ) {
 			$activate_in_store = 0;

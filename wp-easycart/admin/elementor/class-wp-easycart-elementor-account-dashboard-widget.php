@@ -2473,14 +2473,14 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 			$this->add_link_attributes( 'indicator_wrapper', $indicator_rule['indicator_link'] );
 		}
 		?>
-		<<?php echo $tag; ?> <?php echo $this->get_render_attribute_string( 'indicator_wrapper' ); ?>>
+		<<?php echo esc_attr( $tag ); ?> <?php echo esc_html( $this->get_render_attribute_string( 'indicator_wrapper' ) ); ?>>
 			<?php if ( isset( $indicator_rule['indicator_icon'] ) && isset( $indicator_rule['indicator_icon']['value'] ) && ! empty( $indicator_rule['indicator_icon']['value'] ) ) { ?>
 				<?php Icons_Manager::render_icon( $indicator_rule['indicator_icon'], array( 'aria-hidden' => 'true', 'title' => $indicator_rule['indicator_label'], ) ); ?>
 			<?php } ?>
 			<?php if ( isset( $indicator_rule['indicator_label'] ) && '' != $indicator_rule['indicator_label'] && isset( $indicator_rule['indicator_show_label'] ) && 'yes' == $indicator_rule['indicator_show_label'] ) { ?>
 				<span class="indicator-label"><?php echo esc_html( $indicator_rule['indicator_label'] ); ?></span>
 			<?php } ?>
-		</<?php echo $tag; ?>>
+		</<?php echo esc_attr( $tag ); ?>>
 		<?php
 	}
 

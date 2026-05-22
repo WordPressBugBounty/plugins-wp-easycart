@@ -184,9 +184,9 @@ if ( ! class_exists( 'ec_address_form' ) ) :
 
 		public function print_label( $field_key, $field, $prefix ){
 			$found_label = false;
-			echo '<label for="' . $prefix . '_' . $field_key . '" id="' . $prefix . '_' . $field_key . '_label">';
+			echo '<label for="' . esc_attr( $prefix ) . '_' . esc_attr( $field_key ) . '" id="' . esc_attr( $prefix ) . '_' . esc_attr( $field_key ) . '_label">';
 			echo esc_attr( $field->label );
-			echo '<span id="' . $prefix . '_' . $field_key . '_required"';
+			echo '<span id="' . esc_attr( $prefix ) . '_' . esc_attr( $field_key ) . '_required"';
 			if ( ! $is_field_required ) {
 				'style="display:none"';
 			}
@@ -213,7 +213,7 @@ if ( ! class_exists( 'ec_address_form' ) ) :
 		}
 
 		public function print_error( $field_key, $prefix ) {
-			echo '<div class="ec_cart_error_row" id="' . $prefix . '_' . $field_key . '_error">';
+			echo '<div class="ec_cart_error_row" id="' . esc_attr( $prefix ) . '_' . esc_attr( $field_key ) . '_error">';
 				echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_state' );
 			echo '</div>';
 		}

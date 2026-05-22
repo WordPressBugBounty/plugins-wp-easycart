@@ -33,6 +33,7 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_country' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_disable_country' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_enable_country' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_restore_default_countries' ) );
 		}
 
 		public function process_add_new_country() {
@@ -117,6 +118,21 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 				}
 			}
 		}
+ 
+		public function process_restore_default_countries() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
+				return;
+			}
+ 
+			if ( isset( $_GET['subpage'] ) && 'country' == $_GET['subpage'] && isset( $_GET['ec_admin_form_action'] ) && 'restore-default-countries' == $_GET['ec_admin_form_action'] ) {
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-restore-default-countries' ) ) {
+					$result = $this->restore_default_countries();
+					wp_cache_delete( 'wpeasycart-countries' );
+					wp_cache_delete( 'wpeasycart-states' );
+					wp_easycart_admin()->redirect( 'wp-easycart-settings', 'country', $result );
+				}
+			}
+		}
 
 		public function add_success_messages( $messages ) {
 			if ( isset( $_GET['success'] ) && 'country-inserted' == $_GET['success'] ) {
@@ -129,6 +145,8 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 				$messages[] = __( 'Countries successfully enabled', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && 'country-bulk-disabled' == $_GET['success'] ) {
 				$messages[] = __( 'Countries successfully disabled', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && 'countries-restored' == $_GET['success'] ) {
+				$messages[] = __( 'Country restore process has completed.', 'wp-easycart' );
 			}
 			return $messages;
 		}
@@ -260,6 +278,20 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 				do_action( 'wpeasycart_country_updated', (int) $bulk_id );
 			}
 			return array( 'success' => 'country-bulk-disabled' );
+		}
+ 
+		public function restore_default_countries() {
+			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-restore-default-countries' ) ) {
+				return false;
+			}
+ 
+			if ( ! class_exists( 'ec_db_manager' ) ) {
+				require_once( EC_PLUGIN_DIRECTORY . '/ec_db_manager.php' );
+			}
+			$db_manager = new ec_db_manager();
+			$counts = $db_manager->restore_default_countries_and_states();
+ 
+			return array( 'success' => 'countries-restored' );
 		}
 	}
 endif;

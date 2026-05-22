@@ -21,6 +21,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private $add_new_reset_val;
 		private $add_new_js = '';
 		private $add_new_css = 'ec_page_title_button ec_admin_process_click';
+		private $page_action_buttons = array();
 		private $cancel = false;
 		private $cancel_link = '';
 		private $cancel_label = 'Cancel';
@@ -164,6 +165,9 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		public function set_add_new_css( $add_new_css ) {
 			$this->add_new_css = $add_new_css;
 		}
+		public function set_page_action_buttons( $buttons ) {
+			$this->page_action_buttons = ( is_array( $buttons ) ) ? $buttons : array();
+		}
 		public function set_cancel( $cancel, $cancel_link, $cancel_label ) {
 			$this->cancel = $cancel;
 			$this->cancel_link = $cancel_link;
@@ -241,6 +245,30 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			wp_easycart_admin()->helpsystem->print_vids_url( $this->docs_guide, $this->docs_link, 'master-record' );
 			if ( $this->add_new ) {
 				echo '<a href="' . esc_attr( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="' . esc_attr( $this->add_new_css ) . '"' . ( ( $this->add_new_js != '' ) ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '>' . esc_attr( $this->add_new_label ) . '</a>';
+			}
+			if ( ! empty( $this->page_action_buttons ) ) {
+				$base_url = 'admin.php?page=' . ( ( isset( $_GET['page'] ) ) ? sanitize_key( $_GET['page'] ) : '' );
+				if ( isset( $_GET['subpage'] ) ) {
+					$base_url .= '&subpage=' . sanitize_key( $_GET['subpage'] );
+				}
+				foreach ( $this->page_action_buttons as $button ) {
+					if ( empty( $button['action'] ) || empty( $button['label'] ) ) {
+						continue;
+					}
+					$action = preg_replace( '/[^A-Za-z0-9\-\_]/', '', $button['action'] );
+					$css = 'ec_page_title_button';
+					if ( ! empty( $button['css'] ) ) {
+						$css .= ' ' . $button['css'];
+					}
+					$href = $base_url
+						. '&ec_admin_form_action=' . $action
+						. '&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-' . $action );
+					$onclick = '';
+					if ( ! empty( $button['confirm'] ) ) {
+						$onclick = " onclick=\"return confirm('" . esc_js( $button['confirm'] ) . "');\"";
+					}
+					echo '<a href="' . esc_url( $href ) . '" class="' . esc_attr( $css ) . '"' . $onclick . '>' . esc_attr( $button['label'] ) . '</a>';
+				}
 			}
 			if ( $this->cancel ) {
 				echo '<a href="' . esc_attr( $this->cancel_link ) . '" class="ec_page_title_button">' . esc_attr( $this->cancel_label ) . '</a>';

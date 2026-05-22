@@ -27,15 +27,32 @@
 
 		<div style="line-height:1.8em; text-align:left;"><?php esc_attr_e( 'This process may take a while. We will process just a few items at a time to limit problems on slower servers. If you experience a problem, you may need to increase your server max execution time.', 'wp-easycart' ); ?></div>
 
-		<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_sync_matches" value="1" checked="checked" /> <?php esc_attr_e( 'Sync already imported items from Square -> EasyCart?', 'wp-easycart' ); ?></div>
-		
-		<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_import_products" value="1" checked="checked" /> <?php esc_attr_e( 'Import Products (and required connections) from Square -> EasyCart?', 'wp-easycart' ); ?></div>
-		
-		<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_import_inventory" value="1" checked="checked" /> <?php esc_attr_e( 'Import Inventory (Stock) from Square -> EasyCart?', 'wp-easycart' ); ?></div>
+		<div id="wpeasycart_square_only_new_toggle_row" style="clear:both; margin:25px 0 0; padding:15px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px; overflow:hidden;">
+			<label class="ec_admin_switch" style="margin-top:4px;">
+				<input type="checkbox" id="wpeasycart_square_only_new" class="ec_admin_slider_checkbox" value="1" />
+				<span class="ec_admin_slider round"></span>
+			</label>
+			<div style="overflow:hidden; padding-right:15px;">
+				<div style="font-weight:bold; line-height:1.4;"><?php esc_attr_e( 'Only add new items from Square', 'wp-easycart' ); ?></div>
+				<div style="font-weight:normal; color:#555; margin-top:4px; line-height:1.4; font-size:13px;"><?php esc_attr_e( 'Skip anything already imported. Existing items will not be modified in any way.', 'wp-easycart' ); ?></div>
+			</div>
+		</div>
 
-		<div style="line-height:1.8em; text-align:left; padding:20px 0 0; color:red; display:none;" id="wpeasycart_square_import_something_required"><strong><?php esc_attr_e( 'You must choose to import products, inventory, or both.', 'wp-easycart' ); ?></strong></div>
+		<div id="wpeasycart_square_full_import_options">
 
-		<div style="line-height:1.8em; text-align:left; padding:20px 0 0; color:red;"><?php esc_attr_e( 'NOTICE: Importing will overwrite any changes you have made to products, categories, options, or stock that you previously imported from your Square account.', 'wp-easycart' ); ?></div>
+			<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_sync_matches" value="1" checked="checked" /> <?php esc_attr_e( 'Sync already imported items from Square -> EasyCart?', 'wp-easycart' ); ?></div>
+
+			<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_import_products" value="1" checked="checked" /> <?php esc_attr_e( 'Import Products (and required connections) from Square -> EasyCart?', 'wp-easycart' ); ?></div>
+
+			<div style="text-align:left; font-weight:bold; margin:25px 0 0;"><input type="checkbox" id="wpeasycart_square_import_inventory" value="1" checked="checked" /> <?php esc_attr_e( 'Import Inventory (Stock) from Square -> EasyCart?', 'wp-easycart' ); ?></div>
+
+			<div style="line-height:1.8em; text-align:left; padding:20px 0 0; color:red; display:none;" id="wpeasycart_square_import_something_required"><strong><?php esc_attr_e( 'You must choose to import products, inventory, or both.', 'wp-easycart' ); ?></strong></div>
+
+			<div style="line-height:1.8em; text-align:left; padding:20px 0 0; color:red;" id="wpeasycart_square_import_overwrite_notice"><?php esc_attr_e( 'NOTICE: Importing will overwrite any changes you have made to products, categories, options, or stock that you previously imported from your Square account.', 'wp-easycart' ); ?></div>
+
+		</div>
+
+		<div id="wpeasycart_square_only_new_notice" style="line-height:1.8em; text-align:left; padding:20px 0 0; color:#0073aa; display:none;"><?php esc_attr_e( 'NOTICE: Only new items will be added. Any categories, options, option items, products, and inventory previously imported from Square will be left completely untouched.', 'wp-easycart' ); ?></div>
 
 		<div class="ec_admin_settings_input" style="text-align:left; margin:30px 0 0;">
 			<input type="submit" id="wpeasycart_square_start_button" value="<?php esc_attr_e( 'IMPORT FROM SQUARE', 'wp-easycart' ); ?>" class="ec_admin_settings_simple_button" onclick="wpeasycart_start_square_import( ); return false;" style="font-weight:normal; padding:20px; border-radius:10px; font-size:18px;" />

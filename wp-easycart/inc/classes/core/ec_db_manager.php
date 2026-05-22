@@ -260,6 +260,9 @@ class ec_db_manager {
 			'5.8.13' => array(
 				'wpeasycart_sql_5_8_13'
 			),
+			'5.8.15' => array(
+				'wpeasycart_sql_5_8_15'
+			),
 		);
 
 		$return_functions = array();
@@ -769,11 +772,25 @@ class ec_db_manager {
 	}
 
 	private function wpeasycart_sql_5_8_13() {
+		global $wpdb;
 		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
 		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
 		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
 		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
 		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
+	}
+
+	private function wpeasycart_sql_5_8_15() {
+		global $wpdb;
+		// Test for failed DB update in last DB version and correct if missing.
+		$column_exists = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema = %s AND table_name = "ec_orderdetail" AND column_name = "unit_discount_promotion"', DB_NAME ) );
+		if ( ! $column_exists ) {
+			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
+			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
+			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
+			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
+			$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
+		}
 	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
@@ -12968,6 +12985,96 @@ CREATE TABLE ec_zone_to_location (
 			)
 		);
 
+	}
+
+	public function restore_default_countries_and_states() {
+		global $wpdb;
+
+		$data_file = EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_default_countries_states.php';
+		if ( ! file_exists( $data_file ) ) {
+			return array( 'countries_added' => 0, 'states_added' => 0 );
+		}
+		$defaults = include( $data_file );
+		if ( ! is_array( $defaults ) || empty( $defaults['countries'] ) ) {
+			return array( 'countries_added' => 0, 'states_added' => 0 );
+		}
+
+		$countries_added = 0;
+		$states_added    = 0;
+
+		$existing_countries = $wpdb->get_results( 'SELECT id_cnt, iso2_cnt FROM ec_country' );
+		$iso2_to_id = array();
+		foreach ( $existing_countries as $row ) {
+			$iso2_to_id[ strtoupper( $row->iso2_cnt ) ] = (int) $row->id_cnt;
+		}
+
+		foreach ( $defaults['countries'] as $country ) {
+			$iso2 = strtoupper( $country['iso2_cnt'] );
+			if ( isset( $iso2_to_id[ $iso2 ] ) ) {
+				continue;
+			}
+			$inserted = $wpdb->insert(
+				'ec_country',
+				array(
+					'name_cnt'       => $country['name_cnt'],
+					'iso2_cnt'       => $country['iso2_cnt'],
+					'iso3_cnt'       => $country['iso3_cnt'],
+					'sort_order'     => (int) $country['sort_order'],
+					'ship_to_active' => 0,
+				)
+			);
+			if ( $inserted ) {
+				$iso2_to_id[ $iso2 ] = (int) $wpdb->insert_id;
+				$countries_added++;
+				do_action( 'wpeasycart_country_added', (int) $wpdb->insert_id );
+			}
+		}
+
+		if ( empty( $defaults['states'] ) ) {
+			return array(
+				'countries_added' => $countries_added,
+				'states_added'    => $states_added,
+			);
+		}
+
+		$existing_states = $wpdb->get_results( 'SELECT idcnt_sta, code_sta FROM ec_state' );
+		$state_key_set = array();
+		foreach ( $existing_states as $row ) {
+			$state_key_set[ (int) $row->idcnt_sta . '|' . strtoupper( $row->code_sta ) ] = true;
+		}
+
+		foreach ( $defaults['states'] as $state ) {
+			$iso2 = strtoupper( $state['iso2_cnt'] );
+			if ( ! isset( $iso2_to_id[ $iso2 ] ) ) {
+				continue;
+			}
+			$idcnt = $iso2_to_id[ $iso2 ];
+			$key   = $idcnt . '|' . strtoupper( $state['code_sta'] );
+			if ( isset( $state_key_set[ $key ] ) ) {
+				continue;
+			}
+			$inserted = $wpdb->insert(
+				'ec_state',
+				array(
+					'idcnt_sta'      => $idcnt,
+					'code_sta'       => $state['code_sta'],
+					'name_sta'       => $state['name_sta'],
+					'sort_order'     => (int) $state['sort_order'],
+					'group_sta'      => $state['group_sta'],
+					'ship_to_active' => 0,
+				)
+			);
+			if ( $inserted ) {
+				$state_key_set[ $key ] = true;
+				$states_added++;
+				do_action( 'wpeasycart_state_added', (int) $wpdb->insert_id );
+			}
+		}
+
+		return array(
+			'countries_added' => $countries_added,
+			'states_added'    => $states_added,
+		);
 	}
 
 }

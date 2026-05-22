@@ -118,7 +118,7 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 			$cart_page_id = icl_object_id( $cart_page_id, 'page', true, ICL_LANGUAGE_CODE );
 		}
 		$cart_page = get_permalink( $cart_page_id );
-		if ( class_exists( "WordPressHTTPS" ) && isset( $_SERVER['HTTPS'] ) ) {
+		if ( class_exists( 'WordPressHTTPS' ) && isset( $_SERVER['HTTPS'] ) ) {
 			$https_class = new WordPressHTTPS();
 			$cart_page = $https_class->makeUrlHttps( $cart_page );
 		}
@@ -236,7 +236,7 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 				),
 			)
 		);
-		
+
 		$this->end_controls_tab();
 		$this->end_controls_tabs();
 
@@ -293,7 +293,7 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'quantity_bg_color',
 			array(
@@ -313,7 +313,7 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 				'selector' => '{{WRAPPER}} .wp-easycart-widget-cart-quantity',
 			)
 		);
-		
+
 		$this->add_group_control(
 			Group_Control_Border::get_type(),
 			array(

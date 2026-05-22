@@ -558,13 +558,13 @@ class ec_cartpage {
 					echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 						echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';
 					echo '</div>';
-					echo '<script>window.location.href = "' . $stripe_pi_response->next_action->redirect_to_url->url . '";</script>';
+					echo '<script>window.location.href = "' . wp_json_encode( esc_url_raw( $stripe_pi_response->next_action->redirect_to_url->url ) ) . '";</script>';
 
 				} else if ( isset( $stripe_pi_response->next_source_action ) && isset( $stripe_pi_response->next_source_action->type ) && 'authorize_with_url' == $stripe_pi_response->next_source_action->type ) {
 					echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 						echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';
 					echo '</div>';
-					echo '<script>window.location.href = "' . $stripe_pi_response->next_source_action->authorize_with_url->url . '";</script>';
+					echo '<script>window.location.href = "' . wp_json_encode( esc_url_raw( $stripe_pi_response->next_source_action->authorize_with_url->url ) ) . '";</script>';
 
 				} else if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'use_stripe_sdk' == $stripe_pi_response->next_action->type ) {
 					if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
@@ -698,7 +698,7 @@ class ec_cartpage {
 					jQuery( document ).ready( function() {
 						dataLayer.push( { ecommerce: null } );
 						dataLayer.push( {
-							event: "' . $ga4_event . '",
+							event: "' . esc_attr( $ga4_event ) . '",
 							ecommerce: {
 								currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
 								value: ' . esc_attr( number_format( $this->order_totals->grand_total, 2, '.', '' ) ) . ',
@@ -713,7 +713,7 @@ class ec_cartpage {
 									echo '{
 										item_id: "' . esc_attr( $this->cart->cart[$i]->model_number ) . '",
 										item_name: "' . esc_attr( $this->cart->cart[$i]->title ) . '",
-										index: ' . $i . ',
+										index: ' . esc_attr( $i ) . ',
 										price: ' . esc_attr( number_format( $this->cart->cart[$i]->unit_price, 2, '.', '' ) ) . ',
 										item_brand: "' . esc_attr( $this->cart->cart[$i]->manufacturer_name ) . '",
 										quantity: ' . esc_attr( number_format( $this->cart->cart[$i]->quantity, 2, '.', '' ) ) . '
@@ -727,7 +727,7 @@ class ec_cartpage {
 				} else {
 					echo '<script>
 					jQuery( document ).ready( function() {
-						gtag( "event", "' . $ga4_event . '", {
+						gtag( "event", "' . esc_attr( $ga4_event ) . '", {
 							currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
 							value: ' . esc_attr( number_format( $this->order_totals->grand_total, 2, '.', '' ) ) . ',
 							coupon_code: "' . esc_attr( $this->coupon_code ) . '",';
@@ -741,7 +741,7 @@ class ec_cartpage {
 								echo '{
 									item_id: "' . esc_attr( $this->cart->cart[$i]->model_number ) . '",
 									item_name: "' . esc_attr( $this->cart->cart[$i]->title ) . '",
-									index: ' . $i . ',
+									index: ' . esc_attr( $i ) . ',
 									price: ' . esc_attr( number_format( $this->cart->cart[$i]->unit_price, 2, '.', '' ) ) . ',
 									item_brand: "' . esc_attr( $this->cart->cart[$i]->manufacturer_name ) . '",
 									quantity: ' . esc_attr( number_format( $this->cart->cart[$i]->quantity, 2, '.', '' ) ) . '
@@ -784,10 +784,11 @@ class ec_cartpage {
 			$tax = $GLOBALS['currency']->get_currency_display( $order->tax_total );
 			$duty = $GLOBALS['currency']->get_currency_display( $order->duty_total );
 			$vat = $GLOBALS['currency']->get_currency_display( $order->vat_total );
-			if ( ( $order->grand_total - $order->vat_total ) > 0 )
+			if ( ( $order->grand_total - $order->vat_total ) > 0 ) {
 				$vat_rate = number_format( $this->tax->vat_rate, 0, '', '' );
-			else
+			} else {
 				$vat_rate = number_format( 0, 0, '', '' );
+			}
 			$shipping = $GLOBALS['currency']->get_currency_display( $order->shipping_total );
 			$discount = $GLOBALS['currency']->get_currency_display( $order->discount_total );
 
@@ -1314,13 +1315,13 @@ class ec_cartpage {
 						echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 							echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';
 						echo '</div>';
-						echo '<script>window.location.href = "' . $stripe_pi_response->next_action->redirect_to_url->url . '";</script>';
+						echo '<script>window.location.href = "' . wp_json_encode( esc_url_raw( $stripe_pi_response->next_action->redirect_to_url->url ) ) . '";</script>';
 
 					} else if ( isset( $stripe_pi_response->next_source_action ) && isset( $stripe_pi_response->next_source_action->type ) && 'authorize_with_url' == $stripe_pi_response->next_source_action->type ) {
 						echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 							echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">Just a moment, please wait.</div>';
 						echo '</div>';
-						echo '<script>window.location.href = "' . $stripe_pi_response->next_source_action->authorize_with_url->url . '";</script>';
+						echo '<script>window.location.href = "' . wp_json_encode( esc_url_raw( $stripe_pi_response->next_source_action->authorize_with_url->url ) ) . '";</script>';
 
 					} else if ( isset( $stripe_pi_response->next_action ) && isset( $stripe_pi_response->next_action->type ) && 'use_stripe_sdk' == $stripe_pi_response->next_action->type ) {
 						if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
@@ -1377,7 +1378,7 @@ class ec_cartpage {
 						jQuery( document ).ready( function() {
 							dataLayer.push( { ecommerce: null } );
 							dataLayer.push( {
-								event: "' . $ga4_event . '",
+								event: "' . esc_attr( $ga4_event ) . '",
 								ecommerce: {
 									currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
 									value: ' . esc_attr( number_format( $this->order_totals->grand_total, 2, '.', '' ) ) . ',
@@ -1392,7 +1393,7 @@ class ec_cartpage {
 										echo '{
 											item_id: "' . esc_attr( $this->cart->cart[$i]->model_number ) . '",
 											item_name: "' . esc_attr( $this->cart->cart[$i]->title ) . '",
-											index: ' . $i . ',
+											index: ' . esc_attr( $i ) . ',
 											price: ' . esc_attr( number_format( $this->cart->cart[$i]->unit_price, 2, '.', '' ) ) . ',
 											item_brand: "' . esc_attr( $this->cart->cart[$i]->manufacturer_name ) . '",
 											quantity: ' . esc_attr( number_format( $this->cart->cart[$i]->quantity, 2, '.', '' ) ) . '
@@ -1406,7 +1407,7 @@ class ec_cartpage {
 					} else {
 						echo '<script>
 						jQuery( document ).ready( function() {
-							gtag( "event", "' . $ga4_event . '", {
+							gtag( "event", "' . esc_attr( $ga4_event ) . '", {
 								currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
 								value: ' . esc_attr( number_format( $this->order_totals->grand_total, 2, '.', '' ) ) . ',
 								coupon_code: "' . esc_attr( $this->coupon_code ) . '",';
@@ -1420,7 +1421,7 @@ class ec_cartpage {
 									echo '{
 										item_id: "' . esc_attr( $this->cart->cart[$i]->model_number ) . '",
 										item_name: "' . esc_attr( $this->cart->cart[$i]->title ) . '",
-										index: ' . $i . ',
+										index: ' . esc_attr( $i ) . ',
 										price: ' . esc_attr( number_format( $this->cart->cart[$i]->unit_price, 2, '.', '' ) ) . ',
 										item_brand: "' . esc_attr( $this->cart->cart[$i]->manufacturer_name ) . '",
 										quantity: ' . esc_attr( number_format( $this->cart->cart[$i]->quantity, 2, '.', '' ) ) . '
@@ -2796,7 +2797,7 @@ class ec_cartpage {
 			if ( ! $first_country ) {
 				echo ',';
 			}
-			echo '"' . $country->iso2_cnt . '"';
+			echo '"' . esc_attr( $country->iso2_cnt ) . '"';
 			$first_country = false;
 		}
 		echo '];
@@ -3439,7 +3440,7 @@ class ec_cartpage {
 			$is_first_country = false;
 		}
 		$type = ( $is_shipping ) ? 'shipping' : 'billing';
-		echo "var " . $type . "AddressTimer;";
+		echo "var " . esc_attr( $type ) . "AddressTimer;";
 		if ( $custom_elements ) {
 		echo "
 		const billingOptions = {
@@ -3450,11 +3451,11 @@ class ec_cartpage {
 		const billingaddressElement = billingElements.create( 'address', {";
 		} else {
 		echo "
-		const " . $type . "addressElement = elements.create( 'address', {";
+		const " . esc_attr( $type ) . "addressElement = elements.create( 'address', {";
 		}
 		echo "
-			mode: '" . $type . "',
-			allowedCountries:[" . $country_string . "],";
+			mode: '" . esc_attr( $type ) . "',
+			allowedCountries:[" . esc_attr( $country_string ) . "],";
 		if ( get_option( 'ec_option_collect_user_phone' ) ) {
 		echo "
 			fields: {
@@ -3509,25 +3510,25 @@ class ec_cartpage {
 		echo "
 			},
 		} ).on( 'change', (event) => {
-			jQuery( document.getElementById( 'ec_" . $type . "_complete' ) ).val( ( ( event.complete ) ? '1' : '0' ) );
-			jQuery( document.getElementById( 'ec_" . $type . "_address_line_1' ) ).val( event.value.address.line1 );
-			jQuery( document.getElementById( 'ec_" . $type . "_address_line_2' ) ).val( event.value.address.line2 );
-			jQuery( document.getElementById( 'ec_" . $type . "_city' ) ).val( event.value.address.city );
-			jQuery( document.getElementById( 'ec_" . $type . "_state' ) ).val( event.value.address.state );
-			jQuery( document.getElementById( 'ec_" . $type . "_zip' ) ).val( event.value.address.postal_code );
-			jQuery( document.getElementById( 'ec_" . $type . "_country' ) ).val( event.value.address.country );
-			jQuery( document.getElementById( 'ec_" . $type . "_name' ) ).val( event.value.name );
-			jQuery( document.getElementById( 'ec_" . $type . "_phone' ) ).val( event.value.phone );
-			if ( jQuery( document.getElementById( '" . $type . "-address-element' ) ).hasClass( 'ec_cart_stripe_address_is_init' ) ) {
-				jQuery( document.getElementById( '" . $type . "-address-element' ) ).removeClass( 'ec_cart_stripe_address_is_init' );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_complete' ) ).val( ( ( event.complete ) ? '1' : '0' ) );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_address_line_1' ) ).val( event.value.address.line1 );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_address_line_2' ) ).val( event.value.address.line2 );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_city' ) ).val( event.value.address.city );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_state' ) ).val( event.value.address.state );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_zip' ) ).val( event.value.address.postal_code );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_country' ) ).val( event.value.address.country );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_name' ) ).val( event.value.name );
+			jQuery( document.getElementById( 'ec_" . esc_attr( $type ) . "_phone' ) ).val( event.value.phone );
+			if ( jQuery( document.getElementById( '" . esc_attr( $type ) . "-address-element' ) ).hasClass( 'ec_cart_stripe_address_is_init' ) ) {
+				jQuery( document.getElementById( '" . esc_attr( $type ) . "-address-element' ) ).removeClass( 'ec_cart_stripe_address_is_init' );
 			} else {
 				if ( ! event.complete ) {
-					" . $type . "addressElement.getValue();
+					" . esc_attr( $type ) . "addressElement.getValue();
 				}";
 		if ( ! get_option( 'ec_option_onepage_checkout_tabbed' ) && 'shipping' == $type ) {
 			echo " else {
-					clearTimeout( " . $type . "AddressTimer );
-					" . $type . "AddressTimer = setTimeout( function() {
+					clearTimeout( " . esc_attr( $type ) . "AddressTimer );
+					" . esc_attr( $type ) . "AddressTimer = setTimeout( function() {
 						wp_easycart_goto_shipping_v2( true );
 						if ( jQuery( document.getElementById( 'ec_shipping_order_error' ) ).length ) {
 							jQuery( document.getElementById( 'ec_shipping_order_error' ) ).hide();
@@ -3550,7 +3551,7 @@ class ec_cartpage {
 		} );
 		if ( jQuery( document.getElementById( 'ec_cart_submit_order' ) ).length ) {
 			jQuery( document.getElementById( 'ec_cart_submit_order' ) ).on( 'click', function() {
-				" . $type . "addressElement.getValue();
+				" . esc_attr( $type ) . "addressElement.getValue();
 			} );
 		}";
 	}
@@ -3789,8 +3790,8 @@ class ec_cartpage {
 				emailRequired: true,
 				phoneNumberRequired: true,
 				shippingAddressRequired: true,
-				lineItems: <?php echo json_encode( $this->get_stripe_express_cart_items() ); ?>,
-				shippingRates: <?php echo json_encode( $this->get_stripe_express_shipping_items( wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ), wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ) ) ); ?>
+				lineItems: " . wp_json_encode( $this->get_stripe_express_cart_items() ) . ",
+				shippingRates: " . wp_json_encode( $this->get_stripe_express_shipping_items( wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ), wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ) ) ) . "
 			};
 			event.resolve( options );
 		} );
@@ -4014,7 +4015,7 @@ class ec_cartpage {
 							if ( ! $first_country ) {
 					echo ',';
 							}
-					echo '"' . $country->iso2_cnt . '"';
+					echo '"' . esc_attr( $country->iso2_cnt ) . '"';
 							$first_country = false;
 						}
 					echo '];
@@ -4809,10 +4810,11 @@ class ec_cartpage {
 	}
 
 	public function get_printer_icon( $image_name ) {
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/theme/' . get_option( 'ec_option_base_theme' ) . '/images/' . $image_name ) )	
-			return plugins_url( 'wp-easycart-data/design/theme/' . get_option( 'ec_option_base_themet' ) . '/images/' . $image_name, EC_PLUGIN_DATA_DIRECTORY );
-		else
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/theme/' . get_option( 'ec_option_base_theme' ) . '/images/' . $image_name ) ) {
+			return plugins_url( 'wp-easycart-data/design/theme/' . get_option( 'ec_option_base_theme' ) . '/images/' . $image_name, EC_PLUGIN_DATA_DIRECTORY );
+		} else {
 			return plugins_url( 'wp-easycart/design/theme/' . get_option( 'ec_option_latest_theme' ) . '/images/' . $image_name, EC_PLUGIN_DIRECTORY );
+		}
 	}
 
 	public function display_success_account_create_form_start( $order_id, $email ) {
@@ -5747,7 +5749,7 @@ class ec_cartpage {
 		if ( '1' == $response ) {
 			return json_encode( (object) array( 'ok' => true, 'goto' => esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order->order_id ) ) ) ) );
 		} else {
-			return json_encode( (object) array( 'error' => $this->order->process_result ) );
+			return json_encode( (object) array( 'error' => esc_attr( $this->order->process_result ) ) );
 		}
 	}
 

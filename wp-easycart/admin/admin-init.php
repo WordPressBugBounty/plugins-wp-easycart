@@ -2,6 +2,7 @@
 do_action( 'wpeasycart_admin_load_init' );
 // Load Helper Classes 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_verification.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_pro_gate.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_account.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_actions.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_category.php' );
@@ -45,6 +46,8 @@ if( isset( $_GET['page'] ) && isset( $_GET['subpage'] ) && $_GET['page'] == 'wp-
 	include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_subscription_plans.php' );
 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_table.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_table_v2.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_table.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_taxes.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_users.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_user_role.php' );

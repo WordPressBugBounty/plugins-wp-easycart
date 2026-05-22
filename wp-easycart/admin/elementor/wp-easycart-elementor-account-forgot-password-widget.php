@@ -5,6 +5,7 @@
  * @package  Wp_Easycart_Elementor_Account_Forgot_Password_Widget
  * @author WP EasyCart
  */
+
 $args = shortcode_atts(
 	array(
 		'email_label' => wp_easycart_language( )->get_text( 'account_forgot_password', 'account_forgot_password_email_label' ),

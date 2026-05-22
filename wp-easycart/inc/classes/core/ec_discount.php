@@ -132,7 +132,7 @@ class ec_discount {
 			$total_items = $this->cart->total_items;
 		}
 		if ( $total_items >= $min_required ) {
-			$this->coupon_matches_unit = $total_found;
+			$this->coupon_matches_unit = $total_items;
 			$this->coupon_matches++;
 		}
 		return ( $total_items >= $min_required ) ? true : false;

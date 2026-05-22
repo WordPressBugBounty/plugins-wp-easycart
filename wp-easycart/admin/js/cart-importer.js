@@ -1,4 +1,10 @@
 function wpeasycart_start_square_import( ){
+	var only_new = jQuery( '#wpeasycart_square_only_new' ).is( ':checked' );
+	if ( only_new ) {
+		jQuery( '#wpeasycart_square_sync_matches' ).prop( 'checked', false );
+		jQuery( '#wpeasycart_square_import_products' ).prop( 'checked', true );
+		jQuery( '#wpeasycart_square_import_inventory' ).prop( 'checked', false );
+	}
 	if ( jQuery( '#wpeasycart_square_import_products' ).is( ':checked' ) || jQuery( '#wpeasycart_square_import_inventory' ).is( ':checked' ) ) {
 		jQuery( document.getElementById( 'wpeasycart_square_import_something_required' ) ).hide();
 		jQuery( document.getElementById( 'wpeasycart_square_import_progress_bar' ) ).show( );
@@ -16,12 +22,32 @@ function wpeasycart_start_square_import( ){
 	}
 }
 
+jQuery( function( $ ) {
+	var $onlyNew = $( '#wpeasycart_square_only_new' );
+	if ( ! $onlyNew.length ) {
+		return;
+	}
+	function wpeasycart_square_update_only_new_ui( ) {
+		if ( $onlyNew.is( ':checked' ) ) {
+			$( '#wpeasycart_square_full_import_options' ).hide( );
+			$( '#wpeasycart_square_only_new_notice' ).show( );
+			$( '#wpeasycart_square_import_something_required' ).hide( );
+		} else {
+			$( '#wpeasycart_square_full_import_options' ).show( );
+			$( '#wpeasycart_square_only_new_notice' ).hide( );
+		}
+	}
+	$onlyNew.on( 'change', wpeasycart_square_update_only_new_ui );
+	wpeasycart_square_update_only_new_ui( );
+} );
+
 function wpeasycart_continue_square_categories_sync( cursor, curr_count ){
 	jQuery( document.getElementById( 'wpeasycart_square_inventory_sync_progress_bar' ) ).show( );
 	var data = {
 		action: 'ec_admin_ajax_square_categories_import',
 		cursor: cursor,
 		curr_count: curr_count,
+		only_new: ec_admin_get_value( 'wpeasycart_square_only_new', 'checkbox' ),
 		wp_easycart_nonce: ec_admin_get_value( 'wpec_cart_importer_nonce', 'text' )
 	};
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(result){
@@ -66,6 +92,7 @@ function wpeasycart_continue_square_modifier_items_import( cursor, curr_count ){
         cursor: cursor,
         curr_count: curr_count,
         sync_modifiers: ec_admin_get_value( 'wpeasycart_square_sync_matches', 'checkbox' ),
+        only_new: ec_admin_get_value( 'wpeasycart_square_only_new', 'checkbox' ),
         wp_easycart_nonce: ec_admin_get_value( 'wpec_cart_importer_nonce', 'text' )
 	};
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(result){
@@ -111,6 +138,7 @@ function wpeasycart_continue_square_import( cursor, curr_count ){
         curr_count: curr_count,
         sync_products: ec_admin_get_value( 'wpeasycart_square_sync_matches', 'checkbox' ),
 		sync_inventory: ec_admin_get_value( 'wpeasycart_square_import_inventory', 'checkbox' ),
+        only_new: ec_admin_get_value( 'wpeasycart_square_only_new', 'checkbox' ),
         wp_easycart_nonce: ec_admin_get_value( 'wpec_cart_importer_nonce', 'text' )
 	};
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(result){

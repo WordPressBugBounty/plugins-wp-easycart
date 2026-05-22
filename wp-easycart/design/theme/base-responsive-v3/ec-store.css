@@ -362,6 +362,44 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .dynamic_height_rule{ height:auto !important; min-height:inherit !important; }
 .dynamic_height_rule img{ float:left; max-width:100%; }
 
+/* Elementor Image Display: Dynamic Height Mode (via prefix_class) */
+.ec-img-mode-dynamic .ec_image_container_none,
+.ec-img-mode-dynamic .ec_image_container_none > div,
+.ec-img-mode-dynamic .ec_image_container_border,
+.ec-img-mode-dynamic .ec_image_container_border > div,
+.ec-img-mode-dynamic .ec_image_container_shadow,
+.ec-img-mode-dynamic .ec_image_container_shadow > div{ height:auto !important; min-height:inherit !important; }
+.ec-img-mode-dynamic .ec_image_container_none img,
+.ec-img-mode-dynamic .ec_image_container_border img,
+.ec-img-mode-dynamic .ec_image_container_shadow img{ float:left; max-width:100%; }
+
+/* Elementor Image Display: Fixed Height Mode (via prefix_class)
+   Override hover effect height:auto rules so object-fit works on all container types.
+   The Elementor selectors set the actual height/object-fit values — these rules ensure
+   intermediate containers and images stretch to fill, so object-fit can take effect. */
+.ec-img-mode-fixed .ec_product_image_container,
+.ec-img-mode-fixed .ec_product_image_1,
+.ec-img-mode-fixed .ec_product_image_2{ width:100% !important; height:100% !important; }
+.ec-img-mode-fixed .ec_flip_container .ec_product_image_1 > img,
+.ec-img-mode-fixed .ec_flip_container .ec_product_image_2 > img,
+.ec-img-mode-fixed .ec_fade_container .ec_product_image_1 > img,
+.ec-img-mode-fixed .ec_fade_container .ec_product_image_2 > img,
+.ec-img-mode-fixed .ec_single_fade_container .ec_product_image_container > img,
+.ec-img-mode-fixed .ec_single_grow_container .ec_product_image_container img,
+.ec-img-mode-fixed .ec_single_shrink_container .ec_product_image_container img,
+.ec-img-mode-fixed .ec_single_btw_container .ec_product_image_container > img,
+.ec-img-mode-fixed .ec_single_brighten_container .ec_product_image_container > img,
+.ec-img-mode-fixed .ec_single_none_container .ec_product_image_container > img,
+.ec-img-mode-fixed .ec_slide_container .ec_product_image_1 > img,
+.ec-img-mode-fixed .ec_slide_container .ec_product_image_2 > img,
+.ec-img-mode-fixed .ec_flipbook > img,
+.ec-img-mode-fixed .ec_image_container_none img,
+.ec-img-mode-fixed .ec_image_container_border img,
+.ec-img-mode-fixed .ec_image_container_shadow img{ width:100% !important; height:100% !important; }
+/* Ensure slide container inner divs also fill their parent in fixed mode */
+.ec-img-mode-fixed .ec_slide_container .ec_product_image_1,
+.ec-img-mode-fixed .ec_slide_container .ec_product_image_2{ height:100% !important; }
+
 /* Image Display Types */
 .ec_image_container_none, .ec_image_container_border, .ec_image_container_shadow{ position:relative; }
 .ec_image_container_border img{ border:1px solid #CACACA; border-top-right-radius:10px; border-top-left-radius:10px; overflow:hidden; }
@@ -397,7 +435,8 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .ec_fade_container .ec_product_image_1, .ec_fade_container .ec_product_image_2{ width:100%; height:100%; left:0; -webkit-transition: opacity .5s ease-in-out; -moz-transition: opacity .5s ease-in-out; -o-transition: opacity .5s ease-in-out; transition: opacity .5s ease-in-out; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; box-sizing:border-box; display:block; }
 .ec_fade_container .ec_product_image_1 > img, .ec_fade_container .ec_product_image_2 > img{ width:100%; height:auto; }
 .ec_fade_container .ec_product_image_1{ position:absolute; z-index:2; }
-.ec_fade_container .ec_product_image_2{ z-index:1; }
+.ec_fade_container .ec_product_image_2{ z-index:1; opacity:0; }
+.ec_product_type1:hover .ec_fade_container .ec_product_image_2, .ec_product_type2:hover .ec_fade_container .ec_product_image_2, .ec_product_type3:hover .ec_fade_container .ec_product_image_2, .ec_product_type4:hover .ec_fade_container .ec_product_image_2, .ec_product_type5:hover .ec_fade_container .ec_product_image_2, .ec_product_type6:hover .ec_fade_container .ec_product_image_2{ opacity:1;}
 .ec_fade_container .ec_flipbook_left{ display:none; }
 .ec_fade_container .ec_flipbook_right{ display:none; }
 .ec_fade_container .ec_image_auto_sizer{ display:none; }
@@ -2395,6 +2434,129 @@ ul.ec_menu_vertical span{ float:right; }
 .ec_search_widget input[type="submit"]{ background-color:#222222; color:#FFF; padding:4px 10px; border-bottom:4px solid #666666; font-family:'Monda',Arial,sans-serif; cursor:pointer; width:100%; font-size:12px; border-radius:6px; }
 .ec_search_widget input[type="submit"]:hover{ background-color:#666666; color:#FFF !important; text-decoration:none; font-size:13px; border:none; border-bottom:4px solid #222222; font-size:12px; }
 .ec_search_input{ width:100%; }
+
+/* Search Elementor Widget */
+.ec_search_ele_form {
+	display: flex;
+	align-items: stretch;
+	box-sizing: border-box;
+	width: 100%;
+	position: relative;
+}
+.ec_search_ele_layout_inline {
+	flex-direction: row;
+	flex-wrap: nowrap;
+}
+.ec_search_ele_layout_stacked {
+	flex-direction: column;
+}
+.ec_search_ele_layout_fullwidth {
+	flex-direction: column;
+}
+
+/* Input wrapper fills remaining space in inline mode */
+.ec_search_ele_layout_inline .ec_search_ele_input_wrap {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Full width button stretches */
+.ec_search_ele_layout_fullwidth .ec_search_ele_button {
+	width: 100%;
+}
+
+.ec_search_ele_input_wrap {
+	display: flex;
+	align-items: center;
+	position: relative;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+.ec_search_ele_input_wrap.ec_search_ele_has_icon .ec_search_ele_input {
+	padding-left: 35px;
+}
+.ec_search_ele_input_icon {
+	position: absolute;
+	left: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	line-height: 1;
+	z-index: 1;
+}
+
+.ec_search_ele_input {
+	width: 100%;
+	border: none;
+	outline: none;
+	background: transparent;
+	box-sizing: border-box;
+	margin: 0;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+.ec_search_ele_input:focus {
+	outline: none;
+}
+
+.ec_search_ele_button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	border: none;
+	outline: none;
+	box-sizing: border-box;
+	white-space: nowrap;
+	line-height: 1;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+
+.ec_search_ele_dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 9999;
+	box-sizing: border-box;
+	list-style: none;
+}
+.ec_search_ele_dropdown_item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+	box-sizing: border-box;
+	text-decoration: none;
+	border-top-width: 0;
+	border-top-style: none;
+	border-top-color: transparent;
+}
+.ec_search_ele_dropdown_item_icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	line-height: 1;
+}
+.ec_search_ele_dropdown_item_text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ec_search_ele_dropdown_empty {
+	padding: 10px 15px;
+	opacity: 0.6;
+	font-style: italic;
+}
 
 /* Specials Widget */
 .widget.ec_specialswidget h4.widgettitle, .widget.ec_specialswidget widgettitle{ color:#222222 !important; font-weight:bold !important; font-size:14px !important; border-bottom:5px solid #222222; padding:15px 20px; font-family:'Lato', Arial, sans-serif; }

@@ -86,7 +86,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				'tab'   => Controls_Manager::TAB_CONTENT,
 			)
 		);
-		
+
 		$this->add_control(
 			'form_type',
 			array(
@@ -124,7 +124,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'first_name_error',
 			array(
@@ -154,7 +154,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'last_name_error',
 			array(
@@ -184,7 +184,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'email_error',
 			array(
@@ -215,7 +215,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'retype_email_error',
 			array(
@@ -382,7 +382,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'address_first_name_error',
 			array(
@@ -412,7 +412,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'address_last_name_error',
 			array(
@@ -442,7 +442,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				),
 			)
 		);
-		
+
 		$this->add_control(
 			'company_name_error',
 			array(
@@ -829,7 +829,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				'tab'   => Controls_Manager::TAB_CONTENT,
 			)
 		);
-		
+
 		$this->add_control(
 			'label_type',
 			array(
@@ -1479,7 +1479,7 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 			)
 		);
 		$this->end_controls_section();
-		
+
 		$this->start_controls_section(
 			'connect_order_section_layout_style',
 			array(

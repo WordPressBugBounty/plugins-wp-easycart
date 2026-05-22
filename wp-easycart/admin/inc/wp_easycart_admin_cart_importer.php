@@ -367,10 +367,11 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 		public function square_import_modifier_items( $cursor, $curr_count ){ // Note, these are our options
 			$square = new ec_square( );
 			$response = $square->get_modifier_items( $cursor );
+			$only_new = isset( $_POST['only_new'] ) ? (bool) $_POST['only_new'] : false;
 
 			if ( isset( $response->objects ) ) {
 				foreach( $response->objects as $object ){
-					 $square->insert_option( $object, (bool) $_POST['sync_modifiers'] );
+					 $square->insert_option( $object, (bool) $_POST['sync_modifiers'], $only_new );
 					 $curr_count++;
 				}
 			}
@@ -391,14 +392,15 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 		public function square_import_categories( $cursor, $curr_count ){
 			$square = new ec_square( );
 			$response = $square->get_catalog( false, 0, $types = array( 'CATEGORY' ) );
+			$only_new = isset( $_POST['only_new'] ) ? (bool) $_POST['only_new'] : false;
 
 			if ( isset( $response->objects ) ) {
 				foreach( $response->objects as $object ){
-					$square->insert_category( $object );
+					$square->insert_category( $object, true, $only_new );
 					$curr_count++;
 				}
 			}
-			
+
 			echo json_encode( array(
 				'has_more'      => false,
 				'curr_count'    => $curr_count
@@ -469,17 +471,17 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 		public function square_import( $cursor, $curr_count ){
 			$square = new ec_square( );
 			$response = $square->get_catalog( $cursor );
+			$only_new = isset( $_POST['only_new'] ) ? (bool) $_POST['only_new'] : false;
 
-			foreach( $response->objects as $object ){
+			foreach ( $response->objects as $object ) {
 				if( $object->type == "CATEGORY" ){
-					$square->insert_category( $object, (bool) $_POST['sync_products'] );
-
+					$square->insert_category( $object, (bool) $_POST['sync_products'], $only_new );
 				}else if( $object->type == "ITEM" ){
-					$square->insert_product( $object, (bool) $_POST['sync_products'], (bool) $_POST['sync_inventory'] );
+					$square->insert_product( $object, (bool) $_POST['sync_products'], (bool) $_POST['sync_inventory'], $only_new );
 					$curr_count++;
-
 				}
 			}
+
 			if( isset( $response->cursor ) && $response->cursor ){
 				echo json_encode( array(
 					'has_more'      => true,

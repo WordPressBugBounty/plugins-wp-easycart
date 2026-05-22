@@ -93,7 +93,7 @@ if ( $product->use_advanced_optionset ) {
 }
 ?>
 
-<<?php echo ( isset( $layout_mode ) && $layout_mode == 'slider' ) ? 'div' : 'li'; ?> class="<?php echo ( isset( $layout_mode ) && $layout_mode == 'slider' ) ? 'wp-easycart-carousel-item' : 'ec_product_li'; ?>" id="ec_product_li_<?php echo esc_attr( $product->model_number ); ?>" data-wpec-cats="<?php for( $pc_ix = 0; $pc_ix < count( $product_cats ); $pc_ix++ ) { echo ( $pc_ix > 0 ) ? ',' : ''; echo $product_cats[ $pc_ix ]->category_id; } ?>">
+<<?php echo ( isset( $layout_mode ) && $layout_mode == 'slider' ) ? 'div' : 'li'; ?> class="<?php echo ( isset( $layout_mode ) && $layout_mode == 'slider' ) ? 'wp-easycart-carousel-item' : 'ec_product_li'; ?>" id="ec_product_li_<?php echo esc_attr( $product->model_number ); ?>" data-wpec-cats="<?php for( $pc_ix = 0; $pc_ix < count( $product_cats ); $pc_ix++ ) { echo ( $pc_ix > 0 ) ? ',' : ''; echo esc_attr( $product_cats[ $pc_ix ]->category_id ); } ?>">
 
 <?php 
 /////////// QUICK VIEW ////////////////

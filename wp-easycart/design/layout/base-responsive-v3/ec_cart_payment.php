@@ -323,7 +323,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 							<?php
 							for ( $hour = $start_hour; $hour <= $restaurant_hours->end_hour; $hour++ ) {
 								for ( $minute = ( ( $hour == $start_hour ) ? $start_min_rounded : 0 ); $minute <= ( ( $hour < $restaurant_hours->end_hour ) ? 59 : $restaurant_hours->end_minute ); $minute += (int) get_option( 'ec_option_restaurant_schedule_range' ) ) {?>
-							<option value="<?php echo $hour . ':' . $minute; ?>"<?php if ( $hour . ':' . $minute == $GLOBALS['ec_cart_data']->cart_data->pickup_time ) { ?> selected="selected"<?php }?>><?php echo esc_attr( date( get_option('time_format'), strtotime( date( 'Y-m-d ' . $hour . ':' . $minute ) ) ) ); ?></option>
+							<option value="<?php echo esc_attr( $hour . ':' . $minute ); ?>"<?php if ( $hour . ':' . $minute == $GLOBALS['ec_cart_data']->cart_data->pickup_time ) { ?> selected="selected"<?php }?>><?php echo esc_attr( date( get_option('time_format'), strtotime( date( 'Y-m-d ' . $hour . ':' . $minute ) ) ) ); ?></option>
 							<?php }
 							}
 							?>
@@ -906,7 +906,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 			<?php } //else from Stripe only check ?>
 		</div>
 		<?php if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && ( get_option( 'ec_option_stripe_affirm' ) || get_option( 'ec_option_stripe_klarna' ) ) && ( get_option( 'ec_option_stripe_pay_later_minimum' ) && (int) get_option( 'ec_option_stripe_pay_later_minimum' ) > 50 ) ) { ?>
-		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $this->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?></div>
+		<div class="paylater_message_v2" data-min-price="<?php echo (int) get_option( 'ec_option_stripe_pay_later_minimum' ); ?>" <?php if ( $this->order_totals->sub_total >= (int) get_option( 'ec_option_stripe_pay_later_minimum' ) ) { echo ' style="display:none;"'; } ?>><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_min_buy_now' ); ?> <?php echo esc_html( $GLOBALS['currency']->get_currency_display( get_option( 'ec_option_stripe_pay_later_minimum' ) ) ); ?></div>
 		<?php } ?>
 		<?php do_action( 'wp_easycart_end_live_payment_box_inner', $this ); ?>
 	</div>

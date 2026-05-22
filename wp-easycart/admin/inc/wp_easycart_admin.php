@@ -1499,7 +1499,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$url_link = '';
 			$upload_dir = wp_upload_dir( );
 			$wp_reports_dir = $upload_dir['path'] . '/wpec-reports/';
-			$wp_reports_url = $upload_dir['url'] . '/wpec-reports/';
+			$wp_reports_url = set_url_scheme( $upload_dir['url'] . '/wpec-reports/' );
 			if ( ! is_dir( $wp_reports_dir ) ) {
 				wp_mkdir_p( $wp_reports_dir );
 			}
@@ -1749,7 +1749,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			$upload_dir = wp_upload_dir( );
 			$wp_reports_dir = $upload_dir['path'] . '/wpec-reports/';
-			$wp_reports_url = $upload_dir['url'] . '/wpec-reports/';
+			$wp_reports_url = set_url_scheme( $upload_dir['url'] . '/wpec-reports/' );
 			if ( ! is_dir( $wp_reports_dir ) ) {
 				wp_mkdir_p( $wp_reports_dir );
 			}
@@ -3178,6 +3178,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_register_style( 'wp_easycart_admin_css', plugins_url( 'wp-easycart/admin/css/admin.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_admin_css' );
 
+				wp_register_style( 'wp_easycart_admin_v2_css', plugins_url( 'wp-easycart/admin/css/admin-v2.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
+				wp_enqueue_style( 'wp_easycart_admin_v2_css' );
+
 				wp_register_style( 'wp_easycart_upgrade_css', plugins_url( 'wp-easycart/admin/css/upgrade.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_upgrade_css' );
 
@@ -3208,26 +3211,169 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			wp_register_script( 'wp_easycart_admin_product_js', plugins_url( 'wp-easycart/admin/js/products.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
 			wp_enqueue_script( 'wp_easycart_admin_product_js' );
 			wp_localize_script( 'wp_easycart_admin_product_js', 'wp_easycart_products_language', array(
-				'processing'                => __( 'Processing Import File...  Please wait.', 'wp-easycart' ),
-				'completed'                 => __( 'Completed!  You may refresh your screen.', 'wp-easycart' ),
-				'subscription-note-1'       => __( 'Subscription with yearly interval has a max 1 year billing interval.', 'wp-easycart' ),
-				'subscription-note-2'       => __( 'Subscription with monthly interval has a max 12 month billing interval.', 'wp-easycart' ),
-				'catalog-note'              => __( 'Are you sure you want to enable catalog mode? Your customers will no longer be able to add products to the cart!', 'wp-easycart' ),
-				'advanced-option-note1'     => __( 'You are currently using option item images AND option item quantity tracking. By switching to advanced options you will lose both of these features. Please confirm you wish to continue.', 'wp-easycart' ),
-				'advanced-option-note2'     => __( 'You are currently using option item images. By switching to advanced options you will lose this feature. Please confirm you wish to continue.', 'wp-easycart' ),
-				'advanced-option-note3'     => __( 'You are currently using option item quantity tracking. By switching to advanced options you will lose this feature. Please confirm you wish to continue.', 'wp-easycart' ),
-				'advaced-options-note4'     => __( 'You cannot use option item images with advanced option sets. Please change to basic option sets to use this feature.', 'wp-easycart' ),
-				'none-selected'             => __( 'None Selected', 'wp-easycart' ),
-				'product-not-category'      => __( 'Product is Not in a Category', 'wp-easycart' ),
-				'advanced-option-note5'     => __( 'You cannot use option item quantity tracking with advanced option sets. Please change to basic option sets to use this feature.', 'wp-easycart' ),
-				'no-option-item-quantities' => __( 'No Option Item Quantities Setup', 'wp-easycart' ),
-				'optionitem-tracking-note'  => __( 'Option item quantity tracking is only available with WP EasyCart PRO. Please upgrade to PRO to use this feature!', 'wp-easycart' ),
-				'no-volume-pricing'         => __( 'No Volume Pricing Setup', 'wp-easycart' ),
-				'no-b2b-pricing'            => __( 'No B2B Pricing Setup', 'wp-easycart' ),
-				'total-views'               => __( 'Total Views', 'wp-easycart' ),
-				'deactivate'                => __( 'Deactivate', 'wp-easycart' ),
-				'activate'                  => __( 'Activate', 'wp-easycart' ),
-				'edit-product'              => __( 'EDIT PRODUCT', 'wp-easycart' ),
+				'processing'                => esc_html__( 'Processing Import File...  Please wait.', 'wp-easycart' ),
+				'completed'                 => esc_html__( 'Completed!  You may refresh your screen.', 'wp-easycart' ),
+				'subscription-note-1'       => esc_html__( 'Subscription with yearly interval has a max 1 year billing interval.', 'wp-easycart' ),
+				'subscription-note-2'       => esc_html__( 'Subscription with monthly interval has a max 12 month billing interval.', 'wp-easycart' ),
+				'catalog-note'              => esc_html__( 'Are you sure you want to enable catalog mode? Your customers will no longer be able to add products to the cart!', 'wp-easycart' ),
+				'advanced-option-note1'     => esc_html__( 'You are currently using option item images AND option item quantity tracking. By switching to advanced options you will lose both of these features. Please confirm you wish to continue.', 'wp-easycart' ),
+				'advanced-option-note2'     => esc_html__( 'You are currently using option item images. By switching to advanced options you will lose this feature. Please confirm you wish to continue.', 'wp-easycart' ),
+				'advanced-option-note3'     => esc_html__( 'You are currently using option item quantity tracking. By switching to advanced options you will lose this feature. Please confirm you wish to continue.', 'wp-easycart' ),
+				'advaced-options-note4'     => esc_html__( 'You cannot use option item images with advanced option sets. Please change to basic option sets to use this feature.', 'wp-easycart' ),
+				'none-selected'             => esc_html__( 'None Selected', 'wp-easycart' ),
+				'product-not-category'      => esc_html__( 'Product is Not in a Category', 'wp-easycart' ),
+				'advanced-option-note5'     => esc_html__( 'You cannot use option item quantity tracking with advanced option sets. Please change to basic option sets to use this feature.', 'wp-easycart' ),
+				'no-option-item-quantities' => esc_html__( 'No Option Item Quantities Setup', 'wp-easycart' ),
+				'optionitem-tracking-note'  => esc_html__( 'Option item quantity tracking is only available with WP EasyCart PRO. Please upgrade to PRO to use this feature!', 'wp-easycart' ),
+				'no-volume-pricing'         => esc_html__( 'No Volume Pricing Setup', 'wp-easycart' ),
+				'no-b2b-pricing'            => esc_html__( 'No B2B Pricing Setup', 'wp-easycart' ),
+				'total-views'               => esc_html__( 'Total Views', 'wp-easycart' ),
+				'deactivate'                => esc_html__( 'Deactivate', 'wp-easycart' ),
+				'activate'                  => esc_html__( 'Activate', 'wp-easycart' ),
+				'edit-product'              => esc_html__( 'EDIT PRODUCT', 'wp-easycart' ),
+			) );
+
+			// V2 Product List JS.
+			wp_register_script( 'wp_easycart_admin_product_v2_js', plugins_url( 'wp-easycart/admin/js/products-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
+			wp_enqueue_script( 'wp_easycart_admin_product_v2_js' );
+
+			// V2 Nonces
+			wp_localize_script( 'wp_easycart_admin_product_v2_js', 'ecv2_nonces', array(
+				'inline_update'   => wp_create_nonce( 'wp-easycart-ecv2-inline-update' ),
+				'bulk_edit'       => wp_create_nonce( 'wp-easycart-ecv2-bulk-edit' ),
+				'bulk_delete'     => wp_create_nonce( 'wp-easycart-ecv2-bulk-delete' ),
+				'bulk_activate'   => wp_create_nonce( 'wp-easycart-ecv2-bulk-activate' ),
+				'bulk_deactivate' => wp_create_nonce( 'wp-easycart-ecv2-bulk-deactivate' ),
+				'bulk_export'     => wp_create_nonce( 'wp-easycart-ecv2-bulk-export' ),
+				'get_sale_data'   => wp_create_nonce( 'wp-easycart-ecv2-get-sale-data' ),
+				'remove_sale'     => wp_create_nonce( 'wp-easycart-ecv2-remove-sale' ),
+				'category_search' => wp_create_nonce( 'wp-easycart-ecv2-category-search' ),
+				'image_manager'   => wp_create_nonce( 'wp-easycart-ecv2-image-manager' ),
+			) );
+
+			// V2 Language strings.
+			$ecv2_variant_gate = ecv2_get_variant_tracking_gate();
+			$ecv2_pro_gate     = wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => '5.8.15' ) );
+			wp_localize_script( 'wp_easycart_admin_product_v2_js', 'ecv2_lang', array(
+				'saved'              => esc_html__( 'Saved successfully.', 'wp-easycart' ),
+				'error'              => esc_html__( 'An error occurred. Please try again.', 'wp-easycart' ),
+				'activated'          => esc_html__( 'Product activated.', 'wp-easycart' ),
+				'deactivated'        => esc_html__( 'Product deactivated.', 'wp-easycart' ),
+				'click_undo'         => esc_html__( 'Click Undo to revert.', 'wp-easycart' ),
+				'undo_available'     => esc_html__( 'Action completed. Undo available.', 'wp-easycart' ),
+				'undone'             => esc_html__( 'Change reverted.', 'wp-easycart' ),
+				'field_updated'      => esc_html__( 'Field updated', 'wp-easycart' ),
+				'products'           => esc_html__( 'products', 'wp-easycart' ),
+				'products_updated'   => esc_html__( 'products updated.', 'wp-easycart' ),
+				'no_changes'         => esc_html__( 'No changes selected.', 'wp-easycart' ),
+				'schedule_sale'      => esc_html__( 'Schedule Sale', 'wp-easycart' ),
+				'activate_sale'      => esc_html__( 'Activate Sale', 'wp-easycart' ),
+				'sale_active'        => esc_html__( 'This product currently has a sale price.', 'wp-easycart' ),
+				'sale_saved'         => esc_html__( 'Sale price saved.', 'wp-easycart' ),
+				'sale_removed'       => esc_html__( 'Sale removed.', 'wp-easycart' ),
+				'enter_sale_price'   => esc_html__( 'Please enter a valid sale price.', 'wp-easycart' ),
+				'confirm_remove_sale'=> esc_html__( 'Are you sure you want to remove this sale?', 'wp-easycart' ),
+				'sale_price_higher'  => esc_html__( 'Warning: Sale price is not lower than the current price.', 'wp-easycart' ),
+				'large_discount'     => esc_html__( 'Note: This is a discount of more than 50%.', 'wp-easycart' ),
+				'scheduled'          => esc_html__( 'Scheduled', 'wp-easycart' ),
+				'starts'             => esc_html__( 'Starts', 'wp-easycart' ),
+				'active_until'       => esc_html__( 'Active until', 'wp-easycart' ),
+				'starts_immediately' => esc_html__( 'Starts immediately when saved.', 'wp-easycart' ),
+				'stock_saved'        => esc_html__( 'Stock quantity updated.', 'wp-easycart' ),
+				'tracking_changed'   => esc_html__( 'Tracking type changed.', 'wp-easycart' ),
+				'confirm_tracking_title' => esc_html__( 'Change Tracking Type', 'wp-easycart' ),
+				'confirm_unlimited'  => esc_html__( 'Switch to Unlimited? Stock will no longer be tracked for this product.', 'wp-easycart' ),
+				'confirm_basic'      => esc_html__( 'Switch to Basic Tracking? Stock will be tracked as a single quantity value.', 'wp-easycart' ),
+				'confirm_option'     => esc_html__( 'Switch to Option/Variant Tracking? Stock will be tracked per product variation. Ensure option sets are configured.', 'wp-easycart' ),
+				'manage_variants'    => esc_html__( 'Manage Variants', 'wp-easycart' ),
+				'price_saved'        => esc_html__( 'Price saved.', 'wp-easycart' ),
+				'list_price_not_higher' => esc_html__( 'List price should be higher than price for a sale display.', 'wp-easycart' ),
+				'save_label'         => esc_html__( 'Save', 'wp-easycart' ),
+				'loading'            => esc_html__( 'Loading...', 'wp-easycart' ),
+				'all'                => esc_html__( 'All', 'wp-easycart' ),
+				'in_stock'           => esc_html__( 'in stock', 'wp-easycart' ),
+				'left'               => esc_html__( 'left', 'wp-easycart' ),
+				'out_of_stock'       => esc_html__( 'Out of Stock', 'wp-easycart' ),
+				'unlimited_label'    => esc_html__( 'Unlimited', 'wp-easycart' ),
+				'cat_search_placeholder' => esc_html__( 'Search categories...', 'wp-easycart' ),
+				'cat_no_results'     => esc_html__( 'No categories found.', 'wp-easycart' ),
+				'cat_type_to_search' => esc_html__( 'Type to search categories', 'wp-easycart' ),
+				'cat_assigned'       => esc_html__( 'Assigned Categories', 'wp-easycart' ),
+				'cat_none_assigned'  => esc_html__( 'No categories assigned.', 'wp-easycart' ),
+				'cat_added'          => esc_html__( 'Category added.', 'wp-easycart' ),
+				'cat_removed'        => esc_html__( 'Category removed.', 'wp-easycart' ),
+				'cat_already_assigned' => esc_html__( 'Already assigned', 'wp-easycart' ),
+				'bulk_none_selected' => esc_html__( 'Please select products first.', 'wp-easycart' ),
+				'bulk_no_action'     => esc_html__( 'Please select a bulk action.', 'wp-easycart' ),
+				'bulk_max_exceeded'  => esc_html__( 'You can only process up to 500 products at a time. Please narrow your selection and try again.', 'wp-easycart' ),
+				'bulk_confirm_delete_title' => esc_html__( 'Delete products?', 'wp-easycart' ),
+				/* translators: %d is the number of products to delete. */
+				'bulk_confirm_delete_one'   => esc_html__( 'Permanently delete this product? This action cannot be undone.', 'wp-easycart' ),
+				/* translators: %d is the number of products to delete. */
+				'bulk_confirm_delete_many'  => esc_html__( 'Permanently delete %d products? This action cannot be undone.', 'wp-easycart' ),
+				'bulk_confirm_deactivate_title' => esc_html__( 'Deactivate products?', 'wp-easycart' ),
+				/* translators: %d is the number of products to deactivate. */
+				'bulk_confirm_deactivate'       => esc_html__( 'Deactivate %d products? They will no longer be visible in your store.', 'wp-easycart' ),
+				'bulk_apply_to'      => esc_html__( 'Apply to %d selected', 'wp-easycart' ),
+				'bulk_working'       => esc_html__( 'Working…', 'wp-easycart' ),
+				'bulk_network_error' => esc_html__( 'Network error. Please check your connection and try again.', 'wp-easycart' ),
+				'bulk_export_ready_title'   => esc_html__( 'Your export is ready', 'wp-easycart' ),
+				/* translators: %d is the number of products in the export. */
+				'bulk_export_ready_message' => esc_html__( '%d products ready for download. This link is single-use and expires in 10 minutes.', 'wp-easycart' ),
+				'bulk_export_download'      => esc_html__( 'Download CSV', 'wp-easycart' ),
+				'bulk_export_dismiss'       => esc_html__( 'Dismiss', 'wp-easycart' ),
+				'bulk_export_downloading'   => esc_html__( 'Starting download…', 'wp-easycart' ),
+				/* translators: %1$d = items on current page, %2$d = total matching. */
+				'select_all_matching_prompt' => esc_html__( 'All %1$d products on this page are selected.', 'wp-easycart' ),
+				/* translators: %d is the total number of matching products. */
+				'select_all_matching_link'   => esc_html__( 'Select all %d matching products', 'wp-easycart' ),
+				'clear_selection'            => esc_html__( 'Clear selection', 'wp-easycart' ),
+				'processing'         => esc_html__( 'Processing...', 'wp-easycart' ),
+				'apply'              => esc_html__( 'Apply', 'wp-easycart' ),
+				'applying_filters'   => esc_html__( 'Applying filters…', 'wp-easycart' ),
+				'img_manage_title'   => esc_html__( 'Manage Images', 'wp-easycart' ),
+				'img_images'         => esc_html__( 'images', 'wp-easycart' ),
+				'img_remove'         => esc_html__( 'Remove', 'wp-easycart' ),
+				'img_pro_required'   => esc_html__( 'This feature requires the PRO or Premium edition.', 'wp-easycart' ),
+				'img_select_images'  => esc_html__( 'Select Images', 'wp-easycart' ),
+				'img_use_images'     => esc_html__( 'Use Selected Images', 'wp-easycart' ),
+				'img_select_thumbnail' => esc_html__( 'Select Thumbnail', 'wp-easycart' ),
+				'img_use_image'      => esc_html__( 'Use Image', 'wp-easycart' ),
+				'img_enter_image_url' => esc_html__( 'Enter full image URL', 'wp-easycart' ),
+				'img_enter_video_url' => esc_html__( 'Enter video URL and thumbnail', 'wp-easycart' ),
+				'img_enter_youtube_url' => esc_html__( 'Enter YouTube embed URL and thumbnail', 'wp-easycart' ),
+				'img_enter_vimeo_url' => esc_html__( 'Enter Vimeo embed URL and thumbnail', 'wp-easycart' ),
+				'img_save_images'    => esc_html__( 'Save Images', 'wp-easycart' ),
+				'img_saved'          => esc_html__( 'Images saved successfully.', 'wp-easycart' ),
+				'img_type_basic_desc'     => esc_html__( 'Use a single set of images for this product.', 'wp-easycart' ),
+				'img_type_variant_desc'   => esc_html__( 'Use different images for each product option (basic option set).', 'wp-easycart' ),
+				'img_type_modifier_desc'  => esc_html__( 'Use different images for each modifier (advanced option).', 'wp-easycart' ),
+				'img_no_basic_options'    => esc_html__( 'This product has no basic options. Add a product option first.', 'wp-easycart' ),
+				'img_no_advanced_options' => esc_html__( 'This product has no modifiers (advanced options). Add a modifier first.', 'wp-easycart' ),
+				'tier_singular'      => esc_html__( 'tier', 'wp-easycart' ),
+				'tier_plural'        => esc_html__( 'tiers', 'wp-easycart' ),
+				'b2b_singular'       => esc_html__( 'B2B role', 'wp-easycart' ),
+				'b2b_plural'         => esc_html__( 'B2B roles', 'wp-easycart' ),
+				'flag_login'                => esc_html__( 'Login', 'wp-easycart' ),
+				'flag_login_action_title'   => esc_html__( 'Login required to view price — click to manage B2B role pricing', 'wp-easycart' ),
+				'flag_label_default'        => esc_html__( 'Custom label', 'wp-easycart' ),
+				'flag_label_action_title'   => esc_html__( 'Custom price label is enabled — click to edit', 'wp-easycart' ),
+				'flag_range_action_title'   => esc_html__( 'Displayed as a price range on the storefront — click to edit', 'wp-easycart' ),
+				'flag_tier_action_title'    => esc_html__( 'Volume pricing — click to manage', 'wp-easycart' ),
+				'flag_b2b_action_title'     => esc_html__( 'B2B role pricing — click to manage', 'wp-easycart' ),
+				'advanced_pip_aria'  => esc_html__( 'Advanced pricing options are configured for this product', 'wp-easycart' ),
+				'advanced_pip_title' => esc_html__( 'Advanced pricing configured', 'wp-easycart' ),
+				'base_label'         => esc_html__( 'Base:', 'wp-easycart' ),
+				'square_locked'      => esc_html__( 'Quick edit disabled - this product is synced with Square. Edit the full product by clicking the title, or make changes in your Square dashboard.', 'wp-easycart' ),
+				'variant_tracking_enabled' => ( 'enabled' === $ecv2_variant_gate['state'] ) ? 1 : 0,
+				'variant_gate'             => $ecv2_variant_gate,
+				'pro_gate'                 => $ecv2_pro_gate,
+				'pro_required_variants'    => esc_html__( 'Variant tracking requires WP EasyCart PRO.', 'wp-easycart' ),
+				'bulk_square_all'       => esc_html__( 'All selected products are synced with Square. Price and stock changes are managed by Square and cannot be edited here.', 'wp-easycart' ),
+				'bulk_square_some'      => esc_html__( '%d of %s selected products are synced with Square. Price and stock changes will be skipped for those products.', 'wp-easycart' ),
+				'square_managed'        => esc_html__( 'Managed by Square', 'wp-easycart' ),
+				'square_skipped_suffix' => esc_html__( '(%d Square-synced product(s) skipped — managed by Square)', 'wp-easycart' ),
+				'image_missing'      => esc_html__( 'Image could not be loaded', 'wp-easycart' ),
 			) );
 		}
 

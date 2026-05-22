@@ -45,7 +45,7 @@ class wpeasycart_links {
 			$this->permalink_divider_account = '?';
 		}
 
-		if ( substr_count( $this->account_page, '?' ) ) {
+		if ( substr_count( $this->cart_page, '?' ) ) {
 			$this->permalink_divider_cart = '&';
 		} else {
 			$this->permalink_divider_cart = '?';

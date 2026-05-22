@@ -1281,7 +1281,7 @@ class ec_cartitem {
 		if ( $this->is_deconetwork ) {
 			return $GLOBALS['currency']->get_currency_display( $this->deconetwork_total );
 		} else {
-			$total_price = ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $this->total_price : $this->converted_total_price;
+			$total_price = $this->total_price;
 			if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) {
 				$total_price += $this->promotion_discount_line_total;
 			}

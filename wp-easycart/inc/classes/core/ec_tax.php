@@ -533,11 +533,7 @@ class ec_tax{
 						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 							if ( $this->cart[$i]->is_taxable ) {
 								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								if ( 'QC' == $this->shipping_state ) {
-									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
-								} else {
-									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
-								}
+								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
 								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
 							}
 						}
@@ -546,11 +542,7 @@ class ec_tax{
 						$this->hst = $hst_tax_sub_total;
 					} else {
 						$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-						if ( 'QC' == $this->shipping_state ) {
-							$this->pst = round( ( $this->taxable_subtotal + round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 ) ) * ( $this->pst_rate / 100 ), 2 );
-						} else {
-							$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
-						}
+						$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
 						$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 					}
 					if( $this->tax_shipping ){
@@ -1021,11 +1013,7 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				if ( 'QC' == $this->shipping_state ) {
-					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
-				} else {
-					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
-				}
+				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
@@ -1285,11 +1273,7 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				if ( 'QC' == $this->shipping_state ) {
-					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
-				} else {
-					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
-				}
+				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){

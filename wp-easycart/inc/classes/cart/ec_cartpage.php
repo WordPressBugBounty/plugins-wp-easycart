@@ -3436,7 +3436,7 @@ class ec_cartpage {
 			if ( ! $is_first_country ) {
 				$country_string .= ',';
 			}
-			$country_string .= "'" . $country->iso2_cnt . "'";
+			$country_string .= "'" . esc_attr( $country->iso2_cnt ) . "'";
 			$is_first_country = false;
 		}
 		$type = ( $is_shipping ) ? 'shipping' : 'billing';
@@ -3455,7 +3455,7 @@ class ec_cartpage {
 		}
 		echo "
 			mode: '" . esc_attr( $type ) . "',
-			allowedCountries:[" . esc_attr( $country_string ) . "],";
+			allowedCountries:[" . $country_string . "],";
 		if ( get_option( 'ec_option_collect_user_phone' ) ) {
 		echo "
 			fields: {

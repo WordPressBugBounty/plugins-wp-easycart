@@ -1393,15 +1393,7 @@ class ec_square extends ec_gateway{
 						if( isset( $object->item_data->variations[$i]->item_variation_data->price_money ) && ( $base_price == 0 || $base_price > $object->item_data->variations[$i]->item_variation_data->price_money->amount ) ){
 							$base_price = $object->item_data->variations[$i]->item_variation_data->price_money->amount;
 						}
-						if( isset( $object->item_data->variations[$i]->item_variation_data->location_overrides ) ){
-							for( $j=0; $j<count( $object->item_data->variations[$i]->item_variation_data->location_overrides ); $j++ ){
-								if( $object->item_data->variations[$i]->item_variation_data->location_overrides[$j]->location_id == $location_id ){
-									if( $object->item_data->variations[$i]->item_variation_data->location_overrides[$j]->track_inventory ){
-										$use_optionitem_quantity_tracking = 1;
-									}
-								}
-							}
-						} else if( isset( $object->item_data->variations[$i]->item_variation_data->track_inventory ) ) {
+						if ( $this->variation_tracks_inventory( $object->item_data->variations[$i], $location_id ) ) {
 							$use_optionitem_quantity_tracking = 1;
 						}
 					}
@@ -1467,6 +1459,7 @@ class ec_square extends ec_gateway{
 			/* Manually Insert Post */
 			$wpdb->query( $wpdb->prepare( "INSERT INTO " . $wpdb->prefix . "posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW( ), UTC_TIMESTAMP( ), NOW( ), UTC_TIMESTAMP( ), 'closed' )", "[ec_store modelnumber=\"" . $model_number . "\"]", $post_status, wp_easycart_language( )->convert_text( $title ), $post_slug, $guid, "ec_store", '' ) );
 			$post_id = $wpdb->insert_id;
+			clean_post_cache( $post_id );
 
 			// Insert product
 			$wpdb->query( $wpdb->prepare( "INSERT INTO ec_product( activate_in_store, show_on_startup, post_id, manufacturer_id, title, model_number, description, price, image1, product_images, is_giftcard, is_shippable, is_taxable, show_stock_quantity, square_id, use_both_option_types ) VALUES( %d, %d, %d, %d, %s, %s, %s, %s, %s, %s, %d, %d, %d, 0, %s, 1 )", $activate_in_store, 1, $post_id, $manufacturer_id, $title, $model_number, $description, $base_price / 100, $image1, implode( ',', $product_images ), $is_giftcard, $is_shippable, $is_taxable, $square_id ) );
@@ -1648,20 +1641,9 @@ class ec_square extends ec_gateway{
 					if ( isset( $object->item_data->variations[$i]->item_variation_data->price_money ) && ( $base_price == 0 || $base_price > $object->item_data->variations[$i]->item_variation_data->price_money->amount ) ) {
 						$base_price = $object->item_data->variations[$i]->item_variation_data->price_money->amount;
 					}
-					if ( isset( $object->item_data->variations[$i]->item_variation_data->location_overrides ) ) {
-						for ( $j=0; $j<count( $object->item_data->variations[$i]->item_variation_data->location_overrides ); $j++ ) {
-							if ( $object->item_data->variations[$i]->item_variation_data->location_overrides[$j]->location_id == $location_id ) {
-								if ( isset( $object->item_data->variations[$i]->item_variation_data->location_overrides[$j]->track_inventory ) ) {
-									$use_optionitem_quantity_tracking = 1;
-								} else if( isset( $object->item_data->variations[$i]->item_variation_data->track_inventory ) ) {
-									$use_optionitem_quantity_tracking = 1;
-								}
-							}
-						}
-					} else if( isset( $object->item_data->variations[$i]->item_variation_data->track_inventory ) ) {
+					if ( $this->variation_tracks_inventory( $object->item_data->variations[$i], $location_id ) ) {
 						$use_optionitem_quantity_tracking = 1;
 					}
-
 				}
 			}
 		}
@@ -1677,6 +1659,7 @@ class ec_square extends ec_gateway{
 
 		/* Manually Update Post */
 		$wpdb->query( $wpdb->prepare( "UPDATE " . $wpdb->prefix . "posts SET post_title = %s, post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d", wp_easycart_language( )->convert_text( $title ), $post_status, $product->post_id ) );
+		clean_post_cache( $product->post_id );
 
 		// Update product
 		if ( $sync_inventory ) {
@@ -1749,19 +1732,13 @@ class ec_square extends ec_gateway{
 							$option_item_id_5 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[4]->item_option_value_id, $option_id_5 ) );
 						}
 						$option_item_quantity = 10000;
-						if( isset( $optionitem->item_variation_data ) && isset( $optionitem->item_variation_data->location_overrides ) && is_array( $optionitem->item_variation_data->location_overrides ) ){
-							for( $j=0; $j<count( $optionitem->item_variation_data->location_overrides ); $j++ ){
-								if( $optionitem->item_variation_data->location_overrides[$j]->location_id == $location_id ){
-									if( isset( $optionitem->item_variation_data->location_overrides[$j]->track_inventory ) && $optionitem->item_variation_data->location_overrides[$j]->track_inventory ){
-										$option_item_quantity = $this->get_variance_stock_quantity( $optionitem->id );
-										$item_stock_tracking_enabled = 1;
-									} else {
-										$option_item_quantity = 1;
-									}
-									$stock_quantity += $option_item_quantity;
-								}
-							}
+						if ( $this->variation_tracks_inventory( $optionitem, $location_id ) ) {
+							$option_item_quantity = $this->get_variance_stock_quantity( $optionitem->id );
+							$item_stock_tracking_enabled = 1;
+						} else {
+							$option_item_quantity = 1;
 						}
+						$stock_quantity += $option_item_quantity;
 						$wpdb->query( $wpdb->prepare( "INSERT INTO ec_optionitemquantity( product_id, optionitem_id_1, optionitem_id_2, optionitem_id_3, optionitem_id_4, optionitem_id_5, quantity, price, sku, is_stock_tracking_enabled, square_id ) VALUES( %d, %d, %d, %d, %d, %d, %s, %s, %s, %d, %s )", $product_id, $option_item_id_1, $option_item_id_2, $option_item_id_3, $option_item_id_4, $option_item_id_5, $option_item_quantity, $option_item_price, $option_item_sku, $item_stock_tracking_enabled, $optionitem_square_id ) );
 						$optionitem_added_count++;
 					}
@@ -1824,6 +1801,24 @@ class ec_square extends ec_gateway{
 				}
 			}
 		}
+	}
+
+	function variation_tracks_inventory( $variation, $location_id ) {
+		if ( ! isset( $variation->item_variation_data ) ) {
+			return false;
+		}
+		$data = $variation->item_variation_data;
+
+		if ( isset( $data->location_overrides ) && is_array( $data->location_overrides ) ) {
+			foreach ( $data->location_overrides as $override ) {
+				if ( isset( $override->location_id ) && $override->location_id == $location_id
+					 && isset( $override->track_inventory ) ) {
+					return (bool) $override->track_inventory;
+				}
+			}
+		}
+
+		return isset( $data->track_inventory ) && $data->track_inventory;
 	}
 
 	function get_catalog_object( $id ){

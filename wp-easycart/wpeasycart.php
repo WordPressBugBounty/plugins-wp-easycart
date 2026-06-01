@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.15
+ * Version: 5.8.16
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.15
+ * @version 5.8.16
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +22,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_15' );
+define( 'EC_CURRENT_VERSION', '5_8_16' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '99' );
+define( 'EC_UPGRADE_DB', '100' );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 
@@ -7803,7 +7803,7 @@ function wp_easycart_add_rewrite_webhooks() {
 	add_rewrite_rule( '(.*)/stripe_webhook.php', '?wpeasycarthook=stripe-webhook', 'top' );
 }
 
-add_action( 'admin_init', 'wp_easycart_verify_rewrite_rules' );
+add_action( 'wp_loaded', 'wp_easycart_verify_rewrite_rules' );
 function wp_easycart_verify_rewrite_rules() {
 	if ( get_option( 'ec_option_store_rules_checked_version' ) === EC_CURRENT_VERSION ) {
 		return;
@@ -7840,7 +7840,7 @@ function wp_easycart_verify_rewrite_rules() {
 	}
 
 	if ( ! $has_rule ) {
-		flush_rewrite_rules();
+		flush_rewrite_rules( false );
 	}
 
 	update_option( 'ec_option_store_rules_checked_version', EC_CURRENT_VERSION, true );
@@ -8791,36 +8791,34 @@ function ec_create_post_type_menu() {
 		);
 		register_post_type( 'ec_store', $args );
 
-		global $wp_rewrite;
-		$wp_rewrite->add_permastruct( 'ec_store', $store_slug . '/%ec_store%/', true, 1 );
-		add_rewrite_rule( '^' . $store_slug . '/([^/]*)/?$', 'index.php?ec_store=$matches[1]', 'top');
+		if ( '' !== $store_slug ) {
+			global $wp_rewrite;
+			$wp_rewrite->add_permastruct( 'ec_store', $store_slug . '/%ec_store%/', true, 1 );
+			add_rewrite_rule( '^' . $store_slug . '/([^/]*)/?$', 'index.php?ec_store=$matches[1]', 'top');
+		}
 	}
 }
 
-function ec_get_the_slug( $id=null ) {
-	if ( empty($id) ) : 
+function ec_get_the_slug( $id = null ) {
+	if ( empty( $id ) ) {
 		global $post;
-		if ( empty($post) )
+		if ( empty( $post ) ) {
 			return '';
+		}
 		$id = $post->ID;
-	endif;
-	$home_url = parse_url( site_url() );
-	if ( isset( $home_url['path'] ) )
-		$home_path = $home_url['path'];
-	else
-		$home_path = '';
+	}
+	$path = get_page_uri( $id );
 
-	$store_url = parse_url( get_permalink( get_option( 'ec_option_storepage' ) ) );
-	$store_path = $store_url['path'];
+	if ( ! is_string( $path ) || '' === $path ) {
+		$home_url = parse_url( site_url() );
+		$home_path = isset( $home_url['path'] ) ? $home_url['path'] : '';
 
-	$path = ( strlen( $home_path ) == 0 || $home_path == "/" ) ? $store_path : str_replace( $home_path, "", $store_path );
+		$store_url = parse_url( get_permalink( $id ) );
+		$store_path = isset( $store_url['path'] ) ? $store_url['path'] : '';
 
-	if ( substr( $path, 0, 1 ) == '/' )
-		$path = substr( $path, 1, strlen( $path ) - 1 );
-
-	if ( substr( $path, -1, 1 ) == '/' )
-		$path = substr( $path, 0, strlen( $path ) - 1 );
-
+		$path = ( strlen( $home_path ) == 0 || $home_path == "/" ) ? $store_path : str_replace( $home_path, "", $store_path );
+	}
+	$path = trim( $path, '/' );
 	return $path;
 }
 

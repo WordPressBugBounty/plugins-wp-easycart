@@ -365,7 +365,7 @@ class ec_db{
 	public static function get_product_list( $where_query, $order_query, $limit_query, $session_id, $cache_key = "", $optionitem_filter = '', $extra_joins = '' ) {
 		if ( '' != $cache_key ) {
 			$cached_list = wp_cache_get( $cache_key, 'wpeasycart-product-list' );
-			if( $cached_list ) {
+			if ( $cached_list ) {
 				return $cached_list;
 			}
 		}
@@ -376,37 +376,49 @@ class ec_db{
 			$search_term = sanitize_text_field( $_GET['ec_search'] );
 		}
 
+		$where_and_order = $where_query . ' ' . $order_query;
+
+		$needs_categoryitem = ( false !== strpos( $where_and_order, 'ec_categoryitem.' ) );
+		$needs_manufacturer = ( false !== strpos( $where_and_order, 'manufacturer.' ) );
+		$needs_menulevels   = $has_search && get_option( 'ec_option_search_menu' ) && ( false !== strpos( $where_and_order, 'ec_menulevel1.' ) || false !== strpos( $where_and_order, 'ec_menulevel2.' ) || false !== strpos( $where_and_order, 'ec_menulevel3.' ) );
+		$needs_review_avg   = ( false !== strpos( $order_query, 'review_average' ) );
+		$needs_roleprice    = ( false !== strpos( $where_and_order, 'ec_roleprice.' ) ) || ! empty( $GLOBALS['ec_user']->user_level );
+
+		$user_level_sql = self::$mysqli->prepare( '%s', isset( $GLOBALS['ec_user']->user_level ) ? $GLOBALS['ec_user']->user_level : '' );
+
 		self::$mysqli->query( "SET SQL_BIG_SELECTS=1" );
 
-		$sql1 = "SELECT product.product_id, product.post_id, ec_roleprice.role_price
-				
-				FROM ec_product as product 
-				
-				LEFT JOIN ec_roleprice ON ( ec_roleprice.product_id = product.product_id AND ec_roleprice.role_label = '" . $GLOBALS['ec_user']->user_level . "' )
-				
-				LEFT JOIN ec_manufacturer as manufacturer ON manufacturer.manufacturer_id = product.manufacturer_id
-				
-				LEFT JOIN ec_categoryitem ON ec_categoryitem.product_id = product.product_id ";
-		$sql1 .= $extra_joins;		
-		if( get_option( 'ec_option_search_menu' ) ){
-		$sql1 .= "
+		$from_joins = " FROM ec_product AS product ";
 
+		if ( $needs_roleprice ) {
+			$from_joins .= " LEFT JOIN ec_roleprice ON ( ec_roleprice.product_id = product.product_id AND ec_roleprice.role_label = " . $user_level_sql . " ) ";
+		}
+
+		if ( $needs_manufacturer ) {
+			$from_joins .= " LEFT JOIN ec_manufacturer AS manufacturer ON manufacturer.manufacturer_id = product.manufacturer_id ";
+		}
+
+		if ( $needs_categoryitem ) {
+			$from_joins .= " LEFT JOIN ec_categoryitem ON ec_categoryitem.product_id = product.product_id ";
+		}
+
+		$from_joins .= $extra_joins;
+
+		if ( $needs_menulevels ) {
+			$from_joins .= "
 				LEFT JOIN ec_menulevel1 ON ( ec_menulevel1.menulevel1_id = product.menulevel1_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel2_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel3_id_1 )
-				
 				LEFT JOIN ec_menulevel2 ON ( ec_menulevel2.menulevel2_id = product.menulevel1_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel2_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel3_id_2 )
-				
 				LEFT JOIN ec_menulevel3 ON ( ec_menulevel3.menulevel3_id = product.menulevel1_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel2_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel3_id_3 )
-				
-				";
+			";
 		}
 
 		if ( $optionitem_filter != '' ) {
-			$sql1 .= 'LEFT JOIN ec_option_to_product ON (
+			$from_joins .= 'LEFT JOIN ec_option_to_product ON (
 				ec_option_to_product.product_id = product.product_id
 			)
 			LEFT JOIN ec_option ON (
 				(
-					product.use_advanced_optionset = false AND 
+					product.use_advanced_optionset = false AND
 					(
 					  product.option_id_1 = ec_option.option_id OR
 					  product.option_id_2 = ec_option.option_id OR
@@ -425,101 +437,12 @@ class ec_db{
 			ec_optionitemquantity ';
 		}
 
-		if( isset( $_GET['ec_optionitem_id'] ) ){
-			
-			$sql1 .= self::$mysqli->prepare( "JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 )
-			
-			", (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'] );
-			
+		if ( isset( $_GET['ec_optionitem_id'] ) ) {
+			$from_joins .= self::$mysqli->prepare(
+				"JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 ) ",
+				(int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id']
+			);
 		}
-
-		$sql2 = "SELECT
-					product.*, ec_roleprice.role_price,";
-
-		if ( $has_search ) {
-		$sql2 .= self::$mysqli->prepare( "
-				CASE WHEN product.title = %s THEN 20 ELSE 0 END + 
-				CASE WHEN product.title LIKE %s THEN 3 ELSE 0 END + 
-				CASE WHEN product.title LIKE %s THEN 2 ELSE 0 END + 
-				CASE WHEN product.title LIKE %s THEN 1 ELSE 0 END AS search_match_score, ", 
-				$search_term, 
-				$search_term . "%", 
-				"%" . $search_term . "%", 
-				"%" . $search_term );
-				
-		}
-
-		$sql2 .= "  manufacturer.name as manufacturer_name,
-					
-					ec_product_google_attributes.attribute_value as google_attributes,
-					
-					AVG( ec_review.rating ) as review_average,
-					
-					" . self::$mysqli->prefix . "posts.guid
-					
-					FROM ec_product AS product
-					
-					LEFT JOIN " . self::$mysqli->prefix . "posts ON " . self::$mysqli->prefix . "posts.ID = product.post_id 
-				
-					LEFT JOIN ec_roleprice ON ( ec_roleprice.product_id = product.product_id AND ec_roleprice.role_label = '" . $GLOBALS['ec_user']->user_level . "' )
-					
-					LEFT JOIN ec_manufacturer AS manufacturer ON manufacturer.manufacturer_id = product.manufacturer_id
-				
-					LEFT JOIN ec_categoryitem ON ec_categoryitem.product_id = product.product_id
-					
-					LEFT JOIN ec_product_google_attributes ON ec_product_google_attributes.product_id = product.product_id";
-		$sql2 .= $extra_joins;
-					if( get_option( 'ec_option_search_menu' ) ){
-
-		$sql2 .= "
-					
-					LEFT JOIN ec_menulevel1 ON ( ec_menulevel1.menulevel1_id = product.menulevel1_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel2_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel3_id_1 )
-					
-					LEFT JOIN ec_menulevel2 ON ( ec_menulevel2.menulevel2_id = product.menulevel1_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel2_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel3_id_2 )
-					
-					LEFT JOIN ec_menulevel3 ON ( ec_menulevel3.menulevel3_id = product.menulevel1_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel2_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel3_id_3 )";
-					
-					}
-		$sql2 .= "
-					
-					LEFT JOIN ec_review ON ( ec_review.product_id = product.product_id AND ec_review.approved = 1 )
-				
-				";
-
-		if ( $optionitem_filter != '' ) {
-			$sql2 .= 'LEFT JOIN ec_option_to_product ON (
-				ec_option_to_product.product_id = product.product_id
-			)
-			LEFT JOIN ec_option ON (
-				(
-					product.use_advanced_optionset = false AND 
-					(
-					  product.option_id_1 = ec_option.option_id OR
-					  product.option_id_2 = ec_option.option_id OR
-					  product.option_id_3 = ec_option.option_id OR
-					  product.option_id_4 = ec_option.option_id OR
-					  product.option_id_5 = ec_option.option_id
-					)
-				)
-				OR
-				(
-					product.use_advanced_optionset = true AND
-					ec_option_to_product.option_id = ec_option.option_id
-				)
-			),
-			ec_optionitem,
-			ec_optionitemquantity ';
-		}
-
-		if( isset( $_GET['ec_optionitem_id'] ) ){
-			
-			$sql2 .= self::$mysqli->prepare( "JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 )
-			
-			", (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'] );
-			
-		}
-
-		$group_query = " GROUP BY product.product_id ";
 
 		if ( strtoupper( substr( trim( $where_query ), 0, 5 ) ) != 'WHERE' ) {
 			$where_query .= " WHERE ";
@@ -532,9 +455,109 @@ class ec_db{
 		} else {
 			$where_query .= " ( product.role_id = 0 OR product.role_id = -1 ) ";
 		}
-		$result = self::$mysqli->get_results( $sql1 . $where_query . $group_query );
-		$result_count = count($result);
-		$result2 = self::$mysqli->get_results( $sql2 . $where_query . $group_query . $order_query . $limit_query );
+
+		$count_sql    = "SELECT COUNT( DISTINCT product.product_id ) " . $from_joins . $where_query;
+		$result_count = (int) self::$mysqli->get_var( $count_sql );
+
+		$select_parts = array( 'product.*' );
+
+		if ( $needs_roleprice ) {
+			$select_parts[] = 'ec_roleprice.role_price';
+		} else {
+			$select_parts[] = 'NULL AS role_price';
+		}
+
+		if ( $has_search ) {
+			$select_parts[] = self::$mysqli->prepare(
+				"CASE WHEN product.title = %s THEN 20 ELSE 0 END
+				+ CASE WHEN product.title LIKE %s THEN 3 ELSE 0 END
+				+ CASE WHEN product.title LIKE %s THEN 2 ELSE 0 END
+				+ CASE WHEN product.title LIKE %s THEN 1 ELSE 0 END AS search_match_score",
+				$search_term,
+				$search_term . "%",
+				"%" . $search_term . "%",
+				"%" . $search_term
+			);
+		}
+
+		if ( $needs_manufacturer ) {
+			$select_parts[] = 'manufacturer.name AS manufacturer_name';
+		} else {
+			$select_parts[] = 'NULL AS manufacturer_name';
+		}
+
+		$select_parts[] = 'ec_product_google_attributes.attribute_value AS google_attributes';
+
+		if ( $needs_review_avg ) {
+			$select_parts[] = 'AVG( ec_review.rating ) AS review_average';
+		}
+
+		$select_parts[] = self::$mysqli->prefix . 'posts.guid';
+
+		$row_from = " FROM ec_product AS product
+			LEFT JOIN " . self::$mysqli->prefix . "posts ON " . self::$mysqli->prefix . "posts.ID = product.post_id
+			LEFT JOIN ec_product_google_attributes ON ec_product_google_attributes.product_id = product.product_id ";
+
+		if ( $needs_roleprice ) {
+			$row_from .= " LEFT JOIN ec_roleprice ON ( ec_roleprice.product_id = product.product_id AND ec_roleprice.role_label = " . $user_level_sql . " ) ";
+		}
+
+		if ( $needs_manufacturer ) {
+			$row_from .= " LEFT JOIN ec_manufacturer AS manufacturer ON manufacturer.manufacturer_id = product.manufacturer_id ";
+		}
+
+		if ( $needs_categoryitem ) {
+			$row_from .= " LEFT JOIN ec_categoryitem ON ec_categoryitem.product_id = product.product_id ";
+		}
+
+		$row_from .= $extra_joins;
+
+		if ( $needs_menulevels ) {
+			$row_from .= "
+				LEFT JOIN ec_menulevel1 ON ( ec_menulevel1.menulevel1_id = product.menulevel1_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel2_id_1 OR ec_menulevel1.menulevel1_id = product.menulevel3_id_1 )
+				LEFT JOIN ec_menulevel2 ON ( ec_menulevel2.menulevel2_id = product.menulevel1_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel2_id_2 OR ec_menulevel2.menulevel2_id = product.menulevel3_id_2 )
+				LEFT JOIN ec_menulevel3 ON ( ec_menulevel3.menulevel3_id = product.menulevel1_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel2_id_3 OR ec_menulevel3.menulevel3_id = product.menulevel3_id_3 )
+			";
+		}
+
+		if ( $needs_review_avg ) {
+			$row_from .= " LEFT JOIN ec_review ON ( ec_review.product_id = product.product_id AND ec_review.approved = 1 ) ";
+		}
+
+		if ( $optionitem_filter != '' ) {
+			$row_from .= 'LEFT JOIN ec_option_to_product ON (
+				ec_option_to_product.product_id = product.product_id
+			)
+			LEFT JOIN ec_option ON (
+				(
+					product.use_advanced_optionset = false AND
+					(
+					  product.option_id_1 = ec_option.option_id OR
+					  product.option_id_2 = ec_option.option_id OR
+					  product.option_id_3 = ec_option.option_id OR
+					  product.option_id_4 = ec_option.option_id OR
+					  product.option_id_5 = ec_option.option_id
+					)
+				)
+				OR
+				(
+					product.use_advanced_optionset = true AND
+					ec_option_to_product.option_id = ec_option.option_id
+				)
+			),
+			ec_optionitem,
+			ec_optionitemquantity ';
+		}
+
+		if ( isset( $_GET['ec_optionitem_id'] ) ) {
+			$row_from .= self::$mysqli->prepare(
+				"JOIN ec_optionitemquantity ON ( ec_optionitemquantity.product_id = product.product_id AND ( ec_optionitemquantity.optionitem_id_1 = %d OR ec_optionitemquantity.optionitem_id_2 = %d OR ec_optionitemquantity.optionitem_id_3 = %d OR ec_optionitemquantity.optionitem_id_4 = %d OR ec_optionitemquantity.optionitem_id_5 = %d ) AND ec_optionitemquantity.quantity > 0 ) ",
+				(int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id'], (int) $_GET['ec_optionitem_id']
+			);
+		}
+
+		$row_sql = "SELECT " . implode( ', ', $select_parts ) . $row_from . $where_query . " GROUP BY product.product_id " . $order_query . $limit_query;
+		$result2 = self::$mysqli->get_results( $row_sql );
 
 		$option_list = $GLOBALS['ec_options']->options;
 		$review_list = $GLOBALS['ec_customer_reviews']->customer_reviews;
@@ -544,7 +567,7 @@ class ec_db{
 		$product_list = array();
 
 		foreach ( $result2 as $row ) {
-			$review_data = array( );
+			$review_data = array();
 			foreach ( $review_list as $review ) {
 				if ( $review->product_id == $row->product_id ) {
 					$review_data[] = $review->rating;
@@ -555,12 +578,14 @@ class ec_db{
 			} else {
 				$review_average = 0;
 			}
-			$pricetier_data = array( );
+
+			$pricetier_data = array();
 			foreach ( $pricetier_list as $pricetier ) {
 				if ( $pricetier->product_id == $row->product_id ) {
 					$pricetier_data[] = array( $pricetier->price, $pricetier->quantity );
 				}
 			}
+
 			$temp_product = array(
 				"product_count" => $result_count,
 				"product_id" => $row->product_id,
@@ -568,15 +593,15 @@ class ec_db{
 				"post_id" => $row->post_id,
 				"guid" => $row->guid,
 				"activate_in_store" => $row->activate_in_store,
-				"manufacturer_id" => $row->manufacturer_id, 
-				"manufacturer_name" => $row->manufacturer_name, 
-				"title" => $row->title, 
-				"description" => $row->description, 
-				"short_description" => $row->short_description, 
-				"seo_description" => $row->seo_description, 
-				"seo_keywords" => $row->seo_keywords, 
+				"manufacturer_id" => $row->manufacturer_id,
+				"manufacturer_name" => $row->manufacturer_name,
+				"title" => $row->title,
+				"description" => $row->description,
+				"short_description" => $row->short_description,
+				"seo_description" => $row->seo_description,
+				"seo_keywords" => $row->seo_keywords,
 
-				"price" => $row->price, 
+				"price" => $row->price,
 				"list_price" => $row->list_price,
 				"login_for_pricing" => $row->login_for_pricing,
 				"login_for_pricing_user_level" => $row->login_for_pricing_user_level,
@@ -594,21 +619,21 @@ class ec_db{
 				"stock_quantity" => $row->stock_quantity,
 				"min_purchase_quantity" => $row->min_purchase_quantity,
 				"max_purchase_quantity" => $row->max_purchase_quantity,
-				"weight" => $row->weight,  
-				"width" => $row->width,  
-				"height" => $row->height,  
-				"length" => $row->length, 
-				"use_optionitem_quantity_tracking" => $row->use_optionitem_quantity_tracking, 
-				"use_specifications" => $row->use_specifications, 
-				"specifications" => $row->specifications, 
-				"use_customer_reviews" => $row->use_customer_reviews, 
+				"weight" => $row->weight,
+				"width" => $row->width,
+				"height" => $row->height,
+				"length" => $row->length,
+				"use_optionitem_quantity_tracking" => $row->use_optionitem_quantity_tracking,
+				"use_specifications" => $row->use_specifications,
+				"specifications" => $row->specifications,
+				"use_customer_reviews" => $row->use_customer_reviews,
 				"show_on_startup" => $row->show_on_startup,
-				"show_stock_quantity" => $row->show_stock_quantity, 
-				"is_special" => $row->is_special, 
-				"is_taxable" => $row->is_taxable, 
-				"is_shippable" => $row->is_shippable, 
+				"show_stock_quantity" => $row->show_stock_quantity,
+				"is_special" => $row->is_special,
+				"is_taxable" => $row->is_taxable,
+				"is_shippable" => $row->is_shippable,
 				"exclude_shippable_calculation" => $row->exclude_shippable_calculation,
-				"is_giftcard" => $row->is_giftcard, 
+				"is_giftcard" => $row->is_giftcard,
 				"is_download" => $row->is_download,
 				"is_donation" => $row->is_donation,
 				"is_subscription_item" => $row->is_subscription_item,
@@ -641,8 +666,8 @@ class ec_db{
 				"stripe_default_price_id" => $row->stripe_default_price_id,
 				"stripe_default_price_id_sandbox" => $row->stripe_default_price_id_sandbox,
 
-				"option_id_1" => $row->option_id_1, 
-				"option_id_2" => $row->option_id_2, 
+				"option_id_1" => $row->option_id_1,
+				"option_id_2" => $row->option_id_2,
 				"option_id_3" => $row->option_id_3,
 				"option_id_4" => $row->option_id_4,
 				"option_id_5" => $row->option_id_5,
@@ -691,9 +716,11 @@ class ec_db{
 			);
 			$product_list[] = $temp_product;
 		}
+
 		if ( '' != $cache_key ) {
 			wp_cache_set( $cache_key, $product_list, 'wpeasycart-product-list' );
 		}
+
 		return $product_list;
 	}
 

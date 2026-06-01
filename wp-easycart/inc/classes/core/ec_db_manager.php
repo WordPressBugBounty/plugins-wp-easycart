@@ -263,6 +263,9 @@ class ec_db_manager {
 			'5.8.15' => array(
 				'wpeasycart_sql_5_8_15'
 			),
+			'5.8.16' => array(
+				'wpeasycart_sql_5_8_16'
+			),
 		);
 
 		$return_functions = array();
@@ -792,6 +795,34 @@ class ec_db_manager {
 			$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
 		}
 	}
+	private function wpeasycart_sql_5_8_16() {
+		global $wpdb;
+
+		$indexes = array(
+			'ec_roleprice' => array( 'idx_product_role' => 'product_id, role_label' ),
+			'ec_review' => array( 'idx_product_approved' => 'product_id, approved' ),
+			'ec_categoryitem' => array( 'idx_category_product' => 'category_id, product_id' ),
+			'ec_product' => array(
+				'idx_storefront_default' => 'activate_in_store, role_id, sort_position',
+				'idx_post_id' => 'post_id',
+			),
+		);
+
+		foreach ( $indexes as $table => $defs ) {
+			$table_exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s", $table ) );
+			if ( ! $table_exists ) {
+				continue;
+			}
+
+			foreach ( $defs as $index_name => $columns ) {
+				$has_index = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s", $table, $index_name ) );
+
+				if ( ! $has_index ) {
+					$wpdb->query( "ALTER TABLE {$table} ADD INDEX {$index_name} ({$columns})" );
+				}
+			}
+		}
+	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
 	private function get_uninstall_tables( ){
@@ -869,7 +900,7 @@ class ec_db_manager {
 
 	}
 
-	private function get_schema( ){
+	private function get_schema() {
 		global $wpdb;
 		$collate = "";
 		$max_index_length = 191;
@@ -953,7 +984,8 @@ CREATE TABLE ec_categoryitem (
   PRIMARY KEY  (categoryitem_id),
   UNIQUE KEY categoryitem_id (categoryitem_id),
   KEY product_id (product_id),
-  KEY category_id (category_id)
+  KEY category_id (category_id),
+  KEY idx_category_product (category_id, product_id)
 ) $collate;
 CREATE TABLE ec_code (
   code_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1643,7 +1675,9 @@ CREATE TABLE ec_product (
   KEY product_option_id_2 (option_id_2),
   KEY product_option_id_3 (option_id_3),
   KEY product_option_id_4 (option_id_4),
-  KEY product_option_id_5 (option_id_5)
+  KEY product_option_id_5 (option_id_5),
+  KEY idx_storefront_default (activate_in_store, role_id, sort_position),
+  KEY idx_post_id (post_id)
 ) $collate;
 CREATE TABLE ec_product_google_attributes (
   product_google_attribute_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1758,7 +1792,8 @@ CREATE TABLE ec_review (
   PRIMARY KEY  (review_id),
   UNIQUE KEY review_id (review_id),
   KEY product_id (product_id),
-  KEY user_id (user_id)
+  KEY user_id (user_id),
+  KEY idx_product_approved (product_id, approved)
 ) $collate;
 CREATE TABLE ec_role (
   role_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1783,8 +1818,9 @@ CREATE TABLE ec_roleprice (
   role_price float(15,3) NOT NULL DEFAULT '0.000',
   PRIMARY KEY  (roleprice_id),
   UNIQUE KEY roleprice_id (roleprice_id),
-  KEY product_id (product_id) ,
-  KEY role_label (role_label) 
+  KEY product_id (product_id),
+  KEY role_label (role_label),
+  KEY idx_product_role (product_id, role_label)
 ) $collate;
 CREATE TABLE ec_schedule (
   schedule_id int(11) NOT NULL AUTO_INCREMENT,

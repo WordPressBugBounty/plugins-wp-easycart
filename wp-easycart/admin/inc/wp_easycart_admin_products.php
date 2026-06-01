@@ -324,6 +324,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 			/* Manually Update Post */
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
+			clean_post_cache( $product->post_id );
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, $product_id ) );
 			wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
 			if ( 0 == $active_status ) {
@@ -364,6 +365,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$active_status = 0;
 				$status = 'private';
 				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
+				clean_post_cache( $product->post_id );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, (int) $bulk_id ) );
 				wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
 				do_action( 'wpeasycart_product_deactivated', (int) $bulk_id );
@@ -398,6 +400,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$active_status = 1;
 				$status = 'publish';
 				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s WHERE ID = %d', $status, $product->post_id ) );
+				clean_post_cache( $product->post_id );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET activate_in_store = %d WHERE product_id = %d', $active_status, (int) $bulk_id ) );
 				wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
 				do_action( 'wpeasycart_product_activated', (int) $bulk_id );
@@ -536,6 +539,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $randmodel . '"]', $status, wp_easycart_language()->convert_text( wp_unslash( $product->title ) ), $post_slug, $guid, 'ec_store' ) );
 			$post_id = $wpdb->insert_id;
+			clean_post_cache( $post_id );
 			wp_set_post_tags( $post_id, array( 'product' ), true );
 
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d WHERE product_id = %d', $post_id, $newid ) );
@@ -1116,6 +1120,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $sku . '"]', $post_status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', '' ) );
 				$post_id = $wpdb->insert_id;
+				clean_post_cache( $post_id );
 				wp_set_post_tags( $post_id, array( 'product' ), true );
 
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, show_on_startup, title, model_number, manufacturer_id, price, image1, post_id, use_advanced_optionset, use_both_option_types, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, is_shippable, weight, length, width, height, is_taxable, vat_rate, show_stock_quantity, stock_quantity, use_optionitem_quantity_tracking, is_giftcard, is_download, is_donation, is_subscription_item, is_deconetwork, inquiry_mode, catalog_mode, is_restaurant_type, is_preorder_type ) VALUES( %d, %d, %s, %s, %d, %s, %s, %d, %d, 1, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d )', $activate_in_store, $show_on_startup, $title, $sku, $manufacturer, $price, $image, $post_id, $use_advanced_optionset, $option1, $option2, $option3, $option4, $option5, $is_shippable, $weight, $length, $width, $height, $is_taxable, $vat_rate, $show_stock_quantity, $stock_quantity, $use_optionitem_quantity_tracking, $is_giftcard, $is_download, $is_donation, $is_subscription, $is_deconetwork, $is_inquiry, $is_seasonal, $is_restaurant_item, $is_preorder_item ) );
@@ -1262,6 +1267,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						if ( $post_check ) {
 							/* Manually Update Post */
 							$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_status = %s, post_title = %s, post_name = %s, guid = %s, post_excerpt = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, $description, $product_row->post_id ) );
+							clean_post_cache( $product_row->post_id );
 						} else {
 							$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', $description ) );
 							$post_id = $wpdb->insert_id;
@@ -1355,6 +1361,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 						$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', $description ) );
 						$post_id = $wpdb->insert_id;
+						clean_post_cache( $post_id );
 						wp_set_post_tags( $post_id, array( 'product' ), true );
 
 						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, title, model_number, manufacturer_id, price, description, post_id, show_on_startup, show_stock_quantity ) VALUES( %d, %s, %s, %d, %s, %s, %d, 1, 0 )', $activate_in_store, $title, $model_number, $manufacturer_id, $price, $description, $post_id ) );
@@ -2676,6 +2683,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								/* Manually Insert Post */
 								$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $rows[ $i ][ $this->model_number_index ] . '"]', $status, $post_title, $post_slug, $guid, 'ec_store' ) );
 								$post_id = $wpdb->insert_id;
+								clean_post_cache( $post_id );
 								wp_set_post_tags( $post_id, array( 'product' ), true );
 
 								$insert_vals[] = $post_id;

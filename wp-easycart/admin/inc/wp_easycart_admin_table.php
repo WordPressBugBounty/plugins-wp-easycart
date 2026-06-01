@@ -61,6 +61,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private $custom_where;
 
 		private $date_diff;
+		private $local_offset;
 
 		public function __construct() { 
 			global $wpdb;
@@ -74,6 +75,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			$now_gmt_timestampt = time();
 			$storage_offset = $now_timestamp - $now_gmt_timestampt;
 			$local_offset = get_option( 'gmt_offset' ) * 60 * 60;
+			$this->local_offset = $local_offset;
 			$this->date_diff = $local_offset - $storage_offset;
 
 			if ( isset( $_GET['orderby'] ) && '' != $_GET['orderby'] ) {
@@ -728,7 +730,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			$now_timestamp = time();
 			if ( isset( $list_column['localize_timestamp'] ) && $list_column['localize_timestamp'] ) {
 				$date_timestamp = $date_timestamp + $this->date_diff;
-				$now_timestamp = $now_timestamp + $this->date_diff;
+				$now_timestamp = $now_timestamp + $this->local_offset;
 			}
 			$requires_valid = ( isset( $list_column['requires'] ) && isset( $result->{ $list_column['requires'] } ) ) ? $result->{ $list_column['requires'] } : true;
 			if ( $date_timestamp > 0 && $requires_valid ) {
@@ -738,8 +740,8 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		private function format_relative_date( $date_timestamp, $now_timestamp ) {
 			$date_compare = date( 'Ymd', $date_timestamp );
 			$today_compare = date( 'Ymd', $now_timestamp );
-			$yesterday_compare = date( 'Ymd', strtotime( 'Yesterday' ) );
-			$week_cutoff = strtotime( '-7 days 11:59pm' );
+			$yesterday_compare = date( 'Ymd', strtotime( '-1 day', $now_timestamp ) );
+			$week_cutoff = strtotime( '-7 days 11:59pm', $now_timestamp );
 			if ( $date_compare == $today_compare ) {
 				return apply_filters( 'wp_easycart_admin_datetime_format_today', esc_attr__( 'Today', 'wp-easycart' ) . ' ' . date( get_option( 'time_format' ), $date_timestamp ), $date_timestamp );
 			} else if ( $date_compare == $yesterday_compare ) {

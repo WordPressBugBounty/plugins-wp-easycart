@@ -119,7 +119,7 @@ class ec_storepage{
 	private function setup_details() {
 		$db = new ec_db();
 		global $wpdb;
-		$products = $db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $this->model_number ), '', '', '', 'wpeasycart-product-only-' . $this->model_number );
+		$products = $db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $this->model_number ), '', '', '', 'wpeasycart-product-only-' . $this->model_number, '', '' );
 		if ( count( $products ) > 0 ) {
 			$this->product = new ec_product( $products[0], 0, 1, 0 );
 		} else {
@@ -142,7 +142,7 @@ class ec_storepage{
 			$model_number = sanitize_text_field( $_GET['model'] );
 			$db = new ec_db( );
 			global $wpdb;
-			$products = $db->get_product_list( $wpdb->prepare( "WHERE product.model_number = %s", $model_number ), "", "", "", "wpeasycart-product-only-".$model_number );
+			$products = $db->get_product_list( $wpdb->prepare( "WHERE product.model_number = %s", $model_number ), "", "", "", "wpeasycart-product-only-".$model_number, '', '' );
 			if( count( $products ) > 0 ){
 				$title = $products[0]['title'];
 			}

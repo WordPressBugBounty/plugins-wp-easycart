@@ -480,12 +480,6 @@ class ec_db{
 			);
 		}
 
-		if ( $needs_manufacturer ) {
-			$select_parts[] = 'manufacturer.name AS manufacturer_name';
-		} else {
-			$select_parts[] = 'NULL AS manufacturer_name';
-		}
-
 		$select_parts[] = 'ec_product_google_attributes.attribute_value AS google_attributes';
 
 		if ( $needs_review_avg ) {
@@ -565,6 +559,12 @@ class ec_db{
 		$optionitem_list = $GLOBALS['ec_options']->optionitems;
 		$optionitem_image_list = $GLOBALS['ec_options']->optionitemimages;
 		$product_list = array();
+		$manufacturer_names = array();
+		if ( isset( $GLOBALS['ec_manufacturers'] ) && isset( $GLOBALS['ec_manufacturers']->manufacturers ) && is_array( $GLOBALS['ec_manufacturers']->manufacturers ) ) {
+			foreach ( $GLOBALS['ec_manufacturers']->manufacturers as $ec_manufacturer ) {
+				$manufacturer_names[ $ec_manufacturer->manufacturer_id ] = $ec_manufacturer->name;
+			}
+		}
 
 		foreach ( $result2 as $row ) {
 			$review_data = array();
@@ -594,7 +594,7 @@ class ec_db{
 				"guid" => $row->guid,
 				"activate_in_store" => $row->activate_in_store,
 				"manufacturer_id" => $row->manufacturer_id,
-				"manufacturer_name" => $row->manufacturer_name,
+				"manufacturer_name" => ( isset( $manufacturer_names[ $row->manufacturer_id ] ) ? $manufacturer_names[ $row->manufacturer_id ] : '' ),
 				"title" => $row->title,
 				"description" => $row->description,
 				"short_description" => $row->short_description,

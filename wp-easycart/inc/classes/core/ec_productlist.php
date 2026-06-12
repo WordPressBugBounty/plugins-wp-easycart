@@ -91,7 +91,7 @@ class ec_productlist{
 		if ( !$this->is_product_details ) {
 			$result = $this->mysqli->get_product_list( $this->filter->get_where_query(), $this->filter->get_order_by_query( $this->page_options ), $this->paging->get_limit_query( $this->atts ), $GLOBALS['ec_cart_data']->ec_cart_id, $this->filter->get_cache_key( ), $this->filter->get_optionitems_filters( ), $this->filter->get_extra_left_joins() );
 		} else {
-			$result = $this->mysqli->get_product_list( $this->filter->get_where_query(), $this->filter->get_order_by_query( $this->page_options ), "", $GLOBALS['ec_cart_data']->ec_cart_id, $this->filter->get_cache_key( ) );
+			$result = $this->mysqli->get_product_list( $this->filter->get_where_query(), $this->filter->get_order_by_query( $this->page_options ), "", $GLOBALS['ec_cart_data']->ec_cart_id, $this->filter->get_cache_key( ), '', '' );
 		}
 
 		if ( count( $result ) > 0 ) {

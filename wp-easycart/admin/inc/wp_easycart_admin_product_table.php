@@ -395,6 +395,46 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			return ( isset( $result->square_id ) && '' !== $result->square_id );
 		}
 
+		public static function square_inactive_reason_text() {
+			return __( 'Hidden in Square. This product is hidden or unavailable in your Square dashboard, so it is not active in your store. Change its visibility in Square to activate it.', 'wp-easycart' );
+		}
+
+		private function print_status_toggle_locked( $result, $extra_cls = '' ) {
+			$checked    = (bool) $result->is_visible;
+			$lock_title = $checked
+				? esc_attr__( 'Active status is managed by Square — change it in your Square dashboard.', 'wp-easycart' )
+				: esc_attr( self::square_inactive_reason_text() );
+
+			// Force the "not-allowed" cursor across the WHOLE control ( wrap, label, slider and the
+			// hidden input ) so it never flips to the pointer/hand over the inner slider. !important
+			// beats any stylesheet cursor:pointer rule, and pointer-events:none stops the hidden input
+			// from swallowing the hover/click. The title is repeated on inner elements so the tooltip
+			// shows no matter where on the toggle the cursor lands.
+			echo '<span class="ecv2-toggle-locked-wrap" title="' . $lock_title . '" style="display:inline-flex;align-items:center;gap:6px;cursor:not-allowed !important;">';
+			echo '<label class="ecv2-toggle ecv2-toggle-locked' . ( $extra_cls ? ' ' . esc_attr( $extra_cls ) : '' ) . '" title="' . $lock_title . '" style="opacity:.7;cursor:not-allowed !important;">';
+			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' disabled="disabled" tabindex="-1" title="' . $lock_title . '" style="cursor:not-allowed !important;pointer-events:none;" />';
+			echo '<span class="ecv2-toggle-slider" title="' . $lock_title . '" style="cursor:not-allowed !important;"></span>';
+			echo '</label>';
+			if ( ! $checked ) {
+				echo '<span class="ecv2-status-reason" title="' . $lock_title . '" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;line-height:1;color:#b32d2e;white-space:nowrap;cursor:not-allowed !important;">';
+				echo '<span class="dashicons dashicons-hidden" style="font-size:14px;width:14px;height:14px;"></span>';
+				echo esc_html__( 'Hidden in Square', 'wp-easycart' );
+				echo '</span>';
+			}
+			echo '</span>';
+		}
+
+		public static function is_square_active_locked( $result ) {
+			if ( ! self::is_square_locked( $result ) ) {
+				return false;
+			}
+			// If the store keeps active changes local, the merchant manages it here, so it is not locked.
+			if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+				return false;
+			}
+			return true;
+		}
+
 		/**
 		 * Override parent to add Square sync data attribute and lock class on table rows.
 		 */
@@ -1159,6 +1199,10 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		}
 
 		private function print_status_toggle( $result ) {
+			if ( self::is_square_active_locked( $result ) ) {
+				$this->print_status_toggle_locked( $result );
+				return;
+			}
 			$checked = (bool) $result->is_visible;
 			$nonce = wp_create_nonce( 'wp-easycart-ecv2-toggle-' . $result->product_id );
 			echo '<label class="ecv2-toggle">';
@@ -1171,6 +1215,10 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		 * Small toggle for spreadsheet view.
 		 */
 		private function print_status_toggle_sm( $result ) {
+			if ( self::is_square_active_locked( $result ) ) {
+				$this->print_status_toggle_locked( $result, 'ecv2-toggle-sm' );
+				return;
+			}
 			$checked = (bool) $result->is_visible;
 			$nonce = wp_create_nonce( 'wp-easycart-ecv2-toggle-' . $result->product_id );
 			echo '<label class="ecv2-toggle ecv2-toggle-sm">';
@@ -1355,11 +1403,21 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				echo '</div>';
 			}
 
-			// Status overlay — always editable.
-			echo '<label class="ecv2-toggle ecv2-card-toggle">';
-			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
-			echo '<span class="ecv2-toggle-slider"></span>';
-			echo '</label>';
+			// Status overlay.
+			if ( self::is_square_active_locked( $result ) ) {
+				$lock_title = $checked
+					? esc_attr__( 'Active status is managed by Square — change it in your Square dashboard.', 'wp-easycart' )
+					: esc_attr( self::square_inactive_reason_text() );
+				echo '<label class="ecv2-toggle ecv2-card-toggle ecv2-toggle-locked" title="' . $lock_title . '" style="opacity:.7;cursor:not-allowed !important;">';
+				echo '<input type="checkbox"' . checked( $checked, true, false ) . ' disabled="disabled" tabindex="-1" title="' . $lock_title . '" style="cursor:not-allowed !important;pointer-events:none;" />';
+				echo '<span class="ecv2-toggle-slider" title="' . $lock_title . '" style="cursor:not-allowed !important;"></span>';
+				echo '</label>';
+			} else {
+				echo '<label class="ecv2-toggle ecv2-card-toggle">';
+				echo '<input type="checkbox"' . checked( $checked, true, false ) . ' onchange="ecv2_toggle_product_status( ' . esc_attr( $result->product_id ) . ', this.checked, \'' . esc_attr( $nonce ) . '\' );" />';
+				echo '<span class="ecv2-toggle-slider"></span>';
+				echo '</label>';
+			}
 			echo '</div>';
 
 			// Body.
@@ -1382,6 +1440,12 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				echo '<span class="dashicons dashicons-lock"></span> ';
 				echo esc_html__( 'Synced with Square — edit in Square dashboard', 'wp-easycart' );
 				echo '</div>';
+				if ( ! $checked && self::is_square_active_locked( $result ) ) {
+					echo '<div class="ecv2-square-inactive-banner" title="' . esc_attr( self::square_inactive_reason_text() ) . '" style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#b32d2e;">';
+					echo '<span class="dashicons dashicons-hidden" style="font-size:14px;width:14px;height:14px;"></span> ';
+					echo esc_html__( 'Hidden in Square — not active in your store', 'wp-easycart' );
+					echo '</div>';
+				}
 			}
 
 			echo '<div class="ecv2-card-sku-wrap" data-product-id="' . esc_attr( $result->product_id ) . '" data-field="model_number">';
@@ -1574,6 +1638,21 @@ function ecv2_is_square_locked( $product_id, $field = '' ) {
 	return ( null !== $square_id && '' !== $square_id );
 }
 
+function ecv2_is_square_active_locked( $product_id ) {
+	if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
+		return false;
+	}
+	if ( 'square' !== get_option( 'ec_option_payment_process_method' ) ) {
+		return false;
+	}
+	if ( ! get_option( 'ec_option_square_auto_product_sync' ) && ! get_option( 'ec_option_square_auto_sync' ) ) {
+		return false;
+	}
+	global $wpdb;
+	$square_id = $wpdb->get_var( $wpdb->prepare( "SELECT square_id FROM ec_product WHERE product_id = %d", $product_id ) );
+	return ( null !== $square_id && '' !== $square_id );
+}
+
 add_action( 'wp_ajax_ecv2_product_inline_update', 'ecv2_product_inline_update' );
 function ecv2_product_inline_update() {
 	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
@@ -1632,6 +1711,13 @@ function ecv2_product_inline_update() {
 	if ( false === $updated ) {
 		wp_send_json_error( array( 'message' => __( 'Could not save the change. Please try again.', 'wp-easycart' ) ) );
 	}
+	if ( 'activate_in_store' === $field ) {
+		if ( (int) $value ) {
+			do_action( 'wpeasycart_product_activated', $product_id );
+		} else {
+			do_action( 'wpeasycart_product_deactivated', $product_id );
+		}
+	}
 	if ( 'model_number' === $field ) {
 		$linked_post_id = (int) $wpdb->get_var( $wpdb->prepare(
 			'SELECT post_id FROM ec_product WHERE product_id = %d',
@@ -1676,6 +1762,14 @@ function ecv2_product_toggle_status() {
 	}
 
 	$status = isset( $_POST['status'] ) ? ( (int) $_POST['status'] ? 1 : 0 ) : 0;
+
+	// Block toggling active state when Square controls it — the next sync would overwrite it anyway.
+	if ( ecv2_is_square_active_locked( $product_id ) ) {
+		wp_send_json_error( array(
+			'message'        => __( 'This product is synced with Square. Its active status is controlled by the product visibility in your Square dashboard.', 'wp-easycart' ),
+			'square_locked'  => true,
+		) );
+	}
 
 	global $wpdb;
 	$old_status = $wpdb->get_var( $wpdb->prepare( "SELECT activate_in_store FROM ec_product WHERE product_id = %d", $product_id ) );
@@ -1732,7 +1826,7 @@ function ecv2_product_bulk_edit() {
 		$update_format = array();
 		$pid_is_square = ecv2_is_square_locked( $pid );
 
-		if ( isset( $changes['activate_in_store'] ) && $changes['activate_in_store'] !== '' ) {
+		if ( isset( $changes['activate_in_store'] ) && $changes['activate_in_store'] !== '' && ! ecv2_is_square_active_locked( $pid ) ) {
 			$update_data['activate_in_store'] = (int) $changes['activate_in_store'];
 			$update_format[] = '%d';
 		}
@@ -1778,6 +1872,13 @@ function ecv2_product_bulk_edit() {
 		if ( ! empty( $update_data ) ) {
 			$wpdb->update( 'ec_product', $update_data, array( 'product_id' => $pid ), $update_format, array( '%d' ) );
 			$updated++;
+			if ( isset( $update_data['activate_in_store'] ) ) {
+				if ( $update_data['activate_in_store'] ) {
+					do_action( 'wpeasycart_product_activated', $pid );
+				} else {
+					do_action( 'wpeasycart_product_deactivated', $pid );
+				}
+			}
 		}
 	}
 

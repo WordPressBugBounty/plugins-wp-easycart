@@ -1801,6 +1801,18 @@ class ec_square extends ec_gateway{
 				}
 			}
 		}
+
+		$final_active = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT activate_in_store FROM ec_product WHERE product_id = %d', $product->product_id ) );
+		$target_status = $final_active ? 'publish' : 'private';
+		$current_status = $wpdb->get_var( $wpdb->prepare( 'SELECT post_status FROM ' . $wpdb->prefix . 'posts WHERE ID = %d', $product->post_id ) );
+		if ( $current_status && $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d', $target_status, $product->post_id ) );
+			clean_post_cache( $product->post_id );
+			wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
+			if ( $model_number != $product->model_number ) {
+				wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
+			}
+		}
 	}
 
 	function variation_tracks_inventory( $variation, $location_id ) {

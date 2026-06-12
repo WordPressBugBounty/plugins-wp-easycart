@@ -1,9 +1,10 @@
-<form action="<?php echo esc_attr( $this->action ); ?>"  method="POST" id="wpeasycart_admin_form" name="wpeasycart_admin_form" novalidate="novalidate">
+<form action="<?php echo esc_attr( $this->action ); ?>"  method="POST" id="wpeasycart_admin_form" name="wpeasycart_admin_form" class="ec_admin_user_details_modern" novalidate="novalidate">
 	<?php wp_easycart_admin_verification( )->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-user-details' ); ?>
 	<input type="hidden" name="ec_admin_form_action" value="<?php echo esc_attr( $this->form_action ); ?>" />
 	<input type="hidden" name="user_id" value="<?php echo esc_attr( $this->user->user_id ); ?>" />
 	<div class="ec_admin_settings_panel ec_admin_details_panel">
 		<div class="ec_admin_important_numbered_list">
+			<?php if ( $this->user->user_id ) { $this->print_customer_overview(); } ?>
 			<?php do_action( 'wpeasycart_admin_user_details_top', $this->user ); ?>
 			<div class="ec_admin_flex_row">
 				<div class="ec_admin_list_line_item ec_admin_col_12 ec_admin_col_first">

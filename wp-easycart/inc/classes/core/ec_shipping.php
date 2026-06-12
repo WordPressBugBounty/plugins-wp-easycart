@@ -120,10 +120,10 @@ class ec_shipping {
 					array_push( $this->weight_based, array( $shipping_row->trigger_rate, $shipping_row->shipping_rate ) );
 				} else if ( $shipping_row->is_method_based && $shipping_row->zone_id > 0 ) {
 					if ( in_array( $shipping_row->zone_id, $zones ) ) {
-						array_push( $this->method_based, array( $shipping_row->shipping_rate, wp_easycart_language()->convert_text( $shipping_row->shipping_label ), $shipping_row->shippingrate_id, $shipping_row->free_shipping_at ) );
+						array_push( $this->method_based, array( $shipping_row->shipping_rate, wp_easycart_language()->convert_text( $shipping_row->shipping_label ), $shipping_row->shippingrate_id, $shipping_row->free_shipping_at, $shipping_row->shipping_order ) );
 					}
 				} else if ( $shipping_row->is_method_based ) {
-					array_push( $this->method_based, array( $shipping_row->shipping_rate, wp_easycart_language()->convert_text( $shipping_row->shipping_label ), $shipping_row->shippingrate_id, $shipping_row->free_shipping_at ) );
+					array_push( $this->method_based, array( $shipping_row->shipping_rate, wp_easycart_language()->convert_text( $shipping_row->shipping_label ), $shipping_row->shippingrate_id, $shipping_row->free_shipping_at, $shipping_row->shipping_order ) );
 				} else if ( $shipping_row->is_quantity_based && $shipping_row->zone_id > 0 ) {
 					if ( in_array( $shipping_row->zone_id, $zones ) ) {
 						array_push( $this->quantity_based, array( $shipping_row->trigger_rate, $shipping_row->shipping_rate ) );
@@ -146,6 +146,9 @@ class ec_shipping {
 			}
 
 			$this->live_based = apply_filters( 'wpeasycart_live_based_codes', $this->live_based );
+			usort( $this->method_based, function( $a, $b ) {
+				return (int) ( isset( $a[4] ) ? $a[4] : 0 ) - (int) ( isset( $b[4] ) ? $b[4] : 0 );
+			} );
 			$this->method_based = apply_filters( 'wpeasycart_method_based_shipping', $this->method_based );
 
 			$this->subtotal = $subtotal - $GLOBALS['wpeasycart_current_coupon_discount'];

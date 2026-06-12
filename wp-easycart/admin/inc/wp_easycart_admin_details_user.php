@@ -10,6 +10,17 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 	public $shipping_info;
 	public $user_roles;
 	public $item;
+	public $orders = array();
+	public $order_items = array();
+	public $order_stats;
+	public $subscriptions = array();
+	public $active_sub_count = 0;
+	public $abandoned_carts = array();
+	public $notes_feed = array();
+	public $downloads = array();
+	public $giftcards = array();
+	public $top_products = array();
+	public $overview_loaded = false;
 
 	public function __construct() {
 		parent::__construct();
@@ -68,7 +79,32 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 			$this->id = $this->user->user_id;
 			$this->billing_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_billing_address_id ) );
 			$this->shipping_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_shipping_address_id ) );
+			do_action( 'wp_easycart_admin_user_details_loaded', $this );
 		}
+	}
+
+	public function get_overview_gate() {
+		return wp_easycart_admin_pro_gate::evaluate( array(
+			'enabled_filter' => 'wp_easycart_admin_user_overview_enabled',
+			'min_version'    => '5.8.17',
+			'labels'         => array(
+				'enabled' => __( 'Customer Snapshot', 'wp-easycart' ),
+			),
+		) );
+	}
+
+	public function get_currency_display( $amount ) {
+		if ( isset( $GLOBALS['currency'] ) && is_object( $GLOBALS['currency'] ) && method_exists( $GLOBALS['currency'], 'get_currency_display' ) ) {
+			return $GLOBALS['currency']->get_currency_display( $amount );
+		}
+		return number_format( (float) $amount, 2 );
+	}
+
+	public function print_customer_overview() {
+		if ( empty( $this->user->user_id ) ) {
+			return;
+		}
+		include( apply_filters( 'wp_easycart_admin_user_overview_file', EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-overview.php', $this ) );
 	}
 
 	public function output( $type = 'edit' ) {

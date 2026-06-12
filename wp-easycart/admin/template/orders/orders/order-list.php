@@ -197,8 +197,9 @@ $filters = array(
 	array(
 		'data'		=> $users,
 		'label'		=> __( 'By Customer', 'wp-easycart' ),
-		'where'		=> 'ec_order.user_id = %d'
-	)
+		'where'		=> 'ec_order.user_id = %d',
+		'where2'	=> '( ec_order.user_id = 0 AND ec_order.user_email <> \'\' AND ec_order.user_email = ( SELECT email FROM ec_user WHERE ec_user.user_id = %d ) )'
+	),
 );
 $table->set_filters( apply_filters( 'wp_easycart_admin_order_list_filters', $filters ) );
 

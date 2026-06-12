@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.8.16
+ * Version: 5.8.17
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.8.16
+ * @version 5.8.17
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_8_16' );
+define( 'EC_CURRENT_VERSION', '5_8_17' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '100' );
 
@@ -1054,8 +1054,12 @@ function wp_easycart_load_cart_js() {
 		}
 		$disable_funding = '';
 		$disable_funding_options = array();
+		$enable_funding = '';
+		$enable_funding_options = array();
 		if( ! apply_filters( 'wp_easycart_allow_paypal_express', false ) || ! get_option( 'ec_option_paypal_use_venmo' ) ){
 			$disable_funding_options[] = 'venmo';
+		} else {
+			$enable_funding_options[] = 'venmo';
 		}
 		if ( ! apply_filters( 'wp_easycart_allow_paypal_express', false ) || ! get_option( 'ec_option_paypal_use_paylater' ) ) { 
 			$disable_funding_options[] = 'paylater'; 
@@ -1063,11 +1067,14 @@ function wp_easycart_load_cart_js() {
 		if ( ! apply_filters( 'wp_easycart_allow_paypal_express', false ) || ! get_option( 'ec_option_paypal_use_card' ) ) { 
 			$disable_funding_options[] = 'card'; 
 		}
+		if ( count( $enable_funding_options ) > 0 ) {
+			$enable_funding = '&enable-funding=' . implode( ',', $enable_funding_options );
+		}
 		if ( count ( $disable_funding_options ) > 0 ) {
 			$disable_funding = '&disable-funding=' . implode( ',', $disable_funding_options );
 		}
 		$paypal_currency = ( get_option( 'ec_option_paypal_use_selected_currency' ) && isset( $_COOKIE['ec_convert_to'] ) ) ? substr( preg_replace( '/[^A-Z]/', '', strtoupper( sanitize_text_field( $_COOKIE['ec_convert_to'] ) ) ), 0, 3 ) : get_option( 'ec_option_paypal_currency_code' );
-		wp_enqueue_script( 'wpeasycart_paypal_js', 'https://www.paypal.com/sdk/js?client-id=' . esc_attr( $client_id ) . ( ( '' != $merchant_id ) ? '&merchant-id=' . $merchant_id : '' ) . $disable_funding . '&currency=' . esc_attr( $paypal_currency ), array(), null, false );
+		wp_enqueue_script( 'wpeasycart_paypal_js', 'https://www.paypal.com/sdk/js?client-id=' . esc_attr( $client_id ) . ( ( '' != $merchant_id ) ? '&merchant-id=' . $merchant_id : '' ) . $disable_funding . $enable_funding . '&currency=' . esc_attr( $paypal_currency ), array(), null, false );
 		add_filter( 'sgo_js_async_exclude', 'wp_easycart_exclude_from_siteground', 10, 1 );
 	}
 
@@ -1275,7 +1282,7 @@ function ec_show_facebook_meta( $model_number ) {
 	$ec_db = new ec_db();
 	$product = wp_cache_get( 'wpeasycart-product-only-'.$model_number, 'wpeasycart-product-list' );
 	if ( ! $product ) {
-		$product = $ec_db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "", "wpeasycart-product-only-".$model_number );
+		$product = $ec_db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "", "wpeasycart-product-only-".$model_number, '', '' );
 		wp_cache_set( 'wpeasycart-product-only-' . $model_number, $product, 'wpeasycart-product-list' );
 	}
 	if ( count( $product ) > 0 ) {
@@ -1926,7 +1933,7 @@ function load_ec_product( $atts ) {
 	global $wpdb;
 	$mysqli = new ec_db();
 	if ( $model_number != "NOPRODUCT" ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "" );
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), '', '', '', '', '', '' );
 	} else {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) {
 			$product_where = " WHERE product.activate_in_store = 1";
@@ -2163,15 +2170,15 @@ function wp_easycart_get_shortcode_product_list( $use_post_id, $model_number, $p
 	if ( $use_post_id ) {
 		global $post;
 		if ( isset( $post ) && isset( $post->ID ) ) {
-			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.post_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $post->ID ), "", "", "" );
+			$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.post_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $post->ID ), '', '', '', '', '', '' );
 		}
 		if ( 0 == count( $products ) ) {
 			$products = $mysqli->get_product_list( ' WHERE product.activate_in_store = 1', "", "", "" );
 		}
 	} else if ( 'NOPRODUCT' != $model_number ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), "", "", "" );
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $model_number ), '', '', '', '', '', '' );
 	} else if ( '' != $product_id ) {
-		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.product_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $product_id ), "", "", "" );
+		$products = $mysqli->get_product_list( $wpdb->prepare( ' WHERE product.product_id = %d' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $product_id ), '', '', '', '', '', '' );
 	}
 	return $products;
 }

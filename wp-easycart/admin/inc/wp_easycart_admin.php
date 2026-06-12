@@ -146,6 +146,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'admin_notices', array( $this, 'database_check' ) );
 			add_action( 'add_meta_boxes', array( $this, 'page_lock_meta' ), 10, 2 );
 			add_action( 'save_post', array( $this, 'save_page_lock_meta' ) );
+			add_action( 'wpeasycart_product_activated', array( $this, 'wp_easycart_sync_product_post_status' ) );
+			add_action( 'wpeasycart_product_deactivated', array( $this, 'wp_easycart_sync_product_post_status' ) );
 
 			// WordPress Filters
 			add_filter( 'admin_title', array( $this, 'set_title' ), 10, 2 );
@@ -288,6 +290,25 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				if( array_key_exists( 'wpeasycart_restrict_redirect_url_not_auth', $_POST ) ){
 					update_post_meta( $post_id, 'wpeasycart_restrict_redirect_url_not_auth', esc_url_raw( $_POST['wpeasycart_restrict_redirect_url_not_auth'] ) );
 				}
+			}
+		}
+		
+		public function wp_easycart_sync_product_post_status( $product_id ) {
+			global $wpdb;
+			$product = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, activate_in_store, model_number FROM ec_product WHERE product_id = %d', $product_id ) );
+			if ( ! $product || empty( $product->post_id ) ) {
+				return;
+			}
+			$target  = $product->activate_in_store ? 'publish' : 'private';
+			$current = get_post_status( $product->post_id );
+			if ( $current && $current !== $target && in_array( $current, array( 'publish', 'private' ), true ) ) {
+				$wpdb->query( $wpdb->prepare(
+					'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d',
+					$target,
+					$product->post_id
+				) );
+				clean_post_cache( $product->post_id );
+				wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
 			}
 		}
 

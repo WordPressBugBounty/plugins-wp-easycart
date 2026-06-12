@@ -361,6 +361,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 
 			foreach ( $bulk_ids as $bulk_id ) {
+				// Skip products whose active state is controlled by Square — the next sync would revert it.
+				if ( function_exists( 'ecv2_is_square_active_locked' ) && ecv2_is_square_active_locked( (int) $bulk_id ) ) {
+					continue;
+				}
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number, title, activate_in_store FROM ec_product WHERE product_id = %d', (int) $bulk_id ) );
 				$active_status = 0;
 				$status = 'private';
@@ -396,6 +400,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 
 			foreach ( $bulk_ids as $bulk_id ) {
+				// Skip products whose active state is controlled by Square — the next sync would revert it.
+				if ( function_exists( 'ecv2_is_square_active_locked' ) && ecv2_is_square_active_locked( (int) $bulk_id ) ) {
+					continue;
+				}
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number, title, activate_in_store FROM ec_product WHERE product_id = %d', (int) $bulk_id ) );
 				$active_status = 1;
 				$status = 'publish';

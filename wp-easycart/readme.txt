@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 7.0
-Stable tag: 5.8.16
+Stable tag: 5.8.17
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,6 +214,14 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.8.17 =
+* New Feature - Admin user details now includes more details about the customer including past orders, order notes, downloads, subscriptions, and more.
+* Improvement - SquareUp synced products now display why they are locked as enabled or disabled to prevent confusion.
+* Bug Fix - PayPal Venmo fix.
+* Bug Fix - Product details manufacturer missing fixed.
+* Bug Fix - Public and private post status fixed in a few cases where it was missing.
+* Bug Fix - SquareUp product sync upgraded to fix cases for public vs private posts.
+* Bug Fix - Method based shipping with ship each item separately enabled caused incorrect sort order.
 = 5.8.16 =
 * Bug Fix - Permalinks checking adjusted to prevent issues.
 * Bug Fix - International USPS shipping bug fixed.

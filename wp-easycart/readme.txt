@@ -2,7 +2,7 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 7.0
-Stable tag: 5.8.17
+Stable tag: 5.9.0
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -214,7 +214,7 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
-= 5.8.17 =
+= 5.9.0 =
 * New Feature - Admin user details now includes more details about the customer including past orders, order notes, downloads, subscriptions, and more.
 * Improvement - SquareUp synced products now display why they are locked as enabled or disabled to prevent confusion.
 * Bug Fix - PayPal Venmo fix.

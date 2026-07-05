@@ -80,6 +80,8 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 			$this->billing_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_billing_address_id ) );
 			$this->shipping_info = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_address.* FROM ec_address WHERE address_id = %d', $this->user->default_shipping_address_id ) );
 			do_action( 'wp_easycart_admin_user_details_loaded', $this );
+		} else {
+			$this->record_not_found = true;
 		}
 	}
 
@@ -112,7 +114,8 @@ class wp_easycart_admin_details_user extends wp_easycart_admin_details {
 		if ( 'edit' == $type ) {
 			$this->init_data();
 		}
-		if ( 'edit' == $type && ! $this->user->user_id ) {
+		if ( 'edit' == $type && ( $this->record_not_found || ! $this->user->user_id ) ) {
+			$this->print_record_not_found_notice();
 			return false;
 		} else {
 			include( EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-details.php' );

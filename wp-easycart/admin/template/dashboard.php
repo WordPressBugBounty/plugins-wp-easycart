@@ -700,11 +700,11 @@ function wpeasycart_admin_export_report( ){
 		var modal = '<div class="wpeasycart_admin_modal"><div class="wpeasycart_admin_modal_content">';
 		modal += '<div class="wpeasycart_admin_modal_close" onclick="jQuery( this ).parent( ).parent( ).remove( )">X</div>';
 		<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
-		modal += '<a href="' + reports.report1 + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
+		modal += '<a href="' + reports.report1 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
 		if( reports.report2 ){
-			modal += '<a href="' + reports.report2 + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
+			modal += '<a href="' + reports.report2 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
 		}
-		modal += '<a href="' + reports.reporttax + '" class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
+		modal += '<a href="' + reports.reporttax + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
 		<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
 		modal += '</div></div>';
 		jQuery( 'body' ).append( modal );

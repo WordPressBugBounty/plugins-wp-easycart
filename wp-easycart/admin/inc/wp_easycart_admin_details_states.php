@@ -34,7 +34,11 @@ class wp_easycart_admin_details_states extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-states';
-		$this->states = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_state.* FROM ec_state WHERE id_sta = %d', (int) $_GET['id_sta'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_state.* FROM ec_state WHERE id_sta = %d', (int) ( $_GET['id_sta'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->states = $record;
 		$this->id = $this->states->id_sta;
 	}
 
@@ -42,6 +46,10 @@ class wp_easycart_admin_details_states extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/states-details.php' );
 	}

@@ -12,10 +12,26 @@ class wp_easycart_admin_details {
 	protected $action;
 	protected $form_action;
 	protected $docs_link;
+	protected $record_not_found = false;
 
 	public function __construct() {
 		global $wpdb;
 		$this->wpdb = $wpdb;
+	}
+
+	protected function load_record( $row ) {
+		if ( is_object( $row ) ) {
+			return $row;
+		}
+		$this->record_not_found = true;
+		return false;
+	}
+
+	protected function print_record_not_found_notice() {
+		echo '<div class="notice notice-error"><p>';
+		echo esc_html__( 'The requested record could not be found. It may have been deleted.', 'wp-easycart' );
+		echo ' <a href="' . esc_url( admin_url( $this->action ) ) . '">' . esc_html__( 'Return to the list', 'wp-easycart' ) . '</a>';
+		echo '</p></div>';
 	}
 
 	public function print_fields( $field_list ) {

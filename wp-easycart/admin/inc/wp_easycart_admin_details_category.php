@@ -38,7 +38,11 @@ class wp_easycart_admin_details_category extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-category';
-		$this->item = $this->category = $wpdb->get_row( $wpdb->prepare( 'SELECT  ec_category.*, ' . $wpdb->prefix . 'posts.guid, ' . $wpdb->prefix . 'posts.post_excerpt FROM ec_category LEFT JOIN ' . $wpdb->prefix . 'posts ON ' . $wpdb->prefix . 'posts.ID = ec_category.post_id WHERE ec_category.category_id = %d', ( ( isset( $_GET['category_id'] ) ) ? (int) $_GET['category_id'] : 0 ) ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT  ec_category.*, ' . $wpdb->prefix . 'posts.guid, ' . $wpdb->prefix . 'posts.post_excerpt FROM ec_category LEFT JOIN ' . $wpdb->prefix . 'posts ON ' . $wpdb->prefix . 'posts.ID = ec_category.post_id WHERE ec_category.category_id = %d', ( ( isset( $_GET['category_id'] ) ) ? (int) $_GET['category_id'] : 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->item = $this->category = $record;
 		$this->id = $this->category->category_id;
 	}
 
@@ -46,6 +50,10 @@ class wp_easycart_admin_details_category extends wp_easycart_admin_details {
 		$this->init();
 		if ( 'edit' == $type ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/categories/category-details.php' );
 	}

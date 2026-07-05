@@ -33,7 +33,11 @@ class wp_easycart_admin_details_pricepoint extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-pricepoint';
-		$this->pricepoint = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_pricepoint.* FROM ec_pricepoint WHERE pricepoint_id = %d', (int) $_GET['pricepoint_id'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_pricepoint.* FROM ec_pricepoint WHERE pricepoint_id = %d', (int) ( $_GET['pricepoint_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->pricepoint = $record;
 		$this->id = $this->pricepoint->pricepoint_id;
 	}
 
@@ -41,6 +45,10 @@ class wp_easycart_admin_details_pricepoint extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/pricepoint/pricepoint-details.php' );
 	}

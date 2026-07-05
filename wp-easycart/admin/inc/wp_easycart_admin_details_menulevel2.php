@@ -36,16 +36,11 @@ class wp_easycart_admin_details_menulevel2 extends wp_easycart_admin_details {
 
 	protected function init_data() {
 		$this->form_action = 'update-menulevel2';
-		$this->menulevel2 = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT 
-				ec_menulevel2.*,
-				' . $this->wpdb->prefix . 'posts.guid,
-				' . $this->wpdb->prefix . 'posts.post_excerpt
-			FROM 
-				ec_menulevel2 
-				LEFT JOIN ' . $this->wpdb->prefix . 'posts ON ' . $this->wpdb->prefix . 'posts.ID = ec_menulevel2.post_id
-			WHERE 
-				menulevel2_id = %d', (int) $_GET['menulevel2_id']
-		) );
+		$record = $this->load_record( $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_menulevel2.*, ' . $this->wpdb->prefix . 'posts.guid, ' . $this->wpdb->prefix . 'posts.post_excerpt FROM ec_menulevel2  LEFT JOIN ' . $this->wpdb->prefix . 'posts ON ' . $this->wpdb->prefix . 'posts.ID = ec_menulevel2.post_id WHERE menulevel2_id = %d', (int) ( $_GET['menulevel2_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->menulevel2 = $record;
 		$this->id = $this->menulevel2->menulevel2_id;
 	}
 
@@ -53,6 +48,10 @@ class wp_easycart_admin_details_menulevel2 extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/menus/menulevel2-details.php' );
 	}

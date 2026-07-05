@@ -532,6 +532,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 				$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 				?>
 				jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
+				<?php $this->print_stripe_locale_mapper(); ?>
 				try {
 					var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
 					const options = {
@@ -539,7 +540,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 						appearance: {
 							theme: '<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>',
 						},
-						locale: wpeasycart_ajax_object.current_language
+						locale: <?php echo $this->get_stripe_element_locale_js(); ?>
 					};
 					const elements = stripe.elements( options );
 					const paymentElement = elements.create( 'payment', {

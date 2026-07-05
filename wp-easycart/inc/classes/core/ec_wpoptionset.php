@@ -668,6 +668,8 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_admin_product_show_variant_option');	array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_admin_enable_product_details_v2');	array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_enable_push_notifications');			array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_short_description_on_product');		array_push($this->wp_option_defaults, 0 );

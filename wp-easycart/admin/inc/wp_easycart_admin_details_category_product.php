@@ -28,7 +28,11 @@ class wp_easycart_admin_details_category_product extends wp_easycart_admin_detai
 
 	protected function init_data() {
 		$this->form_action = 'update-category-product';
-		$this->categoryitem = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_categoryitem.* FROM ec_categoryitem WHERE categoryitem_id = %d', (int) $_GET['categoryitem_id'] ) );
+		$record = $this->load_record( $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_categoryitem.* FROM ec_categoryitem WHERE categoryitem_id = %d', (int) ( $_GET['categoryitem_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->categoryitem = $record;
 		$this->id = $this->categoryitem->categoryitem_id;
 	}
 
@@ -36,6 +40,10 @@ class wp_easycart_admin_details_category_product extends wp_easycart_admin_detai
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/categories/product-details.php' );
 	}

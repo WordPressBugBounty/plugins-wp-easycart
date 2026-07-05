@@ -31,7 +31,11 @@ class wp_easycart_admin_details_subscribers extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-subscriber';
-		$this->subscriber = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_subscriber.* FROM ec_subscriber WHERE subscriber_id = %d', (int) $_GET['subscriber_id'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_subscriber.* FROM ec_subscriber WHERE subscriber_id = %d', (int) ( $_GET['subscriber_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->subscriber = $record;
 		$this->id = $this->subscriber->subscriber_id;
 	}
 
@@ -39,6 +43,10 @@ class wp_easycart_admin_details_subscribers extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/users/subscribers/subscribers-details.php' );
 	}

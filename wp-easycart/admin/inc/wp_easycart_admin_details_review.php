@@ -38,7 +38,11 @@ class wp_easycart_admin_details_review extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-review';
-		$this->review = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_review.* FROM ec_review WHERE review_id = %d', (int) $_GET['review_id'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_review.* FROM ec_review WHERE review_id = %d', (int) ( $_GET['review_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->review = $record;
 		$this->id = $this->review->review_id;
 	}
 
@@ -46,6 +50,10 @@ class wp_easycart_admin_details_review extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/reviews/review-details.php' );
 	}
@@ -154,7 +162,20 @@ class wp_easycart_admin_details_review extends wp_easycart_admin_details {
 
 	public function product_fields() {
 		global $wpdb;
-		$product = $wpdb->get_results( 'SELECT ec_product.model_number, ec_product.title, ec_product.price, ec_product.activate_in_store, ec_product.image1, ec_product.list_price, ec_product.description FROM ec_product WHERE ec_product.product_id = ' . $this->review->product_id . '' );
+		$product = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_product.model_number, ec_product.title, ec_product.price, ec_product.activate_in_store, ec_product.image1, ec_product.list_price, ec_product.description FROM ec_product WHERE ec_product.product_id = %d', (int) $this->review->product_id ) );
+		if ( empty( $product ) ) {
+			$product = array(
+				(object) array(
+					'model_number' => '',
+					'title' => __( 'Product no longer exists', 'wp-easycart' ),
+					'price' => 0,
+					'activate_in_store' => 0,
+					'image1' => '',
+					'list_price' => 0,
+					'description' => '',
+				),
+			);
+		}
 		$fields = apply_filters(
 			'wp_easycart_admin_reviews_details_product_fields_list',
 			array(

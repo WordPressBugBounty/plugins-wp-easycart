@@ -1306,9 +1306,35 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			}
 		}
 
+		protected function is_valid_sort_column( $column ) {
+			if ( ! is_string( $column ) || '' === $column ) {
+				return false;
+			}
+			$allowed = array();
+			if ( is_array( $this->list_columns ) ) {
+				foreach ( $this->list_columns as $list_column ) {
+					if ( isset( $list_column['name'] ) ) {
+						$allowed[] = $list_column['name'];
+					}
+					if ( isset( $list_column['orderby'] ) ) {
+						$allowed[] = $list_column['orderby'];
+					}
+				}
+			}
+			if ( isset( $this->key ) ) {
+				$allowed[] = $this->key;
+			}
+			if ( is_array( $this->default_sort_column ) ) {
+				$allowed = array_merge( $allowed, $this->default_sort_column );
+			} else if ( isset( $this->default_sort_column ) ) {
+				$allowed[] = $this->default_sort_column;
+			}
+			return in_array( $column, $allowed, true );
+		}
+
 		protected function get_query() {
 			$secondary_sort = '';
-			if ( isset( $this->current_sort_column ) ) {
+			if ( isset( $this->current_sort_column ) && $this->is_valid_sort_column( $this->current_sort_column ) ) {
 				$sort_column = $this->current_sort_column;
 				$sort_direction = $this->current_sort_direction;
 			} else if ( is_array( $this->default_sort_column ) ) {

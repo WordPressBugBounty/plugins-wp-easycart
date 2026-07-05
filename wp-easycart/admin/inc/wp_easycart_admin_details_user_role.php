@@ -31,7 +31,11 @@ class wp_easycart_admin_details_user_role extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-user-role';
-		$this->item = $this->user_role = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_role.* FROM ec_role WHERE role_id = %d', ( ( isset( $_GET['role_id'] ) ) ? (int) $_GET['role_id'] : 0 ) ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_role.* FROM ec_role WHERE role_id = %d', ( ( isset( $_GET['role_id'] ) ) ? (int) $_GET['role_id'] : 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->item = $this->user_role = $record;
 		$this->id = $this->user_role->role_id;
 	}
 
@@ -39,6 +43,10 @@ class wp_easycart_admin_details_user_role extends wp_easycart_admin_details {
 		$this->init();
 		if ( 'edit' == $type ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/users/user-roles/user-role-details.php' );
 	}

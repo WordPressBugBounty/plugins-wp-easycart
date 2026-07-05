@@ -3340,7 +3340,36 @@ class ec_cartpage {
 
 		return $return_arr;
 	}
-	
+
+	public function print_stripe_locale_mapper() {
+		echo "
+		if ( typeof window.wpeasycart_stripe_map_locale === 'undefined' ) {
+			window.wpeasycart_stripe_map_locale = function( raw ) {
+				var supported = [ 'ar','bg','cs','da','de','el','en','en-GB','es','es-419','et','fi','fil','fr','fr-CA','he','hr','hu','id','it','ja','ko','lt','lv','ms','mt','nb','nl','pl','pt','pt-BR','ro','ru','sk','sl','sv','th','tr','vi','zh','zh-HK','zh-TW' ];
+				var aliases = { 'no': 'nb', 'nn': 'nb', 'tl': 'fil', 'iw': 'he', 'in': 'id' };
+				var canonical = {};
+				var i;
+				for ( i = 0; i < supported.length; i++ ) {
+					canonical[ supported[ i ].toLowerCase() ] = supported[ i ];
+				}
+				raw = String( raw || '' ).trim().replace( /_/g, '-' ).toLowerCase();
+				if ( canonical[ raw ] ) { return canonical[ raw ]; }
+				var base = raw.split( '-' )[ 0 ];
+				if ( aliases[ base ] ) { base = aliases[ base ]; }
+				if ( canonical[ base ] ) { return canonical[ base ]; }
+				return 'auto';
+			};
+		}";
+	}
+
+	public function get_stripe_element_locale_js() {
+		$forced = apply_filters( 'wp_easycart_stripe_element_locale', '' );
+		if ( '' !== $forced ) {
+			return "'" . esc_attr( $forced ) . "'";
+		}
+		return 'wpeasycart_stripe_map_locale( wpeasycart_ajax_object.current_language )';
+	}
+
 	public function print_stripe_script_v2( $is_payment = false ) {
 		$mount_items = array();
 		$link_enabled = ( get_option( 'ec_option_stripe_link' ) && '' == $GLOBALS['ec_cart_data']->cart_data->user_id );
@@ -3442,10 +3471,12 @@ class ec_cartpage {
 		$type = ( $is_shipping ) ? 'shipping' : 'billing';
 		echo "var " . esc_attr( $type ) . "AddressTimer;";
 		if ( $custom_elements ) {
+		$this->print_stripe_locale_mapper();
 		echo "
 		const billingOptions = {
 			clientSecret: clientSecret,
 			appearance: appearance,
+			locale: " . $this->get_stripe_element_locale_js() . "
 		};
 		const billingElements = stripe.elements( billingOptions );
 		const billingaddressElement = billingElements.create( 'address', {";
@@ -4945,14 +4976,14 @@ class ec_cartpage {
 
 				}
 
-				$tempcart_id = $this->mysqli->add_to_cart( $product_id, $session_id, $quantity, $option1, $option2, $option3, $option4, $option5, $gift_card_message, $gift_card_to_name, $gift_card_from_name, $donation_price, $use_advanced_optionset, false );
-
+				// Build the advanced option values BEFORE adding so identical
+				// requests can update quantity on the existing cart row instead
+				// of inserting a duplicate row.
 				$option_vals = array();
-				// Now insert the advanced option set tempcart table if needed
+				$file_upload_fields = array();
+				$grid_quantity = 0;
 				if ( $use_advanced_optionset ) {
-
 					$optionsets = $GLOBALS['ec_advanced_optionsets']->get_advanced_optionsets( $product_id );
-					$grid_quantity = 0;
 
 					foreach( $optionsets as $optionset ) {
 						if ( $optionset->option_type == "checkbox" ) {
@@ -5030,18 +5061,26 @@ class ec_cartpage {
 						}
 
 						if ( $optionset->option_type == "file" ) {
-							//upload the file
-							$this->upload_customer_file( $tempcart_id, 'ec_option_' . $optionset->option_id );
+							// Upload after the cart row exists ( see below ).
+							$file_upload_fields[] = 'ec_option_' . $optionset->option_id;
 						}
 					}
 				}
 
-				for( $i=0; $i<count( $option_vals ); $i++ ) {
-					$this->mysqli->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
-				}
+				$was_merged = false;
+				$tempcart_id = $this->mysqli->add_to_cart( $product_id, $session_id, $quantity, $option1, $option2, $option3, $option4, $option5, $gift_card_message, $gift_card_to_name, $gift_card_from_name, $donation_price, $use_advanced_optionset, false, "", $option_vals, $was_merged );
 
-				if ( $grid_quantity > 0 ) {
-					$this->mysqli->update_tempcart_grid_quantity( $tempcart_id, $grid_quantity );
+				// Attach advanced option rows and files to newly created rows only.
+				if ( $tempcart_id && ! $was_merged ) {
+					foreach ( $file_upload_fields as $file_upload_field ) {
+						$this->upload_customer_file( $tempcart_id, $file_upload_field );
+					}
+					for( $i=0; $i<count( $option_vals ); $i++ ) {
+						$this->mysqli->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
+					}
+					if ( $grid_quantity > 0 ) {
+						$this->mysqli->update_tempcart_grid_quantity( $tempcart_id, $grid_quantity );
+					}
 				}
 
 				if ( get_option( 'ec_option_addtocart_return_to_product' ) ) {
@@ -5486,10 +5525,13 @@ class ec_cartpage {
 				$option_vals = $this->get_advanced_option_vals( $product_id, $cart_id );
 			}
 
-			$tempcart_id = $this->mysqli->add_to_cart( $product_id, $cart_id, $quantity, $option1, $option2, $option3, $option4, $option5, $gift_card_message, $gift_card_to_name, $gift_card_from_name, $donation_price, count( $option_vals ), false, $gift_card_email );
+			$was_merged = false;
+			$tempcart_id = $this->mysqli->add_to_cart( $product_id, $cart_id, $quantity, $option1, $option2, $option3, $option4, $option5, $gift_card_message, $gift_card_to_name, $gift_card_from_name, $donation_price, count( $option_vals ), false, $gift_card_email, $option_vals, $was_merged );
 
-			// Now insert the advanced option set tempcart table if needed
-			if ( $use_advanced_optionset || $use_both_option_types ) {
+			// Now insert the advanced option set tempcart table if needed. When
+			// the request matched an existing cart row ( $was_merged ), the
+			// options are already attached to that row.
+			if ( ( $use_advanced_optionset || $use_both_option_types ) && ! $was_merged ) {
 				$grid_quantity = $this->get_grid_quantity( $product_id, $tempcart_id );
 
 				for( $i=0; $i<count( $option_vals ); $i++ ) {

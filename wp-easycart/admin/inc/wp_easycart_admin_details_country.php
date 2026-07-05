@@ -34,7 +34,11 @@ class wp_easycart_admin_details_country extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-country';
-		$this->country = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_country.* FROM ec_country WHERE id_cnt = %d', (int) $_GET['id_cnt'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_country.* FROM ec_country WHERE id_cnt = %d', (int) ( $_GET['id_cnt'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->country = $record;
 		$this->id = $this->country->id_cnt;
 	}
 
@@ -42,6 +46,10 @@ class wp_easycart_admin_details_country extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/country-details.php' );
 	}

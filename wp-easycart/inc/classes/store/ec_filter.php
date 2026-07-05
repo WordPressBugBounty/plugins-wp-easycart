@@ -641,42 +641,43 @@ class ec_filter {
 					if ( !$attr_first ) {
 						$ret_string .= ' OR ';
 					}
-					$ret_string .= ' ec_categoryitem.category_id IN ('.$this->groupids . ')';
+					$ret_string .= ' ec_categoryitem.category_id IN ('. implode( ',', array_map( 'intval', explode( ',', $this->groupids ) ) ) . ')';
 					$attr_first = false;
 				}
 				if ( $this->manufacturerids && $this->manufacturerids != '' ) {
 					if ( !$attr_first ) {
 						$ret_string .= ' OR ';
 					}
-					$ret_string .= ' product.manufacturer_id IN ('.$this->manufacturerids . ')';
+					$ret_string .= ' product.manufacturer_id IN ('. implode( ',', array_map( 'intval', explode( ',', $this->manufacturerids ) ) ) . ')';
 					$attr_first = false;
 				}
 				if ( $this->productids && $this->productids != '' ) {
 					if ( !$attr_first ) {
 						$ret_string .= ' OR ';
 					}
-					$ret_string .= ' product.product_id IN ('.$this->productids . ')';
+					$ret_string .= ' product.product_id IN ('. implode( ',', array_map( 'intval', explode( ',', $this->productids ) ) ) . ')';
 					$attr_first = false;
 				}
 				$ret_string .= ')';
 			}
 
 			if ( $this->group_id != 0 && count( $this->category_filters ) == 0 ) {
-				$ret_string .= ' AND ec_categoryitem.category_id IN ('.$this->group_id . ')';
+				$ret_string .= ' AND ec_categoryitem.category_id IN ('. implode( ',', array_map( 'intval', explode( ',', $this->group_id ) ) ) . ')';
 			}
 			if ( count( $this->category_filters ) > 0 ) {
 				$ret_string .= ' AND (';
 				for ( $i = 0; $i < count( $this->category_filters ); $i++ ) {
+					$category_filter_ids = implode( ',', array_map( 'intval', explode( ',', $this->category_filters[ $i ] ) ) );
 					if ( 'OR' == $this->group_filter_method ) {
 						if ( $i > 0 ) {
 							$ret_string .= ' OR';
 						}
-						$ret_string .= ' ec_categoryitem_' . $i . '.category_id IN ('. $this->category_filters[ $i ] . ')';
+						$ret_string .= ' ec_categoryitem_' . $i . '.category_id IN ('. $category_filter_ids . ')';
 					} else {
 						if ( $i > 0 ) {
 							$ret_string .= ' AND';
 						}
-						$ret_string .= ' ec_categoryitem_' . $i . '.category_id IN ('. $this->category_filters[ $i ] . ')';
+						$ret_string .= ' ec_categoryitem_' . $i . '.category_id IN ('. $category_filter_ids . ')';
 					}
 				}
 				$ret_string .= ')';

@@ -3204,6 +3204,20 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 				wp_register_style( 'wp_easycart_upgrade_css', plugins_url( 'wp-easycart/admin/css/upgrade.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_upgrade_css' );
+				
+				if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "products" ) && function_exists( 'wp_easycart_product_details_v2_enabled' ) && wp_easycart_product_details_v2_enabled() ){
+					wp_register_style( 'wp_easycart_admin_details_v2_css', plugins_url( 'wp-easycart/admin/css/admin-details-v2.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
+					wp_enqueue_style( 'wp_easycart_admin_details_v2_css' );
+
+					wp_register_script( 'wp-easycart-products-details-v2', plugins_url( 'wp-easycart/admin/js/products-details-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+					wp_enqueue_script( 'wp-easycart-products-details-v2' );
+					wp_localize_script( 'wp-easycart-products-details-v2', 'wpeasycart_ecdv2_i18n', array(
+						'save' => __( 'Save', 'wp-easycart' ),
+						'saved' => __( 'Product saved.', 'wp-easycart' ),
+					) );
+
+					wp_add_inline_script( 'wp-easycart-products-details-v2', 'window.wpeasycart_ecdv2_currency = ' . wp_json_encode( get_option( 'ec_option_currency_symbol', '$' ) ) . ';', 'before' );
+				}
 
 				add_editor_style( );
 				add_thickbox( );

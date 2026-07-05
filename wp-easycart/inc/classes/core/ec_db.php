@@ -1867,7 +1867,9 @@ class ec_db{
 			return false;
 	}
 	
-	public static function add_to_cart( $product_id, $session_id, $quantity, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $gift_card_message="", $gift_card_to_name="", $gift_card_from_name="", $donation_price=0.00, $use_advanced_optionset=false, $return_tempcart=0, $gift_card_email="" ) {
+	public static function add_to_cart( $product_id, $session_id, $quantity, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $gift_card_message="", $gift_card_to_name="", $gift_card_from_name="", $donation_price=0.00, $use_advanced_optionset=false, $return_tempcart=0, $gift_card_email="", $option_vals = null, &$was_merged = false ) {
+		$was_merged = false;
+		$tempcart_id = false;
 		// Get the limit on this product
 		$hours = ( get_option( 'ec_option_tempcart_stock_hours' ) ) ? get_option( 'ec_option_tempcart_stock_hours' ) : 1;
 		$product_sql = "SELECT stock_quantity, use_optionitem_quantity_tracking, show_stock_quantity, allow_backorders, max_purchase_quantity, min_purchase_quantity, is_donation FROM ec_product WHERE product_id = %d";
@@ -1994,7 +1996,32 @@ class ec_db{
 		$sql = "SELECT COUNT(tempcart_id) AS total_rows FROM ec_tempcart WHERE session_id = '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$insert = self::$mysqli->get_var( self::$mysqli->prepare( $sql, $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
 
-		if( $use_advanced_optionset || $product->is_donation || $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_to_name != "" || ( $insert == 0 && $quantity > 0 ) || apply_filters( 'wp_easycart_add_to_cart_optional_always_add', false, $product_id ) ) {
+		// For advanced option sets, look for an existing row with identical
+		// advanced selections so quantity is combined rather than duplicated.
+		$advanced_match = false;
+		if ( $use_advanced_optionset && is_array( $option_vals ) && count( $option_vals ) > 0 && $gift_card_message == "" && $gift_card_from_name == "" && $gift_card_to_name == "" && $gift_card_email == "" && ! $product->is_donation ) {
+			$advanced_match = self::find_matching_tempcart_item( $session_id, $product_id, array( $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ), $option_vals );
+		}
+
+		if ( $advanced_match && $quantity > 0 ) {
+			$quantity = $quantity + $advanced_match->quantity; // Stock limits were already applied to $quantity above.
+			if ( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 ) {
+				$quantity = $product->min_purchase_quantity;
+			}
+			if ( $quantity > $product->max_purchase_quantity && $product->max_purchase_quantity != 0 ) {
+				$quantity = $product->max_purchase_quantity;
+			}
+			self::$mysqli->update(
+				'ec_tempcart',
+				array( 'quantity' => $quantity ),
+				array( 'tempcart_id' => $advanced_match->tempcart_id ),
+				array( '%d' ),
+				array( '%d' )
+			);
+			$tempcart_id = $advanced_match->tempcart_id;
+			$was_merged = true;
+			do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
+		} else if( $use_advanced_optionset || $product->is_donation || $gift_card_message != "" || $gift_card_from_name != "" || $gift_card_to_name != "" || ( $insert == 0 && $quantity > 0 ) || apply_filters( 'wp_easycart_add_to_cart_optional_always_add', false, $product_id ) ) {
 			if ( $quantity < $product->min_purchase_quantity && $product->min_purchase_quantity != 0 ) {
 				$quantity = $product->min_purchase_quantity;
 			}
@@ -2045,6 +2072,9 @@ class ec_db{
 				),
 				array( '%d', '%d', '%s', '%d', '%d', '%d', '%d', '%d' )
 			);
+			$tempcart_id = self::$mysqli->get_var( self::$mysqli->prepare( "SELECT tempcart_id FROM ec_tempcart WHERE session_id = %s AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d", $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
+			$was_merged = true;
+			do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
 		}
 		if ( $return_tempcart ) {
 			return self::get_temp_cart( $session_id );
@@ -5744,24 +5774,104 @@ class ec_db{
 				AND ec_tempcart_optionitem.option_id = %d", $session_id, $product_id, $option_id ) );
 	}
 
-	public static function quick_add_to_cart( $model_number ){
-		$product = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.model_number = %s", $model_number ) );
-		if ( $product ) {
-			$current_in_cart = self::$mysqli->get_var( self::$mysqli->prepare( "SELECT SUM( ec_tempcart.quantity ) FROM ec_tempcart WHERE ec_tempcart.product_id = %d AND ec_tempcart.session_id = %s", $product->product_id, $GLOBALS['ec_cart_data']->ec_cart_id ) );
-			if ( ! $product->show_stock_quantity || ( $product->show_stock_quantity && $product->stock_quantity >= $current_in_cart + 1 ) ) {
-				self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_tempcart( `session_id`, `product_id`, `quantity`, `gift_card_message`, `gift_card_from_name`, `gift_card_to_name` ) VALUES( %s, %d, %s, '', '', '' )", $GLOBALS['ec_cart_data']->ec_cart_id, $product->product_id, 1 ) );
-				$tempcart_id = self::$mysqli->insert_id;
-				self::update_temp_cart_inventory( $GLOBALS['ec_cart_data']->ec_cart_id );
-				do_action( 'wpeasycart_cartitem_added', $tempcart_id );
-				return $tempcart_id;
-			} else if( $current_in_cart > 0 ) {
-				return self::$mysqli->get_var( self::$mysqli->prepare( "SELECT ec_tempcart.tempcart_id FROM ec_tempcart WHERE ec_tempcart.product_id = %d AND ec_tempcart.session_id = %s", $product->product_id, $GLOBALS['ec_cart_data']->ec_cart_id ) );
-			} else {
-				return false;
+	public static function find_matching_tempcart_item( $session_id, $product_id, $optionitem_ids = array(), $option_vals = array() ) {
+		if ( ! is_array( $optionitem_ids ) ) {
+			$optionitem_ids = array();
+		}
+		$optionitem_ids = array_values( $optionitem_ids );
+		for ( $i = count( $optionitem_ids ); $i < 5; $i++ ) {
+			$optionitem_ids[] = 0;
+		}
+
+		// Build the advanced option signature. add_option_to_cart only stores
+		// rows with a non-empty value, so filter the same way here.
+		$target_signature = array();
+		if ( is_array( $option_vals ) ) {
+			foreach ( $option_vals as $option_val ) {
+				if ( isset( $option_val['option_type'] ) && in_array( $option_val['option_type'], array( 'file', 'grid' ) ) ) {
+					return false; // Per-add option data, never merge.
+				}
+				if ( isset( $option_val['optionitem_value'] ) && '' !== strval( $option_val['optionitem_value'] ) ) {
+					$target_signature[] = (int) $option_val['option_id'] . '|' . (int) $option_val['optionitem_id'] . '|' . strval( $option_val['optionitem_value'] );
+				}
 			}
-		} else {
+		}
+		sort( $target_signature );
+
+		$candidates = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT tempcart_id, quantity FROM ec_tempcart WHERE session_id = %s AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d AND ( gift_card_message = '' OR gift_card_message IS NULL ) AND ( gift_card_from_name = '' OR gift_card_from_name IS NULL ) AND ( gift_card_to_name = '' OR gift_card_to_name IS NULL ) AND gift_card_email = '' AND donation_price = 0 AND grid_quantity = 0 AND is_deconetwork = 0 ORDER BY tempcart_id ASC", $session_id, $product_id, $optionitem_ids[0], $optionitem_ids[1], $optionitem_ids[2], $optionitem_ids[3], $optionitem_ids[4] ) );
+		if ( ! $candidates || ! is_array( $candidates ) ) {
 			return false;
 		}
+		foreach ( $candidates as $candidate ) {
+			$row_signature = array();
+			$option_rows = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT option_id, optionitem_id, optionitem_value FROM ec_tempcart_optionitem WHERE tempcart_id = %d", $candidate->tempcart_id ) );
+			if ( $option_rows && is_array( $option_rows ) ) {
+				foreach ( $option_rows as $option_row ) {
+					$row_signature[] = (int) $option_row->option_id . '|' . (int) $option_row->optionitem_id . '|' . strval( $option_row->optionitem_value );
+				}
+			}
+			sort( $row_signature );
+			if ( $row_signature === $target_signature ) {
+				return $candidate;
+			}
+		}
+		return false;
+	}
+
+	public static function quick_add_to_cart( $model_number, $optionitem_ids = null, $option_vals = null, &$was_merged = false ){
+		$was_merged = false;
+		$product = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.model_number = %s", $model_number ) );
+		if ( ! $product ) {
+			return false;
+		}
+		if ( ! is_array( $optionitem_ids ) ) {
+			$optionitem_ids = array();
+		}
+		$optionitem_ids = array_values( $optionitem_ids );
+		for ( $i = count( $optionitem_ids ); $i < 5; $i++ ) {
+			$optionitem_ids[] = 0;
+		}
+		if ( ! is_array( $option_vals ) ) {
+			$option_vals = array();
+		}
+
+		$session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
+		$current_in_cart = self::$mysqli->get_var( self::$mysqli->prepare( "SELECT SUM( ec_tempcart.quantity ) FROM ec_tempcart WHERE ec_tempcart.product_id = %d AND ec_tempcart.session_id = %s", $product->product_id, $session_id ) );
+		$stock_allows_one_more = ( ! $product->show_stock_quantity || $product->allow_backorders || $product->stock_quantity >= $current_in_cart + 1 );
+
+		// Update quantity on an identical row instead of inserting a duplicate.
+		$matched_row = self::find_matching_tempcart_item( $session_id, $product->product_id, $optionitem_ids, $option_vals );
+		if ( $matched_row ) {
+			$was_merged = true;
+			$new_quantity = $matched_row->quantity + 1;
+			if ( ! $stock_allows_one_more ) {
+				$new_quantity = $matched_row->quantity; // At the stock limit, keep quantity and send the shopper to the cart.
+			}
+			if ( $product->max_purchase_quantity != 0 && $new_quantity > $product->max_purchase_quantity ) {
+				$new_quantity = $product->max_purchase_quantity;
+			}
+			if ( $new_quantity != $matched_row->quantity ) {
+				self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_tempcart SET quantity = %d WHERE tempcart_id = %d", $new_quantity, $matched_row->tempcart_id ) );
+				self::update_temp_cart_inventory( $session_id );
+				do_action( 'wpeasycart_cartitem_updated', $matched_row->tempcart_id );
+			}
+			return $matched_row->tempcart_id;
+		}
+
+		if ( $stock_allows_one_more ) {
+			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_tempcart( `session_id`, `product_id`, `quantity`, `optionitem_id_1`, `optionitem_id_2`, `optionitem_id_3`, `optionitem_id_4`, `optionitem_id_5`, `gift_card_message`, `gift_card_from_name`, `gift_card_to_name` ) VALUES( %s, %d, %d, %d, %d, %d, %d, %d, '', '', '' )", $session_id, $product->product_id, 1, $optionitem_ids[0], $optionitem_ids[1], $optionitem_ids[2], $optionitem_ids[3], $optionitem_ids[4] ) );
+			$tempcart_id = self::$mysqli->insert_id;
+			self::update_temp_cart_inventory( $session_id );
+			do_action( 'wpeasycart_cartitem_added', $tempcart_id );
+			return $tempcart_id;
+		} else if( $current_in_cart > 0 ) {
+			// Out of stock but the product is already in the cart: return the
+			// existing row so the shopper lands on the cart. Flag as merged so
+			// callers do not attach new option rows to an item they did not create.
+			$was_merged = true;
+			return self::$mysqli->get_var( self::$mysqli->prepare( "SELECT ec_tempcart.tempcart_id FROM ec_tempcart WHERE ec_tempcart.product_id = %d AND ec_tempcart.session_id = %s", $product->product_id, $session_id ) );
+		}
+		return false;
 	}
 
 	public static function get_download_list( $user_id ){

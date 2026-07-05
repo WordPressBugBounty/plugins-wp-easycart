@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.9.0
+ * Version: 5.9.1
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +13,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.9.0
+ * @version 5.9.1
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,7 +22,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_9_0' );
+define( 'EC_CURRENT_VERSION', '5_9_1' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '100' );
 
@@ -702,10 +702,10 @@ function load_ec_pre() {
 						}
 					}
 				} else if ( 'combo' == $advanced_option->option_type || 'swatch' == $advanced_option->option_type || 'radio' == $advanced_option->option_type ) {
-					$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+					$optionitems = $db->get_advanced_optionitems( $advanced_option->option_id );
 					$item_found = false;
 					foreach ( $optionitems as $optionitem ) {
-						if ( $optionitem->optionitem_name == $_GET[ $optionset->option_meta['url_var'] ] ) {
+						if ( $optionitem->optionitem_name == $_GET[ $advanced_option->option_meta['url_var'] ] ) {
 							$item_found = true;
 							break;
 						}
@@ -721,87 +721,87 @@ function load_ec_pre() {
 			}
 		}
 
-		if ( $product->is_subscription_item ) {
-			$tempcart_id = true;
-		} else {
-			$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['ec_add_to_cart'] ) );
-		}
-
-		if ( $tempcart_id ) {
-			$option_vals = array();
-			if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
-				$grid_quantity = 0;
-				foreach ( $advanced_options as $optionset ) {
-					if ( 'checkbox' == $optionset->option_type ) {
-						$selected_optionitems = array();
-						if ( is_array( $_GET[$optionset->option_meta['url_var']] ) ) {
-							foreach ( (array) $_GET[ $optionset->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
-								$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
-							}
-						} else {
-							$selected_optionitems[] = sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] );
-						}
-						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-						foreach ( $optionitems as $optionitem ) {
-							if ( in_array( $optionitem->optionitem_name, $selected_optionitems ) ) {
-								$option_vals[] = array( 
-									"option_id" => (int) $optionset->option_id, 
-									"option_label" => wp_easycart_escape_html( $optionset->option_label ), 
-									"option_name" => sanitize_text_field( $optionset->option_name ), 
-									"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
-									"option_type" => sanitize_text_field( $optionset->option_type ), 
-									"optionitem_id" => (int) $optionitem->optionitem_id, 
-									"optionitem_value" => esc_attr( $optionitem->optionitem_name ), 
-									"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
-								);
-							}
-						}
-					} else if ( 'combo' == $optionset->option_type || 'swatch' == $optionset->option_type || 'radio' == $optionset->option_type ) {
-						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-						foreach ( $optionitems as $optionitem ) {
-							if ( $optionitem->optionitem_name == $_GET[$optionset->option_meta['url_var']] ) {
-								$option_vals[] = array(
-									"option_id" => (int) $optionset->option_id,
-									"option_label" => wp_easycart_escape_html( $optionset->option_label ),
-									"option_name" => sanitize_text_field( $optionset->option_name ),
-									"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
-									"option_type" => sanitize_text_field( $optionset->option_type ),
-									"optionitem_id" => (int) $optionitem->optionitem_id,
-									"optionitem_value" => sanitize_text_field( $optionitem->optionitem_name ),
-									"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
-								);
-							}
+		// Build the advanced option values BEFORE adding so identical requests
+		// can update quantity on the existing cart row instead of inserting a
+		// duplicate row.
+		$option_vals = array();
+		if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
+			$grid_quantity = 0;
+			foreach ( $advanced_options as $optionset ) {
+				if ( 'checkbox' == $optionset->option_type ) {
+					$selected_optionitems = array();
+					if ( is_array( $_GET[$optionset->option_meta['url_var']] ) ) {
+						foreach ( (array) $_GET[ $optionset->option_meta['url_var'] ] as $selected_optionitem ) { // XSS OK. Forced array and each item sanitized.
+							$selected_optionitems[] = sanitize_text_field( $selected_optionitem );
 						}
 					} else {
-						$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
-						foreach ( $optionitems as $optionitem ) {
-							$option_vals[] = array(
-								"option_id" => $optionset->option_id,
-								"option_label" => wp_easycart_escape_html( $optionset->option_label ),
-								"option_name" => $optionitem->option_name,
-								"optionitem_name" => $optionitem->optionitem_name,
-								"option_type" => $optionitem->option_type,
-								"optionitem_id" => $optionitem->optionitem_id,
-								"optionitem_value" => ( 'number' == $optionset->option_type ) ? (int) sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) : esc_attr( sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) ),
-								"optionitem_model_number" => $optionitem->optionitem_model_number,
+						$selected_optionitems[] = sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] );
+					}
+					$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+					foreach ( $optionitems as $optionitem ) {
+						if ( in_array( $optionitem->optionitem_name, $selected_optionitems ) ) {
+							$option_vals[] = array( 
+								"option_id" => (int) $optionset->option_id, 
+								"option_label" => wp_easycart_escape_html( $optionset->option_label ), 
+								"option_name" => sanitize_text_field( $optionset->option_name ), 
+								"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
+								"option_type" => sanitize_text_field( $optionset->option_type ), 
+								"optionitem_id" => (int) $optionitem->optionitem_id, 
+								"optionitem_value" => esc_attr( $optionitem->optionitem_name ), 
+								"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
 							);
 						}
 					}
-				}
-				if ( $product->is_subscription_item ) {
-					$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
-					$GLOBALS['ec_cart_data']->save_session_to_db();
+				} else if ( 'combo' == $optionset->option_type || 'swatch' == $optionset->option_type || 'radio' == $optionset->option_type ) {
+					$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+					foreach ( $optionitems as $optionitem ) {
+						if ( $optionitem->optionitem_name == $_GET[$optionset->option_meta['url_var']] ) {
+							$option_vals[] = array(
+								"option_id" => (int) $optionset->option_id,
+								"option_label" => wp_easycart_escape_html( $optionset->option_label ),
+								"option_name" => sanitize_text_field( $optionset->option_name ),
+								"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
+								"option_type" => sanitize_text_field( $optionset->option_type ),
+								"optionitem_id" => (int) $optionitem->optionitem_id,
+								"optionitem_value" => sanitize_text_field( $optionitem->optionitem_name ),
+								"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
+							);
+						}
+					}
 				} else {
-					for ( $i=0; $i<count( $option_vals ); $i++ ) {
-						$db->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
+					$optionitems = $db->get_advanced_optionitems( $optionset->option_id );
+					foreach ( $optionitems as $optionitem ) {
+						$option_vals[] = array(
+							"option_id" => $optionset->option_id,
+							"option_label" => wp_easycart_escape_html( $optionset->option_label ),
+							"option_name" => $optionitem->option_name,
+							"optionitem_name" => $optionitem->optionitem_name,
+							"option_type" => $optionitem->option_type,
+							"optionitem_id" => $optionitem->optionitem_id,
+							"optionitem_value" => ( 'number' == $optionset->option_type ) ? (int) sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) : esc_attr( sanitize_text_field( $_GET[ $optionset->option_meta['url_var'] ] ) ),
+							"optionitem_model_number" => $optionitem->optionitem_model_number,
+						);
 					}
 				}
 			}
+		}
 
-			if ( ! $product->use_advanced_optionset || $product->use_both_option_types ) {
-				if ( $product->option_id_1 || $product->option_id_2 || $product->option_id_3 || $product->option_id_4 || $product->option_id_5 ) {
-					$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart SET optionitem_id_1 = %d, optionitem_id_2 = %d, optionitem_id_3 = %d, optionitem_id_4 = %d, optionitem_id_5 = %d WHERE tempcart_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $tempcart_id ) );
-					do_action( 'wpeasycart_cartitem_updated', $tempcart_id );
+		$was_merged = false;
+		if ( $product->is_subscription_item ) {
+			$tempcart_id = true;
+		} else {
+			$tempcart_id = $db->quick_add_to_cart( sanitize_text_field( $_GET['ec_add_to_cart'] ), array( $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5 ), $option_vals, $was_merged );
+		}
+
+		if ( $tempcart_id ) {
+			if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
+				if ( $product->is_subscription_item ) {
+					$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
+					$GLOBALS['ec_cart_data']->save_session_to_db();
+				} else if ( ! $was_merged ) {
+					for ( $i=0; $i<count( $option_vals ); $i++ ) {
+						$db->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
+					}
 				}
 			}
 
@@ -5384,7 +5384,9 @@ function ec_ajax_square_complete_payment() {
 	if ( isset( $_POST['shipping_address_last_name'] ) && '' != $_POST['shipping_address_last_name'] && 'undefined' != $_POST['shipping_address_last_name'] ) {
 		$GLOBALS['ec_cart_data']->cart_data->shipping_last_name = sanitize_text_field( $_POST['shipping_address_last_name'] );
 	}
-	$GLOBALS['ec_cart_data']->cart_data->shipping_company_name = '';
+	if ( isset( $_POST['shipping_address_company_name'] ) && '' != $_POST['shipping_address_company_name'] && 'undefined' != $_POST['shipping_address_company_name'] ) {
+		$GLOBALS['ec_cart_data']->cart_data->shipping_company_name = sanitize_text_field( $_POST['shipping_address_company_name'] );
+	}
 	if ( isset( $_POST['shipping_address_line_1'] ) && '' != $_POST['shipping_address_line_1'] && 'undefined' != $_POST['shipping_address_line_1'] ) {
 		$GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1 = sanitize_text_field( $_POST['shipping_address_line_1'] );
 	}
@@ -5426,7 +5428,9 @@ function ec_ajax_square_complete_payment() {
 	if ( isset( $_POST['billing_address_last_name'] ) && '' != $_POST['billing_address_last_name'] && 'undefined' != $_POST['billing_address_last_name'] ) {
 		$GLOBALS['ec_cart_data']->cart_data->billing_last_name = sanitize_text_field( $_POST['billing_address_last_name'] );
 	}
-	$GLOBALS['ec_cart_data']->cart_data->billing_company_name = '';
+	if ( isset( $_POST['billing_address_company_name'] ) && '' != $_POST['billing_address_company_name'] && 'undefined' != $_POST['billing_address_company_name'] ) {
+		$GLOBALS['ec_cart_data']->cart_data->billing_company_name = sanitize_text_field( $_POST['billing_address_company_name'] );
+	}
 	if ( isset( $_POST['billing_address_line_1'] ) && '' != $_POST['billing_address_line_1'] && 'undefined' != $_POST['billing_address_line_1'] ) {
 		$GLOBALS['ec_cart_data']->cart_data->billing_address_line_1 = sanitize_text_field( $_POST['billing_address_line_1'] );
 	}

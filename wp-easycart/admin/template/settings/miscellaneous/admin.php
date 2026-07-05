@@ -41,6 +41,7 @@
 	<div class="ec_admin_settings_input ec_admin_settings_live_payment_section">
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_orders_list_enable_pickup_date', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_orders_list_enable_pickup_date' ), __( 'Order List: Enable Preorder Pickup Date Display', 'wp-easycart' ), __( 'This will add a column in the order list for the preorder pickup date.', 'wp-easycart' ) ); ?>
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_orders_list_enable_pickup_time', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_orders_list_enable_pickup_time' ), __( 'Order List: Enable Restaurant Pickup Time Display', 'wp-easycart' ), __( 'This will add a column in the order list for the restaurant style orders and expected pickup time.', 'wp-easycart' ) ); ?>
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_enable_product_details_v2', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_enable_product_details_v2' ), __( 'Product Editor: Enable New Product Details (V2)', 'wp-easycart' ), __( 'Loads the modern product editor with tabbed navigation, per-section saving, activity insights, and a mobile-friendly layout. Turn off to use the classic product editor. Reload the product page after changing this setting.', 'wp-easycart' ) ); ?>
 		<?php do_action( 'wp_easycart_additional_admin_options' ); ?>
 	</div>
 </div>

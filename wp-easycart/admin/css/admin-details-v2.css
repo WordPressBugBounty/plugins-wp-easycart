@@ -1,0 +1,904 @@
+/**
+ * WP EasyCart Product Editor V2 (ecdv2)
+ * Requires admin-v2.css for the --ecv2-* token set.
+ */
+
+/* ---------- Shell ---------- */
+.ecdv2-wrap { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; color:var(--ecv2-g800); max-width:100%; margin:0; }
+.ecdv2-wrap *, .ecdv2-wrap *:before, .ecdv2-wrap *:after { box-sizing:border-box; }
+
+/* ---------- Sticky header ---------- */
+.ecdv2-header { position:sticky; top:32px; z-index:50; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:10px 14px; margin-bottom:14px; box-shadow:var(--ecv2-sh); }
+.folded .ecdv2-header { top:32px; }
+.ecdv2-header-back { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:var(--ecv2-r); color:var(--ecv2-g500); text-decoration:none; border:1px solid transparent; transition:all var(--ecv2-tr); flex-shrink:0; }
+.ecdv2-header-back:hover { background:var(--ecv2-g100); color:var(--ecv2-g800); }
+.ecdv2-header-thumb { width:40px; height:40px; border-radius:6px; background:var(--ecv2-g100); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+.ecdv2-header-thumb img { width:100%; height:100%; object-fit:cover; }
+.ecdv2-header-thumb .dashicons { color:var(--ecv2-g400); }
+.ecdv2-header-meta { min-width:0; flex:0 1 auto; }
+.ecdv2-header-title { font-size:15px; font-weight:600; color:var(--ecv2-g900); line-height:1.3; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:340px; }
+.ecdv2-header-sub { font-size:12px; color:var(--ecv2-g500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecdv2-header-sub .ecdv2-instock { color:var(--ecv2-primary); }
+.ecdv2-header-sub .ecdv2-outstock { color:var(--ecv2-danger); }
+.ecdv2-header-spacer { flex:1 1 auto; }
+
+.ecdv2-status-toggle { display:inline-flex; align-items:center; gap:7px; cursor:pointer; user-select:none; }
+.ecdv2-status-pill { font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px; background:var(--ecv2-g100); color:var(--ecv2-g500); transition:all var(--ecv2-tr); }
+.ecdv2-status-pill.is-active { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); }
+
+.ecdv2-dirty-pill { display:none; font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px; background:var(--ecv2-amber-light); color:var(--ecv2-amber); white-space:nowrap; }
+.ecdv2-dirty-pill.is-visible { display:inline-block; }
+.ecdv2-dirty-pill.is-saved { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); }
+
+.ecdv2-header-actions { display:flex; align-items:center; gap:8px; }
+.ecdv2-save-btn { min-width:88px; justify-content:center; }
+.ecdv2-save-btn .ecdv2-save-spin { display:none; width:13px; height:13px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:ecdv2-spin .7s linear infinite; }
+.ecdv2-save-btn.is-saving .ecdv2-save-spin { display:inline-block; }
+@keyframes ecdv2-spin { to { transform:rotate(360deg); } }
+
+/* Header overflow menu */
+.ecdv2-menu-wrap { position:relative; }
+.ecdv2-menu { display:none; position:absolute; right:0; top:calc(100% + 6px); min-width:200px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); box-shadow:var(--ecv2-shlg); padding:6px; z-index:60; }
+.ecdv2-menu.is-open { display:block; }
+.ecdv2-menu a, .ecdv2-menu button { display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:none; padding:8px 10px; border-radius:var(--ecv2-rs); font-size:13px; color:var(--ecv2-g700); cursor:pointer; text-decoration:none; }
+.ecdv2-menu a:hover, .ecdv2-menu button:hover { background:var(--ecv2-g50); color:var(--ecv2-g900); }
+.ecdv2-menu .dashicons { font-size:16px; width:16px; height:16px; color:var(--ecv2-g400); }
+.ecdv2-menu-sep { height:1px; background:var(--ecv2-g100); margin:5px 0; }
+.ecdv2-menu .ecdv2-menu-danger { color:var(--ecv2-danger); }
+.ecdv2-menu .ecdv2-menu-danger .dashicons { color:var(--ecv2-danger); }
+
+/* ---------- Layout: rail + panel ---------- */
+.ecdv2-body { display:flex; gap:14px; align-items:flex-start; }
+.ecdv2-rail { width:208px; flex-shrink:0; position:sticky; top:96px; }
+.ecdv2-rail-search { position:relative; margin-bottom:8px; }
+.ecdv2-rail-search input { width:100%; padding:8px 10px 8px 32px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); font-size:13px; background:#fff; }
+.ecdv2-rail-search input:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+.ecdv2-rail-search .dashicons { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; }
+.ecdv2-search-results { display:none; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); box-shadow:var(--ecv2-shlg); margin-bottom:8px; max-height:280px; overflow:auto; }
+.ecdv2-search-results.is-open { display:block; }
+.ecdv2-search-result { display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--ecv2-g100); padding:8px 10px; font-size:12.5px; color:var(--ecv2-g700); cursor:pointer; }
+.ecdv2-search-result:last-child { border-bottom:none; }
+.ecdv2-search-result:hover { background:var(--ecv2-g50); }
+.ecdv2-search-result small { display:block; color:var(--ecv2-g400); font-size:11px; margin-top:1px; }
+
+.ecdv2-tabs { display:flex; flex-direction:column; gap:2px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:6px; }
+.ecdv2-tab { display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:none; border-radius:var(--ecv2-rs); padding:9px 10px; font-size:13px; color:var(--ecv2-g600); cursor:pointer; transition:all var(--ecv2-tr); line-height:1.25; position:relative; }
+.ecdv2-tab:hover { background:var(--ecv2-g50); color:var(--ecv2-g800); }
+.ecdv2-tab.is-active { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); font-weight:600; }
+.ecdv2-tab .dashicons { font-size:17px; width:17px; height:17px; flex-shrink:0; }
+.ecdv2-tab-dirty-dot { display:none; width:7px; height:7px; border-radius:50%; background:var(--ecv2-amber); margin-left:auto; flex-shrink:0; }
+.ecdv2-tab.is-dirty .ecdv2-tab-dirty-dot { display:block; }
+.ecdv2-tab-new { font-size:9px; font-weight:700; background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); padding:1px 6px; border-radius:8px; margin-left:auto; }
+.ecdv2-tab.is-dirty .ecdv2-tab-new { margin-left:6px; }
+
+.ecdv2-panel-col { flex:1; min-width:0; }
+.ecdv2-panel { display:none; }
+.ecdv2-panel.is-active { display:block; }
+
+/* ---------- Cards / sections ---------- */
+.ecdv2-card { background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); margin-bottom:14px; position:relative; }
+.ecdv2-card-header { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--ecv2-g100); }
+.ecdv2-card-title { font-size:13px; font-weight:600; color:var(--ecv2-g900); margin:0; }
+.ecdv2-card-hint { font-size:12px; color:var(--ecv2-g400); }
+.ecdv2-card-header .ecdv2-help-link { margin-left:auto; font-size:11.5px; color:var(--ecv2-g400); text-decoration:none; display:inline-flex; align-items:center; gap:3px; }
+.ecdv2-card-header .ecdv2-help-link:hover { color:var(--ecv2-blue); }
+.ecdv2-card-body { padding:14px 16px; }
+.ecdv2-card-saving { position:absolute; inset:0; background:rgba(255,255,255,.6); border-radius:var(--ecv2-r); display:none; z-index:5; }
+.ecdv2-card.is-saving .ecdv2-card-saving { display:block; }
+
+/* ---------- Field grid ---------- */
+.ecdv2-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px 16px; }
+.ecdv2-field { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.ecdv2-field-full { grid-column:1 / -1; }
+.ecdv2-label { font-size:12px; font-weight:600; color:var(--ecv2-g600); display:flex; align-items:center; gap:5px; }
+.ecdv2-label .ecdv2-req { color:var(--ecv2-danger); }
+.ecdv2-label-hint { font-weight:400; color:var(--ecv2-g400); }
+.ecdv2-input, .ecdv2-field input[type=text], .ecdv2-field input[type=number], .ecdv2-field input[type=date], .ecdv2-field textarea, .ecdv2-field select { width:100%; padding:8px 11px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); font-size:13px; color:var(--ecv2-g800); background:#fff; transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); line-height:1.4; max-width:none; min-height:0; }
+.ecdv2-field input:focus, .ecdv2-field textarea:focus, .ecdv2-field select:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+.ecdv2-field input.ecdv2-invalid, .ecdv2-field textarea.ecdv2-invalid { border-color:var(--ecv2-danger); box-shadow:0 0 0 2px var(--ecv2-danger-light); }
+.ecdv2-field-msg { font-size:11.5px; color:var(--ecv2-danger); display:none; }
+.ecdv2-field.has-error .ecdv2-field-msg { display:block; }
+.ecdv2-field textarea { min-height:74px; resize:vertical; }
+.ecdv2-char-count { font-size:11px; color:var(--ecv2-g400); text-align:right; }
+.ecdv2-char-count.is-over { color:var(--ecv2-danger); }
+
+/* Currency input */
+.ecdv2-currency-wrap { display:flex; align-items:stretch; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; background:#fff; transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecdv2-currency-wrap:focus-within { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecdv2-currency-wrap .ecdv2-currency-symbol { display:flex; align-items:center; padding:0 12px; background:var(--ecv2-g50); border-right:1px solid var(--ecv2-g200); color:var(--ecv2-g500); font-size:13px; font-weight:600; white-space:nowrap; pointer-events:none; }
+.ecdv2-currency-wrap input { flex:1; min-width:0; border:none !important; border-radius:0 !important; box-shadow:none !important; padding-left:11px !important; background:transparent !important; }
+.ecdv2-currency-wrap input:focus { border:none !important; box-shadow:none !important; outline:none !important; }
+
+/* Color input */
+.ecdv2-color-wrap { display:flex; align-items:center; gap:8px; }
+.ecdv2-color-wrap input[type=color] { width:36px; height:36px; padding:2px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); cursor:pointer; background:#fff; }
+.ecdv2-color-wrap input[type=text] { flex:1; }
+
+/* Toggle switch (checkbox) */
+.ecdv2-toggle-row { display:flex; align-items:flex-start; gap:10px; padding:9px 0; }
+.ecdv2-toggle { position:relative; width:36px; height:20px; flex-shrink:0; margin-top:1px; }
+.ecdv2-toggle input { position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:2; }
+.ecdv2-toggle-track { position:absolute; inset:0; background:var(--ecv2-g300); border-radius:10px; transition:background var(--ecv2-tr); }
+.ecdv2-toggle-track:after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform var(--ecv2-tr); box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.ecdv2-toggle input:checked + .ecdv2-toggle-track { background:var(--ecv2-primary); }
+.ecdv2-toggle input:checked + .ecdv2-toggle-track:after { transform:translateX(16px); }
+.ecdv2-toggle input:focus-visible + .ecdv2-toggle-track { box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecdv2-toggle-meta { min-width:0; }
+.ecdv2-toggle-label { font-size:13px; font-weight:500; color:var(--ecv2-g800); cursor:pointer; line-height:1.35; }
+.ecdv2-toggle-desc { font-size:11.5px; color:var(--ecv2-g400); margin-top:1px; }
+
+/* Slug field */
+.ecdv2-slug-wrap { display:flex; align-items:center; gap:6px; }
+.ecdv2-slug-wrap input { flex:1; }
+.ecdv2-slug-lock { display:inline-flex; align-items:center; justify-content:center; width:34px; height:35px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; cursor:pointer; color:var(--ecv2-g400); flex-shrink:0; }
+.ecdv2-slug-lock.is-locked { color:var(--ecv2-amber); border-color:var(--ecv2-amber); background:var(--ecv2-amber-light); }
+
+/* ---------- PRO gate rows ---------- */
+.ecdv2-gate { border:1px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); margin:8px 0; }
+.ecdv2-gate-head { display:flex; align-items:center; gap:9px; padding:10px 12px; cursor:pointer; user-select:none; }
+.ecdv2-gate-head .dashicons-lock { font-size:15px; width:15px; height:15px; color:var(--ecv2-g400); }
+.ecdv2-gate-label { flex:1; font-size:12.5px; font-weight:500; color:var(--ecv2-g500); }
+.ecdv2-gate-badge { font-size:10px; font-weight:700; letter-spacing:.4px; background:#ede9fe; color:#6d28d9; padding:2px 8px; border-radius:9px; }
+.ecdv2-gate-badge.is-inactive, .ecdv2-gate-badge.is-update, .ecdv2-gate-badge.is-license { background:var(--ecv2-amber-light); color:var(--ecv2-amber); }
+.ecdv2-gate-body { display:none; padding:0 12px 12px 36px; }
+.ecdv2-gate.is-open .ecdv2-gate-body { display:block; }
+.ecdv2-gate-desc { font-size:12px; color:var(--ecv2-g500); line-height:1.5; margin:0 0 8px; }
+.ecdv2-gate-cta { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:#6d28d9; text-decoration:none; }
+.ecdv2-gate-cta:hover { text-decoration:underline; color:#5b21b6; }
+
+/* ---------- Health checklist ---------- */
+.ecdv2-health { background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:12px 14px; margin-bottom:14px; }
+.ecdv2-health-top { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+.ecdv2-health-ring { font-size:12px; font-weight:700; color:var(--ecv2-primary-hover); }
+.ecdv2-health-bar { flex:1; height:6px; background:var(--ecv2-g200); border-radius:3px; overflow:hidden; }
+.ecdv2-health-bar-fill { height:100%; background:var(--ecv2-primary); border-radius:3px; transition:width .4s ease; }
+.ecdv2-health-label { font-size:12px; color:var(--ecv2-g500); white-space:nowrap; }
+.ecdv2-health-items { display:none; margin-top:10px; columns:2; column-gap:18px; }
+.ecdv2-health.is-open .ecdv2-health-items { display:block; }
+.ecdv2-health-item { display:flex; align-items:center; gap:7px; font-size:12px; padding:3px 0; break-inside:avoid; color:var(--ecv2-g600); }
+.ecdv2-health-item .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdv2-health-item.is-done .dashicons { color:var(--ecv2-primary); }
+.ecdv2-health-item.is-todo { color:var(--ecv2-g400); }
+.ecdv2-health-item.is-todo .dashicons { color:var(--ecv2-g300); }
+.ecdv2-health-item button { background:none; border:none; padding:0; font-size:12px; color:var(--ecv2-blue); cursor:pointer; text-decoration:underline; }
+
+/* ---------- Categories token UI ---------- */
+.ecdv2-cat-tokens { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; min-height:30px; }
+.ecdv2-cat-token { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; background:var(--ecv2-g100); color:var(--ecv2-g700); padding:5px 6px 5px 11px; border-radius:14px; }
+.ecdv2-cat-token button { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:none; background:var(--ecv2-g200); border-radius:50%; cursor:pointer; padding:0; color:var(--ecv2-g500); font-size:11px; line-height:1; }
+.ecdv2-cat-token button:hover { background:var(--ecv2-danger); color:#fff; }
+.ecdv2-cat-add { display:flex; gap:8px; }
+.ecdv2-cat-add select { flex:1; max-width:300px; }
+.ecdv2-cat-empty { font-size:12px; color:var(--ecv2-g400); }
+
+/* ---------- Tier / B2B pricing ---------- */
+.ecdv2-tier-table { width:100%; border-collapse:collapse; margin-bottom:10px; }
+.ecdv2-tier-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--ecv2-g400); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--ecv2-g200); }
+.ecdv2-tier-table td { font-size:13px; padding:8px; border-bottom:1px solid var(--ecv2-g100); color:var(--ecv2-g700); }
+.ecdv2-tier-table .ecdv2-tier-del { background:none; border:none; cursor:pointer; color:var(--ecv2-g300); padding:2px; }
+.ecdv2-tier-table .ecdv2-tier-del:hover { color:var(--ecv2-danger); }
+.ecdv2-tier-add { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+.ecdv2-tier-add .ecdv2-field { flex:0 1 150px; }
+/* Skin legacy AJAX-appended rows */
+.ecdv2-card .ec_admin_price_tier_row, .ecdv2-card .ec_admin_role_price_row { display:flex; align-items:center; gap:10px; font-size:13px; padding:8px; border-bottom:1px solid var(--ecv2-g100); }
+
+/* ---------- Badge preview ---------- */
+.ecdv2-badge-preview { display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:4px 10px; border-radius:3px; margin-top:4px; }
+
+/* ---------- Activity tab ---------- */
+/* Activity: metric tiles — value first, strong contrast. */
+.ecdv2-metrics { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px; }
+.ecdv2-metric { display:flex; flex-direction:column; gap:3px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:14px 16px; }
+.ecdv2-metric-label { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--ecv2-g500); font-weight:700; order:2; }
+.ecdv2-metric-value { font-size:23px; font-weight:800; color:var(--ecv2-g900); line-height:1.15; order:1; letter-spacing:-0.01em; }
+.ecdv2-metric-star { color:#f59e0b; font-size:17px; margin-left:3px; vertical-align:2px; }
+.ecdv2-metric-sub { font-size:11px; color:var(--ecv2-g500); order:3; }
+
+/* Activity: list rows — clear left identity, right-aligned structured meta. */
+.ecdv2-activity-body { padding-top:6px; padding-bottom:6px; }
+.ecdv2-activity-row { display:flex; align-items:center; gap:12px; padding:11px 10px; border-bottom:1px solid var(--ecv2-g100); font-size:13px; color:var(--ecv2-g700); transition:background var(--ecv2-tr); border-radius:var(--ecv2-rs); }
+.ecdv2-activity-row:last-child { border-bottom:none; }
+.ecdv2-activity-row:hover { background:var(--ecv2-g50); }
+.ecdv2-activity-row-main { display:inline-flex; align-items:center; gap:8px; min-width:0; text-decoration:none; color:var(--ecv2-g800); }
+a.ecdv2-activity-row-main:hover .ecdv2-activity-name { color:var(--ecv2-primary-hover); }
+.ecdv2-activity-id { font-weight:700; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; flex-shrink:0; }
+.ecdv2-activity-name { font-weight:500; color:var(--ecv2-g800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecdv2-activity-avatar { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); font-size:11px; font-weight:700; flex-shrink:0; }
+.ecdv2-activity-row-meta { display:inline-flex; align-items:center; gap:10px; margin-left:auto; flex-shrink:0; }
+.ecdv2-activity-amount { font-size:12.5px; font-weight:600; color:var(--ecv2-g700); font-variant-numeric:tabular-nums; }
+.ecdv2-activity-date { font-size:12px; color:var(--ecv2-g500); font-variant-numeric:tabular-nums; }
+.ecdv2-activity-status { font-size:11px; font-weight:600; color:var(--ecv2-g600); background:var(--ecv2-g100); border-radius:99px; padding:3px 9px; white-space:nowrap; }
+.ecdv2-activity-stars { color:#f59e0b; font-weight:700; flex-shrink:0; }
+.ecdv2-activity-reviewer { color:var(--ecv2-g500); font-size:12px; font-style:italic; white-space:nowrap; }
+.ecdv2-activity-pending { margin-left:auto; font-size:11.5px; font-weight:700; color:#b45309; background:#fef3c7; border-radius:99px; padding:3px 10px; }
+.ecdv2-activity-row .dashicons { color:var(--ecv2-g300); font-size:16px; width:16px; height:16px; flex-shrink:0; }
+.ecdv2-activity-row .ecdv2-act-meta { margin-left:auto; font-size:12px; color:var(--ecv2-g500); white-space:nowrap; }
+.ecdv2-order-status { font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:9px; background:var(--ecv2-g100); color:var(--ecv2-g500); white-space:nowrap; }
+.ecdv2-review-stars { color:var(--ecv2-amber); font-size:12px; letter-spacing:1px; }
+.ecdv2-review-approve { font-size:11px; font-weight:600; border:1px solid var(--ecv2-g200); background:#fff; border-radius:var(--ecv2-rs); padding:3px 9px; cursor:pointer; color:var(--ecv2-g600); }
+.ecdv2-review-approve:hover { border-color:var(--ecv2-primary); color:var(--ecv2-primary); }
+.ecdv2-review-approve.is-approved { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); border-color:transparent; }
+.ecdv2-activity-empty { font-size:12.5px; color:var(--ecv2-g500); padding:22px 14px; text-align:center; border:1px dashed var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecdv2-activity-loading { padding:30px; text-align:center; color:var(--ecv2-g400); font-size:13px; }
+
+/* ---------- Toasts ---------- */
+.ecdv2-toasts { position:fixed; bottom:20px; right:20px; z-index:99999; display:flex; flex-direction:column; gap:8px; }
+.ecdv2-toast { display:flex; align-items:center; gap:8px; background:var(--ecv2-g900); color:#fff; font-size:13px; padding:10px 16px; border-radius:var(--ecv2-r); box-shadow:var(--ecv2-shlg); animation:ecdv2-toast-in .25s ease; max-width:340px; }
+.ecdv2-toast.is-error { background:var(--ecv2-danger); }
+.ecdv2-toast.is-success { background:var(--ecv2-primary-hover); }
+@keyframes ecdv2-toast-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ---------- New product mode ---------- */
+.ecdv2-newproduct-note { display:flex; align-items:center; gap:8px; background:var(--ecv2-blue-light); border:1px solid rgba(59,130,246,.25); border-radius:var(--ecv2-r); padding:10px 14px; font-size:12.5px; color:var(--ecv2-g700); margin-bottom:14px; }
+.ecdv2-is-new .ecdv2-requires-save { display:none !important; }
+
+/* ---------- Legacy widget skinning inside v2 cards ---------- */
+.ecdv2-card .select2-container .select2-selection--single,
+.ecdv2-card .select2-container .select2-selection--multiple { border:1px solid var(--ecv2-g200) !important; border-radius:var(--ecv2-r) !important; min-height:36px; }
+.ecdv2-card input[type=button], .ecdv2-card input[type=submit].ec_admin_products_simple_button { background:#fff; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); padding:7px 14px; font-size:12.5px; font-weight:500; color:var(--ecv2-g700); cursor:pointer; transition:all var(--ecv2-tr); }
+.ecdv2-card input[type=button]:hover { background:var(--ecv2-g50); border-color:var(--ecv2-g400); }
+.ecdv2-card .wp-editor-container { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; }
+.ecdv2-card .wp-editor-tabs .wp-switch-editor { border-radius:var(--ecv2-rs) var(--ecv2-rs) 0 0; }
+
+/* ---------- Mobile: pill tab bar, single column ---------- */
+@media screen and (max-width: 960px) {
+	.ecdv2-rail { width:182px; }
+}
+@media screen and (max-width: 782px) {
+	.ecdv2-header { top:46px; padding:8px 10px; gap:8px; }
+	.ecdv2-header-title { max-width:170px; font-size:14px; }
+	.ecdv2-header-sub { max-width:170px; }
+	.ecdv2-header-thumb { width:34px; height:34px; }
+	.ecdv2-status-toggle .ecdv2-status-pill { display:none; }
+	.ecdv2-body { display:block; }
+	.ecdv2-rail { position:sticky; top:104px; z-index:40; width:100%; background:#f0f0f1; padding-bottom:8px; }
+	.ecdv2-tabs { flex-direction:row; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:5px; gap:4px; }
+	.ecdv2-tabs::-webkit-scrollbar { display:none; }
+	.ecdv2-tab { flex:0 0 auto; width:auto; padding:7px 12px; white-space:nowrap; font-size:12.5px; }
+	.ecdv2-tab .ecdv2-tab-new { margin-left:5px; }
+	.ecdv2-grid { grid-template-columns:1fr; }
+	.ecdv2-metrics { grid-template-columns:repeat(2, minmax(0,1fr)); }
+	.ecdv2-health-items { columns:1; }
+	.ecdv2-card-body { padding:12px; }
+	.ecdv2-save-btn { min-width:72px; }
+	.ecdv2-toasts { left:12px; right:12px; bottom:12px; }
+	.ecdv2-toast { max-width:none; }
+}
+
+/* ------------------------------------------------------------------
+   Reconciliation: classes emitted by products-details-v2.js
+------------------------------------------------------------------ */
+
+/* Tab dirty indicator (JS uses .has-dirty) */
+.ecdv2-tab.has-dirty .ecdv2-tab-dirty-dot { display:block; }
+.ecdv2-tab.has-dirty .ecdv2-tab-new { margin-left:6px; }
+
+/* Settings-search result internals + empty state */
+.ecdv2-search-result-label { display:block; font-weight:500; color:var(--ecv2-g700); }
+.ecdv2-search-result-tab { display:block; color:var(--ecv2-g400); font-size:11px; margin-top:1px; }
+.ecdv2-search-empty { display:block; padding:10px; font-size:12.5px; color:var(--ecv2-g400); }
+
+/* Flash highlight when jumping to a searched field */
+.ecdv2-flash { animation:ecdv2-flash-bg 1.6s ease; border-radius:var(--ecv2-r); }
+@keyframes ecdv2-flash-bg {
+	0% { background:var(--ecv2-amber-light); box-shadow:0 0 0 4px var(--ecv2-amber-light); }
+	100% { background:transparent; box-shadow:0 0 0 4px transparent; }
+}
+
+/* Activity row internals */
+.ecdv2-activity-row-main { color:var(--ecv2-g700); text-decoration:none; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
+.ecdv2-activity-row-meta { margin-left:auto; font-size:12px; color:var(--ecv2-g400); white-space:nowrap; flex-shrink:0; }
+
+/* Review approve/unapprove toggle */
+.ecdv2-review-toggle { border:1px solid var(--ecv2-g200); background:#fff; color:var(--ecv2-g700); font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:12px; cursor:pointer; margin-left:8px; flex-shrink:0; transition:all var(--ecv2-tr); }
+.ecdv2-review-toggle:hover { border-color:var(--ecv2-primary); color:var(--ecv2-primary-hover); }
+.ecdv2-review-toggle.is-approved { background:var(--ecv2-primary-light); border-color:transparent; color:var(--ecv2-primary-hover); }
+
+/* Toast visibility transition (entrance animation already defined) */
+.ecdv2-toast { opacity:0; transform:translateY(8px); transition:opacity .25s ease, transform .25s ease; animation:none; }
+.ecdv2-toast.is-visible { opacity:1; transform:none; }
+.ecdv2-toast.is-info { background:var(--ecv2-g900); }
+
+/* ------------------------------------------------------------------
+   V2.0.1 fixes: toggle alignment, legacy PRO containment,
+   menu grouping, advanced pricing blocks
+------------------------------------------------------------------ */
+
+/* Toggle rows: .ecdv2-field sets flex-direction:column, which left the
+   pill stacked above its label. Force a row layout. */
+.ecdv2-field.ecdv2-toggle-row,
+.ecdv2-toggle-row { flex-direction:row; align-items:flex-start; gap:10px; }
+.ecdv2-toggle { display:inline-block; }
+.ecdv2-toggle-meta { display:flex; flex-direction:column; gap:1px; min-width:0; padding-top:1px; }
+
+/* Legacy PRO panels rendered inside v2 cards float their internals;
+   contain them so they can't bleed into the next card. */
+.ecdv2-card-body::after,
+.ecdv2-legacy-pro::after { content:''; display:table; clear:both; }
+.ecdv2-legacy-pro { overflow:visible; }
+.ecdv2-legacy-pro .ec_admin_product_details_section { float:none; width:auto; }
+
+/* ==================================================================
+   Rail grouping + panel intros (navigation comprehension)
+================================================================== */
+.ecdv2-rail-group { padding:12px 10px 4px; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ecv2-g400); }
+.ecdv2-rail-group:first-child { padding-top:4px; }
+
+.ecdv2-panel-intro { display:flex; align-items:center; gap:9px; padding:11px 14px; margin-bottom:14px; background:var(--ecv2-primary-light); border:1px solid transparent; border-radius:var(--ecv2-r); color:var(--ecv2-g700); font-size:12.5px; line-height:1.45; }
+.ecdv2-panel-intro .dashicons { flex-shrink:0; color:var(--ecv2-primary-hover); font-size:17px; width:17px; height:17px; }
+
+@media screen and (max-width:782px) {
+	/* Horizontal pill rail: group labels become inline chips */
+	.ecdv2-rail-group { padding:6px 4px; align-self:center; white-space:nowrap; }
+	.ecdv2-panel-intro { font-size:12px; }
+}
+
+/* ==================================================================
+   Compatibility skin: legacy PRO markup ( media / variants /
+   modifiers ) when the PRO v2 panels are NOT active. Overrides the
+   legacy PRO stylesheet and inline styles so the stock PRO plugin
+   still gets the modern look without any PRO-side changes.
+   All selectors are scoped to .ecdv2-legacy-pro.
+================================================================== */
+
+/* --- Width: force full-width containers ( fixes the constrained box ) --- */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table,
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-body,
+.ecdv2-legacy-pro .ec_admin_product_details_optiontiem_images_group,
+.ecdv2-legacy-pro .ec_admin_product_details_media,
+.ecdv2-legacy-pro #wp_easycart_gallery_optionset,
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer { float:none !important; width:100% !important; box-sizing:border-box; margin-left:0 !important; margin-right:0 !important; }
+
+/* Kill the legacy inline dashed boxes; reskin as clean panels */
+.ecdv2-legacy-pro #wp_easycart_gallery_optionset { border:1px solid var(--ecv2-g200) !important; border-radius:var(--ecv2-r) !important; padding:12px 14px !important; margin:0 0 16px !important; background:var(--ecv2-g50); display:flex !important; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:space-between; }
+.ecdv2-legacy-pro #wp_easycart_gallery_optionset h3 { width:100%; margin:0 0 2px !important; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro #wp_easycart_gallery_optionset select { margin:0 !important; max-width:320px; }
+
+/* --- Section headings rendered by the legacy templates --- */
+.ecdv2-legacy-pro h3 { font-size:14px; font-weight:600; color:var(--ecv2-g900); }
+
+/* --- Media gallery: tiles + add tile --- */
+.ecdv2-legacy-pro .ec_admin_product_details_media { display:flex !important; flex-wrap:wrap; gap:10px; align-items:flex-start; border:none !important; border-radius:0 !important; padding:0 !important; }
+
+/* Per-option-item group title ( legacy renders an inline font-size:2em h4 ) */
+.ecdv2-legacy-pro .ec_admin_product_details_media h4 { flex:0 0 100% !important; width:100% !important; order:-1; margin:0 0 2px !important; padding:0 !important; font-size:11px !important; font-weight:700 !important; letter-spacing:.05em; text-transform:uppercase; line-height:1.4 !important; text-align:left !important; color:var(--ecv2-g500) !important; }
+.ecdv2-legacy-pro .wpeasycart_admin_product_gallery { display:flex; flex-wrap:wrap; gap:10px; flex:1; min-width:0; min-height:0; margin:0; padding:0; }
+
+/* Every tile -> 110px square card */
+.ecdv2-legacy-pro .ec_admin_product_image { position:relative; display:block !important; width:110px !important; height:110px !important; min-height:0 !important; margin:0 !important; padding:0 !important; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r) !important; overflow:hidden; background:var(--ecv2-g100) !important; box-shadow:none; box-sizing:border-box; }
+.ecdv2-legacy-pro .ec_admin_product_image img { width:100% !important; height:100% !important; max-width:100% !important; object-fit:cover; display:block; float:none !important; margin:0 !important; }
+.ecdv2-legacy-pro .ec_admin_product_image-sortable { cursor:grab; }
+.ecdv2-legacy-pro .ec_admin_product_image-sortable:hover { border-color:var(--ecv2-primary); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+
+/* First gallery tile = MAIN listing image */
+.ecdv2-legacy-pro .wpeasycart_admin_product_gallery .ec_admin_product_image-sortable:first-child { border:2px solid var(--ecv2-primary); }
+.ecdv2-legacy-pro .wpeasycart_admin_product_gallery .ec_admin_product_image-sortable:first-child::after { content:'MAIN'; position:absolute; top:4px; left:4px; padding:1px 5px; font-size:9px; font-weight:700; letter-spacing:.04em; color:#fff; background:var(--ecv2-primary); border-radius:4px; pointer-events:none; z-index:3; }
+
+/* Delete action on hover */
+.ecdv2-legacy-pro .ec_admin_product_image .actions { position:absolute; top:4px; right:4px; margin:0; padding:0; list-style:none; opacity:0; transition:opacity var(--ecv2-tr); z-index:4; }
+.ecdv2-legacy-pro .ec_admin_product_image:hover .actions { opacity:1; }
+.ecdv2-legacy-pro .ec_admin_product_image .actions li { margin:0; }
+.ecdv2-legacy-pro .ec_admin_product_image .actions .delete { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; background:rgba(17,24,39,.72) !important; color:#fff; text-decoration:none; }
+.ecdv2-legacy-pro .ec_admin_product_image .actions .delete .dashicons { font-size:15px !important; width:15px !important; height:15px !important; line-height:15px !important; background:transparent !important; border-radius:0 !important; color:#fff !important; }
+.ecdv2-legacy-pro .ec_admin_product_image .actions .delete:hover { background:var(--ecv2-danger) !important; }
+.ecdv2-legacy-pro .ec_admin_product_image .actions .delete:hover .dashicons { color:#fff !important; background:transparent !important; }
+.ecdv2-legacy-pro .ec_admin_product_image_video_cover { position:absolute; inset:0; background:rgba(17,24,39,.25); pointer-events:none; }
+.ecdv2-legacy-pro .ec_admin_product_image_video_button { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.92); color:var(--ecv2-g700); text-decoration:none; z-index:3; }
+
+/* Add tile: the legacy giant box -> 110px dashed tile */
+.ecdv2-legacy-pro .ec_admin_product_image_container { width:110px !important; height:110px !important; min-height:0 !important; margin:0; padding:0; border:2px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); background:#fff; display:flex; align-items:center; justify-content:center; box-sizing:border-box; }
+.ecdv2-legacy-pro .ec_admin_product_image_container:hover { border-color:var(--ecv2-primary); background:var(--ecv2-g50); }
+.ecdv2-legacy-pro .ec_admin_product_image_container .ec_admin_product_details_media_add { position:static !important; margin:0 !important; color:var(--ecv2-g400); font-size:26px !important; width:26px !important; height:26px !important; line-height:26px !important; cursor:pointer; }
+.ecdv2-legacy-pro .ec_admin_product_image_container:hover .ec_admin_product_details_media_add { color:var(--ecv2-primary); }
+
+/* Media-source popup menus */
+.ecdv2-legacy-pro .ec_admin_product_image_menu_group { border-radius:10px; box-shadow:var(--ecv2-shlg); overflow:hidden; }
+.ecdv2-legacy-pro .ec_admin_product_image_menu_list { margin:0; padding:6px; }
+.ecdv2-legacy-pro .ec_admin_product_image_menu_list li { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:7px; font-size:13px; cursor:pointer; color:var(--ecv2-g700); }
+.ecdv2-legacy-pro .ec_admin_product_image_menu_list li:hover { background:var(--ecv2-g100); }
+.ecdv2-legacy-pro .ec_admin_product_image_input_group input[type=text] { border:1px solid var(--ecv2-g300); border-radius:7px; min-height:34px; }
+.ecdv2-legacy-pro .ec_admin_product_image_input_group button { border:none; border-radius:7px; background:var(--ecv2-primary); color:#fff; padding:8px 14px; font-weight:600; cursor:pointer; }
+
+/* Image-set import/export footer */
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer { display:flex !important; flex-wrap:wrap; gap:10px; align-items:center; justify-content:flex-end; margin-top:16px !important; padding-top:14px; border-top:1px solid var(--ecv2-g100); }
+
+/* --- Option / variant / modifier tables --- */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-body { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; background:#fff; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-body:empty { border:1px dashed var(--ecv2-g300); min-height:44px; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row { border-bottom:1px solid var(--ecv2-g100); padding:6px 46px 6px 48px; transition:background var(--ecv2-tr); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row:last-child { border-bottom:none; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-body > .wp-easycart-pro-option-table-row:hover { background:var(--ecv2-g50); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column { font-size:13px; color:var(--ecv2-g700); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column-bold { font-weight:600; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column input[type=text],
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column input[type=number],
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column select { border:1px solid var(--ecv2-g300); border-radius:7px; min-height:32px; font-size:13px; box-shadow:none; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column input:focus,
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-column select:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+
+/* Variant filter bar + paging + Showing X-Y bars */
+.ecdv2-legacy-pro .wp-easycart-pro-variant-filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 12px; }
+.ecdv2-legacy-pro .wp-easycart-pro-variant-filters-label { font-size:12px; font-weight:600; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wpec_pro_variant_filter { border:1px solid var(--ecv2-g300); border-radius:7px; min-height:32px; font-size:13px; padding:4px 8px; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging { display:flex; align-items:center; gap:6px; justify-content:flex-end; padding:8px 4px; font-size:12px; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-button { color:var(--ecv2-g500); cursor:pointer; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-button.disabled { opacity:.4; cursor:default; }
+.ecdv2-legacy-pro .wp-easycart-pro-table-limits-note { background:var(--ecv2-g50); border-radius:var(--ecv2-r); padding:8px 12px; font-size:12px; color:var(--ecv2-g500); margin:0 0 4px; }
+
+/* Drag handles + row action menus */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-drag { color:var(--ecv2-g300); cursor:grab; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-drag:hover { color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-action-trigger { color:var(--ecv2-g400); cursor:pointer; border-radius:6px; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-action-trigger:hover { color:var(--ecv2-g700); background:var(--ecv2-g100); }
+
+/* Section intro paragraphs + buttons inside legacy panels */
+.ecdv2-legacy-pro .wp-easycart-pro-option-subtitle { float:none; width:auto; font-size:12.5px; line-height:1.55; color:var(--ecv2-g500); margin:0 0 14px; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-title1,
+.ecdv2-legacy-pro .wp-easycart-pro-option-title2,
+.ecdv2-legacy-pro .wp-easycart-pro-option-title3 { display:flex !important; align-items:center; gap:12px; flex-wrap:wrap; float:none !important; width:auto !important; margin:26px 0 4px !important; font-size:15px !important; font-weight:600 !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-title1:first-child { margin-top:0 !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-title2,
+.ecdv2-legacy-pro .wp-easycart-pro-option-title3 { border-top:1px solid var(--ecv2-g100); padding-top:24px !important; margin-top:28px !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-title1 > a,
+.ecdv2-legacy-pro .wp-easycart-pro-option-title2 > a,
+.ecdv2-legacy-pro .wp-easycart-pro-option-title3 > a { margin:0 0 0 auto !important; float:none !important; }
+.ecdv2-legacy-pro .wpeasycart_product_options_pro_new_button,
+.ecdv2-legacy-pro .wp-easycart-pro-option-modal-add-button { border:none; border-radius:7px; background:var(--ecv2-primary); color:#fff !important; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; box-shadow:none; display:inline-block; }
+.ecdv2-legacy-pro .wpeasycart_product_options_pro_new_button:hover,
+.ecdv2-legacy-pro .wp-easycart-pro-option-modal-add-button:hover { background:var(--ecv2-primary-hover); }
+
+/* Legacy import/export forms */
+.ecdv2-legacy-pro form { float:none !important; margin:0 !important; }
+.ecdv2-legacy-pro input[type=submit] { border:1px solid var(--ecv2-g300); border-radius:7px; background:#fff; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; color:var(--ecv2-g700); }
+.ecdv2-legacy-pro input[type=submit]:hover { border-color:var(--ecv2-primary); color:var(--ecv2-primary-hover); }
+
+/* Mobile: 3-up tiles */
+@media screen and (max-width:782px) {
+	.ecdv2-legacy-pro .ec_admin_product_image,
+	.ecdv2-legacy-pro .ec_admin_product_image_container { width:calc(33.333% - 7px) !important; height:auto !important; aspect-ratio:1/1; }
+	.ecdv2-legacy-pro #wp_easycart_gallery_optionset { flex-direction:column; align-items:stretch; }
+}
+
+/* --- Normalize legacy onoffswitch toggles to the v2 brand colour ---
+   ( applies to both the compat path and the v2 PRO panels, which both
+   render via load_toggle_group; the main form tabs use .ecdv2-toggle and
+   are unaffected ). Overrides any admin colour-scheme tint. */
+.ecdv2-wrap .wp-easycart-admin-onoffswitch-inner:before { background-color:var(--ecv2-primary) !important; color:#fff !important; }
+.ecdv2-wrap .wp-easycart-admin-toggle-group input[type=checkbox]:checked ~ .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label { background:var(--ecv2-primary) !important; border-color:var(--ecv2-primary) !important; }
+.ecdv2-wrap .wp-easycart-admin-onoffswitch-switch > .dashicons-before { color:var(--ecv2-primary) !important; }
+
+/* ==================================================================
+   v2.0.4 — media add-menu popover, footer alignment, dropdown
+   redesign, and options-page layout polish ( compatibility path )
+================================================================== */
+
+/* --- Add-media menu: turn the tile-filling overlay into a real popover --- */
+.ecdv2-wrap .ec_admin_product_image[data-attachment_id="-1"],
+.ecdv2-wrap .ec_admin_product_image[data-attachment_id="-1"] .ec_admin_product_image_container { overflow:visible !important; }
+.ecdv2-wrap .ec_admin_product_image_menu { width:280px !important; height:auto !important; min-height:0 !important; top:calc(100% + 6px) !important; left:0 !important; right:auto !important; background:#fff !important; border:1px solid var(--ecv2-g200); border-radius:10px; box-shadow:var(--ecv2-shlg); overflow:hidden; z-index:60 !important; }
+.ecdv2-wrap .ec_admin_product_image_menu_bg { display:none !important; }
+.ecdv2-wrap .ec_admin_product_image_menu_group { position:static !important; width:auto !important; height:auto !important; }
+.ecdv2-wrap .ec_admin_product_image_menu_close { top:8px !important; right:8px !important; left:auto !important; z-index:5; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:#fff; transition:background .12s ease; }
+.ecdv2-wrap .ec_admin_product_image_menu_close:hover { background:var(--ecv2-g100); }
+.ecdv2-wrap .ec_admin_product_image_menu_close .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; line-height:16px; }
+.ecdv2-wrap .ec_admin_product_image_menu_close:hover .dashicons { color:var(--ecv2-g700); }
+/* Reserve room for the floating close button so the first menu row's text
+   never sits underneath it. */
+.ecdv2-wrap .ec_admin_product_image_menu_list > li:first-child { padding-right:40px !important; }
+.ecdv2-wrap .ec_admin_product_image_input_group label { padding-right:32px; }
+.ecdv2-wrap .ec_admin_product_image_menu_list { display:block !important; position:static !important; width:auto !important; height:auto !important; padding:6px !important; margin:0 !important; text-align:left !important; }
+.ecdv2-wrap .ec_admin_product_image_menu_list > li { display:flex !important; align-items:center; gap:9px; background:transparent !important; padding:10px 12px !important; margin:0 !important; border-radius:7px !important; text-align:left !important; font-weight:500 !important; font-size:13px; color:var(--ecv2-g700); line-height:1.3; }
+.ecdv2-wrap .ec_admin_product_image_menu_list > li:hover { background:var(--ecv2-g100) !important; }
+/* Injected list icons are for the LEGACY compat path only ( that markup has
+   no icon spans ). The v2 PRO template renders real .dashicons spans in each
+   row, so injecting here doubled every icon in the add-media menu. Scope the
+   ::before rules to .ecdv2-legacy-pro, and defensively suppress them on any
+   row that already contains a real icon. */
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li::before { font-family:dashicons; font-size:16px; width:16px; height:16px; line-height:16px; color:var(--ecv2-g400); flex-shrink:0; }
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li:nth-child(1)::before { content:"\f104"; }
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li:nth-child(2)::before { content:"\f103"; }
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li:nth-child(3)::before { content:"\f126"; }
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li:nth-child(4)::before { content:"\f126"; }
+.ecdv2-wrap .ecdv2-legacy-pro .ec_admin_product_image_menu_list > li:nth-child(5)::before { content:"\f126"; }
+.ecdv2-wrap .ec_admin_product_image_menu_list > li:has(> .dashicons)::before { content:none !important; }
+.ecdv2-wrap .ec_admin_product_image_menu_list > li > .dashicons { font-size:16px; width:16px; height:16px; line-height:16px; color:var(--ecv2-g400); flex-shrink:0; }
+
+/* URL / video / youtube / vimeo input menus -> form popover */
+.ecdv2-wrap .ec_admin_product_image_menu:has(.ec_admin_product_image_input_group) { width:340px !important; }
+.ecdv2-wrap .ec_admin_product_image_input_group { position:static !important; width:auto !important; height:auto !important; display:flex; flex-direction:column; gap:9px; padding:16px !important; margin:0 !important; }
+.ecdv2-wrap .ec_admin_product_image_input_group label { float:none !important; width:auto !important; text-align:left !important; font-size:12px; font-weight:600; color:var(--ecv2-g700); margin:0 0 1px; line-height:1.4; }
+.ecdv2-wrap .ec_admin_product_image_input_group input[type=text] { float:none !important; width:100% !important; text-align:left !important; border:1px solid var(--ecv2-g300) !important; border-radius:7px; min-height:36px; padding:7px 11px; font-size:13px; box-sizing:border-box; margin:0 !important; }
+.ecdv2-wrap .ec_admin_product_image_input_group input[type=text]:focus { border-color:var(--ecv2-primary) !important; box-shadow:0 0 0 2px var(--ecv2-primary-light) !important; outline:none; }
+.ecdv2-wrap .ec_admin_product_image_input_group input::placeholder { color:var(--ecv2-g400); }
+.ecdv2-wrap .ec_admin_product_image_input_group > a.wp-easycart-product-group-media { display:inline-flex !important; align-items:center; gap:6px; align-self:flex-start; float:none !important; width:auto !important; background:#fff !important; border:1px solid var(--ecv2-g300) !important; border-radius:7px; padding:7px 12px !important; margin:0 !important; color:var(--ecv2-g700) !important; font-size:12px; font-weight:600; text-decoration:none; }
+.ecdv2-wrap .ec_admin_product_image_input_group > a.wp-easycart-product-group-media::before { font-family:dashicons; content:"\f104"; font-size:15px; width:15px; height:15px; line-height:15px; color:var(--ecv2-g400); }
+.ecdv2-wrap .ec_admin_product_image_input_group > a.wp-easycart-product-group-media:hover { border-color:var(--ecv2-primary) !important; color:var(--ecv2-primary-hover) !important; }
+.ecdv2-wrap .ec_admin_product_image_input_group > button { align-self:flex-start; border:none !important; border-radius:7px; background:var(--ecv2-primary) !important; color:#fff !important; padding:9px 18px !important; margin:3px 0 0 !important; font-size:13px; font-weight:600; text-transform:none !important; cursor:pointer; box-shadow:none; }
+.ecdv2-wrap .ec_admin_product_image_input_group > button:hover { background:var(--ecv2-primary-hover) !important; }
+
+/* --- Clean dropdowns ( Select an Item, variant filters, Filter View ) --- */
+.ecdv2-legacy-pro #ec_optionitem_images_options,
+.ecdv2-legacy-pro .wpec_pro_variant_filter,
+.ecdv2-legacy-pro select.wpec_pro_variant_filter,
+.ecdv2-legacy-pro .wp-easycart-pro-variant-filters select { border:1px solid var(--ecv2-g300) !important; border-radius:7px !important; min-height:36px; padding:6px 30px 6px 11px !important; font-size:13px; color:var(--ecv2-g800); background-color:#fff; box-shadow:none !important; cursor:pointer; max-width:240px; }
+.ecdv2-legacy-pro #ec_optionitem_images_options:focus,
+.ecdv2-legacy-pro .wpec_pro_variant_filter:focus { border-color:var(--ecv2-primary) !important; box-shadow:0 0 0 2px var(--ecv2-primary-light) !important; outline:none; }
+.ecdv2-legacy-pro .wp-easycart-pro-variant-filters-label { font-weight:600; color:var(--ecv2-g500); font-size:12px; }
+
+/* --- Image-set export/import footer alignment ( overrides inline floats ) --- */
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer { display:flex !important; flex-wrap:wrap; gap:10px; align-items:center; justify-content:flex-end; float:none !important; width:100% !important; margin:18px 0 0 !important; padding-top:16px; border-top:1px solid var(--ecv2-g100); box-sizing:border-box; }
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer > a { float:none !important; margin:0 !important; order:2; }
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer > form { float:none !important; margin:0 !important; order:1; }
+
+/* --- Variations import form ( standalone, was floated awkwardly ) --- */
+.ecdv2-legacy-pro form[enctype="multipart/form-data"] { float:none !important; display:flex; align-items:center; gap:8px; border:1px dashed var(--ecv2-g300) !important; border-radius:8px; padding:8px 10px !important; margin:0 0 14px auto !important; background:var(--ecv2-g50); max-width:max-content; }
+.ecdv2-legacy-pro #wpeasycart-pro-image-set-importer > form { margin:0 !important; }
+.ecdv2-legacy-pro form[enctype="multipart/form-data"] input[type=file] { font-size:12px; max-width:200px; }
+
+/* --- "Showing X of Y" paging bars --- */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging { display:flex !important; align-items:center; gap:6px; justify-content:space-between; flex-wrap:wrap; float:none !important; width:auto !important; background:var(--ecv2-g50) !important; border:none !important; border-top:1px solid var(--ecv2-g100) !important; border-radius:0 !important; padding:9px 14px !important; line-height:1.4 !important; font-size:12px; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-count { float:none !important; margin:0 !important; font-size:12px !important; color:var(--ecv2-g500) !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-pages { float:none !important; display:flex; align-items:center; gap:4px; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-pages > .wp-easycart-pro-option-table-paging-button { background:#fff !important; border:1px solid var(--ecv2-g300) !important; color:var(--ecv2-g600) !important; width:auto !important; height:auto !important; min-width:26px; padding:3px 7px !important; border-radius:6px !important; line-height:1.4 !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-pages > .wp-easycart-pro-option-table-paging-button:hover { background:var(--ecv2-g100) !important; border-color:var(--ecv2-primary) !important; color:var(--ecv2-primary-hover) !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-paging-pages > .wp-easycart-pro-option-table-paging-button.disabled { background:var(--ecv2-g100) !important; color:var(--ecv2-g300) !important; border-color:var(--ecv2-g200) !important; }
+
+/* --- Variant table: header + body rows + per-variant inputs --- */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-header { padding:8px 46px 8px 48px !important; border-bottom:1px solid var(--ecv2-g200); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row input[type=text],
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row input[type=number] { background:#fff !important; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row input::placeholder { color:var(--ecv2-g300); }
+
+/* Drag handle + actions gutter ( sits in the row padding we restored ) */
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-drag { color:var(--ecv2-g300); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-item-drag:hover { color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-row > .wp-easycart-pro-option-table-column-group { min-width:0; align-items:center; }
+.ecdv2-legacy-pro .wp-easycart-pro-option-table-label { padding:10px 0 !important; }
+
+
+/* Menu location grouping */
+.ecdv2-subhead { grid-column:1 / -1; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g400); padding-bottom:2px; border-bottom:1px solid var(--ecv2-g100); }
+.ecdv2-subhead:not(:first-child) { margin-top:10px; }
+
+/* Advanced pricing: Volume and B2B as visually distinct blocks */
+.ecdv2-advblock { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:12px 14px; background:#fff; }
+.ecdv2-advblock + .ecdv2-advblock { margin-top:4px; }
+.ecdv2-advblock-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.ecdv2-advblock-title { font-size:13px; font-weight:600; color:var(--ecv2-g800); }
+.ecdv2-advblock-hint { font-size:11.5px; color:var(--ecv2-g400); }
+.ecdv2-advblock-list { display:flex; flex-direction:column; gap:6px; }
+.ecdv2-advblock-empty { font-size:12.5px; color:var(--ecv2-g400); padding:14px; text-align:center; border:1px dashed var(--ecv2-g200); border-radius:var(--ecv2-r); background:var(--ecv2-g50); }
+.ecdv2-advblock-add { margin-top:10px; padding-top:10px; border-top:1px solid var(--ecv2-g100); }
+
+/* ==================================================================
+   v2.0.6 — add-menu back button, select2, Custom Price Label
+   sub-group, and modernized volume-pricing rows
+================================================================== */
+
+/* --- "Back to options" control in the second-level popovers --- */
+.ecdv2-wrap .ec_admin_product_image_input_group .ecdv2-pro-menu-back { display:inline-flex; align-items:center; gap:3px; align-self:flex-start; background:transparent; border:none; padding:2px 4px 2px 0; margin:0; color:var(--ecv2-g500); font-size:12px; font-weight:600; cursor:pointer; }
+.ecdv2-wrap .ec_admin_product_image_input_group .ecdv2-pro-menu-back:hover { color:var(--ecv2-primary-hover); }
+.ecdv2-wrap .ec_admin_product_image_input_group .ecdv2-pro-menu-back .dashicons { font-size:15px; width:15px; height:15px; line-height:15px; }
+
+/* --- select2 ( e.g. Restrict to User Role multiselect ) to match v2 --- */
+.ecdv2-wrap .select2-container { width:100% !important; }
+.ecdv2-wrap .select2-container--default .select2-selection--single,
+.ecdv2-wrap .select2-container--default .select2-selection--multiple { border:1px solid var(--ecv2-g300) !important; border-radius:var(--ecv2-r) !important; min-height:38px !important; padding:3px 5px; background:#fff; }
+.ecdv2-wrap .select2-container--default.select2-container--focus .select2-selection--multiple,
+.ecdv2-wrap .select2-container--default.select2-container--open .select2-selection--single,
+.ecdv2-wrap .select2-container--default.select2-container--open .select2-selection--multiple { border-color:var(--ecv2-primary) !important; box-shadow:0 0 0 2px var(--ecv2-primary-light) !important; }
+.ecdv2-wrap .select2-container--default .select2-selection--single { display:flex; align-items:center; }
+.ecdv2-wrap .select2-container--default .select2-selection--single .select2-selection__rendered { color:var(--ecv2-g800); line-height:1.4 !important; padding-left:6px; }
+.ecdv2-wrap .select2-container--default .select2-selection--single .select2-selection__arrow { height:36px !important; }
+.ecdv2-wrap .select2-container--default .select2-selection--multiple .select2-selection__rendered { padding:0 2px; }
+.ecdv2-wrap .select2-container--default .select2-selection--multiple .select2-selection__choice { background:var(--ecv2-primary-light) !important; border:1px solid transparent !important; border-radius:6px !important; color:var(--ecv2-primary-hover) !important; padding:3px 9px !important; margin:3px 4px 0 0 !important; font-size:12px; font-weight:500; }
+.ecdv2-wrap .select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color:var(--ecv2-primary-hover) !important; margin-right:5px !important; font-weight:700; border:none !important; background:transparent !important; }
+.ecdv2-wrap .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover { color:var(--ecv2-danger) !important; background:transparent !important; }
+.ecdv2-wrap .select2-container--default .select2-search--inline .select2-search__field { margin-top:6px; }
+.select2-dropdown { border-color:var(--ecv2-g200) !important; border-radius:var(--ecv2-r) !important; box-shadow:var(--ecv2-shlg); }
+.select2-container--default .select2-results__option--highlighted[aria-selected] { background:var(--ecv2-primary) !important; }
+.select2-container--default .select2-results__option[aria-selected=true] { background:var(--ecv2-primary-light) !important; color:var(--ecv2-primary-hover) !important; }
+
+/* --- Field sub-group ( Custom Price Label cluster ) --- */
+.ecdv2-subgroup { grid-column:1 / -1; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:14px 16px; background:var(--ecv2-g50); }
+.ecdv2-subgroup-title { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); margin-bottom:12px; }
+.ecdv2-subgroup-body { display:flex; flex-direction:column; gap:14px; }
+.ecdv2-subgroup-body .ecdv2-field { margin:0; }
+.ecdv2-subgroup-body .ecdv2-toggle-row { padding:2px 0; }
+
+/* --- Menu Locations ( organize tab ) --------------------------------------
+   A product can sit in up to three store menu locations, each a drill-down
+   path Menu Level 1 → 2 → 3. Grouping each location's three selects into its
+   own card ( vs. nine loose dropdowns ) makes the hierarchy legible. Rendered
+   by print_menu_locations(). */
+.ecdv2-menu-locations { display:flex; flex-direction:column; gap:14px; }
+.ecdv2-menu-locations-note { margin:0 0 2px; font-size:12.5px; line-height:1.5; color:var(--ecv2-g500); }
+.ecdv2-menu-location { border:1px solid var(--ecv2-g200); border-radius:10px; background:var(--ecv2-g50); overflow:hidden; }
+.ecdv2-menu-location-head { display:flex; align-items:center; gap:9px; padding:9px 14px; background:#fff; border-bottom:1px solid var(--ecv2-g100); }
+.ecdv2-menu-location-badge { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:21px; height:21px; border-radius:50%; background:var(--ecv2-primary); color:#fff; font-size:12px; font-weight:700; line-height:1; }
+.ecdv2-menu-location-title { font-size:13px; font-weight:600; color:var(--ecv2-g800); }
+.ecdv2-menu-location-body { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px 18px; padding:14px; align-items:end; }
+/* A faint chevron in the column gap signals the Level 1 → 2 → 3 drill-down. */
+.ecdv2-menu-location-body .ecdv2-field { position:relative; }
+@media (min-width:721px) {
+	.ecdv2-menu-location-body .ecdv2-field:not(:last-child)::after { content:''; position:absolute; right:-13px; bottom:14px; width:7px; height:7px; border-top:2px solid var(--ecv2-g300); border-right:2px solid var(--ecv2-g300); transform:rotate(45deg); pointer-events:none; }
+}
+/* Mobile: stack the three levels. */
+@media (max-width:720px) {
+	.ecdv2-menu-location-body { grid-template-columns:1fr; gap:10px; }
+}
+
+/* --- Volume + B2B pricing: concise, self-labeling "sentence" rows ---------
+   Both the add row and the saved rows read like a sentence
+   ( "Buy [10] or more for $[25.00] each" ) so the columns are self-
+   documenting. List-row selectors are ID-scoped because the legacy
+   admin.css styles #price_tiers_holder / #role_prices_holder rows with ID
+   specificity ( striping, span widths, floats ) that class selectors can't
+   override. */
+
+/* Shared add-row sentence ( volume + B2B ) */
+.ecdv2-advblock .ecdv2-tier-add { display:flex !important; align-items:center; flex-wrap:wrap; gap:9px; padding-bottom:16px; margin-bottom:14px; border-bottom:1px solid var(--ecv2-g100); }
+.ecdv2-tier-sentence { display:inline-flex !important; align-items:center; flex-wrap:wrap; gap:8px; color:var(--ecv2-g500); font-size:13px; }
+.ecdv2-tier-word { color:var(--ecv2-g500); font-size:13px; white-space:nowrap; }
+.ecdv2-advblock .ecdv2-tier-add input[type=number] { width:74px !important; max-width:74px !important; text-align:center; border:1px solid var(--ecv2-g300); border-radius:7px; min-height:36px; padding:6px 8px; font-size:13px; color:var(--ecv2-g900); box-sizing:border-box; }
+.ecdv2-advblock .ecdv2-tier-add input[type=number]:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+
+/* Inline-SVG "x" delete used in every pricing row */
+.ecdv2-row-del { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; color:var(--ecv2-g400); text-decoration:none; transition:background var(--ecv2-tr), color var(--ecv2-tr); flex:0 0 auto; }
+.ecdv2-row-del:hover { background:rgba(239,68,68,.1); color:var(--ecv2-danger); }
+.ecdv2-row-del .ecdv2-x { display:block; }
+.ecdv2-role-add #add_new_role_price_role { width:auto !important; min-width:140px; max-width:220px !important; border:1px solid var(--ecv2-g300); border-radius:7px; min-height:36px; padding:6px 28px 6px 10px; font-size:13px; color:var(--ecv2-g900); background-color:#fff; }
+.ecdv2-role-add #add_new_role_price_role:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+.ecdv2-role-add #add_new_role_price_role option:disabled { color:var(--ecv2-g300); }
+.ecdv2-tier-add-btn { display:inline-flex; align-items:center; justify-content:center; gap:5px; height:36px; border:none; border-radius:7px; background:var(--ecv2-primary); color:#fff; padding:0 16px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.ecdv2-tier-add-btn:hover { background:var(--ecv2-primary-hover); }
+.ecdv2-tier-add-btn .dashicons { font-size:16px; width:16px; height:16px; line-height:16px; }
+
+/* Volume saved rows -> sentence ( ID-scoped to beat admin.css ) */
+.ecdv2-tier-list, #price_tiers_holder.ecdv2-tier-list { display:flex; flex-direction:column; gap:6px; }
+#price_tiers_holder > .ec_admin_price_tier_row,
+#price_tiers_holder > div:nth-child(odd),
+#price_tiers_holder > div:nth-child(even) { float:none !important; width:auto !important; max-width:none !important; background:#fff !important; border:1px solid var(--ecv2-g200) !important; border-radius:8px !important; padding:7px 12px 7px 14px !important; display:flex !important; align-items:center; flex-wrap:wrap; gap:8px; transition:background var(--ecv2-tr), border-color var(--ecv2-tr); }
+#price_tiers_holder > .ec_admin_price_tier_row.ecdv2-tier-saved { border-color:var(--ecv2-primary) !important; background:var(--ecv2-primary-light) !important; }
+#price_tiers_holder > .ec_admin_price_tier_row > span { float:none !important; width:auto !important; min-width:0 !important; max-width:none !important; margin:0 !important; text-align:left !important; display:inline-flex !important; align-items:center; gap:6px; color:var(--ecv2-g500); font-size:13px; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:first-child::before { content:"Buy"; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:first-child::after { content:"or more"; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:nth-child(2) { margin-left:4px !important; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:nth-child(2)::before { content:"for " var(--ecdv2-cur, "$"); }
+#price_tiers_holder > .ec_admin_price_tier_row > span:nth-child(2)::after { content:"each"; }
+#price_tiers_holder > .ec_admin_price_tier_row input[type=number] { width:72px !important; min-width:72px; text-align:center; border:1px solid var(--ecv2-g300) !important; border-radius:6px !important; min-height:32px; padding:5px 6px !important; font-size:13px; color:var(--ecv2-g900); }
+#price_tiers_holder > .ec_admin_price_tier_row input[type=number]:focus { border-color:var(--ecv2-primary) !important; box-shadow:0 0 0 2px var(--ecv2-primary-light) !important; outline:none; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:last-child { margin-left:auto !important; gap:2px; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:last-child > a { float:none !important; margin:0 !important; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; text-decoration:none; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:last-child > a:has(.dashicons-yes) { display:none !important; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:last-child > a:hover { background:rgba(239,68,68,.1); }
+
+/* B2B saved rows -> sentence ( ID-scoped ) */
+.ecdv2-role-list, #role_prices_holder.ecdv2-role-list { display:flex; flex-direction:column; gap:6px; }
+#role_prices_holder > .ec_admin_role_price_row,
+#role_prices_holder > div:nth-child(odd),
+#role_prices_holder > div:nth-child(even) { float:none !important; width:auto !important; max-width:none !important; background:#fff !important; border:1px solid var(--ecv2-g200) !important; border-radius:8px !important; padding:9px 12px 9px 14px !important; display:flex !important; align-items:center; gap:8px; transition:background var(--ecv2-tr), border-color var(--ecv2-tr); }
+#role_prices_holder > .ec_admin_role_price_row > span { float:none !important; width:auto !important; min-width:0 !important; max-width:none !important; margin:0 !important; text-align:left !important; display:inline-flex !important; align-items:center; gap:6px; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-label { font-weight:600; color:var(--ecv2-g900); font-size:14px; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-price { color:var(--ecv2-g700); font-size:14px; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-price::before { content:"pays"; color:var(--ecv2-g500); font-size:13px; font-weight:400; margin-right:2px; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-actions { margin-left:auto !important; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-actions > a { float:none !important; margin:0 !important; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; text-decoration:none; }
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-actions > a:hover { background:rgba(239,68,68,.1); }
+
+/* "x" delete glyph for both lists ( overrides the dashicons-trash content ) */
+#price_tiers_holder .dashicons-trash::before,
+#role_prices_holder .dashicons-trash::before { content:"\f335" !important; color:var(--ecv2-g400) !important; font-size:18px !important; }
+#price_tiers_holder > .ec_admin_price_tier_row > span:last-child > a:hover .dashicons-trash::before,
+#role_prices_holder > .ec_admin_role_price_row .ecdv2-role-actions > a:hover .dashicons-trash::before { color:var(--ecv2-danger) !important; }
+
+@media screen and (max-width:782px) {
+	.ecdv2-advblock .ecdv2-tier-add { gap:7px; }
+	.ecdv2-role-add #add_new_role_price_role { min-width:120px; }
+}
+
+/* ==================================================================
+   v2.0.9 — Instock Subscribers ( PRO variation-inventory tools )
+================================================================== */
+.ecdv2-legacy-pro .ec_admin_stock_notification_view { margin-top:2px; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view h4 { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 14px; font-size:15px; font-weight:600; color:var(--ecv2-g900); }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view h4 > a { margin-left:auto; display:inline-flex; align-items:center; gap:5px; background:var(--ecv2-primary); color:#fff !important; border-radius:7px; padding:7px 14px; font-size:13px; font-weight:600; text-decoration:none; box-shadow:none; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view h4 > a:hover { background:var(--ecv2-primary-hover); }
+.ecdv2-legacy-pro .ec_admin_stock_notification_add_new { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin:0 0 14px; padding:12px 14px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecdv2-legacy-pro .ec_admin_stock_notification_add_new label { font-weight:600; font-size:13px; color:var(--ecv2-g700); margin:0; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_add_new input[type=text] { flex:1; min-width:200px; max-width:360px; border:1px solid var(--ecv2-g300); border-radius:7px; min-height:36px; padding:7px 11px; font-size:13px; box-sizing:border-box; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_add_new input[type=text]:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view .ec_admin_stock_notification_add_new input[type=button] { background:var(--ecv2-primary) !important; color:#fff !important; border:none !important; border-radius:7px !important; padding:8px 16px !important; font-size:13px; font-weight:600; cursor:pointer; box-shadow:none !important; text-shadow:none !important; min-height:36px; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view .ec_admin_stock_notification_add_new input[type=button]:hover { background:var(--ecv2-primary-hover) !important; }
+/* subscriber table */
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table { width:100%; border:1px solid var(--ecv2-g200) !important; border-radius:var(--ecv2-r); border-collapse:separate !important; border-spacing:0; overflow:hidden; box-shadow:none; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table thead th { background:var(--ecv2-g50) !important; border-bottom:1px solid var(--ecv2-g200) !important; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ecv2-g500); padding:10px 14px; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table tbody td { padding:11px 14px; font-size:13px; color:var(--ecv2-g700); border-bottom:1px solid var(--ecv2-g100); background:#fff; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table tbody tr:last-child td { border-bottom:none; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table td a { color:var(--ecv2-primary-hover); text-decoration:none; font-weight:500; }
+.ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table td a:hover { text-decoration:underline; }
+
+/* --- Per-variant quantity grid ( the other half of the Variation Inventory
+   card ); high specificity to beat shell.php's admin-color !important and
+   ID-scoped to beat admin.css striping. --- */
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin:0 0 14px; padding:12px 14px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row h3 { width:100%; margin:0 0 2px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row input[type=number] { width:110px; border:1px solid var(--ecv2-g300); border-radius:7px; min-height:36px; padding:6px 10px; font-size:13px; box-sizing:border-box; }
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row input[type=button] { background:var(--ecv2-primary) !important; color:#fff !important; border:none !important; border-radius:7px !important; padding:8px 16px !important; font-size:13px; font-weight:600; cursor:pointer; box-shadow:none !important; text-shadow:none !important; min-height:36px; float:none !important; }
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row input[type=button]:hover { background:var(--ecv2-primary-hover) !important; }
+.ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row .dashicons-lock { float:none !important; margin:0 !important; width:auto !important; color:var(--ecv2-amber, #d97706) !important; }
+.ecdv2-legacy-pro .ec_admin_optionitem_quantity_header { display:flex; align-items:center; gap:10px; padding:0 46px 6px 14px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-legacy-pro .ec_admin_optionitem_quantity_header > span:first-child { flex:1; }
+.ecdv2-legacy-pro .ec_admin_optionitem_quantity_header > span:nth-child(2) { width:120px; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder { display:flex; flex-direction:column; gap:6px; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row,
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > div:nth-child(odd),
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > div:nth-child(even) { float:none !important; width:auto !important; background:#fff !important; border:1px solid var(--ecv2-g200) !important; border-radius:8px !important; padding:7px 12px 7px 14px !important; display:flex !important; align-items:center; gap:10px; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > label { flex:1; font-size:13px; color:var(--ecv2-g800); font-weight:500; margin:0; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > input[type=number] { width:120px; border:1px solid var(--ecv2-g300) !important; border-radius:6px !important; min-height:34px; padding:6px 10px; font-size:13px; box-sizing:border-box; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > span { display:inline-flex; align-items:center; gap:2px; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > span > a:has(.dashicons-yes) { display:none; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > span > a { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:7px; color:var(--ecv2-g400); }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row .dashicons-trash::before { content:"\f335" !important; color:var(--ecv2-g400) !important; font-size:18px !important; }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > span > a:hover { background:rgba(239,68,68,.1); }
+.ecdv2-legacy-pro #ec_admin_product_details_optionitem_quantities_holder > .ec_admin_opionitem_quantity_row > span > a:hover .dashicons-trash::before { color:var(--ecv2-danger) !important; }
+.ecdv2-legacy-pro #ec_admin_no_optionitem_quantities { padding:20px 0 !important; text-align:center; color:var(--ecv2-g400); font-size:13px; }
+/* ==================================================================
+   v2.0.5 — General-tab sale pricing ( Previous Price beside Price )
+================================================================== */
+
+/* Always-visible helper text under a field ( distinct from the error-only
+   .ecdv2-field-msg ). */
+.ecdv2-field-desc { display:block; margin-top:5px; font-size:11.5px; color:var(--ecv2-g500); line-height:1.45; }
+
+/* Live "what shoppers will see" preview rendered under Previous Price. */
+.ecdv2-sale-preview { display:none; margin-top:8px; padding:8px 11px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); font-size:12.5px; color:var(--ecv2-g700); line-height:1.6; }
+.ecdv2-sale-preview.is-visible { display:block; }
+.ecdv2-sale-preview-lead { color:var(--ecv2-g500); margin-right:2px; }
+.ecdv2-sale-preview-was { text-decoration:line-through; color:var(--ecv2-g400); margin-right:4px; }
+.ecdv2-sale-preview-now { font-weight:700; color:var(--ecv2-g900); }
+.ecdv2-sale-preview.is-warning { background:#fffbeb; border-color:#fde68a; }
+.ecdv2-sale-preview-warn { color:#92400e; }
+
+/* ==================================================================
+   v2.0.5 — Google Merchant panel reskin ( SEO & Marketing tab )
+   The PRO plugin still prints the legacy field markup ( heading link,
+   #ec_admin_row_* wrappers, gm_* inputs ); the card body is upgraded to
+   the v2 two-column grid so the panel matches every other section.
+================================================================== */
+
+#ecdv2_gm_body { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px 16px; align-items:start; }
+
+/* Unknown / full-width children span both columns by default ( heading,
+   loaders, submit row, PRO gate ); recognized field rows flow into the
+   grid as normal half-width cells. */
+#ecdv2_gm_body > * { grid-column:1 / -1; min-width:0; }
+#ecdv2_gm_body > div[id^="ec_admin_row_"] { grid-column:auto; float:none !important; width:auto !important; max-width:100% !important; margin:0 !important; padding:0 !important; border:none !important; background:transparent !important; box-sizing:border-box; }
+
+/* Section heading -> v2 note bar; keep the Google reference link prominent. */
+#ecdv2_gm_body > .ec_admin_row_heading_title { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:9px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); font-size:12.5px !important; font-weight:600 !important; color:var(--ecv2-g700); line-height:1.5; }
+#ecdv2_gm_body > .ec_admin_row_heading_title a { color:var(--ecv2-primary-hover); font-weight:600; text-decoration:none; }
+#ecdv2_gm_body > .ec_admin_row_heading_title a:hover { text-decoration:underline; }
+
+/* Field labels ( legacy prints them as labels / bold text above each input ). */
+#ecdv2_gm_body div[id^="ec_admin_row_"] label,
+#ecdv2_gm_body div[id^="ec_admin_row_"] b,
+#ecdv2_gm_body div[id^="ec_admin_row_"] strong,
+#ecdv2_gm_body div[id^="ec_admin_row_"] .ec_admin_row_heading_title { display:block; float:none !important; width:auto !important; margin:0 0 5px !important; padding:0 !important; font-size:12px !important; font-weight:600 !important; color:var(--ecv2-g700) !important; text-align:left !important; line-height:1.4; }
+
+/* Inputs and selects -> v2 controls. */
+#ecdv2_gm_body input[type="text"],
+#ecdv2_gm_body input[type="number"],
+#ecdv2_gm_body input[type="date"],
+#ecdv2_gm_body select,
+#ecdv2_gm_body textarea { float:none !important; width:100% !important; max-width:100% !important; min-height:36px; margin:0 !important; padding:7px 11px !important; border:1px solid var(--ecv2-g300) !important; border-radius:var(--ecv2-rs) !important; background:#fff; font-size:13px; color:var(--ecv2-g800); box-shadow:none !important; box-sizing:border-box; }
+#ecdv2_gm_body input:focus,
+#ecdv2_gm_body select:focus,
+#ecdv2_gm_body textarea:focus { border-color:var(--ecv2-primary) !important; box-shadow:0 0 0 2px var(--ecv2-primary-light) !important; outline:none; }
+#ecdv2_gm_body select { cursor:pointer; padding-right:30px !important; }
+#ecdv2_gm_body .select2-container { width:100% !important; }
+
+/* Update button row -> right-aligned v2 primary button. */
+#ecdv2_gm_body .ec_admin_products_submit { display:flex; justify-content:flex-end; float:none !important; width:100% !important; margin:4px 0 0 !important; padding-top:14px; border-top:1px solid var(--ecv2-g100); }
+#ecdv2_gm_body .ec_admin_products_simple_button,
+#ecdv2_gm_body input[type="submit"] { width:auto !important; min-height:0; border:none !important; border-radius:var(--ecv2-rs) !important; background:var(--ecv2-primary) !important; color:#fff !important; padding:9px 18px !important; font-size:13px; font-weight:600; text-transform:none !important; cursor:pointer; box-shadow:none !important; transition:background .12s ease; }
+#ecdv2_gm_body .ec_admin_products_simple_button:hover,
+#ecdv2_gm_body input[type="submit"]:hover { background:var(--ecv2-primary-hover) !important; }
+
+/* Legacy loaders / notice rows inside the panel stay full width. */
+#ecdv2_gm_body [id*="loader"],
+#ecdv2_gm_body [class*="loader"],
+#ecdv2_gm_body .ec_admin_message_success,
+#ecdv2_gm_body .ecdv2-gate { grid-column:1 / -1; }
+
+/* Mobile: single column, larger touch targets. */
+@media screen and (max-width:782px) {
+	#ecdv2_gm_body { grid-template-columns:1fr; gap:12px; }
+	#ecdv2_gm_body input[type="text"],
+	#ecdv2_gm_body input[type="number"],
+	#ecdv2_gm_body input[type="date"],
+	#ecdv2_gm_body select { min-height:40px; }
+	#ecdv2_gm_body .ec_admin_products_submit { justify-content:stretch; }
+	#ecdv2_gm_body .ec_admin_products_simple_button,
+	#ecdv2_gm_body input[type="submit"] { width:100% !important; padding:12px 18px !important; }
+}
+
+/* Mobile: keep the add-media popover inside the viewport. */
+@media screen and (max-width:782px) {
+	.ecdv2-wrap .ec_admin_product_image_menu { width:auto !important; min-width:220px; max-width:calc(100vw - 48px) !important; }
+	.ecdv2-wrap .ec_admin_product_image_menu:has(.ec_admin_product_image_input_group) { width:auto !important; max-width:calc(100vw - 48px) !important; }
+}
+
+/* Google Merchant hedge: if the PRO printer nests its field rows inside a
+   single wrapper div, flatten that wrapper into the grid ( display:contents )
+   and apply the row resets at any depth so the two-column layout still forms. */
+#ecdv2_gm_body > div:not([id^="ec_admin_row_"]):not(.ec_admin_products_submit):not(.ecdv2-gate):has(> div[id^="ec_admin_row_"]) { display:contents; }
+#ecdv2_gm_body div[id^="ec_admin_row_"] { float:none !important; width:auto !important; max-width:100% !important; margin:0 !important; padding:0 !important; border:none !important; background:transparent !important; box-sizing:border-box; min-width:0; }
+#ecdv2_gm_body .ec_admin_row_heading_title:not(:first-child) { grid-column:1 / -1; }
+
+/* Google Merchant native v2 section: reference-link note above the grid. */
+.ecdv2-gm-doc { display:flex; align-items:flex-start; gap:8px; margin:0 0 14px; padding:9px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); font-size:12.5px; color:var(--ecv2-g600); line-height:1.5; }
+.ecdv2-gm-doc .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; margin-top:1px; flex-shrink:0; }
+.ecdv2-gm-doc a { color:var(--ecv2-primary-hover); font-weight:600; text-decoration:none; }
+.ecdv2-gm-doc a:hover { text-decoration:underline; }
+
+/* ==================================================================
+   v2.0.6 — pricing context chips, variation-stock quick link, and
+   blurred card-saving overlay
+================================================================== */
+
+/* "Also affects pricing" row under Price / Previous Price ( General tab ).
+   Chips wrap on narrow screens and stay tappable on mobile. */
+.ecdv2-price-context { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); }
+.ecdv2-price-context-label { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; letter-spacing:.02em; color:var(--ecv2-g500); }
+.ecdv2-price-context-label .dashicons { font-size:14px; width:14px; height:14px; color:var(--ecv2-g400); }
+.ecdv2-price-context-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 8px 5px 11px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:99px; font-size:12px; font-weight:600; color:var(--ecv2-g700); cursor:pointer; transition:border-color .12s ease, color .12s ease, box-shadow .12s ease; }
+.ecdv2-price-context-chip .dashicons { font-size:13px; width:13px; height:13px; color:var(--ecv2-g400); transition:color .12s ease, transform .12s ease; }
+.ecdv2-price-context-chip:hover { border-color:var(--ecv2-primary); color:var(--ecv2-primary-hover); }
+.ecdv2-price-context-chip:hover .dashicons { color:var(--ecv2-primary-hover); transform:translateX(2px); }
+.ecdv2-price-context-chip:focus-visible { outline:none; border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+
+/* Variation-stock quick link ( Inventory tab, shown only when Track
+   Quantity = Track Variation Quantity ). */
+.ecdv2-variant-stock-note { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; padding:10px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); font-size:12.5px; color:var(--ecv2-g600); line-height:1.5; }
+.ecdv2-variant-stock-note > .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; flex-shrink:0; }
+.ecdv2-variant-stock-note-text { flex:1; min-width:200px; }
+.ecdv2-variant-stock-link { display:inline-flex; align-items:center; gap:5px; padding:7px 12px; background:#fff; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-rs); font-size:12.5px; font-weight:600; color:var(--ecv2-g700); cursor:pointer; transition:border-color .12s ease, color .12s ease; white-space:nowrap; }
+.ecdv2-variant-stock-link .dashicons { font-size:13px; width:13px; height:13px; color:var(--ecv2-g400); }
+.ecdv2-variant-stock-link:hover { border-color:var(--ecv2-primary); color:var(--ecv2-primary-hover); }
+.ecdv2-variant-stock-link:hover .dashicons { color:var(--ecv2-primary-hover); }
+
+@media screen and (max-width:782px) {
+	.ecdv2-price-context-chip, .ecdv2-variant-stock-link { min-height:38px; }
+	.ecdv2-variant-stock-link { width:100%; justify-content:center; }
+}
+
+/* Card-saving overlay: match the new blur design with a centered spinner
+   ( used by every section save, including Google Merchant and the global
+   Save flow ). */
+@keyframes ecdv2-spin { to { transform:rotate(360deg); } }
+.ecdv2-card-saving { background:rgba(255,255,255,.55); backdrop-filter:blur(1.5px); -webkit-backdrop-filter:blur(1.5px); }
+.ecdv2-card.is-saving .ecdv2-card-saving::after { content:''; position:absolute; left:50%; top:50%; width:24px; height:24px; margin:-12px 0 0 -12px; border:3px solid var(--ecv2-g200); border-top-color:var(--ecv2-primary); border-radius:50%; animation:ecdv2-spin .7s linear infinite; }
+
+/* Activity rows on mobile: identity on top, meta wraps below it. */
+@media screen and (max-width: 600px) {
+	.ecdv2-activity-row { flex-wrap:wrap; row-gap:4px; }
+	.ecdv2-activity-row-meta { margin-left:36px; width:100%; justify-content:flex-start; }
+	.ecdv2-activity-row-main { max-width:100%; }
+}
+
+/* Featured products: progressive add/remove list. */
+.ecdv2-featured-list:empty { display:none; }
+.ecdv2-featured-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); margin-bottom:8px; font-size:13px; }
+.ecdv2-featured-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); font-size:11px; font-weight:700; flex-shrink:0; }
+.ecdv2-featured-title { font-weight:500; color:var(--ecv2-g800); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+.ecdv2-featured-remove { margin-left:auto; flex-shrink:0; width:26px; height:26px; border:none; border-radius:50%; background:transparent; color:var(--ecv2-g400); font-size:17px; line-height:1; cursor:pointer; transition:all var(--ecv2-tr); }
+.ecdv2-featured-remove:hover { background:#fee2e2; color:#dc2626; }
+.ecdv2-featured-full { font-size:12px; color:var(--ecv2-g500); padding:2px 2px 0; }
+@media screen and (max-width: 600px) {
+	.ecdv2-featured-remove { width:34px; height:34px; }
+}
+
+/* Featured products: deactivated-product badge on chosen rows. */
+.ecdv2-featured-inactive { flex-shrink:0; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#b45309; background:#fef3c7; border-radius:99px; padding:2px 8px; cursor:help; }

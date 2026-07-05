@@ -33,7 +33,11 @@ class wp_easycart_admin_details_logging extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-response';
-		$this->log_entry = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_response.* FROM ec_response WHERE response_id = %d', (int) $_GET['response_id'] ) );
+		$record = $this->load_record( $wpdb->get_row( $wpdb->prepare( 'SELECT ec_response.* FROM ec_response WHERE response_id = %d', (int) ( $_GET['response_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->log_entry = $record;
 		$this->id = $this->log_entry->response_id;
 	}
 
@@ -41,6 +45,10 @@ class wp_easycart_admin_details_logging extends wp_easycart_admin_details {
 		$this->init();
 		if ( 'edit' == $type ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/logging/log-details.php' );
 	}

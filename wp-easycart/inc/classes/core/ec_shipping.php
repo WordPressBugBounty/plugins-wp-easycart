@@ -147,7 +147,12 @@ class ec_shipping {
 
 			$this->live_based = apply_filters( 'wpeasycart_live_based_codes', $this->live_based );
 			usort( $this->method_based, function( $a, $b ) {
-				return (int) ( isset( $a[4] ) ? $a[4] : 0 ) - (int) ( isset( $b[4] ) ? $b[4] : 0 );
+				$order_a = (int) ( isset( $a[4] ) ? $a[4] : 0 );
+				$order_b = (int) ( isset( $b[4] ) ? $b[4] : 0 );
+				if ( $order_a == $order_b ) {
+					return (int) $a[2] - (int) $b[2]; // Deterministic tie-break by shippingrate_id, matches admin list order.
+				}
+				return $order_a - $order_b;
 			} );
 			$this->method_based = apply_filters( 'wpeasycart_method_based_shipping', $this->method_based );
 
@@ -740,11 +745,7 @@ class ec_shipping {
 
 	}
 
-	private function get_live_based_shipping_options_no_rates( $standard_text, $express_text ) {
-
-		print_r( $this->method_based );
-
-	}
+	private function get_live_based_shipping_options_no_rates( $standard_text, $express_text ) {}
 
 	private function get_live_based_shipping_options( $standard_text, $express_text, $coupon = false ) {
 
@@ -1137,7 +1138,10 @@ class ec_shipping {
 				return 'standard';
 			}
 		} else if ( $this->shipping_method == 'method' ) {
-			return $this->method_based[ 0 ][0];
+			if ( is_array( $this->method_based ) && count( $this->method_based ) > 0 ) {
+				return $this->method_based[0][2];
+			}
+			return 0;
 
 		} else if ( $this->shipping_method == 'live' ) {
 			$shippable_total = 0;

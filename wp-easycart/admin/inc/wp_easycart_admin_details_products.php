@@ -200,7 +200,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 
 	protected function init_data() {
 		$this->form_action = 'update-product';
-		$this->product = $this->item = $this->wpdb->get_row( $this->wpdb->prepare( "SELECT 
+		$record = $this->load_record( $this->wpdb->get_row( $this->wpdb->prepare( "SELECT 
 				ec_product.*,
 				( ec_product.subscription_bill_duration > 0 ) as enable_duration,
 				" . $this->wpdb->prefix . "posts.guid,
@@ -208,8 +208,12 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 			FROM 
 				ec_product 
 				LEFT JOIN " . $this->wpdb->prefix . "posts ON " .$this->wpdb->prefix . "posts.ID = ec_product.post_id 
-			WHERE product_id = %d", (int) $_GET['product_id']
-		) );
+			WHERE product_id = %d", (int) ( $_GET['product_id'] ?? 0 )
+		) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->product = $this->item = $record;
 		$this->id = $this->product->product_id;
 		// Fix for option sets
 		if ( ! $this->product->use_both_option_types ) {
@@ -409,6 +413,10 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-details.php' );
 	}

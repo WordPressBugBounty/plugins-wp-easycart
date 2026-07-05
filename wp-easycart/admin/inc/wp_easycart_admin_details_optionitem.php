@@ -68,7 +68,11 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 	protected function init_data() {
 		global $wpdb;
 		$this->form_action = 'update-optionitem';
-		$this->item = $this->optionitem = ( ( isset( $_GET['optionitem_id'] ) ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT ec_optionitem.* FROM ec_optionitem WHERE optionitem_id = %d', (int) $_GET['optionitem_id'] ) ) : 0 );
+		$record = $this->load_record( ( ( isset( $_GET['optionitem_id'] ) ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT ec_optionitem.* FROM ec_optionitem WHERE optionitem_id = %d', (int) $_GET['optionitem_id'] ) ) : 0 ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->item = $this->optionitem = $record;
 		$this->id = $this->optionitem->optionitem_id;
 		$this->option = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_option.* FROM ec_option WHERE option_id = %d', $this->optionitem->option_id ) );
 		$this->optionitem->is_override_file = false;
@@ -108,6 +112,10 @@ class wp_easycart_admin_details_optionitem extends wp_easycart_admin_details {
 		$this->init();
 		if ( 'edit' == $type ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/optionitem-details.php' );
 	}

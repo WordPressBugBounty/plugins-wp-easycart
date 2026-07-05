@@ -28,7 +28,11 @@ class wp_easycart_admin_details_perpage extends wp_easycart_admin_details {
 
 	protected function init_data() {
 		$this->form_action = 'update-perpage';
-		$this->perpage = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_perpage.* FROM ec_perpage WHERE perpage_id = %d', (int) $_GET['perpage_id'] ) );
+		$record = $this->load_record( $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ec_perpage.* FROM ec_perpage WHERE perpage_id = %d', (int) ( $_GET['perpage_id'] ?? 0 ) ) ) );
+		if ( ! $record ) {
+			return;
+		}
+		$this->perpage = $record;
 		$this->id = $this->perpage->perpage_id;
 	}
 
@@ -36,6 +40,10 @@ class wp_easycart_admin_details_perpage extends wp_easycart_admin_details {
 		$this->init();
 		if ( $type == 'edit' ) {
 			$this->init_data();
+		}
+		if ( $this->record_not_found ) {
+			$this->print_record_not_found_notice();
+			return;
 		}
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/perpage/perpage-details.php' );
 	}

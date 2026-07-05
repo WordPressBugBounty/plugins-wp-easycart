@@ -1,6 +1,6 @@
 <?php
 
-class ec_featuredproducts{
+class ec_featuredproducts {
 	protected $mysqli;
 
 	public $product1;
@@ -13,25 +13,26 @@ class ec_featuredproducts{
 			$products = wp_cache_get( 'wpeasycart-featured-products-' . $product_id_1 . "-" . $product_id_2 . "-" . $product_id_3 . "-" . $product_id_4 );
 			if ( !$products ) {
 				$this->mysqli = new ec_db( );
+				global $wpdb;
 				$where_statement  = " WHERE (";
-				$where_statement .= " product.product_id = '"  . $product_id_1 . "'";
-				$where_statement .= " OR product.product_id = '"  . $product_id_2 . "'";
-				$where_statement .= " OR product.product_id = '"  . $product_id_3 . "'";
-				$where_statement .= " OR product.product_id = '"  . $product_id_4 . "'";
+				$where_statement .= $wpdb->prepare( " product.product_id = %d", $product_id_1 );
+				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_2 );
+				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_3 );
+				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_4 );
 				$where_statement .= " ) AND product.activate_in_store = 1 ";
 
 				$order_statement  = " ORDER BY FIELD(product.product_id ";
 				if ( $product_id_1 ) {
-					$order_statement .= ", '" . $product_id_1 . "'";
+					$order_statement .= $wpdb->prepare( ", %d", $product_id_1 );
 				}
 				if ( $product_id_2 ) {
-					$order_statement .= ", '" . $product_id_2 . "'";
+					$order_statement .= $wpdb->prepare( ", %d", $product_id_2 );
 				}
 				if ( $product_id_3 ) {
-					$order_statement .= ", '" . $product_id_3 . "'";
+					$order_statement .= $wpdb->prepare( ", %d", $product_id_3 );
 				}
 				if ( $product_id_4 ) {
-					$order_statement .= ", '" . $product_id_4 . "'";
+					$order_statement .= $wpdb->prepare( ", %d", $product_id_4 );
 				}
 				$order_statement .= ") ";
 

@@ -472,7 +472,7 @@
 													<table height="22" border="0" align="center" cellpadding="0" cellspacing="0" style="min-width:150px; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;  mso-cellspacing: 0px; mso-padding-alt: 0px 0px 0px 0px; margin:0 auto;">
 														<tr>
 															<td height="22" align="center" style="min-width:150px; text-align:center !important; color: #ffffff; font-size: 14px; font-family: Arial, Helvetica, sans-serif; font-weight: 600; letter-spacing: 1px; mso-line-height-rule:exactly; line-height: 22px !important; padding:0 20px;" mc:edit="cta-button2" data-color="button-link" data-size="button-link"><!-- ============ tm-widget button ============ -->
-																<a class="facebook_link" href="<?php echo esc_attr( $cart_page . $permalink_divider ); ?>ec_load_tempcart=<?php echo esc_attr( $tempcart_item->session_id ); ?>&ec_load_email=<?php echo esc_attr( $tempcart_item->email ); ?>" style="margin:0 auto; text-align:center !important; text-decoration: none; color: #ffffff; font-weight: bold; font-size:14px; mso-line-height-rule:exactly; line-height:22px !important;"><?php echo wp_easycart_language( )->get_text( 'ec_abandoned_cart_email', 'complete_checkout' ); ?> ►</a>
+																<a class="facebook_link" href="<?php echo esc_url( $ec_load_url ); ?>" style="margin:0 auto; text-align:center !important; text-decoration: none; color: #ffffff; font-weight: bold; font-size:14px; mso-line-height-rule:exactly; line-height:22px !important;"><?php echo wp_easycart_language( )->get_text( 'ec_abandoned_cart_email', 'complete_checkout' ); ?> ►</a>
 															</td>
 														</tr>
 													</table>

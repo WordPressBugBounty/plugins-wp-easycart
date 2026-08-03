@@ -95,6 +95,8 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 				$this->perpage = (int) $_GET['perpage'];
 			} else if ( isset( $_COOKIE['wpeasycart_admin_perpage'] ) ) {
 				$this->perpage = (int) $_COOKIE['wpeasycart_admin_perpage'];
+			} else if ( (int) get_option( 'ec_option_admin_default_perpage' ) > 0 ) {
+				$this->perpage = (int) get_option( 'ec_option_admin_default_perpage' );
 			} else {
 				$this->perpage = 25;
 			}
@@ -139,6 +141,40 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		public function set_table( $table, $key ) {
 			$this->table = $table;
 			$this->key = $key;
+			$this->resolve_perpage();
+		}
+		protected function resolve_perpage() {
+			$user_id = get_current_user_id();
+			$meta_key = 'wpeasycart_admin_perpage_' . $this->table;
+
+			if ( isset( $_GET['perpage'] ) ) {
+				$this->perpage = (int) $_GET['perpage'];
+				if ( $user_id && in_array( $this->perpage, $this->perpage_options, true ) ) {
+					update_user_meta( $user_id, $meta_key, $this->perpage );
+				}
+				return;
+			}
+
+			if ( $user_id ) {
+				$saved = (int) get_user_meta( $user_id, $meta_key, true );
+				if ( $saved && in_array( $saved, $this->perpage_options, true ) ) {
+					$this->perpage = $saved;
+					return;
+				}
+			}
+
+			if ( isset( $_COOKIE['wpeasycart_admin_perpage'] ) && in_array( (int) $_COOKIE['wpeasycart_admin_perpage'], $this->perpage_options, true ) ) {
+				$this->perpage = (int) $_COOKIE['wpeasycart_admin_perpage'];
+				return;
+			}
+
+			$default = (int) get_option( 'ec_option_admin_default_perpage' );
+			if ( $default && in_array( $default, $this->perpage_options, true ) ) {
+				$this->perpage = $default;
+				return;
+			}
+
+			$this->perpage = 25;
 		}
 		public function set_table_id( $table_id ) {
 			$this->table_id = $table_id;

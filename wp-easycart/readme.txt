@@ -2,7 +2,8 @@
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 7.0
-Stable tag: 5.9.1
+Requires PHP: 7.3
+Stable tag: 5.9.2
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -196,6 +197,9 @@ Yes!  EasyCart works on 3 WordPress pages, which are automatically created on in
 = What Ecommerce payment gateways do you have? =
 We offer over 30 different gateways.  Popular ones include Square, SquareUp, PayPal Standard, PayPal Pro, PayPal Payflow, Authorize.net, Stripe.com, FirstData, eWay, Payment Express, Sagepay, 2Checkout, Dwolla, Nets Nexaxept, Payfort, Realex, Redsys, Skrill, beanstream, braintree, Chronopay, Virtual merchant, Geomerchant, intuit, MIGS, Moneris Canada, Moneris US, NMI, Payline, Paypoint, Secure Pay, WorldPay and others.  Check our [documentation]( http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment "Online Documentation")  for a full up to date listing.
 
+= Where do I report security bugs found in this plugin? =
+Please report security bugs found in the source code of the WP EasyCart plugin through the [Patchstack Vulnerability Disclosure Program](patchstack.com/database/vdp/671ca790-0ba3-4d49-809a-c02f0323bb0a). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+
 == Screenshots ==
 
 1. Professionally eCommerce shopping cart fits in nearly any theme!
@@ -214,6 +218,13 @@ We offer over 30 different gateways.  Popular ones include Square, SquareUp, Pay
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.9.2 =
+* Bug Fix - Duplication of product and product images bug fixed.
+* Bug Fix - PayPal phone number and given name issues fixed.
+* Bug Fix - USPS International shipping bug fixed.
+* Bug Fix - Complex filter bug fixed.
+* Improvement - Upgraded login and forgot password process to a more modern approach.
+* Security patches.
 = 5.9.1 =
 * New Feature - Beta Release: New product details admin panel design can be enabled in the additional options section. Upon further review, this new version will be released as the main display.
 * Bug Fix - Multiple add to carts using short url, prevent duplicate product adds, instead increase quantity.

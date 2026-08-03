@@ -255,6 +255,15 @@ class wpeasycart_links {
 			}
 			$url .= 'model_number=' . esc_attr( $atts['model_number'] );
 		}
+		if( isset( $atts['ec_reset_key'] ) ) {
+			if ( $is_first ) {
+				$url .= '?';
+				$is_first = false;
+			} else {
+				$url .= '&';
+			}
+			$url .= 'ec_reset_key=' . rawurlencode( $atts['ec_reset_key'] );
+		}
 		return $url;
 	}
 
@@ -268,6 +277,8 @@ class wpeasycart_links {
 			return $this->build_atts( apply_filters( 'wp_easycart_account_register_link', $this->account_page . $this->permalink_divider_account . 'ec_page=register' ), $atts );
 		} else if ( 'forgot_password' == $key ) {
 			return $this->build_atts( apply_filters( 'wp_easycart_account_forgot_password_link', $this->account_page . $this->permalink_divider_account . 'ec_page=forgot_password' ), $atts );
+		} else if ( 'reset_password' == $key ) {
+			return $this->build_atts( apply_filters( 'wp_easycart_account_reset_password_link', $this->account_page . $this->permalink_divider_account . 'ec_page=reset_password' ), $atts );
 		} else if ( 'dashboard' == $key ) {
 			return $this->build_atts( apply_filters( 'wp_easycart_account_dashboard_link', $this->account_page . $this->permalink_divider_account . 'ec_page=dashboard' ), $atts );
 		} else if ( 'orders' == $key ) {

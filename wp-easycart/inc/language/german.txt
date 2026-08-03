@@ -2260,6 +2260,48 @@
                 }
             }
         },
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"E-Mail-Adresse"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Aktivierungs-E-Mail erneut senden"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Wählen Sie ein neues Passwort"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Neues Passwort"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Neues Passwort bestätigen"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Passwort zurücksetzen"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen."
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Neuen Reset-Link anfordern"
+				}
+			}
+		},
         "account_validation_email": {
             "label": "Account - Validation Email",
             "options": {
@@ -2695,7 +2737,19 @@
                 "account_forgot_password_email_thank_you": {
                     "title": "Benutzerkonto, Passwort vergessen Email, Vielen Dank Text",
                     "value": "Herzlichen Dank!"
-                }
+                },
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Wir haben eine Anfrage zum Zurücksetzen Ihres Passworts erhalten. Klicken Sie auf die Schaltfläche unten, um ein neues Passwort auszuwählen."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Passwort zurücksetzen"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Dieser Link ist nur noch eine Stunde gültig. Wenn Sie keine Passwortzurücksetzung angefordert haben, können Sie diese E-Mail ignorieren."
+				}
             }
         },
         "account_order_details": {
@@ -3218,6 +3272,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Es wurde keine gültige Bestellung mit dieser ID und Ihrer E-Mail-Adresse gefunden."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Ihr neues Passwort ist zu kurz."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Dieses Passwort ist ungültig. Bitte wählen Sie ein anderes."
 				}
             }
         },
@@ -3291,6 +3357,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Ihre Bestellung wurde erfolgreich Ihrem Konto zugeordnet!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Ihr Passwort wurde zurückgesetzt. Sie können sich nun mit Ihrem neuen Passwort anmelden."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Falls für diese E-Mail-Adresse ein Konto existiert, haben wir einen Link zum Zurücksetzen des Passworts gesendet."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Falls Ihr Konto noch nicht aktiviert ist, haben wir Ihnen einen neuen Aktivierungslink per E-Mail zugesendet."
 				}
             }
         },

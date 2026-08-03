@@ -118,7 +118,7 @@ class ec_cart_data {
 	}
 
 	public function clear_db_session() {
-		$this->mysqli->remove_cart_data( $ec_cart_id );
+		$this->mysqli->remove_cart_data( $this->ec_cart_id );
 	}
 
 	public function checkout_session_complete() {
@@ -191,22 +191,32 @@ class ec_cart_data {
 	}
 
 	public function generate_new_cart_id() {
-		global $wpdb;
-		setcookie('ec_cart_id', "", time( ) - 3600 ); 
-		setcookie('ec_cart_id', "", time( ) - 3600, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
-		unset( $GLOBALS['ec_cart_id'] );
-		$vals = array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' );
-		$session_cart_id = $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)];
-		$check_tempcart_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.* FROM ec_tempcart WHERE ec_tempcart.session_id = %s", $session_cart_id ) );
-		$check_tempcart_data_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart_data.* FROM ec_tempcart_data WHERE ec_tempcart_data.session_id = %s", $session_cart_id ) );
-		while ( $check_tempcart_id || $check_tempcart_data_id ) {
-			$session_cart_id = $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)];
-			$check_tempcart_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.* FROM ec_tempcart WHERE ec_tempcart.session_id = %s", $session_cart_id ) );
-			$check_tempcart_data_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart_data.* FROM ec_tempcart_data WHERE ec_tempcart_data.session_id = %s", $session_cart_id ) );
+		if ( function_exists( 'wpeasycart_session' ) ) {
+			$session = wpeasycart_session();
+			$session->clear_cart_cookie();
+			unset( $GLOBALS['ec_cart_id'] );
+
+			$this->ec_cart_id = $session->generate_unique_cart_id();
+			$GLOBALS['ec_cart_id'] = $this->ec_cart_id;
+			$session->set_cart_cookie( $this->ec_cart_id );
+			return;
 		}
-		$this->ec_cart_id = $session_cart_id;
+
+		global $wpdb;
+		$this->ec_cart_id = $this->fallback_generate_unique_cart_id( $wpdb );
 		$GLOBALS['ec_cart_id'] = $this->ec_cart_id;
-		setcookie( 'ec_cart_id', $this->ec_cart_id, time( ) + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
+	}
+
+	private function fallback_generate_unique_cart_id( $wpdb ) {
+		do {
+			$session_cart_id = '';
+			for ( $i = 0; $i < 30; $i++ ) {
+				$session_cart_id .= chr( 65 + ( function_exists( 'wp_rand' ) ? wp_rand( 0, 25 ) : random_int( 0, 25 ) ) );
+			}
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM ec_tempcart WHERE session_id = %s", $session_cart_id ) );
+			$exists += $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM ec_tempcart_data WHERE session_id = %s", $session_cart_id ) );
+		} while ( $exists );
+		return $session_cart_id;
 	}
 
 	public function get_tempcart_product_quantity( $product_id ) {

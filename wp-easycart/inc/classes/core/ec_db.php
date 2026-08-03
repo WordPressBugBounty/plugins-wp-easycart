@@ -456,7 +456,7 @@ class ec_db{
 			$where_query .= " ( product.role_id = 0 OR product.role_id = -1 ) ";
 		}
 
-		$count_sql    = "SELECT COUNT( DISTINCT product.product_id ) " . $from_joins . $where_query;
+		$count_sql = "SELECT COUNT( DISTINCT product.product_id ) " . $from_joins . ' ' .$where_query;
 		$result_count = (int) self::$mysqli->get_var( $count_sql );
 
 		$select_parts = array( 'product.*' );
@@ -550,7 +550,7 @@ class ec_db{
 			);
 		}
 
-		$row_sql = "SELECT " . implode( ', ', $select_parts ) . $row_from . $where_query . " GROUP BY product.product_id " . $order_query . $limit_query;
+		$row_sql = "SELECT " . implode( ', ', $select_parts ) . $row_from . ' ' . $where_query . " GROUP BY product.product_id " . $order_query . $limit_query;
 		$result2 = self::$mysqli->get_results( $row_sql );
 
 		$option_list = $GLOBALS['ec_options']->options;
@@ -3675,13 +3675,29 @@ class ec_db{
 				ec_user.user_id";
 		
 		$user = self::$mysqli->get_row( self::$mysqli->prepare( $sql, $email ) );
-		$password_verified = ( $password_hash == $user->password ? true : false );
-		$password_verified = apply_filters( 'wpeasycart_password_verify', $password_verified, $password, $user->password, $user );
-		if( $password_verified )
-			return $user;
-		else
+		if ( ! $user ) {
 			return false;
-		
+		}
+
+		$password_verified = wp_easycart_verify_password( $password, $user->password, $password_hash, $user );
+		if ( ! $password_verified ) {
+			return false;
+		}
+
+		if ( wp_easycart_password_needs_rehash( $user->password ) ) {
+			$rehashed = wp_easycart_hash_password( $password );
+			$rehashed = apply_filters( 'wpeasycart_password_hash', $rehashed, $password );
+			self::$mysqli->update( 'ec_user', array( 'password' => $rehashed ), array( 'user_id' => $user->user_id ), array( '%s', '%d' ) );
+			wp_cache_delete( 'wpeasycart-user-' . $user->user_id, 'wpeasycart-user' );
+			$user->password = $rehashed;
+			do_action( 'wpeasycart_password_rehashed', $user->user_id, $rehashed );
+		}
+
+		if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
+			wp_easycart_maintain_admin_password_backup( $user->user_id, $password );
+		}
+
+		return $user;
 	}
 	
 	public static function update_user_quickbooks( $user_id, $list_id, $edit_sequence ){
@@ -3736,23 +3752,19 @@ class ec_db{
 	
 	public static function update_password( $user_id, $current_password, $new_password ){
 		$user = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_user.user_id, ec_user.email, ec_user.password FROM ec_user WHERE ec_user.user_id = %d", $user_id ) );
-		
-		$password_hash = md5( $current_password );
-		
-		$new_password_hash = md5( $new_password );
-		$new_password_hash = apply_filters( 'wpeasycart_password_hash', $new_password_hash, $new_password );
-		
-		
-		$password_verified = ( $password_hash == $user->password ? true : false );
-		$password_verified = apply_filters( 'wpeasycart_password_verify', $password_verified, $current_password, $user->password, $user );
-		if( $password_verified ){
-			self::$mysqli->update(	'ec_user',
-											array(	'password'		=> $new_password_hash ),
-											array(	'user_id'		=> $user_id ),
-											array(	'%s', '%d' ) );
+
+		if ( ! $user ) {
+			return false;
+		}
+
+		$password_verified = wp_easycart_verify_password( $current_password, $user->password, md5( (string) $current_password ), $user );
+		if ( $password_verified ) {
+			$new_password_hash = wp_easycart_hash_password( $new_password );
+			$new_password_hash = apply_filters( 'wpeasycart_password_hash', $new_password_hash, $new_password );
+			self::$mysqli->update(	'ec_user', array( 'password' => $new_password_hash ), array( 'user_id' => $user_id ), array( '%s', '%d' ) );
 			do_action( 'wpeasycart_password_changed', $user_id, $new_password_hash );
 			return true;
-		}else{
+		} else {
 			return false;
 		}
 	}
@@ -4505,34 +4517,27 @@ class ec_db{
 		$sql = "SELECT ec_subscription.subscription_id FROM ec_subscription, ec_product WHERE ec_subscription.email = %s AND ec_subscription.subscription_status = 'Active' AND ec_subscription.product_id = %d AND ec_product.product_id = ec_subscription.product_id AND ec_product.allow_multiple_subscription_purchases = 0";
 		return self::$mysqli->get_results( self::$mysqli->prepare( $sql, $email, $product_id ) );
 	}
-	
-	public static function activate_user( $email, $key ){
-	
-		$sql = "SELECT ec_user.email, ec_user.user_level FROM ec_user WHERE ec_user.email = %s";
-		$user = self::$mysqli->get_row( self::$mysqli->prepare( $sql, $email ) );
-		
-		if( $user->user_level != "pending" ){
+
+	public static function activate_user( $email, $key ) {
+		$user = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_user.user_id, ec_user.email, ec_user.user_level FROM ec_user WHERE ec_user.email = %s", $email ) );
+		if ( 'pending' != $user->user_level ) {
 			return true;
-		}else{
-		
-			if( $user && isset( $user->email ) ){
-				$match_key = md5( $user->email . "ecsalt" );
-				
-				if( $match_key == $key ){
-					$sql = "UPDATE ec_user SET ec_user.user_level = 'shopper' WHERE ec_user.email = %s";
-					self::$mysqli->query( self::$mysqli->prepare( $sql, $email ) );
+		} else {
+			if ( $user && isset( $user->email ) ) {
+				$match_key = wp_easycart_generate_activation_key( $user->email );
+				if ( hash_equals( $match_key, (string) $key ) ) {
+					self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_user SET ec_user.user_level = 'shopper' WHERE ec_user.email = %s", $email ) );
 					wp_cache_delete( 'wpeasycart-user-' . $user->user_id, 'wpeasycart-user' );
 					return true;
-				}else{
+				} else {
 					return false;
 				}
-			}else{
+			} else {
 				return false;
 			}
 		}
-		
 	}
-	
+
 	public static function get_stripe_customer_id( $user_id ){
 		$sql = "SELECT ec_user.stripe_customer_id FROM ec_user WHERE ec_user.user_id = %d";
 		return self::$mysqli->get_var( self::$mysqli->prepare( $sql, $user_id ) );

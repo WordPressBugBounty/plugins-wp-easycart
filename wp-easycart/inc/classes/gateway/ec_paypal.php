@@ -1571,8 +1571,8 @@ class ec_paypal extends ec_third_party{
 		}
 		if ( isset( $json->payer ) ) {
 			if ( isset( $json->payer->name ) ) {
-				if ( isset( $json->payer->name->give_name ) ) {
-					$GLOBALS['ec_cart_data']->cart_data->billing_first_name = sanitize_text_field( $json->payer->name->give_name );
+				if ( isset( $json->payer->name->given_name ) ) {
+					$GLOBALS['ec_cart_data']->cart_data->billing_first_name = sanitize_text_field( $json->payer->name->given_name );
 				}
 				if ( isset( $json->payer->name->surname ) ) {
 					$GLOBALS['ec_cart_data']->cart_data->billing_last_name = sanitize_text_field( $json->payer->name->surname );
@@ -1580,6 +1580,11 @@ class ec_paypal extends ec_third_party{
 			}
 			if ( isset( $json->payer->email_address ) ) {
 				$GLOBALS['ec_cart_data']->cart_data->email = $GLOBALS['ec_user']->email = sanitize_text_field( $json->payer->email_address );
+			}
+			if ( isset( $json->payer->phone->phone_number->national_number ) ) {
+				$paypal_phone = sanitize_text_field( $json->payer->phone->phone_number->national_number );
+				$GLOBALS['ec_cart_data']->cart_data->billing_phone  = $paypal_phone;
+				$GLOBALS['ec_cart_data']->cart_data->shipping_phone = $paypal_phone;
 			}
 		}
 

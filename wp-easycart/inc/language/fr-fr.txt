@@ -2268,6 +2268,48 @@
 				}
 			}
 		},
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"Adresse email"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Renvoyer l'e-mail d'activation"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Choisissez un nouveau mot de passe"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Nouveau mot de passe"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Confirmer le nouveau mot de passe"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Réinitialiser le mot de passe"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Ce lien de réinitialisation de mot de passe est invalide ou a expiré."
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Demander un nouveau lien de réinitialisation"
+				}
+			}
+		},
 		"account_validation_email":{
 			"label":"Account - Validation Email",
 			"options":{
@@ -2703,6 +2745,18 @@
 				"account_forgot_password_email_thank_you":{
 					"title":"Account, Password Recovery Email, Thank You Text",
 					"value":"Merci Beaucoup!"
+				},
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Nous avons reçu une demande de réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour en choisir un nouveau."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Réinitialiser le mot de passe"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Ce lien expire dans une heure. Si vous n'avez pas demandé de réinitialisation de mot de passe, vous pouvez ignorer ce courriel sans risque."
 				}
 			}
 		},
@@ -3230,6 +3284,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Aucune commande valide n'a été trouvée avec cet identifiant et votre adresse e-mail."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Ce lien de réinitialisation de mot de passe est invalide ou a expiré. Veuillez en demander un nouveau."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Votre nouveau mot de passe est trop court."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Ce mot de passe n'est pas autorisé. Veuillez en choisir un autre."
 				}
 			}
 		},
@@ -3303,6 +3369,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Votre commande a bien été associée à votre compte !"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Si un compte existe pour cette adresse e-mail, nous vous avons envoyé un lien de réinitialisation de mot de passe."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Si votre compte est en attente d'activation, nous vous avons envoyé un nouveau lien d'activation par e-mail."
 				}
 			}
 		},

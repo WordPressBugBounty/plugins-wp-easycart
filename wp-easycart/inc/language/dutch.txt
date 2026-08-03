@@ -2244,7 +2244,7 @@
                 },
                 "account_forgot_password_email_label": {
                     "title": "Account, Wachtwoordherstel E-mail Label",
-                    "value": "E-mail"
+                    "value": "E-mailadres"
                 },
                 "account_forgot_password_button": {
                     "title": "Account, Wachtwoordherstel Button",
@@ -2252,6 +2252,48 @@
                 }
             }
         },
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"E-mailadres"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Activeringsmail opnieuw verzenden"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Kies een nieuw wachtwoord"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Nieuw wachtwoord"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Bevestig nieuw wachtwoord"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Wachtwoord opnieuw instellen"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Deze link voor het opnieuw instellen van uw wachtwoord is ongeldig of verlopen."
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Vraag een nieuwe resetlink aan"
+				}
+			}
+		},
         "account_validation_email": {
             "label": "Account - Validation Email",
             "options": {
@@ -2687,7 +2729,19 @@
                 "account_forgot_password_email_thank_you": {
                     "title": "Account, Wachtwoordherstel e-mail, Succes Tekst",
                     "value": "Succes!"
-                }
+                },
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"We hebben een verzoek ontvangen om uw wachtwoord opnieuw in te stellen. Klik op de onderstaande knop om een ​​nieuw wachtwoord te kiezen."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Wachtwoord opnieuw instellen"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Deze link is over een uur niet meer geldig. Als u geen wachtwoordherstel hebt aangevraagd, kunt u deze e-mail negeren."
+				}
             }
         },
         "account_order_details": {
@@ -3210,6 +3264,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Er is geen geldige bestelling gevonden met die ID en uw e-mailadres."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Deze link voor het opnieuw instellen van uw wachtwoord is ongeldig of verlopen. Vraag een nieuwe link aan."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Je nieuwe wachtwoord is te kort."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Dat wachtwoord is niet toegestaan. Kies een ander wachtwoord."
 				}
             }
         },
@@ -3283,6 +3349,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Uw bestelling is succesvol aan uw account gekoppeld!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Je wachtwoord is gereset. Je kunt nu inloggen met je nieuwe wachtwoord."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Als er een account bestaat voor dat e-mailadres, hebben we een link voor het opnieuw instellen van het wachtwoord verzonden."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Als de activering van uw account nog in behandeling is, hebben we een nieuwe activeringslink naar uw e-mailadres gestuurd."
 				}
             }
         },

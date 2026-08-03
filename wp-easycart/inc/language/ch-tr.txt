@@ -2265,6 +2265,48 @@
 				}
 			}
 		},
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"電子郵件"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"重新發送啟動郵件"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"選擇新密碼"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"新密碼"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"確認新密碼"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"重設密碼"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"此密碼重設連結無效或已過期。"
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"請求新的重置鏈接"
+				}
+			}
+		},
 		"account_validation_email":{
 			"label":"賬戶 - 確認電郵地址",
 			"options":{
@@ -2700,6 +2742,18 @@
 				"account_forgot_password_email_thank_you":{
 					"title":"Account, Password Recovery Email, Thank You Text",
 					"value":"多謝！"
+				},
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"我們收到您重設密碼的請求。請點選下方按鈕選擇新密碼。"
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"重設密碼"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"此連結將在1小時後失效。如果您沒有申請重設密碼，則可以忽略此郵件。"
 				}
 			}
 		},
@@ -3227,6 +3281,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"未找到與您的ID和電子郵件地址相符的有效訂單。"
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"此密碼重設連結無效或已過期，請申請新的連結。"
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"你的新密碼太短了。"
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"該密碼無效，請選擇其他密碼。"
 				}
 			}
 		},
@@ -3300,6 +3366,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"您的訂單已成功關聯到您的帳戶！"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"您的密碼已重設。現在您可以使用新密碼登入。"
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"如果該郵箱地址關聯了帳戶，我們已發送密碼重設連結。"
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"如果您的帳戶正在等待激活，我們已向您的郵箱發送了新的激活連結。"
 				}
 			}
 		},

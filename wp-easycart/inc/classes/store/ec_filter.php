@@ -526,11 +526,11 @@ class ec_filter {
 		$left_joins = '';
 		if ( count( $this->category_filters ) > 0 ) {
 			for ( $i = 0; $i < count( $this->category_filters ); $i++ ) {
-				$left_joins .= ' LEFT JOIN ec_categoryitem AS ec_categoryitem_' . $i . ' ON ec_categoryitem_' . $i . '.product_id = product.product_id';
+				$left_joins .= ' LEFT JOIN ec_categoryitem AS ec_categoryitem_' . $i . ' ON ec_categoryitem_' . $i . '.product_id = product.product_id ';
 			}
 		}
 		if ( $this->location_id ) {
-			$left_joins .= ' INNER JOIN ec_location_to_product ON product.product_id = ec_location_to_product.product_id';
+			$left_joins .= ' INNER JOIN ec_location_to_product ON product.product_id = ec_location_to_product.product_id ';
 		}
 		return $left_joins;
 	}
@@ -619,10 +619,10 @@ class ec_filter {
 				$ret_string .= " AND product.show_on_startup = 1 ";
 			}
 			if ( $this->product_only ) {
-				$ret_string .= " AND product.model_number = '" . $this->model_number . "' ";
+				$ret_string .= $wpdb->prepare( " AND product.model_number = %s ", $this->model_number );
 			}
 			if ( $this->manufacturer->manufacturer_id != 0 ) {
-				$ret_string .= ' AND product.manufacturer_id = '.$this->manufacturer->manufacturer_id;
+				$ret_string .= ' AND product.manufacturer_id = ' . intval( $this->manufacturer->manufacturer_id );
 			}
 			if ( $this->product_status && $this->product_status != '' ) {
 				if ( $this->product_status == 'featured' ) {
@@ -765,7 +765,7 @@ class ec_filter {
 			if ( $order && is_array( $order ) && count( $order ) > 0 ) {
 				$ret_string = ' ORDER BY FIELD( product.model_number';
 				foreach ( $order as $model_number ) {
-					$ret_string .= ", '" . $model_number . "'";
+					$ret_string .= ", '" . esc_sql( $model_number ) . "'";
 				}
 				$ret_string .= ' )';
 			}

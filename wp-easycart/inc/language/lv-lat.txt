@@ -796,7 +796,58 @@
 				}
 			}
 		},
-		"account_login":{"label":"Account - Login","options":{"account_login_title":{"title":"Account, Login Title","value":"Eso\u0161ais klients"},"account_login_sub_title":{"title":"Account, Login Sub Title","value":"Iel\u0101goties zem\u0101k, lai piek\u013cutu J\u016bsu eso\u0161ajam kontam"},"account_login_email_label":{"title":"Account, Login, Email Label","value":"E-pasta adrese"},"account_login_password_label":{"title":"Account, Login, Password Label","value":"Parole"},"account_login_button":{"title":"Account, Login Button","value":"IEN\u0100KT"},"account_login_forgot_password_link":{"title":"Account, Login, Forgot Password Link","value":"Aizmirsi savu paroli?"},"account_login_account_information_title":{"title":"Account, Login Complete Title","value":"Konta inform\u0101cija"},"account_login_account_information_text":{"title":"Account, Login Complete Text","value":"J\u016bs pa\u0161laik iep\u0113rkaties k\u0101 Demo lietot\u0101js. Iepirkties ar citu kontu,"},"account_login_account_information_logout_link":{"title":"Account, Login Complete, Logout Link","value":"nospiediet \u0161eit"},"account_new_user_title":{"title":"Account, Login, New User Title","value":"Jauns Lietot\u0101js"},"account_new_user_sub_title":{"title":"Account, Login, New User Sub Title","value":"Neesi re\u0123istr\u0113ts? Noklik\u0161\u0137iniet uz pogas zem\u0101k"},"account_new_user_message":{"title":"Account, Login, New User Message","value":"Nav konta? Izveidojiet kontu, lai g\u016btu maksim\u0101lu labumu no \u0161\u012bs m\u0101jas lapas."},"account_new_user_button":{"title":"Account, Login, New User Button","value":"IZVEIDOT J\u016aSU PROFILU"}}},"account_forgot_password":{"label":"Account - Forgot Password","options":{"account_forgot_password_title":{"title":"Account, Retrieve Password Title","value":"Atg\u016bt savu paroli"},"account_forgot_password_email_label":{"title":"Account, Retrieve Password Email Label","value":"E-pasts"},"account_forgot_password_button":{"title":"Account, Retrieve Password Button","value":"Atg\u016bt paroli"}}},"account_validation_email":{"label":"Account - Validation Email","options":{"account_validation_email_message":{"title":"Account, Short Validate Email Message","value":"Lai aktiviz\u0113tu savu kontu, l\u016bdzu, noklik\u0161\u0137iniet uz saites zem\u0101k."},"account_validation_email_title":{"title":"Account, Activate Your Account Title","value":"L\u016bdzu aktiviz\u0113jiet kontu"},"account_validation_email_link":{"title":"Account, Activate Your Account Link","value":"Klik\u0161\u0137iniet \u0161eit, lai aktiviz\u0113tu"}}},"account_register":{"label":"Account - Register","options":{"account_register_title":{"title":"Account, Register Title","value":"Izveidot kontu"},"account_register_first_name":{"title":"Account, Register, First Name Label","value":"V\u0101rds"},"account_register_last_name":{"title":"Account, Register, Last Name Label","value":"Uzv\u0101rds"},"account_register_email":{"title":"Account, Register, Email Label","value":"E-pasta adrese"},"account_register_password":{"title":"Account, Register, Password Label","value":"Parole"},"account_register_retype_password":{"title":"Account, Register, Re-type Password Label","value":"Ievadiet paroli atk\u0101rtoti"
+		"account_login":{"label":"Account - Login","options":{"account_login_title":{"title":"Account, Login Title","value":"Eso\u0161ais klients"},"account_login_sub_title":{"title":"Account, Login Sub Title","value":"Iel\u0101goties zem\u0101k, lai piek\u013cutu J\u016bsu eso\u0161ajam kontam"},"account_login_email_label":{"title":"Account, Login, Email Label","value":"E-pasta adrese"},"account_login_password_label":{"title":"Account, Login, Password Label","value":"Parole"},"account_login_button":{"title":"Account, Login Button","value":"IEN\u0100KT"},"account_login_forgot_password_link":{"title":"Account, Login, Forgot Password Link","value":"Aizmirsi savu paroli?"},"account_login_account_information_title":{"title":"Account, Login Complete Title","value":"Konta inform\u0101cija"},"account_login_account_information_text":{"title":"Account, Login Complete Text","value":"J\u016bs pa\u0161laik iep\u0113rkaties k\u0101 Demo lietot\u0101js. Iepirkties ar citu kontu,"},"account_login_account_information_logout_link":{"title":"Account, Login Complete, Logout Link","value":"nospiediet \u0161eit"},"account_new_user_title":{"title":"Account, Login, New User Title","value":"Jauns Lietot\u0101js"},"account_new_user_sub_title":{"title":"Account, Login, New User Sub Title","value":"Neesi re\u0123istr\u0113ts? Noklik\u0161\u0137iniet uz pogas zem\u0101k"},"account_new_user_message":{"title":"Account, Login, New User Message","value":"Nav konta? Izveidojiet kontu, lai g\u016btu maksim\u0101lu labumu no \u0161\u012bs m\u0101jas lapas."},"account_new_user_button":{"title":"Account, Login, New User Button","value":"IZVEIDOT J\u016aSU PROFILU"}}},
+		"account_forgot_password":{
+			"label":"Account - Forgot Password",
+			"options":{
+				"account_forgot_password_title":{"title":"Account, Retrieve Password Title","value":"Atg\u016bt savu paroli"},
+				"account_forgot_password_email_label":{"title":"Account, Retrieve Password Email Label","value":"E-pasts"},
+				"account_forgot_password_button":{"title":"Account, Retrieve Password Button","value":"Atg\u016bt paroli"}
+			}
+		},
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"E-pasta adrese"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Atkārtoti nosūtīt aktivizācijas e-pastu"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Izvēlieties jaunu paroli"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Jauna parole"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Apstiprināt jauno paroli"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Atiestatīt paroli"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Šī paroles atiestatīšanas saite ir nederīga vai tai ir beidzies derīguma termiņš."
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Pieprasīt jaunu atiestatīšanas saiti"
+				}
+			}
+		},
+		"account_validation_email":{"label":"Account - Validation Email","options":{"account_validation_email_message":{"title":"Account, Short Validate Email Message","value":"Lai aktiviz\u0113tu savu kontu, l\u016bdzu, noklik\u0161\u0137iniet uz saites zem\u0101k."},"account_validation_email_title":{"title":"Account, Activate Your Account Title","value":"L\u016bdzu aktiviz\u0113jiet kontu"},"account_validation_email_link":{"title":"Account, Activate Your Account Link","value":"Klik\u0161\u0137iniet \u0161eit, lai aktiviz\u0113tu"}}},"account_register":{"label":"Account - Register","options":{"account_register_title":{"title":"Account, Register Title","value":"Izveidot kontu"},"account_register_first_name":{"title":"Account, Register, First Name Label","value":"V\u0101rds"},"account_register_last_name":{"title":"Account, Register, Last Name Label","value":"Uzv\u0101rds"},"account_register_email":{"title":"Account, Register, Email Label","value":"E-pasta adrese"},"account_register_password":{"title":"Account, Register, Password Label","value":"Parole"},"account_register_retype_password":{"title":"Account, Register, Re-type Password Label","value":"Ievadiet paroli atk\u0101rtoti"
 				},
 				"account_register_subscribe":{
 					"title":"Account, Register, Subscribe Text",
@@ -820,7 +871,53 @@
 					"value":"Papildu e-pasta adrese"
 				}
 			}
-		},"account_password":{"label":"Account - Edit Password","options":{"account_password_title":{"title":"Account, Password Title","value":"Redi\u0123\u0113jiet savu paroli"},"account_password_sub_title":{"title":"Account, Password Sub Title","value":"L\u016bdzu, \u0146emiet v\u0113r\u0101: mainot savu paroli jums b\u016bs nepiecie\u0161ams  izmantot  jauno paroli katru reizi, kad piesak\u0101ties m\u016bsu m\u0101jas lap\u0101."},"account_password_current_password":{"title":"Account, Password, Current Password Label","value":"Pa\u0161reiz\u0113j\u0101 parole"},"account_password_new_password":{"title":"Account, Password, New Password Label","value":"Jauna parole"},"account_password_retype_new_password":{"title":"Account, Password, Retype New Password Label","value":"Atk\u0101rtot jauno paroli"},"account_password_update_button":{"title":"Account, Password, Update Button","value":"SAGLAB\u0100T"},"account_password_cancel_button":{"title":"Account, Password, Cancel Link","value":"ATCELT"},"account_password_email_title":{"title":"Email title in password recovery email","value":"J\u016bsu jaun\u0101 parole"}}},"account_billing_information":{"label":"Account - Edit Billing Information","options":{"account_billing_information_title":{"title":"Account, Billing Information Title","value":"Nor\u0113\u0137inu inform\u0101cija"},"account_billing_information_first_name":{"title":"Account, Billing Information, First Name Label","value":"V\u0101rds"},"account_billing_information_last_name":{"title":"Account, Billing Information, Last Name Label","value":"Uzv\u0101rds"},"account_billing_information_address":{"title":"Account, Billing Information, Address Label","value":"Adrese"},"account_billing_information_address2":{"title":"Account, Billing Information, Address 2 Label","value":"Adrese 2"},"account_billing_information_city":{"title":"Account, Billing Information, City Label","value":"Pils\u0113ta"},"account_billing_information_state":{"title":"Account, Billing Information, State Label","value":"\u0160tats"},"account_billing_information_default_no_state":{"title":"Account, Billing Information, No State Label","value":"Izv\u0113l\u0113ties \u0160tatu"},"account_billing_information_zip":{"title":"Account, Billing Information, Zip Label","value":"Pasta indeks"},"account_billing_information_country":{"title":"Account, Billing Information, Country Label","value":"Valsts"},"account_billing_information_default_no_country":{"title":"Account, Billing Information, No Country Label","value":"Izv\u0113l\u0113ties valsti"},"account_billing_information_phone":{"title":"Account, Billing Information, Phone Label","value":"Telefons"},"account_billing_information_update_button":{"title":"Account, Billing Information, Update Button","value":"SAGLAB\u0100T"},"account_billing_information_cancel":{"title":"Account, Billing Information, Cancel Link","value":"ATCELT"}}},"account_shipping_information":{"label":"Account - Edit Shipping Information","options":{"account_shipping_information_title":{"title":"Account, Shipping Information Title","value":"Pieg\u0101des inform\u0101cija"},"account_shipping_information_first_name":{"title":"Account, Shipping Information, First Name Label","value":"V\u0101rds"},"account_shipping_information_last_name":{"title":"Account, Shipping Information, Last Name Label","value":"Uzv\u0101rds"},"account_shipping_information_address":{"title":"Account, Shipping Information, Address Label","value":"Adrese"},"account_shipping_information_address2":{"title":"Account, Shipping Information, Address 2 Label","value":"Adrese 2"},"account_shipping_information_city":{"title":"Account, Shipping Information, City Label","value":"Pils\u0113ta"},"account_shipping_information_state":{"title":"Account, Shipping Information, State Label","value":"\u0160tats"},"account_shipping_information_default_no_state":{"title":"Account, Shipping Information, No State Label","value":"Izv\u0113l\u0113ties \u0160tatu"},"account_shipping_information_zip":{"title":"Account, Shipping Information, Zip Label","value":"Pasta indeks"},"account_shipping_information_country":{"title":"Account, Shipping Information, Country Label","value":"Valsts"},"account_shipping_information_default_no_country":{"title":"Account, Shipping Information, No Country Label","value":"Izv\u0113l\u0113ties valsti"},"account_shipping_information_phone":{"title":"Account, Shipping Information, Phone Label","value":"Telefons"},"account_shipping_information_update_button":{"title":"Account, Shipping Information, Update Button","value":"SAGLAB\u0100T"},"account_shipping_information_cancel":{"title":"Account, Shipping Information, Cancel Link","value":"ATCELT"}}},"account_orders":{"label":"Account - Orders","options":{"account_orders_title":{"title":"Account, Orders Title","value":"J\u016bsu pas\u016bt\u012bjumu v\u0113sture"},"account_orders_header_1":{"title":"Account, Orders, Header 1","value":"ID"},"account_orders_header_2":{"title":"Account, Orders, Header 2","value":"Datums"},"account_orders_header_3":{"title":"Account, Orders, Header 3","value":"Kop\u0101"},"account_orders_header_4":{"title":"Account, Orders, Header 4","value":"Statuss"},"account_orders_view_order_button":{"title":"Account, Orders, View Order Button","value":"APSKAT\u012aT PAS\u016aT\u012aJUMUS"}}},"account_forgot_password_email":{"label":"Account - Forgot Password Recovery Email","options":{"account_forgot_password_email_title":{"title":"Account, Password Recovery Email, Email Title","value":"J\u016bsu jaun\u0101 parole"},"account_forgot_password_email_dear":{"title":"Account, Password Recovery Email, Dear User","value":"D\u0101rgais"},"account_forgot_password_email_your_new_password":{"title":"Account, Password Recovery Email, Your New Password","value":"J\u016bsu jaun\u0101 parole:"},"account_forgot_password_email_change_password":{"title":"Account, Password Recovery Email, Change Password Text","value":"Noteikti ieiejot sav\u0101 kont\u0101 un mainiet paroli uz to, ko j\u016bs varat viegli atcer\u0113ties."},"account_forgot_password_email_thank_you":{"title":"Account, Password Recovery Email, Thank You Text","value":"Liels paldies!"}}},"account_order_details":{"label":"Account - Order Details","options":{"account_orders_details_order_info_title":{"title":"Account, Orders Details, Order Information Title","value":"Pas\u016bt\u012bjuma inform\u0101cija"},"account_orders_details_your_order_title":{"title":"Account, Orders Details, Your Order Title","value":"J\u016bsu pas\u016bt\u012bjums"},"account_orders_details_order_number":{"title":"Account, Orders Details, Order Number Label","value":"Pas\u016bt\u012bjuma numurs:"},"account_orders_details_order_date":{"title":"Account, Orders Details, Order Date Label","value":"Pas\u016bt\u012bjuma datums:"},"account_orders_details_order_status":{"title":"Account, Orders Details, Order Status Label","value":"Pas\u016bt\u012bjuma Statuss:"},"account_orders_details_order_tracking":{"title":"Account, Orders Details, Order Tracking Label","value":"Izseko\u0161anas numurs:"},"account_orders_details_shipping_method":{"title":"Account, Orders Details, Shipping Method Label","value":"Pieg\u0101des veids:"},"account_orders_details_coupon_code":{"title":"Account, Orders Details, Coupon Code Label","value":"Kupona kods:"},"account_orders_details_gift_card":{"title":"Account, Orders Details, Gift Card Label","value":"D\u0101vanu karte:"},"account_orders_details_view_subscription":{"title":"Account, Orders Details, View Subscription","value":"Skat\u012bt abonementu"},"account_orders_details_billing_label":{"title":"Account, Orders Details, Billing Label","value":"Nor\u0113\u0137inu adrese"},"account_orders_details_shipping_label":{"title":"Account, Orders Details, Shipping Label","value":"Pieg\u0101des adrese"},"account_orders_details_payment_method":{"title":"Account, Orders Details, Payment Method","value":"Apmaksas veids:"},"account_order_details_payment_method_manual":{"title":"Account, Order Details, Payment Method, Manual Bill Label","value":"Bankas p\u0101rskait\u012bjums"},"account_orders_details_subtotal":{"title":"Account, Orders Details, Subtotal","value":"Starpsumma:"},"account_orders_details_tax_total":{"title":"Account, Orders Details, Tax Total","value":"Nodok\u013ci:"},"account_orders_details_shipping_total":{"title":"Account, Orders Details, Shipping Total","value":"Pieg\u0101de:"},"account_orders_details_discount_total":{"title":"Account, Orders Details, Discount Total","value":"Atlaides:"},"account_orders_details_duty_total":{"title":"Account, Orders Details, Duty Total","value":"Par\u0101ds:"},"account_orders_details_vat_total":{"title":"Account, Orders Details, VAT Total","value":"PVN:"},
+		},
+		"account_password":{"label":"Account - Edit Password","options":{"account_password_title":{"title":"Account, Password Title","value":"Redi\u0123\u0113jiet savu paroli"},"account_password_sub_title":{"title":"Account, Password Sub Title","value":"L\u016bdzu, \u0146emiet v\u0113r\u0101: mainot savu paroli jums b\u016bs nepiecie\u0161ams  izmantot  jauno paroli katru reizi, kad piesak\u0101ties m\u016bsu m\u0101jas lap\u0101."},"account_password_current_password":{"title":"Account, Password, Current Password Label","value":"Pa\u0161reiz\u0113j\u0101 parole"},"account_password_new_password":{"title":"Account, Password, New Password Label","value":"Jauna parole"},"account_password_retype_new_password":{"title":"Account, Password, Retype New Password Label","value":"Atk\u0101rtot jauno paroli"},"account_password_update_button":{"title":"Account, Password, Update Button","value":"SAGLAB\u0100T"},"account_password_cancel_button":{"title":"Account, Password, Cancel Link","value":"ATCELT"},"account_password_email_title":{"title":"Email title in password recovery email","value":"J\u016bsu jaun\u0101 parole"}}},"account_billing_information":{"label":"Account - Edit Billing Information","options":{"account_billing_information_title":{"title":"Account, Billing Information Title","value":"Nor\u0113\u0137inu inform\u0101cija"},"account_billing_information_first_name":{"title":"Account, Billing Information, First Name Label","value":"V\u0101rds"},"account_billing_information_last_name":{"title":"Account, Billing Information, Last Name Label","value":"Uzv\u0101rds"},"account_billing_information_address":{"title":"Account, Billing Information, Address Label","value":"Adrese"},"account_billing_information_address2":{"title":"Account, Billing Information, Address 2 Label","value":"Adrese 2"},"account_billing_information_city":{"title":"Account, Billing Information, City Label","value":"Pils\u0113ta"},"account_billing_information_state":{"title":"Account, Billing Information, State Label","value":"\u0160tats"},"account_billing_information_default_no_state":{"title":"Account, Billing Information, No State Label","value":"Izv\u0113l\u0113ties \u0160tatu"},"account_billing_information_zip":{"title":"Account, Billing Information, Zip Label","value":"Pasta indeks"},"account_billing_information_country":{"title":"Account, Billing Information, Country Label","value":"Valsts"},"account_billing_information_default_no_country":{"title":"Account, Billing Information, No Country Label","value":"Izv\u0113l\u0113ties valsti"},"account_billing_information_phone":{"title":"Account, Billing Information, Phone Label","value":"Telefons"},"account_billing_information_update_button":{"title":"Account, Billing Information, Update Button","value":"SAGLAB\u0100T"},"account_billing_information_cancel":{"title":"Account, Billing Information, Cancel Link","value":"ATCELT"}}},"account_shipping_information":{"label":"Account - Edit Shipping Information","options":{"account_shipping_information_title":{"title":"Account, Shipping Information Title","value":"Pieg\u0101des inform\u0101cija"},"account_shipping_information_first_name":{"title":"Account, Shipping Information, First Name Label","value":"V\u0101rds"},"account_shipping_information_last_name":{"title":"Account, Shipping Information, Last Name Label","value":"Uzv\u0101rds"},"account_shipping_information_address":{"title":"Account, Shipping Information, Address Label","value":"Adrese"},"account_shipping_information_address2":{"title":"Account, Shipping Information, Address 2 Label","value":"Adrese 2"},"account_shipping_information_city":{"title":"Account, Shipping Information, City Label","value":"Pils\u0113ta"},"account_shipping_information_state":{"title":"Account, Shipping Information, State Label","value":"\u0160tats"},"account_shipping_information_default_no_state":{"title":"Account, Shipping Information, No State Label","value":"Izv\u0113l\u0113ties \u0160tatu"},"account_shipping_information_zip":{"title":"Account, Shipping Information, Zip Label","value":"Pasta indeks"},"account_shipping_information_country":{"title":"Account, Shipping Information, Country Label","value":"Valsts"},"account_shipping_information_default_no_country":{"title":"Account, Shipping Information, No Country Label","value":"Izv\u0113l\u0113ties valsti"},"account_shipping_information_phone":{"title":"Account, Shipping Information, Phone Label","value":"Telefons"},"account_shipping_information_update_button":{"title":"Account, Shipping Information, Update Button","value":"SAGLAB\u0100T"},"account_shipping_information_cancel":{"title":"Account, Shipping Information, Cancel Link","value":"ATCELT"}}},"account_orders":{"label":"Account - Orders","options":{"account_orders_title":{"title":"Account, Orders Title","value":"J\u016bsu pas\u016bt\u012bjumu v\u0113sture"},"account_orders_header_1":{"title":"Account, Orders, Header 1","value":"ID"},"account_orders_header_2":{"title":"Account, Orders, Header 2","value":"Datums"},"account_orders_header_3":{"title":"Account, Orders, Header 3","value":"Kop\u0101"},"account_orders_header_4":{"title":"Account, Orders, Header 4","value":"Statuss"},"account_orders_view_order_button":{"title":"Account, Orders, View Order Button","value":"APSKAT\u012aT PAS\u016aT\u012aJUMUS"}}},
+		"account_forgot_password_email":{
+			"label":"Account - Forgot Password Recovery Email",
+			"options":{
+				"account_forgot_password_email_title":{"title":"Account, Password Recovery Email, Email Title","value":"J\u016bsu jaun\u0101 parole"},
+				"account_forgot_password_email_dear":{"title":"Account, Password Recovery Email, Dear User","value":"D\u0101rgais"},
+				"account_forgot_password_email_your_new_password":{"title":"Account, Password Recovery Email, Your New Password","value":"J\u016bsu jaun\u0101 parole:"},
+				"account_forgot_password_email_change_password":{"title":"Account, Password Recovery Email, Change Password Text","value":"Noteikti ieiejot sav\u0101 kont\u0101 un mainiet paroli uz to, ko j\u016bs varat viegli atcer\u0113ties."},
+				"account_forgot_password_email_thank_you":{"title":"Account, Password Recovery Email, Thank You Text","value":"Liels paldies!"},
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Mēs saņēmām pieprasījumu atiestatīt jūsu paroli. Noklikšķiniet uz tālāk redzamās pogas, lai izvēlētos jaunu paroli."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Atiestatīt paroli"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Šīs saites derīguma termiņš beigsies pēc vienas stundas. Ja nepieprasījāt paroles atiestatīšanu, varat droši ignorēt šo e-pastu."
+				}
+			}
+		},
+		"account_order_details":{
+			"label":"Account - Order Details",
+			"options":{
+				"account_orders_details_order_info_title":{"title":"Account, Orders Details, Order Information Title","value":"Pas\u016bt\u012bjuma inform\u0101cija"},
+				"account_orders_details_your_order_title":{"title":"Account, Orders Details, Your Order Title","value":"J\u016bsu pas\u016bt\u012bjums"},
+				"account_orders_details_order_number":{"title":"Account, Orders Details, Order Number Label","value":"Pas\u016bt\u012bjuma numurs:"},
+				"account_orders_details_order_date":{"title":"Account, Orders Details, Order Date Label","value":"Pas\u016bt\u012bjuma datums:"},
+				"account_orders_details_order_status":{"title":"Account, Orders Details, Order Status Label","value":"Pas\u016bt\u012bjuma Statuss:"},
+				"account_orders_details_order_tracking":{"title":"Account, Orders Details, Order Tracking Label","value":"Izseko\u0161anas numurs:"},
+				"account_orders_details_shipping_method":{"title":"Account, Orders Details, Shipping Method Label","value":"Pieg\u0101des veids:"},
+				"account_orders_details_coupon_code":{"title":"Account, Orders Details, Coupon Code Label","value":"Kupona kods:"},
+				"account_orders_details_gift_card":{"title":"Account, Orders Details, Gift Card Label","value":"D\u0101vanu karte:"},
+				"account_orders_details_view_subscription":{"title":"Account, Orders Details, View Subscription","value":"Skat\u012bt abonementu"},
+				"account_orders_details_billing_label":{"title":"Account, Orders Details, Billing Label","value":"Nor\u0113\u0137inu adrese"},
+				"account_orders_details_shipping_label":{"title":"Account, Orders Details, Shipping Label","value":"Pieg\u0101des adrese"},
+				"account_orders_details_payment_method":{"title":"Account, Orders Details, Payment Method","value":"Apmaksas veids:"},
+				"account_order_details_payment_method_manual":{"title":"Account, Order Details, Payment Method, Manual Bill Label","value":"Bankas p\u0101rskait\u012bjums"},
+				"account_orders_details_subtotal":{"title":"Account, Orders Details, Subtotal","value":"Starpsumma:"},
+				"account_orders_details_tax_total":{"title":"Account, Orders Details, Tax Total","value":"Nodok\u013ci:"},
+				"account_orders_details_shipping_total":{"title":"Account, Orders Details, Shipping Total","value":"Pieg\u0101de:"},
+				"account_orders_details_discount_total":{"title":"Account, Orders Details, Discount Total","value":"Atlaides:"},
+				"account_orders_details_duty_total":{"title":"Account, Orders Details, Duty Total","value":"Par\u0101ds:"},
+				"account_orders_details_vat_total":{"title":"Account, Orders Details, VAT Total","value":"PVN:"},
 				"account_orders_details_refund_total":{"title":"Account, Orders Details, Refund Total","value":"Atgrieztas summas:"},
 				"account_orders_details_refund_total_short":{
 					"title":"Account, Orders Details, Refund Total Short",
@@ -959,13 +1056,38 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Ar šo ID un jūsu e-pasta adresi netika atrasts derīgs pasūtījums."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Šī paroles atiestatīšanas saite nav derīga vai ir beidzies derīguma termiņš. Lūdzu, pieprasiet jaunu."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Jūsu jaunā parole ir pārāk īsa."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Šī parole nav atļauta. Lūdzu, izvēlieties citu."
 				}
 			}
 		},
 		"ec_success":{
 			"label":"Store Success Text",
 			"options":{
-				"personal_information_updated":{"title":"Account Personal Information Update Success","value":"J\u016bsu person\u012bg\u0101 inform\u0101cija ir veiksm\u012bgi atjaunin\u0101ta."},"password_updated":{"title":"Account Personal Information Update Success","value":"J\u016bsu parole tika veiksm\u012bgi atjaunin\u0101ta."},"billing_information_updated":{"title":"Account Billing Update Success","value":"J\u016bsu nor\u0113\u0137inu inform\u0101cija tika veiksm\u012bgi atjaunin\u0101ta"},"shipping_information_updated":{"title":"Account Shipping Update Success","value":"J\u016bsu pieg\u0101des inform\u0101cija tika veiksm\u012bgi atjaunin\u0101ta."},"reset_email_sent":{"title":"Account Email Sent Success","value":"J\u016bsu jaun\u0101 parole tika nos\u016bt\u012bta uz j\u016bsu e-pasta adresi."},"cart_account_created":{"title":"Cart, Create Account, Account Created Success Text","value":"J\u016bsu konts ir izveidots, visi pas\u016bt\u012bjumi tagad b\u016bs saist\u012bti ar j\u016bsu jauno kontu."},"cart_account_free_order":{"title":"Cart, Order Type, Gift Card, Free Order","value":"Bezmaksas pas\u016bt\u012bjums"},"store_added_to_cart":{"title":"Store, Added Item to Cart","value":"J\u016bs esat veiksm\u012bgi pievienojis [prod_title] groz\u0101."},"activation_success":{"title":"Account, Activation Success","value":"J\u016bs esat veiksm\u012bgi aktiviz\u0113jis savu kontu"},"validation_required":{"title":"Account, Validation Required","value":"J\u016bs esat veiksm\u012bgi izveidojis kontu, bet j\u016bsu e-pasta adrese ir j\u0101apstiprina. Zi\u0146a ir nos\u016bt\u012bta uz J\u016bsu E-pasta adresi ar instrukcij\u0101m k\u0101 pabeigt re\u0123istr\u0101cijas procesu. Sazinieties ar mums, ja jums ir k\u0101di jaut\u0101jumi."},"subscription_updated":{"title":"Account, Subscription Updated","value":"J\u016bsu abonements ir veiksm\u012bgi atjaunin\u0101ts."},"subscription_canceled":{"title":"Account, Subscription Canceled","value":"J\u016bsu abonements ir anul\u0113ts."},"inquiry_sent":{"title":"Store, Inquiry Sent","value":"J\u016bsu piepras\u012bjums par preci ir veiksm\u012bgi nos\u016bt\u012bts."},"add_to_cart_success":{"title":"Store, Added to Cart","value":"Veiksm\u012bgi Pievienots j\u016bsu pirkumu grozam"},
+				"personal_information_updated":{"title":"Account Personal Information Update Success","value":"J\u016bsu person\u012bg\u0101 inform\u0101cija ir veiksm\u012bgi atjaunin\u0101ta."},
+				"password_updated":{"title":"Account Personal Information Update Success","value":"J\u016bsu parole tika veiksm\u012bgi atjaunin\u0101ta."},
+				"billing_information_updated":{"title":"Account Billing Update Success","value":"J\u016bsu nor\u0113\u0137inu inform\u0101cija tika veiksm\u012bgi atjaunin\u0101ta"},
+				"shipping_information_updated":{"title":"Account Shipping Update Success","value":"J\u016bsu pieg\u0101des inform\u0101cija tika veiksm\u012bgi atjaunin\u0101ta."},
+				"reset_email_sent":{"title":"Account Email Sent Success","value":"J\u016bsu jaun\u0101 parole tika nos\u016bt\u012bta uz j\u016bsu e-pasta adresi."},
+				"cart_account_created":{"title":"Cart, Create Account, Account Created Success Text","value":"J\u016bsu konts ir izveidots, visi pas\u016bt\u012bjumi tagad b\u016bs saist\u012bti ar j\u016bsu jauno kontu."},
+				"cart_account_free_order":{"title":"Cart, Order Type, Gift Card, Free Order","value":"Bezmaksas pas\u016bt\u012bjums"},
+				"store_added_to_cart":{"title":"Store, Added Item to Cart","value":"J\u016bs esat veiksm\u012bgi pievienojis [prod_title] groz\u0101."},
+				"activation_success":{"title":"Account, Activation Success","value":"J\u016bs esat veiksm\u012bgi aktiviz\u0113jis savu kontu"},
+				"validation_required":{"title":"Account, Validation Required","value":"J\u016bs esat veiksm\u012bgi izveidojis kontu, bet j\u016bsu e-pasta adrese ir j\u0101apstiprina. Zi\u0146a ir nos\u016bt\u012bta uz J\u016bsu E-pasta adresi ar instrukcij\u0101m k\u0101 pabeigt re\u0123istr\u0101cijas procesu. Sazinieties ar mums, ja jums ir k\u0101di jaut\u0101jumi."},
+				"subscription_updated":{"title":"Account, Subscription Updated","value":"J\u016bsu abonements ir veiksm\u012bgi atjaunin\u0101ts."},
+				"subscription_canceled":{"title":"Account, Subscription Canceled","value":"J\u016bsu abonements ir anul\u0113ts."},
+				"inquiry_sent":{"title":"Store, Inquiry Sent","value":"J\u016bsu piepras\u012bjums par preci ir veiksm\u012bgi nos\u016bt\u012bts."},
+				"add_to_cart_success":{"title":"Store, Added to Cart","value":"Veiksm\u012bgi Pievienots j\u016bsu pirkumu grozam"},
 				"adding_to_cart":{
 					"title":"Store, Adding to Cart",
 					"value":"Pievienojot Grozam ..."
@@ -977,6 +1099,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Jūsu pasūtījums ir veiksmīgi pievienots jūsu kontam!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Jūsu parole ir atiestatīta. Tagad varat pieteikties ar savu jauno paroli."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Ja šim e-pastam jau ir konts, mēs esam nosūtījuši paroles atiestatīšanas saiti."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Ja jūsu konts gaida aktivizēšanu, mēs esam nosūtījuši jaunu aktivizācijas saiti uz jūsu e-pastu."
 				}
 			}
 		},

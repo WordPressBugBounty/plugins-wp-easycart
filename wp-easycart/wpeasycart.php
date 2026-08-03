@@ -4,7 +4,8 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.9.1
+ * Version: 5.9.2
+ * Requires PHP: 7.3
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
  * Text Domain: wp-easycart
@@ -13,7 +14,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.9.1
+ * @version 5.9.2
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -22,9 +23,170 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_9_1' );
+define( 'EC_CURRENT_VERSION', '5_9_2' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '100' );
+define( 'EC_UPGRADE_DB', '101' );
+
+if ( ! function_exists( 'wp_easycart_hash_password' ) ) {
+	function wp_easycart_hash_password( $raw_password ) {
+		return password_hash( (string) $raw_password, PASSWORD_DEFAULT );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_password_is_legacy_md5' ) ) {
+	function wp_easycart_password_is_legacy_md5( $stored_hash ) {
+		return is_string( $stored_hash ) && strlen( $stored_hash ) === 32 && ctype_xdigit( $stored_hash );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_verify_password' ) ) {
+	function wp_easycart_verify_password( $raw_password, $stored_hash, $precomputed_hash = '', $user = null ) {
+		$verified = false;
+		if ( is_string( $stored_hash ) && '' !== $stored_hash ) {
+			if ( wp_easycart_password_is_legacy_md5( $stored_hash ) ) {
+				$verified = hash_equals( $stored_hash, md5( (string) $raw_password ) );
+			} elseif ( '$' === substr( $stored_hash, 0, 1 ) ) {
+				$verified = password_verify( (string) $raw_password, $stored_hash );
+			}
+			if ( ! $verified && '' !== (string) $precomputed_hash ) {
+				$verified = hash_equals( (string) $stored_hash, (string) $precomputed_hash );
+			}
+		}
+		return (bool) apply_filters( 'wpeasycart_password_verify', $verified, $raw_password, $stored_hash, $user );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_password_needs_rehash' ) ) {
+	function wp_easycart_password_needs_rehash( $stored_hash ) {
+		$needs = false;
+		if ( wp_easycart_password_is_legacy_md5( $stored_hash ) ) {
+			$needs = true;
+		} elseif ( is_string( $stored_hash ) && '$' === substr( $stored_hash, 0, 1 ) ) {
+			$needs = password_needs_rehash( $stored_hash, PASSWORD_DEFAULT );
+		}
+		return (bool) apply_filters( 'wpeasycart_password_needs_rehash', $needs, $stored_hash );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_generate_password_reset_token' ) ) {
+	function wp_easycart_generate_password_reset_token( $user ) {
+		$lifetime = (int) apply_filters( 'wp_easycart_password_reset_token_lifetime', HOUR_IN_SECONDS );
+		$expires = time() + $lifetime;
+		$data = $user->user_id . '|' . $expires;
+		$signature = hash_hmac( 'sha256', $data . '|' . strtolower( $user->email ) . '|' . $user->password, wpeasycart_session()->get_secret_key() );
+		return $user->user_id . '-' . $expires . '-' . $signature;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_validate_password_reset_token' ) ) {
+	function wp_easycart_validate_password_reset_token( $token ) {
+		if ( ! is_string( $token ) || '' === $token ) {
+			return false;
+		}
+		$parts = explode( '-', $token );
+		if ( count( $parts ) !== 3 ) {
+			return false;
+		}
+		list( $user_id, $expires, $signature ) = $parts;
+		$user_id = (int) $user_id;
+		$expires = (int) $expires;
+		if ( $user_id <= 0 || $expires < time() || ! ctype_xdigit( $signature ) ) {
+			return false;
+		}
+
+		global $wpdb;
+		$user = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, email, password, first_name, last_name FROM ec_user WHERE user_id = %d', $user_id ) );
+		if ( ! $user ) {
+			return false;
+		}
+
+		$data = $user->user_id . '|' . $expires;
+		$expected = hash_hmac( 'sha256', $data . '|' . strtolower( $user->email ) . '|' . $user->password, wpeasycart_session()->get_secret_key() );
+		if ( ! hash_equals( $expected, (string) $signature ) ) {
+			return false;
+		}
+
+		return $user;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_generate_activation_key' ) ) {
+	function wp_easycart_generate_activation_key( $email ) {
+		return hash_hmac( 'sha256', 'wpec-activate|' . strtolower( trim( $email ) ), wpeasycart_session()->get_secret_key() );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_send_activation_email' ) ) {
+	function wp_easycart_send_activation_email( $email ) {
+		$key = wp_easycart_generate_activation_key( $email );
+
+		$message  = wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_message" ) . "\r\n";
+		$message .= "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'activate_account', array( 'email' => $email, 'key' => $key ) ) ) . "\" target=\"_blank\">" . wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_link" ) . "</a>";
+
+		$headers   = array();
+		$headers[] = "MIME-Version: 1.0";
+		$headers[] = "Content-Type: text/html; charset=utf-8";
+		$headers[] = "From: " . stripslashes( get_option( 'ec_option_password_from_email' ) );
+		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_password_from_email' ) );
+		$headers[] = "X-Mailer: PHP/" . phpversion();
+
+		$email_send_method = get_option( 'ec_option_use_wp_mail' );
+		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
+
+		if ( $email_send_method == "1" ) {
+			wp_mail( $email, wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" ), $message, implode("\r\n", $headers));
+
+		} else if ( $email_send_method == "0" ) {
+			$mailer = new wpeasycart_mailer();
+			$mailer->send_customer_email( $email, wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" ), $message );
+
+		} else {
+			do_action( 'wpeasycart_custom_register_verification_email', stripslashes( get_option( 'ec_option_password_from_email' ) ), $email, "", wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" ), $message );
+
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_legacy_app_auth_enabled' ) ) {
+	function wp_easycart_legacy_app_auth_enabled() {
+		return ( '0' !== (string) get_option( 'ec_option_enable_legacy_app_auth', '1' ) );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
+	function wp_easycart_maintain_admin_password_backup( $user_id, $raw_password ) {
+		if ( ! wp_easycart_legacy_app_auth_enabled() ) {
+			return;
+		}
+		$user_id = (int) $user_id;
+		if ( $user_id <= 0 ) {
+			return;
+		}
+		global $wpdb;
+		$is_admin = $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM ec_user LEFT JOIN ec_role ON ( ec_user.user_level = ec_role.role_label ) WHERE ec_user.user_id = %d AND ( ec_user.user_level = 'admin' OR ec_role.admin_access = 1 )",
+			$user_id
+		) );
+		if ( $is_admin ) {
+			$wpdb->query( $wpdb->prepare(
+				"UPDATE ec_user SET password_admin_v1 = %s WHERE user_id = %d",
+				md5( (string) $raw_password ),
+				$user_id
+			) );
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_maybe_purge_admin_password_backup' ) ) {
+	function wp_easycart_maybe_purge_admin_password_backup( $unused, $new_value ) {
+		if ( '0' === (string) $new_value || '' === (string) $new_value || false === $new_value ) {
+			global $wpdb;
+			$wpdb->query( "UPDATE ec_user SET password_admin_v1 = '' WHERE password_admin_v1 != ''" );
+		}
+	}
+}
+add_action( 'update_option_ec_option_enable_legacy_app_auth', 'wp_easycart_maybe_purge_admin_password_backup', 10, 2 );
+add_action( 'add_option_ec_option_enable_legacy_app_auth', 'wp_easycart_maybe_purge_admin_password_backup', 10, 2 );
 
 require_once( EC_PLUGIN_DIRECTORY . '/inc/ec_config.php' );
 
@@ -834,24 +996,35 @@ function load_ec_pre() {
 		}
 	}
 
-	/* Load abandoned cart */
-	if ( isset( $_GET['ec_load_tempcart'] ) && isset( $_GET['ec_load_email'] ) ) {
+	/* Load abandoned cart (signed link only) */
+	if ( isset( $_GET['ec_load_tempcart'] ) && isset( $_GET['ec_load_email'] ) && isset( $_GET['ec_load_key'] ) ) {
 		global $wpdb;
-		$tempcart_row = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.session_id FROM ec_tempcart, ec_tempcart_data WHERE ec_tempcart.session_id = %s AND ec_tempcart_data.session_id = ec_tempcart.session_id AND ec_tempcart_data.email = %s", sanitize_text_field( $_GET['ec_load_tempcart'] ), sanitize_email( $_GET['ec_load_email'] ) ) );
-		if ( $tempcart_row ) {
-			$GLOBALS['ec_cart_id'] = $tempcart_row->session_id;
-			setcookie( "ec_cart_id", "", time() - 3600 );
-			setcookie( "ec_cart_id", "", time() - 3600, defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
-			setcookie( 'ec_cart_id', $GLOBALS['ec_cart_id'], time() + ( 3600 * 24 * 1 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
-			$cart_page_id = get_option('ec_option_cartpage');
-			if ( function_exists( 'icl_object_id' ) )
-				$cart_page_id = icl_object_id( $cart_page_id, 'page', true, ICL_LANGUAGE_CODE );
-			$cart_page = get_permalink( $cart_page_id );
-			if ( class_exists( "WordPressHTTPS" ) && isset( $_SERVER['HTTPS'] ) ) {
-				$https_class = new WordPressHTTPS();
-				$cart_page = $https_class->makeUrlHttps( $cart_page );
+
+		$req_session = sanitize_text_field( wp_unslash( $_GET['ec_load_tempcart'] ) );
+		$req_email = sanitize_email( wp_unslash( $_GET['ec_load_email'] ) );
+		$req_key = sanitize_text_field( wp_unslash( $_GET['ec_load_key'] ) );
+
+		$expected_key = wpeasycart_session()->get_abandoned_cart_key( $req_session, $req_email );
+
+		if ( hash_equals( $expected_key, $req_key ) ) {
+			$tempcart_row = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.session_id FROM ec_tempcart, ec_tempcart_data WHERE ec_tempcart.session_id = %s AND ec_tempcart_data.session_id = ec_tempcart.session_id AND ec_tempcart_data.email = %s", $req_session, $req_email ) );
+
+			if ( $tempcart_row ) {
+				wpeasycart_session()->handle_session( $tempcart_row->session_id );
+				wpeasycart_session()->rotate_session_id();
+
+				$cart_page_id = get_option( 'ec_option_cartpage' );
+				if ( function_exists( 'icl_object_id' ) ) {
+					$cart_page_id = icl_object_id( $cart_page_id, 'page', true, ICL_LANGUAGE_CODE );
+				}
+				$cart_page = get_permalink( $cart_page_id );
+				if ( class_exists( 'WordPressHTTPS' ) && isset( $_SERVER['HTTPS'] ) ) {
+					$https_class = new WordPressHTTPS();
+					$cart_page = $https_class->makeUrlHttps( $cart_page );
+				}
+				wp_redirect( $cart_page );
+				die();
 			}
-			wp_redirect( $cart_page );
 		}
 	}
 
@@ -1511,6 +1684,18 @@ function load_ec_store( $atts ) {
 	), $atts );
 	$args['language'] = strtoupper( esc_attr( sanitize_text_field( $args['language'] ) ) );
 	$args['modelnumber'] = sanitize_text_field( $args['modelnumber'] );
+	if ( 'NOMANUFACTURER' !== $args['manufacturerid'] ) {
+		$clean = implode( ',', array_filter( array_map( 'absint', explode( ',', (string) $args['manufacturerid'] ) ) ) );
+		$args['manufacturerid'] = ( '' !== $clean ) ? $clean : 'NOMANUFACTURER';
+	}
+	if ( 'NOGROUP' !== $args['groupid'] ) {
+		$clean = implode( ',', array_filter( array_map( 'absint', explode( ',', (string) $args['groupid'] ) ) ) );
+		$args['groupid'] = ( '' !== $clean ) ? $clean : 'NOGROUP';
+	}
+	if ( false !== $args['productid'] && '' !== $args['productid'] ) {
+		$clean = implode( ',', array_filter( array_map( 'absint', explode( ',', (string) $args['productid'] ) ) ) );
+		$args['productid'] = ( '' !== $clean ) ? $clean : false;
+	}
 	$args['image_display_mode'] = in_array( $args['image_display_mode'], array( '', 'fixed', 'dynamic' ), true ) ? $args['image_display_mode'] : '';
 	$args['image_height'] = ( '' !== $args['image_height'] ) ? (int) $args['image_height'] : '';
 	$args['image_object_fit'] = in_array( $args['image_object_fit'], array( 'cover', 'contain', 'fill' ), true ) ? $args['image_object_fit'] : 'cover';
@@ -1800,7 +1985,7 @@ function load_ec_account_register( $atts ) {
 
 function wp_easycart_dynamic_account_display( $language = 'NONE', $force_page = false, $shortcode_atts = array() ) {
 	$account_page = '';
-	$pages = array( 'forgot_password', 'register', 'billing_information', 'shipping_information', 'personal_information', 'password', 'orders', 'order_details', 'subscription', 'subscriptions', 'subscription_details' );
+	$pages = array( 'forgot_password', 'reset_password', 'register', 'billing_information', 'shipping_information', 'personal_information', 'password', 'orders', 'order_details', 'subscription', 'subscriptions', 'subscription_details' );
 	if ( $force_page ) {
 		$account_page = sanitize_key( $force_page );
 	} else if ( isset( $_GET['ec_page'] ) && in_array( $_GET['ec_page'], $pages ) ) {
@@ -1812,9 +1997,11 @@ function wp_easycart_dynamic_account_display( $language = 'NONE', $force_page = 
 		$account_page .= '-' . (int) $_GET['order_id'];
 	} else if ( $account_page == 'subscription_details' && isset( $_GET['subscription_id'] ) ) {
 		$account_page .= '-' . (int) $_GET['subscription_id'];
+	} else if ( $account_page == 'reset_password' && isset( $_GET['ec_reset_key'] ) ) {
+		$account_page .= '-' . preg_replace( '/[^a-zA-Z0-9\-]/', '', sanitize_text_field( wp_unslash( $_GET['ec_reset_key'] ) ) );
 	}
-	$valid_success_codes = array( 'login_success', 'validation_required', 'reset_email_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
-	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
+	$valid_success_codes = array( 'login_success', 'validation_required', 'reset_email_sent', 'password_reset_success', 'resend_activation_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
+	$valid_error_codes = array( 'register_email_error', 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
 	$success_code = ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) ? sanitize_text_field( $_GET['account_success'] ) : '';
 	$error_code = ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) ? sanitize_text_field( $_GET['account_error'] ) : '';
 	echo '<div id="wpeasycart_account_holder" style="position:relative; width:100%; min-height:350px;" data-account-page="' . esc_js( $account_page ) . '" data-page-id="' . esc_js( get_queried_object_id() ) . '" data-success-code="' . esc_js( $success_code ) . '" data-error-code="' . esc_js( $error_code ) . '" data-language="' . esc_attr( sanitize_text_field( $language ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-get-dynamic-account-page' ) ) . '"';
@@ -3135,6 +3322,15 @@ function load_ec_categories( $atts ) {
 	$language = strtoupper( esc_attr( sanitize_text_field( $language ) ) );
 	$modelnumber = sanitize_text_field( $modelnumber );
 
+	if ( 'NOMANUFACTURER' !== $manufacturerid ) {
+		$clean = implode( ',', array_filter( array_map( 'absint', explode( ',', (string) $manufacturerid ) ) ) );
+		$manufacturerid = ( '' !== $clean ) ? $clean : 'NOMANUFACTURER';
+	}
+	if ( 'NOGROUP' !== $groupid ) {
+		$clean = implode( ',', array_filter( array_map( 'absint', explode( ',', (string) $groupid ) ) ) );
+		$groupid = ( '' !== $clean ) ? $clean : 'NOGROUP';
+	}
+
 	if ( $language != 'NONE' ) {
 		wp_easycart_language()->update_selected_language( $language );
 		$GLOBALS['ec_cart_data']->cart_data->translate_to = $language;
@@ -3798,7 +3994,7 @@ function ec_ajax_subscription_create_account() {
 			) );
 
 		} else {
-			$password = md5( $_POST['ec_contact_password'] ); // XSS OK. Password Hashed Immediately
+			$password = wp_easycart_hash_password( $_POST['ec_contact_password'] ); // XSS OK. Password Hashed Immediately
 			$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['ec_contact_password'] ); // XSS OK. Password should not be hashed.
 
 			$billing_id = $ec_db->insert_address( sanitize_text_field( $_POST['ec_contact_first_name'] ), sanitize_text_field( $_POST['ec_contact_last_name'] ), '', '', '', '', '', '', '', '' );
@@ -4446,7 +4642,7 @@ function ec_ajax_save_checkout_info() {
 			if ( $ec_db->does_user_exist( sanitize_email( $_POST['ec_contact_email'] ) ) ) {
 				$errors = 'user_create_error';
 			} else {
-				$password = md5( $_POST['ec_contact_password'] ); // XSS OK. Password Hashed Immediately
+				$password = wp_easycart_hash_password( $_POST['ec_contact_password'] ); // XSS OK. Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['ec_contact_password'] ); // XSS OK. Password should not be hashed.
 				$billing_id = $ec_db->insert_address(
 					( ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_first_name ) ? $GLOBALS['ec_cart_data']->cart_data->billing_first_name : $GLOBALS['ec_cart_data']->cart_data->shipping_first_name ),
@@ -7564,8 +7760,8 @@ function ec_ajax_get_dynamic_account_page() {
 		die();
 	}
 
-	$pages = array( 'forgot_password', 'register', 'billing_information', 'shipping_information', 'personal_information', 'password', 'orders', 'order_details', 'subscription', 'subscriptions', 'subscription_details' );
-	if ( sanitize_text_field( $_POST['account_page'] ) != '' && !in_array( sanitize_text_field( $_POST['account_page'] ), $pages ) && substr( sanitize_text_field( $_POST['account_page'] ), 0, 13 ) != 'order_details' && substr( sanitize_text_field( $_POST['account_page'] ), 0, 20 ) != 'subscription_details' ) {
+	$pages = array( 'forgot_password', 'reset_password', 'register', 'billing_information', 'shipping_information', 'personal_information', 'password', 'orders', 'order_details', 'subscription', 'subscriptions', 'subscription_details' );
+	if ( sanitize_text_field( $_POST['account_page'] ) != '' && !in_array( sanitize_text_field( $_POST['account_page'] ), $pages ) && substr( sanitize_text_field( $_POST['account_page'] ), 0, 13 ) != 'order_details' && substr( sanitize_text_field( $_POST['account_page'] ), 0, 20 ) != 'subscription_details' && substr( sanitize_text_field( $_POST['account_page'] ), 0, 14 ) != 'reset_password' ) {
 		$account_page = '';
 	} else {
 		$account_page = sanitize_text_field( $_POST['account_page'] );
@@ -8978,6 +9174,9 @@ function wpeasycart_send_abandoned_cart_email( $tempcart_id ) {
 	$to = $tempcart_item->email;
 	$subject = wp_easycart_language()->get_text( 'ec_abandoned_cart_email', 'email_title' );
 
+	$ec_load_key = wpeasycart_session()->get_abandoned_cart_key( $tempcart_item->session_id, $tempcart_item->email );
+	$ec_load_url = $cart_page . $permalink_divider . 'ec_load_tempcart=' . rawurlencode( $tempcart_item->session_id ) . '&ec_load_email=' . rawurlencode( $tempcart_item->email ) . '&ec_load_key=' . rawurlencode( $ec_load_key );
+
 	ob_start();
 	if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_abandoned_cart_email.php' ) )	
 		include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_abandoned_cart_email.php';	
@@ -9324,7 +9523,7 @@ function wp_easycart_maybe_sync_wordpress_user_pw_update( $user, $new_pass ) {
 	if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
 		if ( $user_id = get_user_meta( $user->ID, 'wpeasycart_user_id', true ) ) {
 			global $wpdb;
-			$password = md5( $new_pass );
+			$password = wp_easycart_hash_password( $new_pass );
 			$password = apply_filters( 'wpeasycart_password_hash', $password, $new_pass );
 			$wpdb->query( $wpdb->prepare( "UPDATE ec_user SET password = %s WHERE user_id = %d", $password, $user_id ) );
 		}
@@ -9337,7 +9536,7 @@ function wp_easycart_maybe_sync_new_wordpress_user( $data, $update, $id ) {
 	if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
 		global $wpdb;
 		if ( !$update ) {
-			$password = md5( $data['user_pass'] );
+			$password = wp_easycart_hash_password( $data['user_pass'] );
 			$password = apply_filters( 'wpeasycart_password_hash', $password, $data['user_pass'] );
 			$wpdb->query( $wpdb->prepare( "INSERT INTO ec_user( email, password ) VALUES( %s, %s )", $data['user_email'], $password ) );
 			$user_id = $wpdb->insert_id;
@@ -9433,4 +9632,3 @@ function wp_easycart_escape_html( $text ) {
 	$allowedposttags['i']    = $allowed_atts;
 	return wp_kses( $text, $allowedposttags );
 }
-?>

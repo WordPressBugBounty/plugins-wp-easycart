@@ -26,6 +26,7 @@
 	</div>
 	<div class="ec_admin_settings_input ec_admin_settings_live_payment_section">
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_enable_push_notifications', 'ec_admin_save_additional_options', get_option( 'ec_option_enable_push_notifications' ), __( 'App Notifications', 'wp-easycart' ), __( 'Enable to receive push notifications on your WP EasyCart apps (must have push notifications enabled!).', 'wp-easycart' ) ); ?>
+		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_enable_legacy_app_auth', 'ec_admin_save_additional_options', get_option( 'ec_option_enable_legacy_app_auth', '1' ), __( 'Legacy App Login (v1)', 'wp-easycart' ), __( 'Allow sign-in from older versions of the WP EasyCart mobile apps. Once all of your devices run the latest app version, disable this for improved security. Disabling immediately removes the stored legacy login data and blocks outdated apps; re-enabling requires each admin to sign in again (on the website or in the new app) before older apps will work.', 'wp-easycart' ) ); ?>
 	</div>
 </div>
 
@@ -42,6 +43,20 @@
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_orders_list_enable_pickup_date', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_orders_list_enable_pickup_date' ), __( 'Order List: Enable Preorder Pickup Date Display', 'wp-easycart' ), __( 'This will add a column in the order list for the preorder pickup date.', 'wp-easycart' ) ); ?>
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_orders_list_enable_pickup_time', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_orders_list_enable_pickup_time' ), __( 'Order List: Enable Restaurant Pickup Time Display', 'wp-easycart' ), __( 'This will add a column in the order list for the restaurant style orders and expected pickup time.', 'wp-easycart' ) ); ?>
 		<?php wp_easycart_admin( )->load_toggle_group( 'ec_option_admin_enable_product_details_v2', 'ec_admin_save_additional_options', get_option( 'ec_option_admin_enable_product_details_v2' ), __( 'Product Editor: Enable New Product Details (V2)', 'wp-easycart' ), __( 'Loads the modern product editor with tabbed navigation, per-section saving, activity insights, and a mobile-friendly layout. Turn off to use the classic product editor. Reload the product page after changing this setting.', 'wp-easycart' ) ); ?>
+		<?php
+		$perpage_default = (int) get_option( 'ec_option_admin_default_perpage' );
+		if ( ! in_array( $perpage_default, array( 10, 25, 50, 100, 250, 500 ), true ) ) {
+			$perpage_default = 25;
+		}
+		$perpage_options = array();
+		foreach ( array( 10, 25, 50, 100, 250, 500 ) as $perpage_value ) {
+			$perpage_options[] = (object) array(
+				'value' => $perpage_value,
+				'label' => sprintf( __( '%d per page', 'wp-easycart' ), $perpage_value ),
+			);
+		}
+		?>
+		<?php wp_easycart_admin( )->load_toggle_group_select( 'ec_option_admin_default_perpage', 'ec_admin_save_additional_text_options', $perpage_default, __( 'Admin Lists: Default Records Per Page', 'wp-easycart' ), __( 'Default number of records shown on admin list pages (products, orders, users, etc). Per-page choices made on each list are remembered per admin and per list, and will override this default.', 'wp-easycart' ), $perpage_options, 'ec_option_admin_default_perpage_row', true, false, false, true ); ?>
 		<?php do_action( 'wp_easycart_additional_admin_options' ); ?>
 	</div>
 </div>

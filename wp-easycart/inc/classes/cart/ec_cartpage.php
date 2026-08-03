@@ -1302,6 +1302,7 @@ class ec_cartpage {
 					$ec_db_admin->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 					$GLOBALS['ec_cart_data']->checkout_session_complete();
 					$GLOBALS['ec_cart_data']->save_session_to_db();
+					wpeasycart_session()->rotate_session_id();
 					echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 						echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">';
 							echo '<div style="text-align:center; font-size:20px;" class="wpeasycart-stripe-already-paid-note">Your payment has been processed and you may view your order now</div>';
@@ -6898,7 +6899,7 @@ class ec_cartpage {
 				) );
 
 			} else {
-				$password = md5( $_POST['create_account']['password'] ); // XSS OK. Password Hashed Immediately
+				$password = wp_easycart_hash_password( $_POST['create_account']['password'] ); // XSS OK. Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['create_account']['password'] ); // XSS OK. Password should not be hashed.
 
 				$billing_id = $this->mysqli->insert_address( 
@@ -7962,7 +7963,7 @@ class ec_cartpage {
 		if ( $recaptcha_valid ) {
 			$email = trim( sanitize_email( $_POST['ec_cart_login_email'] ) );
 			$password = $_POST['ec_cart_login_password']; // XSS OK. Password should not be sanitized.
-			$password_hash = md5( $password );
+			$password_hash = wp_easycart_hash_password( $password );
 			$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $password );
 
 			do_action( 'wpeasycart_pre_login_attempt', $email );
@@ -8067,6 +8068,7 @@ class ec_cartpage {
 				}
 
 				$GLOBALS['ec_cart_data']->save_session_to_db();
+				wpeasycart_session()->rotate_session_id();
 				do_action( 'wpeasycart_cart_updated' );
 				if ( isset( $GLOBALS['ec_cart_data']->cart_data->cart_subscription ) && '' != $GLOBALS['ec_cart_data']->cart_data->cart_subscription ) {
 					if ( $redirect ) {
@@ -8152,7 +8154,6 @@ class ec_cartpage {
 	}
 
 	private function process_logout_user() {
-
 		$GLOBALS['ec_cart_data']->cart_data->user_id = "";
 		$GLOBALS['ec_cart_data']->cart_data->email = "";
 		$GLOBALS['ec_cart_data']->cart_data->username = "";
@@ -8206,6 +8207,7 @@ class ec_cartpage {
 		$GLOBALS['ec_cart_data']->cart_data->amazon_payment_selection = "";
 
 		$GLOBALS['ec_cart_data']->save_session_to_db();
+		wpeasycart_session()->rotate_session_id();
 
 		wp_cache_flush();
 
@@ -8458,7 +8460,7 @@ class ec_cartpage {
 						header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_info', array( 'ec_cart_error' => 'email_exists' ) ) ) );
 					} else {
 						$email = sanitize_email( $_POST['ec_contact_email'] );
-						$password = md5( $_POST['ec_contact_password'] ); // XSS OK. Should not sanitize password.
+						$password = wp_easycart_hash_password( $_POST['ec_contact_password'] ); // XSS OK. Should not sanitize password.
 						$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['ec_contact_password'] ); // XSS OK. Should not sanitize password.
 
 						// INSERT USER
@@ -8867,7 +8869,7 @@ class ec_cartpage {
 
 				if ( $create_account ) {
 					$email = sanitize_email( $_POST['ec_contact_email'] );
-					$password = md5( $_POST['ec_contact_password'] ); // XSS OK, Password not sanitized
+					$password = wp_easycart_hash_password( $_POST['ec_contact_password'] ); // XSS OK, Password not sanitized
 					$password = apply_filters( 'wpeasycart_password_hash', $password, $_POST['ec_contact_password'] ); // XSS OK, Password not sanitized
 
 					// INSERT USER
@@ -9255,26 +9257,16 @@ class ec_cartpage {
 						$GLOBALS['ec_cart_data']->cart_data->coupon_code = "";
 						$GLOBALS['ec_cart_data']->cart_data->giftcard = "";
 						$GLOBALS['ec_cart_data']->cart_data->order_notes = "";
-						setcookie('ec_cart_id', "", time() - 300, COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN ); 
 
 						$GLOBALS['ec_cart_data']->clear_db_session();
 
-						global $wpdb;
-
-						$vals = array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' );
-						$session_cart_id = $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)];
-
-						$check_tempcart_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.* FROM ec_tempcart WHERE ec_tempcart.session_id = %s", $session_cart_id ) );
-						$check_tempcart_data_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart_data.* FROM ec_tempcart_data WHERE ec_tempcart_data.session_id = %s", $session_cart_id ) );
-						while( $check_tempcart_id || $check_tempcart_data_id ) { // If we get a result, create new and go until we get a unique tempcart id...
-							$session_cart_id = $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)] . $vals[rand(0, 25)];
-							$check_tempcart_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart.* FROM ec_tempcart WHERE ec_tempcart.session_id = %s", $session_cart_id ) );
-							$check_tempcart_data_id = $wpdb->get_row( $wpdb->prepare( "SELECT ec_tempcart_data.* FROM ec_tempcart_data WHERE ec_tempcart_data.session_id = %s", $session_cart_id ) );
-						}
+						$session = wpeasycart_session();
+						$session->clear_cart_cookie();
+						$session_cart_id = $session->generate_unique_cart_id();
 						$GLOBALS['ec_cart_id'] = $session_cart_id;
-						setcookie( 'ec_cart_id', $session_cart_id, time() + ( 3600 * 24 * 1 ), COOKIEPATH ? COOKIEPATH : '/', COOKIE_DOMAIN );
+						$session->set_cart_cookie( $session_cart_id );
 
-						$GLOBALS['ec_cart_data'] = new ec_cart_data( $GLOBALS['ec_cart_data']->ec_cart_id );
+						$GLOBALS['ec_cart_data'] = new ec_cart_data( $GLOBALS['ec_cart_id'] );
 
 						die();
 

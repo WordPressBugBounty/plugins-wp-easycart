@@ -20,6 +20,8 @@ class ec_accountpage {
 
 	public $redirect_login;
 
+	private $reset_password_key = '';
+
 	function __construct( $redirect_login = false ) {
 		$this->user =& $GLOBALS['ec_user'];
 		$this->mysqli = new ec_db();
@@ -97,6 +99,14 @@ class ec_accountpage {
 
 		$this->display_account_error( $error_code );
 		$this->display_account_success( $success_code );
+
+		if ( 'reset_password' === substr( $account_page, 0, 14 ) || ( isset( $_GET['ec_page'] ) && 'reset_password' === sanitize_key( $_GET['ec_page'] ) ) ) {
+			if ( strlen( $account_page ) > 15 && '-' === substr( $account_page, 14, 1 ) ) {
+				$this->reset_password_key = sanitize_text_field( substr( $account_page, 15 ) );
+			}
+			$this->display_reset_password_page();
+			return;
+		}
 
 		if ( $GLOBALS['ec_cart_data']->cart_data->user_id != "" ) {
 
@@ -220,6 +230,12 @@ class ec_accountpage {
 	}
 
 	public function display_account_page( $force_page = false ) {
+		if ( 'reset_password' === $force_page || ( isset( $_GET['ec_page'] ) && 'reset_password' === sanitize_key( $_GET['ec_page'] ) ) ) {
+			$this->display_account_error();
+			$this->display_account_success();
+			$this->display_reset_password_page();
+			return;
+		}
 		if ( $force_page && 'register' == $force_page ) {
 			$this->display_register_page();
 		} else if ( $force_page && 'forgot_password' == $force_page ) {
@@ -252,7 +268,7 @@ class ec_accountpage {
 	}
 
 	public function display_account_error( $error_code = '' ) {
-		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
+		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
 		if ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) {
 			$error_text = wp_easycart_language()->get_text( "ec_errors", sanitize_key( $_GET['account_error'] ) );
 			$error_text = apply_filters( 'wpeasycart_account_error', $error_text, sanitize_key( $_GET['account_error'] ) );
@@ -262,6 +278,9 @@ class ec_accountpage {
 					$this->display_account_login_forgot_password_link( wp_easycart_language()->get_text( 'account_login', 'account_login_forgot_password_link' ) );
 				}
 				echo "</div></div>";
+				if ( 'not_activated' == $_GET['account_error'] ) {
+					$this->display_account_resend_activation_form();
+				}
 			}
 
 		} else if ( $error_code != '' && in_array( $error_code, $valid_error_codes ) ) {
@@ -278,10 +297,14 @@ class ec_accountpage {
 	}
 
 	public function display_account_success( $success_code = '' ) {
-		$valid_success_codes = array( 'validation_required', 'reset_email_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
+		$valid_success_codes = array( 'validation_required', 'reset_email_sent', 'password_reset_success', 'resend_activation_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
 		if ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) {
-			$success_text = wp_easycart_language()->get_text( "ec_success", sanitize_key( $_GET['account_success'] ) );
-			$success_text = apply_filters( 'wpeasycart_account_success', $success_text, sanitize_key( $_GET['account_success'] ) );
+			$success_code = sanitize_key( $_GET['account_success'] );
+			if ( 'reset_email_sent' == $success_code ) { // Custom for upgraded reset email text.
+				$success_code = 'reset_email_sent_new';
+			}
+			$success_text = wp_easycart_language()->get_text( "ec_success", $success_code );
+			$success_text = apply_filters( 'wpeasycart_account_success', $success_text, $success_code );
 			if ( $success_text )
 				echo "<div class=\"ec_account_success\"><div>" . esc_attr( $success_text ) . "</div></div>";
 
@@ -1214,6 +1237,10 @@ class ec_accountpage {
 			$this->process_register();
 		} else if ( $action == "retrieve_password" ) {
 			$this->process_retrieve_password();
+		} else if ( $action == "reset_password" ) {
+			$this->process_reset_password();
+		} else if ( $action == "resend_activation" ) {
+			$this->process_resend_activation();
 		} else if ( $action == "update_personal_information" ) {
 			$this->process_update_personal_information();
 		} else if ( $action == "update_password" ) {
@@ -1290,7 +1317,7 @@ class ec_accountpage {
 				$password = sanitize_text_field( $_POST['ec_account_login_password'] );
 			}
 
-			$password_hash = md5( $password );
+			$password_hash = wp_easycart_hash_password( $password );
 			$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $password );
 
 			do_action( 'wpeasycart_pre_login_attempt', $email );
@@ -1462,7 +1489,7 @@ class ec_accountpage {
 					$last_name = sanitize_text_field( $_POST['ec_account_register_last_name'] );
 				}
 				$email = sanitize_email( $_POST['ec_account_register_email'] );
-				$password = md5( $_POST['ec_account_register_password'] ); // XSS OK, Password Hashed Immediately
+				$password = wp_easycart_hash_password( $_POST['ec_account_register_password'] ); // XSS OK, Password Hashed Immediately
 				$password = apply_filters( 'wpeasycart_password_hash', $password, sanitize_text_field( $_POST['ec_account_register_password'] ) );
 
 				// Check if account already exists
@@ -1627,18 +1654,129 @@ class ec_accountpage {
 			die();
 		}
 		$email = sanitize_email( $_POST['ec_account_forgot_password_email'] );
-		$new_password = $this->get_random_password();
-		$password = md5( $new_password );
-		$password = apply_filters( 'wpeasycart_password_hash', $password, $new_password );
-		$success = $this->mysqli->reset_password( $email, $password );
-		if ( $success ) {
-			$this->send_new_password_email( $email, $new_password );
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'reset_email_sent' ) ) ) );
-			die();
-		} else {
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'no_reset_email_found' ) ) ) );
+
+		global $wpdb;
+		$user = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, email, password, first_name, last_name FROM ec_user WHERE email = %s', $email ) );
+		if ( $user ) {
+			$token     = wp_easycart_generate_password_reset_token( $user );
+			$reset_url = wpeasycart_links()->get_account_page( 'reset_password', array( 'ec_reset_key' => $token ) );
+			$this->send_password_reset_email( $user, $reset_url );
+			do_action( 'wpeasycart_password_reset_requested', $user->user_id );
+		}
+
+		header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'reset_email_sent' ) ) ) );
+		die();
+	}
+
+	private function process_reset_password() {
+		if ( ! isset( $_POST['ec_account_form_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-reset-password' ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'forgot_password', array( 'account_error' => 'reset_link_invalid' ) ) ) );
 			die();
 		}
+
+		$token = isset( $_POST['ec_reset_key'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_reset_key'] ) ) : '';
+		$user  = wp_easycart_validate_password_reset_token( $token );
+		if ( ! $user ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'forgot_password', array( 'account_error' => 'reset_link_invalid' ) ) ) );
+			die();
+		}
+
+		// Passwords are intentionally not sanitized.
+		$new_password    = isset( $_POST['ec_account_reset_password_new_password'] ) ? wp_unslash( $_POST['ec_account_reset_password_new_password'] ) : '';
+		$retype_password = isset( $_POST['ec_account_reset_password_retype_new_password'] ) ? wp_unslash( $_POST['ec_account_reset_password_retype_new_password'] ) : '';
+
+		if ( apply_filters( 'wpeasycart_custom_verify_new_password', false, $new_password ) ) {
+			do_action( 'wpeasycart_custom_verify_new_password_failed', $new_password );
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'reset_password', array( 'ec_reset_key' => $token, 'account_error' => 'password_invalid' ) ) ) );
+			die();
+		}
+		if ( $new_password !== $retype_password ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'reset_password', array( 'ec_reset_key' => $token, 'account_error' => 'password_no_match' ) ) ) );
+			die();
+		}
+		$min_length = (int) apply_filters( 'wp_easycart_minimum_password_length', 6 );
+		if ( strlen( $new_password ) < $min_length ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'reset_password', array( 'ec_reset_key' => $token, 'account_error' => 'password_too_short' ) ) ) );
+			die();
+		}
+
+		$password_hash = wp_easycart_hash_password( $new_password );
+		$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $new_password );
+		$this->mysqli->reset_password( $user->email, $password_hash );
+
+		if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
+			$wp_user = get_user_by( 'email', $user->email );
+			if ( $wp_user ) {
+				wp_set_password( $new_password, $wp_user->ID );
+			}
+		}
+
+		do_action( 'wpeasycart_password_changed', $user->user_id, $password_hash );
+		if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
+			wp_easycart_maintain_admin_password_backup( $user->user_id, $new_password );
+		}
+
+		header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'password_reset_success' ) ) ) );
+		die();
+	}
+
+	private function process_resend_activation() {
+		if ( ! isset( $_POST['ec_account_form_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-resend-activation' ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'invalid_nonce' ) ) ) );
+			die();
+		}
+
+		$email = sanitize_email( $_POST['ec_account_resend_activation_email'] );
+
+		global $wpdb;
+		$user = $wpdb->get_row( $wpdb->prepare( 'SELECT email, user_level FROM ec_user WHERE email = %s', $email ) );
+		if ( $user && 'pending' == $user->user_level ) {
+			wp_easycart_send_activation_email( $user->email );
+			do_action( 'wpeasycart_activation_email_resent', $user->email );
+		}
+
+		header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'resend_activation_sent' ) ) ) );
+		die();
+	}
+
+	public function display_account_resend_activation_form() {
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\" class=\"ec_account_resend_activation_form\">";
+		echo "<label for=\"ec_account_resend_activation_email\">" . wp_easycart_language()->get_text( 'account_resend_activation', 'account_resend_activation_email_label' ) . "</label>";
+		echo "<input type=\"email\" name=\"ec_account_resend_activation_email\" id=\"ec_account_resend_activation_email\" class=\"ec_account_resend_activation_input_field\" value=\"" . ( isset( $_GET['email'] ) ? esc_attr( sanitize_email( wp_unslash( $_GET['email'] ) ) ) : '' ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_account_form_action\" value=\"resend_activation\" />";
+		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-resend-activation' ) ) . "\" />";
+		echo "<input type=\"submit\" class=\"ec_account_button\" value=\"" . esc_attr( wp_easycart_language()->get_text( 'account_resend_activation', 'account_resend_activation_button' ) ) . "\" />";
+		echo "</form>";
+	}
+
+	public function get_reset_password_key() {
+		if ( '' !== $this->reset_password_key ) {
+			return $this->reset_password_key;
+		}
+		return isset( $_GET['ec_reset_key'] ) ? sanitize_text_field( wp_unslash( $_GET['ec_reset_key'] ) ) : '';
+	}
+
+	public function get_reset_password_user() {
+		return wp_easycart_validate_password_reset_token( $this->get_reset_password_key() );
+	}
+
+	public function display_reset_password_page() {
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_reset_password.php' ) ) {
+			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_reset_password.php' );
+		} else {
+			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_account_reset_password.php' );
+		}
+	}
+
+	public function display_account_reset_password_form_start() {
+		echo "<form action=\"" . esc_url( wpeasycart_links()->get_account_page() ) . "\" method=\"POST\">";
+	}
+
+	public function display_account_reset_password_form_end( $reset_key ) {
+		echo "<input type=\"hidden\" name=\"ec_account_form_action\" value=\"reset_password\" />";
+		echo "<input type=\"hidden\" name=\"ec_reset_key\" value=\"" . esc_attr( $reset_key ) . "\" />";
+		echo "<input type=\"hidden\" name=\"ec_account_form_nonce\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-account-reset-password' ) ) . "\" />";
+		echo "</form>";
 	}
 
 	private function process_update_personal_information() {
@@ -2121,10 +2259,8 @@ class ec_accountpage {
 	}
 
 	/* END FORM ACTION FUNCTIONS */
-	private function send_new_password_email( $email, $new_password ) {
-		$password_hash = md5( $new_password );
-		$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $new_password );
-		$user = $this->mysqli->get_user_login( $email, $new_password, $password_hash );
+	private function send_password_reset_email( $user, $reset_url ) {
+		$email = $user->email;
 
 		$email_logo_url = get_option( 'ec_option_email_logo' );
 
@@ -2144,7 +2280,7 @@ class ec_accountpage {
 			$permalink_divider = "?";
 		}
 
-		// Get receipt
+		// Build the email body ($reset_url and $user are available to the template).
 		ob_start();
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_retrieve_password_email.php' ) )	
 			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_retrieve_password_email.php' );	
@@ -2186,36 +2322,7 @@ class ec_accountpage {
 	}
 
 	public function send_validation_email( $email ) {
-		$key = md5( $email . "ecsalt" );
-
-		// Get receipt
-		$message = wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_message" ) . "\r\n";
-		$message .= "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'activate_account', array( 'email' => $email, 'key' => $key ) ) ) . "\" target=\"_blank\">" . wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_link" ) . "</a>";
-
-		$headers   = array();
-		$headers[] = "MIME-Version: 1.0";
-		$headers[] = "Content-Type: text/html; charset=utf-8";
-		$headers[] = "From: " . stripslashes( get_option( 'ec_option_password_from_email' ) );
-		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_password_from_email' ) );
-		$headers[] = "X-Mailer: PHP/" . phpversion();
-
-		$email_send_method = get_option( 'ec_option_use_wp_mail' );
-		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
-
-		if ( $email_send_method == "1" ) {
-			wp_mail( $email, wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" ), $message, implode("\r\n", $headers));
-
-		} else if ( $email_send_method == "0" ) {
-			$to = $email;
-			$subject = wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" );
-			$mailer = new wpeasycart_mailer();
-			$mailer->send_customer_email( $to, $subject, $message );
-
-		} else {
-			do_action( 'wpeasycart_custom_register_verification_email', stripslashes( get_option( 'ec_option_password_from_email' ) ), $email, "", wp_easycart_language()->get_text( "account_validation_email", "account_validation_email_title" ), $message );
-
-		}	
-
+		wp_easycart_send_activation_email( $email );
 	}
 
 	public function ec_display_card_holder_name_input() {

@@ -38,6 +38,8 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_user' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_export_users' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_force_password_reset' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_resend_activation' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_resend_activation' ) );
 		}
 
 		public function process_add_new_user() {
@@ -110,6 +112,66 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			}
 		}
 
+		public function process_resend_activation() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_users' ) ) {
+				return false;
+			}
+			if ( isset( $_GET['ec_admin_form_action'] ) && isset( $_GET['user_id'] ) && ! isset( $_GET['bulk'] ) && 'user-resend-activation' == $_GET['ec_admin_form_action'] ) {
+				$result = $this->resend_activation();
+				wp_easycart_admin()->redirect( 'wp-easycart-users', 'accounts', $result );
+			}
+		}
+
+		public function process_bulk_resend_activation() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_users' ) ) {
+				return false;
+			}
+			if ( isset( $_GET['ec_admin_form_action'] ) && ! isset( $_GET['user_id'] ) && isset( $_GET['bulk'] ) && 'accounts-resend-activation' == $_GET['ec_admin_form_action'] ) {
+				$result = $this->bulk_resend_activation();
+				wp_easycart_admin()->redirect( 'wp-easycart-users', 'accounts', $result );
+			}
+		}
+
+		public function resend_activation() {
+			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-resend-activation' ) ) {
+				return false;
+			}
+			if ( ! isset( $_GET['user_id'] ) ) {
+				return false;
+			}
+
+			global $wpdb;
+			$user = $wpdb->get_row( $wpdb->prepare( 'SELECT email, user_level FROM ec_user WHERE user_id = %d', (int) $_GET['user_id'] ) );
+			if ( $user && 'pending' == $user->user_level ) {
+				wp_easycart_send_activation_email( $user->email );
+				do_action( 'wpeasycart_activation_email_resent', $user->email );
+			}
+
+			return array( 'success' => 'user-activation-resent' );
+		}
+
+		public function bulk_resend_activation() {
+			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-bulk-accounts' ) ) {
+				return false;
+			}
+			if ( ! isset( $_GET['bulk'] ) ) {
+				return false;
+			}
+
+			global $wpdb;
+			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item cast to int below.
+
+			foreach ( $bulk_ids as $bulk_id ) {
+				$user = $wpdb->get_row( $wpdb->prepare( 'SELECT email, user_level FROM ec_user WHERE user_id = %d', (int) $bulk_id ) );
+				if ( $user && 'pending' == $user->user_level ) {
+					wp_easycart_send_activation_email( $user->email );
+					do_action( 'wpeasycart_activation_email_resent', $user->email );
+				}
+			}
+
+			return array( 'success' => 'user-activation-resent' );
+		}
+
 		public function add_success_messages( $messages ) {
 			if ( isset( $_GET['success'] ) && 'user-inserted' == $_GET['success'] ) {
 				$messages[] = __( 'User successfully inserted', 'wp-easycart' );
@@ -121,6 +183,8 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				$messages[] = __( 'You are now logged in as this user. Please use caution when viewing the store.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && 'user-password-reset' == $_GET['success'] ) {
 				$messages[] = __( 'User(s) passwords were successfully reset and emailed with information to update their password.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && 'user-activation-resent' == $_GET['success'] ) {
+				$messages[] = __( 'Activation email(s) were resent to any selected accounts still pending activation.', 'wp-easycart' );
 			}
 			return $messages;
 		}
@@ -171,7 +235,9 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 
 			$email = sanitize_email( wp_unslash( $_POST['email'] ) );
 			$email_other = ( isset( $_POST['email_other'] ) ) ? sanitize_email( wp_unslash( $_POST['email_other'] ) ) : '';
-			$password = md5( wp_unslash( $_POST['password'] ) ); // XSS OK, Do not sanitize passwords.
+			$raw_password = wp_unslash( $_POST['password'] ); // XSS OK, Do not sanitize passwords.
+			$password = wp_easycart_hash_password( $raw_password );
+			$password = apply_filters( 'wpeasycart_password_hash', $password, $raw_password );
 			$first_name = sanitize_text_field( wp_unslash( $_POST['first_name'] ) );
 			$last_name = sanitize_text_field( wp_unslash( $_POST['last_name'] ) );
 
@@ -212,6 +278,9 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			if ( ! $duplicate ) {
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_user( email, password, first_name, last_name, user_level, is_subscriber, exclude_tax, exclude_shipping, allow_shipping_bypass, is_stripe_test_user, user_notes, vat_registration_number, email_other ) VALUES( %s, %s, %s, %s, %s, %d, %d, %d, %d, %d, %s, %s, %s )', $email, $password, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other ) );
 				$user_id = $wpdb->insert_id;
+				if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
+					wp_easycart_maintain_admin_password_backup( $user_id, $raw_password );
+				}
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_address( user_id, first_name, last_name, company_name, address_line_1, address_line_2, city, state, zip, country, phone ) VALUES( %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )', $user_id, $billing_first_name, $billing_last_name, $billing_company_name, $billing_address_line_1, $billing_address_line_2, $billing_city, $billing_state, $billing_zip, $billing_country, $billing_phone ) );
 				$billing_id = $wpdb->insert_id;
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_address( user_id, first_name, last_name, company_name, address_line_1, address_line_2, city, state, zip, country, phone ) VALUES( %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )', $user_id, $shipping_first_name, $shipping_last_name, $shipping_company_name, $shipping_address_line_1, $shipping_address_line_2, $shipping_city, $shipping_state, $shipping_zip, $shipping_country, $shipping_phone ) );
@@ -334,7 +403,12 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE ec_user.user_id = %d', $email, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
 
 			} else {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, password = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE user_id = %d', $email, md5( $password ), $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
+				$password_hash = wp_easycart_hash_password( $password );
+				$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $password );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, password = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE user_id = %d', $email, $password_hash, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
+				if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
+					wp_easycart_maintain_admin_password_backup( $user_id, $password );
+				}
 			}
 
 			if ( file_exists( '../../../../wp-easycart-quickbooks/QuickBooks.php' ) ) {
@@ -436,13 +510,15 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 
 			foreach ( $bulk_ids as $bulk_id ) {
-				$user = $wpdb->get_row( $wpdb->prepare( 'SELECT email, first_name, last_name FROM ec_user WHERE user_id = %d', (int) $bulk_id ) );
+				$user = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, email, password, first_name, last_name FROM ec_user WHERE user_id = %d', (int) $bulk_id ) );
 				if ( $user ) {
-					$new_password = $this->get_random_password();
-					$password = md5( $new_password );
-					$password = apply_filters( 'wpeasycart_password_hash', $password, $new_password );
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET password = %s WHERE user_id = %d', $password, (int) $bulk_id ) );
-					$this->send_new_password_email( $user, $new_password );
+					$scrambled = wp_easycart_hash_password( bin2hex( random_bytes( 32 ) ) );
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET password = %s WHERE user_id = %d', $scrambled, (int) $bulk_id ) );
+					$user->password = $scrambled;
+
+					$token = wp_easycart_generate_password_reset_token( $user );
+					$reset_url = wpeasycart_links()->get_account_page( 'reset_password', array( 'ec_reset_key' => $token ) );
+					$this->send_password_reset_email( $user, $reset_url );
 				}
 			}
 
@@ -450,7 +526,10 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 		}
 
 		private function send_new_password_email( $user, $new_password ) {
+			// Discontinued function
+		}
 
+		private function send_password_reset_email( $user, $reset_url ) {
 			$email = $user->email;
 			$email_logo_url = get_option( 'ec_option_email_logo' );
 
@@ -708,7 +787,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 							$wpdb->prepare(
 								'INSERT INTO ec_user( `email`, `password`, `first_name`, `last_name`, `user_level` ) VALUES( %s, %s, %s, %s, %s)',
 								$rows[ $i ][ $email_index ],
-								md5( rand( 999999999999, 999999999999999 ) ),
+								wp_easycart_hash_password( bin2hex( random_bytes( 16 ) ) ),
 								$rows[ $i ][ $first_name_index ],
 								$rows[ $i ][ $last_name_index ],
 								( ( -1 != $user_level_index && '' != $rows[ $i ][ $user_level_index ] ) ? $rows[ $i ][ $user_level_index ] : 'shopper' )

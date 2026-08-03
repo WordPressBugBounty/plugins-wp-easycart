@@ -18,6 +18,9 @@
 							<?php if( !isset( $_GET['ec_admin_form_action'] ) || $_GET['ec_admin_form_action'] != "add-new" ){ ?>
 								<a href="admin.php?page=wp-easycart-orders&subpage=orders&filter_2=<?php echo esc_attr( $this->user->user_id ); ?>" class="ec_page_title_button"><?php esc_attr_e( 'View Orders', 'wp-easycart' ); ?></a>
 								<a href="admin.php?page=wp-easycart-users&subpage=accounts&ec_admin_form_action=user-login-override&user_id=<?php echo esc_attr( $this->user->user_id ); ?>&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-action-login-as-user' ) ); ?>" class="ec_page_title_button"><?php esc_attr_e( 'Login as User', 'wp-easycart' ); ?></a>
+								<?php if ( isset( $this->user->user_level ) && 'pending' == $this->user->user_level ) { ?>
+									<a href="admin.php?page=wp-easycart-users&subpage=accounts&ec_admin_form_action=user-resend-activation&user_id=<?php echo esc_attr( $this->user->user_id ); ?>&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-action-resend-activation' ) ); ?>" class="ec_page_title_button"><?php esc_attr_e( 'Resend Activation Email', 'wp-easycart' ); ?></a>
+								<?php } ?>
 							<?php }?>
 							<a href="<?php echo esc_attr( $this->action ); ?>" class="ec_page_title_button"><?php esc_attr_e( 'Cancel', 'wp-easycart' ); ?></a>
 							<input type="submit" value="<?php esc_attr_e( 'Save', 'wp-easycart' ); ?>" onclick="return wpeasycart_admin_validate_form( )" class="ec_page_title_button">

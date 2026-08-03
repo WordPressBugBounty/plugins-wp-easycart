@@ -74,6 +74,10 @@ $table->set_bulk_actions(
 				'name' => 'accounts-force-password-reset',
 				'label' => __( 'Force Selected to Reset Password', 'wp-easycart' ),
 			),
+			array(
+				'name' => 'accounts-resend-activation',
+				'label' => __( 'Resend Activation Email to Selected', 'wp-easycart' ),
+			),
 		)
 	)
 );

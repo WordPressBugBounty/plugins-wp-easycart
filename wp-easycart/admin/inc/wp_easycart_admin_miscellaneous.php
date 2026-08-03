@@ -95,7 +95,7 @@ if ( ! class_exists( 'wp_easycart_admin_miscellaneous' ) ) :
 		}
 
 		public function save_miscellaneous_options() {
-			$options = array( 'ec_option_admin_product_show_stock_option', 'ec_option_admin_product_show_shipping_option', 'ec_option_admin_product_show_tax_option', 'ec_option_admin_product_show_variant_option', 'ec_option_enable_push_notifications', 'ec_option_use_live_search', 'ec_option_search_title', 'ec_option_search_model_number', 'ec_option_search_manufacturer', 'ec_option_search_description', 'ec_option_search_short_description', 'ec_option_search_menu', 'ec_option_search_by_or', 'ec_option_show_menu_cart_icon', 'ec_option_hide_cart_icon_on_empty', 'ec_option_enable_newsletter_popup', 'ec_option_enable_gateway_log', 'ec_option_use_inquiry_form', 'ec_option_allow_tracking', 'ec_option_deconetwork_allow_blank_products', 'ec_option_enable_debugging_mode', 'ec_option_disable_easycart_ad', 'ec_option_admin_orders_list_enable_pickup_date', 'ec_option_admin_orders_list_enable_pickup_time', 'ec_option_auto_send_refund_email', 'ec_option_admin_enable_product_details_v2' );
+			$options = array( 'ec_option_admin_product_show_stock_option', 'ec_option_admin_product_show_shipping_option', 'ec_option_admin_product_show_tax_option', 'ec_option_admin_product_show_variant_option', 'ec_option_enable_push_notifications', 'ec_option_enable_legacy_app_auth', 'ec_option_use_live_search', 'ec_option_search_title', 'ec_option_search_model_number', 'ec_option_search_manufacturer', 'ec_option_search_description', 'ec_option_search_short_description', 'ec_option_search_menu', 'ec_option_search_by_or', 'ec_option_show_menu_cart_icon', 'ec_option_hide_cart_icon_on_empty', 'ec_option_enable_newsletter_popup', 'ec_option_enable_gateway_log', 'ec_option_use_inquiry_form', 'ec_option_allow_tracking', 'ec_option_deconetwork_allow_blank_products', 'ec_option_enable_debugging_mode', 'ec_option_disable_easycart_ad', 'ec_option_admin_orders_list_enable_pickup_date', 'ec_option_admin_orders_list_enable_pickup_time', 'ec_option_auto_send_refund_email', 'ec_option_admin_enable_product_details_v2' );
 			$options_text = array( 'ec_option_abandoned_cart_days', 'ec_option_product_export_max' );
 
 			if ( isset( $_POST['update_var'] ) && in_array( $_POST['update_var'], $options ) ) {
@@ -108,6 +108,13 @@ if ( ! class_exists( 'wp_easycart_admin_miscellaneous' ) ) :
 			} else if ( isset( $_POST['update_var'] ) && $_POST['update_var'] == 'ec_option_use_old_linking_style' ) {
 				$val = ( isset( $_POST['val'] ) && $_POST['val'] == '1' ) ? 0 : 1;
 				update_option( sanitize_text_field( wp_unslash( $_POST['update_var'] ) ), $val );
+
+			} else if ( isset( $_POST['update_var'] ) && $_POST['update_var'] == 'ec_option_admin_default_perpage' ) {
+				$valid_perpage_values = array( 10, 25, 50, 100, 250, 500 );
+				$val = isset( $_POST['val'] ) ? (int) $_POST['val'] : 0;
+				if ( in_array( $val, $valid_perpage_values, true ) ) {
+					update_option( 'ec_option_admin_default_perpage', $val );
+				}
 
 			} else if ( isset( $_POST['update_var'] ) && $_POST['update_var'] == 'ec_option_cart_menu_id' ) {
 				if ( isset( $_POST['val'] ) ) {

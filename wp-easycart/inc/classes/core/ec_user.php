@@ -81,6 +81,8 @@ class ec_user{
 				}
 				update_user_meta( $wp_user_id, 'wp_easycart_user_id', $wpec_user_id );
 			}
+			$previous_cart_user_id = ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0;
+
 			$this->user_id = $wpec_user_id;
 			$GLOBALS['ec_cart_data']->cart_data->user_id = $this->user_id;
 			$GLOBALS['ec_cart_data']->cart_data->email = $this->email;
@@ -88,6 +90,11 @@ class ec_user{
 			$GLOBALS['ec_cart_data']->cart_data->guest_key = '';
 			$GLOBALS['ec_cart_data']->cart_data->first_name = $this->first_name;
 			$GLOBALS['ec_cart_data']->cart_data->last_name = $this->last_name;
+
+			if ( (int) $this->user_id !== $previous_cart_user_id && isset( $GLOBALS['ec_cart_id'] ) && 'not-set' != $GLOBALS['ec_cart_id'] && function_exists( 'wpeasycart_session' ) ) {
+				$GLOBALS['ec_cart_data']->save_session_to_db();
+				wpeasycart_session()->rotate_session_id();
+			}
 		}
 		$this->init_wp_easycart_user();
 	}

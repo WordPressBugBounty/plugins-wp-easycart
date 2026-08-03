@@ -26,8 +26,20 @@
 				<td colspan='4' align='left' class='style22'>
 					<p><br>
 					<?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_dear" ); ?> <?php echo esc_attr( $user->first_name ); ?> <?php echo esc_attr( $user->last_name ); ?>:</p>
-					<p><?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_your_new_password" ); ?> <strong><?php echo esc_attr( $new_password ); ?></strong></p>
-					<p><?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_change_password" ); ?></p>
+					<p><?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_reset_intro" ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<td colspan='4' align='center' class='style22'>
+					<p>
+						<a href="<?php echo esc_url( $reset_url ); ?>" target="_blank" style="display:inline-block; padding:12px 24px; background:#2a2a2a; color:#ffffff; text-decoration:none; font-weight:bold; border-radius:4px;"><?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_reset_button" ); ?></a>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<td colspan='4' align='left' class='style22'>
+					<p><?php echo wp_easycart_language( )->get_text( "account_forgot_password_email", "account_forgot_password_email_reset_expiry" ); ?></p>
+					<p style="word-break:break-all;"><a href="<?php echo esc_url( $reset_url ); ?>" target="_blank"><?php echo esc_html( $reset_url ); ?></a></p>
 				</td>
 			</tr>
 			<tr>

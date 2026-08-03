@@ -2244,7 +2244,7 @@
                 },
                 "account_forgot_password_email_label": {
                     "title": "Account, Retrieve Password Email Label",
-                    "value": "Email"
+                    "value": "E-mailadresse"
                 },
                 "account_forgot_password_button": {
                     "title": "Account, Retrieve Password Button",
@@ -2252,6 +2252,48 @@
                 }
             }
         },
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"E-mailadresse"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Send aktiveringsmail igen"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Vælg en ny adgangskode"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Ny adgangskode"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Bekræft ny adgangskode"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Nulstil adgangskode"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Dette link til nulstilling af adgangskode er ugyldigt eller udløbet"
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Anmod om et nyt nulstillingslink"
+				}
+			}
+		},
         "account_validation_email": {
             "label": "Account - Validation Email",
             "options": {
@@ -2687,7 +2729,19 @@
                 "account_forgot_password_email_thank_you": {
                     "title": "Account, Password Recovery Email, Thank You Text",
                     "value": "Mange tak!"
-                }
+                },
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Vi har modtaget en anmodning om at nulstille din adgangskode. Klik på knappen nedenfor for at vælge en ny."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Nulstil adgangskode"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Dette link udløber om en time. Hvis du ikke har anmodet om en nulstilling af adgangskoden, kan du trygt ignorere denne e-mail."
+				}
             }
         },
         "account_order_details": {
@@ -3210,6 +3264,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Der blev ikke fundet nogen gyldig ordre med det ID og din e-mailadresse."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Dette link til nulstilling af adgangskode er ugyldigt eller udløbet. Anmod venligst om et nyt."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Din nye adgangskode er for kort."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Den adgangskode er ikke tilladt. Vælg venligst en anden."
 				}
             }
         },
@@ -3283,6 +3349,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Din ordre er blevet knyttet til din konto!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Din adgangskode er blevet nulstillet. Du kan nu logge ind med din nye adgangskode."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Hvis der findes en konto til den e-mailadresse, har vi sendt et link til nulstilling af adgangskode."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Hvis din konto afventer aktivering, har vi sendt et nyt aktiveringslink til din e-mail."
 				}
             }
         },

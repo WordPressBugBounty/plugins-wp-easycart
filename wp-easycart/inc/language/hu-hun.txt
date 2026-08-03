@@ -2264,6 +2264,48 @@
 				}
 			}
 		},
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"E-mail cím"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Aktiváló e-mail újraküldése"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Válasszon új jelszót"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Új jelszó"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Új jelszó megerősítése"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Jelszó visszaállítása"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Ez a jelszó-visszaállító link érvénytelen vagy lejárt"
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Új visszaállítási link kérése"
+				}
+			}
+		},
 		"account_validation_email":{
 			"label":"Fiók - Validation Email",
 			"options":{
@@ -2699,6 +2741,18 @@
 				"account_forgot_password_email_thank_you":{
 					"title":"Fiók, Elfelejtette a jelszó helyreállítási E-mail, Köszönet szövege",
 					"value":"Köszönjük szépen!"
+				},
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Jelszó-visszaállítási kérelmet kaptunk. Kattintson az alábbi gombra egy új jelszó kiválasztásához."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Jelszó visszaállítása"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Ez a link egy óra múlva lejár. Ha nem kértél jelszó-visszaállítást, nyugodtan figyelmen kívül hagyhatod ezt az e-mailt."
 				}
 			}
 		},
@@ -3226,6 +3280,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Nem található érvényes rendelés ezzel az azonosítóval és az e-mail címeddel."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Ez a jelszó-visszaállító link érvénytelen vagy lejárt. Kérjük, kérjen újat."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Az új jelszavad túl rövid."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Ez a jelszó nem engedélyezett. Kérjük, válasszon egy másikat."
 				}
 			}
 		},
@@ -3299,6 +3365,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Rendelését sikeresen összekapcsoltuk a fiókjával!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Jelszava visszaállítása megtörtént. Most már bejelentkezhet az új jelszavával."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Ha létezik fiók az adott e-mail címhez, akkor küldtünk egy jelszó-visszaállító linket."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Ha fiókja aktiválása függőben van, új aktiválási linket küldtünk az e-mail címére."
 				}
 			}
 		},

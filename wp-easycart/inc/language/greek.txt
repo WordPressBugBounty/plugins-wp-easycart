@@ -2268,6 +2268,48 @@
 				}
 			}
 		},
+		"account_resend_activation":{
+			"label":"Account - Resend Activation",
+			"options":{
+				"account_resend_activation_email_label":{
+					"title":"Account, Resend Activation Label",
+					"value":"Διεύθυνση ηλεκτρονικού ταχυδρομείου"
+				},
+				"account_resend_activation_button":{
+					"title":"Account, Resend Activation Button",
+					"value":"Επανάληψη αποστολής email ενεργοποίησης"
+				}
+			}
+		},
+		"account_reset_password":{
+			"label":"Account - Reset Password",
+			"options":{
+				"account_reset_password_title":{
+					"title":"Account, Reset Password Title",
+					"value":"Επιλέξτε έναν νέο κωδικό πρόσβασης"
+				},
+				"account_reset_password_new_password_label":{
+					"title":"Account, Reset Password Label",
+					"value":"Νέος κωδικός πρόσβασης"
+				},
+				"account_reset_password_retype_new_password_label":{
+					"title":"Account, Reset Password Confirm Label",
+					"value":"Επιβεβαίωση νέου κωδικού πρόσβασης"
+				},
+				"account_reset_password_button":{
+					"title":"Account, Reset Password Button",
+					"value":"Επαναφορά κωδικού πρόσβασης"
+				},
+				"account_reset_password_invalid_link":{
+					"title":"Account, Reset Password Invalid",
+					"value":"Αυτός ο σύνδεσμος επαναφοράς κωδικού πρόσβασης δεν είναι έγκυρος ή έχει λήξει"
+				},
+				"account_reset_password_request_new_link":{
+					"title":"Account, Reset Password Again Link",
+					"value":"Αίτημα για νέο σύνδεσμο επαναφοράς"
+				}
+			}
+		},
 		"account_validation_email":{
 			"label":"Account - Validation Email",
 			"options":{
@@ -2703,6 +2745,18 @@
 				"account_forgot_password_email_thank_you":{
 					"title":"Account, Password Recovery Email, Thank You Text",
 					"value":"Σας ευχαριστούμε πάρα πολύ!"
+				},
+				"account_forgot_password_email_reset_intro":{
+					"title":"Account, Password Reset Email, Intro",
+					"value":"Λάβαμε ένα αίτημα για επαναφορά του κωδικού πρόσβασής σας. Κάντε κλικ στο παρακάτω κουμπί για να επιλέξετε έναν νέο."
+				},
+				"account_forgot_password_email_reset_button":{
+					"title":"Account, Password Reset Email, Button",
+					"value":"Επαναφορά κωδικού πρόσβασης"
+				},
+				"account_forgot_password_email_reset_expiry":{
+					"title":"Account, Password Reset Email, Expiry",
+					"value":"Αυτός ο σύνδεσμος λήγει σε μία ώρα. Εάν δεν ζητήσατε επαναφορά κωδικού πρόσβασης, μπορείτε να αγνοήσετε με ασφάλεια αυτό το μήνυμα ηλεκτρονικού ταχυδρομείου."
 				}
 			}
 		},
@@ -3230,6 +3284,18 @@
 				"invalid_order_id":{
 					"title":"Cart, Invalid Order ID",
 					"value":"Δεν βρέθηκε έγκυρη παραγγελία με αυτό το αναγνωριστικό και τη διεύθυνση email σας."
+				},
+				"reset_link_invalid":{
+					"title":"Reset Password Link Invalid",
+					"value":"Αυτός ο σύνδεσμος επαναφοράς κωδικού πρόσβασης δεν είναι έγκυρος ή έχει λήξει. Παρακαλούμε ζητήστε έναν νέο."
+				},
+				"password_too_short":{
+					"title":"Reset Password Too Short",
+					"value":"Ο νέος σας κωδικός πρόσβασης είναι πολύ σύντομος."
+				},
+				"password_invalid":{
+					"title":"Reset Password Invalid",
+					"value":"Αυτός ο κωδικός πρόσβασης δεν επιτρέπεται. Επιλέξτε έναν διαφορετικό."
 				}
 			}
 		},
@@ -3303,6 +3369,18 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Η παραγγελία σας έχει συνδεθεί με επιτυχία στον λογαριασμό σας!"
+				},
+				"password_reset_success":{
+					"title":"Password Reset Success Message",
+					"value":"Ο κωδικός πρόσβασής σας έχει επαναφερθεί. Μπορείτε πλέον να συνδεθείτε με τον νέο σας κωδικό πρόσβασης."
+				},
+				"reset_email_sent_new":{
+					"title":"Account Email Sent Success",
+					"value":"Εάν υπάρχει λογαριασμός για αυτήν τη διεύθυνση ηλεκτρονικού ταχυδρομείου, έχουμε στείλει έναν σύνδεσμο επαναφοράς κωδικού πρόσβασης."
+				},
+				"resend_activation_sent":{
+					"title":"Account Activation Email Resent",
+					"value":"Εάν ο λογαριασμός σας εκκρεμεί για ενεργοποίηση, σας έχουμε στείλει έναν νέο σύνδεσμο ενεργοποίησης στο email σας."
 				}
 			}
 		},

@@ -1,15 +1,10 @@
 <?php
+class ec_manufacturer {
+	public $manufacturer_id;
+	public $name;
 
-class ec_manufacturer{
-	
-	public $manufacturer_id;						// INT
-	public $name;						// String
-	
-	function __construct($id, $name){
-		$this->manufacturer_id = $id;
+	function __construct( $id, $name ) {
+		$this->manufacturer_id = (int) $id;
 		$this->name = $name;
 	}
-	
 }
-
-?>

@@ -20,7 +20,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 		const SCORE_FIELDS = array(
 			'title'             => array( 'label' => 'Product Title',      'check' => 'not_empty' ),
 			'price'             => array( 'label' => 'Price set (> $0)',    'check' => 'greater_zero' ),
-			'image1'            => array( 'label' => 'Product Image',      'check' => 'not_empty' ),
+			'image1'            => array( 'label' => 'Product Image',      'check' => 'has_image' ),
 			'description'       => array( 'label' => 'Full Description',   'check' => 'not_empty' ),
 			'short_description' => array( 'label' => 'Short Description',  'check' => 'not_empty' ),
 			'model_number'      => array( 'label' => 'SKU / Model Number', 'check' => 'not_empty' ),
@@ -94,8 +94,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'name' => 'image3', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'image4', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'image5', 'format' => 'hidden', 'label' => '' ),
-				array( 'select' => "(SELECT oii.product_images FROM ec_optionitemimage AS oii LEFT JOIN ec_optionitem AS oi ON oi.optionitem_id = oii.optionitem_id WHERE oii.product_id = ec_product.product_id ORDER BY oi.optionitem_order ASC LIMIT 1) AS oi_first_product_images", 'name' => 'oi_first_product_images', 'format' => 'hidden', 'label' => '' ),
-				array( 'select' => "(SELECT oii.image1 FROM ec_optionitemimage AS oii LEFT JOIN ec_optionitem AS oi ON oi.optionitem_id = oii.optionitem_id WHERE oii.product_id = ec_product.product_id ORDER BY oi.optionitem_order ASC LIMIT 1) AS oi_first_image1", 'name' => 'oi_first_image1', 'format' => 'hidden', 'label' => '' ),
+				array( 'select' => "(SELECT oii.product_images FROM ec_optionitemimage AS oii LEFT JOIN ec_optionitem AS oi ON oi.optionitem_id = oii.optionitem_id WHERE oii.product_id = ec_product.product_id AND oii.product_images IS NOT NULL AND oii.product_images != '' ORDER BY oi.optionitem_order ASC LIMIT 1) AS oi_first_product_images", 'name' => 'oi_first_product_images', 'format' => 'hidden', 'label' => '' ),
+				array( 'select' => "(SELECT oii.image1 FROM ec_optionitemimage AS oii LEFT JOIN ec_optionitem AS oi ON oi.optionitem_id = oii.optionitem_id WHERE oii.product_id = ec_product.product_id AND oii.image1 IS NOT NULL AND oii.image1 != '' ORDER BY oi.optionitem_order ASC LIMIT 1) AS oi_first_image1", 'name' => 'oi_first_image1', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'login_for_pricing', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'login_for_pricing_user_level', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'login_for_pricing_label', 'format' => 'hidden', 'label' => '' ),
@@ -233,21 +233,26 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$this->set_health_stats( $health_stats );
 		}
 
+		public static function get_has_image_sql() {
+			return "( (ec_product.image1 IS NOT NULL AND ec_product.image1 != '') OR (ec_product.product_images IS NOT NULL AND ec_product.product_images != '') OR ( ec_product.use_optionitem_images = 1 AND EXISTS( SELECT 1 FROM ec_optionitemimage WHERE ec_optionitemimage.product_id = ec_product.product_id AND ( (ec_optionitemimage.product_images IS NOT NULL AND ec_optionitemimage.product_images != '') OR ec_optionitemimage.image1 != '' OR ec_optionitemimage.image2 != '' OR ec_optionitemimage.image3 != '' OR ec_optionitemimage.image4 != '' OR ec_optionitemimage.image5 != '' ) ) ) )";
+		}
+
 		private function compute_health_data() {
 			global $wpdb;
+			$has_image_sql = self::get_has_image_sql();
 			$row = $wpdb->get_row( "SELECT 
 				COUNT(*) AS total,
 				SUM(CASE WHEN activate_in_store = 1 THEN 1 ELSE 0 END) AS active,
 				SUM(CASE WHEN activate_in_store = 0 THEN 1 ELSE 0 END) AS inactive,
 				SUM(CASE WHEN show_stock_quantity = 1 AND stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock,
 				SUM(CASE WHEN show_stock_quantity = 1 AND stock_quantity > 0 AND stock_quantity <= " . self::LOW_STOCK_THRESHOLD . " THEN 1 ELSE 0 END) AS low_stock,
-				SUM(CASE WHEN image1 = '' OR image1 IS NULL THEN 1 ELSE 0 END) AS no_image,
+				SUM(CASE WHEN NOT " . $has_image_sql . " THEN 1 ELSE 0 END) AS no_image,
 				SUM(CASE WHEN price <= 0 THEN 1 ELSE 0 END) AS zero_price,
 				SUM(CASE WHEN square_id IS NOT NULL AND square_id != '' THEN 1 ELSE 0 END) AS square_synced
 			FROM ec_product" );
 
 			$incomplete_sql = "SELECT COUNT(*) FROM ec_product WHERE 
-				(title = '' OR title IS NULL OR price <= 0 OR image1 = '' OR image1 IS NULL OR 
+				(title = '' OR title IS NULL OR price <= 0 OR NOT " . $has_image_sql . " OR 
 				description = '' OR description IS NULL OR short_description = '' OR short_description IS NULL OR 
 				model_number = '' OR model_number IS NULL OR 
 				(SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)";
@@ -284,11 +289,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				case 'low_stock':
 					return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0 AND ec_product.stock_quantity <= ' . self::LOW_STOCK_THRESHOLD;
 				case 'no_image':
-					return "(ec_product.image1 = '' OR ec_product.image1 IS NULL)";
+					return 'NOT ' . self::get_has_image_sql();
 				case 'zero_price':
 					return 'ec_product.price <= 0';
 				case 'incomplete':
-					$where = "(ec_product.title = '' OR ec_product.title IS NULL OR ec_product.price <= 0 OR ec_product.image1 = '' OR ec_product.image1 IS NULL OR ec_product.description = '' OR ec_product.description IS NULL OR ec_product.short_description = '' OR ec_product.short_description IS NULL OR ec_product.model_number = '' OR ec_product.model_number IS NULL OR (SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)";
+					$where = "(ec_product.title = '' OR ec_product.title IS NULL OR ec_product.price <= 0 OR NOT " . self::get_has_image_sql() . " OR ec_product.description = '' OR ec_product.description IS NULL OR ec_product.short_description = '' OR ec_product.short_description IS NULL OR ec_product.model_number = '' OR ec_product.model_number IS NULL OR (SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)";
 					if ( 'square' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_square_auto_product_sync' ) ) {
 						$where .= ' AND (ec_product.square_id IS NULL OR ec_product.square_id = "")';
 					}
@@ -352,6 +357,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 						} else {
 							$case_parts[] = 'CASE WHEN ec_product.' . $field . ' > 0 THEN 1 ELSE 0 END';
 						}
+					} else if ( $meta['check'] === 'has_image' ) {
+						$case_parts[] = 'CASE WHEN ' . self::get_has_image_sql() . ' THEN 1 ELSE 0 END';
 					} else {
 						$case_parts[] = "CASE WHEN ec_product." . $field . " IS NOT NULL AND ec_product." . $field . " != '' THEN 1 ELSE 0 END";
 					}
@@ -405,11 +412,6 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				? esc_attr__( 'Active status is managed by Square — change it in your Square dashboard.', 'wp-easycart' )
 				: esc_attr( self::square_inactive_reason_text() );
 
-			// Force the "not-allowed" cursor across the WHOLE control ( wrap, label, slider and the
-			// hidden input ) so it never flips to the pointer/hand over the inner slider. !important
-			// beats any stylesheet cursor:pointer rule, and pointer-events:none stops the hidden input
-			// from swallowing the hover/click. The title is repeated on inner elements so the tooltip
-			// shows no matter where on the toggle the cursor lands.
 			echo '<span class="ecv2-toggle-locked-wrap" title="' . $lock_title . '" style="display:inline-flex;align-items:center;gap:6px;cursor:not-allowed !important;">';
 			echo '<label class="ecv2-toggle ecv2-toggle-locked' . ( $extra_cls ? ' ' . esc_attr( $extra_cls ) : '' ) . '" title="' . $lock_title . '" style="opacity:.7;cursor:not-allowed !important;">';
 			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' disabled="disabled" tabindex="-1" title="' . $lock_title . '" style="cursor:not-allowed !important;pointer-events:none;" />';
@@ -428,7 +430,6 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			if ( ! self::is_square_locked( $result ) ) {
 				return false;
 			}
-			// If the store keeps active changes local, the merchant manages it here, so it is not locked.
 			if ( get_option( 'ec_option_square_sync_block_active_change' ) ) {
 				return false;
 			}
@@ -521,15 +522,6 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 		}
 
-		/**
-		 * Resolve the best thumbnail URL for a product row.
-		 *
-		 * Priority order:
-		 * 1. If use_optionitem_images is on, check optionitem product_images CSV, then optionitem image1.
-		 * 2. Product-level product_images CSV (pro gallery).
-		 * 3. Legacy image1 field.
-		 * 4. Fallback through image2-5.
-		 */
 		public static function resolve_thumbnail_url( $result ) {
 			// 1. Optionitem images take priority when enabled.
 			if ( ! empty( $result->use_optionitem_images ) ) {
@@ -1353,6 +1345,14 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 						break;
 					case 'greater_zero':
 						$check_passed = ( (float) $value > 0 );
+						break;
+					case 'has_image':
+						// A product "has an image" if any of its image sources are populated:
+						// legacy image1, the pro gallery CSV, or (when enabled) any option item image set.
+						$check_passed = ( ! empty( $result->image1 ) || ! empty( $result->product_images ) );
+						if ( ! $check_passed && ! empty( $result->use_optionitem_images ) ) {
+							$check_passed = ( ! empty( $result->oi_first_product_images ) || ! empty( $result->oi_first_image1 ) );
+						}
 						break;
 				}
 				if ( $check_passed ) {
@@ -2810,7 +2810,7 @@ function ecv2_build_optionitem_image_list( $product, $oi_image_set ) {
 	if ( ! empty( $product_images_str ) ) {
 		$items = explode( ',', $product_images_str );
 		foreach ( $items as $item ) {
-			$img = ecv2_parse_image_item( $item, $product );
+			$img = ecv2_parse_image_item( $item, $oi_image_set );
 			if ( $img ) {
 				$images[] = $img;
 			}
@@ -2968,9 +2968,12 @@ function ecv2_save_product_images() {
 	}
 
 	// Save image type flags if provided.
+	$use_optionitem_images = (int) $product->use_optionitem_images;
+	$switched_to_basic     = false;
 	if ( isset( $_POST['use_optionitem_images'] ) ) {
-		$use_optionitem_images = (int) sanitize_text_field( wp_unslash( $_POST['use_optionitem_images'] ) );
-		$update_fields = array( 'use_optionitem_images' => $use_optionitem_images ? 1 : 0 );
+		$use_optionitem_images = (int) sanitize_text_field( wp_unslash( $_POST['use_optionitem_images'] ) ) ? 1 : 0;
+		$switched_to_basic     = ( ! $use_optionitem_images && (int) $product->use_optionitem_images );
+		$update_fields = array( 'use_optionitem_images' => $use_optionitem_images );
 		$update_formats = array( '%d' );
 
 		if ( isset( $_POST['use_advanced_optionset'] ) && $is_licensed ) {
@@ -2987,7 +2990,15 @@ function ecv2_save_product_images() {
 		);
 	}
 
-	$first_image_url = '';
+	// Mirror the mode logic used in ecv2_get_product_images(): when option item images
+	// are active, the "Default Images" (basic) set is stored in ec_optionitemimage with
+	// optionitem_id = 0, NOT in ec_product. Saving must target the same location the
+	// manager reads from, otherwise edits/removals never stick.
+	$optionitem_mode = ( $use_optionitem_images && $is_licensed );
+
+	$first_image_url    = '';
+	$saved_optionitem_ids = array();
+	$has_any_set        = false;
 
 	foreach ( $sets_raw as $set ) {
 		$set_id = isset( $set['id'] ) ? sanitize_text_field( $set['id'] ) : '';
@@ -3005,68 +3016,111 @@ function ecv2_save_product_images() {
 		$images_csv = implode( ',', $sanitized_ids );
 
 		if ( $set_id === 'basic' ) {
-			$wpdb->update(
-				'ec_product',
-				array( 'product_images' => $images_csv ),
-				array( 'product_id' => $product_id ),
-				array( '%s' ),
-				array( '%d' )
-			);
+			$has_any_set = true;
 
-			$new_image1 = ecv2_get_first_displayable_image( $sanitized_ids, $product );
-			if ( $new_image1 !== null ) {
-				$wpdb->update(
-					'ec_product',
-					array( 'image1' => $new_image1 ),
-					array( 'product_id' => $product_id ),
-					array( '%s' ),
-					array( '%d' )
-				);
-				$first_image_url = $new_image1;
-				if ( substr( $first_image_url, 0, 4 ) !== 'http' ) {
-					$first_image_url = plugins_url( '/wp-easycart-data/products/pics1/' . $first_image_url, EC_PLUGIN_DATA_DIRECTORY );
+			if ( $optionitem_mode ) {
+				// Default image set for option-image products lives in the optionitem_id = 0 row.
+				$default_row = ecv2_save_optionitem_image_set( $product_id, 0, $sanitized_ids, $images_csv );
+				$saved_optionitem_ids[] = 0;
+
+				if ( '' === $first_image_url && ! empty( $sanitized_ids ) ) {
+					$src = ( null !== $default_row ) ? $default_row : $product;
+					$candidate = ecv2_get_first_displayable_image( $sanitized_ids, $src );
+					if ( null !== $candidate && '' !== $candidate ) {
+						$first_image_url = $candidate;
+						if ( substr( $first_image_url, 0, 4 ) !== 'http' ) {
+							$first_image_url = plugins_url( '/wp-easycart-data/products/pics1/' . $first_image_url, EC_PLUGIN_DATA_DIRECTORY );
+						}
+					}
 				}
-			} else if ( empty( $sanitized_ids ) ) {
+			} else {
 				$wpdb->update(
 					'ec_product',
-					array( 'image1' => '' ),
+					array( 'product_images' => $images_csv ),
 					array( 'product_id' => $product_id ),
 					array( '%s' ),
 					array( '%d' )
 				);
+
+				$legacy_updates = array();
+				$legacy_formats = array();
+
+				// image1 drives the list thumbnail + completeness score. Only rewrite it
+				// when the CSV no longer references the legacy 'image1' slot, otherwise
+				// we would destroy the file the CSV entry points at.
+				$new_image1 = ecv2_get_first_displayable_image( $sanitized_ids, $product );
+				if ( ! in_array( 'image1', $sanitized_ids, true ) ) {
+					$legacy_updates['image1'] = ( null !== $new_image1 ) ? $new_image1 : '';
+					$legacy_formats[] = '%s';
+				}
+
+				// Clear legacy image2-5 slots that are no longer referenced by the CSV.
+				// Without this, emptying the gallery leaves the old legacy columns in
+				// place and the removed images resurface through the legacy fallback.
+				for ( $i = 2; $i <= 5; $i++ ) {
+					if ( ! in_array( 'image' . $i, $sanitized_ids, true ) ) {
+						$legacy_updates[ 'image' . $i ] = '';
+						$legacy_formats[] = '%s';
+					}
+				}
+
+				if ( ! empty( $legacy_updates ) ) {
+					$wpdb->update(
+						'ec_product',
+						$legacy_updates,
+						array( 'product_id' => $product_id ),
+						$legacy_formats,
+						array( '%d' )
+					);
+				}
+
+				if ( null !== $new_image1 && '' !== $new_image1 ) {
+					$first_image_url = $new_image1;
+					if ( substr( $first_image_url, 0, 4 ) !== 'http' ) {
+						$first_image_url = plugins_url( '/wp-easycart-data/products/pics1/' . $first_image_url, EC_PLUGIN_DATA_DIRECTORY );
+					}
+				}
 			}
 		} else if ( is_numeric( $set_id ) && $is_licensed ) {
+			$has_any_set = true;
 			$optionitem_id = (int) $set_id;
-			$existing = $wpdb->get_row( $wpdb->prepare(
-				"SELECT * FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id = %d",
-				$product_id,
-				$optionitem_id
-			) );
+			$oi_row = ecv2_save_optionitem_image_set( $product_id, $optionitem_id, $sanitized_ids, $images_csv );
+			$saved_optionitem_ids[] = $optionitem_id;
 
-			if ( $existing ) {
-				$wpdb->update(
-					'ec_optionitemimage',
-					array( 'product_images' => $images_csv ),
-					array( 'optionitemimage_id' => $existing->optionitemimage_id ),
-					array( '%s' ),
-					array( '%d' )
-				);
-			} else if ( ! empty( $images_csv ) ) {
-				$wpdb->insert(
-					'ec_optionitemimage',
-					array(
-						'product_id'     => $product_id,
-						'optionitem_id'  => $optionitem_id,
-						'product_images' => $images_csv,
-						'image1'         => '',
-						'image2'         => '',
-						'image3'         => '',
-						'image4'         => '',
-						'image5'         => '',
-					),
-					array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
-				);
+			if ( $optionitem_mode && '' === $first_image_url && ! empty( $sanitized_ids ) ) {
+				$src = ( null !== $oi_row ) ? $oi_row : $product;
+				$candidate = ecv2_get_first_displayable_image( $sanitized_ids, $src );
+				if ( null !== $candidate && '' !== $candidate ) {
+					$first_image_url = $candidate;
+					if ( substr( $first_image_url, 0, 4 ) !== 'http' ) {
+						$first_image_url = plugins_url( '/wp-easycart-data/products/pics1/' . $first_image_url, EC_PLUGIN_DATA_DIRECTORY );
+					}
+				}
 			}
+		}
+	}
+
+	// Cleanup of ec_optionitemimage rows so stale/duplicated data cannot resurface:
+	// 1. Option-image mode: remove rows for option items that are no longer part of this
+	//    product's option set (e.g. rows carried over by product duplication or from a
+	//    previously assigned option set). These rows are invisible in the manager and
+	//    were previously impossible to remove.
+	// 2. Switched back to basic images: the per-option image sets are no longer used, so
+	//    remove them (matches the legacy admin behavior/warning when disabling the feature).
+	if ( $has_any_set ) {
+		if ( $optionitem_mode ) {
+			$keep_ids = array_values( array_unique( array_map( 'intval', $saved_optionitem_ids ) ) );
+			if ( ! in_array( 0, $keep_ids, true ) ) {
+				$keep_ids[] = 0; // Always preserve the default set slot.
+			}
+			$placeholders = implode( ',', array_fill( 0, count( $keep_ids ), '%d' ) );
+			$args = array_merge( array( $product_id ), $keep_ids );
+			$wpdb->query( $wpdb->prepare(
+				'DELETE FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id NOT IN (' . $placeholders . ')',
+				$args
+			) );
+		} else if ( $switched_to_basic && $is_licensed ) {
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemimage WHERE product_id = %d', $product_id ) );
 		}
 	}
 
@@ -3084,6 +3138,96 @@ function ecv2_save_product_images() {
 	wp_send_json_success( array(
 		'product_id' => $product_id,
 		'image_url'  => $first_image_url,
+	) );
+}
+
+/**
+ * Persist a single option item image set (including the optionitem_id = 0 default set).
+ *
+ * - Empty set: the row is deleted entirely so removed images cannot resurface via
+ *   the legacy image1-5 fallback in ecv2_build_optionitem_image_list().
+ * - Non-empty set: product_images is updated and any legacy image1-5 columns that are
+ *   no longer referenced by the CSV (as 'image1'..'image5' entries) are cleared.
+ * - Duplicate rows for the same product/optionitem pair (possible after product
+ *   duplication or legacy saves) are collapsed down to a single row.
+ *
+ * @param int    $product_id    Product ID.
+ * @param int    $optionitem_id Option item ID (0 = default image set).
+ * @param array  $sanitized_ids Sanitized image id list.
+ * @param string $images_csv    CSV of the sanitized ids.
+ * @return object|null The row the set was saved to (pre-update values), or null if deleted/none.
+ */
+function ecv2_save_optionitem_image_set( $product_id, $optionitem_id, $sanitized_ids, $images_csv ) {
+	global $wpdb;
+
+	$product_id    = (int) $product_id;
+	$optionitem_id = (int) $optionitem_id;
+
+	$rows = $wpdb->get_results( $wpdb->prepare(
+		'SELECT * FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id = %d ORDER BY optionitemimage_id ASC',
+		$product_id,
+		$optionitem_id
+	) );
+	$existing = ! empty( $rows ) ? $rows[0] : null;
+
+	// Collapse duplicate rows for this product/optionitem pair.
+	if ( count( $rows ) > 1 ) {
+		$wpdb->query( $wpdb->prepare(
+			'DELETE FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id = %d AND optionitemimage_id != %d',
+			$product_id,
+			$optionitem_id,
+			(int) $existing->optionitemimage_id
+		) );
+	}
+
+	if ( '' === $images_csv ) {
+		if ( $existing ) {
+			$wpdb->delete(
+				'ec_optionitemimage',
+				array( 'optionitemimage_id' => (int) $existing->optionitemimage_id ),
+				array( '%d' )
+			);
+		}
+		return null;
+	}
+
+	$data = array( 'product_images' => $images_csv );
+	$formats = array( '%s' );
+	for ( $i = 1; $i <= 5; $i++ ) {
+		if ( ! in_array( 'image' . $i, $sanitized_ids, true ) ) {
+			$data[ 'image' . $i ] = '';
+			$formats[] = '%s';
+		}
+	}
+
+	if ( $existing ) {
+		$wpdb->update(
+			'ec_optionitemimage',
+			$data,
+			array( 'optionitemimage_id' => (int) $existing->optionitemimage_id ),
+			$formats,
+			array( '%d' )
+		);
+		return $existing;
+	}
+
+	// New row: make sure all legacy columns exist as empty strings.
+	for ( $i = 1; $i <= 5; $i++ ) {
+		if ( ! isset( $data[ 'image' . $i ] ) ) {
+			$data[ 'image' . $i ] = '';
+			$formats[] = '%s';
+		}
+	}
+	$data['product_id'] = $product_id;
+	$formats[] = '%d';
+	$data['optionitem_id'] = $optionitem_id;
+	$formats[] = '%d';
+
+	$wpdb->insert( 'ec_optionitemimage', $data, $formats );
+
+	return $wpdb->get_row( $wpdb->prepare(
+		'SELECT * FROM ec_optionitemimage WHERE optionitemimage_id = %d',
+		(int) $wpdb->insert_id
 	) );
 }
 

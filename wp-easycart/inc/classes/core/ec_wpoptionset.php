@@ -40,6 +40,8 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
 		array_push($this->wp_option_names, 'ec_option_cache_prevent');						array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
+		array_push($this->wp_option_names, 'ec_option_session_secret_key');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-install-group');
 		array_push($this->wp_option_names, 'ec_option_wpeasycart_terms_accepted');		    array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
 		array_push($this->wp_option_names, 'ec_option_enable_cloud_messages');				array_push($this->wp_option_defaults, 0 );
@@ -91,6 +93,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_newsletter_done');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		array_push($this->wp_option_names, 'ec_option_allow_tracking');						array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-store-db-group');
+		array_push($this->wp_option_names, 'ec_option_enable_legacy_app_auth');				array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		
 		//store basic setup settings

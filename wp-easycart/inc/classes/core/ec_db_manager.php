@@ -266,6 +266,9 @@ class ec_db_manager {
 			'5.8.16' => array(
 				'wpeasycart_sql_5_8_16'
 			),
+			'5.9.2' => array(
+				'wpeasycart_sql_5_9_2'
+			),
 		);
 
 		$return_functions = array();
@@ -822,6 +825,10 @@ class ec_db_manager {
 				}
 			}
 		}
+	}
+	private function wpeasycart_sql_5_9_2() {
+		global $wpdb;
+		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN password_admin_v1 varchar(32) NOT NULL DEFAULT ''" );
 	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
@@ -2170,6 +2177,7 @@ CREATE TABLE ec_user (
   is_demo_item tinyint(1) NOT NULL DEFAULT '0',
   email varchar(255) NOT NULL DEFAULT '',
   password varchar(255) NOT NULL DEFAULT '',
+  password_admin_v1 varchar(32) NOT NULL DEFAULT '',
   list_id varchar(255) NOT NULL DEFAULT '',
   edit_sequence varchar(255) NOT NULL DEFAULT '',
   quickbooks_status varchar(255) NOT NULL DEFAULT 'Not Queued',

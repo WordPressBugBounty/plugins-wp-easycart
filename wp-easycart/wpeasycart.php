@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 5.9.2
+ * Version: 5.9.3
  * Requires PHP: 7.3
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
@@ -14,7 +14,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 5.9.2
+ * @version 5.9.3
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -23,7 +23,7 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '5_9_2' );
+define( 'EC_CURRENT_VERSION', '5_9_3' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
 define( 'EC_UPGRADE_DB', '101' );
 
@@ -7272,17 +7272,39 @@ function ec_ajax_save_page_options() {
 		update_option( 'ec_option_design_saved', 1 );
 		$db = new ec_db();
 		$post_id = (int) $_POST['post_id'];
-		foreach ( $_POST as $key => $var ) {
 
-			if ( $key == 'ec_option_details_main_color' ) {
-				update_option( 'ec_option_details_main_color', preg_replace( '/[^\#0-9A-Z]/', '', strtoupper( sanitize_text_field( $_POST['ec_option_details_main_color'] ) ) ) );
-			} else if ( $key == 'ec_option_details_second_color' ) {
-				update_option( 'ec_option_details_second_color', preg_replace( '/[^\#0-9A-Z]/', '', strtoupper( sanitize_text_field( $_POST['ec_option_details_second_color'] ) ) ) );
-			} else if ( $key != 'post_id' ) {
-				$db->update_page_option( $post_id, $key, $var );
+		// Fixed allow-list of storable page option keys. Any other posted key
+		// (including an injected 'product_order') is ignored to prevent
+		// arbitrary values from being written to the ec_pageoption table.
+		$allowed_page_options = array(
+			'product_type',
+			'use_quickview',
+			'dynamic_image_sizing',
+			'columns_smartphone',
+			'image_height_smartphone',
+			'columns_tablet',
+			'image_height_tablet',
+			'columns_tablet_wide',
+			'image_height_tablet_wide',
+			'columns_laptop',
+			'image_height_laptop',
+			'columns_desktop',
+			'image_height_desktop',
+		);
+
+		foreach ( $allowed_page_options as $key ) {
+			if ( isset( $_POST[ $key ] ) ) {
+				$db->update_page_option( $post_id, $key, sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) );
 			}
-
 		}
+
+		if ( isset( $_POST['ec_option_details_main_color'] ) ) {
+			update_option( 'ec_option_details_main_color', preg_replace( '/[^\#0-9A-Z]/', '', strtoupper( sanitize_text_field( $_POST['ec_option_details_main_color'] ) ) ) );
+		}
+		if ( isset( $_POST['ec_option_details_second_color'] ) ) {
+			update_option( 'ec_option_details_second_color', preg_replace( '/[^\#0-9A-Z]/', '', strtoupper( sanitize_text_field( $_POST['ec_option_details_second_color'] ) ) ) );
+		}
+
 		do_action( 'wpeasycart_page_options_updated' );
 	}	
 	die();
@@ -7373,8 +7395,10 @@ function ec_ajax_save_product_order() {
 		$post_id = (int) $_POST['post_id'];
 		$products_sanitized = array();
 		$products = json_decode( wp_unslash( $_POST['product_order'] ) );// XSS OK. Each Item Sanitized and Validated.
-		foreach ( $products as $model_number ) {
-			$products_sanitized[] = preg_replace( '/[^a-zA-Z0-9-]*$/', '', sanitize_text_field( $model_number ) );
+		if ( is_array( $products ) ) {
+			foreach ( $products as $model_number ) {
+				$products_sanitized[] = preg_replace( '/[^A-Za-z0-9\-\_]/', '', sanitize_text_field( $model_number ) );
+			}
 		}
 		$db = new ec_db();
 		$db->update_page_option( $post_id, 'product_order', json_encode( $products_sanitized ) );

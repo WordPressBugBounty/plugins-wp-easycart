@@ -68,8 +68,12 @@ $shipping_state = '';
 		$product->display_product_list_price( ( isset( $atts['list_price_font'] ) ) ? $atts['list_price_font'] : false, ( isset( $atts['list_price_color'] ) ) ? $atts['list_price_color'] : false, true );
 	}
 	if ( $atts['show_price'] ) {
+		$ec_offer_price_preview = ( wp_easycart_offers_active() ) ? ec_offer_display::get_product_price_preview( $product->product_id, $product->manufacturer_id, $product->price ) : false;
 		if ( $product->replace_price_label && in_array( $product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
 			<span class="ec_product_price_ele"><?php echo wp_easycart_escape_html( $product->custom_price_label ); ?></span>
+		<?php } else if ( false !== $ec_offer_price_preview ) { ?>
+			<span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $product->price ) ); ?></span>
+			<span class="ec_offer_price_preview"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_offer_price_preview ) ); ?></span>
 		<?php } else {
 			$product->display_price( ( isset( $atts['price_font'] ) ) ? $atts['price_font'] : false, ( isset( $atts['price_color'] ) ) ? $atts['price_color'] : false, $wpeasycart_addtocart_shortcode_rand, true );
 		}
@@ -83,3 +87,5 @@ $shipping_state = '';
 <?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && $product->promotion_discount_total > 0 ) { ?>
 	<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> <?php $product->display_promotion_text(); ?></span><span class="ec_details_price_promo_discount_minus"> -</span><span class="ec_details_price_promo_discount_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $product->promotion_discount_total ) ); ?></span></div>
 <?php }?>
+
+<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $product->product_id, 'callout_manufacturer_id' => $product->manufacturer_id, 'callout_price' => $product->price ) ); ?>

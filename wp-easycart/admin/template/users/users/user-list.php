@@ -1,113 +1,35 @@
 <?php
-$table = new wp_easycart_admin_table();
-$table->set_table( 'ec_user', 'user_id' );
-$table->set_table_id( 'ec_admin_user_list' );
-$table->set_default_sort( 'email', 'ASC' );
-$table->set_header( __( 'Manage User Accounts', 'wp-easycart' ) );
-$table->set_icon( 'admin-users' );
-$table->set_importer( true, __( 'Import Users', 'wp-easycart' ) );
-$table->set_docs_link( 'users', 'user-accounts' );
-$table->enable_mobile_column();
-$table->set_list_columns(
-	array(
-		array(
-			'name' => 'email',
-			'label' => __( 'Email Address', 'wp-easycart' ),
-			'format' => 'string',
-			'linked' => true,
-			'is_mobile' => true,
-			'subactions' => array(
-				array(
-					'click' => 'return false',
-					'name' => __( 'Delete', 'wp-easycart' ),
-					'action_type' => 'delete',
-					'action' => 'delete-account',
-				),
-			),
-		),
-		array(
-			'name' => 'first_name',
-			'label' => __( 'First Name', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-		array(
-			'name' => 'last_name',
-			'label' => __( 'Last Name', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-		array(
-			'name' => 'user_id',
-			'label' => __( 'User ID', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-		array(
-			'name' => 'user_level',
-			'label' => __( 'Security Level', 'wp-easycart' ),
-			'is_mobile' => true,
-			'format' => 'string',
-		),
-	)
-);
-$table->set_search_columns(
-	array( 'ec_user.email', 'ec_user.first_name', 'ec_user.last_name', 'ec_user.user_id', 'ec_user.user_level' )
-);
-$table->set_bulk_actions(
-	apply_filters(
-		'wp_easycart_admin_bulk_user_options',
-		array(
-			array(
-				'name' => 'delete-account',
-				'label' => __( 'Delete', 'wp-easycart' ),
-			),
-			array(
-				'name' => 'export-accounts-csv',
-				'label' => __( 'Export Selected CSV', 'wp-easycart' ),
-			),
-			array(
-				'name' => 'export-accounts-csv-all',
-				'label' => __( 'Export All CSV', 'wp-easycart' ),
-			),
-			array(
-				'name' => 'accounts-force-password-reset',
-				'label' => __( 'Force Selected to Reset Password', 'wp-easycart' ),
-			),
-			array(
-				'name' => 'accounts-resend-activation',
-				'label' => __( 'Resend Activation Email to Selected', 'wp-easycart' ),
-			),
-		)
-	)
-);
-$table->set_actions(
-	array(
-		array(
-			'name' => 'edit',
-			'label' => __( 'Edit', 'wp-easycart' ),
-			'icon' => 'edit',
-		),
-		array(
-			'name' => 'delete-account',
-			'label' => __( 'Delete', 'wp-easycart' ),
-			'icon' => 'trash',
-		),
-	)
-);
-global $wpdb;
-$user_roles = $wpdb->get_results( "SELECT ec_role.role_label AS value, ec_role.role_label AS label FROM ec_role ORDER BY role_id ASC" );
-$table->set_filters(
-	array(
-		array(
-			'data' => $user_roles,
-			'label' => __( 'User Role', 'wp-easycart' ),
-			'where' => 'ec_user.user_level = %s',
-		),
-	)
-);
-if ( isset( $user_not_found ) && $user_not_found ) {
-	echo '<div id="ec_message" class="ec_admin_message_error">' . esc_attr__( 'The user no longer exists.', 'wp-easycart' ) . '</div>';
+/**
+ * User (Customer) List Page - V2
+ *
+ * Uses the new wp_easycart_admin_user_table class which extends
+ * wp_easycart_admin_table_v2. All configuration is encapsulated in
+ * the user table class's setup() method.
+ *
+ * @since 5.9.3
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
-$table->set_label( __( 'User', 'wp-easycart' ), __( 'Users', 'wp-easycart' ) );
+
+// Review prompt (unchanged from v1).
+if ( ! get_option( 'ec_option_review_complete' ) ) {
+?>
+<div class="wp-easycart-admin-review-us-box">
+	<?php esc_attr_e( 'Do you like WP EasyCart? If you do, please take a moment to', 'wp-easycart' ); ?> <a href="https://wordpress.org/support/plugin/wp-easycart/reviews/" target="_blank"><?php esc_attr_e( 'submit a review', 'wp-easycart' ); ?></a>, <?php esc_attr_e( 'it really helps us!', 'wp-easycart' ); ?>
+	<div class="wp-easycart-admin-review-us-close" onclick="wp_easycart_admin_close_review( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-review-us' ) ); ?>' );"><div class="dashicons dashicons-no"></div></div>
+</div>
+<?php
+}
+
+if ( isset( $user_not_found ) && $user_not_found ) {
+	echo '<div class="wp-easycart-admin-error-box">' . esc_html__( 'Customer not found. They may have been removed.', 'wp-easycart' ) . '</div>';
+}
+
+// PRO can render an Accounts / Guest Checkouts view switcher here.
+do_action( 'wp_easycart_admin_user_list_views' );
+
+$table = new wp_easycart_admin_user_table();
+$table->setup();
 $table->print_table();

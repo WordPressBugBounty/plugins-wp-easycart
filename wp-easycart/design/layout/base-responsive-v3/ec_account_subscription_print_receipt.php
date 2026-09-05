@@ -187,6 +187,19 @@
 	<td  align='center'  class='style22'><?php echo esc_attr( $shipping ); ?></td>
   </tr>
   <?php }?>
+  <?php
+  $ec_sub_offers = ( isset( $order->applied_offers ) && '' != $order->applied_offers ) ? json_decode( (string) $order->applied_offers, true ) : false;
+  if ( is_array( $ec_sub_offers ) && isset( $ec_sub_offers['applied_offers'] ) ) {
+	  foreach ( $ec_sub_offers['applied_offers'] as $ec_sub_offer ) {
+		  if ( $ec_sub_offer['amount'] <= 0 ) { continue; }
+  ?>
+  <tr>
+	<td>&nbsp;</td>
+	<td align='center' class='style22'>&nbsp;</td>
+	<td align='center' class='style22'><?php echo esc_attr( $ec_sub_offer['label'] ); ?><?php if ( '' != $ec_sub_offer['code'] ) { echo ' (' . esc_attr( $ec_sub_offer['code'] ) . ')'; } ?></td>
+	<td align='center' class='style22'>-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_sub_offer['amount'] ) ); ?></td>
+  </tr>
+  <?php } } ?>
   <?php if( $order->discount_total > 0 ){ ?>
   <tr>
 	<td>&nbsp;</td>

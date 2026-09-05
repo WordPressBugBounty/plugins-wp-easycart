@@ -11,7 +11,11 @@ class ec_db{
 		self::$mysqli =& $wpdb;
 		
 		self::$orderdetail_sql = "SELECT 
-				ec_orderdetail.orderdetail_id, 
+				ec_orderdetail.orderdetail_id,
+				ec_orderdetail.is_free_gift, 
+				ec_orderdetail.bundle_group_key, 
+				ec_orderdetail.bundle_product_id, 
+				ec_orderdetail.applied_offers,
 				ec_orderdetail.order_id, 
 				ec_orderdetail.product_id, 
 				ec_product.list_id, 
@@ -116,7 +120,11 @@ class ec_db{
 				ec_orderdetail.orderdetail_id";
 				
 		self::$orderdetail_guest_sql = "SELECT 
-				ec_orderdetail.orderdetail_id, 
+				ec_orderdetail.orderdetail_id,
+				ec_orderdetail.is_free_gift, 
+				ec_orderdetail.bundle_group_key, 
+				ec_orderdetail.bundle_product_id, 
+				ec_orderdetail.applied_offers, 
 				ec_orderdetail.order_id, 
 				ec_orderdetail.product_id,
 				ec_product.list_id,
@@ -1296,6 +1304,10 @@ class ec_db{
 				tempcart.optionitem_id_4,
 				tempcart.optionitem_id_5,
 
+				tempcart.bundle_group_key,
+				tempcart.bundle_product_id,
+				tempcart.free_gift_offer_id,
+
 				tempcart.is_deconetwork,
 				tempcart.deconetwork_id,
 				tempcart.deconetwork_name,
@@ -1341,7 +1353,8 @@ class ec_db{
 		$cart_array = self::$mysqli->get_results( self::$mysqli->prepare( $sql, $session_id ) );
 		$cart = array();
 		foreach ($cart_array as $row ) {
-			if ( $row->login_for_pricing && $row->login_for_pricing_user_level != '' && $row->login_for_pricing_user_level != '[]' ) {
+			$wpeasycart_is_offer_row = ( isset( $row->free_gift_offer_id ) && $row->free_gift_offer_id > 0 ) || ( isset( $row->bundle_group_key ) && '' != $row->bundle_group_key );
+			if ( ! $wpeasycart_is_offer_row && $row->login_for_pricing && $row->login_for_pricing_user_level != '' && $row->login_for_pricing_user_level != '[]' ) {
 				$levels = json_decode( $row->login_for_pricing_user_level );
 				if ( $levels && is_array( $levels ) && in_array( $GLOBALS['ec_user']->user_level, $levels ) ) {
 					array_push( $cart, new ec_cartitem( $row ) );
@@ -2587,6 +2600,7 @@ class ec_db{
 			'pickup_time' => $formatted_pickup_time,
 
 			'converted_cart_id' => $GLOBALS['ec_cart_data']->ec_cart_id,
+			'cart_link_id' => ( isset( $GLOBALS['ec_cart_data']->cart_data->cart_link_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->cart_link_id : 0,
 		), array(
 			'%d', '%s', '%d', '%s', '%s',
 			'%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
@@ -2599,7 +2613,7 @@ class ec_db{
 			'%s', '%s', '%s', '%s', '%s', '%s', '%s',
 			'%s', '%d', '%s',
 			'%d', '%d', '%s', '%d', '%s',
-			'%s',
+			'%s', '%d',
 		) );
 		$order_id = self::$mysqli->insert_id;
 
@@ -2638,6 +2652,7 @@ class ec_db{
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
 		$order_log_id = self::$mysqli->insert_id;
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
+		do_action( 'wpeasycart_order_status_update', (int) $order_id, (int) $orderstatus_id );
 	}
 	
 	public static function get_order_id_from_temp_id( $temp_order_id ){
@@ -2737,108 +2752,136 @@ class ec_db{
 		do_action( 'wpeasycart_remove_subscriber', $email );
 		self::$mysqli->query( self::$mysqli->prepare( "DELETE FROM ec_subscriber WHERE email = '%s'", $email ) );
 	}
-	
-	public static function update_address_user_id( $address_id, $user_id ){
-		self::$mysqli->update(	'ec_address',
-								array(	"user_id"	=> $user_id ),
-								array(	"address_id"	=> $address_id),
-								array(	'%s', '%s' )
-							  );	
-	}
-	
-	public static function insert_order_detail( $order_id, $giftcard_id, $download_key, $cart_item ){
-		
-		if( $cart_item->image1_optionitem )	$image1 = $cart_item->image1_optionitem;
-		else								$image1 = $cart_item->image1;
-		
-		$insert_array = array(	'order_id'						=> $order_id,
-								'product_id'					=> $cart_item->product_id,
-								'title'							=> $cart_item->title,
-								'model_number'					=> $cart_item->orderdetails_model_number,
-								'unit_price'					=> $cart_item->unit_price,
-								'unit_discount_promotion'		=> $cart_item->promotion_discount_total,
-								'unit_discount_coupon'			=> $cart_item->coupon_discount_total,
 
-								'total_price'					=> $cart_item->total_price,
-								'total_discount_promotion'		=> $cart_item->promotion_discount_line_total,
-								'total_discount_coupon'			=> $cart_item->coupon_discount_line_total,
-								'quantity'						=> $cart_item->quantity,
-								'image1'						=> $image1,
-								
-								'optionitem_id_1'				=> $cart_item->optionitem1_id,
-								'optionitem_id_2'				=> $cart_item->optionitem2_id,
-								'optionitem_id_3'				=> $cart_item->optionitem3_id,
-								'optionitem_id_4'				=> $cart_item->optionitem4_id,
-								'optionitem_id_5'				=> $cart_item->optionitem5_id,
-								
-								'optionitem_name_1'				=> $cart_item->optionitem1_name,
-								'optionitem_name_2'				=> $cart_item->optionitem2_name,
-								'optionitem_name_3'				=> $cart_item->optionitem3_name,
-								'optionitem_name_4'				=> $cart_item->optionitem4_name,
-								'optionitem_name_5'				=> $cart_item->optionitem5_name,
-								
-								'optionitem_label_1'			=> $cart_item->optionitem1_label,
-								'optionitem_label_2'			=> $cart_item->optionitem2_label,
-								'optionitem_label_3'			=> $cart_item->optionitem3_label,
-								'optionitem_label_4'			=> $cart_item->optionitem4_label,
-								'optionitem_label_5'			=> $cart_item->optionitem5_label,
-								
-								'optionitem_price_1'			=> $cart_item->optionitem1_price,
-								'optionitem_price_2'			=> $cart_item->optionitem2_price,
-								'optionitem_price_3'			=> $cart_item->optionitem3_price,
-								'optionitem_price_4'			=> $cart_item->optionitem4_price,
-								'optionitem_price_5'			=> $cart_item->optionitem5_price,
-								
-								'use_advanced_optionset'		=> $cart_item->use_advanced_optionset,
-								'use_both_option_types'			=> $cart_item->use_both_option_types,
-								'giftcard_id'					=> $giftcard_id,
-								'gift_card_message'				=> $cart_item->gift_card_message,
-								
-								'gift_card_from_name'			=> ( ( is_null( $cart_item->gift_card_from_name ) ) ? '' : $cart_item->gift_card_from_name ),
-								'gift_card_to_name'				=> ( ( is_null( $cart_item->gift_card_to_name ) ) ? '' : $cart_item->gift_card_to_name ),
-								'gift_card_email'				=> ( ( is_null( $cart_item->gift_card_email ) ) ? '' : $cart_item->gift_card_email ),
-								'is_download'					=> $cart_item->is_download,
-								'is_giftcard'					=> $cart_item->is_giftcard,
-								
-								'is_taxable'					=> $cart_item->is_taxable,
-								'is_shippable'					=> $cart_item->is_shippable,
-                                'exclude_shippable_calculation' => $cart_item->exclude_shippable_calculation,
-								'download_file_name'			=> $cart_item->download_file_name,
-								'download_key'					=> $download_key,
-								'maximum_downloads_allowed'		=> $cart_item->maximum_downloads_allowed,
-								'download_timelimit_seconds'	=> $cart_item->download_timelimit_seconds,
-								
-								'is_amazon_download'			=> $cart_item->is_amazon_download,
-								'amazon_key'					=> $cart_item->amazon_key,
-								
-								'is_deconetwork'				=> $cart_item->is_deconetwork,
-								'deconetwork_id'				=> $cart_item->deconetwork_id,
-								'deconetwork_name'				=> $cart_item->deconetwork_name,
-								'deconetwork_product_code'		=> $cart_item->deconetwork_product_code,
-								'deconetwork_options'			=> $cart_item->deconetwork_options,
-								'deconetwork_color_code'		=> $cart_item->deconetwork_color_code,
-								'deconetwork_product_id'		=> $cart_item->deconetwork_product_id,
-								'deconetwork_image_link'		=> $cart_item->deconetwork_image_link,
-								
-								'include_code'					=> $cart_item->include_code,
-								'subscription_signup_fee'		=> $cart_item->subscription_signup_fee,
-                                'order_date'                    => date( 'Y-m-d H:i:s' ) );
-								
-										
-		$percent_array = array( '%d', '%d', '%s', '%s', '%s', '%s', '%s',
-								'%s', '%s', '%s', '%d', '%s', 
-								'%d', '%d', '%d', '%d', '%d',
-								'%s', '%s', '%s', '%s', '%s', 
-								'%s', '%s', '%s', '%s', '%s', 
-								'%s', '%s', '%s', '%s', '%s',
-								'%d', '%d', '%s', '%s',
-								'%s', '%s', '%s', '%d', '%d', 
-								'%d', '%d', '%d', '%s', '%s', '%d', '%d', 
-								'%d', '%s',
-								'%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
-								'%d', '%s', '%s' );
-								
-		if( isset( $GLOBALS['ec_hooks']['ec_extra_cartitem_vars'] ) ){
+	public static function update_address_user_id( $address_id, $user_id ){
+		self::$mysqli->update(
+			'ec_address',
+			array(
+				"user_id" => $user_id
+			),
+			array(
+				"address_id" => $address_id
+			),
+			array( '%s', '%s' )
+		);
+	}
+
+	public static function insert_order_detail( $order_id, $giftcard_id, $download_key, $cart_item ) {
+		if ( $cart_item->image1_optionitem ) {
+			$image1 = $cart_item->image1_optionitem;
+		} else {
+			$image1 = $cart_item->image1;
+		}
+		$insert_array = array(
+			'order_id' => $order_id,
+			'product_id' => $cart_item->product_id,
+			'title' => $cart_item->title,
+			'model_number' => $cart_item->orderdetails_model_number,
+			'unit_price' => $cart_item->unit_price,
+			'unit_discount_promotion' => $cart_item->promotion_discount_total,
+			'unit_discount_coupon' => $cart_item->coupon_discount_total,
+
+			'total_price' => $cart_item->total_price,
+			'total_discount_promotion' => $cart_item->promotion_discount_line_total,
+			'total_discount_coupon' => $cart_item->coupon_discount_line_total,
+			'quantity' => $cart_item->quantity,
+			'image1' => $image1,
+
+			'optionitem_id_1' => $cart_item->optionitem1_id,
+			'optionitem_id_2' => $cart_item->optionitem2_id,
+			'optionitem_id_3' => $cart_item->optionitem3_id,
+			'optionitem_id_4' => $cart_item->optionitem4_id,
+			'optionitem_id_5' => $cart_item->optionitem5_id,
+
+			'optionitem_name_1' => $cart_item->optionitem1_name,
+			'optionitem_name_2' => $cart_item->optionitem2_name,
+			'optionitem_name_3' => $cart_item->optionitem3_name,
+			'optionitem_name_4' => $cart_item->optionitem4_name,
+			'optionitem_name_5' => $cart_item->optionitem5_name,
+
+			'optionitem_label_1' => $cart_item->optionitem1_label,
+			'optionitem_label_2' => $cart_item->optionitem2_label,
+			'optionitem_label_3' => $cart_item->optionitem3_label,
+			'optionitem_label_4' => $cart_item->optionitem4_label,
+			'optionitem_label_5' => $cart_item->optionitem5_label,
+
+			'optionitem_price_1' => $cart_item->optionitem1_price,
+			'optionitem_price_2' => $cart_item->optionitem2_price,
+			'optionitem_price_3' => $cart_item->optionitem3_price,
+			'optionitem_price_4' => $cart_item->optionitem4_price,
+			'optionitem_price_5' => $cart_item->optionitem5_price,
+
+			'use_advanced_optionset' => $cart_item->use_advanced_optionset,
+			'use_both_option_types' => $cart_item->use_both_option_types,
+			'giftcard_id' => $giftcard_id,
+			'gift_card_message' => $cart_item->gift_card_message,
+
+			'gift_card_from_name' => ( ( is_null( $cart_item->gift_card_from_name ) ) ? '' : $cart_item->gift_card_from_name ),
+			'gift_card_to_name' => ( ( is_null( $cart_item->gift_card_to_name ) ) ? '' : $cart_item->gift_card_to_name ),
+			'gift_card_email' => ( ( is_null( $cart_item->gift_card_email ) ) ? '' : $cart_item->gift_card_email ),
+			'is_download' => $cart_item->is_download,
+			'is_giftcard' => $cart_item->is_giftcard,
+
+			'is_taxable' => $cart_item->is_taxable,
+			'is_shippable' => $cart_item->is_shippable,
+			'exclude_shippable_calculation' => $cart_item->exclude_shippable_calculation,
+			'download_file_name' => $cart_item->download_file_name,
+			'download_key' => $download_key,
+			'maximum_downloads_allowed' => $cart_item->maximum_downloads_allowed,
+			'download_timelimit_seconds' => $cart_item->download_timelimit_seconds,
+
+			'is_amazon_download' => $cart_item->is_amazon_download,
+			'amazon_key' => $cart_item->amazon_key,
+
+			'is_deconetwork' => $cart_item->is_deconetwork,
+			'deconetwork_id' => $cart_item->deconetwork_id,
+			'deconetwork_name' => $cart_item->deconetwork_name,
+			'deconetwork_product_code' => $cart_item->deconetwork_product_code,
+			'deconetwork_options' => $cart_item->deconetwork_options,
+			'deconetwork_color_code' => $cart_item->deconetwork_color_code,
+			'deconetwork_product_id' => $cart_item->deconetwork_product_id,
+			'deconetwork_image_link' => $cart_item->deconetwork_image_link,
+
+			'include_code' => $cart_item->include_code,
+			'subscription_signup_fee' => $cart_item->subscription_signup_fee,
+			'order_date' => date( 'Y-m-d H:i:s' )
+		);
+
+		$percent_array = array(
+			'%d', '%d', '%s', '%s', '%s', '%s', '%s',
+			'%s', '%s', '%s', '%d', '%s', 
+			'%d', '%d', '%d', '%d', '%d',
+			'%s', '%s', '%s', '%s', '%s', 
+			'%s', '%s', '%s', '%s', '%s', 
+			'%s', '%s', '%s', '%s', '%s',
+			'%d', '%d', '%s', '%s',
+			'%s', '%s', '%s', '%d', '%d', 
+			'%d', '%d', '%d', '%s', '%s', '%d', '%d', 
+			'%d', '%s',
+			'%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s',
+			'%d', '%s', '%s'
+		);
+
+		// Offers v2 line persistence (columns exist in core schema).
+		$insert_array['bundle_group_key'] = ( isset( $cart_item->bundle_group_key ) ) ? $cart_item->bundle_group_key : '';
+		array_push( $percent_array, '%s' );
+		$insert_array['bundle_product_id'] = ( isset( $cart_item->bundle_product_id ) ) ? (int) $cart_item->bundle_product_id : 0;
+		array_push( $percent_array, '%d' );
+		$insert_array['is_free_gift'] = ( isset( $cart_item->free_gift_offer_id ) && $cart_item->free_gift_offer_id > 0 ) ? 1 : 0;
+		array_push( $percent_array, '%d' );
+		$offer_line_summary = '';
+		if ( isset( $GLOBALS['wpeasycart_offer_result'] ) && is_object( $GLOBALS['wpeasycart_offer_result'] ) ) {
+			foreach ( $GLOBALS['wpeasycart_offer_result']->lines as $offer_result_line ) {
+				if ( $offer_result_line->cartitem_id == $cart_item->cartitem_id ) {
+					$offer_line_summary = ( class_exists( 'ec_offer_result' ) && method_exists( 'ec_offer_result', 'encode_json' ) ) ? ec_offer_result::encode_json( $offer_result_line->offer_discounts ) : wp_json_encode( $offer_result_line->offer_discounts );
+					break;
+				}
+			}
+		}
+		$insert_array['applied_offers'] = $offer_line_summary;
+		array_push( $percent_array, '%s' );
+
+		if ( isset( $GLOBALS['ec_hooks']['ec_extra_cartitem_vars'] ) ) {
 			for( $i=0; $i<count( $GLOBALS['ec_hooks']['ec_extra_cartitem_vars'] ); $i++ ){
 				$arr = $GLOBALS['ec_hooks']['ec_extra_cartitem_vars'][$i][0]( array( ), array( ) );
 				for( $j=0; $j<count( $arr ); $j++ ){
@@ -2847,21 +2890,21 @@ class ec_db{
 				}
 			}
 		}
-		
-		self::$mysqli->insert(	'ec_orderdetail',
-								$insert_array,
-								$percent_array
-							  );
-							  
+
+		self::$mysqli->insert(
+			'ec_orderdetail',
+			$insert_array,
+			$percent_array
+		);
 		$orderdetail_id = self::$mysqli->insert_id;
-		
+
 		// If using advanced option sets, insert the order values
 		if ( $cart_item->use_advanced_optionset || $cart_item->use_both_option_types ) {
 			foreach ( $cart_item->advanced_options as $advanced_option ) {
 				self::insert_order_option( $orderdetail_id, $GLOBALS['ec_cart_data']->ec_cart_id, $advanced_option );
 			}
 		}
-		
+
 		// If including a code, apply one here
 		if( $cart_item->include_code ){
 			$codes = self::$mysqli->get_results( self::$mysqli->prepare( "SELECT ec_code.code_id FROM ec_code WHERE ec_code.product_id = %d AND orderdetail_id = 0", $cart_item->product_id ) );
@@ -2869,12 +2912,12 @@ class ec_db{
 				self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_code SET ec_code.orderdetail_id = %d WHERE ec_code.code_id = %d AND ec_code.product_id = %d", $orderdetail_id, $codes[$i]->code_id, $cart_item->product_id ) );
 			}
 		}
-		
+
 		do_action( 'wp_easycart_order_detail_inserted', $orderdetail_id, $cart_item );
-		
+
 		return $orderdetail_id;
 	}
-	
+
 	public static function insert_order_option( $orderdetail_id, $tempcart_id, $advanced_option ){
 		$sql = "INSERT INTO ec_order_option( orderdetail_id, option_name, optionitem_name, option_type, option_value, option_price_change, optionitem_allow_download, option_label, option_to_product_id, option_order, download_override_file, download_addition_file, optionitem_price, optionitem_price_onetime, optionitem_price_override, optionitem_price_multiplier, optionitem_price_per_character, optionitem_weight, optionitem_weight_onetime, optionitem_weight_override, optionitem_weight_multiplier, optionitem_disallow_shipping, optionitem_enable_custom_price_label, optionitem_custom_price_label ) VALUES( %d, %s, %s, %s, %s, %s, %d, %s, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %d, %s )";
 		$advanced_option_details = $GLOBALS['ec_options']->get_optionitem( $advanced_option->optionitem_id );
@@ -3243,6 +3286,8 @@ class ec_db{
 			$sql = "SELECT 
 				ec_order.order_id, 
 				ec_order.txn_id,
+				ec_order.offer_discount_total, 
+				ec_order.applied_offers,
 				ec_order.edit_sequence,
 				CONVERT_TZ( ec_order.order_date, @@session.time_zone, '+00:00' ) as order_date,
 				ec_order.orderstatus_id,
@@ -5823,8 +5868,9 @@ class ec_db{
 		return false;
 	}
 
-	public static function quick_add_to_cart( $model_number, $optionitem_ids = null, $option_vals = null, &$was_merged = false ){
+	public static function quick_add_to_cart( $model_number, $optionitem_ids = null, $option_vals = null, &$was_merged = false, $quantity = 1 ){
 		$was_merged = false;
+		$quantity = max( 1, (int) $quantity );
 		$product = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.model_number = %s", $model_number ) );
 		if ( ! $product ) {
 			return false;
@@ -5844,11 +5890,17 @@ class ec_db{
 		$current_in_cart = self::$mysqli->get_var( self::$mysqli->prepare( "SELECT SUM( ec_tempcart.quantity ) FROM ec_tempcart WHERE ec_tempcart.product_id = %d AND ec_tempcart.session_id = %s", $product->product_id, $session_id ) );
 		$stock_allows_one_more = ( ! $product->show_stock_quantity || $product->allow_backorders || $product->stock_quantity >= $current_in_cart + 1 );
 
+		/* Largest quantity the stock rules allow to be ADDED right now ( cart links pass $quantity > 1 ). */
+		$addable_quantity = $quantity;
+		if ( $product->show_stock_quantity && ! $product->allow_backorders ) {
+			$addable_quantity = max( 0, min( $quantity, $product->stock_quantity - (int) $current_in_cart ) );
+		}
+
 		// Update quantity on an identical row instead of inserting a duplicate.
 		$matched_row = self::find_matching_tempcart_item( $session_id, $product->product_id, $optionitem_ids, $option_vals );
 		if ( $matched_row ) {
 			$was_merged = true;
-			$new_quantity = $matched_row->quantity + 1;
+			$new_quantity = $matched_row->quantity + $addable_quantity;
 			if ( ! $stock_allows_one_more ) {
 				$new_quantity = $matched_row->quantity; // At the stock limit, keep quantity and send the shopper to the cart.
 			}
@@ -5864,7 +5916,11 @@ class ec_db{
 		}
 
 		if ( $stock_allows_one_more ) {
-			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_tempcart( `session_id`, `product_id`, `quantity`, `optionitem_id_1`, `optionitem_id_2`, `optionitem_id_3`, `optionitem_id_4`, `optionitem_id_5`, `gift_card_message`, `gift_card_from_name`, `gift_card_to_name` ) VALUES( %s, %d, %d, %d, %d, %d, %d, %d, '', '', '' )", $session_id, $product->product_id, 1, $optionitem_ids[0], $optionitem_ids[1], $optionitem_ids[2], $optionitem_ids[3], $optionitem_ids[4] ) );
+			$insert_quantity = max( 1, $addable_quantity );
+			if ( $product->max_purchase_quantity != 0 && $insert_quantity > $product->max_purchase_quantity ) {
+				$insert_quantity = $product->max_purchase_quantity;
+			}
+			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_tempcart( `session_id`, `product_id`, `quantity`, `optionitem_id_1`, `optionitem_id_2`, `optionitem_id_3`, `optionitem_id_4`, `optionitem_id_5`, `gift_card_message`, `gift_card_from_name`, `gift_card_to_name` ) VALUES( %s, %d, %d, %d, %d, %d, %d, %d, '', '', '' )", $session_id, $product->product_id, $insert_quantity, $optionitem_ids[0], $optionitem_ids[1], $optionitem_ids[2], $optionitem_ids[3], $optionitem_ids[4] ) );
 			$tempcart_id = self::$mysqli->insert_id;
 			self::update_temp_cart_inventory( $session_id );
 			do_action( 'wpeasycart_cartitem_added', $tempcart_id );

@@ -1079,6 +1079,119 @@
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Alkalmaz"
+				},
+				"coupon_applied":{
+					"title":"Cart, Offer Code Applied",
+					"value":"A kupont hozzáadtuk a kosarához!"
+				},
+				"coupon_removed":{
+					"title":"Cart, Offer Code Removed",
+					"value":"Kupon eltávolítva."
+				},
+				"coupon_remove_label":{
+					"title":"Cart, Remove Offer Code Label",
+					"value":"Kupon eltávolítása"
+				},
+				"coupon_already_applied":{
+					"title":"Cart, Offer Code Already Applied",
+					"value":"Ezt a kupont már beváltotta a kosarában."
+				},
+				"coupon_not_combinable":{
+					"title":"Cart, Offer Code Not Combinable",
+					"value":"Ez a kupon nem vonható össze a többi kedvezménnyel."
+				},
+				"coupon_not_for_account":{
+					"title":"Cart, Offer Code Wrong Account",
+					"value":"Ez a kupon egy másik fiókhoz tartozik."
+				},
+				"coupon_stacking_disabled":{
+					"title":"Cart, Offer Stacking Disabled",
+					"value":"Rendelésenként csak egy kupon használható."
+				},
+				"coupon_stacking_limit":{
+					"title":"Cart, Offer Stacking Limit",
+					"value":"Elérte a rendeléshez felhasználható kuponok maximális számát."
+				},
+				"free_gift_out_of_stock":{
+					"title":"Cart, Free Gift Out of Stock",
+					"value":"Sajnáljuk, az ajánlathoz tartozó ajándék elfogyott."
+				},
+				"bundle_added":{
+					"title":"Cart, Bundle Added",
+					"value":"A csomagot hozzáadtuk a kosarához!"
+				},
+				"bundle_not_found":{
+					"title":"Cart, Bundle Not Found",
+					"value":"Ez a csomag jelenleg nem elérhető."
+				},
+				"bundle_selection_required":{
+					"title":"Cart, Bundle Selection Required",
+					"value":"Kérjük, válasszon a csomag minden eleméhez."
+				},
+				"bundle_component_out_of_stock":{
+					"title":"Cart, Bundle Component Out of Stock",
+					"value":"A csomag egyik terméke elfogyott."
+				},
+				"bundle_out_of_stock":{
+					"title":"Cart, Bundle Out of Stock",
+					"value":"Ez a csomag elfogyott."
+				},
+				"bundle_mode_requires_component_lines":{
+					"title":"Cart, Bundle Mode Error",
+					"value":"Ez a csomag nincs megfelelően beállítva. Kérjük, lépjen kapcsolatba az üzlettel."
+				}
+			}
+		},
+		"cart_offers":{
+			"label":"Cart and Product Offer Displays",
+			"options":{
+				"gift_line_label":{
+					"title":"Cart, Free Gift Line Tag",
+					"value":"AJÁNDÉK"
+				},
+				"bundle_line_label":{
+					"title":"Cart, Bundle Line Tag",
+					"value":"Csomag tétel"
+				},
+				"gift_chooser_title":{
+					"title":"Cart, Gift Chooser Title",
+					"value":"Válassza ki ajándékát"
+				},
+				"gift_claim_button":{
+					"title":"Cart, Gift Claim Button",
+					"value":"Ajándék kiválasztása"
+				},
+				"gift_free_label":{
+					"title":"Cart, Gift Free Label",
+					"value":"INGYENES"
+				},
+				"offer_badge_default":{
+					"title":"Product, Offer Badge Default",
+					"value":"AKCIÓ"
+				},
+				"offer_applied_label":{
+					"title":"Cart, Offer Applied Label",
+					"value":"Beváltva"
+				},
+				"countdown_ends_in":{
+					"title":"Product, Offer Countdown Label",
+					"value":"Hátralévő idő:"
+				},
+				"progress_spend_message":{
+					"title":"Cart, Offer Progress Spend Message",
+					"value":"Vásároljon még [amount] értékben, és megkapja: [label]"
+				},
+				"progress_quantity_message":{
+					"title":"Cart, Offer Progress Quantity Message",
+					"value":"Adjon hozzá még [quantity] terméket, és megkapja: [label]"
+				},
+				"bundle_includes_title":{
+					"title":"Product, Bundle Includes Title",
+					"value":"A csomag tartalma"
+				},
+				"bundle_save_label":{
+					"title":"Product, Bundle Save Label",
+					"value":"Megtakarítás"
 				}
 			}
 		},

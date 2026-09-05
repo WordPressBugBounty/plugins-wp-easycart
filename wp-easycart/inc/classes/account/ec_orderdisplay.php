@@ -17,6 +17,8 @@ class ec_orderdisplay {
 	public $vat_total; 							// FLOAT 15,3
 	public $vat_rate; 							// FLOAT 15,3
 	public $discount_total;						// FLOAT 15,3
+	public $offer_discount_total;				// FLOAT 15,3
+	public $applied_offers;						// LONGTEXT JSON
 	public $grand_total;  						// FLOAT 15,3
 	public $refund_total;						// FLOAT 15,3
 
@@ -120,6 +122,8 @@ class ec_orderdisplay {
 			$this->shipping_total = $order_row->shipping_total;
 			$this->tax_total = $order_row->tax_total;
 			$this->discount_total = $order_row->discount_total;
+			$this->offer_discount_total = ( isset( $order_row->offer_discount_total ) ) ? (float) $order_row->offer_discount_total : 0;
+			$this->applied_offers = ( isset( $order_row->applied_offers ) ) ? $order_row->applied_offers : '';
 			$this->duty_total = $order_row->duty_total;
 			$this->vat_total = $order_row->vat_total;
 			$this->vat_rate = $order_row->vat_rate;

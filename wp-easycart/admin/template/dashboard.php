@@ -1,216 +1,191 @@
+<?php
+/**
+ * Reports ( V2 ).
+ *
+ * Markup rebuilt on the V2 tokens; every id / class the inline chart script
+ * depends on is preserved verbatim ( range buttons, filters, stat cells,
+ * chart canvases, export and chart-type controls ), so the script below is
+ * unchanged. Free installs get the standard upsell line instead of the
+ * legacy status bubble.
+ */
+?>
 <?php do_action( 'wp_easycart_admin_dashboard_pre_chart' ); ?>
-<?php $single_stats = wp_easycart_admin()->get_single_stats(date( 'Y-m-d', strtotime( '-13 days' ) ), date( 'Y-m-d' )); ?>
-<div id="ec_admin_chart" class="ec_admin_chart_holder ec_admin_chart_holder_active">
-	<div class="ec_admin_dashboard_license_status">
-		<?php
-		$status = new wp_easycart_admin_store_status( );
-		$license_data = false; $days_left = 0; $is_premium =false; $is_trial = false; $renew_url = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/'; $upgrade_url = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-		if( function_exists( 'wp_easycart_admin_license' ) ){
-			$license_data = wp_easycart_admin_license( )->license_data;
-			$license_info = get_option( 'wp_easycart_license_info' );
-			$transaction_key = $license_info['transaction_key'];
-			$test_now = time( );
-			$test_expiration = strtotime( $license_data->support_end_date );
-			$test_diff = $test_expiration - $test_now;
-			$days_left = round( $test_diff / ( 60 * 60 * 24 ) );
-			$days_left = ( $days_left < 0 ) ? 0 : $days_left; // No Negative
-			$is_premium = ( $license_data->model_number == 'ec410' ) ? true : false;
-			$is_trial = $license_data->is_trial;
-			if( $is_trial ){
-				$renew_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key;
-				$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium';
-			}else{
-				$renew_url = ( $license_data->model_number == 'ec400' ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $transaction_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
-				$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
-			}
-		}
-		?>
+<?php $single_stats = wp_easycart_admin()->get_single_stats( date( 'Y-m-d', strtotime( '-13 days' ) ), date( 'Y-m-d' ) ); ?>
+<?php
+$status = new wp_easycart_admin_store_status();
+$license_data = false; $days_left = 0; $is_premium = false; $is_trial = false; $transaction_key = '';
+$renew_url = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
+$upgrade_url = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
+if ( function_exists( 'wp_easycart_admin_license' ) ) {
+	$license_data    = wp_easycart_admin_license()->license_data;
+	$license_info    = get_option( 'wp_easycart_license_info' );
+	$transaction_key = ( is_array( $license_info ) && isset( $license_info['transaction_key'] ) ) ? $license_info['transaction_key'] : '';
+	$days_left       = max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( strtotime( $license_data->support_end_date ) ) : (int) round( ( strtotime( $license_data->support_end_date ) - time() ) / DAY_IN_SECONDS ) );
+	$is_premium      = ( 'ec410' === strtolower( trim( (string) $license_data->model_number ) ) );
+	$is_trial        = ! empty( $license_data->is_trial );
+	if ( $is_trial ) {
+		$renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key;
+		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium';
+	} else {
+		$renew_url   = ( ! $is_premium ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $transaction_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
+		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
+	}
+}
+$ecrp_stats = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
 
-		<?php if( !$license_data ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( __( 'FREE', 'wp-easycart' ), -1, __( 'FREE Version', 'wp-easycart' ), __( 'You are running the free version of WP EasyCart.', 'wp-easycart' ), 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try PRO Free', 'wp-easycart' ) ); ?>
+/* One-line license strip. Only states that need attention render; an active license in good standing shows nothing. */
+$ecrp_strip = null;
+if ( ! $license_data ) {
+	$ecrp_strip = array( 'tone' => 'free', 'icon' => 'dashicons-chart-area',
+		'text' => __( 'Free edition. These reports cover the basics; PRO adds product, customer and coupon breakdowns, the abandoned-cart recovery report and scheduled email summaries.', 'wp-easycart' ),
+		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try PRO free', 'wp-easycart' ) ), 'more' => true );
+} else if ( $is_trial && $days_left > 0 ) {
+	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day left on your PRO trial.', '%d days left on your PRO trial.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $upgrade_url, __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
+} else if ( $is_trial ) {
+	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your PRO trial has ended. Upgrade to reopen the PRO panels; nothing has been lost.', 'wp-easycart' ), 'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
+} else if ( $days_left <= 0 ) {
+	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ), 'cta' => array( $renew_url, __( 'Renew', 'wp-easycart' ) ), 'more' => false );
+} else if ( $days_left < 100 ) {
+	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day of support and updates remaining.', '%d days of support and updates remaining.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $renew_url, __( 'Renew', 'wp-easycart' ) ), 'more' => false );
+}
+
+global $wpdb;
+$products  = $wpdb->get_results( 'SELECT ec_product.title, ec_product.product_id FROM ec_product ORDER BY ec_product.title ASC LIMIT 500' );
+$countries = $wpdb->get_results( 'SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY sort_order ASC' );
+
+/* Stat cards: [ id, label, value, money? ] — ids 1–10 are fixed ( the chart script updates them by number ). */
+$ecrp_cards = array(
+	array( 1,  __( 'Total payments', 'wp-easycart' ),   $single_stats->gross_revenue->set1, true ),
+	array( 6,  __( 'Net revenue', 'wp-easycart' ),      $single_stats->net_revenue->set1,   true ),
+	array( 7,  __( 'Orders', 'wp-easycart' ),           $single_stats->orders->set1,        false ),
+	array( 8,  __( 'Items sold', 'wp-easycart' ),       $single_stats->items->set1,         false ),
+	array( 9,  __( 'Unique customers', 'wp-easycart' ), $single_stats->customers->set1,     false ),
+	array( 10, __( 'Abandoned carts', 'wp-easycart' ),  $single_stats->carts->set1,         false ),
+	array( 2,  __( 'Shipping', 'wp-easycart' ),         $single_stats->shipping->set1,      true ),
+	array( 3,  __( 'Taxes', 'wp-easycart' ),            $single_stats->tax->set1,           true ),
+	array( 4,  __( 'Discounts', 'wp-easycart' ),        $single_stats->discount->set1,      true ),
+	array( 5,  __( 'Refunds', 'wp-easycart' ),          $single_stats->refund->set1,        true ),
+);
+?>
+<div id="ec_admin_chart" class="ec_admin_chart_holder ec_admin_chart_holder_active ecv2-wrap ecrp">
+
+	<div class="ecv2-page-header">
+		<div class="ecv2-page-header-left">
+			<span class="dashicons dashicons-chart-line ecv2-page-header-icon"></span>
+			<h2 class="ecv2-page-title"><?php esc_html_e( 'Reports', 'wp-easycart' ); ?></h2>
+		</div>
+		<div class="ecv2-page-header-right ecrp-header-tools">
+			<?php /* Chart type + granularity: classes / ids are bound by the chart script. */ ?>
+			<div class="wpeasycart_admin_chart_types ecrp-chart-types" role="group" aria-label="<?php esc_attr_e( 'Chart type', 'wp-easycart' ); ?>">
+				<span class="dashicons dashicons-chart-line wpeasycart_admin_chart_type_line selected" onclick="wpeasycart_admin_update_chart_type( 'line' );" title="<?php esc_attr_e( 'Line', 'wp-easycart' ); ?>"></span>
+				<span class="dashicons dashicons-chart-bar wpeasycart_admin_chart_type_bar" onclick="wpeasycart_admin_update_chart_type( 'bar' );" title="<?php esc_attr_e( 'Bars', 'wp-easycart' ); ?>"></span>
 			</div>
-
-		<?php }else if( $days_left > 0 && $is_trial ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( ( ( $days_left > 14 ) ? 1 : round( $days_left / 14 * 100 ) ) . '%', ( $days_left / 14 ), __( 'Trial Status', 'wp-easycart' ), __( sprintf( 'You have %d days before your trial expires.', $days_left ), 'wp-easycart' ), 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium', __( 'Upgrade Now', 'wp-easycart' ) ); ?>
-			</div>
-
-		<?php }else if( $days_left <= 0 && $is_trial ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( 'EXPIRED', -1, __( 'TRIAL EXPIRED', 'wp-easycart' ), __( 'Your trial has expired, please upgrade to continue to use WP EasyCart Pro or Premium', 'wp-easycart' ), 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'UPGRADE NOW', 'wp-easycart' ) ); ?>
-			</div>
-
-		<?php }else if( $days_left >= 100 ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( '100%', 1, __( 'License Status', 'wp-easycart' ), __( sprintf( 'You have %d days before your license expires.', $days_left ), 'wp-easycart' ), 'https://www.wpeasycart.com/my-account/', __( 'View Account', 'wp-easycart' ) ); ?>
-			</div>
-
-		<?php }else if( $days_left > 0 ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( ( ( $days_left > 100 ) ? 1 : $days_left ) . '%', ( $days_left / 100 ), __( 'License Status', 'wp-easycart' ), __( sprintf( 'You have %d days before your license expires.', $days_left ), 'wp-easycart' ), $renew_url, __( 'Renew Now', 'wp-easycart' ) ); ?>
-			</div>
-
-		<?php }else if( $days_left <= 0 ){ ?>
-			<div class="ec_admin_status_circle_container_full">
-				<?php wp_easycart_admin( )->display_stat_circle( __( 'EXPIRED', 'wp-easycart' ), -1, __( 'LICENSE EXPIRED!', 'wp-easycart' ), __( 'Your license is expired and you are paying 2&#37; fees, renew today!', 'wp-easycart' ), $renew_url, __( 'RENEW NOW', 'wp-easycart' ) ); ?>
-			</div>
-
-		<?php } ?>
-
-	</div>
-
-	<div class="ec_admin_dashboard_chart_filters">
-		<?php do_action( 'wp_easycart_admin_reports_filters_pre' ); ?>
-		<?php 
-		global $wpdb;
-		$products = $wpdb->get_results( "SELECT ec_product.title, ec_product.product_id FROM ec_product ORDER BY ec_product.title ASC LIMIT 500" );
-		$countries = $wpdb->get_results( "SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY sort_order ASC" );
-		if( count( $products ) >= 500 ){
-		?>
-			<input type="text" style="max-width:300px; float:right;" name="product_filter" placeholder="<?php __( 'Enter a Product ID', 'wp-easycart' ); ?>" value="" onkeydown="wpeasycart_admin_update_chart_data( );" />
-		<?php }else{ ?>
-			<select id="product_filter" style="max-width:300px; float:right;" onchange="wpeasycart_admin_update_chart_data( );">
-				<option value="0" selected="selected"><?php esc_attr_e( 'No Product Filter', 'wp-easycart' ); ?></option>
-				<?php foreach( $products as $product ){ ?>
-				<option value="<?php echo esc_attr( $product->product_id ); ?>"><?php echo esc_attr( $product->title ); ?></option>
-				<?php }?>
+			<select id="daily_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+				<option value="daily" selected="selected"><?php esc_html_e( 'Daily', 'wp-easycart' ); ?></option>
+				<option value="weekly"><?php esc_html_e( 'Weekly', 'wp-easycart' ); ?></option>
+				<option value="monthly"><?php esc_html_e( 'Monthly', 'wp-easycart' ); ?></option>
+				<option value="yearly"><?php esc_html_e( 'Yearly', 'wp-easycart' ); ?></option>
 			</select>
-		<?php }?>
-		<select id="country_filter" style="max-width:300px; float:right;" onchange="wpeasycart_admin_update_chart_data( );">
-			<option value="0" selected="selected"><?php esc_attr_e( 'No Shipping Country Filter', 'wp-easycart' ); ?></option>
-			<?php foreach( $countries as $country ){ ?>
-			<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_attr( $country->name_cnt ); ?></option>
-			<?php }?>
-		</select>
-		<select id="billing_country_filter" style="max-width:300px; float:right;" onchange="wpeasycart_admin_update_chart_data( );">
-			<option value="0" selected="selected"><?php esc_attr_e( 'No Billing Country Filter', 'wp-easycart' ); ?></option>
-			<?php foreach( $countries as $country ){ ?>
-			<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_attr( $country->name_cnt ); ?></option>
-			<?php }?>
-		</select>
-		<?php do_action( 'wp_easycart_admin_reports_filters_post' ); ?>
-	</div>
-
-	<div class="ec_admin_dashboard_chart_editor">
-
-		<div id="wpeasycart_admin_report_range1" class="ec_admin_dashboard_chart_range_button">
-			<div style="font-weight:bold; color:<?php echo esc_attr( get_option( 'ec_option_admin_color' ) ); ?>"><?php esc_attr_e( 'Date Range', 'wp-easycart' ); ?></div>
-			<i class="dashicons dashicons-calendar"></i>&nbsp;
-			<span></span> 
-			<i class="dashicons dashicons-arrow-down"></i>
-		</div>
-
-		<div id="wpeasycart_admin_report_range2" class="ec_admin_dashboard_chart_range_button">
-			<div style="font-weight:bold; color:#AAA;"><?php esc_attr_e( 'Compare to', 'wp-easycart' ); ?></div>
-			<i class="dashicons dashicons-calendar"></i>&nbsp;
-			<span></span> 
-			<i class="dashicons dashicons-arrow-down"></i>
-		</div>
-
-		<div class="wpeasycart_admin_chart_export" onclick="wpeasycart_admin_export_report( );">
-			<span class="dashicons dashicons-download" style="margin-right:5px;"></span> <?php esc_attr_e( 'Export Report', 'wp-easycart' ); ?>
-		</div>
-
-		<select id="daily_filter" onchange="wpeasycart_admin_update_chart_data( );" style="float:right; border:none; margin-left:20px; margin-top:13px;">
-			<option value="daily" selected="selected"><?php esc_attr_e( 'Daily', 'wp-easycart' ); ?></option>
-			<option value="weekly"><?php esc_attr_e( 'Weekly', 'wp-easycart' ); ?></option>
-			<option value="monthly"><?php esc_attr_e( 'Monthly', 'wp-easycart' ); ?></option>
-			<option value="yearly"><?php esc_attr_e( 'Yearly', 'wp-easycart' ); ?></option>
-		</select>
-
-		<div class="wpeasycart_admin_chart_types" style="padding:3px 0; margin-top:15px;">
-			<span class="dashicons dashicons-chart-line wpeasycart_admin_chart_type_line selected" onclick="wpeasycart_admin_update_chart_type( 'line' );" style="margin-right:5px;"></span>
-			<span class="dashicons dashicons-chart-bar wpeasycart_admin_chart_type_bar" onclick="wpeasycart_admin_update_chart_type( 'bar' );"></span>
+			<div class="wpeasycart_admin_chart_export ecv2-btn ecv2-btn-primary ecv2-btn-sm" onclick="wpeasycart_admin_export_report( );" role="button" tabindex="0">
+				<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export CSV', 'wp-easycart' ); ?>
+			</div>
 		</div>
 	</div>
 
-	<div class="ec_admin_dashboard_stat_items" style="float:left; width:100%;">
+	<?php if ( $ecrp_strip ) : ?>
+	<div class="ecrp-strip is-<?php echo esc_attr( $ecrp_strip['tone'] ); ?>">
+		<span class="dashicons <?php echo esc_attr( $ecrp_strip['icon'] ); ?>"></span>
+		<span class="ecrp-strip-text"><?php echo esc_html( $ecrp_strip['text'] ); ?></span>
+		<?php if ( $ecrp_strip['more'] && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+		<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: 'default' } ); return false;"><?php esc_html_e( "See what's included", 'wp-easycart' ); ?></button>
+		<?php endif; ?>
+		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecrp_strip['cta'][0] ); ?>"<?php echo ( 0 === strpos( $ecrp_strip['cta'][0], 'http' ) ) ? ' target="_blank"' : ''; ?>><?php echo esc_html( $ecrp_strip['cta'][1] ); ?></a>
+	</div>
+	<?php endif; ?>
 
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item1">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Total Payments', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->gross_revenue->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
+	<?php /* ---- Toolbar: ranges + filters ---- */ ?>
+	<div class="ecrp-toolbar">
+		<div class="ecrp-ranges">
+			<div id="wpeasycart_admin_report_range1" class="ec_admin_dashboard_chart_range_button ecrp-range">
+				<div class="ecrp-range-label"><?php esc_html_e( 'Date range', 'wp-easycart' ); ?></div>
+				<i class="dashicons dashicons-calendar"></i>&nbsp;
+				<span></span>
+				<i class="dashicons dashicons-arrow-down"></i>
+			</div>
+			<div id="wpeasycart_admin_report_range2" class="ec_admin_dashboard_chart_range_button ecrp-range ecrp-range-compare">
+				<div class="ecrp-range-label"><?php esc_html_e( 'Compare to', 'wp-easycart' ); ?></div>
+				<i class="dashicons dashicons-calendar"></i>&nbsp;
+				<span></span>
+				<i class="dashicons dashicons-arrow-down"></i>
+			</div>
 		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item2">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Shipping', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->shipping->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change increase" style="display:none"><span class="dashicons dashicons-arrow-up-alt"></span> +36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
+		<div class="ec_admin_dashboard_chart_filters ecrp-filters">
+			<?php do_action( 'wp_easycart_admin_reports_filters_pre' ); ?>
+			<?php if ( count( $products ) >= 500 ) : ?>
+				<input type="text" class="ecv2-input ecv2-input-sm" name="product_filter" placeholder="<?php esc_attr_e( 'Product ID', 'wp-easycart' ); ?>" value="" onkeydown="wpeasycart_admin_update_chart_data( );" />
+			<?php else : ?>
+				<select id="product_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+					<option value="0" selected="selected"><?php esc_html_e( 'All products', 'wp-easycart' ); ?></option>
+					<?php foreach ( $products as $product ) : ?>
+					<option value="<?php echo esc_attr( $product->product_id ); ?>"><?php echo esc_html( $product->title ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			<?php endif; ?>
+			<select id="country_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+				<option value="0" selected="selected"><?php esc_html_e( 'Ships to: anywhere', 'wp-easycart' ); ?></option>
+				<?php foreach ( $countries as $country ) : ?>
+				<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_html( $country->name_cnt ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<select id="billing_country_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+				<option value="0" selected="selected"><?php esc_html_e( 'Billed in: anywhere', 'wp-easycart' ); ?></option>
+				<?php foreach ( $countries as $country ) : ?>
+				<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_html( $country->name_cnt ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<?php do_action( 'wp_easycart_admin_reports_filters_post' ); ?>
 		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item3">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Taxes', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->tax->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change increase" style="display:none"><span class="dashicons dashicons-arrow-up-alt"></span> +36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item4">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Discount Total', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->discount->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item5">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Refunds', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->refund->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change increase" style="display:none"><span class="dashicons dashicons-arrow-up-alt"></span> +36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
+	</div>
 
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item6">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Net Revenue', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->net_revenue->set1 ); ?></div>
+	<?php /* ---- Stat cards. Inner structure is what the chart script updates. ---- */ ?>
+	<div class="ec_admin_dashboard_stat_items ecrp-stats">
+		<?php foreach ( $ecrp_cards as $c ) : ?>
+		<div class="ec_admin_dashboard_stat_item ecrp-stat<?php echo $c[3] ? ' is-money' : ''; ?>" id="ec_admin_dashboard_stat_item<?php echo (int) $c[0]; ?>">
+			<div class="ec_admin_dashboard_stat_item_title"><?php echo esc_html( $c[1] ); ?></div>
+			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_html( $c[2] ); ?></div>
 			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
+			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_html_e( 'Previous period', 'wp-easycart' ); ?><br />$0.00</div>
 		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item7">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Order Count', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->orders->set1 ); ?></div>
+		<?php endforeach; ?>
+		<?php for ( $i = 0; $i < count( $single_stats->fees ); $i++ ) : ?>
+		<div class="ec_admin_dashboard_stat_item ecrp-stat is-money is-fee" id="ec_admin_dashboard_stat_item<?php echo esc_attr( 11 + $i ); ?>">
+			<div class="ec_admin_dashboard_stat_item_title"><?php echo esc_html( '' !== trim( (string) $single_stats->fees[ $i ]->fee_label ) && '0' !== trim( (string) $single_stats->fees[ $i ]->fee_label ) ? $single_stats->fees[ $i ]->fee_label : __( 'Fee', 'wp-easycart' ) ); ?></div>
+			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_html( $single_stats->fees[ $i ]->set1 ); ?></div>
 			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
+			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_html_e( 'Previous period', 'wp-easycart' ); ?><br />$0.00</div>
 		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item8">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Items Sold', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->items->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item9">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Unique Customers', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->customers->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item10">
-			<div class="ec_admin_dashboard_stat_item_title"><?php esc_attr_e( 'Abandoned Carts', 'wp-easycart' ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->carts->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
+		<?php endfor; ?>
+	</div>
+
+	<?php /* ---- Charts ---- */ ?>
+	<div class="ecrp-charts">
+		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_1" class="ec_admin_chart"></canvas></div>
+		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_2" class="ec_admin_chart"></canvas></div>
+		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_3" class="ec_admin_chart"></canvas></div>
+	</div>
+
+	<?php if ( ! $license_data && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+	<?php /* Free edition: what PRO reporting adds, in the standard clickable strip. */ ?>
+	<div class="ecrp-upsell">
 		<?php
-		for ( $i=0; $i<count( $single_stats->fees ); $i++ ) { ?>
-		<div class="ec_admin_dashboard_stat_item" id="ec_admin_dashboard_stat_item<?php echo esc_attr( 11 + $i ); ?>">
-			<div class="ec_admin_dashboard_stat_item_title"><?php echo esc_attr( $single_stats->fees[ $i ]->fee_label ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_attr( $single_stats->fees[ $i ]->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<?php }?>
-
+		$ecrp_e = wp_easycart_admin_upsell::entry( 'reports' );
+		if ( '' !== $ecrp_e['stat_line'] ) {
+			echo '<p class="ecv2-page-intro ecv2-upsell-stat-inline"><span class="dashicons dashicons-chart-line"></span> ' . esc_html( $ecrp_e['stat_line'] ) . '</p>';
+		}
+		wp_easycart_admin_upsell::print_feature_strip( 'reports' );
+		?>
 	</div>
-
-	<div style="float:left; width:100%;">
-		<div class="ec_admin_dashboard_chart">
-			<canvas id="ec_admin_chart_data_1" class="ec_admin_chart"></canvas>
-		</div>
-		<div class="ec_admin_dashboard_chart">
-			<canvas id="ec_admin_chart_data_2" class="ec_admin_chart"></canvas>
-		</div>
-		<div class="ec_admin_dashboard_chart">
-			<canvas id="ec_admin_chart_data_3" class="ec_admin_chart"></canvas>
-		</div>
-	</div>
+	<?php endif; ?>
 
 </div>
 
@@ -707,6 +682,7 @@ function wpeasycart_admin_export_report( ){
 		modal += '<a href="' + reports.reporttax + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
 		<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
 		modal += '</div></div>';
+
 		jQuery( 'body' ).append( modal );
 	} } );
 }

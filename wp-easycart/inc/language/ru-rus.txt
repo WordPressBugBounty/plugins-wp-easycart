@@ -273,10 +273,131 @@
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Применять"
+				},
+				"coupon_applied":{
+					"title":"Cart, Offer Code Applied",
+					"value":"Купон применён к вашей корзине!"
+				},
+				"coupon_removed":{
+					"title":"Cart, Offer Code Removed",
+					"value":"Купон удалён."
+				},
+				"coupon_remove_label":{
+					"title":"Cart, Remove Offer Code Label",
+					"value":"Удалить купон"
+				},
+				"coupon_already_applied":{
+					"title":"Cart, Offer Code Already Applied",
+					"value":"Этот купон уже применён к вашей корзине."
+				},
+				"coupon_not_combinable":{
+					"title":"Cart, Offer Code Not Combinable",
+					"value":"Этот купон нельзя сочетать с другими вашими скидками."
+				},
+				"coupon_not_for_account":{
+					"title":"Cart, Offer Code Wrong Account",
+					"value":"Этот купон привязан к другому аккаунту."
+				},
+				"coupon_stacking_disabled":{
+					"title":"Cart, Offer Stacking Disabled",
+					"value":"Для одного заказа можно использовать только один купон."
+				},
+				"coupon_stacking_limit":{
+					"title":"Cart, Offer Stacking Limit",
+					"value":"Достигнуто максимальное количество купонов для этого заказа."
+				},
+				"free_gift_out_of_stock":{
+					"title":"Cart, Free Gift Out of Stock",
+					"value":"К сожалению, бесплатный подарок по этому предложению закончился."
+				},
+				"bundle_added":{
+					"title":"Cart, Bundle Added",
+					"value":"Комплект добавлен в вашу корзину!"
+				},
+				"bundle_not_found":{
+					"title":"Cart, Bundle Not Found",
+					"value":"Этот комплект сейчас недоступен."
+				},
+				"bundle_selection_required":{
+					"title":"Cart, Bundle Selection Required",
+					"value":"Пожалуйста, сделайте выбор для каждого товара комплекта."
+				},
+				"bundle_component_out_of_stock":{
+					"title":"Cart, Bundle Component Out of Stock",
+					"value":"Один из товаров этого комплекта закончился."
+				},
+				"bundle_out_of_stock":{
+					"title":"Cart, Bundle Out of Stock",
+					"value":"Этот комплект закончился."
+				},
+				"bundle_mode_requires_component_lines":{
+					"title":"Cart, Bundle Mode Error",
+					"value":"Этот комплект настроен неверно. Пожалуйста, свяжитесь с магазином."
 				}
 			}
 		},
-		"cart_estimate_shipping":{"label":"Cart - Estimate Shipping","options":{"cart_estimate_shipping_title":{"title":"Cart, Estimate Shipping Title","value":"\u041f\u0440\u0438\u043c\u0435\u0440\u043d\u0430\u044f \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u043a\u0438"},"cart_estimate_shipping_sub_title":{"title":"Cart, Estimate Shipping Sub Title","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u0441\u0432\u043e\u0439 \u043f\u043e\u0447\u0442\u043e\u0432\u044b\u0439 \u0438\u043d\u0434\u0435\u043a\u0441, \u0447\u0442\u043e\u0431\u044b \u043e\u0446\u0435\u043d\u0438\u0442\u044c \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438."},"cart_estimate_shipping_input_country_label":{"title":"Cart, Estimate Shipping, Input Label Country","value":"\u0421\u0442\u0440\u0430\u043d\u0430:"},"cart_estimate_shipping_select_one":{"title":"Cart, Estimate Shipping, Select one for country box","value":"\u0412\u044b\u0431\u0438\u0440\u0438\u0442\u0435 \u043e\u0434\u043d\u0443"},"cart_estimate_shipping_input_label":{"title":"Cart, Estimate Shipping, Input Label Zip Code","value":"\u0418\u043d\u0434\u0435\u043a\u0441:"},"cart_estimate_shipping_button":{"title":"Cart, Estimate Shipping Button","value":"\u0420\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u0442\u044c \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},
+		"cart_offers":{
+			"label":"Cart and Product Offer Displays",
+			"options":{
+				"gift_line_label":{
+					"title":"Cart, Free Gift Line Tag",
+					"value":"БЕСПЛАТНЫЙ ПОДАРОК"
+				},
+				"bundle_line_label":{
+					"title":"Cart, Bundle Line Tag",
+					"value":"Товар комплекта"
+				},
+				"gift_chooser_title":{
+					"title":"Cart, Gift Chooser Title",
+					"value":"Выберите свой бесплатный подарок"
+				},
+				"gift_claim_button":{
+					"title":"Cart, Gift Claim Button",
+					"value":"Выбрать подарок"
+				},
+				"gift_free_label":{
+					"title":"Cart, Gift Free Label",
+					"value":"БЕСПЛАТНО"
+				},
+				"offer_badge_default":{
+					"title":"Product, Offer Badge Default",
+					"value":"АКЦИЯ"
+				},
+				"offer_applied_label":{
+					"title":"Cart, Offer Applied Label",
+					"value":"Применено"
+				},
+				"countdown_ends_in":{
+					"title":"Product, Offer Countdown Label",
+					"value":"Заканчивается через"
+				},
+				"progress_spend_message":{
+					"title":"Cart, Offer Progress Spend Message",
+					"value":"Добавьте ещё на [amount], чтобы получить: [label]"
+				},
+				"progress_quantity_message":{
+					"title":"Cart, Offer Progress Quantity Message",
+					"value":"Добавьте ещё [quantity] товар(а), чтобы получить: [label]"
+				},
+				"bundle_includes_title":{
+					"title":"Product, Bundle Includes Title",
+					"value":"В этот комплект входит"
+				},
+				"bundle_save_label":{
+					"title":"Product, Bundle Save Label",
+					"value":"Экономия"
+				}
+			}
+		},
+		"cart_estimate_shipping":{
+			"label":"Cart - Estimate Shipping",
+			"options":{
+				"cart_estimate_shipping_title":{"title":"Cart, Estimate Shipping Title","value":"\u041f\u0440\u0438\u043c\u0435\u0440\u043d\u0430\u044f \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u043a\u0438"},
+				"cart_estimate_shipping_sub_title":{"title":"Cart, Estimate Shipping Sub Title","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u0441\u0432\u043e\u0439 \u043f\u043e\u0447\u0442\u043e\u0432\u044b\u0439 \u0438\u043d\u0434\u0435\u043a\u0441, \u0447\u0442\u043e\u0431\u044b \u043e\u0446\u0435\u043d\u0438\u0442\u044c \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438."},
+				"cart_estimate_shipping_input_country_label":{"title":"Cart, Estimate Shipping, Input Label Country","value":"\u0421\u0442\u0440\u0430\u043d\u0430:"},
+				"cart_estimate_shipping_select_one":{"title":"Cart, Estimate Shipping, Select one for country box","value":"\u0412\u044b\u0431\u0438\u0440\u0438\u0442\u0435 \u043e\u0434\u043d\u0443"},
+				"cart_estimate_shipping_input_label":{"title":"Cart, Estimate Shipping, Input Label Zip Code","value":"\u0418\u043d\u0434\u0435\u043a\u0441:"},
+				"cart_estimate_shipping_button":{"title":"Cart, Estimate Shipping Button","value":"\u0420\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u0442\u044c \u0441\u0442\u043e\u0438\u043c\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},
 				"cart_estimate_shipping_standard":{"title":"Cart, Standard Shipping Label","value":"\u0421\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0414\u043e\u0441\u0442\u0430\u0432\u043a\u0430"},
 				"cart_estimate_shipping_free":{
 					"title":"Cart, Free Shipping Label",
@@ -895,7 +1016,7 @@
 		},
 		"account_order_details":{
 			"label":"Account - Order Details",
-			"options":
+			"options":{
 				"account_orders_details_order_info_title":{"title":"Account, Orders Details, Order Information Title","value":"\u0418\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u043e \u0437\u0430\u043a\u0430\u0437\u0435"},
 				"account_orders_details_your_order_title":{"title":"Account, Orders Details, Your Order Title","value":"\u0412\u0430\u0448 \u0437\u0430\u043a\u0430\u0437"},
 				"account_orders_details_order_number":{"title":"Account, Orders Details, Order Number Label","value":"\u041d\u043e\u043c\u0435\u0440 \u0417\u0430\u043a\u0430\u0437\u0430:"},

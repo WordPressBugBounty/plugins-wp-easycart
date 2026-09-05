@@ -1,0 +1,99 @@
+/* ============================================================================
+ * WP EasyCart Admin — Customer Details V2 ( FREE ).
+ * Depends on admin-details-v2.css ( ecdv2 chassis ) + admin-users-v2.css
+ * ( avatar / role badge / date styles shared with the list ).
+ * ========================================================================= */
+
+/* ---- Header ---- */
+.ecudv2-header-thumb { display:flex; align-items:center; justify-content:center; background:none; border:none; }
+.ecudv2-header-id { color:var(--ecv2-g400,#9ca3af); font-size:12px; }
+.ecudv2-state { display:flex; align-items:center; gap:8px; margin-left:12px; }
+.ecudv2-state-pending .ecdv2-status-pill { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+
+.ecdv2-header-menu-wrap { position:relative; }
+.ecudv2-header-menu {
+	display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:100250;
+	min-width:230px; background:#fff; border:1px solid var(--ecv2-g200,#e5e7eb);
+	border-radius:var(--ecv2-r,8px); box-shadow:0 10px 30px rgba(0,0,0,.14); padding:6px;
+}
+.ecudv2-header-menu.is-open { display:block; }
+.ecudv2-header-menu a {
+	display:flex; align-items:center; gap:8px; padding:8px 10px;
+	font-size:13px; color:var(--ecv2-g700,#374151); text-decoration:none; border-radius:var(--ecv2-rs,4px);
+}
+.ecudv2-header-menu a:hover { background:var(--ecv2-g50,#f9fafb); }
+.ecudv2-header-menu a .dashicons { font-size:15px; width:15px; height:15px; color:var(--ecv2-g400,#9ca3af); }
+.ecudv2-header-menu .ecudv2-menu-danger { color:#b91c1c; }
+.ecudv2-header-menu .ecudv2-menu-danger .dashicons { color:#ef4444; }
+.ecudv2-header-menu .ecudv2-menu-danger:hover { background:#fef2f2; }
+
+/* ---- Fields ---- */
+.ecudv2-field-grid { display:flex; flex-wrap:wrap; gap:0 16px; }
+.ecudv2-field { margin-bottom:14px; width:100%; }
+.ecudv2-field-half { width:calc(50% - 8px); }
+.ecudv2-field label { display:block; font-size:12px; font-weight:600; color:var(--ecv2-g600,#4b5563); margin-bottom:4px; }
+.ecudv2-field input[type="text"], .ecudv2-field input[type="email"], .ecudv2-field input[type="password"], .ecudv2-field select, .ecudv2-textarea {
+	width:100%; box-sizing:border-box; padding:8px 10px; font-size:13px;
+	border:1px solid var(--ecv2-g300,#d1d5db); border-radius:var(--ecv2-rs,6px);
+	background:#fff; color:var(--ecv2-g800,#1f2937);
+}
+.ecudv2-field input:focus, .ecudv2-field select:focus, .ecudv2-textarea:focus {
+	outline:none; border-color:var(--ecv2-primary,#22c55e);
+	box-shadow:0 0 0 2px var(--ecv2-primary-light,rgba(34,197,94,.2));
+}
+.ecudv2-input-error { border-color:#ef4444 !important; }
+.ecudv2-req { color:#ef4444; }
+.ecudv2-field-hint { display:block; font-size:11px; color:var(--ecv2-g400,#9ca3af); margin-top:3px; line-height:1.45; }
+.ecudv2-field-error { display:block; font-size:11px; color:#ef4444; min-height:13px; margin-top:2px; }
+.ecudv2-textarea { resize:vertical; min-height:120px; }
+
+/* ---- Toggle rows ---- */
+.ecudv2-toggle-row { display:flex; align-items:flex-start; gap:10px; padding:8px 0; cursor:pointer; }
+.ecudv2-toggle-text { display:flex; flex-direction:column; gap:1px; font-size:13px; color:var(--ecv2-g700,#374151); }
+
+/* ---- Readouts ---- */
+.ecudv2-readout-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px 16px; margin:12px 0; }
+.ecudv2-readout { display:flex; flex-direction:column; gap:2px; font-size:13px; }
+.ecudv2-readout a { text-decoration:none; }
+.ecudv2-readout-label { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--ecv2-g400,#9ca3af); font-weight:700; }
+.ecudv2-legacy-hash { color:#b45309; display:inline-flex; align-items:center; gap:4px; font-size:12px; }
+.ecudv2-legacy-hash .dashicons { font-size:14px; width:14px; height:14px; }
+
+/* ---- Password ---- */
+.ecudv2-password-fields { display:none; }
+.ecudv2-password-fields.is-open { display:block; }
+.ecudv2-password-wrap { position:relative; }
+.ecudv2-password-wrap input { padding-right:36px !important; }
+.ecudv2-password-eye {
+	position:absolute; right:6px; top:50%; transform:translateY(-50%);
+	border:0; background:none; cursor:pointer; padding:2px; color:var(--ecv2-g400,#9ca3af);
+}
+.ecudv2-password-eye:hover { color:var(--ecv2-g600,#4b5563); }
+.ecudv2-strength { height:4px; background:var(--ecv2-g100,#f3f4f6); border-radius:2px; margin-top:6px; overflow:hidden; }
+.ecudv2-strength span { display:block; height:100%; width:0; border-radius:2px; transition:width .2s ease, background .2s ease; }
+.ecudv2-strength span.is-weak { background:#ef4444; }
+.ecudv2-strength span.is-fair { background:#f59e0b; }
+.ecudv2-strength span.is-good { background:#84cc16; }
+.ecudv2-strength span.is-strong { background:#22c55e; }
+
+/* ---- Addresses ---- */
+.ecudv2-address-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.ecudv2-address-cols .ecdv2-card { margin-bottom:0; }
+.ecudv2-copy-btn { float:right; margin:-4px 0 8px 8px; }
+
+/* ---- Danger zone ---- */
+.ecudv2-danger-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.ecudv2-danger-text { display:flex; flex-direction:column; gap:2px; font-size:13px; color:var(--ecv2-g700,#374151); }
+.ecudv2-btn-danger { color:#b91c1c !important; border-color:#fecaca !important; }
+.ecudv2-btn-danger:hover { background:#fef2f2 !important; border-color:#ef4444 !important; }
+[data-ecdv2-section="danger"] .ecdv2-card-header { border-left:3px solid #ef4444; }
+
+/* ---- Hooks readout ---- */
+.ecudv2-hooks summary { cursor:pointer; font-size:12px; color:var(--ecv2-g500,#6b7280); }
+.ecudv2-hooks code { font-size:11px; background:var(--ecv2-g50,#f9fafb); padding:1px 5px; border-radius:3px; line-height:2; }
+
+/* ---- Responsive ---- */
+@media ( max-width: 960px ) {
+	.ecudv2-address-cols { grid-template-columns:1fr; }
+	.ecudv2-field-half { width:100%; }
+}

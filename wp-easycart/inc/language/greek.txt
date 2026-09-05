@@ -1083,6 +1083,119 @@
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Ισχύουν"
+				},
+				"coupon_applied":{
+					"title":"Cart, Offer Code Applied",
+					"value":"Το κουπόνι εφαρμόστηκε στο καλάθι σας!"
+				},
+				"coupon_removed":{
+					"title":"Cart, Offer Code Removed",
+					"value":"Το κουπόνι αφαιρέθηκε."
+				},
+				"coupon_remove_label":{
+					"title":"Cart, Remove Offer Code Label",
+					"value":"Αφαίρεση κουπονιού"
+				},
+				"coupon_already_applied":{
+					"title":"Cart, Offer Code Already Applied",
+					"value":"Αυτό το κουπόνι έχει ήδη εφαρμοστεί στο καλάθι σας."
+				},
+				"coupon_not_combinable":{
+					"title":"Cart, Offer Code Not Combinable",
+					"value":"Αυτό το κουπόνι δεν μπορεί να συνδυαστεί με τις άλλες εκπτώσεις σας."
+				},
+				"coupon_not_for_account":{
+					"title":"Cart, Offer Code Wrong Account",
+					"value":"Αυτό το κουπόνι έχει εκχωρηθεί σε άλλον λογαριασμό."
+				},
+				"coupon_stacking_disabled":{
+					"title":"Cart, Offer Stacking Disabled",
+					"value":"Μόνο ένα κουπόνι μπορεί να χρησιμοποιηθεί ανά παραγγελία."
+				},
+				"coupon_stacking_limit":{
+					"title":"Cart, Offer Stacking Limit",
+					"value":"Έχετε φτάσει τον μέγιστο αριθμό κουπονιών για αυτήν την παραγγελία."
+				},
+				"free_gift_out_of_stock":{
+					"title":"Cart, Free Gift Out of Stock",
+					"value":"Λυπούμαστε, το δωρεάν δώρο αυτής της προσφοράς έχει εξαντληθεί."
+				},
+				"bundle_added":{
+					"title":"Cart, Bundle Added",
+					"value":"Το πακέτο προστέθηκε στο καλάθι σας!"
+				},
+				"bundle_not_found":{
+					"title":"Cart, Bundle Not Found",
+					"value":"Αυτό το πακέτο δεν είναι διαθέσιμο αυτήν τη στιγμή."
+				},
+				"bundle_selection_required":{
+					"title":"Cart, Bundle Selection Required",
+					"value":"Παρακαλούμε κάντε τις επιλογές σας για κάθε προϊόν του πακέτου."
+				},
+				"bundle_component_out_of_stock":{
+					"title":"Cart, Bundle Component Out of Stock",
+					"value":"Ένα από τα προϊόντα αυτού του πακέτου έχει εξαντληθεί."
+				},
+				"bundle_out_of_stock":{
+					"title":"Cart, Bundle Out of Stock",
+					"value":"Αυτό το πακέτο έχει εξαντληθεί."
+				},
+				"bundle_mode_requires_component_lines":{
+					"title":"Cart, Bundle Mode Error",
+					"value":"Αυτό το πακέτο δεν έχει ρυθμιστεί σωστά. Παρακαλούμε επικοινωνήστε με το κατάστημα."
+				}
+			}
+		},
+		"cart_offers":{
+			"label":"Cart and Product Offer Displays",
+			"options":{
+				"gift_line_label":{
+					"title":"Cart, Free Gift Line Tag",
+					"value":"ΔΩΡΕΑΝ ΔΩΡΟ"
+				},
+				"bundle_line_label":{
+					"title":"Cart, Bundle Line Tag",
+					"value":"Προϊόν πακέτου"
+				},
+				"gift_chooser_title":{
+					"title":"Cart, Gift Chooser Title",
+					"value":"Επιλέξτε το δωρεάν δώρο σας"
+				},
+				"gift_claim_button":{
+					"title":"Cart, Gift Claim Button",
+					"value":"Επιλογή δώρου"
+				},
+				"gift_free_label":{
+					"title":"Cart, Gift Free Label",
+					"value":"ΔΩΡΕΑΝ"
+				},
+				"offer_badge_default":{
+					"title":"Product, Offer Badge Default",
+					"value":"ΠΡΟΣΦΟΡΑ"
+				},
+				"offer_applied_label":{
+					"title":"Cart, Offer Applied Label",
+					"value":"Εφαρμόστηκε"
+				},
+				"countdown_ends_in":{
+					"title":"Product, Offer Countdown Label",
+					"value":"Λήγει σε"
+				},
+				"progress_spend_message":{
+					"title":"Cart, Offer Progress Spend Message",
+					"value":"Προσθέστε [amount] ακόμη για να κερδίσετε: [label]"
+				},
+				"progress_quantity_message":{
+					"title":"Cart, Offer Progress Quantity Message",
+					"value":"Προσθέστε [quantity] ακόμη προϊόν(τα) για να κερδίσετε: [label]"
+				},
+				"bundle_includes_title":{
+					"title":"Product, Bundle Includes Title",
+					"value":"Αυτό το πακέτο περιλαμβάνει"
+				},
+				"bundle_save_label":{
+					"title":"Product, Bundle Save Label",
+					"value":"Εξοικονομήστε"
 				}
 			}
 		},

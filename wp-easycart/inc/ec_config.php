@@ -5,6 +5,12 @@ if( get_option( 'ec_option_amazon_bucket' ) != "" && version_compare( phpversion
 
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/wpeasycart_session.php' );
 
+ 
+// Verified post ownership layer for ec_store posts. Loaded unconditionally and
+// instantiated immediately so the before_delete_post safety hook is always armed.
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-post-sync.php' );
+wp_easycart_post_sync();
+
 add_action( 'wp', 'wp_easycart_maybe_convert_language' );
 function wp_easycart_maybe_convert_language() {
 	if ( isset( $_POST['ec_language_conversion'] ) ) {
@@ -47,6 +53,7 @@ function wp_easycart_maybe_change_currency() {
 }
 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_api_routes.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-cart-link.php' );
 
 add_action( 'plugins_loaded', 'wp_easycart_maybe_load_elementor' );
 function wp_easycart_maybe_load_elementor( ){
@@ -391,6 +398,7 @@ if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/tax/ec_taxjar.php' ) ){
 	include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/tax/ec_taxjar.php' );
 }
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user_activity.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_validation.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoption.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoptionset.php' );

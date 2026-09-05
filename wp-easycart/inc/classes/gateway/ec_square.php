@@ -1139,7 +1139,7 @@ class ec_square extends ec_gateway{
 		$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_optionitem_images = %d WHERE product_id = %d', $optionitem_images_enabled, $product_id ) );
 	}
 
-	function update_option( $object, $option, $sync ){
+	function update_option( $object, $option, $sync ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_option SET option_name = %s, option_label = %s WHERE option_id = %d", $object->modifier_list_data->name . " Modifier", $object->modifier_list_data->name, $option->option_id ) );
 		foreach( $object->modifier_list_data->modifiers as $modifier ){
@@ -1148,7 +1148,7 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'option-updated' );
 	}
 
-	function update_basic_option( $object, $option, $sync ){
+	function update_basic_option( $object, $option, $sync ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_option SET option_name = %s, option_label = %s WHERE option_id = %d", $object->item_option_data->name . " Option", $object->item_option_data->name, $option->option_id ) );
 		foreach( $object->item_option_data->values as $item_option ){
@@ -1157,7 +1157,7 @@ class ec_square extends ec_gateway{
 		return $option->option_id;
 	}
 
-	function update_basic_option_variations( $object, $option, $sync ){
+	function update_basic_option_variations( $object, $option, $sync ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_option SET option_name = %s, option_label = %s WHERE option_id = %d", $object->item_data->name . " Option", $object->item_data->name, $option->option_id ) );
 
@@ -1191,7 +1191,7 @@ class ec_square extends ec_gateway{
 		
 	}
 
-	function insert_option_item( $object, $option_id, $sync = true, $skip_existing = false ){
+	function insert_option_item( $object, $option_id, $sync = true, $skip_existing = false ) {
 		if( $this->allowed_at_location( $object ) && !$object->is_deleted ){
 			global $wpdb;
 			if( $sync || $skip_existing ){
@@ -1212,8 +1212,8 @@ class ec_square extends ec_gateway{
 			return array( 'success' => 'optionitem-inserted' );
 		}
 	}
-	
-	function insert_basic_option_item( $object, $option_id, $sync = true ){
+
+	function insert_basic_option_item( $object, $option_id, $sync = true ) {
 		global $wpdb;
 		if( $sync ){
 			$optionitem = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_optionitem WHERE square_id = %s", $object->id ) );
@@ -1230,7 +1230,7 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'optionitem-inserted' );
 	}
 
-	function update_option_item( $object, $optionitem ){
+	function update_option_item( $object, $optionitem ) {
 		global $wpdb;
 		$optionitem_name = $object->modifier_data->name;
 		$optionitem_price = ( isset( $object->modifier_data->price_money ) ) ? $object->modifier_data->price_money->amount : 0;
@@ -1240,7 +1240,7 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'optionitem-updated' );
 	}
 
-	function update_basic_option_item( $object, $optionitem ){
+	function update_basic_option_item( $object, $optionitem ) {
 		global $wpdb;
 		$optionitem_name = $object->item_option_value_data->name;
 		$optionitem_price = 0;
@@ -1250,8 +1250,8 @@ class ec_square extends ec_gateway{
 		return array( 'success' => 'optionitem-updated' );
 	}
 
-	function insert_category( $object, $sync = true, $skip_existing = false ){
-		if( $this->allowed_at_location( $object ) && !$object->is_deleted ){
+	function insert_category( $object, $sync = true, $skip_existing = false ) {
+		if ( $this->allowed_at_location( $object ) && !$object->is_deleted ) {
 			global $wpdb;
 
 			$featured_category = 1;
@@ -1275,15 +1275,13 @@ class ec_square extends ec_gateway{
 			$wpdb->query( $wpdb->prepare( "INSERT INTO ec_category( featured_category, category_name, parent_id, image, short_description, priority, square_id ) VALUES( %d, %s, %d, %s, %s, %d, %s )", $featured_category, $category_name, $parent_id, $image, $short_description, $priority, $square_id ) );
 			$category_id = $wpdb->insert_id;
 
-			$post = array(	
-				'post_content'	=> "[ec_store groupid=\"" . $category_id . "\"]",
-				'post_status'	=> "publish",
-				'post_title'	=> wp_easycart_language( )->convert_text( $category_name ),
-				'post_type'		=> "ec_store"
+			$post = array(
+				'post_content' => "[ec_store groupid=\"" . $category_id . "\"]",
+				'post_status' => 'publish',
+				'post_title' => wp_easycart_language( )->convert_text( $category_name ),
+				'post_type' => 'ec_store',
 			);
-			$post_id = wp_insert_post( $post );
-			$wpdb->query( $wpdb->prepare( "UPDATE ec_category SET post_id = %d WHERE category_id = %d", $post_id, $category_id ) );
-
+			wp_easycart_post_sync()->insert( 'category', $category_id, $post );
 			return array( 'success' => 'category-inserted' );
 		}
 	}
@@ -1302,13 +1300,12 @@ class ec_square extends ec_gateway{
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_category SET category_name = %s WHERE square_id = %s", $category_name, $square_id ) );
 
 		$post = array(
-			'ID'            => $category->post_id,
-			'post_content'	=> "[ec_store groupid=\"" . $category->category_id . "\"]",
-			'post_status'	=> "publish",
-			'post_title'	=> wp_easycart_language( )->convert_text( $category_name ),
-			'post_type'		=> "ec_store"
+			'post_content' => "[ec_store groupid=\"" . $category->category_id . "\"]",
+			'post_status' => 'publish',
+			'post_title' => wp_easycart_language( )->convert_text( $category_name ),
+			'post_type' => 'ec_store',
 		);
-		wp_update_post( $post );
+		wp_easycart_post_sync()->update( 'category', $category->category_id, $category->post_id, $post );
 
 		return array( 'success' => 'category-updated' );
 	}

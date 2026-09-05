@@ -217,18 +217,20 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			// Health dashboard.
 			$this->compute_health_data();
 			$health_stats = array(
-				array( 'label' => __( 'Total', 'wp-easycart' ), 'value' => $this->health_data['total'], 'filter_value' => '', 'color' => 'default' ),
-				array( 'label' => __( 'Active', 'wp-easycart' ), 'value' => $this->health_data['active'], 'filter_value' => 'active', 'color' => 'green' ),
-				array( 'label' => __( 'Inactive', 'wp-easycart' ), 'value' => $this->health_data['inactive'], 'filter_value' => 'inactive', 'color' => 'gray' ),
-				array( 'label' => __( 'Out of Stock', 'wp-easycart' ), 'value' => $this->health_data['out_of_stock'], 'filter_value' => 'out_of_stock', 'color' => 'red' ),
-				array( 'label' => __( 'Low Stock', 'wp-easycart' ), 'value' => $this->health_data['low_stock'], 'filter_value' => 'low_stock', 'color' => 'amber' ),
-				array( 'label' => __( 'No Image', 'wp-easycart' ), 'value' => $this->health_data['no_image'], 'filter_value' => 'no_image', 'color' => 'amber' ),
-				array( 'label' => __( '$0 Price', 'wp-easycart' ), 'value' => $this->health_data['zero_price'], 'filter_value' => 'zero_price', 'color' => 'amber' ),
-				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber' ),
-				array( 'label' => __( 'On Sale', 'wp-easycart' ), 'value' => $this->health_data['on_sale'], 'filter_value' => 'on_sale', 'color' => 'cyan' ),
+				array( 'label' => __( 'All', 'wp-easycart' ), 'value' => $this->health_data['total'], 'filter_value' => '', 'color' => 'default', 'group' => 'catalog' ),
+				array( 'label' => __( 'Active', 'wp-easycart' ), 'value' => $this->health_data['active'], 'filter_value' => 'active', 'color' => 'green', 'group' => 'catalog' ),
+				array( 'label' => __( 'Inactive', 'wp-easycart' ), 'value' => $this->health_data['inactive'], 'filter_value' => 'inactive', 'color' => 'gray', 'group' => 'catalog' ),
+				array( 'label' => __( 'On sale', 'wp-easycart' ), 'value' => $this->health_data['on_sale'], 'filter_value' => 'on_sale', 'color' => 'cyan', 'group' => 'catalog' ),
+				array( 'label' => __( 'Out of stock', 'wp-easycart' ), 'value' => $this->health_data['out_of_stock'], 'filter_value' => 'out_of_stock', 'color' => 'red', 'group' => 'attention' ),
+				array( 'label' => __( 'Low stock', 'wp-easycart' ), 'value' => $this->health_data['low_stock'], 'filter_value' => 'low_stock', 'color' => 'amber', 'group' => 'attention' ),
+				array( 'label' => __( 'No image', 'wp-easycart' ), 'value' => $this->health_data['no_image'], 'filter_value' => 'no_image', 'color' => 'amber', 'group' => 'attention' ),
+				array( 'label' => __( '$0 price', 'wp-easycart' ), 'value' => $this->health_data['zero_price'], 'filter_value' => 'zero_price', 'color' => 'amber', 'group' => 'attention' ),
+				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber', 'group' => 'attention' ),
 			);
 			if ( $this->health_data['square_synced'] > 0 ) {
-				$health_stats[] = array( 'label' => __( 'Square Synced', 'wp-easycart' ), 'value' => $this->health_data['square_synced'], 'filter_value' => 'square_synced', 'color' => 'default' );
+				array_splice( $health_stats, 4, 0, array(
+					array( 'label' => __( 'Square synced', 'wp-easycart' ), 'value' => $this->health_data['square_synced'], 'filter_value' => 'square_synced', 'color' => 'blue', 'group' => 'catalog' ),
+				) );
 			}
 			$this->set_health_stats( $health_stats );
 		}
@@ -434,6 +436,34 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				return false;
 			}
 			return true;
+		}
+
+		/**
+		 * Render a single list row for one product, using the exact SELECT and
+		 * cell renderers the table uses. Used by the quick-edit slideout to swap
+		 * the saved row in place so every badge and toggle matches the database.
+		 *
+		 * @param int $product_id Product to render.
+		 * @return string <tr>…</tr> or '' when the product is missing.
+		 */
+		public function get_row_html( $product_id ) {
+			$product_id = (int) $product_id;
+			if ( $product_id <= 0 ) {
+				return '';
+			}
+			if ( empty( $this->list_columns ) ) {
+				$this->setup();
+			}
+			$this->set_custom_where( ' AND ec_product.product_id = ' . $product_id );
+			$this->current_page = 1;
+			$this->perpage      = 1;
+			$result = $this->wpdb->get_row( $this->get_query() );
+			if ( ! $result ) {
+				return '';
+			}
+			ob_start();
+			$this->print_table_row( $result );
+			return ob_get_clean();
 		}
 
 		/**
@@ -744,7 +774,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			// Snapshot of every advanced-pricing field for one-shot slideout hydration.
 			// Picked up in JS via JSON.parse( $cell.attr('data-advanced') ).
 			$advanced_payload = array(
-				'product_name'                 => isset( $result->title ) ? (string) $result->title : '',
+				'product_name'                 => isset( $result->title ) ? wp_unslash( (string) $result->title ) : '',
 				'show_custom_price_range'      => ( ! empty( $result->show_custom_price_range ) && (int) $result->show_custom_price_range === 1 ) ? 1 : 0,
 				'price_range_low'              => ( isset( $result->price_range_low ) && (float) $result->price_range_low > 0 ) ? number_format( (float) $result->price_range_low, 2, '.', '' ) : '',
 				'price_range_high'             => ( isset( $result->price_range_high ) && (float) $result->price_range_high > 0 ) ? number_format( (float) $result->price_range_high, 2, '.', '' ) : '',
@@ -757,6 +787,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				'tier_count'                   => isset( $result->tier_count ) ? (int) $result->tier_count : 0,
 				'roleprice_count'              => isset( $result->roleprice_count ) ? (int) $result->roleprice_count : 0,
 				'use_optionitem_quantity_tracking' => ( ! empty( $result->use_optionitem_quantity_tracking ) && (int) $result->use_optionitem_quantity_tracking === 1 ) ? 1 : 0,
+
 			);
 
 			echo '<div class="ecv2-price-cell" data-product-id="' . esc_attr( $product_id ) . '" data-nonce="' . esc_attr( $nonce ) . '" data-volume-nonce="' . esc_attr( $volume_nonce ) . '" data-b2b-nonce="' . esc_attr( $b2b_nonce ) . '" data-price="' . esc_attr( (float) $result->price ) . '" data-list-price="' . esc_attr( (float) $result->list_price ) . '" data-has-variant-pricing="' . esc_attr( $has_variant_pricing ? 1 : 0 ) . '" data-advanced="' . esc_attr( wp_json_encode( $advanced_payload ) ) . '">';
@@ -1118,6 +1149,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			echo '<div class="ecv2-stock-menu">';
 
 			// Inline edit for basic tracking.
+
 			if ( $tracking_type === 'basic' ) {
 				echo '<div class="ecv2-stock-menu-section">';
 				echo '<label class="ecv2-stock-menu-label">' . esc_html__( 'Stock Quantity', 'wp-easycart' ) . '</label>';
@@ -1959,7 +1991,7 @@ function ecv2_product_bulk_delete() {
 		do_action( 'wpeasycart_product_deleting', $pid );
 
 		if ( $post_id ) {
-			wp_delete_post( (int) $post_id, true );
+			wp_easycart_post_sync()->delete( 'product', $pid, (int) $post_id );
 		}
 
 		$ok = true;
@@ -2149,7 +2181,7 @@ function ecv2_product_get_sale_data() {
 
 	wp_send_json_success( array(
 		'product_id'      => $product->product_id,
-		'title'           => $product->title,
+		'title'           => wp_unslash( $product->title ),
 		'price'           => $product->price,
 		'price_formatted' => $GLOBALS['currency']->get_currency_display( $product->price ),
 		'list_price'      => $product->list_price,
@@ -2665,7 +2697,7 @@ function ecv2_get_product_images() {
 
 	$response = array(
 		'product_id'              => $product_id,
-		'title'                   => html_entity_decode( $product->title, ENT_QUOTES, 'UTF-8' ),
+		'title'                   => html_entity_decode( wp_unslash( $product->title ), ENT_QUOTES, 'UTF-8' ),
 		'use_optionitem_images'   => (int) $product->use_optionitem_images,
 		'use_advanced_optionset'  => (int) $product->use_advanced_optionset,
 		'has_basic_options'       => $has_basic_options,

@@ -170,6 +170,11 @@ class ec_cartitem {
 
 	public $promotions;
 
+	public $bundle_group_key;
+	public $bundle_product_id;
+	public $free_gift_offer_id;
+	public $is_bundle_discounted;
+
 	public $store_page;
 	public $cart_page;
 	public $permalink_divider;
@@ -195,6 +200,12 @@ class ec_cartitem {
 		$this->manufacturer_name = $cartitem_data->manufacturer_name;
 
 		$this->advanced_options = $GLOBALS['ec_cart_data']->get_advanced_cart_options( $this->cartitem_id );
+
+		// Offers v2 line attributes (columns exist in core schema; harmless when PRO absent).
+		$this->bundle_group_key = ( isset( $cartitem_data->bundle_group_key ) ) ? $cartitem_data->bundle_group_key : '';
+		$this->bundle_product_id = ( isset( $cartitem_data->bundle_product_id ) ) ? (int) $cartitem_data->bundle_product_id : 0;
+		$this->free_gift_offer_id = ( isset( $cartitem_data->free_gift_offer_id ) ) ? (int) $cartitem_data->free_gift_offer_id : 0;
+		$this->is_bundle_discounted = false;
 
 		$this->quantity = $cartitem_data->quantity;
 		$this->show_stock_quantity = $cartitem_data->show_stock_quantity;
@@ -695,6 +706,22 @@ class ec_cartitem {
 
 		$this->gift_card_value = $this->unit_price;
 
+		// Offers v2 pricing overrides (guarded; rows never exist without PRO
+		if ( wp_easycart_offers_active() ) {
+			if ( $this->free_gift_offer_id > 0 ) {
+				$this->unit_price = 0; // free gift lines are always 0.00
+			}
+			if ( '' != $this->bundle_group_key && $this->bundle_product_id > 0 && $this->bundle_product_id != $this->product_id ) {
+				global $wpdb;
+				$ec_offer_per_set = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ec_product_bundle_item.quantity FROM ec_product_bundle_item INNER JOIN ec_product_bundle ON ec_product_bundle.product_bundle_id = ec_product_bundle_item.product_bundle_id WHERE ec_product_bundle.product_id = %d AND ec_product_bundle_item.component_product_id = %d', $this->bundle_product_id, $this->product_id ) );
+				$this->unit_price = ec_offer_integration::get_bundle_component_price( $this->bundle_product_id, $this->product_id, $this->unit_price, max( 1, $ec_offer_per_set ) );
+				$this->is_bundle_discounted = ec_offer_integration::is_bundle_discounted( $this->bundle_product_id );
+			}
+			if ( '' != $this->bundle_group_key && $this->bundle_product_id == $this->product_id ) {
+				$this->is_bundle_discounted = ec_offer_integration::is_bundle_discounted( $this->bundle_product_id );
+			}
+		}
+
 		$this->total_price = ( $this->unit_price * $this->quantity ) + $this->options_price_onetime + $this->grid_price_change;
 		$this->total_price = apply_filters( 'wp_easycart_cart_item_total_price', $this->total_price, $this->cartitem_id, $this->product_id );
 		$this->converted_total_price = ( $GLOBALS['currency']->convert_price( $this->unit_price ) * $this->quantity ) + $GLOBALS['currency']->convert_price( $this->options_price_onetime ) + $GLOBALS['currency']->convert_price( $this->grid_price_change );
@@ -743,12 +770,18 @@ class ec_cartitem {
 			$this->permalink_divider = '?';
 		}
 
-		$promotion = new ec_promotion();
-		$this->promotion_price = $promotion->single_product_promotion( $this->product_id, $this->manufacturer_id, $this->unit_price, $this->promotion_text );
-		if ( ! $this->is_subscription_item ) {
-			if ( $this->promotion_price < $this->unit_price ) {
-				$this->promotion_discount_total = $this->unit_price - $this->promotion_price;
-				$this->promotion_discount_line_total = round( $this->promotion_discount_total * $this->quantity, 2 );
+		// Offers v2: gift/bundle lines are already priced by the offer system
+		// and must not receive v1 promotion pricing on top.
+		if ( wp_easycart_offers_active() && ( $this->free_gift_offer_id > 0 || '' != $this->bundle_group_key ) ) {
+			$this->promotion_price = $this->unit_price;
+		} else {
+			$promotion = new ec_promotion();
+			$this->promotion_price = $promotion->single_product_promotion( $this->product_id, $this->manufacturer_id, $this->unit_price, $this->promotion_text );
+			if ( ! $this->is_subscription_item ) {
+				if ( $this->promotion_price < $this->unit_price ) {
+					$this->promotion_discount_total = $this->unit_price - $this->promotion_price;
+					$this->promotion_discount_line_total = round( $this->promotion_discount_total * $this->quantity, 2 );
+				}
 			}
 		}
 	}

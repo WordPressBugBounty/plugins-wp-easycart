@@ -180,6 +180,18 @@ class wpeasycart_session {
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart_data SET session_id = %s WHERE session_id = %s", $new_id, $old_id ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart_optionitem SET session_id = %s WHERE session_id = %s", $new_id, $old_id ) );
 
+		/* Offers v2: applied coupon codes live in ec_tempcart_offer, keyed by
+		 * session id like the rows above. Not migrating them orphaned every
+		 * applied code the moment a shopper logged in or out at checkout —
+		 * the cart survived the rotation but the coupons silently vanished.
+		 * The table only exists on offers-schema cores; guard accordingly. */
+		if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_tempcart_offer SET session_id = %s WHERE session_id = %s", $new_id, $old_id ) );
+			if ( class_exists( 'ec_offer_integration' ) ) {
+				ec_offer_integration::reset(); // any memoized evaluation predates the rotation
+			}
+		}
+
 		$GLOBALS['ec_cart_id'] = $new_id;
 		$this->set_cart_cookie( $new_id );
 

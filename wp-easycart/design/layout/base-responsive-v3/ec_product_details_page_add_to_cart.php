@@ -1,3 +1,7 @@
+<?php if ( wp_easycart_offers_active() && isset( $product->is_bundle ) && $product->is_bundle ) {
+	wp_easycart_offers_template( 'ec_product_bundle_page.php', array( 'bundle_product' => $product ) );
+	return;
+} ?>
 <?php $wpeasycart_addtocart_shortcode_rand = rand( 111111,9999999 );
 $rules = array();
 foreach ( $product->advanced_optionsets as $advanced_option ) {

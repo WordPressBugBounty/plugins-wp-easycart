@@ -532,6 +532,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				( isset( $this->atts['list_price_color'] ) ) ? $this->atts['list_price_color'] : false
 			); ?><?php if ( $this->product->replace_price_label && in_array( $this->product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
 					<span class="ec_product_price"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span>
+				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price ) ) ) { ?>
+					<span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?></span>
+					<span class="ec_offer_price_preview"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_offer_price_preview ) ); ?></span>
 				<?php } else {
 					$this->product->display_price( 
 						( isset( $this->atts['price_font'] ) ) ? $this->atts['price_font'] : false,
@@ -542,6 +545,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				?><span class="ec_details_price_label"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span><?php
 			} ?></div>
 			<?php }?>
+			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price ) ); ?>
 			<div class="ec_details_clear"></div>
 		</div>
 		<?php /* END MOBILE SIZED CONTENT REGION */ ?>
@@ -1573,6 +1577,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				( isset( $this->atts['list_price_color'] ) ) ? $this->atts['list_price_color'] : false
 			); ?><?php if ( $this->product->replace_price_label && in_array( $this->product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
 					<span class="ec_product_price"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span>
+				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price ) ) ) { ?>
+					<span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?></span>
+					<span class="ec_offer_price_preview"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_offer_price_preview ) ); ?></span>
 				<?php } else {
 					$this->product->display_price( 
 						( isset( $this->atts['price_font'] ) ) ? $this->atts['price_font'] : false,
@@ -1586,6 +1593,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->product->promotion_discount_total > 0 ) { ?>
 				<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> <?php $this->product->display_promotion_text(); ?></span><span class="ec_details_price_promo_discount_minus"> -</span><span class="ec_details_price_promo_discount_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->promotion_discount_total ) ); ?></span></div>
 			<?php }?>
+			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price ) ); ?>
 			<?php }?>
 			<?php if( ( isset( $this->atts['show_customer_reviews'] ) && $this->atts['show_customer_reviews'] ) || ( ! isset( $this->atts['show_customer_reviews'] ) && $this->product->use_customer_reviews ) ){ ?>
 			<div class="ec_details_rating">

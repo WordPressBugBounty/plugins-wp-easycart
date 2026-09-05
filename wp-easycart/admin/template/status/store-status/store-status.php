@@ -1,19 +1,23 @@
-<div class="ec_admin_list_line_item_fullwidth ec_admin_demo_data_line">
+<?php
+/**
+ * Diagnostics ( Store & Server Status ) — V2.
+ *
+ * Every check below is unchanged; the legacy .ec_status_* rows are captured,
+ * counted for the summary, and restyled ( admin-v2.css ). Sections become
+ * cards; passes collapse behind the summary so problems are what you see.
+ */
 
-	<?php wp_easycart_admin( )->preloader->print_preloader( "ec_admin_store_status_loader" ); 
-		global $wpdb;
-		$status = new wp_easycart_admin_store_status();
-	?>
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	<div class="ec_admin_settings_label">
-		<div class="dashicons-before dashicons-admin-generic"></div>
-		<span><?php esc_attr_e( 'Store & Server Status', 'wp-easycart' ); ?></span>
-		<a href="<?php echo esc_url_raw( wp_easycart_admin( )->helpsystem->print_docs_url( 'settings', 'store-status', 'settings' ) );?>" target="_blank" class="ec_help_icon_link">
-			<div class="dashicons-before ec_help_icon dashicons-info"></div> <?php esc_attr_e( 'Help', 'wp-easycart' ); ?>
-		</a>
-		<?php wp_easycart_admin( )->helpsystem->print_vids_url('settings', 'store-status', 'settings');?>
-	</div>
+wp_easycart_admin()->preloader->print_preloader( 'ec_admin_store_status_loader' );
+global $wpdb;
+$status = new wp_easycart_admin_store_status();
+$ecds_is_free = ( '' !== apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) );
 
+ob_start();
+?>
 	<div class="ec_admin_settings_input ec_admin_settings_live_payment_section">
 		<?php
 		///////////////////////////////////////////////
@@ -596,4 +600,70 @@
 		} ?>
 
 	</div>
+<?php
+$ecds_html = ob_get_clean();
+$ecds_pass = substr_count( $ecds_html, 'class="ec_status_success"' ) + substr_count( $ecds_html, "class='ec_status_success'" ) + substr_count( $ecds_html, 'class="ec_status_subs ec_status_success"' );
+$ecds_fail = substr_count( $ecds_html, 'class="ec_status_error"' ) + substr_count( $ecds_html, "class='ec_status_error'" );
+$ecds_warn = substr_count( $ecds_html, 'dashicons-before dashicons-warning' );
+$ecds_ok   = ( 0 === $ecds_fail );
+?>
+<div class="ecv2-wrap ecds">
+
+	<div class="ecv2-page-header">
+		<div class="ecv2-page-header-left">
+			<span class="dashicons dashicons-admin-generic ecv2-page-header-icon"></span>
+			<h2 class="ecv2-page-title"><?php esc_html_e( 'Diagnostics', 'wp-easycart' ); ?></h2>
+		</div>
+		<div class="ecv2-page-header-right">
+			<a href="<?php echo esc_url_raw( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'store-status', 'settings' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecds_toggle_passed" onclick="ecds_toggle_passed();"><?php esc_html_e( 'Show passed checks', 'wp-easycart' ); ?></button>
+		</div>
+	</div>
+
+	<div class="ecds-summary <?php echo $ecds_ok ? ( $ecds_warn ? 'is-warn' : 'is-ok' ) : 'is-bad'; ?>">
+		<span class="ecds-summary-icon"><span class="dashicons <?php echo $ecds_ok ? ( $ecds_warn ? 'dashicons-warning' : 'dashicons-yes' ) : 'dashicons-no'; ?>"></span></span>
+		<div class="ecds-summary-text">
+			<strong><?php
+			if ( ! $ecds_ok ) { echo esc_html( sprintf( _n( '%d problem needs attention', '%d problems need attention', $ecds_fail, 'wp-easycart' ), $ecds_fail ) ); }
+			elseif ( $ecds_warn ) { echo esc_html( sprintf( _n( 'Everything works, with %d server warning', 'Everything works, with %d server warnings', $ecds_warn, 'wp-easycart' ), $ecds_warn ) ); }
+			else { esc_html_e( 'Everything checks out', 'wp-easycart' ); }
+			?></strong>
+			<span><?php echo esc_html( sprintf( __( '%1$d checks passed · %2$d warnings · %3$d problems. Checked just now.', 'wp-easycart' ), $ecds_pass, $ecds_warn, $ecds_fail ) ); ?></span>
+		</div>
+		<span class="ecds-summary-counts">
+			<span class="ecds-count is-ok"><?php echo (int) $ecds_pass; ?></span>
+			<span class="ecds-count is-warn"><?php echo (int) $ecds_warn; ?></span>
+			<span class="ecds-count is-bad"><?php echo (int) $ecds_fail; ?></span>
+		</span>
+	</div>
+
+	<div class="ecds-body<?php echo $ecds_ok && ! $ecds_warn ? '' : ' hide-passed'; ?>" id="ecds_body">
+		<?php echo $ecds_html; // Check markup rendered above; strings are escaped at their source. ?>
+	</div>
+
+	<?php if ( $ecds_is_free && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+	<div class="ecds-upsell">
+		<?php wp_easycart_admin_upsell::print_feature_strip( 'default' ); ?>
+	</div>
+	<?php endif; ?>
+
 </div>
+<script>
+function ecds_toggle_passed() {
+	var body = document.getElementById( 'ecds_body' ), btn = document.getElementById( 'ecds_toggle_passed' );
+	body.classList.toggle( 'hide-passed' );
+	btn.textContent = body.classList.contains( 'hide-passed' ) ? <?php echo wp_json_encode( __( 'Show passed checks', 'wp-easycart' ) ); ?> : <?php echo wp_json_encode( __( 'Hide passed checks', 'wp-easycart' ) ); ?>;
+}
+jQuery( function() {
+	var body = document.getElementById( 'ecds_body' ), btn = document.getElementById( 'ecds_toggle_passed' );
+	if ( body && ! body.classList.contains( 'hide-passed' ) ) { btn.textContent = <?php echo wp_json_encode( __( 'Hide passed checks', 'wp-easycart' ) ); ?>; }
+	/* Sections: wrap each .ec_status_header and the rows that follow it into a card. */
+	jQuery( '#ecds_body .ec_status_header' ).each( function() {
+		var $h = jQuery( this ), $card = jQuery( '<div class="ecds-card">' ), $rows = $h.nextUntil( '.ec_status_header' );
+		$h.before( $card ); $card.append( $h ).append( $rows );
+		var fails = $card.find( '.ec_status_error' ).length, warns = $card.find( '.dashicons-warning' ).length;
+		$card.toggleClass( 'is-bad', fails > 0 ).toggleClass( 'is-warn', fails === 0 && warns > 0 );
+		$h.append( '<span class="ecds-card-badge">' + ( fails ? fails + ' ' + <?php echo wp_json_encode( __( 'to fix', 'wp-easycart' ) ); ?> : ( warns ? warns + ' ' + <?php echo wp_json_encode( __( 'warnings', 'wp-easycart' ) ); ?> : <?php echo wp_json_encode( __( 'OK', 'wp-easycart' ) ); ?> ) ) + '</span>' );
+	} );
+} );
+</script>

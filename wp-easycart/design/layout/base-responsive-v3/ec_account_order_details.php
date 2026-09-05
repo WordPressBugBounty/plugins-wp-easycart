@@ -236,6 +236,14 @@
 			<?php if ( $this->order->tax_total > 0 ) {?>
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_tax_total' )?></strong> <?php $this->order->display_tax_total( ); ?></div>
 			<?php } ?>
+			<?php
+			$ec_account_offers = ( isset( $this->order->applied_offers ) && '' != $this->order->applied_offers ) ? json_decode( (string) $this->order->applied_offers, true ) : false;
+			if ( is_array( $ec_account_offers ) && isset( $ec_account_offers['applied_offers'] ) ) {
+				foreach ( $ec_account_offers['applied_offers'] as $ec_account_offer ) {
+					if ( $ec_account_offer['amount'] <= 0 ) { continue; }
+			?>
+			<div class="ec_cart_input_row ec_offer_totals_row"><strong><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_account_offer['label'] ); ?><?php if ( '' != $ec_account_offer['code'] ) { echo ' (' . esc_attr( $ec_account_offer['code'] ) . ')'; } ?></strong> -<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_account_offer['amount'] ) ); ?></div>
+			<?php } } ?>
 			<?php if ( $this->order->discount_total != 0 && apply_filters( 'wp_easycart_order_details_discount_display', true, $this->order ) ) { ?>
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_discount_total' )?></strong> -<?php $this->order->display_discount_total(); ?></div>
 			<?php } ?>

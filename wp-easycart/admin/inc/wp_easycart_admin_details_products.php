@@ -1187,6 +1187,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "login_for_pricing_user_level",
 				"type"				=> "select",
 				"label"				=> __( "Restrict to User Role", 'wp-easycart' ),
+				"message"		=> __( "Only shoppers signed in with the selected role can see pricing and purchase — useful for wholesale or members-only catalogs.", 'wp-easycart' ),
 				"data"				=> $user_roles,
 				"data_label"		=> __( "Show to All User Levels", 'wp-easycart' ),
 				"default_value"		=> '',
@@ -1449,7 +1450,8 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 
 	public function featured_products_fields() {
 		global $wpdb;
-		$products = $wpdb->get_results( "SELECT ec_product.product_id AS id, ec_product.title AS value FROM ec_product ORDER BY title ASC" );
+		$featured_ids = array_filter( array_map( 'intval', array( $this->product->featured_product_id_1, $this->product->featured_product_id_2, $this->product->featured_product_id_3, $this->product->featured_product_id_4 ) ) );
+		$products = $featured_ids ? $wpdb->get_results( 'SELECT product_id AS id, title AS value, ( activate_in_store = 0 ) AS inactive FROM ec_product WHERE product_id IN ( ' . implode( ',', $featured_ids ) . ' ) ORDER BY title ASC' ) : array();
 		$fields = apply_filters( 'wp_easycart_admin_product_details_featured_products_fields_list', array(
 			array(
 				"name"				=> "featured_product_id_1",
@@ -1540,6 +1542,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_donation",
 				"type"				=> "checkbox",
 				"label"				=> __( "Donation/Invoice Product", 'wp-easycart' ),
+				"description"		=> __( "The customer types in the amount to pay — great for donations or letting someone pay an invoice. Your set price is ignored.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"onclick"			=> 'show_pro_required',
@@ -1551,6 +1554,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_giftcard",
 				"type"				=> "checkbox",
 				"label"				=> __( "Gift Card Product", 'wp-easycart' ),
+				"description"		=> __( "Sells a store gift card. A unique card code is generated and emailed to the buyer, ready to spend at checkout.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1562,6 +1566,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "inquiry_mode",
 				"type"				=> "checkbox",
 				"label"				=> __( "Inquiry Mode", 'wp-easycart' ),
+				"description"		=> __( "Swaps Add to Cart for a contact button — for quote-based or made-to-order items. Point it at your contact page below.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1587,6 +1592,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "catalog_mode",
 				"type"				=> "checkbox",
 				"label"				=> __( "Seasonal Mode", 'wp-easycart' ),
+				"description"		=> __( "Keeps the product on display but not purchasable. Shoppers see your phrase (e.g. “Coming in November”) instead of Add to Cart.", 'wp-easycart' ),
 				"required" 			=> false,
 				"show"				=> array(
 					"name"			=> "catalog_mode_phrase",
@@ -1602,6 +1608,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "catalog_mode_phrase",
 				"type"				=> "text",
 				"label"				=> __( "Seasonal Phrase", 'wp-easycart' ),
+				"message"		=> __( "Shown on the product page in place of the Add to Cart button.", 'wp-easycart' ),
 				"required" 			=> false,
 				"requires"			=> array(
 					"name"			=> "catalog_mode",
@@ -1616,6 +1623,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_preorder_type",
 				"type"				=> "checkbox",
 				"label"				=> __( "Enable Preorder for Pickup", 'wp-easycart' ),
+				"description"		=> __( "Order now, pick up on a chosen date — think pies for the holidays. Customers select a pickup date at checkout from the pickup schedule in your store settings.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1627,6 +1635,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_restaurant_type",
 				"type"				=> "checkbox",
 				"label"				=> __( "Enable Restaurant for Pickup", 'wp-easycart' ),
+				"description"		=> __( "ASAP-style pickup ordering — think pizzas. Customers choose a ready time (ASAP, in 1 hour, later today) based on your pickup schedule and hours.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1635,11 +1644,15 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"value"				=> $this->product->is_restaurant_type
 			),
 			array(
+				/* Rendered in Organize > Visibility & Sorting (see the section's
+				   'only' list in product-details-v2.php); excluded from the
+				   Behaviors section so it is not duplicated. */
 				"name"				=> "role_id",
 				"type"				=> "select",
-				"label"				=> __( "Restrict to User Role", 'wp-easycart' ),
+				"label"				=> __( "Limit Visibility to User Role", 'wp-easycart' ),
+				"message"		=> __( "When a role is selected, this product is completely hidden from everyone else — guests and all other roles will not see it anywhere in your store.", 'wp-easycart' ),
 				"data"				=> apply_filters( 'wp_easycart_admin_product_details_user_roles', $user_roles ),
-				"data_label"		=> __( "Show to All User Levels", 'wp-easycart' ),
+				"data_label"		=> __( "Visible to Everyone", 'wp-easycart' ),
 				"select2"			=> "basic",
 				"required" 			=> false,
 				"validation_type" 	=> 'select',
@@ -1704,6 +1717,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_deconetwork",
 				"type"				=> "checkbox",
 				"label"				=> __( "Deconetwork Product", 'wp-easycart' ),
+				"description"		=> __( "Connects this product to your Deconetwork designer so customers customize decorated items before adding to cart.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1819,6 +1833,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_subscription_item",
 				"type"				=> "checkbox",
 				"label"				=> __( "Subscription Product", 'wp-easycart' ),
+				"description"		=> __( "Bills the customer automatically on the interval you set below. Requires a connected Stripe account.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -2080,6 +2095,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_download",
 				"type"				=> "checkbox",
 				"label"				=> __( "Download Product", 'wp-easycart' ),
+				"description"		=> __( "Delivers a file instead of a shipment. The customer gets a secure download link after purchase.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"onclick"			=> 'show_pro_required',

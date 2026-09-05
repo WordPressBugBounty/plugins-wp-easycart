@@ -1079,6 +1079,119 @@
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Aplicar"
+				},
+				"coupon_applied":{
+					"title":"Cart, Offer Code Applied",
+					"value":"¡Cupón aplicado a su carrito!"
+				},
+				"coupon_removed":{
+					"title":"Cart, Offer Code Removed",
+					"value":"Cupón eliminado."
+				},
+				"coupon_remove_label":{
+					"title":"Cart, Remove Offer Code Label",
+					"value":"Eliminar cupón"
+				},
+				"coupon_already_applied":{
+					"title":"Cart, Offer Code Already Applied",
+					"value":"Este cupón ya está aplicado a su carrito."
+				},
+				"coupon_not_combinable":{
+					"title":"Cart, Offer Code Not Combinable",
+					"value":"Este cupón no se puede combinar con sus otros descuentos."
+				},
+				"coupon_not_for_account":{
+					"title":"Cart, Offer Code Wrong Account",
+					"value":"Este cupón está asignado a otra cuenta."
+				},
+				"coupon_stacking_disabled":{
+					"title":"Cart, Offer Stacking Disabled",
+					"value":"Solo se puede usar un cupón por pedido."
+				},
+				"coupon_stacking_limit":{
+					"title":"Cart, Offer Stacking Limit",
+					"value":"Ha alcanzado el número máximo de cupones para este pedido."
+				},
+				"free_gift_out_of_stock":{
+					"title":"Cart, Free Gift Out of Stock",
+					"value":"Lo sentimos, el regalo gratuito de esta oferta está agotado."
+				},
+				"bundle_added":{
+					"title":"Cart, Bundle Added",
+					"value":"¡Paquete añadido a su carrito!"
+				},
+				"bundle_not_found":{
+					"title":"Cart, Bundle Not Found",
+					"value":"Este paquete no está disponible actualmente."
+				},
+				"bundle_selection_required":{
+					"title":"Cart, Bundle Selection Required",
+					"value":"Por favor, haga sus selecciones para cada artículo del paquete."
+				},
+				"bundle_component_out_of_stock":{
+					"title":"Cart, Bundle Component Out of Stock",
+					"value":"Uno de los artículos de este paquete está agotado."
+				},
+				"bundle_out_of_stock":{
+					"title":"Cart, Bundle Out of Stock",
+					"value":"Este paquete está agotado."
+				},
+				"bundle_mode_requires_component_lines":{
+					"title":"Cart, Bundle Mode Error",
+					"value":"Este paquete no está configurado correctamente. Por favor, contacte con la tienda."
+				}
+			}
+		},
+		"cart_offers":{
+			"label":"Cart and Product Offer Displays",
+			"options":{
+				"gift_line_label":{
+					"title":"Cart, Free Gift Line Tag",
+					"value":"REGALO GRATIS"
+				},
+				"bundle_line_label":{
+					"title":"Cart, Bundle Line Tag",
+					"value":"Artículo del paquete"
+				},
+				"gift_chooser_title":{
+					"title":"Cart, Gift Chooser Title",
+					"value":"Elija su regalo gratis"
+				},
+				"gift_claim_button":{
+					"title":"Cart, Gift Claim Button",
+					"value":"Obtener regalo"
+				},
+				"gift_free_label":{
+					"title":"Cart, Gift Free Label",
+					"value":"GRATIS"
+				},
+				"offer_badge_default":{
+					"title":"Product, Offer Badge Default",
+					"value":"OFERTA"
+				},
+				"offer_applied_label":{
+					"title":"Cart, Offer Applied Label",
+					"value":"Aplicado"
+				},
+				"countdown_ends_in":{
+					"title":"Product, Offer Countdown Label",
+					"value":"Termina en"
+				},
+				"progress_spend_message":{
+					"title":"Cart, Offer Progress Spend Message",
+					"value":"Añada [amount] más para conseguir: [label]"
+				},
+				"progress_quantity_message":{
+					"title":"Cart, Offer Progress Quantity Message",
+					"value":"Añada [quantity] artículo(s) más para conseguir: [label]"
+				},
+				"bundle_includes_title":{
+					"title":"Product, Bundle Includes Title",
+					"value":"Este paquete incluye"
+				},
+				"bundle_save_label":{
+					"title":"Product, Bundle Save Label",
+					"value":"Ahorre"
 				}
 			}
 		},

@@ -1,128 +1,53 @@
-<div class="ec_admin_mobile_menu" id="ec_admin_mobile_menu_main">
-	<div class="ec_admin_mobile_menu_inner">
-		<div>
-			<div class="ec_admin_mobile_menu_close">
-				<a href="#" onclick="ec_admin_hide_mobile_menu( ); return false;"><div class="dashicons-before dashicons-no"></div></a>
-			</div>
-			<ul>
-				<li>
-					<a href="admin.php?page=wp-easycart-dashboard">
-						<span class="dashicons dashicons-analytics"></span> <?php esc_attr_e( 'Reports', 'wp-easycart' ); ?>
-					</a>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-license-status">
-						<span class="dashicons dashicons-warning"></span> <?php esc_attr_e( 'Store Status', 'wp-easycart' ); ?>
-					</a>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-products&subpage=products" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-store"></span>
-						<?php esc_attr_e( 'Products', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=products"><?php esc_attr_e( 'Products', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=inventory"><?php esc_attr_e( 'Inventory', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=option"><?php esc_attr_e( 'Option Sets', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=category"><?php esc_attr_e( 'Categories', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=menus"><?php esc_attr_e( 'Menus', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=manufacturers"><?php esc_attr_e( 'Manufacturers', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=reviews"><?php esc_attr_e( 'Product Reviews', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-products&subpage=subscriptionplans"><?php esc_attr_e( 'Subscription Plans', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-orders&subpage=orders" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-cart"></span> <?php esc_attr_e( 'Orders', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-orders&subpage=orders"><?php esc_attr_e( 'Orders', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-orders&subpage=subscriptions"><?php esc_attr_e( 'Subscriptions', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-orders&subpage=downloads"><?php esc_attr_e( 'Manage Downloads', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-users&subpage=accounts" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-admin-users"></span> <?php esc_attr_e( 'Users', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-users&subpage=accounts"><?php esc_attr_e( 'User Accounts', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-users&subpage=user-roles"><?php esc_attr_e( 'User Roles', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-users&subpage=subscribers"><?php esc_attr_e( 'Subscribers', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-rates&subpage=coupons" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-money-alt"></span> <?php esc_attr_e( 'Marketing', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-rates&subpage=coupons"><?php esc_attr_e( 'Coupons', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-rates&subpage=promotions"><?php esc_attr_e( 'Promotions', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-rates&subpage=gift-cards"><?php esc_attr_e( 'Gift Cards', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-rates&subpage=abandon-cart"><?php esc_attr_e( 'Abandoned Cart', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-settings" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-admin-tools"></span> <?php esc_attr_e( 'Basic Settings', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-settings"><?php esc_attr_e( 'Initial Setup', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=products"><?php esc_attr_e( 'Products', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=checkout"><?php esc_attr_e( 'Checkout', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=account"><?php esc_attr_e( 'Accounts', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=payment"><?php esc_attr_e( 'Payment', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=tax"><?php esc_attr_e( 'Taxes', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=fee"><?php esc_attr_e( 'Flex-Fees', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=shipping-settings"><?php esc_attr_e( 'Shipping Settings', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=shipping-rates"><?php esc_attr_e( 'Shipping Rates', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-settings" onclick="ec_admin_toggle_mobile_submenu( jQuery( this ).parent() ); return false;">
-						<span class="dashicons dashicons-hammer"></span> <?php esc_attr_e( 'Advanced Settings', 'wp-easycart' ); ?>
-						<span class="dashicons dashicons-arrow-right-alt2"></span>
-						<span class="dashicons dashicons-arrow-down-alt2"></span>
-					</a>
-					<ul>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=miscellaneous"><?php esc_attr_e( 'Additional Settings', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=design"><?php esc_attr_e( 'Design', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=language-editor"><?php esc_attr_e( 'Language Editor', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=email-setup"><?php esc_attr_e( 'Email Setup', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=country"><?php esc_attr_e( 'Countries', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=states"><?php esc_attr_e( 'States/Territories', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=perpage"><?php esc_attr_e( 'Per Page Options', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=pricepoint"><?php esc_attr_e( 'Price Points', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=schedule"><?php esc_attr_e( 'Store Schedule', 'wp-easycart' ); ?></a></li>
-						<?php if ( apply_filters( 'wp_easycart_enable_multiple_locations', false ) ) { ?>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=location"><?php esc_attr_e( 'Store Locations', 'wp-easycart' ); ?></a></li>
-						<?php }?>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=third-party"><?php esc_attr_e( 'Third Party', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_attr_e( 'Cart Importer', 'wp-easycart' ); ?></a></li>
-						<li><a href="admin.php?page=wp-easycart-settings&subpage=logs"><?php esc_attr_e( 'Log Entries', 'wp-easycart' ); ?></a></li>
-					</ul>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-status&subpage=store-status">
-						<span class="dashicons dashicons-sos"></span> <?php esc_attr_e( 'Diagnostics', 'wp-easycart' ); ?>
-					</a>
-				</li>
-				<li>
-					<a href="admin.php?page=wp-easycart-registration&subpage=registration">
-						<span class="dashicons dashicons-plugins-checked"></span> <?php esc_attr_e( 'Registration', 'wp-easycart' ); ?>
-					</a>
-				</li>
-			</ul>
-		</div>
-	</div>
-</div>
+<?php
+/**
+ * WP EasyCart Admin Shell V2 — Mobile bottom tab bar.
+ *
+ * Replaces the old full-screen overlay menu. The full navigation tree is
+ * now the sidebar itself, which becomes a slide-in drawer on mobile
+ * (opened by the hamburger or the "More" tab). This partial only renders
+ * the persistent bottom bar with the four primary destinations.
+ *
+ * Capability checks match left_nav.php; hidden tabs simply don't render,
+ * and the bar flexes to fill.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+$ecsh_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+?>
+<nav class="ecsh-bottom-nav" aria-label="<?php esc_attr_e( 'EasyCart quick navigation', 'wp-easycart' ); ?>">
+	<?php if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_reports' ) ) { ?>
+	<a class="ecsh-bn-item<?php if ( 'wp-easycart-dashboard' === $ecsh_page ) { echo ' ecsh-active'; } ?>" href="admin.php?page=wp-easycart-dashboard">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>
+		<?php esc_attr_e( 'Reports', 'wp-easycart' ); ?>
+	</a>
+	<?php } ?>
+
+	<?php if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) { ?>
+	<a class="ecsh-bn-item<?php if ( 'wp-easycart-products' === $ecsh_page ) { echo ' ecsh-active'; } ?>" href="admin.php?page=wp-easycart-products&subpage=products">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>
+		<?php esc_attr_e( 'Products', 'wp-easycart' ); ?>
+	</a>
+	<?php } ?>
+
+	<?php if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_orders' ) ) { ?>
+	<a class="ecsh-bn-item<?php if ( 'wp-easycart-orders' === $ecsh_page ) { echo ' ecsh-active'; } ?>" href="admin.php?page=wp-easycart-orders&subpage=orders">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+		<?php esc_attr_e( 'Orders', 'wp-easycart' ); ?>
+	</a>
+	<?php } ?>
+
+	<?php if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_users' ) ) { ?>
+	<a class="ecsh-bn-item<?php if ( 'wp-easycart-users' === $ecsh_page ) { echo ' ecsh-active'; } ?>" href="admin.php?page=wp-easycart-users&subpage=accounts">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+		<?php esc_attr_e( 'Users', 'wp-easycart' ); ?>
+	</a>
+	<?php } ?>
+
+	<button class="ecsh-bn-item ecsh-bn-more" type="button">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+		<?php esc_attr_e( 'More', 'wp-easycart' ); ?>
+	</button>
+</nav>

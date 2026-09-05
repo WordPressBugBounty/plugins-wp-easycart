@@ -114,6 +114,9 @@
 
 	<?php }?>
 
+	<?php if ( wp_easycart_offers_active() ) { ?>
+	<?php wp_easycart_offers_template( 'ec_offer_codes.php', array( 'cartpage' => $this, 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null ) ); ?>
+	<?php } else { ?>
 	<?php if( get_option( 'ec_option_show_coupons' ) ){ ?>
 	<div class="ec_cart_header">
 		<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' )?>
@@ -127,6 +130,7 @@
 		<div class="ec_cart_button" id="ec_apply_coupon" onclick="ec_apply_coupon( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-coupon-code-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_apply_coupon' ); ?></div>
 		<div class="ec_cart_button_working" id="ec_applying_coupon"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_please_wait' )?></div>
 	</div>
+	<?php }?>
 	<?php }?>
 	<?php if( get_option( 'ec_option_show_giftcards' ) ){ ?>
 	<div class="ec_cart_header">

@@ -30,6 +30,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		/* Core table config */
 		protected $table;
 		protected $table_id;
+		protected $table_class = '';
 		protected $key;
 		protected $custom_header;
 		protected $icon;
@@ -218,6 +219,13 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		public function set_table_id( $table_id ) {
 			$this->table_id = $table_id;
 		}
+		/**
+		 * Extra class(es) on the <table> so child tables can scope layout CSS
+		 * (e.g. fixed column widths) without affecting other V2 lists.
+		 */
+		public function set_table_class( $table_class ) {
+			$this->table_class = trim( (string) $table_class );
+		}
 		public function set_default_sort( $default_sort_column, $default_sort_direction ) {
 			$this->default_sort_column = $default_sort_column;
 			$this->default_sort_direction = $default_sort_direction;
@@ -385,8 +393,10 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			echo '<div class="ecv2-page-header-right">';
 
-			// Keyboard hint.
-			echo '<span class="ecv2-keyboard-hint"><span class="dashicons dashicons-info-outline"></span> ' . esc_html__( 'Double-click any cell to edit inline', 'wp-easycart' ) . '</span>';
+			// Keyboard hint — only meaningful when this table has inline-editable cells.
+			if ( ! empty( $this->inline_editable_columns ) ) {
+				echo '<span class="ecv2-keyboard-hint"><span class="dashicons dashicons-info-outline"></span> ' . esc_html__( 'Double-click any cell to edit inline', 'wp-easycart' ) . '</span>';
+			}
 
 			// Help link.
 			if ( isset( $this->docs_guide ) ) {
@@ -469,9 +479,28 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '</div>'; // .ecv2-stat-toggle-panel
 			echo '</div>'; // .ecv2-stat-toggle-bar
 
-			// Stat cards container.
-			echo '<div class="ecv2-health-dashboard' . ( $all_hidden ? ' ecv2-stats-all-hidden' : '' ) . '" id="ecv2-health-dashboard">';
+			// Stat cards container. Stats may carry 'group' (renders grouped strips),
+			// 'sub' (secondary value under the number) and 'sub_label'.
+			$grouped = false;
 			foreach ( $this->health_stats as $stat ) {
+				if ( ! empty( $stat['group'] ) ) {
+					$grouped = true;
+					break;
+				}
+			}
+			echo '<div class="ecv2-health-dashboard' . ( $grouped ? ' ecv2-health-dashboard-grouped' : '' ) . ( $all_hidden ? ' ecv2-stats-all-hidden' : '' ) . '" id="ecv2-health-dashboard">';
+			$open_group = null;
+			foreach ( $this->health_stats as $stat ) {
+				if ( $grouped ) {
+					$group = ! empty( $stat['group'] ) ? $stat['group'] : 'default';
+					if ( $group !== $open_group ) {
+						if ( null !== $open_group ) {
+							echo '</div>';
+						}
+						echo '<div class="ecv2-health-group ecv2-health-group-' . esc_attr( $group ) . '">';
+						$open_group = $group;
+					}
+				}
 				$key = $stat['filter_value'];
 				if ( '' === $key ) {
 					$key = '__total';
@@ -484,9 +513,29 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				if ( $all_hidden || in_array( $key, $hidden, true ) ) {
 					$hidden_class = ' ecv2-stat-hidden';
 				}
-				echo '<div class="ecv2-stat-card' . esc_attr( $active_class ) . esc_attr( $hidden_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-filter="' . esc_attr( $stat['filter_value'] ) . '" data-stat-key="' . esc_attr( $key ) . '">';
+				$zero_class = ( is_numeric( $stat['value'] ) && 0 == $stat['value'] ) ? ' ecv2-stat-zero' : '';
+				$static     = ( isset( $stat['clickable'] ) && false === $stat['clickable'] );
+				if ( $static ) {
+					/* Informational tile: no filter, no hover, ignored by the click handler. */
+					echo '<div class="ecv2-stat-card ecv2-stat-static' . esc_attr( $hidden_class ) . esc_attr( $zero_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-stat-key="' . esc_attr( $key ) . '">';
+				} else {
+					echo '<div class="ecv2-stat-card' . esc_attr( $active_class ) . esc_attr( $hidden_class ) . esc_attr( $zero_class ) . ( isset( $stat['color'] ) ? ' ecv2-stat-' . esc_attr( $stat['color'] ) : '' ) . '" data-filter="' . esc_attr( $stat['filter_value'] ) . '" data-stat-key="' . esc_attr( $key ) . '" role="button" tabindex="0">';
+				}
+				echo '<div class="ecv2-stat-main">';
 				echo '<div class="ecv2-stat-value">' . esc_html( $stat['value'] ) . '</div>';
 				echo '<div class="ecv2-stat-label">' . esc_html( $stat['label'] ) . '</div>';
+				echo '</div>';
+				if ( isset( $stat['sub'] ) && '' !== (string) $stat['sub'] ) {
+					echo '<div class="ecv2-stat-sub">';
+					echo '<span class="ecv2-stat-sub-value">' . esc_html( $stat['sub'] ) . '</span>';
+					if ( ! empty( $stat['sub_label'] ) ) {
+						echo '<span class="ecv2-stat-sub-label">' . esc_html( $stat['sub_label'] ) . '</span>';
+					}
+					echo '</div>';
+				}
+				echo '</div>';
+			}
+			if ( $grouped && null !== $open_group ) {
 				echo '</div>';
 			}
 			echo '</div>';
@@ -843,7 +892,10 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		}
 
 		protected function print_table_view() {
-			echo '<table class="ecv2-table" id="' . esc_attr( $this->table_id ) . '">';
+			/* Scroll wrapper: when the visible columns still exceed the container the
+			   table scrolls inside its card instead of stretching the whole page. */
+			echo '<div class="ecv2-table-scroll">';
+			echo '<table class="ecv2-table' . ( '' !== $this->table_class ? ' ' . esc_attr( $this->table_class ) : '' ) . '" id="' . esc_attr( $this->table_id ) . '">';
 			$this->print_table_thead();
 			echo '<tbody>';
 			foreach ( $this->results as $result ) {
@@ -863,11 +915,12 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			}
 			echo '</tbody>';
 			echo '</table>';
+			echo '</div>'; // .ecv2-table-scroll
 		}
 
 		protected function print_table_thead() {
 			echo '<thead><tr>';
-			echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-select-all" /></th>';
+			echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-select-all" class="ecv2-check-all" /></th>';
 
 			foreach ( $this->list_columns as $col ) {
 				if ( isset( $col['format'] ) && $col['format'] === 'hidden' ) {
@@ -886,6 +939,9 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				}
 				if ( isset( $col['laptop_hide'] ) && $col['laptop_hide'] ) {
 					$extra_classes .= ' ecv2-hide-laptop';
+				}
+				if ( isset( $col['mobile_hide'] ) && $col['mobile_hide'] ) {
+					$extra_classes .= ' ecv2-hide-mobile';
 				}
 
 				echo '<th class="ecv2-col ecv2-col-' . esc_attr( $col['name'] ) . $sorted_class . $extra_classes . '"' . $width_attr . '>';
@@ -919,6 +975,9 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				}
 				if ( isset( $col['laptop_hide'] ) && $col['laptop_hide'] ) {
 					$extra_classes .= ' ecv2-hide-laptop';
+				}
+				if ( isset( $col['mobile_hide'] ) && $col['mobile_hide'] ) {
+					$extra_classes .= ' ecv2-hide-mobile';
 				}
 				$editable_attr = '';
 				if ( in_array( $col['name'], $this->inline_editable_columns ) ) {
@@ -1152,7 +1211,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			} else {
 				echo '<table class="ecv2-spreadsheet">';
 				echo '<thead><tr>';
-				echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-ss-select-all" /></th>';
+				echo '<th class="ecv2-col-check"><input type="checkbox" id="ecv2-ss-select-all" class="ecv2-check-all" /></th>';
 				foreach ( $columns as $col ) {
 					if ( isset( $col['format'] ) && $col['format'] === 'hidden' ) {
 						continue;
@@ -1577,7 +1636,7 @@ endif;
 
 add_action( 'wp_ajax_ecv2_save_stat_visibility', 'ecv2_save_stat_visibility' );
 function ecv2_save_stat_visibility() {
-	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) && ! current_user_can( 'wpec_orders' ) && ! current_user_can( 'wpec_users' ) ) {
 		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
 	}
 	if ( ! isset( $_POST['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-stat-toggle' ) ) {

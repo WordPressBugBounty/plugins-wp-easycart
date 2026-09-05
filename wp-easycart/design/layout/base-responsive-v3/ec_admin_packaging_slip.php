@@ -1,3 +1,19 @@
+<?php
+// Offers v2: line-level offer flags, keyed by orderdetail_id. The scripts
+// and classes that build this template's line rows predate the offer
+// columns and cannot be assumed to select them, so fetch them directly for
+// the whole order in one query.
+$wpec_offer_line_flags = array();
+if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+	global $wpdb;
+	$wpec_offer_flag_order_id = ( isset( $order_id ) ) ? (int) $order_id : ( ( isset( $order->order_id ) ) ? (int) $order->order_id : 0 );
+	if ( $wpec_offer_flag_order_id > 0 ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', $wpec_offer_flag_order_id ) ) as $wpec_offer_flag_row ) {
+			$wpec_offer_line_flags[ (int) $wpec_offer_flag_row->orderdetail_id ] = $wpec_offer_flag_row;
+		}
+	}
+}
+?>
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -269,7 +285,16 @@
 					<table>
 						<?php if ( get_option( 'ec_option_packing_slip_show_product_title' ) ) { ?>
 						<tr>
-							<td><?php echo wp_easycart_language()->convert_text( $order_details[$i]->title ); ?></td>
+							<td><?php echo wp_easycart_language()->convert_text( $order_details[$i]->title ); ?><?php
+								// Offers v2 fulfillment markers.
+								$wpec_line_flags = ( isset( $order_details[ $i ]->orderdetail_id ) && isset( $wpec_offer_line_flags[ (int) $order_details[ $i ]->orderdetail_id ] ) ) ? $wpec_offer_line_flags[ (int) $order_details[ $i ]->orderdetail_id ] : false;
+								if ( $wpec_line_flags && $wpec_line_flags->is_free_gift ) {
+									echo ' <strong>[' . wp_easycart_offers_text( 'cart_offers', 'gift_line_label' ) . ']</strong>';
+								}
+								if ( $wpec_line_flags && '' != $wpec_line_flags->bundle_group_key && $wpec_line_flags->bundle_product_id != $wpec_line_flags->product_id ) {
+									echo ' <strong>[' . wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ) . ' #' . esc_attr( substr( $order_details[ $i ]->bundle_group_key, 0, 6 ) ) . ']</strong>';
+								}
+							?></td>
 						</tr>
 						<?php } ?>
 						<?php if ( get_option( 'ec_option_packing_slip_show_model_number' ) ) { ?>

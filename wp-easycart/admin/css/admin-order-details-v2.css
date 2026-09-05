@@ -1,0 +1,828 @@
+/**
+ * WP EasyCart Admin — Order Details V2.2
+ * Full replacement. The template no longer carries legacy ec_admin_* layout
+ * classes, so V1 admin.css cannot bleed in; the few remaining legacy touch
+ * points ( payment badge id, PRO-printed heading class, initial_hide ) are
+ * overridden explicitly at the end.
+ */
+
+/* ==================================================================
+   Header
+   ================================================================== */
+.ecodv2-header { align-items: flex-start; }
+.ecodv2-header .ecdv2-header-title { font-size: 21px; font-weight: 700; letter-spacing: -.3px; }
+.ecodv2-header .ecdv2-header-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--ecv2-g500); margin-top: 2px; }
+.ecodv2-meta-customer { color: var(--ecv2-g700); font-weight: 500; }
+.ecodv2-meta-email { color: var(--ecv2-blue, #2563eb); text-decoration: none; }
+.ecodv2-meta-email:hover { text-decoration: underline; }
+.ecodv2-inline-edit { cursor: pointer; color: var(--ecv2-g400); margin-left: 2px; }
+.ecodv2-inline-edit:hover { color: var(--ecv2-primary); }
+.ecodv2-inline-edit .dashicons { font-size: 13px; width: 13px; height: 13px; margin-top:3px; }
+.ecodv2-date-form { display: inline-flex; align-items: center; gap: 6px; }
+.ecodv2-date-form input { border: 1px solid var(--ecv2-g300); border-radius: 8px; padding: 5px 10px; font-size: 12px; width: 150px; }
+.ecodv2-inline-save { padding: 4px 8px !important; }
+.ecodv2-inline-save .dashicons { font-size: 14px; width: 14px; height: 14px; }
+
+.ecodv2-fulfill-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; margin: 4px 0 0 2px; }
+.ecodv2-fulfill-badge .dashicons { font-size: 13px; width: 13px; height: 13px; }
+.ecodv2-fulfill-badge-ok { background: var(--ecv2-primary-soft, #dcfce7); color: var(--ecv2-primary-deep, #166534); }
+.ecodv2-fulfill-badge-pickup { background: #eff6ff; color: #1d4ed8; }
+.ecodv2-fulfill-badge-warn { background: #fef3c7; color: #92400e; }
+
+.ecodv2-status-wrap { margin: 0 4px; min-width: 190px; }
+.ecodv2-nav { display: flex; gap: 4px; }
+.ecodv2-nav-disabled { opacity: .35; pointer-events: none; }
+
+.ecodv2-menu-wrap { position: relative; }
+.ecdv2-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 220px; background: #fff; border: 1px solid var(--ecv2-g200); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 6px; z-index: 500; display: none; }
+.ecdv2-menu.is-open { display: block; }
+.ecdv2-menu a { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: 12.5px; color: var(--ecv2-g700); text-decoration: none; }
+.ecdv2-menu a:hover { background: var(--ecv2-g100); }
+.ecdv2-menu a .dashicons { font-size: 15px; width: 15px; height: 15px; color: var(--ecv2-g400); }
+.ecdv2-menu-sep { height: 1px; background: var(--ecv2-g100); margin: 5px 4px; }
+.ecodv2-menu-vids { display: contents; }
+.ecodv2-menu-vids:empty { display: none; }
+
+/* ==================================================================
+   Layout
+   ================================================================== */
+.ecodv2-body { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 16px; align-items: start; }
+.ecodv2-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ecodv2-side { min-width: 0; }
+.ecodv2-side-inner { display: flex; flex-direction: column; gap: 16px; float: none; width: 100%; padding: 0; }
+.ecodv2-side-inner .ecdv2-card { margin: 0; }
+@media ( max-width: 1080px ) {
+	.ecodv2-body { grid-template-columns: 1fr; }
+}
+.ecodv2-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; border: 0 !important; }
+
+/* ==================================================================
+   Fulfillment banner
+   ================================================================== */
+.ecodv2-fulfill-banner { display: flex; align-items: center; gap: 10px; padding: 11px 16px; font-size: 13px; font-weight: 500; flex-wrap: wrap; border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-fulfill-banner .dashicons { font-size: 17px; width: 17px; height: 17px; }
+.ecodv2-fulfill-banner-fulfilled { background: #f0fdf4; color: var(--ecv2-primary-deep, #166534); border-left: 4px solid var(--ecv2-primary); }
+.ecodv2-fulfill-banner-pickup { background: #eff6ff; color: #1d4ed8; border-left: 4px solid #2563eb; }
+.ecodv2-fulfill-banner-unfulfilled { background: #fffbeb; color: #92400e; border-left: 4px solid var(--ecv2-amber, #f59e0b); }
+.ecodv2-fulfill-banner-none { background: var(--ecv2-g50); color: var(--ecv2-g500); border-left: 4px solid var(--ecv2-g300); }
+.ecodv2-fulfill-banner .ecv2-btn { margin-left: auto; }
+.ecodv2-fulfill-banner .ecv2-btn ~ .ecv2-btn { margin-left: 0; }
+
+/* ==================================================================
+   Items card: toolbar + more-menu
+   ================================================================== */
+.ecodv2-item-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 0 12px; margin: 0 0 4px; border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-item-actions .ecv2-btn .dashicons { font-size: 14px; width: 14px; height: 14px; margin-top: 2px; }
+.ecodv2-toolbar-more { position: relative; }
+.ecodv2-toolbar-menu { left: 0; right: auto; min-width: 240px; }
+/* Hook output ( PRO buttons / links ) renders as menu rows regardless of tag. */
+.ecodv2-toolbar-menu > a,
+.ecodv2-toolbar-menu > button,
+.ecodv2-toolbar-menu > input[type="submit"] { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 10px; margin: 0; border: none; background: transparent; border-radius: 7px; font-size: 12.5px; color: var(--ecv2-g700); text-align: left; cursor: pointer; text-transform: none; box-shadow: none; }
+.ecodv2-toolbar-menu > a:hover,
+.ecodv2-toolbar-menu > button:hover,
+.ecodv2-toolbar-menu > input[type="submit"]:hover { background: var(--ecv2-g100); color: var(--ecv2-g900); }
+.ecodv2-refund-error { display: none; margin: 0 0 10px; padding: 9px 14px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 12.5px; }
+
+.ecodv2-line-items { float: none; width: 100%; padding: 0; }
+
+/* Line item rows. DOM order: details / price / total / actions. */
+.ecodv2-line-items .ec_admin_order_details_line_item { display: grid; grid-template-columns: minmax(0, 1fr) 130px 100px 70px; gap: 14px; align-items: start; padding: 13px 0; border-bottom: 1px solid var(--ecv2-g100); float: none; width: 100%; }
+.ecodv2-line-items .ec_admin_order_details_item_details { float: none; width: auto; min-width: 0; font-size: 13px; color: var(--ecv2-g900); line-height: 1.5; }
+.ecodv2-line-items .ec_admin_order_details_item_details > span.ecodv2-line-title,
+.ecodv2-line-items .ec_admin_order_details_item_details > span { float: none; width: auto; display: block; font-size: 13px; font-weight: 600; margin: 0 0 2px; line-height: 1.5; }
+.ecodv2-line-items .ec_admin_order_details_item_details a { color: var(--ecv2-g900); text-decoration: none; }
+.ecodv2-line-items .ec_admin_order_details_item_details a:hover { color: var(--ecv2-primary); }
+.ecodv2-item-meta { font-size: 11.5px; color: var(--ecv2-g500); line-height: 1.7; }
+.ecodv2-item-meta .ec_details_option_label { display: inline; float: none; font-size: 11.5px; color: var(--ecv2-g400); font-weight: 500; margin: 0; line-height: inherit; }
+.ecodv2-item-meta .ec_details_option_value { display: inline; float: none; font-size: 11.5px; color: var(--ecv2-g600); margin: 0 8px 0 2px; line-height: inherit; }
+.ecodv2-item-meta .ec_details_option_value a { color: var(--ecv2-blue, #2563eb); }
+.ecodv2-item-meta .ec_details_option_pricing { font-size: 11px; color: var(--ecv2-g400); }
+.ecodv2-item-meta .ec_order_download_key { margin-top: 4px; }
+.ecodv2-line-chips { float: none !important; width: 100% !important; display: flex !important; flex-wrap: wrap; gap: 5px; margin: 2px 0 5px !important; }
+.ecodv2-chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; line-height: 1.6; white-space: nowrap; }
+.ecodv2-chip-gift { background: #fce7f3; color: #9d174d; text-transform: uppercase; }
+.ecodv2-chip-bundle { background: var(--ecv2-g100); color: var(--ecv2-g600); text-transform: uppercase; }
+.ecodv2-chip-offer { background: var(--ecv2-primary-soft, #dcfce7); color: var(--ecv2-primary-deep, #166534); }
+.ecodv2-line-items .ec_admin_order_details_item_price { float: none; width: auto; text-align: right; font-size: 12.5px; color: var(--ecv2-g500); white-space: nowrap; line-height: 1.6; padding: 0; }
+.ecodv2-chip-refunded { background: #fee2e2; color: #b91c1c; }
+.ecodv2-line-items .ec_admin_order_details_item_price > span { font-weight: 400; font-size: 11px; color: var(--ecv2-g400); }
+.ecodv2-line-items .ec_admin_order_details_item_price > input { min-width: 60px !important; width: 60px; margin: 0 0 0 4px; border: 1px solid var(--ecv2-g300); border-radius: 7px; padding: 4px 7px; text-align: right; }
+.ecodv2-line-items .ec_admin_order_details_item_total { float: none; width: auto; text-align: right; font-size: 13px; font-weight: 600; color: var(--ecv2-g900); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.6; }
+.ecodv2-line-items .ec_admin_order_details_item_actions { float: none; width: auto; display: flex; justify-content: flex-end; gap: 4px; line-height: 1; text-align: right; }
+.ecodv2-line-items .ec_admin_order_details_item_actions > div { float: none; line-height: 1; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--ecv2-g400); cursor: pointer; transition: all .15s ease; }
+.ecodv2-line-items .ec_admin_order_details_item_actions > div:before { background: transparent !important; border-radius: 0 !important; margin: 0 !important; padding: 0 !important; color: inherit !important; font-size: 16px; }
+.ecodv2-line-items .ec_admin_order_details_item_actions > div.dashicons-edit:hover,
+.ecodv2-line-items .ec_admin_order_details_item_actions > div.dashicons-yes:hover { background: var(--ecv2-g100); color: var(--ecv2-g700); }
+.ecodv2-line-items .ec_admin_order_details_item_actions > div.dashicons-yes { color: var(--ecv2-primary); }
+.ecodv2-line-items .ec_admin_order_details_item_actions > div.dashicons-trash:hover { background: #fee2e2; color: #991b1b; }
+.ecodv2-line-items .ec_admin_order_details_item_price_edit,
+.ecodv2-line-items .ec_admin_order_details_item_total_edit { grid-column: 1 / -1; clear: none; float: none; width: 100%; margin: 4px 0 0; }
+.ecodv2-line-items .ec_admin_order_details_line_item_offers { float: none; width: 100%; }
+@media ( max-width: 700px ) {
+	.ecodv2-line-items .ec_admin_order_details_line_item { grid-template-columns: minmax(0, 1fr) 90px 34px; }
+	.ecodv2-line-items .ec_admin_order_details_item_price { display: none; }
+}
+
+/* Offers panel: quiet summary line + expandable detail. */
+.ecodv2-offers-panel { float: none; width: 100%; margin-top: 2px; border-top: 1px dashed var(--ecv2-g200); }
+.ecodv2-offers-line { display: flex; align-items: center; gap: 8px; padding: 11px 0 4px; font-size: 12.5px; color: var(--ecv2-g600); cursor: pointer; user-select: none; }
+.ecodv2-offers-line-icon { color: var(--ecv2-primary); font-size: 15px; width: 15px; height: 15px; }
+.ecodv2-offers-line-label { font-weight: 600; color: var(--ecv2-g800); }
+.ecodv2-offers-line-toggle { font-size: 11px; color: var(--ecv2-g400); display: inline-flex; align-items: center; gap: 2px; }
+.ecodv2-offers-line-toggle .dashicons { font-size: 11px; width: 11px; height: 11px; transition: transform .15s ease; }
+.ecodv2-offers-panel.is-open .ecodv2-offers-line-toggle .dashicons { transform: rotate(180deg); }
+.ecodv2-offers-line-amount { margin-left: auto; font-weight: 600; color: var(--ecv2-primary-deep, #166534); font-variant-numeric: tabular-nums; }
+.ecodv2-offers-detail { display: none; padding: 2px 0 6px; }
+.ecodv2-offers-panel.is-open .ecodv2-offers-detail { display: block; }
+.ecodv2-offers-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0 4px 23px; font-size: 12px; color: var(--ecv2-g600); }
+.ecodv2-offers-left { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ecodv2-offers-left .dashicons { font-size: 13px; width: 13px; height: 13px; color: var(--ecv2-g400); }
+.ecodv2-offers-left a { color: var(--ecv2-blue, #2563eb); text-decoration: none; }
+.ecodv2-offers-left a:hover { text-decoration: underline; }
+.ecodv2-offers-code { color: var(--ecv2-g400); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.ecodv2-offers-deleted { color: var(--ecv2-g400); font-style: italic; font-size: 11px; }
+.ecodv2-offers-amount { font-variant-numeric: tabular-nums; color: var(--ecv2-primary-deep, #166534); font-weight: 600; }
+.ecodv2-offers-applied { color: var(--ecv2-g400); font-size: 11px; }
+.ecodv2-offers-note { padding: 6px 0 0 23px; font-size: 11px; color: var(--ecv2-g400); font-style: italic; }
+
+/* ==================================================================
+   Payment & Totals
+   ================================================================== */
+.ecdv2-card-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ecodv2-header-edit { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border: 1px solid var(--ecv2-g300); border-radius: 6px; background: #fff; font-size: 12px; color: var(--ecv2-g600); cursor: pointer; position: static; }
+.ecodv2-header-edit:hover { border-color: var(--ecv2-primary); color: var(--ecv2-primary); }
+.ecodv2-header-edit .dashicons-before:before { font-size: 13px; margin: 3px 0 -5px -5px; padding: 0px; }
+
+.ecodv2-totals-box { float: none; width: 100%; padding: 0; background: transparent; border: none; }
+.ecodv2-totals-box #ec_admin_order_details_totals_content { max-width: 380px; margin-left: auto; float: none; width: 100%; }
+.ecodv2-trow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; float: none; width: auto; }
+.ecodv2-trow-label { font-size: 13px; color: var(--ecv2-g600); float: none; width: auto; background: transparent; padding: 0; }
+.ecodv2-trow-total { font-size: 13px; color: var(--ecv2-g800); font-variant-numeric: tabular-nums; float: none; width: auto; text-align: right; background: transparent; padding: 0; }
+.ecodv2-trow .ecodv2-discount-total { color: var(--ecv2-primary-deep, #166534); }
+.ecodv2-trow-refund .ecodv2-trow-label,
+.ecodv2-trow-refund .ecodv2-trow-total { color: var(--ecv2-danger, #dc2626); }
+.ecodv2-grand-row { border-top: 2px solid var(--ecv2-g200); margin-top: 8px; padding-top: 10px; }
+.ecodv2-grand-row .ecodv2-trow-label,
+.ecodv2-grand-row .ecodv2-trow-total { font-weight: 700; font-size: 14.5px; color: var(--ecv2-g900); }
+
+/* Gift card & coupon disclosure. */
+.ecodv2-payment-meta { margin-top: 14px; border-top: 1px dashed var(--ecv2-g200); padding-top: 10px; }
+.ecodv2-payment-meta summary { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ecv2-g700); cursor: pointer; list-style: none; user-select: none; }
+.ecodv2-payment-meta summary::-webkit-details-marker { display: none; }
+.ecodv2-payment-meta summary .dashicons { font-size: 15px; width: 15px; height: 15px; color: var(--ecv2-g400); }
+.ecodv2-payment-meta summary:after { content: "\f347"; font-family: dashicons; font-size: 12px; color: var(--ecv2-g400); margin-left: auto; transition: transform .15s ease; }
+.ecodv2-payment-meta[open] summary:after { transform: rotate(180deg); }
+.ecodv2-payment-meta-none { font-size: 11px; font-weight: 400; color: var(--ecv2-g400); }
+.ecodv2-payment-meta-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 10px; }
+.ecodv2-payment-meta-fields fieldset,
+.ecodv2-payment-meta-fields .wp-easycart-admin-field-container { border: none; padding: 0; margin: 0; min-width: 0; }
+.ecodv2-payment-meta-fields label { display: block; font-size: 11px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
+.ecodv2-payment-meta-fields input { width: 100%; min-width: 0 !important; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; float: none; }
+.ecodv2-payment-meta-fields input:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-payment-meta-fields .wp-easycart-admin-toggle-group-text,
+.ecodv2-payment-meta-fields .wp_easycart_admin_no_padding { float: none; width: auto; padding: 0; display: contents; }
+@media ( max-width: 700px ) { .ecodv2-payment-meta-fields { grid-template-columns: 1fr; } }
+
+/* ==================================================================
+   Totals editor ( edit form )
+   ================================================================== */
+.ecodv2-totals-editor { max-width: 420px; margin-left: auto; }
+.ecodv2-editor-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 0; }
+.ecodv2-editor-row label { font-size: 12.5px; color: var(--ecv2-g600); font-weight: 500; text-align: left; }
+.ecodv2-editor-row input,
+.ecodv2-editor-row select { width: 100%; border: 1px solid var(--ecv2-g300); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; text-align: right; min-width: 0; }
+.ecodv2-editor-row input[type="text"] { text-align: left; }
+.ecodv2-editor-row input:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-rate-pair { display: grid; grid-template-columns: 74px 12px minmax(0, 1fr); align-items: center; gap: 4px; }
+.ecodv2-rate-pct { color: var(--ecv2-g400); font-size: 12px; }
+.ecodv2-charge-hidden { display: none; }
+.ecodv2-refund-label { color: var(--ecv2-danger, #dc2626) !important; }
+.ecodv2-add-charge { position: relative; padding: 8px 0 4px; }
+.ecodv2-add-charge-menu { left: 0; right: auto; top: calc(100% + 2px); min-width: 200px; }
+.ecodv2-add-charge-menu a { display: flex; padding: 7px 10px; border-radius: 7px; font-size: 12.5px; color: var(--ecv2-g700); text-decoration: none; }
+.ecodv2-add-charge-menu a:hover { background: var(--ecv2-g100); }
+.ecodv2-editor-grand { border-top: 2px solid var(--ecv2-g200); margin-top: 8px; padding-top: 10px; }
+.ecodv2-editor-grand label { font-weight: 700; font-size: 13.5px; color: var(--ecv2-g900); }
+.ecodv2-editor-grand input { font-weight: 700; }
+.ecodv2-grand-wrap { display: flex; flex-direction: column; gap: 3px; }
+.ecodv2-grand-hint { font-size: 11px; color: var(--ecv2-g400); text-align: right; cursor: pointer; }
+.ecodv2-grand-hint:hover { color: var(--ecv2-primary); }
+.ecodv2-grand-hint:empty { display: none; }
+
+/* ==================================================================
+   Edit forms ( shared pattern )
+   ================================================================== */
+.ecodv2-form { float: none; width: 100%; margin-top: 12px; padding: 14px; background: var(--ecv2-g50); border: 1px solid var(--ecv2-g200); border-radius: 10px; }
+.ecodv2-form-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ecodv2-form-head .ecv2-btn .dashicons { font-size: 13px; width: 13px; height: 13px; margin-top: 2px; }
+.ecodv2-fields { display: flex; flex-direction: column; gap: 10px; }
+.ecodv2-field { min-width: 0; }
+.ecodv2-field label { display: block; font-size: 11px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
+.ecodv2-field input,
+.ecodv2-field select { width: 100%; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; color: var(--ecv2-g800); background: #fff; float: none; min-width: 0; }
+.ecodv2-field input:focus,
+.ecodv2-field select:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ecodv2-field-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+@media ( max-width: 700px ) { .ecodv2-field-pair { grid-template-columns: 1fr; } }
+
+/* ==================================================================
+   Activity card ( main column )
+   ================================================================== */
+.ecodv2-pinned-note { margin: 14px 0; border: 1px solid var(--ecv2-g200); border-radius: 10px; padding: 10px 14px; background: var(--ecv2-g50); }
+.ecodv2-pinned-note summary { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ecv2-g700); cursor: pointer; list-style: none; user-select: none; }
+.ecodv2-pinned-note summary::-webkit-details-marker { display: none; }
+.ecodv2-pinned-note summary .dashicons { font-size: 15px; width: 15px; height: 15px; color: var(--ecv2-g400); }
+.ecodv2-pinned-note summary:after { content: "\f347"; font-family: dashicons; font-size: 12px; color: var(--ecv2-g400); margin-left: auto; transition: transform .15s ease; }
+.ecodv2-pinned-note[open] summary:after { transform: rotate(180deg); }
+.ecodv2-pinned-note-none { font-size: 11px; font-weight: 400; color: var(--ecv2-g400); }
+.ecodv2-notes-box { float: none; width: 100%; padding: 10px 0 0; }
+.ecodv2-notes-box textarea { width: 100%; min-height: 64px; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 10px 12px; font-size: 13px; line-height: 1.5; resize: vertical; color: var(--ecv2-g800); float: none; background: #fff; }
+.ecodv2-notes-box textarea:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-notes-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+.ecodv2-notes-foot .ecv2-btn { float: none; }
+
+/* ---- Activity timeline ( V4.2 — modernized, flat flow, no inner scrollbox ) ----
+   Scoped to .ecodv2-history-wrap so the same rules style the expanded history
+   drawer, whose body carries the class too. */
+.ecodv2-card-activity .ecodv2-history-wrap { float: none; width: 100%; }
+.ecodv2-history-wrap .wpeasycart-timeline-container,
+.ecodv2-history-wrap .wpeasycart-timeline-container-inner { float: none; width: 100%; padding: 0; background: transparent; border: none; box-shadow: none; }
+.ecodv2-history-wrap .wpeasycart-timeline-container-inner h4 { display: none; }
+/* Flatten the legacy faux-scrollbox: every nested mask/offset/container from
+   admin.css becomes a plain static block so history flows with the page. */
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask-offset,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask-container { position: static !important; height: auto !important; max-height: none !important; overflow: visible !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; scrollbar-width: auto; }
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask-container::-webkit-scrollbar,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask-container::-webkit-scrollbar-track,
+.ecodv2-history-wrap .wpeasycart-timline-scrollbox-content-mask-container::-webkit-scrollbar-thumb { width: auto; background: transparent; }
+.ecodv2-history-wrap .wpeasycart-timeline-content-container { float: none; width: 100%; padding: 0; }
+.ecodv2-history-wrap .wpeasycart-timeline { position: relative; padding-left: 0; float: none; width: 100%; }
+.ecodv2-history-wrap .wpeasycart-timeline:before { content: ""; position: absolute; left: 12px; top: 8px; bottom: 8px; width: 2px; background: var(--ecv2-g100); }
+.ecodv2-history-wrap .wpeasycart-timeline-item { position: relative; padding: 0 0 18px 38px; display: block; float: none; width: auto; }
+.ecodv2-history-wrap .wpeasycart-timeline-item:last-child { padding-bottom: 4px; }
+.ecodv2-history-wrap .wpeasycart-timeline-item > .dashicons { position: absolute; left: 2px; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--ecv2-g100); color: var(--ecv2-g600); font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px #fff; }
+.ecodv2-history-wrap .wpeasycart-timeline-item > .dashicons-plus-alt { background: var(--ecv2-primary); color: #fff; }
+.ecodv2-history-wrap .wpeasycart-timeline-item > .dashicons-money-alt { background: var(--ecv2-blue-soft, #eff6ff); color: #1d4ed8; }
+.ecodv2-history-wrap .wpeasycart-timeline-item > .dashicons-undo { background: #fee2e2; color: #b91c1c; }
+.ecodv2-history-wrap .wpeasycart-timeline-item > .dashicons-lock { background: var(--ecv2-g300); color: #fff; }
+/* Title anchors: neutral in every state — kills the purple :visited bleed. */
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a,
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a:visited,
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a:active,
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a:focus { font-size: 13px; font-weight: 600; color: var(--ecv2-g800); text-decoration: none; box-shadow: none; outline: none; cursor: default; }
+.ecodv2-history-wrap .wpeasycart-timeline-item-info small { display: block; font-size: 12px; line-height: 1.65; color: var(--ecv2-g500); margin-top: 2px; }
+.ecodv2-history-wrap .wpeasycart-timeline-item-info p { margin: 4px 0 0; font-size: 11px; color: var(--ecv2-g400); }
+.ecodv2-history-wrap .wpeasycart-timeline-item-info p a,
+.ecodv2-history-wrap .wpeasycart-timeline-item-info p a:visited { font-size: 11px; font-weight: 500; color: var(--ecv2-blue, #2563eb); cursor: pointer; }
+/* Real links inside titles ( e.g. "Click here to view" ) stay clickable + blue. */
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a[target],
+.ecodv2-history-wrap .wpeasycart-timeline-item-info a[href*="admin.php"] { color: var(--ecv2-blue, #2563eb); cursor: pointer; }
+
+/* ---- Collapse at 21+ items ( JS toggles the class + button ) ---- */
+.ecodv2-history-collapsed .wpeasycart-timeline-item:nth-child( n + 21 ) { display: none; }
+.ecodv2-history-showall { display: none; margin: 4px 0 0 38px; }
+.ecodv2-history-showall .ecv2-btn { float: none; }
+
+/* ---- Full-history drawer ( right panel ) ---- */
+.ecodv2-hdrawer-backdrop { display: none; position: fixed; inset: 0; background: rgba(16,20,26,.35); z-index: 100050; }
+.ecodv2-hdrawer-backdrop.is-open { display: block; }
+.ecodv2-hdrawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 94vw; background: #fff; box-shadow: -18px 0 48px rgba(0,0,0,.18); z-index: 100051; display: flex; flex-direction: column; transform: translateX( 105% ); transition: transform .22s ease; }
+.ecodv2-hdrawer.is-open { transform: translateX( 0 ); }
+.ecodv2-hdrawer-head { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-hdrawer-head h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--ecv2-g900); }
+.ecodv2-hdrawer-count { font-size: 12px; color: var(--ecv2-g400); }
+.ecodv2-hdrawer-x { margin-left: auto; border: none; background: transparent; cursor: pointer; color: var(--ecv2-g400); padding: 2px; display: inline-flex; }
+.ecodv2-hdrawer-x:hover { color: var(--ecv2-g800); }
+.ecodv2-hdrawer-body { flex: 1; overflow-y: auto; padding: 18px 20px 26px; }
+
+/* ==================================================================
+   Rail cards: shared block pattern
+   ================================================================== */
+.ecodv2-block { position: relative; float: none; width: 100%; padding: 0; margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--ecv2-g700); border: none; background: transparent; }
+.ecodv2-block + .ecodv2-block,
+.ecodv2-block + div + .ecodv2-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--ecv2-g100); }
+.ecodv2-eyebrow { font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .5px; text-transform: uppercase; color: var(--ecv2-g400) !important; margin: 0 0 6px !important; padding: 0 !important; float: none !important; width: auto !important; background: transparent !important; display: block; }
+.ecodv2-block-edit { position: absolute; top: -3px; right: 0; float: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border: 1px solid var(--ecv2-g300); border-radius: 6px; background: #fff; font-size: 12px; line-height: 1.4; color: var(--ecv2-g600); cursor: pointer; margin: 0; }
+.ecodv2-block-edit:hover { border-color: var(--ecv2-primary); color: var(--ecv2-primary); }
+.ecodv2-block-edit .dashicons-before:before { font-size: 13px; background: transparent !important; padding: 0 !important; margin: 0 !important; color: inherit !important; border-radius: 0 !important; }
+.ecodv2-block a { color: var(--ecv2-blue, #2563eb); text-decoration: none; }
+.ecodv2-block a:hover { text-decoration: underline; }
+.ecodv2-block span,
+.ecodv2-block > div { line-height: 1.7; }
+
+/* Shipment ( weight ) hook block inside the Shipping card. */
+.ecodv2-shipment-details fieldset,
+.ecodv2-shipment-details .wp-easycart-admin-field-container { border: none; padding: 0; margin: 0 0 10px; min-width: 0; }
+.ecodv2-shipment-details fieldset label { display: block; font-size: 11px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
+.ecodv2-shipment-details input { width: 100%; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; float: none; min-width: 0 !important; }
+.ecodv2-shipment-details input:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-shipment-details .wp-easycart-admin-toggle-group-text,
+.ecodv2-shipment-details .wp_easycart_admin_no_padding { float: none; width: auto; padding: 0; display: contents; }
+
+/* ==================================================================
+   Targeted legacy overrides ( the only V1 touch points left )
+   ================================================================== */
+/* Payment badge: id + payment-* class swapped by orders.js. */
+#wpeasycart-payment-status { display: inline-flex !important; align-items: center; width: auto !important; float: none !important; padding: 3px 12px !important; margin: 4px 0 0 4px !important; border-radius: 999px !important; font-size: 11.5px !important; font-weight: 600 !important; line-height: 1.6 !important; background-image: none !important; text-align: left !important; }
+#wpeasycart-payment-status.payment-paid { background: var(--ecv2-primary-soft, #dcfce7) !important; color: var(--ecv2-primary-deep, #166534) !important; }
+#wpeasycart-payment-status.payment-processing { background: #fef3c7 !important; color: #92400e !important; }
+#wpeasycart-payment-status.payment-bad { background: #fee2e2 !important; color: #991b1b !important; }
+#wpeasycart-payment-status.payment-neutral { background: var(--ecv2-g100) !important; color: var(--ecv2-g600) !important; }
+
+/* PRO prints its stat heading with the legacy class; only PRO output
+   still uses it inside this page, so eyebrow-ize it globally here. */
+.ecodv2-wrap .ec_admin_row_heading_title { font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .5px; text-transform: uppercase; color: var(--ecv2-g400) !important; margin: 0 0 6px !important; padding: 0 !important; float: none !important; width: auto !important; background: transparent !important; display: block; }
+
+/* initial_hide is functional; keep it authoritative in this scope. */
+.ecodv2-wrap .ec_admin_initial_hide { display: none; }
+
+/* ==================================================================
+   V2.3 — block heads, quiet edit links, CC line, Edit Order drawer
+   ================================================================== */
+.ecodv2-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.ecodv2-block-head .ecodv2-eyebrow { margin: 0 !important; }
+.ecodv2-block-head .ecodv2-edit-link .dashicons{ margin-top:-5px; }
+.ecodv2-edit-link { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 2px 7px; border-radius: 6px; font-size: 11.5px; color: var(--ecv2-g400); font-weight: 500; cursor: pointer; line-height: 1.6; }
+.ecodv2-edit-link:hover { color: var(--ecv2-primary); background: #f0fdf4; }
+.ecodv2-edit-link .dashicons { font-size: 12px; width: 12px; height: 12px; margin-top: 2px; }
+.ecodv2-kv-name { font-weight: 600; color: var(--ecv2-g900); }
+.ecodv2-cc-line { display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.ecodv2-cc-dots { color: var(--ecv2-g400); letter-spacing: 1px; }
+.ecodv2-cc-exp { color: var(--ecv2-g500); }
+.ecodv2-hidden { display: none !important; }
+
+/* ---- Drawer shell ---- */
+.ecodv2-drawer-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 99990; }
+body.ecodv2-drawer-open .ecodv2-drawer-backdrop { opacity: 1; pointer-events: auto; }
+.ecodv2-drawer { position: fixed; top: 0; right: -500px; width: 460px; max-width: 96vw; height: 100vh; background: #fff; box-shadow: -16px 0 48px rgba(0,0,0,.2); z-index: 99991; transition: right .24s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+body.ecodv2-drawer-open .ecodv2-drawer { right: 0; }
+.ecodv2-drawer-head { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-drawer-head h3 { margin: 0; font-size: 15px; color: var(--ecv2-g900); }
+.ecodv2-drawer-dirty { display: none; font-size: 11px; color: var(--ecv2-amber, #f59e0b); font-weight: 600; }
+.ecodv2-drawer-x { margin-left: auto; border: none; background: transparent; color: var(--ecv2-g400); padding: 4px; border-radius: 6px; cursor: pointer; display: inline-flex; }
+.ecodv2-drawer-x:hover { background: var(--ecv2-g100); color: var(--ecv2-g800); }
+.ecodv2-drawer-jump { display: flex; gap: 6px; padding: 11px 20px; border-bottom: 1px solid var(--ecv2-g100); flex-wrap: wrap; background: var(--ecv2-g50); }
+.ecodv2-drawer-jump a { font-size: 11px; padding: 4px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--ecv2-g200); color: var(--ecv2-g600); text-decoration: none; font-weight: 500; }
+.ecodv2-drawer-jump a:hover,
+.ecodv2-drawer-jump a.is-active { background: var(--ecv2-primary-soft, #dcfce7); border-color: var(--ecv2-primary); color: var(--ecv2-primary-deep, #166534); }
+.ecodv2-drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px 26px; }
+.ecodv2-drawer-sec { margin-bottom: 22px; scroll-margin-top: 8px; border-radius: 10px; }
+.ecodv2-drawer-sec > .ecodv2-eyebrow { display: block; margin-bottom: 10px !important; }
+.ecodv2-sec-flash { animation: ecodv2secflash 1.2s ease; }
+@keyframes ecodv2secflash {
+	0% { background: var(--ecv2-primary-soft, #dcfce7); box-shadow: 0 0 0 6px var(--ecv2-primary-soft, #dcfce7); }
+	100% { background: transparent; box-shadow: none; }
+}
+.ecodv2-drawer-foot { padding: 13px 20px; border-top: 1px solid var(--ecv2-g100); display: flex; align-items: center; gap: 10px; background: var(--ecv2-g50); }
+.ecodv2-drawer-hint { font-size: 11px; color: var(--ecv2-g400); }
+.ecodv2-drawer-foot-spacer { flex: 1; }
+.ecodv2-drawer-foot .ecv2-btn { float: none; }
+#ecodv2_drawer_save:disabled { background: var(--ecv2-g200); border-color: var(--ecv2-g200); color: var(--ecv2-g400); cursor: not-allowed; }
+
+/* ---- Forms inside the drawer lose the inline inset ---- */
+.ecodv2-drawer .ecodv2-form { background: transparent; border: none; padding: 0; margin: 0; }
+.ecodv2-drawer .ecodv2-form.ec_admin_initial_hide { display: block; }
+.ecodv2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.ecodv2-grid .ecodv2-field-wide { grid-column: 1 / -1; }
+.ecodv2-optional { color: var(--ecv2-g300); font-weight: 400; margin-left: 3px; }
+.ecodv2-field input::placeholder { color: var(--ecv2-g300); }
+
+/* Add-field disclosure + removable field. */
+.ecodv2-add-field { display: inline-flex; align-items: center; gap: 5px; border: none; background: transparent; padding: 3px 6px; margin: -2px 0 0 -6px; border-radius: 6px; font-size: 11.5px; color: var(--ecv2-g400); font-weight: 500; cursor: pointer; }
+.ecodv2-add-field:hover { color: var(--ecv2-primary); background: #f0fdf4; }
+.ecodv2-field-removable { position: relative; }
+.ecodv2-field-rm { position: absolute; right: 6px; top: 26px; border: none; background: transparent; color: var(--ecv2-g300); padding: 4px; cursor: pointer; display: inline-flex; }
+.ecodv2-field-rm:hover { color: var(--ecv2-danger, #dc2626); }
+.ecodv2-field-rm .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecodv2-field-removable input { padding-right: 30px; }
+
+/* Masked CC + segmented expiration composites. */
+.ecodv2-cc-wrap,
+.ecodv2-exp-wrap { display: flex; align-items: center; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 0 11px; background: #fff; }
+.ecodv2-cc-wrap:focus-within,
+.ecodv2-exp-wrap:focus-within { border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-cc-wrap-dots { color: var(--ecv2-g400); letter-spacing: 2px; font-variant-numeric: tabular-nums; user-select: none; white-space: nowrap; }
+.ecodv2-cc-wrap input,
+.ecodv2-exp-wrap input { border: none !important; box-shadow: none !important; outline: none !important; padding: 8px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; background: transparent; width: auto; min-width: 0; }
+.ecodv2-cc-wrap input { padding-left: 8px; width: 56px; letter-spacing: 1px; }
+.ecodv2-exp-wrap { gap: 4px; }
+.ecodv2-exp-mm { width: 28px; text-align: center; }
+.ecodv2-exp-yyyy { width: 46px; text-align: center; }
+.ecodv2-exp-slash { color: var(--ecv2-g300); font-weight: 600; }
+
+/* Section tools ( copy from billing ). */
+.ecodv2-sec-tools { display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; }
+.ecodv2-tool-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--ecv2-g300); background: transparent; padding: 3px 11px; border-radius: 999px; font-size: 11px; color: var(--ecv2-g500); cursor: pointer; }
+.ecodv2-tool-btn:hover { border-color: var(--ecv2-primary); border-style: solid; color: var(--ecv2-primary); }
+.ecodv2-tool-btn .dashicons { font-size: 12px; width: 12px; height: 12px; margin-top: 2px; }
+.ecodv2-copied-ok { font-size: 11px; color: var(--ecv2-primary-deep, #166534); display: none; }
+
+/* ==================================================================
+   V2.4 — admin-bar z-index, scroll lock, block-head float fix,
+   user card, copy links, fulfillment section, notes popover
+   ================================================================== */
+/* 1. Above the WP admin bar ( #wpadminbar is z-index 99999 ). */
+.ecodv2-drawer-backdrop { z-index: 999998; }
+.ecodv2-drawer { z-index: 999999; }
+/* 4. Lock page scroll while the drawer is open. */
+body.ecodv2-drawer-open { overflow: hidden; }
+/* 5. Contain any legacy floated content without floating the blocks
+   themselves. Floating .ecodv2-block / .ecodv2-block-head let the flex
+   payment row slide up beside the head and overflow the card. */
+.ecodv2-block { float: none; width: 100%; display: flow-root; }
+.ecodv2-block-head { float: none; width: 100%; }
+.ecodv2-block + .ecodv2-block,
+.ecodv2-block + div + .ecodv2-block { clear: both; }
+
+/* 6. User account card ( V4.0 — avatar layout ). */
+.ecodv2-user-card { float: none; width: 100%; border: 1px solid var(--ecv2-g200); border-radius: 10px; padding: 12px 13px; background: var(--ecv2-g50); display: flex; gap: 12px; box-sizing: border-box; }
+.ecodv2-avatar { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; background: var(--ecv2-blue-soft, #eff6ff); color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; letter-spacing: .02em; }
+.ecodv2-avatar-guest { background: var(--ecv2-g100); color: var(--ecv2-g500); }
+.ecodv2-avatar .dashicons { font-size: 18px; width: 18px; height: 18px; }
+.ecodv2-user-main { flex: 1 1 auto; min-width: 0; }
+.ecodv2-user-topline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ecodv2-user-card-name { font-size: 13.5px; font-weight: 600; color: var(--ecv2-g900); }
+.ecodv2-user-chip { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 9px; font-size: 10.5px; font-weight: 700; }
+.ecodv2-user-chip-account { background: var(--ecv2-blue-soft, #eff6ff); color: #1d4ed8; }
+.ecodv2-user-chip-guest { background: var(--ecv2-g100); color: var(--ecv2-g600); }
+.ecodv2-user-link { display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; color: var(--ecv2-blue, #2563eb); text-decoration: none; }
+.ecodv2-user-link:hover { text-decoration: underline; }
+.ecodv2-user-link .dashicons { font-size: 12px; width: 12px; height: 12px; margin-top: -5px; }
+.ecodv2-contact-row { display: flex; align-items: center; gap: 7px; margin-top: 5px; font-size: 12.5px; line-height: 1.5; min-width: 0; }
+.ecodv2-contact-row:first-of-type { margin-top: 7px; }
+/* .ecodv2-block span sets line-height 1.7 which inflates the dashicon box and
+   shifts the glyph down; pin the icon's line box to its own size. */
+.ecodv2-contact-icon { flex: 0 0 auto; font-size: 14px; width: 14px; height: 14px; line-height: 14px !important; color: var(--ecv2-g400); display: inline-flex; align-items: center; justify-content: center; }
+.ecodv2-contact-copy .dashicons { font-size: 13px; width: 13px; height: 13px; line-height: 13px !important; }
+.ecodv2-contact-copy { opacity: .6; }
+.ecodv2-contact-row:hover .ecodv2-contact-copy { opacity: 1; }
+.ecodv2-contact-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecodv2-contact-value a { color: var(--ecv2-g800); text-decoration: none; }
+.ecodv2-contact-copy { padding: 2px 4px; flex: 0 0 auto; }
+.ecodv2-contact-sub { margin: 2px 0 0 20px; font-size: 12px; }
+.ecodv2-contact-sub:has( > span:empty ) { display: none; }
+.ecodv2-user-card-email { font-size: 12.5px; line-height: 1.5; }
+.ecodv2-user-card-email a { color: var(--ecv2-blue, #2563eb); text-decoration: none; }
+.ecodv2-user-card-email a:hover { text-decoration: underline; }
+
+/* 6b. Payment info row. */
+.ecodv2-payment-row { display: flex; align-items: center; gap: 10px; clear: both; width: 100%; }
+.ecodv2-payment-icon { flex: 0 0 auto; font-size: 18px; width: 18px; height: 18px; line-height: 18px !important; color: var(--ecv2-g400); }
+.ecodv2-payment-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.ecodv2-payment-text > span { line-height: 1.5; }
+.ecodv2-payment-text .ecodv2-cc-line:empty,
+.ecodv2-payment-text .ecodv2-cc-line:not(:has( b )):not(:has( .ecodv2-cc-exp )) { display: none; }
+
+/* 8. Copy link ( address blocks ). */
+.ecodv2-copy-link { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 2px 7px; border-radius: 6px; font-size: 11.5px; color: var(--ecv2-g400); font-weight: 500; cursor: pointer; line-height: 1.6; }
+.ecodv2-copy-link:hover { color: var(--ecv2-blue, #2563eb); background: var(--ecv2-blue-soft, #eff6ff); }
+.ecodv2-copy-link.is-copied { color: var(--ecv2-primary-deep, #166534); background: var(--ecv2-primary-soft, #dcfce7); }
+.ecodv2-copy-link .dashicons { font-size: 12px; width: 12px; height: 12px; margin-top: -5px; }
+.ecodv2-block-head .ecodv2-copy-link { margin-left: auto; }
+.ecodv2-block-head .ecodv2-copy-link + .ecodv2-edit-link { margin-left: 0; }
+/* Hide the legacy PRO copy-address link now that the free one exists. */
+.ecodv2-wrap .wp-easycart-copy-address,
+.ecodv2-wrap .wp-easycart-copy-shipping-address { display: none; }
+
+/* 9/10. Fulfillment drawer section. */
+.ecodv2-drawer-account { margin-bottom: 12px; }
+.ecodv2-drawer-account label { display: block; font-size: 10.5px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
+#ecodv2_sec_fulfillment .ecodv2-form { background: transparent; border: none; padding: 0; margin: 0; }
+#ecodv2_sec_fulfillment .ecodv2-form.ec_admin_initial_hide { display: block; }
+.ecodv2-shipment-weight { margin-top: 12px; }
+.ecodv2-shipment-weight .ecodv2-block { border: none; margin: 0; padding: 0; float: none; }
+.ecodv2-shipment-weight .ecodv2-eyebrow { margin-bottom: 8px !important; }
+
+/* 11. Customer notes popover. */
+.ecodv2-cnotes-anchor { position: relative; }
+.ecodv2-cnotes-text { font-size: 13px; line-height: 1.6; color: var(--ecv2-g800); word-break: break-word; }
+.ecodv2-cnotes-popover { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 460px; max-width: 92vw; background: #fff; border: 1px solid var(--ecv2-g200); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.18); padding: 14px 16px; z-index: 700; }
+.ecodv2-cnotes-popover.is-open { display: block; }
+.ecodv2-cnotes-popover:before { content: ""; position: absolute; top: -6px; right: 26px; width: 10px; height: 10px; background: #fff; border-left: 1px solid var(--ecv2-g200); border-top: 1px solid var(--ecv2-g200); transform: rotate(45deg); }
+.ecodv2-cnotes-popover-head { font-size: 12.5px; font-weight: 600; color: var(--ecv2-g800); margin-bottom: 8px; }
+.ecodv2-cnotes-form { float: none; width: 100%; }
+.ecodv2-cnotes-popover textarea { width: 100%; min-height: 170px; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 10px 12px; font-size: 13px; line-height: 1.55; resize: vertical; float: none; box-sizing: border-box; }
+.ecodv2-cnotes-popover textarea:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-cnotes-popover-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.ecodv2-cnotes-hint { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ecv2-amber, #b45309); margin-right: auto; }
+.ecodv2-cnotes-hint .dashicons { font-size: 13px; width: 13px; height: 13px; }
+.ecodv2-cnotes-popover-foot .ecv2-btn { float: none; }
+
+/* ==================================================================
+   V2.5 — bug-fix round: drawer width, select2 layering, robust drawer
+   fields, header title-row badges, notes empty state
+   ================================================================== */
+/* 3. One-row jump chips: wider, responsive drawer. */
+.ecodv2-drawer { width: min( 700px, 95vw ); max-width: 95vw; right: max( -720px, -100vw ); }
+body.ecodv2-drawer-open .ecodv2-drawer { right: 0; }
+
+/* 4. select2 dropdown appends to <body>; lift it above the drawer. */
+.select2-container--open { z-index: 9999999 !important; }
+body > .select2-container { z-index: 9999999 !important; }
+
+/* 2. Robust drawer field layout — wins over any legacy float/width rules. */
+.ecodv2-drawer .ecodv2-sec-host,
+.ecodv2-drawer .ecodv2-form,
+.ecodv2-drawer .ecodv2-grid { float: none !important; width: 100% !important; }
+.ecodv2-drawer .ecodv2-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 11px; }
+.ecodv2-drawer .ecodv2-field { float: none !important; width: auto !important; min-width: 0 !important; }
+.ecodv2-drawer .ecodv2-field label { display: block !important; float: none !important; width: auto !important; font-size: 10.5px; font-weight: 600; color: var(--ecv2-g500); margin: 0 0 4px !important; }
+.ecodv2-drawer .ecodv2-field > input,
+.ecodv2-drawer .ecodv2-field > select { display: block; float: none !important; width: 100% !important; min-width: 0 !important; max-width: none !important; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; background: #fff; box-sizing: border-box; }
+.ecodv2-drawer .ecodv2-cc-wrap,
+.ecodv2-drawer .ecodv2-exp-wrap { display: flex !important; float: none !important; width: 100% !important; min-height: 36px; }
+.ecodv2-drawer .ecodv2-cc-wrap input { width: 60px !important; min-width: 60px !important; flex: 1 1 auto; border: none !important; }
+.ecodv2-drawer .ecodv2-exp-wrap input { border: none !important; }
+.ecodv2-drawer .ecodv2-exp-mm { width: 30px !important; min-width: 30px !important; }
+.ecodv2-drawer .ecodv2-exp-yyyy { width: 50px !important; min-width: 50px !important; }
+.ecodv2-drawer .ecodv2-cc-wrap-dots { flex: 0 0 auto; }
+
+/* 5. Header: badges live in the title row; meta aligns under the title. */
+.ecodv2-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+.ecodv2-title-row #wpeasycart-payment-status { margin: 0 0 0 6px !important; }
+.ecodv2-title-row .ecodv2-fulfill-badge { margin: 0; }
+.ecodv2-header .ecdv2-header-meta { min-width: 0; flex: 1 1 auto; }
+
+/* 1. Customer notes empty state. */
+.ecodv2-cnotes-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 10px 14px; text-align: center; font-size: 12.5px; color: var(--ecv2-g400); }
+.ecodv2-cnotes-empty > .dashicons { font-size: 22px; width: 22px; height: 22px; color: var(--ecv2-g300); }
+.ecodv2-cnotes-empty .ecv2-btn { margin-top: 4px; float: none; }
+.ecodv2-cnotes-empty .ecv2-btn .dashicons { font-size: 12px; width: 12px; height: 12px; margin-top: 3px; }
+
+/* ==================================================================
+   V2.6 — header title-row width fix ( tags wrapped below title )
+   ================================================================== */
+.ecodv2-title-row { width: 100%; float: none; }
+.ecodv2-header .ecdv2-header-meta { width: auto; }
+.ecodv2-title-row .ecodv2-tags { display: inline-flex; }
+
+/* ==================================================================
+   V2.7 — status swatch pill + inline date editor
+   ================================================================== */
+/* Status pill. */
+.ecodv2-status-wrap { position: relative; }
+.ecodv2-status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--ecv2-g800); background: #fff; font-size: 13px; font-weight: 600; color: var(--ecv2-g800); cursor: pointer; line-height: 1.4; }
+.ecodv2-status-pill:hover { background: var(--ecv2-g50); }
+.ecodv2-status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.ecodv2-status-caret { font-size: 12px !important; width: 12px !important; height: 12px !important; color: var(--ecv2-g500); margin-top: 2px; }
+.ecodv2-status-archived-note { font-style: normal; font-weight: 400; font-size: 11px; color: var(--ecv2-g400); }
+
+/* Status menu. */
+.ecodv2-status-menu { right: 0; left: auto; min-width: 250px; max-height: 340px; overflow-y: auto; }
+.ecodv2-status-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 11px; border: none; background: transparent; border-radius: 8px; font-size: 12.5px; color: var(--ecv2-g700); text-align: left; cursor: pointer; }
+.ecodv2-status-item:hover { background: var(--ecv2-g100); }
+.ecodv2-status-item-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecodv2-status-check { visibility: hidden; color: var(--ecv2-primary); font-size: 15px !important; width: 15px !important; height: 15px !important; }
+.ecodv2-status-item.is-current { font-weight: 600; color: var(--ecv2-g900); }
+.ecodv2-status-item.is-current .ecodv2-status-check { visibility: visible; }
+.ecodv2-status-item.is-unapproved { color: var(--ecv2-g400); }
+.ecodv2-status-item.is-unapproved .ecodv2-status-dot { box-shadow: inset 0 0 0 1.5px var(--ecv2-g300); }
+.ecodv2-status-add { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 11px; border: none; background: transparent; border-radius: 8px; font-size: 12.5px; color: var(--ecv2-blue, #2563eb); text-align: left; cursor: pointer; }
+.ecodv2-status-add:hover { background: var(--ecv2-blue-soft, #eff6ff); }
+
+/* Inline date editor. */
+.ecdv2-header-sub { min-height: 30px; }
+.ecodv2-date-view { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; margin-left: -8px; border-radius: 7px; font-weight: 600; color: var(--ecv2-g700); cursor: pointer; border: 1px solid transparent; }
+.ecodv2-date-view:hover { background: var(--ecv2-g50); border-color: var(--ecv2-g200); }
+.ecodv2-date-pencil { opacity: 0; transition: opacity .12s ease; }
+.ecodv2-date-view:hover .ecodv2-date-pencil { opacity: 1; }
+.ecodv2-date-form { display: inline-flex; align-items: center; gap: 5px; }
+.ecodv2-date-form input { width: 170px; border: 1px solid var(--ecv2-primary); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; box-shadow: 0 0 0 3px rgba(22,163,74,.12); outline: none; }
+.ecodv2-icon-btn { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--ecv2-g300); background: #fff; display: inline-flex; align-items: center; justify-content: center; color: var(--ecv2-g500); cursor: pointer; }
+.ecodv2-icon-btn .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecodv2-icon-btn-ok { background: var(--ecv2-primary); border-color: var(--ecv2-primary); color: #fff; }
+.ecodv2-icon-btn-ok:hover { filter: brightness( .95 ); }
+.ecodv2-icon-btn-cancel:hover { border-color: var(--ecv2-danger, #dc2626); color: var(--ecv2-danger, #dc2626); }
+
+/* ==================================================================
+   V2.8 — header title row: force full width regardless of base rules
+   ================================================================== */
+.ecodv2-header .ecdv2-header-meta { display: block !important; }
+.ecodv2-header .ecdv2-header-title.ecodv2-title-row { display: flex !important; width: 100% !important; max-width: 100% !important; flex: 0 0 100%; }
+
+/* ==================================================================
+   V2.9 — control heights, fixed-width status pill, shipment panel
+   ================================================================== */
+/* Items 2+3: shared 36px control height; fixed pill width. */
+.ecodv2-status-pill { width: 220px; height: 36px; box-sizing: border-box; justify-content: flex-start; padding: 0 14px; }
+#ecodv2_status_pill_label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.ecodv2-status-caret { margin-left: auto; }
+.ecodv2-header .ecodv2-nav .ecv2-btn,
+.ecodv2-header .ecdv2-menu-wrap > .ecv2-btn { height: 36px; box-sizing: border-box; display: inline-flex; align-items: center; }
+
+/* Items 6+7: shipment panel layout. */
+.ecodv2-fulfill-banner { display: block; padding: 12px 16px; }
+.ecodv2-fulfill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 500; }
+.ecodv2-fulfill-row .ecv2-btn { margin-left: auto; }
+.ecodv2-fulfill-row .ecv2-btn ~ .ecv2-btn { margin-left: 0; }
+.ecodv2-fulfill-banner #ec_admin_view_shipping_method { float: none; width: auto; margin: 10px 0 0; padding: 10px 14px; background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06); border-radius: 10px; font-size: 12.5px; font-weight: 400; color: var(--ecv2-g700); }
+.ecodv2-fulfill-banner #ec_admin_view_shipping_method .ecodv2-block-head { margin-bottom: 3px; }
+.ecodv2-fulfill-banner #ec_admin_view_shipping_method span { line-height: 1.7; }
+.ecodv2-tracking-line { display: inline-flex; align-items: center; gap: 4px; }
+.ecodv2-tracking-line #ec_admin_order_details_tracking_number { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ecodv2-tracking-copy { padding: 1px 5px; }
+.ecodv2-fulfill-banner #ec_admin_order_details_shipping_empty_message a { font-weight: 500; }
+
+/* ==================================================================
+   V3.0 — fulfillment card + date/time inputs
+   ================================================================== */
+.ecodv2-card-fulfillment .ecodv2-fulfill-banner { border-bottom: none; border-radius: 0 0 var(--ecv2-r, 8px) var(--ecv2-r, 8px); }
+.ecodv2-card-fulfillment .ecdv2-card-header { border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-date-form input[type="time"] { width: 92px; border: 1px solid var(--ecv2-primary); border-radius: 8px; padding: 5px 8px; font-size: 12.5px; box-shadow: 0 0 0 3px rgba(22,163,74,.12); outline: none; }
+
+/* ==================================================================
+   V3.1 — create shipping label popup
+   ================================================================== */
+.ecodv2-label-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .18s ease; z-index: 999996; }
+body.ecodv2-label-open .ecodv2-label-backdrop { opacity: 1; pointer-events: auto; }
+.ecodv2-label-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -47%) scale(.98); width: 580px; max-width: 95vw; max-height: 92vh; overflow-y: auto; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.35); z-index: 999997; opacity: 0; pointer-events: none; transition: all .18s ease; }
+body.ecodv2-label-open .ecodv2-label-popup { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.ecodv2-label-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--ecv2-g100); position: sticky; top: 0; background: #fff; z-index: 2; }
+.ecodv2-label-head h3 { margin: 0; font-size: 15px; }
+.ecodv2-label-ref { font-size: 12px; color: var(--ecv2-g400); }
+.ecodv2-label-head .ecodv2-drawer-x { margin-left: auto; }
+.ecodv2-label-body { padding: 18px 20px; }
+.ecodv2-label-body > .ecodv2-eyebrow { display: block; margin-bottom: 8px; }
+
+.ecodv2-label-services { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.ecodv2-svc { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid var(--ecv2-g200); border-radius: 11px; background: #fff; text-decoration: none; color: inherit; }
+.ecodv2-svc:hover { border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.08); }
+.ecodv2-svc-logo { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #fff; flex: 0 0 auto; }
+.ecodv2-svc-name { font-weight: 600; font-size: 13px; color: var(--ecv2-g900); }
+.ecodv2-svc-sub { font-size: 11.5px; color: var(--ecv2-g500); }
+.ecodv2-svc-cta { margin-left: auto; font-size: 11.5px; color: var(--ecv2-g400); white-space: nowrap; }
+.ecodv2-svc-integrated .ecodv2-svc-cta { color: var(--ecv2-primary-deep, #166534); font-weight: 600; }
+.ecodv2-svc-install { border-style: dashed; opacity: .88; }
+.ecodv2-svc-install .ecodv2-svc-cta { color: var(--ecv2-blue, #2563eb); }
+
+.ecodv2-label-carriers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+.ecodv2-label-carrier { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 13px 8px 11px; border: 1px solid var(--ecv2-g200); border-radius: 11px; background: #fff; text-decoration: none; }
+.ecodv2-label-carrier:hover { border-color: var(--ecv2-g800); }
+.ecodv2-label-carrier.is-suggested { border-color: var(--ecv2-primary); background: #f6fdf8; }
+.ecodv2-label-sug { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: var(--ecv2-primary); color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .4px; padding: 1px 8px; border-radius: 999px; }
+.ecodv2-label-carrier-name { font-weight: 800; font-size: 13px; color: var(--ecv2-g800); }
+.ecodv2-label-carrier-sub { font-size: 10px; color: var(--ecv2-g400); }
+.ecodv2-label-helper { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 12px 14px; background: var(--ecv2-g50); border: 1px solid var(--ecv2-g200); border-radius: 11px; margin: 14px 0 16px; font-size: 12px; }
+.ecodv2-label-line { color: var(--ecv2-g700); line-height: 1.55; min-width: 0; }
+.ecodv2-label-line b { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--ecv2-g400); margin-bottom: 1px; }
+.ecodv2-label-after { border-top: 1px dashed var(--ecv2-g200); padding-top: 14px; }
+.ecodv2-label-after-row { display: flex; gap: 8px; }
+.ecodv2-label-after-row select { width: 130px; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 10px; font-size: 12.5px; background: #fff; }
+.ecodv2-label-after-row input { flex: 1; min-width: 0; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ecodv2-label-after-row input:focus, .ecodv2-label-after-row select:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-label-email-opt { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 12px; color: var(--ecv2-g600); }
+.ecodv2-label-saved { display: none; margin-top: 10px; padding: 9px 12px; border-radius: 9px; background: var(--ecv2-primary-soft, #dcfce7); color: var(--ecv2-primary-deep, #166534); font-size: 12px; font-weight: 500; }
+
+/* ==================================================================
+   V3.3 — Edit Line Item modal
+   ================================================================== */
+.ecodv2-line-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .18s ease; z-index: 999996; }
+body.ecodv2-line-open .ecodv2-line-backdrop { opacity: 1; pointer-events: auto; }
+.ecodv2-line-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -47%) scale(.98); width: 540px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.35); z-index: 999997; opacity: 0; pointer-events: none; transition: all .18s ease; }
+body.ecodv2-line-open .ecodv2-line-modal { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.ecodv2-line-modal-head { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var(--ecv2-g100); }
+.ecodv2-line-modal-head h3 { margin: 0; font-size: 15px; }
+.ecodv2-line-modal-chips { display: flex; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.ecodv2-line-modal-head .ecodv2-drawer-x { margin-left: auto; }
+.ecodv2-line-modal-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+.ecodv2-line-modal-foot { display: flex; align-items: center; gap: 10px; padding: 13px 20px; border-top: 1px solid var(--ecv2-g100); background: var(--ecv2-g50); }
+.ecodv2-line-remove { display: inline-flex; align-items: center; gap: 5px; border: none; background: transparent; padding: 5px 9px; border-radius: 7px; font-size: 12px; color: var(--ecv2-g400); cursor: pointer; }
+.ecodv2-line-remove:hover { background: #fee2e2; color: var(--ecv2-danger, #dc2626); }
+.ecodv2-line-remove .dashicons { font-size: 14px; width: 14px; height: 14px; margin-top: 2px; }
+
+/* Normalize the PRO-printed edit containers ( unknown legacy markup ) into
+   the modal's field pattern: tables flatten, labels stack, inputs fill. */
+.ecodv2-line-modal-body > div { float: none !important; width: 100% !important; margin: 0 0 12px !important; padding: 0 !important; background: transparent !important; border: none !important; }
+.ecodv2-line-modal-body table,
+.ecodv2-line-modal-body thead,
+.ecodv2-line-modal-body tbody,
+.ecodv2-line-modal-body tr,
+.ecodv2-line-modal-body th,
+.ecodv2-line-modal-body td { display: block; width: 100% !important; padding: 0; margin: 0; text-align: left; border: none; }
+.ecodv2-line-modal-body th,
+.ecodv2-line-modal-body label,
+.ecodv2-line-modal-body .ec_details_option_label { display: block; float: none !important; width: 100% !important; font-size: 10.5px !important; font-weight: 600 !important; color: var(--ecv2-g500) !important; margin: 0 0 4px !important; text-transform: none; letter-spacing: 0; }
+.ecodv2-line-modal-body input[type="text"],
+.ecodv2-line-modal-body input:not([type]),
+.ecodv2-line-modal-body input[type="number"],
+.ecodv2-line-modal-body textarea { display: block; float: none !important; width: 100% !important; min-width: 0 !important; border: 1px solid var(--ecv2-g300) !important; border-radius: 9px !important; padding: 8px 11px !important; font-size: 12.5px !important; background: #fff !important; box-sizing: border-box; margin: 0 0 8px !important; }
+.ecodv2-line-modal-body input:focus,
+.ecodv2-line-modal-body textarea:focus { outline: none !important; border-color: var(--ecv2-primary) !important; box-shadow: 0 0 0 3px rgba(22,163,74,.12) !important; }
+.ecodv2-line-modal-body td:last-child input { margin-bottom: 0 !important; }
+
+/* Qty × unit + total side by side. */
+.ecodv2-line-money { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 2px; }
+.ecodv2-line-money > div { float: none !important; width: auto !important; margin: 0 !important; min-width: 0; }
+.ecodv2-line-money input { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* V3.4: hide the totals editor during the programmatic silent save. */
+body.ecodv2-totals-silent #ec_admin_order_details_totals_form { display: none !important; }
+body.ecodv2-totals-silent #ec_admin_order_details_totals_content { display: block !important; }
+
+/* ==================================================================
+   V3.5 — line-delete confirmation popover
+   ================================================================== */
+.ecodv2-del-pop { position: absolute; width: 240px; background: #fff; border: 1px solid var(--ecv2-g200); border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.2); padding: 12px 14px; z-index: 9999998; display: none; }
+.ecodv2-del-pop.is-open { display: block; }
+.ecodv2-del-pop-msg { font-size: 12.5px; font-weight: 500; color: var(--ecv2-g800); margin-bottom: 10px; }
+.ecodv2-del-pop-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.ecodv2-del-pop .ecodv2-del-go { background: var(--ecv2-danger, #dc2626); border-color: var(--ecv2-danger, #dc2626); color: #fff; font-weight: 600; }
+.ecodv2-del-pop .ecodv2-del-go:hover { filter: brightness( .93 ); color: #fff; }
+
+/* ==================================================================
+   V3.6 — Add Line modal
+   ================================================================== */
+body.ecodv2-add-open .ecodv2-add-backdrop { opacity: 1; pointer-events: auto; }
+.ecodv2-add-modal { display: flex; }
+body:not(.ecodv2-add-open) .ecodv2-add-modal { opacity: 0; pointer-events: none; transform: translate(-50%, -47%) scale(.98); }
+body.ecodv2-add-open .ecodv2-add-modal { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.ecodv2-add-modal .ecodv2-field { margin-bottom: 12px; }
+.ecodv2-add-modal .ecodv2-field label { display: block; font-size: 10.5px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
+.ecodv2-add-modal .ecodv2-field select,
+.ecodv2-add-modal .ecodv2-field input { width: 100%; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; background: #fff; box-sizing: border-box; }
+.ecodv2-add-modal .ecodv2-field input:focus,
+.ecodv2-add-modal .ecodv2-field select:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+.ecodv2-add-money { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 12px; }
+.ecodv2-add-money input { text-align: right; font-variant-numeric: tabular-nums; }
+.ecodv2-add-note { font-size: 11px; color: var(--ecv2-g400); margin-top: 2px; }
+#ecodv2_add_line_save:disabled { background: var(--ecv2-g200); border-color: var(--ecv2-g200); color: var(--ecv2-g400); cursor: not-allowed; }
+
+/* ==================================================================
+   V3.7.1 — totals rows align structurally, WITHOUT overriding the
+   show / hide machinery: inline display:none ( zero-prune, legacy save )
+   must keep hiding rows; rows revealed via jQuery .show() ( inline
+   display:block ) are converted back to flex by attribute match.
+   ================================================================== */
+.ecodv2-trow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ecodv2-trow.ec_admin_initial_hide { display: none; }
+.ecodv2-trow[style*="display: block"],
+.ecodv2-trow[style*="display:block"] { display: flex !important; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ecodv2-trow > div:first-child,
+.ecodv2-trow > span:first-child { font-size: 13px; color: var(--ecv2-g600); float: none; width: auto; text-align: left; }
+.ecodv2-trow > div:last-child,
+.ecodv2-trow > span:last-child { margin-left: auto; font-size: 13px; color: var(--ecv2-g800); font-variant-numeric: tabular-nums; float: none; width: auto; text-align: right; }
+.ecodv2-grand-row > div:first-child,
+.ecodv2-grand-row > div:last-child { font-weight: 700; font-size: 14.5px; color: var(--ecv2-g900); }
+
+/* ==================================================================
+   V3.8 — pinned note strip + editor
+   ================================================================== */
+.ecodv2-pin-strip { display: flex; align-items: flex-start; gap: 9px; padding: 11px 14px; background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid var(--ecv2-amber, #f59e0b); border-radius: 10px; margin-bottom: 14px; }
+.ecodv2-pin-strip > .dashicons { color: var(--ecv2-amber, #f59e0b); font-size: 16px; width: 16px; height: 16px; margin-top: 1px; }
+.ecodv2-pin-text { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: #78350f; line-height: 1.55; white-space: pre-wrap; overflow-wrap: break-word; }
+.ecodv2-pin-strip .ecodv2-edit-link { flex: 0 0 auto; }
+.ecodv2-pin-add { margin-bottom: 14px; }
+.ecodv2-pin-add a { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ecv2-g400); text-decoration: none; }
+.ecodv2-pin-add a:hover { color: var(--ecv2-amber, #f59e0b); }
+.ecodv2-pin-add .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecodv2-pin-editor { padding: 12px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; margin-bottom: 14px; }
+.ecodv2-pin-editor textarea { width: 100%; min-height: 64px; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 9px 12px; font-size: 12.5px; box-sizing: border-box; resize: vertical; background: #fff; }
+.ecodv2-pin-editor textarea:focus { outline: none; border-color: var(--ecv2-amber, #f59e0b); box-shadow: 0 0 0 3px rgba(245,158,11,.14); }
+.ecodv2-pin-editor-foot { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+.ecodv2-pin-unpin { border: none; background: transparent; font-size: 12px; color: var(--ecv2-g400); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.ecodv2-pin-unpin:hover { background: #fee2e2; color: var(--ecv2-danger, #dc2626); }
+#ecodv2_pin_save_btn:disabled { opacity: .75; cursor: default; }
+
+/* V4.2: body scroll lock while the history drawer is open. */
+body.ecodv2-hdrawer-open { overflow: hidden; }
+
+/* ---------- Free-edition PRO markers on the order page ---------- */
+.ecodv2-pro-pill { display:inline-flex; align-items:center; padding:1px 6px; border-radius:5px; background:var(--ecv2-amber, #f59e0b); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.5px; line-height:1.5; margin-left:6px; vertical-align:middle; }
+.ecodv2-toolbar-menu .ecodv2-menu-locked { color:var(--ecv2-g500); }
+.ecodv2-toolbar-menu .ecodv2-menu-locked .dashicons { color:var(--ecv2-g400); }
+.ecodv2-toolbar-menu .ecodv2-menu-locked .ecodv2-pro-pill { margin-left:auto; }
+.ecodv2-toolbar-menu .ecodv2-menu-locked:hover { color:var(--ecv2-g800); }
+
+/* Order History ( free stub ) */
+.ecodv2-history-free .wpeasycart-timeline-item.is-locked .dashicons { color:var(--ecv2-g400); }
+.ecodv2-history-free .wpeasycart-timeline-item.is-locked a { color:var(--ecv2-g600); }
+.ecodv2-history-free .wpeasycart-timeline-item.is-locked small { color:var(--ecv2-g400); }
+.ecodv2-history-free .wpeasycart-timeline-item.is-locked { opacity:.85; }
+.ecodv2-history-cta { display:flex; align-items:center; gap:10px; padding:10px 12px; margin:8px 0 0; border-radius:var(--ecv2-r); border:1px dashed var(--ecv2-g200); background:var(--ecv2-g50); cursor:pointer; width:100%; text-align:left; font:inherit; color:inherit; }
+.ecodv2-history-cta:hover { border-color:#fcd34d; background:#fffbeb; }
+.ecodv2-history-cta strong { display:block; font-size:12.5px; color:var(--ecv2-g800); }
+.ecodv2-history-cta span { display:block; font-size:11.5px; color:var(--ecv2-g500); }
+.ecodv2-history-cta .ecodv2-history-cta-text { flex:1 1 auto; }
+
+/* Product picker results ( Add Line modal ) */
+.ecodv2-product-result { display:flex; align-items:center; gap:8px; min-width:0; }
+.ecodv2-product-result code { font-size:11px; background:var(--ecv2-g100); padding:1px 6px; border-radius:4px; color:var(--ecv2-g600); }
+.ecodv2-product-result em { margin-left:auto; font-style:normal; color:var(--ecv2-g500); font-size:12px; }
+.ecodv2-add-modal .select2-container { z-index:100010; }
+
+/* ---------- Mobile: the order header scrolls with the page ----------
+   It carries too much ( tags, insights, meta, status controls ) to pin; pinned at 400px tall it
+   just hid the content below it. On phones the shell top bar already provides navigation. */
+@media screen and (max-width: 782px) {
+	.ecodv2-header.ecdv2-header { position: static; top: auto; box-shadow: none; }
+	.ecodv2-header .ecdv2-header-title { max-width: none; white-space: normal; }
+	.ecodv2-header .ecdv2-header-sub { max-width: none; }
+	.ecodv2-header .ecdv2-header-spacer { display: none; }
+	.ecodv2-header .ecodv2-status-wrap { flex: 1 1 auto; min-width: 0; }
+	.ecodv2-header .ecodv2-status-pill { max-width: 100%; }
+}

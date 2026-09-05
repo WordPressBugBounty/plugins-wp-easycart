@@ -1,0 +1,74 @@
+/* WP EasyCart Admin — Inventory V2
+ * Layers on admin-v2.css ( ecv2 design tokens ). Only inventory-specific
+ * pieces live here; badges, buttons, modals, drawer, toasts, and menus
+ * all come from the shared stylesheet. */
+
+/* Thumbnail */
+.ecv2i-thumb { width: 40px; height: 40px; border-radius: var(--ecv2-rs, 6px); background: var(--ecv2-g100, #f3f4f6); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.ecv2i-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ecv2i-thumb .dashicons { color: var(--ecv2-g300, #d1d5db); }
+
+/* Item cell */
+.ecv2i-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ecv2i-item-title { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+.ecv2i-variant-label { font-size: 12px; color: var(--ecv2-g500, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+.ecv2i-hidden-tag { align-self: flex-start; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ecv2-g500, #6b7280); background: var(--ecv2-g100, #f3f4f6); border: 1px solid var(--ecv2-g200, #e5e7eb); border-radius: 10px; padding: 1px 7px; }
+
+/* Type tag */
+.ecv2i-type-tag { display: inline-block; font-size: 11px; font-weight: 500; color: var(--ecv2-g500, #6b7280); background: var(--ecv2-g100, #f3f4f6); border-radius: 10px; padding: 2px 9px; }
+.ecv2i-type-variant { background: var(--ecv2-blue-light, #e0f2fe); color: var(--ecv2-blue, #0369a1); }
+
+/* Quantity cell + popover */
+.ecv2i-qty-wrap { position: relative; display: inline-block; }
+.ecv2i-qty-badge-btn { background: none; border: none; padding: 0; cursor: pointer; }
+.ecv2i-qty-badge-btn:hover .ecv2-stock-badge { box-shadow: 0 0 0 2px rgba(0,0,0,.06); }
+.ecv2i-qty-pop, .ecv2i-threshold-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; background: #fff; border: 1px solid var(--ecv2-g200, #e5e7eb); border-radius: var(--ecv2-rs, 6px); box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 12px; min-width: 240px; display: none; }
+.ecv2i-qty-pop.ecv2i-pop-open { display: block; }
+.ecv2i-pop-label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ecv2-g500, #6b7280); margin-bottom: 6px; }
+.ecv2i-pop-row { display: flex; align-items: center; gap: 6px; }
+.ecv2i-pop-row input[type="number"] { width: 74px; text-align: center; }
+.ecv2i-pop-note { margin: 8px 0 0; font-size: 11px; color: var(--ecv2-g400, #9ca3af); }
+.ecv2i-step { width: 28px; height: 28px; line-height: 1; font-size: 16px; border: 1px solid var(--ecv2-g200, #e5e7eb); background: var(--ecv2-g100, #f3f4f6); border-radius: var(--ecv2-rs, 6px); cursor: pointer; }
+.ecv2i-step:hover { background: var(--ecv2-g200, #e5e7eb); }
+
+/* Threshold control ( page header ) */
+.ecv2i-threshold-wrap { position: relative; display: inline-block; }
+.ecv2i-threshold-pop { left: auto; right: 0; }
+
+/* Locked ( PRO upsell ) states */
+.ecv2i-locked-btn { opacity: .75; }
+.ecv2i-locked-btn .dashicons-lock { color: #fc0; }
+.ecv2i-locked-menu-item { color: var(--ecv2-g500); }
+.ecv2i-locked-menu-item .dashicons { color: var(--ecv2-g400); }
+.ecv2i-locked-menu-item:hover { color: var(--ecv2-g800); }
+.ecv2i-menu-pro { margin-left: auto; display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 5px; background: var(--ecv2-amber, #f59e0b); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .5px; line-height: 1.5; }
+.ecv2-wrap > .ecv2-cl-upsell { margin: 0 0 16px; }
+.ecv2i-menu-lock { float: right; color: #fc0; font-size: 14px; width: 14px; height: 14px; margin-top: 2px; }
+
+/* Row menu flip helper */
+.ecv2-row-menu-up { top: auto !important; bottom: calc(100% + 4px); }
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+	.ecv2i-item-title, .ecv2i-variant-label { max-width: 200px; }
+	.ecv2i-qty-pop { left: auto; right: 0; }
+}
+
+/* Keep popovers from clipping inside the table */
+.ecv2-table td.ecv2-cell-quantity, .ecv2-table .ecv2-col-actions { overflow: visible; }
+.ecv2-table { overflow: visible; }
+
+/* Context-aware empty state */
+.ecv2i-empty-state { padding: 36px 20px !important; }
+.ecv2i-empty-title { font-size: 15px; font-weight: 600; color: var(--ecv2-g600, #4b5563); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ecv2i-empty-title .dashicons { color: var(--ecv2-g300, #d1d5db); }
+.ecv2i-empty-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; }
+.ecv2i-empty-context-label { font-size: 12px; color: var(--ecv2-g500, #6b7280); margin-right: 2px; }
+.ecv2i-empty-hint { margin: 10px 0 0; font-size: 12px; color: var(--ecv2-g400, #9ca3af); }
+/* Phones: guarantee the list scrolls sideways inside its card ( viewport fallback to the
+   @container rule in admin-v2.css ). Item column keeps a sensible width; title truncates. */
+@media screen and (max-width: 782px) {
+	.ecv2i-wrap .ecv2-table-scroll, .ecv2-wrap .ecv2-table-scroll { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+	.ecv2-wrap .ecv2-table-scroll > .ecv2-table { min-width: 640px; }
+	.ecv2i-item-title, .ecv2i-variant-label { max-width: 220px; }
+}

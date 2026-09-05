@@ -128,21 +128,17 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					$count_fixed = 0;
 					$categories = $wpdb->get_results( "SELECT * FROM ec_category" );
 					foreach ( $categories as $category ) {
-						$post = get_post( $category->post_id );
-						if ( ! $post ) {
-							$insert_post_id = wp_insert_post(
-								array(
-									'post_content' => "[ec_store groupid=\"" . $category->category_id . "\"]",
-									'post_status' => "publish",
-									'post_title' => wp_easycart_language( )->convert_text( $category->category_name ),
-									'post_type' => "ec_store",
-								)
-							);
-							if ( $insert_post_id != 0 ) {
-								$post_id = $insert_post_id;
-								$wpdb->query( $wpdb->prepare( "UPDATE ec_category SET post_id = %d WHERE category_id = %d", $post_id, $category->category_id ) );
-							}
-						}
+						wp_easycart_post_sync()->resolve(
+							'category',
+							$category->category_id,
+							$category->post_id,
+							array(
+								'post_content' => "[ec_store groupid=\"" . $category->category_id . "\"]",
+								'post_status' => "publish",
+								'post_title' => wp_easycart_language( )->convert_text( $category->category_name ),
+								'post_type' => "ec_store",
+							)
+						);
 					}
 					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-category-permalinks' );
 					die();
@@ -159,38 +155,20 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					global $wpdb;
 					$products = $wpdb->get_results( 'SELECT activate_in_store, post_id, title, product_id, model_number FROM ec_product' );
 					foreach ( $products as $product ) {
-						$post = get_post( $product->post_id );
-						if ( ! $post ) {
-							$insert_post_id = wp_insert_post(
-								array(
-									'post_content' => "[ec_store modelnumber=\"" . $product->model_number . "\"]",
-									'post_status' => "publish",
-									'post_title' => wp_easycart_language( )->convert_text( $product->title ),
-									'post_type' => "ec_store",
-								)
-							);
-							if ( $insert_post_id != 0 ) {
-								$post_id = $insert_post_id;
-								$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET post_id = %d WHERE product_id = %d", $post_id, $product->product_id ) );
-							}
-
-						} else {
-							if ( $post->post_status == 'publish' && ! $product->activate_in_store ) {
-								wp_update_post(
-									array(
-										'ID' => $post->ID,
-										'post_status' => "private"
-									)
-								);
-
-							} else if ( $post->post_status == 'private' && $product->activate_in_store ) {
-								wp_update_post(
-									array(
-										'ID' => $post->ID,
-										'post_status'	=> "publish"
-									)
-								);
-							}
+						$target_status = $product->activate_in_store ? 'publish' : 'private';
+						$verified_id = wp_easycart_post_sync()->resolve(
+							'product',
+							$product->product_id,
+							$product->post_id,
+							array(
+								'post_content' => "[ec_store modelnumber=\"" . $product->model_number . "\"]",
+								'post_status' => $target_status,
+								'post_title' => wp_easycart_language( )->convert_text( $product->title ),
+								'post_type' => "ec_store",
+							)
+						);
+						if ( $verified_id && get_post_status( $verified_id ) != $target_status && in_array( get_post_status( $verified_id ), array( 'publish', 'private' ) ) ) {
+							wp_easycart_post_sync()->set_status( 'product', $product->product_id, $verified_id, $target_status );
 						}
 					}
 					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-product-permalinks' );
@@ -1464,80 +1442,76 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 
 		public function ec_get_live_payment_method() {
 			$live_payment = get_option( 'ec_option_payment_process_method' );
-			if ( $live_payment == "authorize" )
+			if ( $live_payment == "authorize" ) {
 				return "Authorize.Net";
-			else if ( $live_payment == "beanstream" )
+			} else if ( $live_payment == "beanstream" ) {
 				return "Beanstream";
-			else if ( $live_payment == "braintree" )
+			} else if ( $live_payment == "braintree" ) {
 				return "Braintree S2S";
-			else if ( $live_payment == "chronopay" )
+			} else if ( $live_payment == "chronopay" ) {
 				return "Chronopay";
-			else if ( $live_payment == "eway" )
+			} else if ( $live_payment == "eway" ) {
 				return "Eway";
-			else if ( $live_payment == "firstdata" )
+			} else if ( $live_payment == "firstdata" ) {
 				return "First Data Global Gateway e4";
-			else if ( $live_payment == "goemerchant" )
+			} else if ( $live_payment == "goemerchant" ) {
 				return "GoeMerchant";
-			else if ( $live_payment == "intuit" )
+			} else if ( $live_payment == "intuit" ) {
 				return "Intuit Payments";
-			else if ( $live_payment == "migs" )
+			} else if ( $live_payment == "migs" ) {
 				return "MasterCard Internet Gateway Service (MIGS)";
-			else if ( $live_payment == "moneris_ca" )
+			} else if ( $live_payment == "moneris_ca" ) {
 				return "Moneris Canada";
-			else if ( $live_payment == "moneris_us" )
+			} else if ( $live_payment == "moneris_us" ) {
 				return "Moneris US";
-			else if ( $live_payment == "nmi" )
+			} else if ( $live_payment == "nmi" ) {
 				return "Network Merchants (NMI)";
-			else if ( $live_payment == "payline" )
+			} else if ( $live_payment == "payline" ) {
 				return "Payline";
-			else if ( $live_payment == "paymentexpress" )
+			} else if ( $live_payment == "paymentexpress" ) {
 				return "Payment Express PxPost";
-			else if ( $live_payment == "paypal_pro" )
+			} else if ( $live_payment == "paypal_pro" ) {
 				return "PayPal PayFlow Pro";
-			else if ( $live_payment == "paypal_payments_pro" )
+			} else if ( $live_payment == "paypal_payments_pro" ) {
 				return "PayPal Payments Pro";
-			else if ( $live_payment == "paypoint" )
+			} else if ( $live_payment == "paypoint" ) {
 				return "PayPoint";
-			else if ( $live_payment == "realex" )
+			} else if ( $live_payment == "realex" ) {
 				return "Realex";
-			else if ( $live_payment == "sagepay" )
+			} else if ( $live_payment == "sagepay" ) {
 				return "Sagepay";
-			else if ( $live_payment == "sagepayus" )
+			} else if ( $live_payment == "sagepayus" ) {
 				return "Sagepay US";
-			else if ( $live_payment == "securenet" )
+			} else if ( $live_payment == "securenet" ) {
 				return "WorldPay";
-			else if ( $live_payment == "securepay" )
+			} else if ( $live_payment == "securepay" ) {
 				return "SecurePay";
-			else if ( $live_payment == "stripe" )
+			} else if ( $live_payment == "stripe" ) {
 				return "Stripe";
-			else if ( $live_payment == "stripe_connect" )
+			} else if ( $live_payment == "stripe_connect" ) {
 				return "Stripe";
-			else if ( $live_payment == "square" )
+			} else if ( $live_payment == "square" ) {
 				return "Square";
-			else if ( $live_payment == "virtualmerchant" )
+			} else if ( $live_payment == "virtualmerchant" ) {
 				return "Converge (Virtual Merchant)";
-			else if ( $live_payment == "custom" )
+			} else if ( $live_payment == "custom" ) {
 				return __( "Custom Payment Gateway", 'wp-easycart' );
+			}
 		}
 
-
-
 		public function ec_reset_store_permalinks() {
-
 			global $wpdb;
 			$db = new ec_db();
 			if ( !isset( $_GET['ec_reset_phase2'] ) ) {
-
 				$args = array(
-					'posts_per_page'   => 1000000,
-					'offset'           => 0,
-					'orderby'          => 'date',
-					'order'            => 'DESC',
-					'post_type'        => 'ec_store',
-					'post_status'      => 'any'
+					'posts_per_page' => 1000000,
+					'offset' => 0,
+					'orderby' => 'date',
+					'order' => 'DESC',
+					'post_type' => 'ec_store',
+					'post_status' => 'any'
 				);
 				$posts_array = get_posts( $args );
-
 				foreach ( $posts_array as $post ) {
 					wp_delete_post( $post->ID, true );
 				}
@@ -1547,7 +1521,6 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$wpdb->query( "UPDATE ec_menulevel3 SET ec_menulevel3.post_id = 0" );
 				$wpdb->query( "UPDATE ec_category SET ec_category.post_id = 0" );
 				$wpdb->query( "UPDATE ec_manufacturer SET ec_manufacturer.post_id = 0" );
-
 			}
 
 			$menulevel1_items = $wpdb->get_results( "SELECT * FROM ec_menulevel1 WHERE ec_menulevel1.post_id = 0" );
@@ -1559,110 +1532,89 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 
 			echo sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 1 ) . ": ";
 			foreach ( $menulevel1_items as $menu_item ) {
-
 				if ( $menu_item->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store menuid=\"" . $menu_item->menulevel1_id . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $menu_item->name,
-									'post_type'		=> "ec_store"
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_menu_post_id( $menu_item->menulevel1_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store menuid=\"" . $menu_item->menulevel1_id . "\"]",
+						'post_status' => 'publish',
+						'post_title' => $menu_item->name,
+						'post_type' => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'menulevel1', $menu_item->menulevel1_id, $post );
 				}
-
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel1_id ) );
-
 			}
 
 			echo "<br />" . sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 2 ) . ": ";
 			foreach ( $menulevel2_items as $menu_item ) {
-
 				if ( $menu_item->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store submenuid=\"" . $menu_item->menulevel2_id . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $menu_item->name,
-									'post_type'		=> "ec_store"
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_submenu_post_id( $menu_item->menulevel2_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store submenuid=\"" . $menu_item->menulevel2_id . "\"]",
+						'post_status' => 'publish',
+						'post_title' => $menu_item->name,
+						'post_type' => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'menulevel2', $menu_item->menulevel2_id, $post );
 				}
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel2_id ) );
-
 			}
 
 			echo "<br />" . sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 1 ) . ": ";
 			foreach ( $menulevel3_items as $menu_item ) {
-
 				if ( $menu_item->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store subsubmenuid=\"" . $menu_item->menulevel3_id . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $menu_item->name,
-									'post_type'		=> "ec_store"
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_subsubmenu_post_id( $menu_item->menulevel3_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store subsubmenuid=\"" . $menu_item->menulevel3_id . "\"]",
+						'post_status' => 'publish',
+						'post_title' => $menu_item->name,
+						'post_type' => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'menulevel3', $menu_item->menulevel3_id, $post );
 				}
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel3_id ) );
-
 			}
 
 			echo "<br>" . esc_attr( 'Rebuilding Products', 'wp-easycart' ) . ": ";
 			foreach ( $product_list as $product_single ) {
-
 				if ( $product_single->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store modelnumber=\"" . $product_single->model_number . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $product_single->title,
-									'post_type'		=> "ec_store",
-									'post_excerpt'	=> $product_single->description
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_product_post_id( $product_single->product_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store modelnumber=\"" . $product_single->model_number . "\"]",
+						'post_status' => "publish",
+						'post_title' => $product_single->title,
+						'post_type' => "ec_store",
+						'post_excerpt' => $product_single->description,
+					);
+					wp_easycart_post_sync()->insert( 'product', $product_single->product_id, $post );
 				}
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $product_single->model_number ) );
-
 			}
 
 			echo "<br>" . esc_attr( 'Rebuilding Manufacturers', 'wp-easycart' ) . ": ";
 			foreach ( $manufacturer_list as $manufacturer_single ) {
-
 				if ( $manufacturer_single->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store manufacturerid=\"" . $manufacturer_single->manufacturer_id . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $manufacturer_single->name,
-									'post_type'		=> "ec_store"
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_manufacturer_post_id( $manufacturer_single->manufacturer_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store manufacturerid=\"" . $manufacturer_single->manufacturer_id . "\"]",
+						'post_status' => 'publish',
+						'post_title' => $manufacturer_single->name,
+						'post_type' => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_single->manufacturer_id, $post );
 				}
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $manufacturer_single->manufacturer_id ) );
-
 			}
 
 			echo "<br>" . esc_attr( 'Rebuilding Categories', 'wp-easycart' ) . ": ";
 			foreach ( $category_list as $category_single ) {
-
 				if ( $category_single->post_id == 0 ) {
-					// Add a post id
-					$post = array(	'post_content'	=> "[ec_store groupid=\"" . $category_single->category_id . "\"]",
-									'post_status'	=> "publish",
-									'post_title'	=> $category_single->category_name,
-									'post_type'		=> "ec_store"
-								  );
-					$post_id = wp_insert_post( $post );
-					$db->update_category_post_id( $category_single->category_id, $post_id );
+					$post = array(
+						'post_content' => "[ec_store groupid=\"" . $category_single->category_id . "\"]",
+						'post_status' => 'publish',
+						'post_title' => $category_single->category_name,
+						'post_type' => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'category', $category_single->category_id, $post );
 				}
 				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $category_single->category_id ) );
-
 			}
-
 		}
-
 	}
 endif;
 

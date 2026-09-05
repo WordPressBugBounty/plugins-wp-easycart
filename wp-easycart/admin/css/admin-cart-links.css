@@ -1,0 +1,151 @@
+/* ====================================================================== */
+/* WP EasyCart — Marketing > Cart Links (FREE)                             */
+/* Builds on admin-v2.css tokens; drawer reuses the .ecv2-qe-* shell.      */
+/* ====================================================================== */
+
+.ecv2-cart-links .ecv2-page-intro { margin:4px 0 18px; font-size:13px; color:var(--ecv2-g600, #4b5563); max-width:760px; }
+
+/* Empty state */
+.ecv2-empty-state { background:#fff; border:1px dashed var(--ecv2-g300, #d1d5db); border-radius:var(--ecv2-rl, 12px); padding:48px 20px; text-align:center; }
+.ecv2-empty-state .dashicons { font-size:34px; width:34px; height:34px; color:var(--ecv2-g300, #d1d5db); }
+.ecv2-empty-state h3 { margin:10px 0 4px; font-size:15px; color:var(--ecv2-g800, #1f2937); }
+.ecv2-empty-state p { margin:0 0 16px; font-size:13px; color:var(--ecv2-g500, #6b7280); }
+
+/* Table */
+.ecv2-cart-link-table { table-layout:fixed; }
+.ecv2-cart-link-table .ecv2-col-label    { width:24% !important; min-width:200px; }
+.ecv2-cart-link-table .ecv2-col-contents { width:36% !important; min-width:220px; }
+.ecv2-cart-link-table .ecv2-col-dest     { width:10% !important; min-width:90px; }
+.ecv2-cart-link-table .ecv2-col-uses     { width:8%  !important; min-width:64px; }
+.ecv2-cart-link-table .ecv2-col-status   { width:14% !important; min-width:120px; }
+.ecv2-cart-link-table .ecv2-col-actions  { width:8%  !important; min-width:56px; }
+.ecv2-cl-label { font-weight:600; font-size:13px; color:var(--ecv2-g900, #111827); }
+.ecv2-cl-url { display:flex; align-items:center; gap:6px; margin-top:3px; }
+.ecv2-cl-url code { font-size:11px; background:var(--ecv2-g100, #f3f4f6); padding:2px 6px; border-radius:4px; color:var(--ecv2-g600, #4b5563); }
+.ecv2-cl-copy { border:none; background:none; padding:2px; cursor:pointer; color:var(--ecv2-g400, #9ca3af); line-height:1; }
+.ecv2-cl-copy:hover { color:var(--ecv2-g700, #374151); }
+.ecv2-cl-copy .dashicons { font-size:14px; width:14px; height:14px; }
+.ecv2-cl-flag { display:inline-block; margin-left:8px; font-size:11px; font-weight:600; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:999px; padding:1px 8px; }
+
+/* ====================================================================== */
+/* Drawer shell — fully self-contained ( admin-v2.css has no slide-drawer  */
+/* shell; the users/orders pages each carry their own ).                   */
+/* ====================================================================== */
+
+.ecv2-cl-backdrop { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.35); z-index:99998; opacity:0; transition:opacity .2s ease; }
+.ecv2-cl-backdrop.ecv2-drawer-open { opacity:1; }
+
+.ecv2-cl-drawer {
+	position:fixed; top:0; right:0; bottom:0;
+	width:480px; max-width:96vw;
+	background:#fff;
+	box-shadow:-8px 0 30px rgba(0,0,0,.16);
+	z-index:99999;
+	display:flex; flex-direction:column;
+	transform:translateX(103%);
+	transition:transform .2s ease;
+}
+.ecv2-cl-drawer.ecv2-drawer-open { transform:translateX(0); }
+body.ecv2-cl-drawer-lock { overflow:hidden; }
+
+.ecv2-cl-drawer .ecv2-drawer-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 18px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); flex-shrink:0; }
+.ecv2-cl-drawer .ecv2-drawer-header-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.ecv2-cl-drawer .ecv2-drawer-header-icon { color:var(--ecv2-primary, #16a34a); }
+.ecv2-cl-drawer .ecv2-drawer-title { margin:0; font-size:15px; color:var(--ecv2-g900, #111827); }
+.ecv2-cl-drawer .ecv2-drawer-close { border:none; background:none; cursor:pointer; color:var(--ecv2-g400, #9ca3af); padding:4px; line-height:1; border-radius:6px; }
+.ecv2-cl-drawer .ecv2-drawer-close:hover { color:var(--ecv2-g700, #374151); background:var(--ecv2-g100, #f3f4f6); }
+
+.ecv2-cl-drawer .ecv2-drawer-body { flex:1 1 auto; overflow-y:auto; padding:16px 18px; }
+.ecv2-cl-drawer .ecv2-drawer-footer { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px; border-top:1px solid var(--ecv2-g200, #e5e7eb); background:var(--ecv2-g50, #f9fafb); flex-shrink:0; }
+.ecv2-qe-footer-actions { display:flex; gap:8px; }
+
+/* Drawer sections ( the ecv2-qe-* names are local to this page ) */
+.ecv2-qe-section { margin-bottom:20px; }
+.ecv2-qe-section-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); margin-bottom:8px; }
+.ecv2-qe-check { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--ecv2-g700, #374151); margin-bottom:6px; cursor:pointer; }
+.ecv2-qe-check input { margin-top:2px; }
+.ecv2-qe-muted { font-size:12px; color:var(--ecv2-g500, #6b7280); font-weight:400; }
+.ecv2-modal-label { display:block; font-size:12px; color:var(--ecv2-g600, #4b5563); margin-bottom:5px; }
+
+/* ====================================================================== */
+/* Page pieces admin-v2.css does not provide                               */
+/* ====================================================================== */
+
+.ecv2-count-chip { display:inline-flex; align-items:center; font-size:12px; font-weight:700; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g600, #4b5563); border-radius:999px; padding:2px 10px; }
+.ecv2-table-card { background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); overflow:visible; }
+.ecv2-cart-link-table { width:100%; border-collapse:collapse; }
+.ecv2-cart-link-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); padding:10px 14px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); }
+.ecv2-cart-link-table td { padding:12px 14px; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); font-size:13px; color:var(--ecv2-g700, #374151); vertical-align:middle; }
+.ecv2-cart-link-table tr:last-child td { border-bottom:none; }
+
+/* Status switch */
+.ecv2-switch { position:relative; display:inline-block; width:34px; height:20px; vertical-align:middle; }
+.ecv2-switch input { opacity:0; width:0; height:0; }
+.ecv2-switch-slider { position:absolute; inset:0; background:var(--ecv2-g300, #d1d5db); border-radius:999px; transition:background .15s ease; cursor:pointer; }
+.ecv2-switch-slider:before { content:""; position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .15s ease; box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.ecv2-switch input:checked + .ecv2-switch-slider { background:var(--ecv2-primary, #16a34a); }
+.ecv2-switch input:checked + .ecv2-switch-slider:before { transform:translateX(14px); }
+
+@media screen and (max-width:640px) {
+	.ecv2-cl-drawer { width:100vw; max-width:100vw; }
+}
+
+.ecv2-cl-item { position:relative; }
+.ecv2-cl-search-results { margin-top:6px; display:flex; flex-direction:column; gap:2px; max-height:260px; overflow:auto; }
+.ecv2-cl-search-note { font-size:12px; color:var(--ecv2-g500, #6b7280); padding:8px 2px; }
+.ecv2-cl-search-hit { display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left; width:100%; border:1px solid var(--ecv2-g200, #e5e7eb); background:#fff; border-radius:var(--ecv2-r, 8px); padding:8px 12px; cursor:pointer; }
+.ecv2-cl-search-hit:hover { border-color:var(--ecv2-primary, #16a34a); background:var(--ecv2-primary-light, #ecfdf5); }
+.ecv2-cl-hit-title { font-size:13px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecv2-cl-hit-meta { font-size:11px; color:var(--ecv2-g500, #6b7280); }
+.ecv2-cl-item-selected { border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-r, 8px); padding:12px; background:var(--ecv2-g50, #f9fafb); }
+.ecv2-cl-item-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.ecv2-cl-item-title { font-size:13px; font-weight:600; color:var(--ecv2-g900, #111827); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.ecv2-cl-item-swap { border:none; background:none; color:var(--ecv2-primary-dark, #15803d); font-size:12px; font-weight:600; cursor:pointer; padding:0; flex-shrink:0; }
+.ecv2-cl-item-swap:hover { text-decoration:underline; }
+.ecv2-cl-item-fields { display:grid; grid-template-columns:repeat( auto-fill, minmax( 130px, 1fr ) ); gap:10px; margin-top:12px; }
+.ecv2-cl-field { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ecv2-g600, #4b5563); }
+.ecv2-cl-field .ecv2-input, .ecv2-cl-field .ecv2-select { width:100%; }
+
+/* Saved banner */
+.ecv2-cl-banner { display:flex; align-items:center; gap:12px; background:var(--ecv2-primary-light, #ecfdf5); border:1px solid #bbf7d0; border-radius:var(--ecv2-r, 8px); padding:10px 14px; margin-bottom:14px; }
+.ecv2-cl-banner > .dashicons { color:var(--ecv2-primary, #16a34a); font-size:20px; width:20px; height:20px; flex-shrink:0; }
+.ecv2-cl-banner-text { flex:1 1 auto; min-width:0; font-size:13px; color:var(--ecv2-g700, #374151); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; }
+.ecv2-cl-banner-text strong { color:var(--ecv2-g900, #111827); }
+.ecv2-cl-banner-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.ecv2-cl-banner-dismiss { border:none; background:none; cursor:pointer; color:var(--ecv2-g400, #9ca3af); padding:4px; line-height:1; border-radius:4px; }
+.ecv2-cl-banner-dismiss:hover { color:var(--ecv2-g700, #374151); }
+
+/* Row menu separator ( admin-v2.css has no rule for it ) */
+.ecv2-row-menu-sep { height:1px; background:var(--ecv2-g100, #f3f4f6); margin:4px 0; }
+
+/* Busy save button */
+.ecv2-cl-btn-busy { opacity:.7; pointer-events:none; }
+
+/* Toasts ( self-contained; only defined when no other page script did ) */
+.ecv2-cl-toasts { position:fixed; bottom:24px; right:24px; z-index:100010; display:flex; flex-direction:column; gap:8px; }
+.ecv2-cl-toast { background:var(--ecv2-g900, #111827); color:#fff; font-size:13px; padding:10px 16px; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.25); opacity:0; transform:translateY(8px); transition:opacity .2s ease, transform .2s ease; max-width:340px; }
+.ecv2-cl-toast.is-in { opacity:1; transform:none; }
+.ecv2-cl-toast-success { border-left:3px solid var(--ecv2-primary, #16a34a); }
+.ecv2-cl-toast-error { border-left:3px solid var(--ecv2-danger, #dc2626); }
+/* ====================================================================== */
+/* PRO upsell — badge, feature strip and popup live in admin-upsell.css.   */
+/* Only the drawer / row-menu locked stand-ins are styled here.            */
+/* ====================================================================== */
+
+.ecv2-cl-locked { cursor:pointer; border-radius:var(--ecv2-r, 8px); margin-left:-8px; margin-right:-8px; padding:8px; transition:background .12s ease; }
+.ecv2-cl-locked:hover, .ecv2-cl-locked:focus-visible { background:#fffbeb; outline:none; }
+.ecv2-cl-locked .ecv2-qe-section-label { display:flex; align-items:center; gap:8px; }
+.ecv2-cl-locked-body { position:relative; }
+.ecv2-cl-locked-body .ecv2-input { pointer-events:none; opacity:.55; background:var(--ecv2-g50, #f9fafb); }
+.ecv2-cl-locked-limits { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ecv2-cl-locked-overlay { display:flex; align-items:flex-start; gap:6px; margin-top:8px; font-size:11.5px; line-height:1.45; color:#92400e; }
+.ecv2-cl-locked-overlay .dashicons { font-size:14px; width:14px; height:14px; margin-top:1px; flex-shrink:0; }
+.ecv2-cl-locked-add { display:flex; align-items:center; justify-content:center; gap:6px; border:1px dashed var(--ecv2-g300, #d1d5db); background:#fff; border-radius:var(--ecv2-r, 8px); width:100%; padding:9px 12px; font-size:13px; font-weight:600; color:var(--ecv2-g500, #6b7280); cursor:pointer; margin-top:8px; }
+.ecv2-cl-locked-add:hover { border-color:#f59e0b; color:#92400e; background:#fffbeb; }
+.ecv2-cl-locked-add .dashicons { font-size:15px; width:15px; height:15px; }
+.ecv2-row-menu-item-locked { color:var(--ecv2-g500, #6b7280) !important; }
+.ecv2-row-menu-item-locked .ecv2-cl-pro-badge { margin-left:auto; }
+.ecv2-cl-btn-locked { opacity:.75; }
+.ecv2-cl-btn-locked .dashicons { color:#d97706; }
+
+@media screen and (max-width:600px) { .ecv2-cl-locked-limits { grid-template-columns:1fr; } }

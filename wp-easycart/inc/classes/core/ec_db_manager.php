@@ -12,8 +12,16 @@ class ec_db_manager {
 		if ( ! $user_test ) {
 			$this->install_base_data();
 		}
+		$this->install_recommended_defaults();
 		update_option( 'ec_option_db_version', EC_CURRENT_DB );
 		update_option( 'ec_option_db_new_version', EC_UPGRADE_DB );
+	}
+
+	public function install_recommended_defaults() {
+		if ( class_exists( 'ec_wpoptionset' ) ) {
+			ec_wpoptionset::apply_recommended_defaults();
+			return;
+		}
 	}
 
 	public function uninstall_db() {
@@ -268,6 +276,9 @@ class ec_db_manager {
 			),
 			'5.9.2' => array(
 				'wpeasycart_sql_5_9_2'
+			),
+			'5.9.4' => array(
+				'wpeasycart_sql_5_9_4'
 			),
 		);
 
@@ -830,16 +841,302 @@ class ec_db_manager {
 		global $wpdb;
 		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN password_admin_v1 varchar(32) NOT NULL DEFAULT ''" );
 	}
+	private function wpeasycart_sql_5_9_4() {
+		global $wpdb;
+		$collate = "";
+		$max_index_length = 191;
+		if ( $wpdb->has_cap( 'collation' ) ) {
+			$collate = $wpdb->get_charset_collate();
+		}
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_cart_link (
+			  cart_link_id int(11) NOT NULL AUTO_INCREMENT,
+			  link_token varchar(16) NOT NULL DEFAULT '',
+			  link_label varchar(255) NOT NULL DEFAULT '',
+			  promo_codes text,
+			  destination varchar(16) NOT NULL DEFAULT 'cart',
+			  clear_cart tinyint(1) NOT NULL DEFAULT 0,
+			  is_active tinyint(1) NOT NULL DEFAULT 1,
+			  expires datetime DEFAULT NULL,
+			  max_uses int(11) NOT NULL DEFAULT 0,
+			  use_count int(11) NOT NULL DEFAULT 0,
+			  created_by bigint(20) NOT NULL DEFAULT 0,
+			  created_at datetime DEFAULT NULL,
+			  last_used datetime DEFAULT NULL,
+			  PRIMARY KEY (cart_link_id),
+			  UNIQUE KEY cart_link_token (link_token)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_cart_link_item (
+			  cart_link_item_id int(11) NOT NULL AUTO_INCREMENT,
+			  cart_link_id int(11) NOT NULL DEFAULT 0,
+			  product_id int(11) NOT NULL DEFAULT 0,
+			  quantity int(11) NOT NULL DEFAULT 1,
+			  optionitem_id_1 int(11) NOT NULL DEFAULT 0,
+			  optionitem_id_2 int(11) NOT NULL DEFAULT 0,
+			  optionitem_id_3 int(11) NOT NULL DEFAULT 0,
+			  optionitem_id_4 int(11) NOT NULL DEFAULT 0,
+			  optionitem_id_5 int(11) NOT NULL DEFAULT 0,
+			  modifier_values text,
+			  sort_order int(11) NOT NULL DEFAULT 0,
+			  PRIMARY KEY (cart_link_item_id),
+			  KEY cart_link_item_link (cart_link_id),
+			  KEY cart_link_item_product (product_id)
+		) $collate;" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN cart_link_id int(11) NOT NULL DEFAULT 0" );
+		$wpdb->query( "ALTER TABLE ec_order ADD INDEX order_cart_link (cart_link_id)" );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_bundle tinyint(1) NOT NULL DEFAULT '0'" );
+		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN bundle_group_key varchar(64) NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN bundle_product_id int(11) NOT NULL DEFAULT '0'" );
+		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN free_gift_offer_id int(11) NOT NULL DEFAULT '0'" );
+		$wpdb->query( "ALTER TABLE ec_tempcart ADD INDEX tempcart_bundle_group (bundle_group_key)" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN bundle_group_key varchar(64) NOT NULL DEFAULT ''" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN bundle_product_id int(11) NOT NULL DEFAULT '0'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN is_free_gift tinyint(1) NOT NULL DEFAULT '0'" );
+		$wpdb->query( 'ALTER TABLE ec_orderdetail ADD COLUMN applied_offers longtext' );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN offer_discount_total float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( 'ALTER TABLE ec_order ADD COLUMN applied_offers longtext' );
+		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN lifetime_spend float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN completed_order_count int(11) NOT NULL DEFAULT '0'" );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN last_order_date datetime DEFAULT NULL' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN history_aggregates_built tinyint(1) NOT NULL DEFAULT 0' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN date_created timestamp NULL DEFAULT CURRENT_TIMESTAMP' );
+		$wpdb->query( 'UPDATE ec_user SET date_created = NULL' );
+		$wpdb->query( 'UPDATE ec_user u SET u.date_created = ( SELECT MIN( o.order_date ) FROM ec_order o WHERE o.user_id = u.user_id )' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN last_login datetime DEFAULT NULL' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD INDEX user_date_created (date_created)' );
+		$wpdb->query( 'ALTER TABLE ec_user ADD INDEX user_last_order_date (last_order_date)' );
+		$wpdb->query( 'ALTER TABLE ec_orderdetail ADD INDEX idx_order_product (order_id,product_id)' );
+		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN reorder_point int(11) NOT NULL DEFAULT '-1'" );
+		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN reorder_point int(11) NOT NULL DEFAULT '-1'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN refunded_quantity int(11) NOT NULL DEFAULT '0'" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN shipping_refund_total float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN tax_refund_total float(15,3) NOT NULL DEFAULT '0.000'" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer (
+		  offer_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_name varchar(255) NOT NULL DEFAULT '',
+		  offer_label varchar(255) NOT NULL DEFAULT '',
+		  offer_description text,
+		  offer_status varchar(20) NOT NULL DEFAULT 'draft',
+		  trigger_type varchar(20) NOT NULL DEFAULT 'code',
+		  action_type varchar(40) NOT NULL DEFAULT 'item_discount',
+		  action_config longtext,
+		  start_date datetime DEFAULT NULL,
+		  end_date datetime DEFAULT NULL,
+		  schedule_config longtext,
+		  is_exclusive tinyint(1) NOT NULL DEFAULT '0',
+		  combine_item_discounts tinyint(1) NOT NULL DEFAULT '0',
+		  combine_cart_discounts tinyint(1) NOT NULL DEFAULT '0',
+		  combine_shipping_discounts tinyint(1) NOT NULL DEFAULT '1',
+		  priority int(11) NOT NULL DEFAULT '10',
+		  apply_limit int(11) NOT NULL DEFAULT '0',
+		  max_discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+		  min_item_price_floor float(15,3) NOT NULL DEFAULT '0.000',
+		  max_redemptions int(11) NOT NULL DEFAULT '0',
+		  times_redeemed int(11) NOT NULL DEFAULT '0',
+		  max_redemptions_per_customer int(11) NOT NULL DEFAULT '0',
+		  max_redemptions_per_day int(11) NOT NULL DEFAULT '0',
+		  applies_to_subscriptions tinyint(1) NOT NULL DEFAULT '0',
+		  applies_to_sale_items tinyint(1) NOT NULL DEFAULT '1',
+		  discount_base varchar(20) NOT NULL DEFAULT 'unit_price',
+		  include_modifier_prices tinyint(1) NOT NULL DEFAULT '0',
+		  display_config longtext,
+		  legacy_promocode_id varchar($max_index_length) NOT NULL DEFAULT '',
+		  legacy_promotion_id int(11) NOT NULL DEFAULT '0',
+		  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		  modified_date timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		  PRIMARY KEY  (offer_id),
+		  UNIQUE KEY offer_offer_id (offer_id),
+		  KEY offer_status_trigger (offer_status,trigger_type),
+		  KEY offer_dates (start_date,end_date),
+		  KEY offer_legacy_promotion (legacy_promotion_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_code (
+		  offer_code_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  code varchar($max_index_length) NOT NULL DEFAULT '',
+		  max_redemptions int(11) NOT NULL DEFAULT '0',
+		  times_redeemed int(11) NOT NULL DEFAULT '0',
+		  assigned_email varchar(255) NOT NULL DEFAULT '',
+		  is_active tinyint(1) NOT NULL DEFAULT '1',
+		  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		  PRIMARY KEY  (offer_code_id),
+		  UNIQUE KEY offer_code_code (code),
+		  KEY offer_code_offer_id (offer_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_target (
+		  offer_target_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  target_side varchar(10) NOT NULL DEFAULT 'both',
+		  target_mode varchar(10) NOT NULL DEFAULT 'include',
+		  entity_type varchar(20) NOT NULL DEFAULT 'all',
+		  entity_id int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_1 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_2 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_3 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_4 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_5 int(11) NOT NULL DEFAULT '0',
+		  entity_config longtext,
+		  PRIMARY KEY  (offer_target_id),
+		  KEY offer_target_offer_id (offer_id),
+		  KEY offer_target_entity (entity_type,entity_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_condition (
+		  offer_condition_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  condition_group int(11) NOT NULL DEFAULT '1',
+		  condition_type varchar(40) NOT NULL DEFAULT '',
+		  condition_value longtext,
+		  PRIMARY KEY  (offer_condition_id),
+		  KEY offer_condition_offer_id (offer_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_exclusion (
+		  offer_exclusion_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  excluded_offer_id int(11) NOT NULL DEFAULT '0',
+		  PRIMARY KEY  (offer_exclusion_id),
+		  KEY offer_exclusion_offer_id (offer_id),
+		  KEY offer_exclusion_excluded_id (excluded_offer_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_redemption (
+		  offer_redemption_id int(11) NOT NULL AUTO_INCREMENT,
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  offer_code_id int(11) NOT NULL DEFAULT '0',
+		  code varchar($max_index_length) NOT NULL DEFAULT '',
+		  order_id int(11) NOT NULL DEFAULT '0',
+		  user_id int(11) NOT NULL DEFAULT '0',
+		  email varchar(255) NOT NULL DEFAULT '',
+		  discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+		  redemption_status varchar(20) NOT NULL DEFAULT 'completed',
+		  redemption_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		  PRIMARY KEY  (offer_redemption_id),
+		  KEY offer_redemption_offer_id (offer_id),
+		  KEY offer_redemption_order_id (order_id),
+		  KEY offer_redemption_user_id (user_id),
+		  KEY offer_redemption_offer_email (offer_id,email(100))
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_product_bundle (
+		  product_bundle_id int(11) NOT NULL AUTO_INCREMENT,
+		  product_id int(11) NOT NULL DEFAULT '0',
+		  pricing_mode varchar(20) NOT NULL DEFAULT 'fixed_price',
+		  discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+		  discount_percentage float(15,3) NOT NULL DEFAULT '0.000',
+		  display_mode varchar(20) NOT NULL DEFAULT 'single_line',
+		  allow_component_edit tinyint(1) NOT NULL DEFAULT '0',
+		  stock_mode varchar(20) NOT NULL DEFAULT 'component',
+		  PRIMARY KEY  (product_bundle_id),
+		  UNIQUE KEY product_bundle_product_id (product_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_product_bundle_item (
+		  product_bundle_item_id int(11) NOT NULL AUTO_INCREMENT,
+		  product_bundle_id int(11) NOT NULL DEFAULT '0',
+		  component_product_id int(11) NOT NULL DEFAULT '0',
+		  quantity int(11) NOT NULL DEFAULT '1',
+		  optionitem_id_1 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_2 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_3 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_4 int(11) NOT NULL DEFAULT '0',
+		  optionitem_id_5 int(11) NOT NULL DEFAULT '0',
+		  customer_selects_options tinyint(1) NOT NULL DEFAULT '0',
+		  price_allocation float(15,3) NOT NULL DEFAULT '0.000',
+		  sort_order int(11) NOT NULL DEFAULT '0',
+		  PRIMARY KEY  (product_bundle_item_id),
+		  KEY product_bundle_item_bundle_id (product_bundle_id),
+		  KEY product_bundle_item_component (component_product_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_tempcart_offer (
+		  tempcart_offer_id int(11) NOT NULL AUTO_INCREMENT,
+		  session_id varchar(100) NOT NULL DEFAULT '',
+		  offer_id int(11) NOT NULL DEFAULT '0',
+		  offer_code_id int(11) NOT NULL DEFAULT '0',
+		  code varchar($max_index_length) NOT NULL DEFAULT '',
+		  applied_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		  PRIMARY KEY  (tempcart_offer_id),
+		  KEY tempcart_offer_session_id (session_id),
+		  KEY tempcart_offer_offer_id (offer_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_tag (
+		  tag_id int(11) NOT NULL AUTO_INCREMENT,
+		  tag_label varchar(100) NOT NULL DEFAULT '',
+		  tag_color varchar(20) NOT NULL DEFAULT '#6a737d',
+		  PRIMARY KEY (tag_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_tag_item (
+		  order_id int(11) NOT NULL,
+		  tag_id int(11) NOT NULL,
+		  KEY order_id (order_id),
+		  KEY tag_id (tag_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_user_tag (
+		  tag_id int(11) NOT NULL AUTO_INCREMENT,
+		  tag_label varchar(100) NOT NULL DEFAULT '',
+		  tag_color varchar(7) NOT NULL DEFAULT '#6b7280',
+		  PRIMARY KEY  (tag_id),
+		  UNIQUE KEY user_tag_label (tag_label)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_user_to_tag (
+		  user_to_tag_id int(11) NOT NULL AUTO_INCREMENT,
+		  user_id int(11) NOT NULL DEFAULT '0',
+		  tag_id int(11) NOT NULL DEFAULT '0',
+		  PRIMARY KEY  (user_to_tag_id),
+		  UNIQUE KEY user_to_tag_pair (user_id,tag_id),
+		  KEY user_to_tag_tag (tag_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_user_note (
+		  note_id int(11) NOT NULL AUTO_INCREMENT,
+		  user_id int(11) NOT NULL DEFAULT '0',
+		  wp_user_id int(11) NOT NULL DEFAULT '0',
+		  note text,
+		  created datetime DEFAULT NULL,
+		  pinned tinyint(1) NOT NULL DEFAULT '0',
+		  PRIMARY KEY  (note_id),
+		  KEY user_note_user (user_id)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_user_activity (
+		  activity_id bigint(20) NOT NULL AUTO_INCREMENT,
+		  user_id int(11) NOT NULL DEFAULT '0',
+		  activity_type varchar(50) NOT NULL DEFAULT '',
+		  activity_date datetime DEFAULT NULL,
+		  object_type varchar(50) NOT NULL DEFAULT '',
+		  object_id bigint(20) NOT NULL DEFAULT '0',
+		  meta text,
+		  actor_type varchar(20) NOT NULL DEFAULT '',
+		  actor_id bigint(20) NOT NULL DEFAULT '0',
+		  ip_address varchar(45) NOT NULL DEFAULT '',
+		  PRIMARY KEY  (activity_id),
+		  KEY user_activity_user_date (user_id,activity_date),
+		  KEY user_activity_type (activity_type)
+		) $collate;" );
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_inventory_log (
+			log_id bigint(20) NOT NULL AUTO_INCREMENT,
+			product_id int(11) NOT NULL DEFAULT '0',
+			optionitemquantity_id int(11) NOT NULL DEFAULT '0',
+			location_id int(11) NOT NULL DEFAULT '0',
+			delta int(11) NOT NULL DEFAULT '0',
+			new_quantity int(11) NOT NULL DEFAULT '0',
+			reason varchar(40) NOT NULL DEFAULT '',
+			source varchar(40) NOT NULL DEFAULT '',
+			note text NULL,
+			user_id bigint(20) NOT NULL DEFAULT '0',
+			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (log_id),
+			KEY product_id (product_id),
+			KEY optionitemquantity_id (optionitemquantity_id),
+			KEY created (created)
+		) $collate;" );
+		if ( function_exists( 'wp_easycart_post_sync' ) ) {
+			wp_easycart_post_sync()->audit( true );
+		}
+	}
 	/* END DATABASE UPGRADE SCRIPTS */
 
-	private function get_uninstall_tables( ){
-
+	private function get_uninstall_tables() {
 		$tables = array( 
 			"ec_address",
 			"ec_affiliate_rule",
 			"ec_affiliate_rule_to_affiliate",
 			"ec_affiliate_rule_to_product",
 			"ec_bundle",
+			"ec_cart_link",
+			"ec_cart_link_item",
 			"ec_category",
 			"ec_categoryitem",
 			"ec_code",
@@ -849,6 +1146,7 @@ class ec_db_manager {
 			"ec_download",
 			"ec_fee",
 			"ec_giftcard",
+			"ec_inventory_log",
 			"ec_live_rate_cache",
 			"ec_location",
 			"ec_location_to_product",
@@ -857,6 +1155,12 @@ class ec_db_manager {
 			"ec_menulevel1",
 			"ec_menulevel2",
 			"ec_menulevel3",
+			"ec_offer",
+			"ec_offer_code",
+			"ec_offer_condition",
+			"ec_offer_exclusion",
+			"ec_offer_redemption",
+			"ec_offer_target",
 			"ec_option",
 			"ec_option_to_product",
 			"ec_optionitem",
@@ -867,6 +1171,8 @@ class ec_db_manager {
 			"ec_order_log",
 			"ec_order_log_meta",
 			"ec_order_option",
+			"ec_order_tag",
+			"ec_order_tag_item",
 			"ec_orderdetail",
 			"ec_orderstatus",
 			"ec_pageoption",
@@ -874,6 +1180,8 @@ class ec_db_manager {
 			"ec_pricepoint",
 			"ec_pricetier",
 			"ec_product",
+			"ec_product_bundle",
+			"ec_product_bundle_item",
 			"ec_product_google_attributes",
 			"ec_product_subscriber",
 			"ec_promocode",
@@ -896,8 +1204,13 @@ class ec_db_manager {
 			"ec_tempcart",
 			"ec_tempcart_data",
 			"ec_tempcart_optionitem",
+			"ec_tempcart_offer",
 			"ec_timezone",
 			"ec_user",
+			"ec_user_activity",
+			"ec_user_note",
+			"ec_user_tag",
+			"ec_user_to_tag",
 			"ec_webhook",
 			"ec_zone",
 			"ec_zone_to_location"
@@ -968,6 +1281,39 @@ CREATE TABLE ec_bundle (
   bundled_product_id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (bundle_id),
   UNIQUE KEY bundle_id (bundle_id)
+) $collate;
+CREATE TABLE ec_cart_link (
+  cart_link_id int(11) NOT NULL AUTO_INCREMENT,
+  link_token varchar(16) NOT NULL DEFAULT '',
+  link_label varchar(255) NOT NULL DEFAULT '',
+  promo_codes text,
+  destination varchar(16) NOT NULL DEFAULT 'cart',
+  clear_cart tinyint(1) NOT NULL DEFAULT 0,
+  is_active tinyint(1) NOT NULL DEFAULT 1,
+  expires datetime DEFAULT NULL,
+  max_uses int(11) NOT NULL DEFAULT 0,
+  use_count int(11) NOT NULL DEFAULT 0,
+  created_by bigint(20) NOT NULL DEFAULT 0,
+  created_at datetime DEFAULT NULL,
+  last_used datetime DEFAULT NULL,
+  PRIMARY KEY (cart_link_id),
+  UNIQUE KEY cart_link_token (link_token)
+) $collate;
+CREATE TABLE ec_cart_link_item (
+  cart_link_item_id int(11) NOT NULL AUTO_INCREMENT,
+  cart_link_id int(11) NOT NULL DEFAULT 0,
+  product_id int(11) NOT NULL DEFAULT 0,
+  quantity int(11) NOT NULL DEFAULT 1,
+  optionitem_id_1 int(11) NOT NULL DEFAULT 0,
+  optionitem_id_2 int(11) NOT NULL DEFAULT 0,
+  optionitem_id_3 int(11) NOT NULL DEFAULT 0,
+  optionitem_id_4 int(11) NOT NULL DEFAULT 0,
+  optionitem_id_5 int(11) NOT NULL DEFAULT 0,
+  modifier_values text,
+  sort_order int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (cart_link_item_id),
+  KEY cart_link_item_link (cart_link_id),
+  KEY cart_link_item_product (product_id)
 ) $collate;
 CREATE TABLE ec_category (
   category_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1072,6 +1418,23 @@ CREATE TABLE ec_giftcard (
   PRIMARY KEY  (giftcard_id),
   UNIQUE KEY giftcard_id (giftcard_id)
 ) $collate;
+CREATE TABLE ec_inventory_log (
+	log_id bigint(20) NOT NULL AUTO_INCREMENT,
+	product_id int(11) NOT NULL DEFAULT '0',
+	optionitemquantity_id int(11) NOT NULL DEFAULT '0',
+	location_id int(11) NOT NULL DEFAULT '0',
+	delta int(11) NOT NULL DEFAULT '0',
+	new_quantity int(11) NOT NULL DEFAULT '0',
+	reason varchar(40) NOT NULL DEFAULT '',
+	source varchar(40) NOT NULL DEFAULT '',
+	note text NULL,
+	user_id bigint(20) NOT NULL DEFAULT '0',
+	created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY  (log_id),
+	KEY product_id (product_id),
+	KEY optionitemquantity_id (optionitemquantity_id),
+	KEY created (created)
+) $collate;
 CREATE TABLE ec_live_rate_cache (
   live_rate_cache_id int(11) NOT NULL AUTO_INCREMENT,
   ec_cart_id varchar(255) NOT NULL DEFAULT '',
@@ -1164,6 +1527,109 @@ CREATE TABLE ec_menulevel3 (
   UNIQUE KEY menu3_menulevel3_id (menulevel3_id),
   KEY menu3_menulevel2_id (menulevel2_id)
 ) $collate;
+CREATE TABLE ec_offer (
+  offer_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_name varchar(255) NOT NULL DEFAULT '',
+  offer_label varchar(255) NOT NULL DEFAULT '',
+  offer_description text,
+  offer_status varchar(20) NOT NULL DEFAULT 'draft',
+  trigger_type varchar(20) NOT NULL DEFAULT 'code',
+  action_type varchar(40) NOT NULL DEFAULT 'item_discount',
+  action_config longtext,
+  start_date datetime DEFAULT NULL,
+  end_date datetime DEFAULT NULL,
+  schedule_config longtext,
+  is_exclusive tinyint(1) NOT NULL DEFAULT '0',
+  combine_item_discounts tinyint(1) NOT NULL DEFAULT '0',
+  combine_cart_discounts tinyint(1) NOT NULL DEFAULT '0',
+  combine_shipping_discounts tinyint(1) NOT NULL DEFAULT '1',
+  priority int(11) NOT NULL DEFAULT '10',
+  apply_limit int(11) NOT NULL DEFAULT '0',
+  max_discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+  min_item_price_floor float(15,3) NOT NULL DEFAULT '0.000',
+  max_redemptions int(11) NOT NULL DEFAULT '0',
+  times_redeemed int(11) NOT NULL DEFAULT '0',
+  max_redemptions_per_customer int(11) NOT NULL DEFAULT '0',
+  max_redemptions_per_day int(11) NOT NULL DEFAULT '0',
+  applies_to_subscriptions tinyint(1) NOT NULL DEFAULT '0',
+  applies_to_sale_items tinyint(1) NOT NULL DEFAULT '1',
+  discount_base varchar(20) NOT NULL DEFAULT 'unit_price',
+  include_modifier_prices tinyint(1) NOT NULL DEFAULT '0',
+  display_config longtext,
+  legacy_promocode_id varchar($max_index_length) NOT NULL DEFAULT '',
+  legacy_promotion_id int(11) NOT NULL DEFAULT '0',
+  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  modified_date timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY  (offer_id),
+  UNIQUE KEY offer_offer_id (offer_id),
+  KEY offer_status_trigger (offer_status,trigger_type),
+  KEY offer_dates (start_date,end_date),
+  KEY offer_legacy_promotion (legacy_promotion_id)
+) $collate;
+CREATE TABLE ec_offer_code (
+  offer_code_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_id int(11) NOT NULL DEFAULT '0',
+  code varchar($max_index_length) NOT NULL DEFAULT '',
+  max_redemptions int(11) NOT NULL DEFAULT '0',
+  times_redeemed int(11) NOT NULL DEFAULT '0',
+  assigned_email varchar(255) NOT NULL DEFAULT '',
+  is_active tinyint(1) NOT NULL DEFAULT '1',
+  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (offer_code_id),
+  UNIQUE KEY offer_code_code (code),
+  KEY offer_code_offer_id (offer_id)
+) $collate;
+CREATE TABLE ec_offer_target (
+  offer_target_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_id int(11) NOT NULL DEFAULT '0',
+  target_side varchar(10) NOT NULL DEFAULT 'both',
+  target_mode varchar(10) NOT NULL DEFAULT 'include',
+  entity_type varchar(20) NOT NULL DEFAULT 'all',
+  entity_id int(11) NOT NULL DEFAULT '0',
+  optionitem_id_1 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_2 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_3 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_4 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_5 int(11) NOT NULL DEFAULT '0',
+  entity_config longtext,
+  PRIMARY KEY  (offer_target_id),
+  KEY offer_target_offer_id (offer_id),
+  KEY offer_target_entity (entity_type,entity_id)
+) $collate;
+CREATE TABLE ec_offer_condition (
+  offer_condition_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_id int(11) NOT NULL DEFAULT '0',
+  condition_group int(11) NOT NULL DEFAULT '1',
+  condition_type varchar(40) NOT NULL DEFAULT '',
+  condition_value longtext,
+  PRIMARY KEY  (offer_condition_id),
+  KEY offer_condition_offer_id (offer_id)
+) $collate;
+CREATE TABLE ec_offer_exclusion (
+  offer_exclusion_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_id int(11) NOT NULL DEFAULT '0',
+  excluded_offer_id int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (offer_exclusion_id),
+  KEY offer_exclusion_offer_id (offer_id),
+  KEY offer_exclusion_excluded_id (excluded_offer_id)
+) $collate;
+CREATE TABLE ec_offer_redemption (
+  offer_redemption_id int(11) NOT NULL AUTO_INCREMENT,
+  offer_id int(11) NOT NULL DEFAULT '0',
+  offer_code_id int(11) NOT NULL DEFAULT '0',
+  code varchar($max_index_length) NOT NULL DEFAULT '',
+  order_id int(11) NOT NULL DEFAULT '0',
+  user_id int(11) NOT NULL DEFAULT '0',
+  email varchar(255) NOT NULL DEFAULT '',
+  discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+  redemption_status varchar(20) NOT NULL DEFAULT 'completed',
+  redemption_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (offer_redemption_id),
+  KEY offer_redemption_offer_id (offer_id),
+  KEY offer_redemption_order_id (order_id),
+  KEY offer_redemption_user_id (user_id),
+  KEY offer_redemption_offer_email (offer_id,email(100))
+) $collate;
 CREATE TABLE ec_option (
   option_id int(11) NOT NULL AUTO_INCREMENT,
   is_demo_item tinyint(1) NOT NULL DEFAULT '0',
@@ -1248,6 +1714,7 @@ CREATE TABLE ec_optionitemquantity (
   is_stock_tracking_enabled tinyint(1) NOT NULL DEFAULT '1',
   square_id varchar(255) NOT NULL DEFAULT '',
   google_merchant text NULL,
+  reorder_point int(11) NOT NULL DEFAULT '-1',
   PRIMARY KEY  (optionitemquantity_id),
   UNIQUE KEY optionitemquantity_id (optionitemquantity_id),
   KEY product_id (product_id),
@@ -1283,8 +1750,12 @@ CREATE TABLE ec_order (
   tip_total float(15,3) NOT NULL DEFAULT '0.000',
   grand_total float(15,3) NOT NULL DEFAULT '0.000',
   refund_total float(15,3) NOT NULL DEFAULT '0.000',
+  shipping_refund_total float(15,3) NOT NULL DEFAULT '0.000',
+  tax_refund_total float(15,3) NOT NULL DEFAULT '0.000',
   promo_code varchar(255) NOT NULL DEFAULT '',
   promo_code_message varchar(1024) NOT NULL DEFAULT '',
+  offer_discount_total float(15,3) NOT NULL DEFAULT '0.000',
+  applied_offers longtext,
   giftcard_id varchar(20) NOT NULL DEFAULT '',
   use_expedited_shipping tinyint(1) NOT NULL DEFAULT '0',
   shipping_method varchar(255) NOT NULL DEFAULT '',
@@ -1348,10 +1819,12 @@ CREATE TABLE ec_order (
   pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   location_id int(11) NOT NULL DEFAULT 0,
   converted_cart_id varchar(100) NOT NULL DEFAULT '',
+  cart_link_id int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY  (order_id),
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
-  KEY giftcard_id (giftcard_id)
+  KEY giftcard_id (giftcard_id),
+  KEY order_cart_link (cart_link_id)
 ) $collate;
 CREATE TABLE ec_order_fee (
   order_fee_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1412,6 +1885,18 @@ CREATE TABLE ec_order_option (
   UNIQUE KEY order_option_id (order_option_id),
   KEY orderdetail_id (orderdetail_id) 
 ) $collate;
+CREATE TABLE ec_order_tag (
+  tag_id int(11) NOT NULL AUTO_INCREMENT,
+  tag_label varchar(100) NOT NULL DEFAULT '',
+  tag_color varchar(20) NOT NULL DEFAULT '#6a737d',
+  PRIMARY KEY (tag_id)
+) $collate;
+CREATE TABLE ec_order_tag_item (
+  order_id int(11) NOT NULL,
+  tag_id int(11) NOT NULL,
+  KEY order_id (order_id),
+  KEY tag_id (tag_id)
+) $collate;
 CREATE TABLE ec_orderdetail (
   orderdetail_id int(11) NOT NULL AUTO_INCREMENT,
   order_id int(11) NOT NULL DEFAULT '0',
@@ -1426,6 +1911,7 @@ CREATE TABLE ec_orderdetail (
   total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
   total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
   quantity int(11) NOT NULL DEFAULT '0',
+  refunded_quantity int(11) NOT NULL DEFAULT '0',
   image1 text NOT NULL,
   optionitem_id_1 int(11) NOT NULL DEFAULT '0',
   optionitem_id_2 int(11) NOT NULL DEFAULT '0',
@@ -1479,11 +1965,16 @@ CREATE TABLE ec_orderdetail (
   include_code tinyint(1) NOT NULL DEFAULT '0',
   subscription_signup_fee float(15,3) NOT NULL DEFAULT '0.000',
   stock_adjusted tinyint(1) NOT NULL DEFAULT '0',
+  bundle_group_key varchar(64) NOT NULL DEFAULT '',
+  bundle_product_id int(11) NOT NULL DEFAULT '0',
+  is_free_gift tinyint(1) NOT NULL DEFAULT '0',
+  applied_offers longtext,
   PRIMARY KEY  (orderdetail_id),
   UNIQUE KEY orderdetail_id (orderdetail_id),
   KEY orderdetail_order_id (order_id),
   KEY orderdetail_product_id (product_id),
-  KEY orderdetail_giftcard_id (giftcard_id)
+  KEY orderdetail_giftcard_id (giftcard_id),
+  KEY idx_order_product (order_id,product_id)
 ) $collate;
 CREATE TABLE ec_orderstatus (
   status_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1671,6 +2162,8 @@ CREATE TABLE ec_product (
   is_preorder_type tinyint(1) NOT NULL DEFAULT 0,
   is_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
   pickup_locations text NULL,
+  is_bundle tinyint(1) NOT NULL DEFAULT '0',
+  reorder_point int(11) NOT NULL DEFAULT '-1',
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   UNIQUE KEY product_model_number (model_number($max_index_length)),
@@ -1685,6 +2178,35 @@ CREATE TABLE ec_product (
   KEY product_option_id_5 (option_id_5),
   KEY idx_storefront_default (activate_in_store, role_id, sort_position),
   KEY idx_post_id (post_id)
+) $collate;
+CREATE TABLE ec_product_bundle (
+  product_bundle_id int(11) NOT NULL AUTO_INCREMENT,
+  product_id int(11) NOT NULL DEFAULT '0',
+  pricing_mode varchar(20) NOT NULL DEFAULT 'fixed_price',
+  discount_amount float(15,3) NOT NULL DEFAULT '0.000',
+  discount_percentage float(15,3) NOT NULL DEFAULT '0.000',
+  display_mode varchar(20) NOT NULL DEFAULT 'single_line',
+  allow_component_edit tinyint(1) NOT NULL DEFAULT '0',
+  stock_mode varchar(20) NOT NULL DEFAULT 'component',
+  PRIMARY KEY  (product_bundle_id),
+  UNIQUE KEY product_bundle_product_id (product_id)
+) $collate;
+CREATE TABLE ec_product_bundle_item (
+  product_bundle_item_id int(11) NOT NULL AUTO_INCREMENT,
+  product_bundle_id int(11) NOT NULL DEFAULT '0',
+  component_product_id int(11) NOT NULL DEFAULT '0',
+  quantity int(11) NOT NULL DEFAULT '1',
+  optionitem_id_1 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_2 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_3 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_4 int(11) NOT NULL DEFAULT '0',
+  optionitem_id_5 int(11) NOT NULL DEFAULT '0',
+  customer_selects_options tinyint(1) NOT NULL DEFAULT '0',
+  price_allocation float(15,3) NOT NULL DEFAULT '0.000',
+  sort_order int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (product_bundle_item_id),
+  KEY product_bundle_item_bundle_id (product_bundle_id),
+  KEY product_bundle_item_component (component_product_id)
 ) $collate;
 CREATE TABLE ec_product_google_attributes (
   product_google_attribute_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2066,8 +2588,12 @@ CREATE TABLE ec_tempcart (
   gift_card_email varchar(255) NOT NULL DEFAULT '',
   abandoned_cart_email_sent int(11) NOT NULL DEFAULT '0',
   hide_from_admin tinyint(1) NOT NULL DEFAULT '0',
+  bundle_group_key varchar(64) NOT NULL DEFAULT '',
+  bundle_product_id int(11) NOT NULL DEFAULT '0',
+  free_gift_offer_id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (tempcart_id),
   UNIQUE KEY tempcart_tempcart_id (tempcart_id),
+  KEY tempcart_bundle_group (bundle_group_key),
   KEY tempcart_session_id (session_id),
   KEY tempcart_product_id (product_id),
   KEY tempcart_optionitem_id_1 (optionitem_id_1),
@@ -2150,6 +2676,17 @@ CREATE TABLE ec_tempcart_data (
   pickup_location int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY  (tempcart_data_id)
 ) $collate;
+CREATE TABLE ec_tempcart_offer (
+  tempcart_offer_id int(11) NOT NULL AUTO_INCREMENT,
+  session_id varchar(100) NOT NULL DEFAULT '',
+  offer_id int(11) NOT NULL DEFAULT '0',
+  offer_code_id int(11) NOT NULL DEFAULT '0',
+  code varchar($max_index_length) NOT NULL DEFAULT '',
+  applied_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (tempcart_offer_id),
+  KEY tempcart_offer_session_id (session_id),
+  KEY tempcart_offer_offer_id (offer_id)
+) $collate;
 CREATE TABLE ec_tempcart_optionitem (
   tempcart_optionitem_id int(11) NOT NULL AUTO_INCREMENT,
   tempcart_id int(11) NOT NULL DEFAULT '0',
@@ -2198,13 +2735,61 @@ CREATE TABLE ec_user (
   email_other varchar(255) NOT NULL DEFAULT '',
   allow_shipping_bypass tinyint(1) NOT NULL DEFAULT 0,
   is_stripe_test_user tinyint(1) NOT NULL DEFAULT 0,
+  lifetime_spend float(15,3) NOT NULL DEFAULT '0.000',
+  completed_order_count int(11) NOT NULL DEFAULT '0',
+  last_order_date datetime DEFAULT NULL,
+  history_aggregates_built tinyint(1) NOT NULL DEFAULT 0,
+  date_created timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login datetime DEFAULT NULL,
   PRIMARY KEY  (user_id),
   UNIQUE KEY user_user_id (user_id),
   UNIQUE KEY user_email (email($max_index_length)),
   KEY user_password (password($max_index_length)),
   KEY user_default_billing_address_id (default_billing_address_id),
   KEY user_default_shipping_address_id (default_shipping_address_id),
-  KEY user_user_level (user_level($max_index_length))
+  KEY user_user_level (user_level($max_index_length)),
+  KEY user_date_created (date_created),
+  KEY user_last_order_date (last_order_date)
+) $collate;
+CREATE TABLE ec_user_activity (
+  activity_id bigint(20) NOT NULL AUTO_INCREMENT,
+  user_id int(11) NOT NULL DEFAULT '0',
+  activity_type varchar(50) NOT NULL DEFAULT '',
+  activity_date datetime DEFAULT NULL,
+  object_type varchar(50) NOT NULL DEFAULT '',
+  object_id bigint(20) NOT NULL DEFAULT '0',
+  meta text,
+  actor_type varchar(20) NOT NULL DEFAULT '',
+  actor_id bigint(20) NOT NULL DEFAULT '0',
+  ip_address varchar(45) NOT NULL DEFAULT '',
+  PRIMARY KEY  (activity_id),
+  KEY user_activity_user_date (user_id,activity_date),
+  KEY user_activity_type (activity_type)
+) $collate;
+CREATE TABLE ec_user_note (
+  note_id int(11) NOT NULL AUTO_INCREMENT,
+  user_id int(11) NOT NULL DEFAULT '0',
+  wp_user_id int(11) NOT NULL DEFAULT '0',
+  note text,
+  created datetime DEFAULT NULL,
+  pinned tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (note_id),
+  KEY user_note_user (user_id)
+) $collate;
+CREATE TABLE ec_user_tag (
+  tag_id int(11) NOT NULL AUTO_INCREMENT,
+  tag_label varchar(100) NOT NULL DEFAULT '',
+  tag_color varchar(7) NOT NULL DEFAULT '#6b7280',
+  PRIMARY KEY  (tag_id),
+  UNIQUE KEY user_tag_label (tag_label)
+) $collate;
+CREATE TABLE ec_user_to_tag (
+  user_to_tag_id int(11) NOT NULL AUTO_INCREMENT,
+  user_id int(11) NOT NULL DEFAULT '0',
+  tag_id int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (user_to_tag_id),
+  UNIQUE KEY user_to_tag_pair (user_id,tag_id),
+  KEY user_to_tag_tag (tag_id)
 ) $collate;
 CREATE TABLE ec_webhook (
   webhook_id varchar($max_index_length) NOT NULL,

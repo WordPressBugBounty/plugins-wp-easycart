@@ -1,0 +1,657 @@
+/**
+ * WP EasyCart Admin Shell V2
+ * Namespaced .ecsh-* — safe to load alongside legacy admin.css during transition.
+ *
+ * Theming: shell.php prints :root { --ec-brand + pre-computed fallback shades }
+ * via wp_easycart_shell_output_root_css(). The @supports block below re-derives
+ * the shades with color-mix() on modern browsers, so both paths render
+ * identically (see wp_easycart_shell_theme.php for the math guarantee).
+ *
+ * @since 5.x.x
+ */
+
+/* ---- Neutral tokens (mirror admin-v2.css) ---- */
+:root {
+	--ecsh-g50:#f9fafb; --ecsh-g100:#f3f4f6; --ecsh-g200:#e5e7eb; --ecsh-g300:#d1d5db;
+	--ecsh-g400:#9ca3af; --ecsh-g500:#6b7280; --ecsh-g600:#4b5563; --ecsh-g700:#374151;
+	--ecsh-g800:#1f2937; --ecsh-g900:#111827;
+	--ecsh-green:#22c55e; --ecsh-red:#ef4444; --ecsh-amber:#f59e0b;
+	--ecsh-r:8px; --ecsh-rs:6px;
+	--ecsh-sh:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+	--ecsh-shlg:0 10px 25px -5px rgba(0,0,0,.15),0 8px 10px -6px rgba(0,0,0,.08);
+	--ecsh-tr:150ms ease;
+	--ecsh-sidebar-w:240px;
+	--ecsh-topbar-h:56px;
+	--ecsh-adminbar:32px; /* WP admin bar */
+}
+@media (max-width:782px){ :root { --ecsh-adminbar:46px; } }
+/* Below 600px WordPress makes #wpadminbar position:absolute — it scrolls away with the page — so
+   nothing sticky should reserve room for it. Every sticky offset in the shell and the editors
+   derives from this variable, so this one line corrects all of them. */
+@media (max-width:600px){ :root { --ecsh-adminbar:0px; } }
+
+/* ---- Modern shade derivation (overrides the PHP-printed fallbacks) ---- */
+@supports (color: color-mix(in srgb, red, blue)) {
+	:root {
+		--ec-brand-hover:   color-mix(in srgb, var(--ec-brand), #000 12%);
+		--ec-brand-active:  color-mix(in srgb, var(--ec-brand), #000 22%);
+		--ec-brand-deep:    color-mix(in srgb, var(--ec-brand), #000 42%);
+		--ec-brand-soft:    color-mix(in srgb, var(--ec-brand), #fff 90%);
+		--ec-brand-softer:  color-mix(in srgb, var(--ec-brand), #fff 95%);
+		--ec-on-brand-dim:  color-mix(in srgb, var(--ec-on-brand), var(--ec-brand) 28%);
+	}
+}
+
+/* ---- Sidebar surface mapping (brand style; a body class can add
+        a neutral variant later without touching components) ---- */
+.ecsh-app {
+	--sb-bg: var(--ec-brand);
+	--sb-panel: var(--ec-brand-deep);
+	--sb-item: var(--ec-on-brand-dim);
+	--sb-item-hover-bg: rgba(255,255,255,.10);
+	--sb-active-bg: var(--ec-brand-active);
+	--sb-head: var(--ec-on-brand-dim);
+}
+.ecsh-app.ecsh-sidebar-neutral {
+	--sb-bg: var(--ecsh-g900);
+	--sb-panel: #0c1220;
+	--sb-item: var(--ecsh-g400);
+	--sb-item-hover-bg: rgba(255,255,255,.06);
+	--sb-active-bg: var(--ec-brand-deep);
+	--sb-head: var(--ecsh-g500);
+}
+
+/* =========================================================
+   APP FRAME  (bleeds over #wpbody-content's 20px gutter like
+   the old .ec_admin_wrap did)
+   ========================================================= */
+.ecsh-app {
+	display:flex; margin:0 0 0 -20px; min-height:calc(100vh - var(--ecsh-adminbar));
+	font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+	font-size:14px; color:var(--ecsh-g800); background:var(--ecsh-g100);
+	-webkit-font-smoothing:antialiased;
+	/* WP only pads #wpcontent on the LEFT (20px; 10px <=782px), so the frame
+	   bleeds left only — a symmetric negative margin overflows to the right. */
+}
+.ecsh-app *, .ecsh-app *::before, .ecsh-app *::after { box-sizing:border-box; }
+.ecsh-app a { text-decoration:none; }
+.ecsh-app button { font:inherit; cursor:pointer; }
+.ecsh-app button:focus-visible,
+.ecsh-app a:focus-visible,
+.ecsh-app input:focus-visible { outline:2px solid var(--ec-brand); outline-offset:2px; }
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+.ecsh-sidebar {
+	width:var(--ecsh-sidebar-w); flex-shrink:0;
+	background:var(--sb-bg);
+	display:flex; flex-direction:column;
+	transition:background var(--ecsh-tr);
+	position:sticky; top:var(--ecsh-adminbar);
+	height:calc(100vh - var(--ecsh-adminbar));
+	overflow-y:auto;
+	scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.25) transparent;
+	z-index:20;
+}
+
+/* Brand header — reuses the existing admin-logo.png (174x70 box, white
+   artwork designed to sit on the brand-colored surface). Swap for an
+   SVG/2x asset later without touching markup. */
+.ecsh-brand { display:block; padding:8px 8px 2px; }
+.ecsh-brand-logo {
+	height:70px;
+	background:url(../images/admin-logo.png) center 5px no-repeat;
+	filter:drop-shadow(0 1px 2px rgba(0,0,0,.2));
+}
+
+.ecsh-sb-store {
+	margin:8px 14px 12px; display:flex; align-items:center; justify-content:center; gap:7px;
+	padding:8px 12px; border-radius:var(--ecsh-r);
+	background:rgba(255,255,255,.12); color:var(--ec-on-brand); font-weight:600; font-size:13px;
+	border:1px solid rgba(255,255,255,.18);
+	transition:background var(--ecsh-tr);
+}
+.ecsh-sb-store:hover { background:rgba(255,255,255,.20); color:var(--ec-on-brand); }
+.ecsh-sb-store svg { width:14px; height:14px; }
+
+/* Sales snapshot (shown when ec_option_admin_display_sales_goal) */
+.ecsh-sb-sales { margin:0 14px 14px; padding:12px 14px; border-radius:var(--ecsh-r); background:rgba(0,0,0,.18); }
+.ecsh-sb-sales-row { display:flex; align-items:baseline; justify-content:space-between; }
+.ecsh-sb-sales-label { font-size:11px; color:var(--sb-item); font-weight:500; }
+.ecsh-sb-sales-amt { color:var(--ec-on-brand); font-size:17px; font-weight:700; }
+.ecsh-sb-sales-delta { font-size:11px; font-weight:600; color:#fca5a5; }
+.ecsh-sb-sales-delta.ecsh-up { color:#86efac; }
+.ecsh-sb-goal-track { height:4px; border-radius:2px; background:rgba(255,255,255,.18); margin-top:10px; overflow:hidden; }
+.ecsh-sb-goal-fill { height:100%; background:var(--ec-on-brand); border-radius:2px; }
+.ecsh-sb-goal-caption { display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; color:var(--sb-item); }
+
+/* Nav */
+.ecsh-sb-nav { flex:1; padding:2px 10px 12px; }
+.ecsh-sb-item {
+	display:flex; align-items:stretch; width:100%;
+	border-radius:var(--ecsh-r); position:relative; margin-bottom:1px;
+	color:var(--sb-item);
+	transition:background var(--ecsh-tr), color var(--ecsh-tr);
+}
+.ecsh-sb-item:hover { background:var(--sb-item-hover-bg); color:var(--ec-on-brand); }
+.ecsh-sb-item.ecsh-active { background:var(--sb-active-bg); color:var(--ec-on-brand); }
+.ecsh-sb-item.ecsh-active::before {
+	content:""; position:absolute; left:-10px; top:7px; bottom:7px; width:3px;
+	border-radius:0 3px 3px 0; background:var(--ec-on-brand);
+}
+.ecsh-sb-item > a {
+	flex:1; display:flex; align-items:center; gap:10px; min-width:0;
+	padding:9px 10px; color:inherit; font-size:13.5px; font-weight:500;
+}
+.ecsh-sb-item.ecsh-active > a { font-weight:600; }
+.ecsh-sb-item svg.ecsh-ico { width:17px; height:17px; flex-shrink:0; opacity:.9; }
+.ecsh-sb-item .ecsh-badge {
+	margin-left:auto; font-size:10.5px; font-weight:700; padding:1px 7px;
+	border-radius:10px; background:rgba(255,255,255,.16); color:var(--ec-on-brand);
+	align-self:center;
+}
+.ecsh-sb-item .ecsh-badge.ecsh-danger { background:var(--ecsh-red); color:#fff; }
+.ecsh-sb-item .ecsh-badge.ecsh-warn { background:var(--ecsh-amber); color:#fff; }
+.ecsh-sb-chev {
+	display:flex; align-items:center; justify-content:center; width:32px;
+	border:0; background:transparent; color:inherit; opacity:.6; border-radius:var(--ecsh-r);
+}
+.ecsh-sb-chev:hover { opacity:1; }
+.ecsh-sb-chev svg { width:14px; height:14px; transition:transform var(--ecsh-tr); }
+.ecsh-sb-chev[aria-expanded="true"] svg { transform:rotate(90deg); }
+/* Legacy lock icon filter output inside labels */
+.ecsh-sb-item .dashicons-lock, .ecsh-sb-sub .dashicons-lock { font-size:14px; width:14px; height:14px; margin-left:auto; }
+.ecsh-sb-sub .dashicons-lock { float:right; }
+
+/* Submenu accordion — identical on desktop and in the mobile drawer */
+.ecsh-sb-sub { overflow:hidden; max-height:0; transition:max-height 220ms ease; }
+.ecsh-sb-sub.ecsh-open { max-height:900px; }
+.ecsh-sb-sub-inner { margin:2px 0 6px; padding:6px 0; border-radius:var(--ecsh-r); background:var(--sb-panel); }
+.ecsh-sb-sub a {
+	display:block; padding:6px 14px 6px 38px; font-size:12.5px; color:var(--sb-item);
+	transition:color var(--ecsh-tr), background var(--ecsh-tr);
+}
+.ecsh-sb-sub a:hover { color:var(--ec-on-brand); background:rgba(255,255,255,.06); }
+.ecsh-sb-sub a.ecsh-current { color:var(--ec-on-brand); font-weight:600; position:relative; }
+.ecsh-sb-sub a.ecsh-current::before {
+	content:""; position:absolute; left:24px; top:50%; transform:translateY(-50%);
+	width:5px; height:5px; border-radius:50%; background:var(--ec-on-brand);
+}
+.ecsh-sb-sub-head { padding:9px 14px 3px 24px; font-size:10.5px; font-weight:700; color:var(--sb-head); }
+
+/* Footer: trial/license + powered-by */
+.ecsh-sb-foot { padding:10px 14px 14px; border-top:1px solid rgba(255,255,255,.12); }
+.ecsh-sb-trial { font-size:11.5px; color:var(--sb-item); line-height:1.45; }
+.ecsh-sb-trial strong { color:var(--ec-on-brand); display:block; margin-bottom:2px; }
+.ecsh-sb-trial a { color:var(--ec-on-brand); text-decoration:underline; text-underline-offset:2px; }
+.ecsh-sb-powered {
+	margin-top:10px; display:block; font-size:10.5px; color:var(--sb-item); opacity:.9;
+}
+.ecsh-sb-powered:hover { color:var(--ec-on-brand); opacity:1; }
+
+/* =========================================================
+   MAIN COLUMN + TOP BAR
+   ========================================================= */
+.ecsh-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+
+.ecsh-topbar {
+	height:var(--ecsh-topbar-h); background:#fff; border-bottom:1px solid var(--ecsh-g200);
+	display:flex; align-items:center; gap:10px; padding:0 20px;
+	position:sticky; top:var(--ecsh-adminbar); z-index:30;
+}
+.ecsh-tb-hamburger { display:none; }
+.ecsh-tb-logo { display:none; }
+.ecsh-tb-crumb { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ecsh-g500); min-width:0; }
+.ecsh-tb-crumb .ecsh-sep { color:var(--ecsh-g300); }
+.ecsh-tb-crumb .ecsh-crumb-link { color:var(--ecsh-g500); white-space:nowrap; transition:color var(--ecsh-tr); }
+.ecsh-tb-crumb .ecsh-crumb-link:hover { color:var(--ec-brand); }
+.ecsh-tb-crumb .ecsh-here { color:var(--ecsh-g900); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Docs search (same GET form/behavior as the old sidebar search).
+   WP forms.css gives admin inputs min-height/border/shadow — neutralize
+   them so the field fits the 56px bar and reads as one control. */
+.ecsh-tb-search {
+	margin-left:auto; display:flex; align-items:center; gap:7px;
+	height:36px; background:var(--ecsh-g50); border:1px solid var(--ecsh-g300);
+	border-radius:var(--ecsh-r);
+	padding:0 12px; width:230px; color:var(--ecsh-g500); font-size:13px;
+	transition:border-color var(--ecsh-tr), background var(--ecsh-tr);
+	overflow:hidden;
+}
+.ecsh-tb-search:focus-within { background:#fff; border-color:var(--ec-brand); }
+.ecsh-tb-search input,
+.ecsh-tb-search input[type="text"] {
+	border:0 !important; outline:0; background:transparent !important;
+	box-shadow:none !important; border-radius:0;
+	width:100%; height:100%; min-height:0; margin:0; padding:0;
+	font-size:13px; line-height:34px; color:var(--ecsh-g800);
+}
+.ecsh-tb-search input::placeholder { color:var(--ecsh-g500); opacity:1; }
+.ecsh-tb-search svg { width:14px; height:14px; flex-shrink:0; }
+.ecsh-tb-search-kbd {
+	font-size:10px; color:var(--ecsh-g400); border:1px solid var(--ecsh-g300); border-radius:4px;
+	padding:0 4px; background:#fff; font-family:inherit; flex-shrink:0;
+}
+/* Icon-only trigger when the full search field is hidden (<900px) */
+.ecsh-tb-search-btn {
+	display:none; align-items:center; justify-content:center;
+	width:36px; height:36px; margin-left:auto;
+	border:1px solid var(--ecsh-g300); border-radius:var(--ecsh-r); background:#fff;
+	color:var(--ecsh-g600); transition:all var(--ecsh-tr);
+}
+.ecsh-tb-search-btn:hover { border-color:var(--ecsh-g400); color:var(--ecsh-g800); }
+.ecsh-tb-search-btn svg { width:16px; height:16px; }
+
+/* ---- Command palette ---- */
+.ecsh-palette { position:fixed; inset:0; z-index:100000; }
+.ecsh-palette[hidden] { display:none; }
+.ecsh-palette-backdrop { position:absolute; inset:0; background:rgba(17,24,39,.45); }
+.ecsh-palette-panel {
+	position:relative; width:min(560px, calc(100vw - 24px));
+	margin:min(14vh, 120px) auto 0;
+	background:#fff; border:1px solid var(--ecsh-g200); border-radius:12px;
+	box-shadow:var(--ecsh-shlg); overflow:hidden;
+}
+.ecsh-palette-inputrow {
+	display:flex; align-items:center; gap:10px;
+	padding:14px 16px; border-bottom:1px solid var(--ecsh-g200);
+	color:var(--ecsh-g400);
+}
+.ecsh-palette-inputrow svg { width:17px; height:17px; flex-shrink:0; }
+.ecsh-palette-inputrow input,
+.ecsh-palette-inputrow input[type="text"] {
+	flex:1; border:0 !important; outline:0; background:transparent !important;
+	box-shadow:none !important; min-height:0; margin:0; padding:0;
+	font-size:15px; color:var(--ecsh-g900);
+}
+.ecsh-palette-inputrow kbd {
+	font-size:10px; color:var(--ecsh-g400); border:1px solid var(--ecsh-g300);
+	border-radius:4px; padding:1px 5px; background:var(--ecsh-g50); font-family:inherit;
+}
+.ecsh-palette-results { max-height:min(50vh, 380px); overflow-y:auto; padding:6px; }
+.ecsh-palette-item {
+	display:flex; align-items:center; gap:10px; width:100%;
+	padding:9px 10px; border:0; border-radius:var(--ecsh-r); background:transparent;
+	font-size:13.5px; color:var(--ecsh-g800); text-align:left; cursor:pointer;
+}
+.ecsh-palette-item svg { width:15px; height:15px; flex-shrink:0; color:var(--ecsh-g400); }
+.ecsh-palette-item .ecsh-palette-group { margin-left:auto; font-size:11.5px; color:var(--ecsh-g400); white-space:nowrap; }
+.ecsh-palette-item.ecsh-selected,
+.ecsh-palette-item:hover { background:var(--ec-brand-softer); }
+.ecsh-palette-item.ecsh-selected svg,
+.ecsh-palette-item:hover svg { color:var(--ec-brand); }
+.ecsh-palette-item-docs { border-top:1px solid var(--ecsh-g100); margin-top:4px; padding-top:11px; color:var(--ec-brand); font-weight:600; }
+.ecsh-palette-item-docs svg { color:var(--ec-brand); }
+.ecsh-palette-empty { padding:10px 12px 4px; font-size:12.5px; color:var(--ecsh-g500); }
+
+/* Section-jump landing highlight */
+.ecsh-jump-highlight {
+	background:var(--ec-brand-softer) !important;
+	box-shadow:0 0 0 3px var(--ec-brand-softer);
+	border-radius:var(--ecsh-rs);
+	transition:background 600ms ease, box-shadow 600ms ease;
+}
+
+.ecsh-tb-btn {
+	display:flex; align-items:center; gap:6px; padding:7px 12px;
+	border:1px solid var(--ecsh-g300); border-radius:var(--ecsh-r); background:#fff;
+	font-size:13px; font-weight:500; color:var(--ecsh-g700);
+	transition:all var(--ecsh-tr); white-space:nowrap;
+}
+.ecsh-tb-btn:hover { border-color:var(--ecsh-g400); background:var(--ecsh-g50); color:var(--ecsh-g800); }
+.ecsh-tb-btn svg { width:15px; height:15px; }
+
+/* Help dropdown (absorbs the old marketing header links) */
+.ecsh-tb-menu { position:relative; }
+.ecsh-tb-dropdown {
+	position:absolute; right:0; top:calc(100% + 6px); width:230px;
+	background:#fff; border:1px solid var(--ecsh-g200); border-radius:var(--ecsh-r);
+	box-shadow:var(--ecsh-shlg); padding:6px; display:none; z-index:50;
+}
+.ecsh-tb-menu.ecsh-open .ecsh-tb-dropdown { display:block; }
+.ecsh-tb-dropdown a {
+	display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:var(--ecsh-rs);
+	font-size:13px; color:var(--ecsh-g700);
+}
+.ecsh-tb-dropdown a:hover { background:var(--ecsh-g100); color:var(--ecsh-g900); }
+.ecsh-tb-dropdown a .dashicons { font-size:15px; width:15px; height:15px; color:var(--ecsh-g400); }
+.ecsh-tb-dropdown .ecsh-dd-sep { height:1px; background:var(--ecsh-g200); margin:5px 4px; }
+
+/* Expandable group inside the Help dropdown (Video Tutorials).
+   Accordion, not hover-flyout, so it works on touch. */
+.ecsh-tb-dropdown { max-height:min(70vh, 520px); overflow-y:auto; overscroll-behavior:contain; }
+.ecsh-dd-group-toggle {
+	display:flex; align-items:center; gap:9px; width:100%;
+	padding:8px 10px; border:0; border-radius:var(--ecsh-rs); background:transparent;
+	font-size:13px; color:var(--ecsh-g700); text-align:left;
+}
+.ecsh-dd-group-toggle:hover { background:var(--ecsh-g100); color:var(--ecsh-g900); }
+.ecsh-dd-group-toggle .dashicons { font-size:15px; width:15px; height:15px; color:var(--ecsh-g400); }
+.ecsh-dd-chev { width:13px; height:13px; margin-left:auto; color:var(--ecsh-g400); transition:transform var(--ecsh-tr); }
+.ecsh-dd-group-toggle[aria-expanded="true"] .ecsh-dd-chev { transform:rotate(90deg); }
+.ecsh-dd-group-body { display:none; padding:2px 0 4px; }
+.ecsh-dd-group.ecsh-open .ecsh-dd-group-body { display:block; }
+.ecsh-tb-dropdown .ecsh-dd-group-body a { padding:6px 10px 6px 34px; font-size:12.5px; color:var(--ecsh-g600); }
+.ecsh-tb-dropdown .ecsh-dd-group-body a:hover { color:var(--ecsh-g900); }
+.ecsh-tb-dropdown .ecsh-dd-group-body a.ecsh-dd-more { color:var(--ec-brand); font-weight:600; }
+
+/* Color selector — keeps #ec_admin_shell_color id + nonce for the
+   existing ec_admin_ajax_save_color_scheme AJAX action */
+.ecsh-tb-color {
+	display:flex; align-items:center; gap:8px; padding:5px 10px 5px 6px;
+	border:1px solid var(--ecsh-g300); border-radius:var(--ecsh-r); background:#fff;
+	transition:border-color var(--ecsh-tr);
+}
+.ecsh-tb-color:hover { border-color:var(--ecsh-g400); }
+.ecsh-tb-color-swatch {
+	width:24px; height:24px; border-radius:6px; background:var(--ec-brand);
+	border:2px solid #fff; box-shadow:0 0 0 1px var(--ecsh-g300); position:relative; overflow:hidden;
+	cursor:pointer; flex-shrink:0;
+}
+.ecsh-tb-color-swatch input[type="color"] {
+	position:absolute; inset:-6px; opacity:0; cursor:pointer; width:44px; height:44px;
+	border:0; padding:0; background:none;
+}
+.ecsh-tb-color-label { font-size:12.5px; color:var(--ecsh-g600); font-weight:500; }
+
+/* =========================================================
+   CONTENT AREA + LEGACY COMPAT
+   ========================================================= */
+/* overflow-x:clip prevents wide content from widening the page WITHOUT
+   creating a scroll container — unlike auto/hidden/scroll, clip keeps
+   position:sticky descendants (product editor header/rail) working
+   against the viewport, and clip on the x-axis leaves overflow-y
+   visible, so row-action menus can still hang below their tables.
+   (Do NOT put overflow-x:auto on .ecv2-table-scroll at desktop widths:
+   a scroll value forces overflow-y to auto and clips row menus —
+   admin-v2.css already enables it under 640px containers by design.) */
+.ecsh-content { padding:20px; flex:1; min-width:0; overflow-x:clip; }
+
+/* Legacy pages style against .ec_admin_content_area descendants; keep the
+   class on our wrapper but neutralize its old box styling (loads after admin.css).
+   NOTE: this selector (0,2,0) outweighs .ecsh-content (0,1,0) on the same
+   element, so it must CARRY the real padding — legacy admin.css sets its own
+   (15px / 5px small) which would otherwise leak through. */
+.ecsh-main .ec_admin_content_area {
+	float:none; width:auto; max-width:none; margin:0; padding:20px;
+	border:0 !important; background:transparent; min-height:0;
+}
+.ecsh-main .ec_admin_mobile_menu_button { display:none; }
+
+/* =========================================================
+   PRODUCT EDITOR V2 STICKY COORDINATION
+   admin-details-v2.css pins .ecdv2-header at top:32px and
+   .ecdv2-rail at top:96px — tuned for the old shell where only
+   the WP admin bar sat above them. Inside the new shell they must
+   stack BELOW the sticky topbar; original header→rail deltas
+   (64px desktop / 58px mobile) are preserved.
+   ========================================================= */
+.ecsh-main .ecdv2-header {
+	top:calc(var(--ecsh-adminbar) + var(--ecsh-topbar-h) + 8px);
+	z-index:25; /* below the shell topbar (30) so it can never cover it */
+}
+.ecsh-main .ecdv2-rail {
+	top:calc(var(--ecsh-adminbar) + var(--ecsh-topbar-h) + 8px + 64px);
+}
+
+/* =========================================================
+   MOBILE  (<=782px, the WP breakpoint)
+   ========================================================= */
+.ecsh-scrim { display:none; }
+.ecsh-bottom-nav { display:none; }
+
+@media (max-width:900px){
+	.ecsh-tb-color-label, .ecsh-tb-search, .ecsh-tb-search-kbd { display:none; }
+	.ecsh-tb-search-btn { display:flex; }
+}
+
+@media (max-width:782px){
+	.ecsh-app { margin:0 0 0 -10px; }
+
+	.ecsh-sidebar {
+		position:fixed; left:0; top:var(--ecsh-adminbar); bottom:0; z-index:99999;
+		transform:translateX(-100%); transition:transform 240ms ease;
+		width:min(300px, 84vw); height:auto;
+	}
+	body.ecsh-drawer-open .ecsh-sidebar { transform:translateX(0); box-shadow:var(--ecsh-shlg); }
+	.ecsh-scrim {
+		display:block; position:fixed; inset:var(--ecsh-adminbar) 0 0 0; z-index:99998;
+		background:rgba(17,24,39,.5);
+		opacity:0; pointer-events:none; transition:opacity 200ms ease;
+	}
+	body.ecsh-drawer-open .ecsh-scrim { opacity:1; pointer-events:auto; }
+
+	.ecsh-tb-hamburger {
+		display:flex; align-items:center; justify-content:center;
+		width:38px; height:38px; border:0; background:transparent; border-radius:var(--ecsh-r);
+		color:var(--ecsh-g700); margin-left:-8px;
+	}
+	.ecsh-tb-hamburger:hover { background:var(--ecsh-g100); }
+	.ecsh-tb-hamburger svg { width:20px; height:20px; }
+
+	/* Compact brand chip: the white PNG needs a brand-colored backdrop
+	   to stay visible on the white top bar */
+	.ecsh-tb-logo {
+		display:block; width:96px; height:34px; border-radius:7px; flex-shrink:0;
+		background:var(--ec-brand) url(../images/admin-logo.png) center / auto 26px no-repeat;
+	}
+	.ecsh-tb-crumb .ecsh-trail { display:none; }
+
+	.ecsh-topbar { padding:0 12px; }
+	/* Must include the compat selector: same specificity or the desktop
+	   padding above wins and the bottom tab bar overlaps content */
+	.ecsh-content,
+	.ecsh-main .ec_admin_content_area { padding:14px 12px calc(76px + env(safe-area-inset-bottom)); }
+
+	/* Bottom tab bar — persistent nav for mobile-first store owners */
+	.ecsh-bottom-nav {
+		display:flex; position:fixed; left:0; right:0; bottom:0; z-index:9999;
+		background:#fff; border-top:1px solid var(--ecsh-g200);
+		padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+		box-shadow:0 -4px 12px rgba(0,0,0,.05);
+	}
+	.ecsh-bn-item {
+		flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+		padding:5px 2px; border:0; background:transparent; color:var(--ecsh-g500);
+		font-size:10.5px; font-weight:500; border-radius:var(--ecsh-r); position:relative;
+	}
+	.ecsh-bn-item svg { width:21px; height:21px; }
+	.ecsh-bn-item.ecsh-active { color:var(--ec-brand); font-weight:600; }
+	.ecsh-bn-item .ecsh-bn-badge {
+		position:absolute; top:1px; right:calc(50% - 20px);
+		background:var(--ecsh-red); color:#fff; font-size:9px; font-weight:700;
+		padding:1px 5px; border-radius:8px;
+	}
+
+	/* Product editor V2 on mobile: rail sticks below the shell topbar
+	   (original 58px delta preserved); toasts clear the bottom tab bar */
+	.ecsh-main .ecdv2-rail { top:calc(var(--ecsh-adminbar) + var(--ecsh-topbar-h) + 8px + 58px); }
+	.ecsh-main .ecdv2-toasts { bottom:calc(84px + env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce){
+	.ecsh-app *, .ecsh-sidebar, .ecsh-scrim, .ecsh-sb-sub { transition:none !important; }
+}
+
+/* =========================================================
+   ECV2 CONSISTENCY BRIDGE
+   Minimal overrides so the upgraded panels (products, orders,
+   users, offers) pick up the user's brand color for INTERACTIVE
+   accents while semantic colors (green=on/success, red=danger,
+   amber=warn) stay untouched. Load after admin-v2.css.
+   ========================================================= */
+.ecv2-wrap .ecv2-btn-primary { background:var(--ec-brand); border-color:var(--ec-brand); color:var(--ec-on-brand); }
+.ecv2-wrap .ecv2-btn-primary:hover { background:var(--ec-brand-hover); border-color:var(--ec-brand-hover); color:var(--ec-on-brand); }
+
+.ecv2-wrap .ecv2-stat-card:hover { border-color:var(--ec-brand); }
+.ecv2-wrap .ecv2-stat-active { border-color:var(--ec-brand); background:var(--ec-brand-softer); }
+
+.ecv2-wrap .ecv2-btn:focus-visible,
+.ecv2-wrap a:focus-visible,
+.ecv2-wrap input:focus-visible,
+.ecv2-wrap select:focus-visible { outline:2px solid var(--ec-brand); outline-offset:2px; }
+
+.ecv2-wrap .ecv2-stat-toggle-btn:hover,
+.ecv2-wrap .ecv2-stat-toggle-btn[aria-expanded="true"] { border-color:var(--ec-brand); color:var(--ec-brand); }
+.ecv2-wrap .ecv2-stat-toggle-btn[aria-expanded="true"] { background:var(--ec-brand-softer); }
+
+/* Row hover tint on v2 tables */
+.ecv2-wrap tbody tr:hover td { background:var(--ec-brand-softer); }
+
+/* Row-action menus must escape the table: admin-v2.css puts
+   overflow:hidden on .ecv2-table (for corner rounding), which clips the
+   absolutely-positioned .ecv2-row-menu — fully hiding it on short tables.
+   Unclip, and re-round the corners on the cells themselves so the card
+   look is unchanged. */
+.ecsh-main .ecv2-table { overflow:visible; }
+.ecsh-main .ecv2-table thead th:first-child { border-top-left-radius:calc(var(--ecv2-r, 8px) - 1px); }
+.ecsh-main .ecv2-table thead th:last-child { border-top-right-radius:calc(var(--ecv2-r, 8px) - 1px); }
+.ecsh-main .ecv2-table tbody tr:last-child td:first-child { border-bottom-left-radius:calc(var(--ecv2-r, 8px) - 1px); }
+.ecsh-main .ecv2-table tbody tr:last-child td:last-child { border-bottom-right-radius:calc(var(--ecv2-r, 8px) - 1px); }
+
+/* ==========================================================================
+   Shared admin notice card (wpec-pro-notice)
+   --------------------------------------------------------------------------
+   Used by core health notices (PRO activation, Square connection, database
+   repair — wp_easycart_admin.php print_core_notices_in_shell) AND by the
+   PRO plugin's license banners (trial active/expired, registration info).
+   Defined HERE in core shell-v2.css, not in the PRO stylesheet, because the
+   PRO-activation banner renders exactly when the PRO plugin's CSS is not
+   loaded. If the PRO stylesheet carries its own copy of these rules, treat
+   this block as canonical and remove the PRO copy to avoid drift.
+   ========================================================================== */
+.wpec-pro-notice {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 10px;
+	padding: 13px 16px;
+	margin: 0 0 18px;
+	font-size: 13px;
+	line-height: 1.45;
+	color: #1d2327;
+}
+.wpec-pro-notice-icon.dashicons {
+	flex: 0 0 auto;
+	width: 22px;
+	height: 22px;
+	font-size: 22px;
+	line-height: 1;
+	color: #646970;
+}
+.wpec-pro-notice-body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.wpec-pro-notice-body a {
+	color: inherit;
+	font-weight: 600;
+	text-decoration: underline;
+}
+.wpec-pro-notice-button {
+	flex: 0 0 auto;
+	display: inline-block;
+	background: #1d2327;
+	color: #fff !important;
+	font-size: 12px;
+	font-weight: 600;
+	padding: 8px 16px;
+	border-radius: 8px;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: background .15s ease;
+}
+.wpec-pro-notice-button:hover,
+.wpec-pro-notice-button:focus {
+	background: #3c434a;
+	color: #fff;
+}
+
+/* Variants: a tinted left accent + icon color; backgrounds stay calm so
+   stacked notices don't shout. */
+.wpec-pro-notice--brand { border-left: 4px solid #2ebd59; }
+.wpec-pro-notice--brand .wpec-pro-notice-icon.dashicons { color: #2ebd59; }
+.wpec-pro-notice--brand .wpec-pro-notice-button { background: #2ebd59; }
+.wpec-pro-notice--brand .wpec-pro-notice-button:hover,
+.wpec-pro-notice--brand .wpec-pro-notice-button:focus { background: #219a47; }
+
+.wpec-pro-notice--danger { border-left: 4px solid #d63638; background: #fdf5f5; }
+.wpec-pro-notice--danger .wpec-pro-notice-icon.dashicons { color: #d63638; }
+
+.wpec-pro-notice--info { border-left: 4px solid #72aee6; }
+.wpec-pro-notice--info .wpec-pro-notice-icon.dashicons { color: #2271b1; }
+
+/* Stacked variant: multi-line content (e.g. the database repair notice with
+   its expandable error list) — icon aligns to the first line instead of
+   center, and inner paragraphs tighten up. */
+.wpec-pro-notice--stacked { align-items: flex-start; }
+.wpec-pro-notice--stacked .wpec-pro-notice-icon.dashicons { margin-top: 1px; }
+.wpec-pro-notice--stacked .wpec-pro-notice-body p { margin: 0 0 6px; }
+.wpec-pro-notice--stacked .wpec-pro-notice-body p:last-child { margin-bottom: 0; }
+.wpec-pro-notice--stacked .wpec-pro-notice-body ul { margin: 6px 0 0 18px; list-style: disc; }
+
+/* Narrow screens: button drops below the text. */
+@media ( max-width: 600px ) {
+	.wpec-pro-notice { flex-wrap: wrap; }
+	.wpec-pro-notice-button { margin-left: 34px; }
+}
+
+/* =========================================================
+   LICENSE RENEWAL — top-bar pill, sidebar block, popup
+   ========================================================= */
+.ecsh-tb-license { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 6px 0 10px; border-radius:999px; border:1px solid #fde68a; background:#fffbeb; color:#92400e; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.ecsh-tb-license .dashicons { font-size:15px; width:15px; height:15px; color:#d97706; }
+.ecsh-tb-license-cta { padding:3px 9px; border-radius:999px; background:#d97706; color:#fff; font-size:11px; font-weight:700; }
+.ecsh-tb-license:hover { background:#fef3c7; }
+.ecsh-tb-license.is-critical, .ecsh-tb-license.is-lapsed { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+.ecsh-tb-license.is-critical .dashicons, .ecsh-tb-license.is-lapsed .dashicons { color:var(--ecsh-red); }
+.ecsh-tb-license.is-critical .ecsh-tb-license-cta, .ecsh-tb-license.is-lapsed .ecsh-tb-license-cta { background:var(--ecsh-red); }
+.ecsh-tb-license.is-critical:hover, .ecsh-tb-license.is-lapsed:hover { background:#fee2e2; }
+.ecsh-tb-license.is-critical { animation:ecsh-pulse 2.4s ease-in-out infinite; }
+@keyframes ecsh-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,0); } 50% { box-shadow:0 0 0 4px rgba(239,68,68,.18); } }
+@media (prefers-reduced-motion: reduce) { .ecsh-tb-license.is-critical { animation:none; } }
+@media screen and (max-width:1100px) { .ecsh-tb-license-text { display:none; } .ecsh-tb-license { padding-left:8px; } }
+
+.ecsh-sb-renew { display:block; width:100%; text-align:left; margin:0 0 4px; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:var(--sb-item); font:inherit; cursor:pointer; }
+.ecsh-sb-renew:hover { background:rgba(255,255,255,.1); }
+.ecsh-sb-renew strong { display:block; font-size:12px; color:var(--ec-on-brand); margin:6px 0 2px; }
+.ecsh-sb-renew span:last-child { display:block; font-size:11px; line-height:1.4; opacity:.9; }
+.ecsh-sb-renew-bar { display:block; height:4px; border-radius:2px; background:rgba(255,255,255,.14); overflow:hidden; }
+.ecsh-sb-renew-bar > span { display:block; height:100%; border-radius:2px; background:var(--ecsh-amber); }
+.ecsh-sb-renew.is-critical .ecsh-sb-renew-bar > span, .ecsh-sb-renew.is-lapsed .ecsh-sb-renew-bar > span { background:var(--ecsh-red); }
+
+.ecsh-renewal-modal { position:fixed; inset:0; z-index:100000; background:rgba(17,24,39,.55); display:none; align-items:center; justify-content:center; padding:24px; }
+body.ecsh-renewal-open { overflow:hidden; }
+.ecsh-renewal-card { position:relative; width:560px; max-width:100%; background:#fff; border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.3); padding:24px 26px 22px; font-family:inherit; }
+.ecsh-renewal-x { position:absolute; top:12px; right:12px; width:32px; height:32px; border:0; background:none; border-radius:8px; color:var(--ecsh-g500); cursor:pointer; display:grid; place-items:center; }
+.ecsh-renewal-x:hover { background:var(--ecsh-g100); color:var(--ecsh-g900); }
+.ecsh-renewal-head { display:flex; gap:14px; align-items:flex-start; margin-bottom:12px; padding-right:32px; }
+.ecsh-renewal-icon { width:42px; height:42px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; background:#fef3c7; color:#b45309; }
+.ecsh-renewal-icon .dashicons { font-size:22px; width:22px; height:22px; }
+.ecsh-renewal-modal.is-critical .ecsh-renewal-icon, .ecsh-renewal-modal.is-lapsed .ecsh-renewal-icon { background:#fee2e2; color:var(--ecsh-red); }
+.ecsh-renewal-eyebrow { display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; color:var(--ecsh-g500); margin-bottom:2px; }
+.ecsh-renewal-card h3 { margin:0; font-size:18px; font-weight:600; color:var(--ecsh-g900); line-height:1.3; }
+.ecsh-renewal-lead { margin:0 0 10px; font-size:13.5px; line-height:1.55; color:var(--ecsh-g700); }
+.ecsh-renewal-stakes { margin:0 0 18px; padding:0; list-style:none; display:grid; gap:6px; }
+.ecsh-renewal-stakes li { font-size:13px; color:var(--ecsh-g800); display:flex; gap:9px; align-items:flex-start; line-height:1.45; }
+.ecsh-renewal-stakes li::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--ecsh-amber); margin-top:7px; flex-shrink:0; }
+.ecsh-renewal-modal.is-critical .ecsh-renewal-stakes li::before, .ecsh-renewal-modal.is-lapsed .ecsh-renewal-stakes li::before { background:var(--ecsh-red); }
+.ecsh-renewal-card:focus { outline:none; }
+.ecsh-renewal-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ecsh-renewal-actions .ecv2-btn { white-space:nowrap; }
+.ecsh-renewal-actions .ecv2-btn .dashicons { font-size:14px; width:14px; height:14px; }
+.ecsh-renewal-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding-top:12px; border-top:1px solid var(--ecsh-g100); }
+.ecsh-renewal-fine { font-size:11.5px; color:var(--ecsh-g500); line-height:1.45; }
+
+.ecsh-renewal-free { font-size:12px; color:var(--ecsh-g500); text-decoration:underline; text-underline-offset:2px; }
+.ecsh-renewal-free:hover { color:var(--ecsh-g800); }
+
+/* Lapsed gate variant of the renewal popup */
+.ecsh-renewal-modal.is-gate { background:rgba(17,24,39,.72); backdrop-filter:blur(2px); }
+.ecsh-renewal-keep { display:flex; gap:8px; align-items:flex-start; margin:0 0 16px; padding:10px 12px; border-radius:8px; background:#ecfdf5; border:1px solid #bbf7d0; font-size:12.5px; color:#166534; line-height:1.5; }
+.ecsh-renewal-keep .dashicons { color:var(--ecsh-green); flex-shrink:0; font-size:16px; width:16px; height:16px; margin-top:2px; }
+.ecsh-renewal-later { margin-left:auto; color:var(--ecsh-g600); }
+.ecsh-renewal-free { white-space:nowrap; flex-shrink:0; }

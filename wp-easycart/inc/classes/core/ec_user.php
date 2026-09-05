@@ -78,6 +78,12 @@ class ec_user{
 					$wpec_user_id = $this->mysqli->insert_user( $this->email, $this->password, $this->first_name, $this->last_name, $this->billing_id, $this->shipping_id, $this->user_level, $this->is_subscriber );
 					$this->mysqli->update_address_user_id( $this->billing_id, $wpec_user_id );
 					$this->mysqli->update_address_user_id( $this->shipping_id, $wpec_user_id );
+					if ( $wpec_user_id && function_exists( 'wp_easycart_log_user_activity' ) ) {
+						wp_easycart_log_user_activity( (int) $wpec_user_id, 'account_created', array(
+							'actor_type' => 'system',
+							'meta'       => array( 'source' => 'wordpress_sync' ),
+						) );
+					}
 				}
 				update_user_meta( $wp_user_id, 'wp_easycart_user_id', $wpec_user_id );
 			}

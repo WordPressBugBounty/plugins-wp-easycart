@@ -208,6 +208,8 @@ if ( ! class_exists( 'wp_easycart_admin_option' ) ) :
 				$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
 			} else {
 				include( $this->option_list_file );
+				/* V2 Create Option Set panel; the list's Add New link opens it ( see option-set-slideout-v2.js ). */
+				wp_easycart_admin()->load_new_slideout( 'optionset' );
 			}
 		}
 

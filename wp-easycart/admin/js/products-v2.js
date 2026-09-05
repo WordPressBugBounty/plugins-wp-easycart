@@ -2851,6 +2851,7 @@
 		}, 300 );
 	});
 
+
 	// Add category from search results.
 	$( document ).on( 'click', '.ecv2-cat-result-item:not(.ecv2-cat-result-item-assigned)', function() {
 		var $item = $( this );
@@ -3077,8 +3078,8 @@
 	// Add from media library.
 	window.ecv2_imgmgr_add_media_library = function() {
 		if ( ! ecv2_imgmgr_data || ! ecv2_imgmgr_data.is_licensed ) {
-			if ( typeof show_pro_required === 'function' ) {
-				show_pro_required();
+			if ( typeof ecdv2_upsell === 'function' ) {
+				ecdv2_upsell( { context: 'products', feature: 'images' } );
 			} else {
 				ecv2_toast( ecv2_lang.img_pro_required, 'info' );
 			}
@@ -3119,8 +3120,8 @@
 	window.ecv2_imgmgr_toggle_url_panel = function( type ) {
 		if ( ! ecv2_imgmgr_data || ! ecv2_imgmgr_data.is_licensed ) {
 			if ( type !== 'image' ) {
-				if ( typeof show_pro_required === 'function' ) {
-					show_pro_required();
+				if ( typeof ecdv2_upsell === 'function' ) {
+					ecdv2_upsell( { context: 'products', feature: 'images' } );
 				} else {
 					ecv2_toast( ecv2_lang.img_pro_required, 'info' );
 				}
@@ -3329,20 +3330,20 @@
 		if ( window.wpec_gate && typeof window.wpec_gate.locked_action === 'function' ) {
 			return window.wpec_gate.locked_action( gate );
 		}
-		if ( typeof show_pro_required === 'function' ) { show_pro_required(); }
+		if ( typeof ecdv2_upsell === 'function' ) { ecdv2_upsell( { context: 'products', feature: 'variants' } ); }
 		return false;
 	};
 
 })( jQuery );
-window.ecv2_open_variant_popup            = window.ecv2_open_variant_popup            || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
+window.ecv2_open_variant_popup            = window.ecv2_open_variant_popup            || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'variants' } ); };
 window.ecv2_open_image_manager_for_variant = window.ecv2_open_image_manager_for_variant || function(){};
-window.ecv2_open_volume_pricing           = window.ecv2_open_volume_pricing           || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_b2b_pricing              = window.ecv2_open_b2b_pricing              || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_advanced_pricing         = window.ecv2_open_advanced_pricing         || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_variant_from_badge       = window.ecv2_open_variant_from_badge       || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_volume_from_badge        = window.ecv2_open_volume_from_badge        || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_b2b_from_badge           = window.ecv2_open_b2b_from_badge           || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_advanced_from_badge      = window.ecv2_open_advanced_from_badge      || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
-window.ecv2_open_image_manager            = window.ecv2_open_image_manager            || function(){ if (typeof show_pro_required === 'function') show_pro_required(); };
+window.ecv2_open_volume_pricing           = window.ecv2_open_volume_pricing           || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'volume' } ); };
+window.ecv2_open_b2b_pricing              = window.ecv2_open_b2b_pricing              || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'b2b' } ); };
+window.ecv2_open_advanced_pricing         = window.ecv2_open_advanced_pricing         || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'advanced' } ); };
+window.ecv2_open_variant_from_badge       = window.ecv2_open_variant_from_badge       || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'variants' } ); };
+window.ecv2_open_volume_from_badge        = window.ecv2_open_volume_from_badge        || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'volume' } ); };
+window.ecv2_open_b2b_from_badge           = window.ecv2_open_b2b_from_badge           || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'b2b' } ); };
+window.ecv2_open_advanced_from_badge      = window.ecv2_open_advanced_from_badge      || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'advanced' } ); };
+window.ecv2_open_image_manager            = window.ecv2_open_image_manager            || function(){ if (typeof ecdv2_upsell === 'function') ecdv2_upsell( { context: 'products', feature: 'images' } ); };
 window.ecv2_close_image_manager           = window.ecv2_close_image_manager           || function(){};
 window.ecv2_load_variants                 = window.ecv2_load_variants                 || function(){};

@@ -156,6 +156,9 @@
 		<?php } ?>
 	</div>
 
+	<?php if ( wp_easycart_offers_active() ) { ?>
+	<?php wp_easycart_offers_template( 'ec_offer_codes.php', array( 'cartpage' => $this, 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null, 'id_suffix' => '_mobile' ) ); ?>
+	<?php } else { ?>
 	<?php if( get_option( 'ec_option_show_coupons' ) ){ ?>
 	<div class="ec_cart_error_message" id="ec_coupon_error_mobile"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
 	<div class="ec_cart_success_message" id="ec_coupon_success_mobile"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
@@ -169,6 +172,7 @@
 		</div>
 	</div>
 	<?php }?>
+	<?php } ?>
 
 	<?php if( get_option( 'ec_option_show_giftcards' ) ){ ?>
 	<div class="ec_cart_error_message" id="ec_gift_card_error_mobile"></div>
@@ -383,6 +387,9 @@
 		</div>
 	<?php } ?>
 
+	<?php if ( wp_easycart_offers_active() ) { ?>
+	<?php wp_easycart_offers_template( 'ec_offer_codes.php', array( 'cartpage' => $this, 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null, 'id_suffix' => '_v2' ) ); ?>
+	<?php } else { ?>
 	<?php if( get_option( 'ec_option_show_coupons' ) ){ ?>
 	<div class="ec_cart_error_message" id="ec_coupon_error"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
 	<div class="ec_cart_success_message" id="ec_coupon_success"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
@@ -396,6 +403,7 @@
 		</div>
 	</div>
 	<?php }?>
+	<?php } ?>
 	<?php if( get_option( 'ec_option_show_giftcards' ) ){ ?>
 	<div class="ec_cart_error_message" id="ec_gift_card_error"></div>
 	<div class="ec_cart_success_message" id="ec_gift_card_success"<?php if( $this->gift_card != "" ){?> style="display:block;"<?php }?>><?php if( $this->gift_card != "" ){ echo esc_attr( $this->giftcard->message ); } ?></div>

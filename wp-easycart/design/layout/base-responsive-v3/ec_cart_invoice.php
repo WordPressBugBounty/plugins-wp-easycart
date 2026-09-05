@@ -264,6 +264,19 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 
 	<?php }?>
 
+	<?php
+	// Offers v2: itemized applied-offer rows from the persisted order row.
+	$ec_invoice_offers = ( isset( $invoice->applied_offers ) && '' != $invoice->applied_offers ) ? json_decode( (string) $invoice->applied_offers, true ) : false;
+	if ( is_array( $ec_invoice_offers ) && isset( $ec_invoice_offers['applied_offers'] ) ) {
+		foreach ( $ec_invoice_offers['applied_offers'] as $ec_invoice_offer ) {
+			if ( $ec_invoice_offer['amount'] <= 0 ) { continue; }
+	?>
+	<div class="ec_cart_price_row ec_offer_totals_row">
+		<div class="ec_cart_price_row_label"><span class="dashicons dashicons-tag"></span> <?php echo esc_attr( $ec_invoice_offer['label'] ); ?><?php if ( '' != $ec_invoice_offer['code'] ) { echo ' (' . esc_attr( $ec_invoice_offer['code'] ) . ')'; } ?></div>
+		<div class="ec_cart_price_row_total">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_invoice_offer['amount'] ) ); ?></div>
+	</div>
+	<?php } } ?>
+
 	<div class="ec_cart_header">
 		<?php echo wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_title' ); ?>
 	</div>

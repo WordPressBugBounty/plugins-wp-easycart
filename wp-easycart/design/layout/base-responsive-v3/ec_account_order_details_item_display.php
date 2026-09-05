@@ -10,6 +10,22 @@
 
 	<div class="ec_account_order_details_item_display_option"><?php echo esc_attr( $order_item->model_number ); ?></div>
 
+	<?php /* Offers v2 line badges + per-line applied offers (persisted data). */ ?>
+	<?php if ( isset( $order_item->is_free_gift ) && $order_item->is_free_gift ) { ?>
+	<div class="ec_offer_line_tag ec_offer_line_tag_gift"><span class="dashicons dashicons-heart"></span> <?php echo wp_easycart_language( )->get_text( 'cart_offers', 'gift_line_label' ); ?></div>
+	<?php } ?>
+	<?php if ( isset( $order_item->bundle_group_key ) && '' != $order_item->bundle_group_key && isset( $order_item->bundle_product_id ) && $order_item->bundle_product_id != $order_item->product_id ) { ?>
+	<div class="ec_offer_line_tag ec_offer_line_tag_bundle"><span class="dashicons dashicons-archive"></span> <?php echo wp_easycart_language( )->get_text( 'cart_offers', 'bundle_line_label' ); ?></div>
+	<?php } ?>
+	<?php
+	$ec_line_offers = ( isset( $order_item->applied_offers ) && '' != $order_item->applied_offers ) ? json_decode( (string) $order_item->applied_offers, true ) : false;
+	if ( is_array( $ec_line_offers ) ) {
+		foreach ( $ec_line_offers as $ec_line_offer ) {
+			if ( ! isset( $ec_line_offer['amount'] ) || $ec_line_offer['amount'] <= 0 ) { continue; }
+	?>
+	<div class="ec_offer_line_discount"><span class="dashicons dashicons-tag"></span> <span class="ec_offer_line_discount_label"><?php echo esc_attr( $ec_line_offer['label'] ); ?></span> <span class="ec_offer_line_discount_amount">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_line_offer['amount'] ) ); ?></span></div>
+	<?php } } ?>
+
 	<?php 
 
 	do_action( 'wpeasycart_order_detail_line_item', $order_item->model_number, $order_item->orderdetail_id );

@@ -90,10 +90,10 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 			<?php if ( '' !== $thumb_url ) { ?><img src="<?php echo esc_url( $thumb_url ); ?>" alt="" /><?php } else { ?><span class="dashicons dashicons-format-image"></span><?php } ?>
 		</div>
 		<div class="ecdv2-header-meta">
-			<p class="ecdv2-header-title" id="ecdv2_header_title"><?php echo $is_new ? esc_html__( 'New Product', 'wp-easycart' ) : esc_html( $product->title ); ?></p>
+			<p class="ecdv2-header-title" id="ecdv2_header_title"><?php echo $is_new ? esc_html__( 'New Product', 'wp-easycart' ) : esc_html( wp_unslash( $product->title ) ); ?></p>
 			<div class="ecdv2-header-sub" id="ecdv2_header_sub">
 				<?php if ( ! $is_new ) { ?>
-					<span id="ecdv2_header_sku"><?php echo esc_html( $product->model_number ); ?></span>
+					<span id="ecdv2_header_sku"><?php echo esc_html( wp_unslash( $product->model_number ) ); ?></span>
 					&middot; <span id="ecdv2_header_price"><?php echo esc_html( $this->format_price( $product->price ) ); ?></span>
 					<?php if ( $product->show_stock_quantity || $product->use_optionitem_quantity_tracking ) { ?>
 						&middot; <span class="<?php echo ( (int) $product->stock_quantity > 0 || $product->use_optionitem_quantity_tracking ) ? 'ecdv2-instock' : 'ecdv2-outstock'; ?>" id="ecdv2_header_stock"><?php
@@ -118,6 +118,9 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<span class="ecdv2-toggle-track"></span>
 			</span>
 			<span class="ecdv2-status-pill<?php echo ( ! $is_new && $product->activate_in_store ) ? ' is-active' : ''; ?>" id="ecdv2_status_pill"><?php echo ( ! $is_new && $product->activate_in_store ) ? esc_html__( 'Active', 'wp-easycart' ) : esc_html__( 'Draft', 'wp-easycart' ); ?></span>
+			<?php if ( ! $is_new ) { ?>
+				<a class="ecdv2-status-pill ecdv2-restricted-pill" id="ecdv2_restricted_pill" href="#"<?php echo ( (int) $product->role_id > 0 ) ? '' : ' style="display:none;"'; ?> onclick="ecdv2.go_tab( 'organize' ); return false;" title="<?php esc_attr_e( 'This product is only visible to one user role. Everyone else cannot see it in your store. Click to review under Organize > Visibility & Sorting.', 'wp-easycart' ); ?>"><span class="dashicons dashicons-lock"></span><?php esc_html_e( 'Role restricted', 'wp-easycart' ); ?></a>
+			<?php } ?>
 		</label>
 
 		<div class="ecdv2-header-spacer"></div>
@@ -135,8 +138,45 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 					<a href="<?php echo esc_url( wp_nonce_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=duplicate-product&product_id=' . (int) $product->product_id, 'wp-easycart-duplicate-product' ) ); ?>"><span class="dashicons dashicons-admin-page"></span><?php esc_attr_e( 'Duplicate Product', 'wp-easycart' ); ?></a>
 					<?php } ?>
 					<div class="ecdv2-menu-sep"></div>
-					<?php do_action( 'wp_easycart_admin_product_details_qr_code', $is_new ? 0 : $product->product_id ); ?>
-					<?php wp_easycart_admin()->helpsystem->print_vids_url( 'products', 'products', 'details' ); ?>
+					<?php
+					/*
+					 * The QR action and the help system print legacy markup (a bare
+					 * QR image, an icon-less "Video" link) that reads as clutter
+					 * inside this menu. Capture both and re-emit them as normal
+					 * menu items: the QR tucks behind a "View on phone" row that
+					 * expands in place, the video becomes "Watch help video".
+					 */
+					ob_start();
+					do_action( 'wp_easycart_admin_product_details_qr_code', $is_new ? 0 : $product->product_id );
+					$ecdv2_qr_html = trim( (string) ob_get_clean() );
+					if ( '' !== $ecdv2_qr_html ) {
+						$ecdv2_qr_slug = sanitize_title( '' !== trim( (string) $product->model_number ) ? $product->model_number : 'product-' . (int) $product->product_id );
+						echo '<a href="#" onclick="jQuery( \'#ecdv2_menu_qr\' ).slideToggle( 120 ); return false;"><span class="dashicons dashicons-smartphone"></span>' . esc_html__( 'Product QR code', 'wp-easycart' ) . '</a>';
+						echo '<div class="ecdv2-menu-qr" id="ecdv2_menu_qr" style="display:none;" data-qr-filename="' . esc_attr( 'qr-' . $ecdv2_qr_slug . '.png' ) . '">';
+						echo $ecdv2_qr_html; /* phpcs:ignore WordPress.Security.EscapeOutput -- QR markup from the plugin's own action */
+						echo '<span class="ecdv2-menu-qr-hint">' . esc_html__( 'Links to this product page. Download the PNG for packaging, flyers, or other marketing material.', 'wp-easycart' ) . '</span>';
+						echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecdv2-qr-download" onclick="ecdv2.download_qr( this ); return false;"><span class="dashicons dashicons-download"></span>' . esc_html__( 'Download PNG', 'wp-easycart' ) . '</button>';
+						echo '</div>';
+					}
+
+					ob_start();
+					wp_easycart_admin()->helpsystem->print_vids_url( 'products', 'products', 'details' );
+					$ecdv2_vids_html = trim( (string) ob_get_clean() );
+					$ecdv2_vids_href = '';
+					$ecdv2_vids_onclick = '';
+					if ( '' !== $ecdv2_vids_html && preg_match( '/<a\s[^>]*>/i', $ecdv2_vids_html, $ecdv2_vids_tag ) ) {
+						if ( preg_match( '/href=(["\'])(.*?)\1/i', $ecdv2_vids_tag[0], $ecdv2_m ) ) {
+							$ecdv2_vids_href = html_entity_decode( $ecdv2_m[2] );
+						}
+						if ( preg_match( '/onclick=(["\'])(.*?)\1/i', $ecdv2_vids_tag[0], $ecdv2_m ) ) {
+							$ecdv2_vids_onclick = html_entity_decode( $ecdv2_m[2] );
+						}
+					}
+					if ( '' !== $ecdv2_vids_href || '' !== $ecdv2_vids_onclick ) {
+						$ecdv2_vids_target = ( '' !== $ecdv2_vids_href && '#' !== $ecdv2_vids_href && false === strpos( $ecdv2_vids_onclick, 'video_help' ) ) ? ' target="_blank" rel="noopener"' : '';
+						echo '<a href="' . esc_url( '' !== $ecdv2_vids_href ? $ecdv2_vids_href : '#' ) . '"' . $ecdv2_vids_target . ' onclick="ecdv2.menu_close(); ' . esc_attr( rtrim( $ecdv2_vids_onclick, '; ' ) ) . ( '' !== $ecdv2_vids_onclick ? ';' : '' ) . ( '' === $ecdv2_vids_href || '#' === $ecdv2_vids_href ? ' return false;' : '' ) . '"><span class="dashicons dashicons-video-alt3"></span>' . esc_html__( 'Watch help video', 'wp-easycart' ) . '</a>';
+					}
+					?>
 					<a href="<?php echo esc_url_raw( $this->docs_link ); ?>" target="_blank"><span class="dashicons dashicons-editor-help"></span><?php esc_attr_e( 'Documentation', 'wp-easycart' ); ?></a>
 					<?php do_action( 'wp_easycart_admin_product_details_v2_header_menu', $product ); ?>
 				</div>
@@ -229,14 +269,8 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 						<?php do_action( 'wp_easycart_admin_product_details_after_images' ); ?>
 					</div></div>
 				<?php } else { ?>
-					<?php $this->section_open( 'images', __( 'Product Images', 'wp-easycart' ), __( 'Up to 5 images. The first image is your main listing image.', 'wp-easycart' ) ); ?>
-						<?php do_action( 'wp_easycart_admin_product_details_images_fields' ); ?>
-						<?php do_action( 'wp_easycart_admin_product_details_after_images_save_button' ); ?>
-					<?php $this->section_close(); ?>
-					<?php
-					$this->gate_row( __( 'Unlimited gallery images with drag-and-drop sorting', 'wp-easycart' ), __( 'Add as many product photos and videos as you need, reorder by dragging, and pull from your WordPress media library.', 'wp-easycart' ) );
-					$this->gate_row( __( 'Option set images (per-variant galleries)', 'wp-easycart' ), __( 'Show a different image set for each color, style, or material your customer selects.', 'wp-easycart' ) );
-					?>
+					<?php /* Free edition: real image slots + a PRO gallery preview ( replaces the legacy text fields and locked h3 block ). */ ?>
+					<?php $this->print_free_media_v2(); ?>
 				<?php } ?>
 
 				<?php $this->section_open( 'tags', __( 'Badges & Image Effects', 'wp-easycart' ), __( 'Design the listing: promo ribbons and image hover effects', 'wp-easycart' ) ); ?>
@@ -311,18 +345,8 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 						<?php $ec_legacy_pro->load_options_pro(); ?>
 					</div></div>
 				<?php } else { ?>
-					<?php $this->section_open( 'options', __( 'Option Sets', 'wp-easycart' ), __( 'Choices like size or color (up to 5 sets)', 'wp-easycart' ) ); ?>
-						<div style="display:flex; gap:8px; margin-bottom:12px;">
-							<input type="button" value="<?php esc_attr_e( 'Quick Option Creator', 'wp-easycart' ); ?>" onclick="ec_admin_open_new_option( );" />
-							<a href="admin.php?page=wp-easycart-products&subpage=option" target="_blank" class="ecv2-btn"><?php esc_attr_e( 'Full Option Manager', 'wp-easycart' ); ?></a>
-						</div>
-						<?php do_action( 'wp_easycart_admin_product_details_options_fields' ); ?>
-						<?php do_action( 'wp_easycart_admin_product_details_after_options_save_button' ); ?>
-					<?php $this->section_close(); ?>
-					<?php
-					$this->gate_row( __( 'Modifiers (advanced options) with conditional logic', 'wp-easycart' ), __( 'Text inputs, file uploads, date pickers, checkboxes, and price-adjusting add-ons. Show or hide modifiers based on other selections.', 'wp-easycart' ) );
-					$this->gate_row( __( 'Variant manager with per-variant SKU, price, and stock', 'wp-easycart' ), __( 'Manage every size and color combination in a grid: individual SKUs, price adjustments, weights, and live inventory counts.', 'wp-easycart' ) );
-					?>
+					<?php /* Free edition: two option-set slots with a live variation preview + a PRO options preview. */ ?>
+					<?php $this->print_free_options_v2(); ?>
 				<?php } ?>
 			</div>
 
@@ -333,7 +357,7 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 					<?php do_action( 'wp_easycart_admin_product_details_categories_fields' ); ?>
 				<?php $this->section_close(); ?>
 
-				<?php $this->section_open( 'general_options_visibility', __( 'Visibility & Sorting', 'wp-easycart' ), '', array( 'only' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'sort_position' ) ) ); ?>
+				<?php $this->section_open( 'general_options_visibility', __( 'Visibility & Sorting', 'wp-easycart' ), '', array( 'only' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'role_id', 'sort_position' ) ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 				<?php $this->section_close(); ?>
 
@@ -350,7 +374,7 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 			<!-- ===== TYPE & BEHAVIOR ===== -->
 			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="behavior" role="tabpanel">
 				<?php $ecdv2_intro( 'behavior' ); ?>
-				<?php $this->section_open( 'general_options', __( 'Product Behaviors', 'wp-easycart' ), __( 'Special product types and purchase rules', 'wp-easycart' ), array( 'except' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'sort_position', 'mailerlite_group_name' ) ) ); ?>
+				<?php $this->section_open( 'general_options', __( 'Product Behaviors', 'wp-easycart' ), __( 'Special product types and purchase rules', 'wp-easycart' ), array( 'except' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'role_id', 'sort_position', 'mailerlite_group_name' ) ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 				<?php $this->section_close(); ?>
 
@@ -375,6 +399,18 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 						<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 					<?php $this->section_close(); ?>
 				<?php } ?>
+
+				<?php
+				/* Cart Links quick-create: marketing capability only — a
+				   products-only admin never sees the card. */
+				if ( ! $is_new
+					&& class_exists( 'wp_easycart_admin_cart_links' )
+					&& class_exists( 'wp_easycart_cart_link' )
+					&& wp_easycart_admin_cart_links::current_user_allowed()
+					&& ! $product->is_subscription_item && ! $product->is_donation && ! $product->is_deconetwork ) {
+					include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-cart-links-card.php' );
+				}
+				?>
 
 				<?php
 				$has_yoast = false;

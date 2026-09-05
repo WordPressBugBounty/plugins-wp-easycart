@@ -17,7 +17,339 @@
 
 /* global jQuery, tinymce, wp, wpeasycart_admin_ajax_object */
 
+/* ===================================================================== */
+/* Cart Links quick-create card ( SEO & Marketing tab ). Self-contained:  */
+/* talks to the same endpoints as Marketing > Cart Links.                 */
+/* ===================================================================== */
+if ( typeof window.ecdv2_confirm !== 'function' ) {
+	window.ecdv2_confirm = function( opts ) {
+		opts = opts || {};
+		return new Promise( function( resolve ) {
+			var $ = jQuery;
+			var $overlay = $( '#ecdv2-confirm-overlay' );
+			if ( ! $overlay.length ) {
+				$overlay = $(
+					'<div class="ecv2-modal-overlay ecdv2-confirm-overlay" id="ecdv2-confirm-overlay" style="display:none;">' +
+						'<div class="ecv2-modal ecdv2-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="ecdv2-confirm-title" aria-describedby="ecdv2-confirm-message">' +
+							'<div class="ecdv2-confirm-body">' +
+								'<span class="dashicons dashicons-warning ecdv2-confirm-icon"></span>' +
+								'<div><h3 id="ecdv2-confirm-title"></h3><p id="ecdv2-confirm-message"></p></div>' +
+							'</div>' +
+							'<div class="ecdv2-confirm-actions">' +
+								'<button type="button" class="ecv2-btn ecv2-btn-ghost" data-confirm="0"></button>' +
+								'<button type="button" class="ecv2-btn ecv2-btn-primary" data-confirm="1"></button>' +
+							'</div>' +
+						'</div>' +
+					'</div>'
+				).appendTo( document.body );
+			}
+			var settle = function( ok ) {
+				$overlay.fadeOut( 120 );
+				$( document ).off( 'keydown.ecdv2confirm' );
+				resolve( ok );
+			};
+			$( '#ecdv2-confirm-title' ).text( opts.title || '' ).toggle( !! opts.title );
+			$( '#ecdv2-confirm-message' ).text( opts.message || '' );
+			$overlay.find( '[data-confirm="1"]' ).text( opts.confirm_label || 'Continue' ).toggleClass( 'ecv2-btn-danger', !! opts.danger );
+			$overlay.find( '[data-confirm="0"]' ).text( opts.cancel_label || 'Cancel' );
+			$overlay.find( '[data-confirm]' ).off( 'click' ).on( 'click', function() { settle( $( this ).data( 'confirm' ) === 1 ); } );
+			$overlay.off( 'click' ).on( 'click', function( e ) { if ( e.target === this ) { settle( false ); } } );
+			$( document ).on( 'keydown.ecdv2confirm', function( e ) { if ( e.key === 'Escape' ) { settle( false ); } } );
+			$overlay.fadeIn( 120 );
+			setTimeout( function() { try { $overlay.find( '[data-confirm="1"]' ).trigger( 'focus' ); } catch ( e ) {} }, 130 );
+		});
+	};
+}
+
+window.ecdv2_cart_links = ( function( $ ) {
+	'use strict';
+
+	function card() { return $( '#ecdv2_cart_links_card' ); }
+	function toast( msg, type ) {
+		if ( typeof window.ecv2_toast === 'function' ) { window.ecv2_toast( msg, type ); }
+		else if ( window.ecdv2 && typeof window.ecdv2.toast === 'function' ) { window.ecdv2.toast( msg, type ); }
+		else { window.alert( msg ); }
+	}
+
+	function toggle_form() {
+		$( '#ecdv2_cl_quick' ).slideToggle( 140 );
+	}
+
+	function create() {
+		var $card = card();
+		var item = {
+			product_id: parseInt( $card.data( 'product-id' ), 10 ),
+			quantity: Math.max( 1, parseInt( $( '#ecdv2_cl_quick_qty' ).val(), 10 ) || 1 )
+		};
+		$( '.ecdv2-cl-quick-basic' ).each( function() {
+			item[ 'optionitem_id_' + $( this ).data( 'slot' ) ] = parseInt( $( this ).val(), 10 ) || 0;
+		} );
+		/* Modifier inputs, when PRO mounted them ( same markup contract as
+		 * the Marketing drawer ). */
+		var mods = [];
+		$card.find( '.ecv2-clp-mod' ).each( function() {
+			var $mod = $( this );
+			var val = $mod.find( '.ecv2-clp-mod-input' ).val();
+			if ( '' === val || null === val ) { return; }
+			var is_select = $mod.find( 'select' ).length > 0;
+			mods.push( {
+				option_id: parseInt( $mod.data( 'option-id' ), 10 ),
+				optionitem_id: is_select ? ( parseInt( val, 10 ) || 0 ) : 0,
+				value: is_select ? '' : val
+			} );
+		} );
+		if ( mods.length ) { item.modifiers = JSON.stringify( mods ); }
+
+		var $btn = $( '#ecdv2_cl_quick_create' ).prop( 'disabled', true );
+		$.post( ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl, {
+			action: 'ecv2_cart_link_save',
+			wp_easycart_nonce: $card.data( 'nonce' ),
+			cart_link_id: 0,
+			link_label: $( '#ecdv2_cl_quick_label' ).val(),
+			destination: 'cart',
+			clear_cart: 0,
+			is_active: 1,
+			items: [ item ]
+		} ).done( function( response ) {
+			$btn.prop( 'disabled', false );
+			if ( ! response || ! response.success ) {
+				toast( ( response && response.data && response.data.message ) || 'Could not create the link.', 'error' );
+				return;
+			}
+			add_row( response.data, $( '#ecdv2_cl_quick_label' ).val() );
+			reset_form();
+			toast( 'Cart link created — copy it from the list above.', 'success' );
+		} ).fail( function() {
+			$btn.prop( 'disabled', false );
+			toast( 'Could not create the link.', 'error' );
+		} );
+	}
+
+	function copy( el ) {
+		var text = $( el ).attr( 'data-url' ) || $( el ).data( 'url' ) || '';
+		if ( ! text ) { return; }
+		var done = function() { toast( 'Link copied to clipboard.', 'success' ); };
+		if ( navigator.clipboard && navigator.clipboard.writeText ) {
+			navigator.clipboard.writeText( text ).then( done, done );
+		} else {
+			var input = document.createElement( 'input' );
+			input.value = text;
+			document.body.appendChild( input );
+			input.select();
+			try { document.execCommand( 'copy' ); done(); } catch ( e ) {}
+			document.body.removeChild( input );
+		}
+	}
+
+	function esc_text( s ) {
+		return $( '<span>' ).text( s == null ? '' : s ).html();
+	}
+
+	/* Live row matching product-cart-links-card.php markup. A QR button is
+	 * included when PRO's row-QR helper is present on the page. */
+	function add_row( data, label ) {
+		var id = parseInt( data.cart_link_id, 10 );
+		var html = '';
+		html += '<div class="ecdv2-cl-existing-row" data-cart-link-id="' + id + '">';
+		html += '<div class="ecdv2-cl-existing-main">';
+		html += '<span class="ecdv2-cl-existing-label">' + ( label ? esc_text( label ) : '(untitled link)' ) + '</span>';
+		html += '<span class="ecdv2-cl-existing-meta"><code>' + esc_text( data.token ) + '</code> · <span class="ecdv2-cl-uses">0 uses</span></span>';
+		html += '</div>';
+		html += '<div class="ecdv2-cl-existing-actions">';
+		html += '<button type="button" class="ecv2-btn ecv2-btn-sm" data-url="' + esc_text( data.url ) + '" onclick="ecdv2_cart_links.copy( this ); return false;"><span class="dashicons dashicons-clipboard"></span> Copy</button>';
+		if ( typeof window.ecv2_clp_card_row_qr === 'function' ) {
+			html += '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-clp-qr" onclick="ecv2_clp_card_row_qr( ' + id + ' ); return false;" title="Download QR code"><span class="dashicons dashicons-smartphone"></span> QR</button>';
+		}
+		html += '<button type="button" class="ecdv2-cl-row-delete" title="Delete link" onclick="ecdv2_cart_links.remove( this, ' + id + ' ); return false;"><span class="dashicons dashicons-trash"></span></button>';
+		html += '</div></div>';
+		var $new_row = $( html ).hide();
+		$( '#ecdv2_cl_existing' ).show().append( $new_row );
+		$new_row.fadeIn( 160 );
+	}
+
+	function reset_form() {
+		$( '#ecdv2_cl_quick_label' ).val( '' );
+		$( '#ecdv2_cl_quick_qty' ).val( 1 );
+		$( '.ecdv2-cl-quick-basic' ).each( function() { this.selectedIndex = 0; } );
+		card().find( '.ecv2-clp-mod-input' ).each( function() {
+			if ( 'SELECT' === this.tagName ) { this.selectedIndex = 0; } else { this.value = ''; }
+		} );
+	}
+
+	function remove( el, id ) {
+		window.ecdv2_confirm( {
+			title: 'Delete cart link?',
+			message: 'Anywhere this link is already shared or printed, it will stop working.',
+			confirm_label: 'Delete',
+			danger: true
+		} ).then( function( ok ) {
+			if ( ! ok ) { return; }
+			$.post( ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl, {
+				action: 'ecv2_cart_link_delete',
+				wp_easycart_nonce: card().data( 'nonce' ),
+				cart_link_id: id
+			} ).done( function( response ) {
+				if ( ! response || ! response.success ) {
+					toast( 'Could not delete the link.', 'error' );
+					return;
+				}
+				var $row = $( el ).closest( '.ecdv2-cl-existing-row' );
+				$row.fadeOut( 140, function() {
+					$row.remove();
+					if ( ! $( '#ecdv2_cl_existing .ecdv2-cl-existing-row' ).length ) {
+						$( '#ecdv2_cl_existing' ).hide();
+					}
+				} );
+				toast( 'Cart link deleted.', 'success' );
+			} ).fail( function() { toast( 'Could not delete the link.', 'error' ); } );
+		} );
+	}
+
+	return { toggle_form: toggle_form, create: create, copy: copy, remove: remove };
+} )( jQuery );
+
+/* Free Media tab: five image slots. Keep each thumbnail, its Replace/Remove
+ * labels and the 'has-image' state in sync with the hidden image1..5 inputs
+ * ( ecdv2.media_pick / media_clear trigger 'change' on them ). */
+( function( $ ) {
+	'use strict';
+	$( document ).on( 'change', '.ecdv2-media-slot input[type="hidden"]', function() {
+		var $slot = $( this ).closest( '.ecdv2-media-slot' ), url = $.trim( this.value );
+		if ( window.ecdv2 && typeof ecdv2.mark_dirty === 'function' ) { ecdv2.mark_dirty( 'images' ); }
+		var $thumb = $slot.find( '.ecdv2-media-slot-thumb' );
+		if ( url !== '' && ! /^https?:\/\//i.test( url ) && window.ecdv2_media_base ) {
+			url = window.ecdv2_media_base.replace( '%d', $slot.data( 'slot' ) ) + url;
+		}
+		$slot.toggleClass( 'has-image', url !== '' );
+		$thumb.css( 'background-image', url !== '' ? 'url(' + url + ')' : '' );
+		$slot.find( '.ecdv2-media-link' ).first().text( url !== '' ? ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.replace_image ) || 'Replace' : ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.choose_image ) || 'Choose' );
+		$slot.find( '.ecdv2-media-link-remove' ).prop( 'hidden', url === '' );
+	} );
+	$( document ).on( 'keydown', '.ecdv2-media-slot-thumb', function( e ) {
+		if ( e.key === 'Enter' || e.key === ' ' ) { e.preventDefault(); $( this ).trigger( 'click' ); }
+	} );
+
+	/* Free Options tab: choice chips + variation count follow the two selects. */
+	var I18N = function( k, d ) { return ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n[ k ] ) || d; };
+	function ecdv2_opt_render() {
+		var $wrap = $( '#ecdv2_opt_slots' );
+		if ( ! $wrap.length ) { return; }
+		var counts; try { counts = JSON.parse( $wrap.attr( 'data-counts' ) || '{}' ); } catch ( e ) { counts = {}; }
+		var total = 1, used = 0, names = [];
+		$wrap.find( '.ecdv2-opt-slot:not(.is-locked)' ).each( function() {
+			var $s = $( this ), $sel = $s.find( 'select' ), id = parseInt( $sel.val(), 10 ) || 0;
+			$s.toggleClass( 'has-value', id > 0 );
+			$s.find( '.ecdv2-opt-slot-rm' ).prop( 'hidden', id === 0 );
+			if ( id > 0 ) { used++; total *= ( counts[ id ] || 1 ); names.push( $sel.find( 'option:selected' ).text().replace( /\s*\(\d+\)$/, '' ) ); }
+		} );
+		var $v = $( '#ecdv2_opt_variations' );
+		if ( ! used ) { $v.text( I18N( 'opt_no_sets', 'No option sets — this product sells as a single item.' ) ); }
+		else if ( used === 1 ) { $v.text( I18N( 'opt_one_set', '%1 · %2 variations' ).replace( '%1', names[ 0 ] ).replace( '%2', total ) ); }
+		else { $v.text( I18N( 'opt_two_sets', '%1 × %2 · %3 variations' ).replace( '%1', names[ 0 ] ).replace( '%2', names[ 1 ] ).replace( '%3', total ) ); }
+	}
+	window.ecdv2_opt_clear = function( name ) {
+		$( '#' + name ).val( '0' ).trigger( 'change' );
+	};
+	$( document ).on( 'change', '#ecdv2_opt_slots select', function() {
+		var $sel = $( this ), id = parseInt( $sel.val(), 10 ) || 0, $chips = $( '#' + this.id + '_chips' ).empty();
+		// Keep the two slots distinct.
+		$( '#ecdv2_opt_slots select' ).not( this ).each( function() { if ( id && parseInt( this.value, 10 ) === id ) { $( this ).val( '0' ); $( '#' + this.id + '_chips' ).empty(); } } );
+		ecdv2_opt_render();
+		if ( ! id ) { return; }
+		$chips.append( $( '<span class="ecdv2-opt-chip is-loading">' ).text( I18N( 'loading', 'Loading…' ) ) );
+		$.post( ajaxurl, { action: 'ec_admin_ajax_ecv2_option_items', option_id: id }, function( data ) {
+			var r; try { r = JSON.parse( data ); } catch ( e ) { r = null; }
+			$chips.empty();
+			if ( ! r || ! r.items ) { return; }
+			$.each( r.items, function( i, it ) {
+				var $c = $( '<span class="ecdv2-opt-chip">' ).text( it.name );
+				if ( it.price_display ) { $c.append( ' ' ).append( $( '<em>' ).text( '+' + it.price_display ) ); }
+				$chips.append( $c );
+			} );
+		} );
+	} );
+	// A set created from the "Create a new option set" panel lands in the first empty slot.
+	$( document ).on( 'ecosv2:created', function( e, r ) {
+		if ( ! r || ! r.option_id ) { return; }
+		var $empty = $( '#ecdv2_opt_slots .ecdv2-opt-slot:not(.is-locked) select' ).filter( function() { return ! parseInt( this.value, 10 ); } ).first();
+		if ( ! $empty.length ) { return; }
+		if ( ! $empty.find( 'option[value="' + r.option_id + '"]' ).length ) {
+			$( '#ecdv2_opt_slots select' ).each( function() { $( this ).append( $( '<option>' ).val( r.option_id ).text( r.option_name + ' (' + ( r.item_count || 0 ) + ')' ) ); } );
+		}
+		var counts; try { counts = JSON.parse( $( '#ecdv2_opt_slots' ).attr( 'data-counts' ) || '{}' ); } catch ( err ) { counts = {}; }
+		counts[ r.option_id ] = r.item_count || 0;
+		$( '#ecdv2_opt_slots' ).attr( 'data-counts', JSON.stringify( counts ) );
+		$empty.val( String( r.option_id ) ).trigger( 'change' );
+		if ( window.ecdv2 && typeof ecdv2.mark_dirty === 'function' ) { ecdv2.mark_dirty( 'options' ); }
+	} );
+	$( ecdv2_opt_render );
+
+	/* A free install saving a product that still carries PRO media or PRO options loses that data.
+	 * Ask once per area, in plain terms, before the save runs. */
+	$( function() {
+		if ( ! window.ecdv2 || typeof ecdv2.save_all !== 'function' ) { return; }
+		var orig = ecdv2.save_all, asked = false, asked_opts = false;
+		ecdv2.save_all = function() {
+			var $o = $( '#ecdv2_options_legacy_notice' );
+			if ( $o.length && $( '.ecdv2-card[data-ecdv2-section="options"]' ).hasClass( 'is-dirty' ) && ! asked_opts ) {
+				var ex = parseInt( $o.attr( 'data-extra' ), 10 ) || 0, mods = parseInt( $o.attr( 'data-modifiers' ), 10 ) || 0, vars = parseInt( $o.attr( 'data-variants' ), 10 ) || 0, op = [];
+				if ( ex > 0 )   { op.push( ( ex === 1 ? I18N( 'one_extra_set', '1 extra option set' ) : I18N( 'n_extra_sets', '%d extra option sets' ) ).replace( '%d', ex ) ); }
+				if ( mods > 0 ) { op.push( ( mods === 1 ? I18N( 'one_modifier', '1 modifier' ) : I18N( 'n_modifiers', '%d modifiers' ) ).replace( '%d', mods ) ); }
+				if ( vars > 0 ) { op.push( I18N( 'variant_stock', 'stock tracking on %d variations' ).replace( '%d', vars ) ); }
+				var omsg = I18N( 'lossy_options_confirm', 'Saving will remove %s from this product and keep only the first two option sets. This cannot be undone without PRO. Save anyway?' ).replace( '%s', op.length > 2 ? op.slice( 0, -1 ).join( ', ' ) + ' and ' + op[ op.length - 1 ] : op.join( ' and ' ) );
+				if ( ! window.confirm( omsg ) ) { return false; }
+				asked_opts = true;
+			}
+			var $n = $( '#ecdv2_media_legacy_notice' );
+			var images_dirty = $( '.ecdv2-card[data-ecdv2-section="images"]' ).hasClass( 'is-dirty' );
+			if ( $n.length && images_dirty && ! asked ) {
+				var extra = parseInt( $n.attr( 'data-extra' ), 10 ) || 0, sets = $n.attr( 'data-sets' ) === '1', gallery = parseInt( $n.attr( 'data-gallery' ), 10 ) || 0, parts = [];
+				if ( gallery > 0 ) { parts.push( ( ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.n_image_gallery ) || 'the %d-image gallery' ).replace( '%d', gallery ) ); }
+				if ( extra > 0 ) { parts.push( extra === 1 ? ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.one_extra_image ) || '1 extra image' : ( ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.n_extra_images ) || '%d extra images' ).replace( '%d', extra ) ); }
+				if ( sets ) { parts.push( ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.option_image_sets ) || 'the per-option image sets' ); }
+				var msg = ( ( window.wpeasycart_ecdv2_i18n && wpeasycart_ecdv2_i18n.lossy_media_confirm ) || 'Saving will remove %s from this product and keep only the first two images. This cannot be undone without PRO. Save anyway?' ).replace( '%s', parts.length > 2 ? parts.slice( 0, -1 ).join( ', ' ) + ' and ' + parts[ parts.length - 1 ] : parts.join( ' and ' ) );
+				if ( ! window.confirm( msg ) ) { return false; }
+				asked = true;
+			}
+			return orig.apply( this, arguments );
+		};
+	} );
+} )( jQuery );
+
 window.ecdv2 = ( function( $ ) {
+
+	/* Download the product QR (data-URI img, canvas, or remote img) as a PNG. */
+	function download_qr( btn ) {
+		var $box = $( btn ).closest( '.ecdv2-menu-qr' );
+		var filename = $box.attr( 'data-qr-filename' ) || 'product-qr.png';
+		var canvas = $box.find( 'canvas' ).get( 0 );
+		var img = $box.find( 'img' ).get( 0 );
+		var trigger = function( href, revoke ) {
+			var a = document.createElement( 'a' );
+			a.href = href;
+			a.download = filename;
+			document.body.appendChild( a );
+			a.click();
+			document.body.removeChild( a );
+			if ( revoke ) { setTimeout( function() { URL.revokeObjectURL( href ); }, 4000 ); }
+		};
+		if ( canvas ) {
+			trigger( canvas.toDataURL( 'image/png' ), false );
+			return;
+		}
+		if ( ! img || ! img.src ) { return; }
+		if ( img.src.indexOf( 'data:' ) === 0 ) {
+			trigger( img.src, false );
+			return;
+		}
+		/* Remote src: fetch as a blob; if blocked, open in a tab as a last resort. */
+		fetch( img.src ).then( function( r ) { return r.blob(); } ).then( function( blob ) {
+			trigger( URL.createObjectURL( blob ), true );
+		}).catch( function() {
+			window.open( img.src, '_blank' );
+		});
+	}
+
 	'use strict';
 
 	/* ------------------------------------------------------------------ */
@@ -657,7 +989,20 @@ window.ecdv2 = ( function( $ ) {
 		return false;
 	}
 
+	/* Header "Role restricted" pill mirrors the Limit Visibility select
+	   (#role_id, Organize > Visibility & Sorting). Runs after successful
+	   saves and on select change so the flag never goes stale. */
+	function sync_restricted_pill() {
+		var $pill = $( '#ecdv2_restricted_pill' );
+		if ( ! $pill.length ) {
+			return;
+		}
+		var role = parseInt( $( '#role_id' ).val(), 10 ) || 0;
+		$pill.toggle( role > 0 );
+	}
+
 	function update_header_meta() {
+		sync_restricted_pill();
 		$( '#ecdv2_header_title' ).text( v( 'title' ) );
 		var sku = $( '#ecdv2_header_sku' );
 		if ( sku.length ) {
@@ -764,25 +1109,103 @@ window.ecdv2 = ( function( $ ) {
 	/* Settings search                                                      */
 	/* ------------------------------------------------------------------ */
 
+	/* Merchant-vocabulary aliases: each key expands the typed query with
+	 * additional terms to match against ( lets "sku" find Model Number,
+	 * "photo" find Media, etc. without renaming anything ). */
+	var SEARCH_ALIASES = {
+		'sku'       : [ 'model number' ],
+		'upc'       : [ 'gtin', 'model number' ],
+		'photo'     : [ 'image', 'media' ],
+		'picture'   : [ 'image', 'media' ],
+		'sale'      : [ 'previous price', 'list price', 'volume pricing' ],
+		'discount'  : [ 'previous price', 'volume pricing' ],
+		'stock'     : [ 'inventory', 'quantity' ],
+		'variant'   : [ 'option', 'variation' ],
+		'seo'       : [ 'search engine', 'meta' ],
+		'url'       : [ 'slug', 'permalink' ],
+		'tax'       : [ 'vat', 'taxable' ],
+		'file'      : [ 'download' ],
+		'related'   : [ 'featured products' ],
+		'cross-sell': [ 'featured products' ]
+	};
+
+	function search_entry_text( node ) {
+		/* Strip child decorations ( step badges, PRO pills ) so "Option Sets"
+		 * indexes as its words, not "1Option Sets". */
+		return $.trim( $( node ).clone().children().remove().end().text() ) || $.trim( $( node ).text() );
+	}
+
 	function build_search_index() {
 		search_index = [];
 		$( '.ecdv2-panel' ).each( function() {
 			var tab = $( this ).attr( 'data-ecdv2-panel' );
 			var tab_label = $( '.ecdv2-tab[data-ecdv2-tab="' + tab + '"] span' ).eq( 1 ).text();
-			$( this ).find( '.ecdv2-label, .ecdv2-toggle-label, .ecdv2-gate-label' ).each( function() {
-				var text = $.trim( $( this ).text() );
+
+			/* Whole cards/sections: Categories, Featured Products, Cart Links,
+			 * Option Sets… none of these carry field labels, which is exactly
+			 * why they were previously unfindable. The card hint text rides
+			 * along as extra matchable words. */
+			$( this ).find( '.ecdv2-card' ).each( function() {
+				var $title = $( this ).find( '.ecdv2-card-title' ).first();
+				var text = $title.length ? search_entry_text( $title ) : '';
+				if ( text.length > 1 ) {
+					var hint = $( this ).find( '.ecdv2-card-hint' ).first().text() || '';
+					search_index.push( {
+						label     : text,
+						lower     : text.toLowerCase(),
+						extra     : $.trim( hint ).toLowerCase(),
+						tab       : tab,
+						tab_label : tab_label,
+						node      : this,
+						is_card   : true
+					} );
+				}
+			} );
+
+			$( this ).find( '.ecdv2-label, .ecdv2-toggle-label, .ecdv2-gate-label, .ecdv2-card-title' ).each( function() {
+				if ( $( this ).hasClass( 'ecdv2-card-title' ) ) {
+					return; /* indexed above with hint text */
+				}
+				var text = search_entry_text( this );
 				if ( text.length > 1 ) {
 					search_index.push( {
 						label     : text,
 						lower     : text.toLowerCase(),
+						extra     : '',
 						tab       : tab,
 						tab_label : tab_label,
-						node      : this
-
+						node      : this,
+						is_card   : false
 					} );
 				}
 			} );
 		} );
+	}
+
+	/* Lower score = better: 0 label starts with query, 1 a word starts with
+	 * it, 2 substring anywhere, 3 alias/hint match only. */
+	function search_score( entry, query ) {
+		var terms = [ query ].concat( SEARCH_ALIASES[ query ] || [] );
+		var best = -1;
+		$.each( terms, function( index, term ) {
+			var score = -1;
+			if ( 0 === entry.lower.indexOf( term ) ) {
+				score = 0;
+			} else if ( -1 !== entry.lower.indexOf( ' ' + term ) ) {
+				score = 1;
+			} else if ( -1 !== entry.lower.indexOf( term ) ) {
+				score = 2;
+			} else if ( entry.extra && -1 !== entry.extra.indexOf( term ) ) {
+				score = 3;
+			}
+			if ( index > 0 && score > -1 ) {
+				score = Math.max( score, 3 ); /* alias matches rank below direct ones */
+			}
+			if ( score > -1 && ( -1 === best || score < best ) ) {
+				best = score;
+			}
+		} );
+		return best;
 	}
 
 	function bind_search() {
@@ -803,11 +1226,14 @@ window.ecdv2 = ( function( $ ) {
 			}
 			var matches = [];
 			var i;
-			for ( i = 0; i < search_index.length && matches.length < 8; i++ ) {
-				if ( -1 !== search_index[ i ].lower.indexOf( query ) ) {
-					matches.push( search_index[ i ] );
+			for ( i = 0; i < search_index.length; i++ ) {
+				var score = search_score( search_index[ i ], query );
+				if ( score > -1 ) {
+					matches.push( { entry: search_index[ i ], score: score, order: i } );
 				}
 			}
+			matches.sort( function( a, b ) { return a.score - b.score || a.order - b.order; } );
+			matches = $.map( matches.slice( 0, 8 ), function( match ) { return match.entry; } );
 			if ( ! matches.length ) {
 				results.append( $( '<div class="ecdv2-search-empty"/>' ).text( _t( 'no_results', 'No settings found' ) ) );
 			} else {
@@ -819,7 +1245,9 @@ window.ecdv2 = ( function( $ ) {
 						go_tab( match.tab );
 						results.removeClass( 'is-open' ).empty();
 						input.val( '' );
-						var field = $( match.node ).closest( '.ecdv2-field, .ecdv2-toggle-row, .ecdv2-gate' );
+						var field = match.is_card
+							? $( match.node )
+							: $( match.node ).closest( '.ecdv2-field, .ecdv2-toggle-row, .ecdv2-gate' );
 						if ( ! field.length ) {
 							field = $( match.node );
 						}
@@ -866,6 +1294,28 @@ window.ecdv2 = ( function( $ ) {
 			var allowed = String( wrap.attr( 'data-ecdv2-requires-value' ) ).split( ',' );
 			wrap.toggle( -1 !== $.inArray( current, allowed ) );
 		} );
+		/* Multi-condition requires: every condition must match ( mirrors the
+		 * legacy printer, which hides on any mismatch ). */
+		$( '[data-ecdv2-requires-multi]' ).each( function() {
+			var wrap = $( this );
+			var conditions;
+			try { conditions = JSON.parse( wrap.attr( 'data-ecdv2-requires-multi' ) ); } catch ( e ) { conditions = null; }
+			if ( ! conditions || ! conditions.length ) {
+				return;
+			}
+			var show = true;
+			$.each( conditions, function( i, condition ) {
+				var current = controller_value( condition.name );
+				if ( null === current ) {
+					return; /* controller absent: condition is not evaluable, skip it */
+				}
+				if ( -1 === $.inArray( current, String( condition.value ).split( ',' ) ) ) {
+					show = false;
+					return false;
+				}
+			} );
+			wrap.toggle( show );
+		} );
 		$( '[data-ecdv2-shows]' ).each( function() {
 			var target = el( $( this ).attr( 'data-ecdv2-shows' ) );
 			if ( target ) {
@@ -877,6 +1327,11 @@ window.ecdv2 = ( function( $ ) {
 
 	function bind_dependencies() {
 		$( document ).on( 'change', '[data-ecdv2-sec]', apply_dependencies );
+
+		/* Live preview of the header "Role restricted" flag while editing;
+		   the saved state re-syncs via update_header_meta(). Delegated so it
+		   also catches select2's change events on #role_id. */
+		$( document ).on( 'change', '#role_id', sync_restricted_pill );
 		apply_dependencies();
 
 		/* Legacy adapter: stock_quantity's `requires` points at a
@@ -1018,16 +1473,27 @@ window.ecdv2 = ( function( $ ) {
 	/* WP media pickers                                                     */
 	/* ------------------------------------------------------------------ */
 
-	function media_pick( field_id, is_attachment ) {
+	/**
+	 * Open the WP media frame for a field.
+	 * @param {string}  field_id      Input to receive the value.
+	 * @param {boolean} is_attachment Store the attachment id ( and update {field}_preview ) instead of the URL.
+	 * @param {string}  media_type    Optional library filter, e.g. 'image'. Omit for any file ( downloads ).
+	 */
+	function media_pick( field_id, is_attachment, media_type ) {
 		if ( typeof wp === 'undefined' || ! wp.media ) {
 			return;
 		}
+		var is_image = ( 'image' === media_type );
 		if ( ! media_frames[ field_id ] ) {
-			media_frames[ field_id ] = wp.media( {
-				title    : _t( 'select_media', 'Select or upload media' ),
-				button   : { text: _t( 'use_file', 'Use this file' ) },
+			var frame_args = {
+				title    : is_image ? _t( 'select_image', 'Select image' ) : _t( 'select_media', 'Select or upload media' ),
+				button   : { text: is_image ? _t( 'use_image', 'Use this image' ) : _t( 'use_file', 'Use this file' ) },
 				multiple : false
-			} );
+			};
+			if ( is_image ) {
+				frame_args.library = { type: 'image' };
+			}
+			media_frames[ field_id ] = wp.media( frame_args );
 			media_frames[ field_id ].on( 'select', function() {
 				var attachment = media_frames[ field_id ].state().get( 'selection' ).first().toJSON();
 				if ( is_attachment ) {
@@ -1057,13 +1523,34 @@ window.ecdv2 = ( function( $ ) {
 	/* Categories ( instant save, token UI )                                */
 	/* ------------------------------------------------------------------ */
 
-	function category_add() {
-		var select = $( '#ecdv2_cat_select' );
-		var category_id = parseInt( select.val(), 10 );
+	/* Unassigned categories, hydrated from the JSON the template prints.
+	 * Tokens carry assignment state; this list backs the combobox menu. */
+	var cat_catalog = null;
+	function cat_list() {
+		if ( null === cat_catalog ) {
+			try { cat_catalog = JSON.parse( $( '#ecdv2_cat_data' ).text() || '[]' ); } catch ( e ) { cat_catalog = []; }
+		}
+		return cat_catalog;
+	}
+
+
+	function category_token( category_id, label ) {
+		$( '#ecdv2_cat_empty' ).remove();
+		if ( $( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' ).length ) {
+			return;
+		}
+		var token = $( '<span class="ecdv2-cat-token"/>' ).attr( 'data-category-id', category_id ).text( label );
+		$( '<button type="button" aria-label="Remove">&times;</button>' )
+			.on( 'click', function() { category_remove( category_id ); } )
+			.appendTo( token );
+		$( '#ecdv2_cat_tokens' ).append( token );
+	}
+
+	function category_add( category_id, label ) {
+		category_id = parseInt( category_id, 10 );
 		if ( ! category_id ) {
 			return false;
 		}
-		var label = select.find( 'option:selected' ).text();
 		$.ajax( {
 			url     : wpeasycart_admin_ajax_object.ajax_url,
 			type    : 'post',
@@ -1074,16 +1561,9 @@ window.ecdv2 = ( function( $ ) {
 				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
 			},
 			success : function() {
-				$( '#ecdv2_cat_empty' ).remove();
-				var token = $( '<span class="ecdv2-cat-token"/>' ).attr( 'data-category-id', category_id ).text( label );
-				$( '<button type="button" aria-label="Remove">&times;</button>' )
-					.on( 'click', function() {
-						category_remove( category_id );
-					} )
-					.appendTo( token );
-				$( '#ecdv2_cat_tokens' ).append( token );
-				select.find( 'option:selected' ).remove();
-				select.val( '0' ).trigger( 'change' );
+				category_token( category_id, label );
+				cat_catalog = cat_list().filter( function( entry ) { return entry.id !== category_id; } );
+				cat_combo_reset();
 				toast( _t( 'category_added', 'Category added.' ), 'success' );
 			},
 			error   : function() {
@@ -1092,6 +1572,118 @@ window.ecdv2 = ( function( $ ) {
 		} );
 		return false;
 	}
+
+	function category_create( name ) {
+		name = $.trim( name );
+		if ( '' === name ) {
+			return false;
+		}
+		$.ajax( {
+			url     : wpeasycart_admin_ajax_object.ajax_url,
+			type    : 'post',
+			data    : {
+				action            : 'ec_admin_ajax_product_details_create_category',
+				product_id        : v( 'product_id' ),
+				category_name     : name,
+				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
+			},
+			success : function( response ) {
+				if ( ! response || ! response.success ) {
+					toast( ( response && response.data && response.data.message ) || _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
+					return;
+				}
+				category_token( parseInt( response.data.category_id, 10 ), response.data.category_name );
+				cat_catalog = cat_list().filter( function( entry ) { return entry.id !== parseInt( response.data.category_id, 10 ); } );
+				cat_combo_reset();
+				toast( response.data.existed ? _t( 'category_added', 'Category added.' ) : _t( 'category_created', 'Category created and added.' ), 'success' );
+			},
+			error   : function() {
+				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
+			}
+		} );
+		return false;
+	}
+
+	/* ------------------------- combobox ------------------------------- */
+
+	function cat_combo_reset() {
+		$( '#ecdv2_cat_input' ).val( '' ).trigger( 'focus' );
+		cat_menu_render( '' );
+	}
+
+	function cat_menu_render( term ) {
+		var $menu = $( '#ecdv2_cat_menu' );
+		if ( ! $menu.length ) {
+			return;
+		}
+		term = $.trim( term );
+		var lower = term.toLowerCase();
+		var matches = cat_list().filter( function( entry ) {
+			return '' === lower || entry.name.toLowerCase().indexOf( lower ) > -1;
+		} );
+		var exact = cat_list().some( function( entry ) { return entry.name.toLowerCase() === lower; } );
+		var assigned_exact = false;
+		$( '.ecdv2-cat-token' ).each( function() {
+			var label = $.trim( $( this ).clone().children().remove().end().text() );
+			if ( label.toLowerCase() === lower ) { assigned_exact = true; }
+		} );
+
+		var html = '';
+		matches.slice( 0, 12 ).forEach( function( entry, index ) {
+			html += '<button type="button" class="ecdv2-cat-menu-item' + ( 0 === index ? ' is-active' : '' ) + '" data-id="' + entry.id + '">' + $( '<i>' ).text( entry.name ).html() + '</button>';
+		} );
+		if ( '' !== term && ! exact && ! assigned_exact ) {
+			html += '<button type="button" class="ecdv2-cat-menu-item ecdv2-cat-menu-create' + ( matches.length ? '' : ' is-active' ) + '" data-create="1"><span class="dashicons dashicons-plus-alt2"></span>' + _t( 'create_category', 'Create' ) + ' “' + $( '<i>' ).text( term ).html() + '”</button>';
+		}
+		if ( '' === html ) {
+			html = '<div class="ecdv2-cat-menu-none">' + ( assigned_exact ? _t( 'category_assigned', 'Already assigned.' ) : _t( 'no_matches', 'No matching categories.' ) ) + '</div>';
+		}
+		$menu.html( html ).show();
+	}
+
+	function cat_menu_pick( $item ) {
+		if ( ! $item || ! $item.length ) {
+			return;
+		}
+		if ( $item.data( 'create' ) ) {
+			category_create( $( '#ecdv2_cat_input' ).val() );
+		} else {
+			category_add( $item.data( 'id' ), $.trim( $item.text() ) );
+		}
+	}
+
+	function bind_cat_combo() {
+		if ( ! $( '#ecdv2_cat_combo' ).length ) {
+			return;
+		}
+		$( document ).on( 'focus input', '#ecdv2_cat_input', function() {
+			cat_menu_render( $( this ).val() );
+		} );
+		$( document ).on( 'keydown', '#ecdv2_cat_input', function( e ) {
+			var $items = $( '#ecdv2_cat_menu .ecdv2-cat-menu-item' );
+			var $active = $items.filter( '.is-active' );
+			if ( 'ArrowDown' === e.key || 'ArrowUp' === e.key ) {
+				e.preventDefault();
+				var index = $items.index( $active );
+				index = 'ArrowDown' === e.key ? Math.min( index + 1, $items.length - 1 ) : Math.max( index - 1, 0 );
+				$items.removeClass( 'is-active' ).eq( index ).addClass( 'is-active' );
+			} else if ( 'Enter' === e.key ) {
+				e.preventDefault();
+				cat_menu_pick( $active.length ? $active : $items.first() );
+			} else if ( 'Escape' === e.key ) {
+				$( '#ecdv2_cat_menu' ).hide();
+			}
+		} );
+		$( document ).on( 'click', '.ecdv2-cat-menu-item', function() {
+			cat_menu_pick( $( this ) );
+		} );
+		$( document ).on( 'click', function( e ) {
+			if ( ! $( e.target ).closest( '#ecdv2_cat_combo' ).length ) {
+				$( '#ecdv2_cat_menu' ).hide();
+			}
+		} );
+	}
+	$( bind_cat_combo );
 
 	function category_remove( category_id ) {
 		$.ajax( {
@@ -1107,7 +1699,7 @@ window.ecdv2 = ( function( $ ) {
 				var token = $( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' );
 				var label = $.trim( token.clone().children().remove().end().text() );
 				token.remove();
-				$( '#ecdv2_cat_select' ).append( $( '<option/>' ).val( category_id ).text( label ) );
+				cat_list().push( { id: parseInt( category_id, 10 ), name: label } );
 				if ( ! $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length ) {
 					$( '#ecdv2_cat_tokens' ).append( '<span class="ecdv2-cat-empty" id="ecdv2_cat_empty">' + _t( 'no_categories', 'No categories assigned yet.' ) + '</span>' );
 				}
@@ -1223,6 +1815,7 @@ window.ecdv2 = ( function( $ ) {
 
 		/* Top customers */
 		html += '<div class="ecdv2-card"><div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' + esc_html( _t( 'top_customers', 'Top Customers' ) ) + '</h3></div><div class="ecdv2-card-body ecdv2-activity-body">';
+
 		if ( data.top_customers && data.top_customers.length ) {
 			$.each( data.top_customers, function( idx, customer ) {
 				var name = $.trim( ( customer.billing_first_name || '' ) + ' ' + ( customer.billing_last_name || '' ) ) || customer.user_email;
@@ -1706,6 +2299,28 @@ window.ecdv2 = ( function( $ ) {
 		grid.prepend( list );
 		var rebuilding = false;
 
+		/* Drag to reorder ( slots are positional, so order = display order on
+		 * the storefront ). jQuery UI sortable ships on this page for the
+		 * options tables; degrade to a static list if it's ever absent. */
+		if ( $.fn.sortable ) {
+			list.sortable( {
+				items: '.ecdv2-featured-row',
+				handle: '.ecdv2-featured-drag',
+				axis: 'y',
+				placeholder: 'ecdv2-featured-placeholder',
+				forcePlaceholderSize: true,
+				update: function() {
+					var items = [];
+					list.find( '.ecdv2-featured-row' ).each( function() {
+						items.push( $( this ).data( 'ecdv2-item' ) );
+					} );
+					compact( items );
+					rebuild();
+					toast( _t( 'featured_reordered', 'Featured products reordered.' ), 'success' );
+				}
+			} );
+		}
+
 		function is_empty( val ) {
 			return '' === String( val == null ? '' : val ) || '0' === String( val );
 		}
@@ -1746,7 +2361,10 @@ window.ecdv2 = ( function( $ ) {
 			var items = chosen();
 			list.empty();
 			$.each( items, function( i, item ) {
-				var row = $( '<div class="ecdv2-featured-row"></div>' );
+				var row = $( '<div class="ecdv2-featured-row"></div>' ).data( 'ecdv2-item', item );
+				if ( $.fn.sortable ) {
+					row.append( '<span class="ecdv2-featured-drag" title="' + _t( 'drag_to_reorder', 'Drag to reorder' ) + '"><span class="dashicons dashicons-menu"></span></span>' );
+				}
 				row.append( $( '<span class="ecdv2-featured-num"></span>' ).text( i + 1 ) );
 				row.append( $( '<span class="ecdv2-featured-title"></span>' ).text( item.label ) );
 				if ( item.inactive ) {
@@ -2084,6 +2702,53 @@ window.ecdv2 = ( function( $ ) {
 					$( this ).select2( { width: '100%' } );
 				}
 			} );
+			/* Search-as-you-type pickers ( featured products ): the select only holds its
+			 * current value; results come from the server 25 at a time. */
+			$( '.ecdv2-select2-ajax[data-ecdv2-ajax="products"]' ).each( function() {
+				var $sel = $( this );
+				if ( $sel.hasClass( 'select2-hidden-accessible' ) ) { return; }
+				var exclude = parseInt( $sel.attr( 'data-ecdv2-exclude' ), 10 ) || 0;
+				$sel.select2( {
+					width: '100%',
+					placeholder: $sel.find( 'option' ).first().text() || '',
+					minimumInputLength: 0,
+					ajax: {
+						url: wpeasycart_admin_ajax_object.ajax_url,
+						type: 'POST',
+						dataType: 'json',
+						delay: 250,
+						cache: true,
+						data: function( params ) {
+							return { action: 'ec_admin_ajax_ecv2_product_search', q: params.term || '', page: params.page || 1, exclude: exclude };
+						},
+						processResults: function( data, params ) {
+							params.page = params.page || 1;
+							return { results: ( data && data.results ) ? data.results : [], pagination: { more: !! ( data && data.more ) } };
+						}
+					},
+					templateResult: function( item ) {
+						if ( ! item.id || item.loading ) { return item.text; }
+						var $r = $( '<span class="ecdv2-product-result"></span>' ).text( item.title || item.text );
+						if ( item.sku ) { $r.append( $( '<code></code>' ).text( item.sku ) ); }
+						if ( item.inactive ) { $r.append( $( '<em></em>' ).text( _t( 'inactive', 'inactive' ) ) ); }
+						return $r;
+					},
+					templateSelection: function( item ) { return item.title || item.text; },
+					language: {
+						searching: function() { return _t( 'searching', 'Searching…' ); },
+						noResults: function() { return _t( 'no_products', 'No products match' ); },
+						loadingMore: function() { return _t( 'loading_more', 'Loading more…' ); }
+					}
+				} );
+				/* Carry the inactive flag onto the <option> select2 creates, so the featured
+				 * list can badge it exactly as it does for server-rendered options. */
+				$sel.on( 'select2:select', function( e ) {
+					var d = e.params && e.params.data ? e.params.data : {};
+					var $opt = $sel.find( 'option[value="' + d.id + '"]' );
+					if ( d.inactive ) { $opt.attr( 'data-ec-inactive', '1' ); } else { $opt.removeAttr( 'data-ec-inactive' ); }
+					if ( d.title ) { $opt.text( d.title ); }
+				} );
+			} );
 		}
 
 		route_initial();
@@ -2095,6 +2760,7 @@ window.ecdv2 = ( function( $ ) {
 
 	/* Public API ( used by inline onclick handlers in PHP templates ). */
 	return {
+		download_qr: download_qr,
 		go_tab           : go_tab,
 		save_all         : save_all,
 		quick_activate   : quick_activate,

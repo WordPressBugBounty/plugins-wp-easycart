@@ -1901,74 +1901,116 @@ $currency_symbols = array(
 	'ZAR' => '&#82;',
 	'ZMW' => 'ZK',
 );
+
+/* ---- Pre-fill from WordPress ---- */
+$wizard     = wp_easycart_admin_setup_wizard();
+$wp_locale  = get_locale();
+$parts      = explode( '_', $wp_locale );
+$saved      = get_option( 'ec_option_store_locale' );
+$guess      = ( $saved && isset( $countries[ $saved ] ) ) ? $saved : ( ( isset( $parts[1] ) && isset( $countries[ $parts[1] ] ) ) ? $parts[1] : 'US' );
+$saved_cur  = get_option( 'ec_option_base_currency' );
+$guess_cur  = ( $saved_cur && isset( $currency_names[ $saved_cur ] ) ) ? $saved_cur : ( isset( $locales[ $guess ] ) ? $locales[ $guess ]['currency_code'] : 'USD' );
+$tz         = wp_timezone_string();
+$has_tax    = (bool) $GLOBALS['wpdb']->get_var( 'SELECT taxrate_id FROM ec_taxrate LIMIT 1' ) || get_option( 'ec_option_enable_easy_canada_tax' );
 ?>
-<form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate">
-	<?php wp_easycart_admin_verification( )->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-location' ); ?>
+<form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate" class="ecwz-form">
+	<?php wp_easycart_admin_verification()->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-location' ); ?>
 	<input type="hidden" name="ec_admin_form_action" id="ec_admin_form_action" value="process-wizard-location">
-	<h3><?php esc_attr_e( 'Store Location &amp; Tax', 'wp-easycart' ); ?></h3>
-	<p><?php esc_attr_e( 'Please start by choosing your store location. WP EasyCart will automatically help you determine your basic tax and locale settings.', 'wp-easycart' ); ?></p>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'Where is your store based?', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input"><select name="locale" id="wp_easycart_locale" class="select2-basic" onchange="wp_easycart_update_wizard_update_tax( );">
-			<?php foreach( $countries as $country_code => $country_name ){ ?>
-			<?php if( isset( $states[$country_code] ) ){ ?>
-			<?php foreach( $states[$country_code] as $state_code => $state_name ){ ?>
-			<option value="<?php echo esc_attr( $country_code ); ?>_<?php echo esc_attr( $state_code ); ?>" data-currency="<?php echo ( isset( $locales[$country_code] ) ) ? esc_attr( $locales[$country_code]['currency_code'] ) : ''; ?>"><?php echo esc_attr( $country_name ); ?> - <?php echo esc_attr( $state_name ); ?></option>
-			<?php }?>
-			<?php }else{ ?>
-			<option value="<?php echo esc_attr( $country_code ); ?>" data-currency="<?php echo ( isset( $locales[$country_code] ) ) ? esc_attr( $locales[$country_code]['currency_code'] ) : ''; ?>"><?php echo esc_attr( $country_name ); ?></option>
-			<?php }?>
-			<?php }?>
-		</select></div>
-	</div>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'Where is your default currency?', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input"><select name="currency" id="wp_easycart_currency" class="select2-basic">
-			<?php foreach( $currency_names as $currency_code => $currency_name ){ ?>
-			<option value="<?php echo esc_attr( $currency_code ); ?>"><?php echo esc_attr( ucwords( $currency_name ) ); ?><?php if( isset( $currency_symbols[$currency_code] ) ){ ?> (<?php echo esc_attr( $currency_symbols[$currency_code] ); ?>)<?php }?></option>
-			<?php }?>
-		</select></div>
-	</div>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'What language do you need?', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input"><?php esc_attr_e( 'Default is U.S. English', 'wp-easycart' ); ?> - <a href="admin.php?page=wp-easycart-settings&subpage=language-editor" target="_blank"><?php esc_attr_e( 'CLICK TO MANAGE LANGUAGE(S)', 'wp-easycart' ); ?></a></div>
-	</div>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'Will you be charging sales tax?', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input"><input type="checkbox" name="sales_tax" id="wp_easycart_sales_tax" value="1" onchange="wp_easycart_update_wizard_update_tax( );" /> <?php esc_attr_e( 'Yes, I will be charging sales tax', 'wp-easycart' ); ?></div>
-	</div>
-	<div id="wp_easycart_wizard_tax_info" style="display:none;">
-		<div class="ec_admin_wizard_input_row" id="wp_easycart_wizard_taxes">
-			<p><?php echo sprintf( esc_attr__( 'The following tax rates will be imported automatically for you. You can read more about taxes in %s our documentation %s', 'wp-easycart' ), '<a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=taxes" target="_blank">', '</a>' ); ?></p>
+	<input type="hidden" name="locale" id="wp_easycart_locale" value="<?php echo esc_attr( $guess ); ?>">
+
+	<div class="ecwz-body">
+		<h2><?php esc_html_e( 'Where is your store based?', 'wp-easycart' ); ?></h2>
+		<p class="ecwz-lede"><?php echo sprintf( esc_html__( 'Your country and state set currency, number formats, weight units and starter tax rates. Fine-tune everything later under %s.', 'wp-easycart' ), '<a href="admin.php?page=wp-easycart-settings&subpage=tax">' . esc_html__( 'Settings › Taxes', 'wp-easycart' ) . '</a>' ); ?></p>
+
+		<?php if ( ! $saved ) { ?>
+		<div class="ecwz-note ecwz-note-brand">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+			<div><?php echo sprintf( esc_html__( 'Pre-filled from your WordPress settings (language %1$s, timezone %2$s). Change anything that isn\'t right.', 'wp-easycart' ), '<strong>' . esc_html( $wp_locale ) . '</strong>', '<strong>' . esc_html( $tz ) . '</strong>' ); ?></div>
 		</div>
-		<table class="wp_easycart_wizard_tax_table">
-			<thead>
-				<tr>
-					<td><?php esc_attr_e( 'Country', 'wp-easycart' ); ?></td>
-					<td><?php esc_attr_e( 'State', 'wp-easycart' ); ?></td>
-					<td><?php esc_attr_e( 'Rate', 'wp-easycart' ); ?> (%)</td>
-					<td><?php esc_attr_e( 'Name', 'wp-easycart' ); ?></td>
-				</tr>
-			</thead>
-			<tbody>
-		<?php foreach( $locales as $locale ){ ?>
-			<?php foreach( $locale['tax_rates'] as $tax_rates ){ ?>
-				<?php for( $i=0; $i<count( $tax_rates ); $i++ ){ ?>
-		<tr class="wp_easycart_wizard_tax_row wp_easycart_wizard_tax_<?php echo esc_attr( $tax_rates[$i]['country'] ); ?><?php if( isset( $states[$tax_rates[$i]['country']] ) ){ ?>_<?php echo esc_attr( $tax_rates[$i]['state'] ); ?><?php }?>">
-			<td><?php echo esc_attr( $tax_rates[$i]['country'] ); ?></td>
-			<td><?php echo esc_attr( $tax_rates[$i]['state'] ); ?></td>
-			<td><?php echo esc_attr( $tax_rates[$i]['rate'] ); ?></td>
-			<td><?php echo esc_attr( $tax_rates[$i]['name'] ); ?></td>
-		</tr>
-				<?php }?>
-			<?php }?>
-		<?php }?>
-			</tbody>
-		</table>
+		<?php } ?>
+
+		<div class="ecwz-frow ecwz-frow-first">
+			<div class="ecwz-lab"><?php esc_html_e( 'Country & state', 'wp-easycart' ); ?><small><?php esc_html_e( 'Your business location, used for tax and starter shipping rates.', 'wp-easycart' ); ?></small></div>
+			<div class="ecwz-val ecwz-inline">
+				<select id="ecwz_country" class="ecwz-select ecwz-select2" aria-label="<?php esc_attr_e( 'Country', 'wp-easycart' ); ?>">
+					<?php foreach ( $countries as $country_code => $country_name ) { ?>
+					<option value="<?php echo esc_attr( $country_code ); ?>" data-currency="<?php echo isset( $locales[ $country_code ] ) ? esc_attr( $locales[ $country_code ]['currency_code'] ) : ''; ?>" data-has-states="<?php echo isset( $states[ $country_code ] ) ? '1' : '0'; ?>"<?php selected( $country_code, $guess ); ?>><?php echo esc_html( html_entity_decode( $country_name ) ); ?></option>
+					<?php } ?>
+				</select>
+				<select id="ecwz_state" class="ecwz-select ecwz-select2" aria-label="<?php esc_attr_e( 'State / province', 'wp-easycart' ); ?>"<?php if ( ! isset( $states[ $guess ] ) ) { echo ' style="display:none"'; } ?>>
+					<?php foreach ( $states as $country_code => $state_list ) { ?>
+						<?php foreach ( $state_list as $state_code => $state_name ) { ?>
+					<option value="<?php echo esc_attr( $state_code ); ?>" data-country="<?php echo esc_attr( $country_code ); ?>"<?php if ( $country_code != $guess ) { echo ' hidden disabled'; } ?>><?php echo esc_html( $state_name ); ?></option>
+						<?php } ?>
+					<?php } ?>
+				</select>
+			</div>
+		</div>
+
+		<div class="ecwz-frow">
+			<div class="ecwz-lab"><?php esc_html_e( 'Currency', 'wp-easycart' ); ?></div>
+			<div class="ecwz-val">
+				<select name="currency" id="wp_easycart_currency" class="ecwz-select ecwz-select2">
+					<?php foreach ( $currency_names as $currency_code => $currency_name ) { ?>
+					<option value="<?php echo esc_attr( $currency_code ); ?>" data-symbol="<?php echo isset( $currency_symbols[ $currency_code ] ) ? esc_attr( html_entity_decode( $currency_symbols[ $currency_code ] ) ) : ''; ?>"<?php selected( $currency_code, $guess_cur ); ?>><?php echo esc_html( ucwords( $currency_name ) ); ?><?php if ( isset( $currency_symbols[ $currency_code ] ) ) { ?> (<?php echo esc_html( html_entity_decode( $currency_symbols[ $currency_code ] ) ); ?>)<?php } ?></option>
+					<?php } ?>
+				</select>
+				<div class="ecwz-hint">
+					<?php esc_html_e( 'Sets symbol, separators and PayPal currency code.', 'wp-easycart' ); ?>
+					<?php esc_html_e( 'Preview', 'wp-easycart' ); ?> <strong id="ecwz_currency_preview"></strong>
+					· <?php esc_html_e( 'weight unit', 'wp-easycart' ); ?> <strong id="ecwz_weight_unit"><?php echo isset( $locales[ $guess ] ) ? esc_html( $locales[ $guess ]['weight_unit'] ) : 'lbs'; ?></strong>
+					<span class="ecwz-muted"><?php esc_html_e( '(from your country)', 'wp-easycart' ); ?></span>
+				</div>
+				<script type="application/json" id="ecwz_locale_meta"><?php
+					$meta = array();
+					foreach ( $locales as $code => $l ) {
+						$meta[ $code ] = array( 'pos' => $l['currency_pos'], 'th' => $l['thousand_sep'], 'dec' => $l['decimal_sep'], 'n' => (int) $l['num_decimals'], 'w' => $l['weight_unit'] );
+					}
+					echo wp_json_encode( $meta );
+				?></script>
+			</div>
+		</div>
+
+		<div class="ecwz-frow">
+			<div class="ecwz-lab"><?php esc_html_e( 'Store language', 'wp-easycart' ); ?></div>
+			<div class="ecwz-val ecwz-val-text"><?php esc_html_e( 'U.S. English (default)', 'wp-easycart' ); ?> &nbsp;·&nbsp; <a href="admin.php?page=wp-easycart-settings&subpage=language-editor" target="_blank" class="ecwz-lnk"><?php esc_html_e( 'Manage languages', 'wp-easycart' ); ?></a></div>
+		</div>
+
+		<div class="ecwz-frow">
+			<div class="ecwz-lab"><?php esc_html_e( 'Sales tax', 'wp-easycart' ); ?><small><?php esc_html_e( 'We\'ll install common rates for your location as a starting point.', 'wp-easycart' ); ?></small></div>
+			<div class="ecwz-val">
+				<label class="ecwz-tg-row">
+					<span class="ecwz-tg"><input type="checkbox" name="sales_tax" id="wp_easycart_sales_tax" value="1"<?php if ( $has_tax ) { echo ' checked disabled'; } ?>><span></span></span>
+					<span class="ecwz-t"><?php echo $has_tax ? esc_html__( 'Tax rates are already installed', 'wp-easycart' ) : esc_html__( 'Yes, I charge sales tax', 'wp-easycart' ); ?></span>
+				</label>
+				<?php if ( $has_tax ) { ?>
+				<div class="ecwz-hint"><?php echo sprintf( esc_html__( 'Manage rates under %s.', 'wp-easycart' ), '<a href="admin.php?page=wp-easycart-settings&subpage=tax" class="ecwz-lnk">' . esc_html__( 'Settings › Taxes', 'wp-easycart' ) . '</a>' ); ?></div>
+				<?php } else { ?>
+				<div id="wp_easycart_wizard_tax_info" style="display:none">
+					<table class="ecwz-tbl">
+						<thead><tr><th><?php esc_html_e( 'Country', 'wp-easycart' ); ?></th><th><?php esc_html_e( 'State', 'wp-easycart' ); ?></th><th><?php esc_html_e( 'Rate', 'wp-easycart' ); ?></th><th><?php esc_html_e( 'Name', 'wp-easycart' ); ?></th></tr></thead>
+						<tbody>
+						<?php foreach ( $locales as $locale ) { ?>
+							<?php foreach ( $locale['tax_rates'] as $tax_rates ) { ?>
+								<?php for ( $i = 0; $i < count( $tax_rates ); $i++ ) { ?>
+							<tr class="wp_easycart_wizard_tax_row wp_easycart_wizard_tax_<?php echo esc_attr( $tax_rates[ $i ]['country'] ); ?><?php if ( isset( $states[ $tax_rates[ $i ]['country'] ] ) ) { ?>_<?php echo esc_attr( $tax_rates[ $i ]['state'] ); ?><?php } ?>" style="display:none">
+								<td><?php echo esc_html( $tax_rates[ $i ]['country'] ); ?></td>
+								<td><?php echo esc_html( $tax_rates[ $i ]['state'] ); ?></td>
+								<td><?php echo esc_html( rtrim( rtrim( $tax_rates[ $i ]['rate'], '0' ), '.' ) ); ?>%</td>
+								<td><?php echo esc_html( $tax_rates[ $i ]['name'] ); ?></td>
+							</tr>
+								<?php } ?>
+							<?php } ?>
+						<?php } ?>
+						</tbody>
+					</table>
+					<div class="ecwz-hint" id="ecwz_tax_none" style="display:none"><?php esc_html_e( 'We don\'t have starter rates for this location. You can add rates under Settings › Taxes.', 'wp-easycart' ); ?></div>
+					<div class="ecwz-hint"><?php esc_html_e( 'Add county/city rates or connect a tax service later under Settings › Taxes.', 'wp-easycart' ); ?></div>
+				</div>
+				<?php } ?>
+			</div>
+		</div>
 	</div>
-	<div class="ec_admin_wizard_button_bar">
-		<a href="admin.php?page=wp-easycart-settings&ec_admin_form_action=skip-wizard&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-skip-wizard' ) ); ?>" class="ec_admin_wizard_quit_button"><?php esc_attr_e( 'Skip Setup Wizard', 'wp-easycart' ); ?></a>
-		<a href="admin.php?page=wp-easycart-products&subpage=products"><?php esc_attr_e( 'Setup Later', 'wp-easycart' ); ?></a>
-		<input type="submit" class="ec_admin_wizard_next_button" value="<?php esc_attr_e( 'Save &amp; Continue', 'wp-easycart' ); ?>" />
-	</div>
+
+	<?php $wizard->render_footer( wp_easycart_admin_setup_wizard::STEP_LOCATION ); ?>
 </form>

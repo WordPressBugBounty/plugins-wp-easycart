@@ -69,13 +69,25 @@ add_action( 'wp', 'wp_easycart_apply_query_coupon', 9 );
 function wp_easycart_apply_query_coupon( ){
 	if( isset( $_GET['ec_coupon'] ) ){
 		wpeasycart_session( )->handle_session();
-		$coupons = new ec_coupons( );
-		if( $coupons->redeem_coupon_code( sanitize_text_field( $_GET['ec_coupon'] ) ) ){
-			$GLOBALS['ec_cart_data']->cart_data->coupon_code = htmlspecialchars( sanitize_text_field( preg_replace( "/[^A-Za-z0-9\$\%]/", '', stripslashes_deep( $_GET['ec_coupon'] ) ) ), ENT_QUOTES );
-			$GLOBALS['ec_cart_data']->save_session_to_db( );
-			wp_cache_flush( );
-			do_action( 'wpeasycart_cart_updated' );
+		// Offers v2 codes get first attempt at the URL-applied coupon.
+		$offer_handled = false;
+		if ( wp_easycart_offers_active() ) {
+			$offer_context = ec_offer_integration::get_context();
+			$offer_apply = ec_offer_engine::apply_code( sanitize_text_field( $_GET['ec_coupon'] ), $GLOBALS['ec_cart_data']->ec_cart_id, $offer_context );
+			if ( $offer_apply['success'] || 'cart_invalid_coupon' != $offer_apply['message_key'] ) {
+				$offer_handled = true; // applied, or recognized-but-blocked (limits/stacking)
+				wp_cache_flush( );
+				do_action( 'wpeasycart_cart_updated' );
+			}
+		}
+		if ( ! $offer_handled ) {
+			$coupons = new ec_coupons( );
+			if( $coupons->redeem_coupon_code( sanitize_text_field( $_GET['ec_coupon'] ) ) ){
+				$GLOBALS['ec_cart_data']->cart_data->coupon_code = htmlspecialchars( sanitize_text_field( preg_replace( "/[^A-Za-z0-9_\-\$\%]/", '', stripslashes_deep( $_GET['ec_coupon'] ) ) ), ENT_QUOTES );
+				$GLOBALS['ec_cart_data']->save_session_to_db( );
+				wp_cache_flush( );
+				do_action( 'wpeasycart_cart_updated' );
+			}
 		}
 	}
 }
-?>

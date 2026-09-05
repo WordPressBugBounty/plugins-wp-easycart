@@ -189,7 +189,6 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			$featured_image = ( isset( $_POST['featured_image'] ) && '' != $_POST['featured_image'] ) ? (int) $_POST['featured_image'] : 0;
 
 			$post = array(
-				'ID' => $post_id,
 				'post_content' => '[ec_store manufacturerid="' . $manufacturer_id . '"]',
 				'post_status' => 'publish',
 				'post_title' => wp_easycart_language()->convert_text( $name ),
@@ -197,7 +196,7 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 				'post_name' => $post_slug,
 				'post_excerpt' => $post_excerpt,
 			);
-			wp_update_post( $post );
+			$post_id = wp_easycart_post_sync()->update( 'manufacturer', $manufacturer_id, $post_id, $post );
 			if ( 0 == $featured_image ) {
 				delete_post_thumbnail( $post_id );
 			} else {
@@ -222,7 +221,7 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			$manufacturer_id = ( isset( $_GET['manufacturer_id'] ) ) ? (int) $_GET['manufacturer_id'] : 0;
 			do_action( 'wpeasycart_manufacturer_deleting', $manufacturer_id );
 			$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
-			wp_delete_post( $post_id, true );
+			wp_easycart_post_sync()->delete( 'manufacturer', $manufacturer_id, $post_id );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
 			do_action( 'wpeasycart_manufacturer_deleted', $manufacturer_id );
 			return array(

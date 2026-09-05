@@ -1,9 +1,9 @@
 ===Shopping Cart & eCommerce Store===
 Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 5.9.3
+Stable tag: 5.9.4
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -218,8 +218,17 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 5.9.4 =
+* New Feature - Updated admin design, modernized shell.
+* New Feature - Inventory management screen upgraded.
+* New Feature - Coupons and Promotions converted into Offers. Offers allows for far more complex means to manage your discounts storewide.
+* New Feature - Cart Links added to marketing to allow you to share complex add to cart links to your marketing system.
+* New Feature - Product details panel upgraded.
+* New Feature - Order list and order details upgraded.
+* New Feature - User list and user details upgraded.
+* Security - Additional security fixes.
 = 5.9.3 =
-* Security - Hardened product ordering save handlers (ec_ajax_save_page_options now uses a fixed allow-list of keys; ec_ajax_save_product_order strips disallowed characters globally) to address reported SQL injection via the 'product_order' parameter.
+* Security - Hardened product ordering save handlers.
 = 5.9.2 =
 * Bug Fix - Duplication of product and product images bug fixed.
 * Bug Fix - PayPal phone number and given name issues fixed.

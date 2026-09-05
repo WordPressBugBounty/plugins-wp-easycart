@@ -304,6 +304,16 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 					if ( ! $orderdetail->stock_adjusted ) {
 						$product = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_product.* FROM ec_product WHERE ec_product.product_id = %d', $orderdetail->product_id ) );
 						if ( $product ) {
+							$stock_log_oiq_id = 0;
+							$stock_log_old_quantity = (int) $product->stock_quantity;
+							if ( $product->use_optionitem_quantity_tracking ) {
+								$stock_log_oiq_row = $wpdb->get_row( $wpdb->prepare( 'SELECT optionitemquantity_id, quantity FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d', $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 ) );
+								if ( $stock_log_oiq_row ) {
+									$stock_log_oiq_id = (int) $stock_log_oiq_row->optionitemquantity_id;
+									$stock_log_old_quantity = (int) $stock_log_oiq_row->quantity;
+								}
+							}
+
 							if ( $product->use_optionitem_quantity_tracking ) {
 								$ec_db->update_quantity_value( $orderdetail->quantity, $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 );
 							}
@@ -313,6 +323,18 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 							$order_log_id = $wpdb->insert_id;
 							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $orderdetail->product_id ) );
 							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $orderdetail->quantity ) );
+
+							do_action( 'wpeasycart_inventory_stock_changed', array(
+								'product_id'            => (int) $orderdetail->product_id,
+								'optionitemquantity_id' => $stock_log_oiq_id,
+								'old_quantity'          => $stock_log_old_quantity,
+								'new_quantity'          => $stock_log_old_quantity - (int) $orderdetail->quantity,
+								'delta'                 => -1 * (int) $orderdetail->quantity,
+								'reason'                => 'order',
+								'source'                => 'order',
+								'note'                  => sprintf( __( 'Order #%d approved', 'wp-easycart' ), $order_id ),
+								'user_id'               => get_current_user_id(),
+							) );
 						}
 					}
 				}

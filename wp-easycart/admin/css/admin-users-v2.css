@@ -1,0 +1,170 @@
+/* ============================================================================
+ * WP EasyCart Admin — Customers List V2 (FREE)
+ *
+ * Styles specific to the user table; the shared V2 framework styles
+ * (ecv2-wrap, tables, cards, drawer, modals, toasts) come from admin-v2.css.
+ * Enqueued only on wp-easycart-users → accounts, depends on admin-v2.css.
+ * ========================================================================= */
+
+/* ---- Table layout ----
+   Percentage widths on every header cell (overriding the px hints from PHP)
+   so there is no unsized column for the browser to squeeze. Percentages sum
+   to 100 with all columns visible and re-balance proportionally as the
+   container query hides columns. Customer is the largest share. */
+.ecv2-table.ecv2-user-table { table-layout:fixed; }
+.ecv2-user-table .ecv2-col-check                 { width:3%  !important; min-width:36px; }
+.ecv2-user-table .ecv2-col-email                 { width:24% !important; min-width:220px; }
+.ecv2-user-table .ecv2-col-user_level            { width:8%  !important; min-width:96px; }
+.ecv2-user-table .ecv2-col-completed_order_count { width:6%  !important; min-width:72px; }
+.ecv2-user-table .ecv2-col-lifetime_spend        { width:10% !important; min-width:120px; }
+.ecv2-user-table .ecv2-col-last_order_date       { width:8%  !important; min-width:100px; }
+.ecv2-user-table .ecv2-col-lifecycle             { width:7%  !important; min-width:90px; }
+.ecv2-user-table .ecv2-col-location_parts        { width:9%  !important; min-width:120px; }
+.ecv2-user-table .ecv2-col-tag_list              { width:9%  !important; min-width:120px; }
+.ecv2-user-table .ecv2-col-date_created          { width:8%  !important; min-width:110px; }
+.ecv2-user-table .ecv2-col-last_login            { width:7%  !important; min-width:100px; }
+.ecv2-user-table .ecv2-col-user_id               { width:4%  !important; min-width:56px; }
+.ecv2-user-table .ecv2-col-actions               { width:4%  !important; min-width:56px; }
+.ecv2-user-table tbody td { padding:8px 12px; overflow:visible; }
+.ecv2-user-table .ecv2-cell { min-width:0; }
+.ecv2-user-table .ecv2-cell > * { max-width:100%; }
+@container ecv2 (max-width:640px) { .ecv2-table.ecv2-user-table { table-layout:auto; } }
+
+/* ---- Identity cell ---- */
+.ecv2-user-identity { display:flex; align-items:center; gap:10px; min-width:0; }
+.ecv2-user-identity-text { display:flex; flex-direction:column; min-width:0; }
+.ecv2-user-name { font-weight:600; font-size:13px; line-height:1.3; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.ecv2-user-name-empty { color:var(--ecv2-g400,#9ca3af); font-weight:500; font-style:italic; }
+.ecv2-user-email { font-size:12px; color:var(--ecv2-g500,#6b7280); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.ecv2-user-identity-text { flex:1 1 auto; }
+
+/* ---- Avatar ---- */
+.ecv2-user-avatar {
+	flex-shrink:0; width:34px; height:34px; border-radius:50%;
+	display:inline-flex; align-items:center; justify-content:center;
+	color:#fff; font-size:12px; font-weight:700; letter-spacing:.5px;
+	user-select:none;
+}
+.ecv2-user-avatar-lg { width:48px; height:48px; font-size:16px; }
+
+/* ---- Flags strip (subscriber / notes / PRO-added) ---- */
+.ecv2-user-flags { display:inline-flex; align-items:center; gap:2px; margin-left:6px; }
+.ecv2-user-flag { font-size:14px !important; width:14px !important; height:14px !important; color:var(--ecv2-g300,#d1d5db); }
+.ecv2-user-flag-subscriber { color:var(--ecv2-cyan,#06b6d4); }
+.ecv2-user-flag-notes { color:var(--ecv2-amber,#f59e0b); }
+
+/* ---- Role badge ---- */
+.ecv2-role-badge {
+	display:inline-block; padding:2px 10px; border-radius:999px;
+	font-size:11px; font-weight:600; letter-spacing:.3px; text-transform:capitalize;
+	background:var(--ecv2-g100,#f3f4f6); color:var(--ecv2-g600,#4b5563);
+	border:1px solid var(--ecv2-g200,#e5e7eb);
+}
+.ecv2-role-admin   { background:#ede9fe; color:#6d28d9; border-color:#ddd6fe; }
+.ecv2-role-shopper { background:#ecfdf5; color:#047857; border-color:#d1fae5; }
+.ecv2-role-pending { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.ecv2-role-custom  { background:#eff6ff; color:#1d4ed8; border-color:#dbeafe; }
+
+/* ---- Nullable dates ---- */
+.ecv2-date { font-size:12px; color:var(--ecv2-g600,#4b5563); white-space:nowrap; }
+.ecv2-date-empty { font-size:12px; color:var(--ecv2-g400,#9ca3af); font-style:italic; white-space:nowrap; }
+
+/* ---- Card view ---- */
+.ecv2-user-card { display:flex; flex-direction:column; }
+.ecv2-user-card-top { display:flex; align-items:center; gap:12px; padding:14px 14px 10px; }
+.ecv2-user-card-id { display:flex; flex-direction:column; min-width:0; flex:1; }
+.ecv2-user-card-name { font-size:14px; font-weight:600; color:var(--ecv2-g800,#1f2937); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecv2-user-card-name:hover { color:var(--ecv2-primary-hover,#16a34a); }
+.ecv2-user-card-email { font-size:12px; color:var(--ecv2-g500,#6b7280); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecv2-user-card-meta { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; padding:0 14px 12px; }
+.ecv2-user-card-meta-item { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.ecv2-user-card-meta-label { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--ecv2-g400,#9ca3af); font-weight:600; }
+.ecv2-user-card-actions { margin-left:auto; }
+
+/* ---- Hover row-actions under the customer name (table view) ---- */
+.ecv2-user-row-actions { display:flex; align-items:center; gap:0; opacity:0; transition:opacity .15s ease; flex-wrap:nowrap; white-space:nowrap; line-height:1; margin-top:2px; }
+.ecv2-row:hover .ecv2-user-row-actions { opacity:1; }
+/* Cards & spreadsheet keep the ⋯ menu; hide the hover strip there. */
+.ecv2-card .ecv2-user-row-actions, .ecv2-ss-row .ecv2-user-row-actions { display:none; }
+
+/* ---- One-time backfill banner ---- */
+.ecv2-user-backfill-banner {
+	display:flex; align-items:center; gap:12px;
+	margin:0 0 14px; padding:12px 16px;
+	background:#eff6ff; border:1px solid #bfdbfe; border-radius:var(--ecv2-r,8px);
+	font-size:12px; color:#1e3a8a; line-height:1.45;
+}
+.ecv2-user-backfill-icon { color:#3b82f6; flex-shrink:0; font-size:20px; width:20px; height:20px; }
+.ecv2-user-backfill-text { flex:1; min-width:0; }
+.ecv2-user-backfill-note { color:#3b82f6; }
+.ecv2-user-backfill-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.ecv2-user-backfill-progress { font-size:11px; color:#1d4ed8; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ecv2-user-backfill-dismiss {
+	border:0; background:none; cursor:pointer; padding:2px; line-height:1;
+	color:#93c5fd; border-radius:4px;
+}
+.ecv2-user-backfill-dismiss:hover { color:#1d4ed8; background:#dbeafe; }
+.ecv2-user-backfill-complete { background:#f0fdf4; border-color:#bbf7d0; color:#14532d; }
+.ecv2-user-backfill-complete .ecv2-user-backfill-icon { color:#22c55e; }
+
+/* ---- PRO teaser bar ---- */
+.ecv2-user-pro-teaser {
+	display:flex; align-items:center; gap:10px;
+	margin:0 0 14px; padding:10px 14px; cursor:pointer;
+	background:linear-gradient(90deg,#f8fafc,#f1f5f9);
+	border:1px dashed var(--ecv2-g300,#d1d5db); border-radius:var(--ecv2-r,8px);
+	color:var(--ecv2-g600,#4b5563); font-size:12px; line-height:1.4;
+	transition:border-color .12s ease, background .12s ease;
+}
+.ecv2-user-pro-teaser:hover, .ecv2-user-pro-teaser:focus-visible {
+	border-color:var(--ecv2-primary,#22c55e); background:#f0fdf4; outline:none;
+}
+.ecv2-user-pro-teaser .dashicons-lock { color:var(--ecv2-g400,#9ca3af); flex-shrink:0; }
+.ecv2-user-pro-teaser-text { flex:1; min-width:0; }
+.ecv2-user-pro-teaser-cta { flex-shrink:0; font-weight:600; color:var(--ecv2-primary-hover,#16a34a); white-space:nowrap; }
+
+/* ---- Quick Edit slideout (shared shell for user + PRO snapshot) ---- */
+.ecv2-slideout-overlay {
+	position:fixed; inset:0; z-index:100200; background:rgba(17,24,39,.45);
+}
+.ecv2-slideout {
+	position:absolute; top:0; right:0; bottom:0; width:420px; max-width:92vw;
+	background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.18);
+	display:flex; flex-direction:column;
+	animation:ecv2-slideout-in .18s ease;
+}
+@keyframes ecv2-slideout-in { from { transform:translateX(24px); opacity:.4; } to { transform:none; opacity:1; } }
+.ecv2-slideout-header {
+	display:flex; align-items:center; justify-content:space-between;
+	padding:16px 20px; border-bottom:1px solid var(--ecv2-g200,#e5e7eb);
+}
+.ecv2-slideout-header h2 { margin:0; font-size:16px; display:flex; align-items:center; gap:8px; }
+.ecv2-user-qe-id-chip { font-size:11px; font-weight:600; color:var(--ecv2-g500,#6b7280); background:var(--ecv2-g100,#f3f4f6); border-radius:999px; padding:2px 8px; }
+.ecv2-slideout-body { flex:1; overflow-y:auto; padding:18px 20px; }
+.ecv2-slideout-footer {
+	display:flex; justify-content:flex-end; gap:8px;
+	padding:14px 20px; border-top:1px solid var(--ecv2-g200,#e5e7eb); background:var(--ecv2-g50,#f9fafb);
+}
+.ecv2-slideout-field { margin-bottom:14px; }
+.ecv2-slideout-field label { display:block; font-size:12px; font-weight:600; color:var(--ecv2-g600,#4b5563); margin-bottom:4px; }
+.ecv2-slideout-field .ecv2-input, .ecv2-slideout-field .ecv2-select { width:100%; box-sizing:border-box; }
+.ecv2-slideout-field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.ecv2-slideout-field-error { font-size:11px; color:var(--ecv2-red,#ef4444); min-height:14px; margin-top:3px; }
+.ecv2-slideout-check { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ecv2-g700,#374151); margin:6px 0 14px; }
+.ecv2-slideout-divider { border-top:1px solid var(--ecv2-g100,#f3f4f6); margin:16px 0; }
+.ecv2-slideout-hint { font-size:11px; color:var(--ecv2-g400,#9ca3af); margin:6px 0 0; line-height:1.4; }
+
+/* ---- Spreadsheet inline edit input ---- */
+.ecv2-ss-edit-input {
+	width:100%; box-sizing:border-box; padding:4px 6px; font-size:13px;
+	border:1px solid var(--ecv2-primary,#22c55e); border-radius:var(--ecv2-rs,4px);
+	box-shadow:0 0 0 2px var(--ecv2-primary-light,rgba(34,197,94,.2));
+}
+.ecv2-ss-edit-input:focus { outline:none; }
+
+/* ---- Responsive ---- */
+@media ( max-width: 782px ) {
+	.ecv2-user-name, .ecv2-user-email { max-width:160px; }
+	.ecv2-slideout { width:100vw; max-width:100vw; }
+	.ecv2-user-pro-teaser-cta { display:none; }
+}

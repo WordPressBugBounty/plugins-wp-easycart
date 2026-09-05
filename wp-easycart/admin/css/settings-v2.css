@@ -1,0 +1,218 @@
+/**
+ * WP EasyCart Admin Shell V2 — Legacy settings skin.
+ *
+ * The settings pages (Initial Setup, Additional Settings, Payment, Taxes,
+ * Shipping, etc.) share one set of components in admin.css with hardcoded
+ * EasyCart greens (#7bb141 / #506219 / #ADDA7E). The old shell used to
+ * repaint them via its inline style block; this file replaces that with a
+ * token-based skin: neutral card/typography structure matching admin-v2.css,
+ * brand color (--ec-brand*) for every interactive element.
+ *
+ * Load AFTER admin.css, alongside shell-v2.css. Every selector is scoped
+ * under .ecsh-main so: (a) it only applies inside the new shell, and
+ * (b) it outweighs admin.css without !important.
+ *
+ * @since 5.x.x
+ */
+
+/* =========================================================
+   CARDS — settings boxes, video box, integration rows
+   ========================================================= */
+.ecsh-main .ec_admin_list_line_item_fullwidth,
+.ecsh-main .ec_admin_list_line_item_fullwidth_language,
+.ecsh-main .ec_admin_list_line_item,
+.ecsh-main .ec_admin_help_video_box,
+.ecsh-main .ec_admin_slider_row {
+	border:1px solid var(--ecsh-g200); border-radius:var(--ecsh-r);
+	box-shadow:var(--ecsh-sh); background:#fff;
+}
+.ecsh-main .ec_admin_list_line_item_fullwidth { min-height:0; }
+
+/* =========================================================
+   SECTION HEADERS — "Store Landing Page", "Currency", etc.
+   Modern type: sentence case, quieter weight, neutral rule,
+   brand-tinted icon.
+   ========================================================= */
+.ecsh-main .ec_admin_settings_label,
+.ecsh-main .ec_admin_settings_label_center {
+	font-size:15px; font-weight:650; text-transform:none; letter-spacing:0;
+	color:var(--ecsh-g900); border-bottom:1px solid var(--ecsh-g200);
+}
+.ecsh-main .ec_admin_settings_label > .dashicons-before:before,
+.ecsh-main .ec_admin_settings_label_center > .dashicons-before:before {
+	color:var(--ec-brand, #7bb141);
+}
+.ecsh-main .ec_admin_settings_label_center > .dashicons-before:before {
+	border-color:var(--ec-brand, #7bb141); background:var(--ec-brand, #7bb141); color:#fff;
+}
+
+/* VIDEO / HELP pills in section headers → ghost buttons */
+.ecsh-main .ec_admin_settings_label > span.ec_admin_label_button > a,
+.ecsh-main .ec_admin_settings_label_center > span.ec_admin_label_button > a {
+	background:#fff; color:var(--ecsh-g700);
+	border:1px solid var(--ecsh-g300); border-radius:var(--ecsh-r);
+	padding:4px 10px; font-weight:600;
+	transition:all var(--ecsh-tr);
+}
+.ecsh-main .ec_admin_settings_label > span.ec_admin_label_button > a:hover,
+.ecsh-main .ec_admin_settings_label_center > span.ec_admin_label_button > a:hover {
+	background:#fff; color:var(--ec-brand, #7bb141); border-color:var(--ec-brand, #7bb141);
+}
+
+/* Wizard-style big panel headers */
+.ecsh-main .ec_admin_settings_panel h2 {
+	font-size:20px; text-transform:none; color:var(--ecsh-g900);
+	border-bottom:1px solid var(--ecsh-g200); background:#fff;
+}
+.ecsh-main .ec_admin_settings_panel h2 > .ec_admin_settings_header_text > .dashicons-before {
+	background:var(--ec-brand, #7bb141); border-radius:var(--ecsh-r);
+}
+
+/* Installation-video box (top of Initial Setup) */
+.ecsh-main .ec_admin_help_video_box > h1 {
+	text-transform:none; color:var(--ecsh-g900); font-weight:650;
+}
+.ecsh-main .ec_admin_help_video_box > h1 > .dashicons-before:before { color:var(--ec-brand, #7bb141); }
+.ecsh-main .ec_admin_help_video_box > h1 > a {
+	background:var(--ec-brand, #7bb141); border-color:var(--ec-brand, #7bb141);
+	color:var(--ec-on-brand, #fff); border-radius:var(--ecsh-r); font-weight:600;
+	transition:background var(--ecsh-tr);
+}
+.ecsh-main .ec_admin_help_video_box > h1 > a:hover {
+	background:var(--ec-brand-hover, #608932); border-color:var(--ec-brand-hover, #608932); color:var(--ec-on-brand, #fff);
+}
+
+/* =========================================================
+   FIELDS — inputs, selects, textareas across the shared
+   settings section wrappers. Neutral borders, brand focus.
+   ========================================================= */
+.ecsh-main .ec_admin_settings_input select,
+.ecsh-main .ec_admin_settings_input input[type="text"],
+.ecsh-main .ec_admin_settings_input input[type="number"],
+.ecsh-main .ec_admin_settings_input input[type="password"],
+.ecsh-main .ec_admin_settings_input input[type="email"],
+.ecsh-main .ec_admin_settings_input input[type="date"],
+.ecsh-main .ec_admin_settings_input textarea,
+.ecsh-main .ec_admin_settings_currency_section input[type="text"],
+.ecsh-main .ec_admin_settings_currency_section input[type="number"],
+.ecsh-main .ec_admin_settings_currency_section input[type="password"],
+.ecsh-main .ec_admin_settings_currency_section input[type="date"],
+.ecsh-main .ec_admin_settings_currency_section select,
+.ecsh-main .ec_admin_settings_products_section input,
+.ecsh-main .ec_admin_settings_products_section select,
+.ecsh-main .ec_admin_settings_tax_section input,
+.ecsh-main .ec_admin_settings_tax_section select,
+.ecsh-main input.ec_admin_taxcloud_field,
+.ecsh-main select.ec_admin_taxcloud_field,
+.ecsh-main .ec_admin_settings_live_payment_section input[type="text"],
+.ecsh-main .ec_admin_settings_live_payment_section input[type="email"],
+.ecsh-main .ec_admin_settings_live_payment_section input[type="password"],
+.ecsh-main .ec_admin_settings_live_payment_section select,
+.ecsh-main .ec_admin_settings_shipping_section input[type="text"],
+.ecsh-main .ec_admin_settings_shipping_section input[type="number"],
+.ecsh-main .ec_admin_settings_shipping_section select,
+.ecsh-main .ec_admin_settings_third_party_section input,
+.ecsh-main .ec_admin_settings_third_party_section select,
+.ecsh-main .ec_admin_settings_language_section input,
+.ecsh-main .ec_admin_live_rate_display,
+.ecsh-main .ec_admin_settings_multiple_select {
+	border:1px solid var(--ecsh-g300); border-radius:var(--ecsh-rs);
+	color:var(--ecsh-g800); background:#fff;
+	transition:border-color var(--ecsh-tr), box-shadow var(--ecsh-tr);
+}
+.ecsh-main .ec_admin_settings_input select:focus,
+.ecsh-main .ec_admin_settings_input input:focus,
+.ecsh-main .ec_admin_settings_input textarea:focus,
+.ecsh-main .ec_admin_content_area input[type="text"]:focus,
+.ecsh-main .ec_admin_content_area input[type="number"]:focus,
+.ecsh-main .ec_admin_content_area input[type="password"]:focus,
+.ecsh-main .ec_admin_content_area input[type="email"]:focus,
+.ecsh-main .ec_admin_content_area select:focus,
+.ecsh-main .ec_admin_content_area textarea:focus {
+	border-color:var(--ec-brand, #7bb141); outline:none;
+	box-shadow:0 0 0 3px var(--ec-brand-softer, rgba(123,177,65,.15));
+}
+
+/* Native checkboxes/radios pick up the brand automatically */
+.ecsh-main .ec_admin_content_area input[type="checkbox"],
+.ecsh-main .ec_admin_content_area input[type="radio"] {
+	accent-color:var(--ec-brand, #7bb141);
+	border:1px solid var(--ecsh-g300);
+}
+
+/* =========================================================
+   TOGGLES — ON/OFF switches + range-style sliders
+   ========================================================= */
+.ecsh-main .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label { border-color:var(--ecsh-g300); }
+.ecsh-main .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-inner:before {
+	background-color:var(--ec-brand, #7bb141); color:var(--ec-on-brand, #fff);
+}
+.ecsh-main .wp-easycart-admin-toggle-group input[type=checkbox]:checked ~ .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label {
+	background:var(--ec-brand, #7bb141);
+}
+.ecsh-main .wp-easycart-admin-toggle-group input[type=checkbox]:focus ~ .wp-easycart-admin-onoffswitch {
+	outline:2px solid var(--ec-brand, #7bb141); outline-offset:2px; border-radius:20px;
+}
+.ecsh-main input.ec_admin_slider_checkbox:checked + .ec_admin_slider { background:var(--ec-brand, #7bb141); }
+
+/* =========================================================
+   BUTTONS — the canonical primary set formerly painted by the
+   old shell's inline block, plus hovers and delete/danger.
+   ========================================================= */
+.ecsh-main .ec_admin_settings_input > span.ec_admin_settings_simple_button,
+.ecsh-main .ec_admin_settings_input > input.ec_admin_settings_simple_button,
+.ecsh-main .ec_admin_settings_shipping_input > input,
+.ecsh-main .ec_admin_language_add > input.ec_admin_settings_simple_button,
+.ecsh-main .ec_admin_language_input > input.ec_admin_settings_simple_button,
+.ecsh-main .ec_admin_content_area input[type="submit"].ec_admin_list_submit,
+.ecsh-main .ec_admin_products_submit > input.ec_admin_products_simple_button,
+.ecsh-main .ec_admin_product_details_manufacturer_column2 > input[type="button"],
+.ecsh-main .ec_admin_option_add_new_row input[type="button"],
+.ecsh-main .ec_admin_slider_row_input input[type="button"],
+.ecsh-main .ec_admin_order_details_totals_edit,
+.ecsh-main .ec_admin_order_details_line_item_save {
+	background:var(--ec-brand, #7bb141) !important;
+	background-color:var(--ec-brand, #7bb141) !important;
+	border:1px solid var(--ec-brand, #7bb141);
+	color:var(--ec-on-brand, #fff); border-radius:var(--ecsh-r);
+	font-weight:600; transition:background var(--ecsh-tr);
+}
+.ecsh-main .ec_admin_settings_input > span.ec_admin_settings_simple_button:hover,
+.ecsh-main .ec_admin_settings_input > input.ec_admin_settings_simple_button:hover,
+.ecsh-main .ec_admin_settings_shipping_input > input:hover,
+.ecsh-main .ec_admin_language_add > input.ec_admin_settings_simple_button:hover,
+.ecsh-main .ec_admin_language_input > input.ec_admin_settings_simple_button:hover,
+.ecsh-main .ec_admin_content_area input[type="submit"].ec_admin_list_submit:hover,
+.ecsh-main .ec_admin_products_submit > input.ec_admin_products_simple_button:hover,
+.ecsh-main .ec_admin_slider_row_input input[type="button"]:hover,
+.ecsh-main .ec_admin_order_details_totals_edit:hover,
+.ecsh-main .ec_admin_order_details_line_item_save:hover {
+	background:var(--ec-brand-hover, #608932) !important;
+	background-color:var(--ec-brand-hover, #608932) !important;
+	border-color:var(--ec-brand-hover, #608932);
+	color:var(--ec-on-brand, #fff);
+}
+.ecsh-main input.ec_admin_settings_simple_delete_button,
+.ecsh-main .ec_admin_settings_simple_delete_button {
+	background:var(--ecsh-red) !important; background-color:var(--ecsh-red) !important;
+	border:1px solid var(--ecsh-red); color:#fff; border-radius:var(--ecsh-r); font-weight:600;
+}
+.ecsh-main input.ec_admin_settings_simple_delete_button:hover,
+.ecsh-main .ec_admin_settings_simple_delete_button:hover {
+	background:#dc2626 !important; background-color:#dc2626 !important; border-color:#dc2626; color:#fff;
+}
+
+/* =========================================================
+   MISC ACCENTS formerly hardcoded green
+   ========================================================= */
+.ecsh-main .ec_admin_settings_left { border-right-color:var(--ecsh-g200); }
+.ecsh-main .ec_admin_list_number { color:var(--ec-brand, #7bb141); border-color:var(--ec-brand, #7bb141); border-radius:var(--ecsh-r); }
+.ecsh-main .ec_admin_list_title_edit:hover { color:var(--ec-brand, #7bb141); }
+.ecsh-main .ec_admin_expand_section > div.dashicons-arrow-down-alt2:before,
+.ecsh-main .ec_admin_expand_section > div.dashicons-arrow-up-alt2:before {
+	background:var(--ec-brand, #7bb141); color:var(--ec-on-brand, #fff); border-radius:var(--ecsh-rs);
+}
+.ecsh-main .ec_admin_settings_live_rate_toggle div.dashicons-before,
+.ecsh-main .ec_admin_settings_shipping_divider {
+	background-color:var(--ec-brand, #7bb141); border-color:var(--ec-brand, #7bb141);
+}

@@ -89,6 +89,343 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	}
 
 	/**
+	 * Free-edition Options tab: two option-set slots ( live variation count and
+	 * choice preview ), locked slots 3–5, a warning when the product still carries
+	 * PRO option data, and a PRO preview that shows the variant manager and modifiers.
+	 * Saves through the existing 'options' section endpoint.
+	 */
+	public function print_free_options_v2() {
+		global $wpdb;
+		$p = $this->product;
+		$free_limit = (int) apply_filters( 'wp_easycart_admin_free_option_set_limit', 2 );
+		$pro_status = class_exists( 'wp_easycart_admin_pro_gate' ) ? wp_easycart_admin_pro_gate::pro_status() : array( 'installed' => false, 'active' => false );
+		$pro_inactive = ( $pro_status['installed'] && ! $pro_status['active'] );
+
+		$sets = $wpdb->get_results( "SELECT o.option_id, o.option_name, o.option_label, o.option_type, ( SELECT COUNT(*) FROM ec_optionitem i WHERE i.option_id = o.option_id ) AS item_count FROM ec_option o WHERE o.option_type IN ( 'basic-combo', 'basic-swatch' ) ORDER BY o.option_name ASC" );
+		$by_id = array();
+		$counts = array();
+		foreach ( $sets as $s ) {
+			$by_id[ (int) $s->option_id ] = $s;
+			$counts[ (int) $s->option_id ] = (int) $s->item_count;
+		}
+		$assigned = array();
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$assigned[ $i ] = isset( $p->{ 'option_id_' . $i } ) ? (int) $p->{ 'option_id_' . $i } : 0;
+		}
+		$item_names = array();
+		$used_ids = array();
+		for ( $i = 1; $i <= $free_limit; $i++ ) {
+			if ( $assigned[ $i ] ) {
+				$used_ids[] = $assigned[ $i ];
+			}
+		}
+		if ( $used_ids ) {
+			$rows = $wpdb->get_results( 'SELECT option_id, optionitem_name, optionitem_price FROM ec_optionitem WHERE option_id IN ( ' . implode( ',', array_map( 'intval', $used_ids ) ) . ' ) ORDER BY optionitem_order ASC, optionitem_id ASC' );
+			foreach ( $rows as $r ) {
+				$item_names[ (int) $r->option_id ][] = array( 'name' => $r->optionitem_name, 'price' => (float) $r->optionitem_price );
+			}
+		}
+
+		// PRO data still on this product.
+		$extra_sets = 0;
+		for ( $i = $free_limit + 1; $i <= 5; $i++ ) {
+			if ( $assigned[ $i ] ) {
+				$extra_sets++;
+			}
+		}
+		$modifier_count  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_option_to_product WHERE product_id = %d', (int) $p->product_id ) );
+		$variant_rows    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_optionitemquantity WHERE product_id = %d', (int) $p->product_id ) );
+		$tracks_variants = ( ! empty( $p->use_optionitem_quantity_tracking ) && $variant_rows > 0 );
+		$has_legacy = ( $extra_sets > 0 || $modifier_count > 0 || $tracks_variants );
+
+		$this->section_open( 'options', __( 'Option sets', 'wp-easycart' ), sprintf( __( 'Up to %d sets in the free edition. Each combination of choices becomes a variation.', 'wp-easycart' ), $free_limit ) );
+
+		if ( $has_legacy ) {
+			$parts = array();
+			if ( $extra_sets > 0 ) {
+				$parts[] = sprintf( _n( '%d extra option set', '%d extra option sets', $extra_sets, 'wp-easycart' ), $extra_sets );
+			}
+			if ( $modifier_count > 0 ) {
+				$parts[] = sprintf( _n( '%d modifier', '%d modifiers', $modifier_count, 'wp-easycart' ), $modifier_count );
+			}
+			if ( $tracks_variants ) {
+				$parts[] = sprintf( __( 'stock tracked on %d variations', 'wp-easycart' ), $variant_rows );
+			}
+			echo '<div class="ecdv2-media-notice is-warning" id="ecdv2_options_legacy_notice" data-extra="' . esc_attr( $extra_sets ) . '" data-modifiers="' . esc_attr( $modifier_count ) . '" data-variants="' . ( $tracks_variants ? esc_attr( $variant_rows ) : '0' ) . '">';
+			echo '<span class="dashicons dashicons-warning"></span>';
+			echo '<span><strong>' . esc_html__( 'This product has PRO options:', 'wp-easycart' ) . ' ' . esc_html( implode( ', ', $parts ) ) . '.</strong> ';
+			echo esc_html( sprintf( __( 'Your storefront is still using them. Saving this section keeps the first %d option sets, removes the modifiers and the extra sets, and turns variation stock tracking off. Nothing changes until you save.', 'wp-easycart' ), $free_limit ) ) . '</span>';
+			if ( $pro_inactive ) {
+				echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate PRO to keep them', 'wp-easycart' ) . '</a>';
+			} else {
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;">' . esc_html__( 'Keep them with PRO', 'wp-easycart' ) . '</button>';
+			}
+			echo '</div>';
+		}
+
+		$sec = ' data-ecdv2-sec="' . esc_attr( $this->current_section ) . '"';
+		echo '<input type="hidden" name="use_advanced_optionset" id="use_advanced_optionset" value="0"' . $sec . ' />';
+
+		echo '<div class="ecdv2-opt-slots" id="ecdv2_opt_slots" data-counts="' . esc_attr( wp_json_encode( $counts ) ) . '" data-limit="' . esc_attr( $free_limit ) . '">';
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$name   = 'option' . $i;
+			$cur    = $assigned[ $i ];
+			$locked = ( $i > $free_limit );
+			if ( $locked ) {
+				$legacy = ( $cur && isset( $by_id[ $cur ] ) ) ? $by_id[ $cur ]->option_name : ( $cur ? sprintf( __( 'Option set #%d', 'wp-easycart' ), $cur ) : '' );
+				echo '<div class="ecdv2-opt-slot is-locked' . ( $cur ? ' has-value' : '' ) . '" onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;" role="button" tabindex="0">';
+				echo '<span class="ecdv2-opt-slot-n">' . (int) $i . '</span>';
+				echo '<span class="ecdv2-opt-slot-name">' . esc_html( '' !== $legacy ? $legacy : __( 'PRO slot', 'wp-easycart' ) ) . '</span>';
+				echo '<span class="ecdv2-opt-slot-state">' . esc_html( $cur ? __( 'Removed on save', 'wp-easycart' ) : __( 'Up to 5 sets with PRO', 'wp-easycart' ) ) . '</span>';
+				echo '<span class="ecdv2-media-pill">PRO</span>';
+				echo '<input type="hidden" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $cur ) . '"' . $sec . ' />';
+				echo '</div>';
+				continue;
+			}
+			echo '<div class="ecdv2-opt-slot' . ( $cur ? ' has-value' : '' ) . '" data-slot="' . (int) $i . '">';
+			echo '<span class="ecdv2-opt-slot-n">' . (int) $i . '</span>';
+			echo '<div class="ecdv2-opt-slot-main">';
+			echo '<select name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" class="ecdv2-opt-select"' . $sec . '>';
+			echo '<option value="0">' . esc_html( 1 === $i ? __( 'Choose an option set…', 'wp-easycart' ) : __( 'Add a second option set…', 'wp-easycart' ) ) . '</option>';
+			foreach ( $sets as $s ) {
+				echo '<option value="' . esc_attr( $s->option_id ) . '"' . selected( (int) $s->option_id, $cur, false ) . '>' . esc_html( $s->option_name ) . ' (' . (int) $s->item_count . ')</option>';
+			}
+			echo '</select>';
+			echo '<div class="ecdv2-opt-chips" id="' . esc_attr( $name ) . '_chips">';
+			if ( $cur && isset( $item_names[ $cur ] ) ) {
+				foreach ( $item_names[ $cur ] as $it ) {
+					echo '<span class="ecdv2-opt-chip">' . esc_html( $it['name'] ) . ( $it['price'] > 0 ? ' <em>+' . esc_html( $GLOBALS['currency']->get_currency_display( $it['price'] ) ) . '</em>' : '' ) . '</span>';
+				}
+			}
+			echo '</div>';
+			echo '</div>';
+			echo '<button type="button" class="ecdv2-opt-slot-rm" onclick="ecdv2_opt_clear( \'' . esc_attr( $name ) . '\' ); return false;" aria-label="' . esc_attr__( 'Remove from this product', 'wp-easycart' ) . '"' . ( $cur ? '' : ' hidden' ) . '>×</button>';
+			echo '</div>';
+		}
+		echo '</div>';
+
+		echo '<div class="ecdv2-opt-foot">';
+		echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="if ( typeof ecosv2_open === \'function\' ) { ecosv2_open( { origin: \'standalone\' } ); } return false;">+ ' . esc_html__( 'Create a new option set', 'wp-easycart' ) . '</button>';
+		echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-products&subpage=option' ) ) . '" target="_blank">' . esc_html__( 'Manage all option sets', 'wp-easycart' ) . '</a>';
+		echo '<span class="ecdv2-opt-variations" id="ecdv2_opt_variations"></span>';
+		echo '</div>';
+
+		$this->section_close();
+
+		// ---- PRO preview: variant manager + modifiers, built from the merchant own sets ----
+		$names_of = function( $list ) { $o = array(); foreach ( $list as $x ) { $o[] = $x['name']; } return $o; };
+		$sample_a = ( $assigned[1] && isset( $item_names[ $assigned[1] ] ) ) ? array_slice( $names_of( $item_names[ $assigned[1] ] ), 0, 2 ) : array( __( 'Red', 'wp-easycart' ), __( 'Blue', 'wp-easycart' ) );
+		$sample_b = ( $assigned[2] && isset( $item_names[ $assigned[2] ] ) ) ? array_slice( $names_of( $item_names[ $assigned[2] ] ), 0, 2 ) : array( __( 'Small', 'wp-easycart' ), __( 'Large', 'wp-easycart' ) );
+		$sku_base = ! empty( $p->model_number ) ? $p->model_number : 'sku';
+		$price    = isset( $p->price ) ? (float) $p->price : 24.99;
+
+		echo '<div class="ecdv2-media-upsell" data-upsell-context="products">';
+		echo '<div class="ecdv2-media-upsell-head">';
+		echo '<span class="ecdv2-media-pill">PRO</span>';
+		echo '<div class="ecdv2-media-upsell-copy"><strong>' . esc_html__( 'Variant manager, per-variation stock and modifiers', 'wp-easycart' ) . '</strong>';
+		echo '<span>' . esc_html__( 'What this tab looks like with PRO, using your own option sets. Click anything to see how it works.', 'wp-easycart' ) . '</span></div>';
+		if ( $pro_inactive ) {
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate PRO', 'wp-easycart' ) . '</a>';
+		} else {
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;">' . esc_html__( "See what's included", 'wp-easycart' ) . '</button>';
+		}
+		echo '</div>';
+
+		echo '<div class="ecdv2-media-mock ecdv2-opt-mock" onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;" role="button" tabindex="0">';
+		echo '<div class="ecdv2-media-mock-tag"><span class="dashicons dashicons-visibility"></span> ' . esc_html__( 'Preview — variations from your option sets', 'wp-easycart' ) . '</div>';
+		echo '<table class="ecdv2-opt-mock-table"><thead><tr><th>' . esc_html__( 'Variation', 'wp-easycart' ) . '</th><th>' . esc_html__( 'SKU', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Price', 'wp-easycart' ) . '</th><th>' . esc_html__( 'Stock', 'wp-easycart' ) . '</th></tr></thead><tbody>';
+		$n = 0;
+		$stock_samples = array( 12, 3, 0, 26 );
+		foreach ( $sample_a as $a ) {
+			foreach ( $sample_b as $b ) {
+				$stock = $stock_samples[ $n % 4 ];
+				$sku   = strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', $sku_base . '-' . substr( $a, 0, 3 ) . '-' . substr( $b, 0, 3 ) ) );
+				echo '<tr><td><strong>' . esc_html( $a . ' / ' . $b ) . '</strong></td><td><code>' . esc_html( $sku ) . '</code></td><td>' . esc_html( $GLOBALS['currency']->get_currency_display( $price + ( 1 === $n % 2 ? 2 : 0 ) ) ) . '</td>';
+				echo '<td><span class="ecdv2-opt-mock-stock' . ( 0 === $stock ? ' is-out' : ( $stock < 5 ? ' is-low' : '' ) ) . '">' . esc_html( 0 === $stock ? __( 'Out of stock', 'wp-easycart' ) : sprintf( __( '%d in stock', 'wp-easycart' ), $stock ) ) . '</span></td></tr>';
+				$n++;
+			}
+		}
+		echo '</tbody></table>';
+		echo '<div class="ecdv2-opt-mock-mods">';
+		echo '<span class="ecdv2-media-mock-sets-label">' . esc_html__( 'Modifiers', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-chip">' . esc_html__( 'Engraving text', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-chip is-on">' . esc_html__( 'Gift wrap', 'wp-easycart' ) . ' <em>+' . esc_html( $GLOBALS['currency']->get_currency_display( 3 ) ) . '</em></span>';
+		echo '<span class="ecdv2-media-mock-chip">' . esc_html__( 'Upload artwork', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-chip">' . esc_html__( 'Pickup date', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-drag">' . esc_html__( 'Show “Upload artwork” only when Gift wrap is checked', 'wp-easycart' ) . '</span>';
+		echo '</div>';
+		echo '<div class="ecdv2-media-mock-veil"><span class="ecv2-btn ecv2-btn-primary"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Unlock variants & modifiers', 'wp-easycart' ) . '</span></div>';
+		echo '</div>';
+
+		echo '<ul class="ecdv2-media-upsell-list">';
+		$bullets = array(
+			array( 'dashicons-editor-table', __( 'Variant manager', 'wp-easycart' ), __( 'Every combination in a grid with its own SKU, price adjustment, weight and image.', 'wp-easycart' ) ),
+			array( 'dashicons-archive', __( 'Stock per variation', 'wp-easycart' ), __( 'Sell out of Red / Small without hiding Red / Large. Low-stock and out-of-stock per combination.', 'wp-easycart' ) ),
+			array( 'dashicons-edit', __( 'Modifiers', 'wp-easycart' ), __( 'Text, numbers, dates, file uploads, checkbox and radio add-ons — each with its own price.', 'wp-easycart' ) ),
+			array( 'dashicons-randomize', __( 'Conditional logic', 'wp-easycart' ), __( 'Show or hide a modifier based on what the shopper picked before it.', 'wp-easycart' ) ),
+			array( 'dashicons-plus-alt', __( 'Up to 5 option sets', 'wp-easycart' ), __( 'Size × color × material × finish × length, if you need it.', 'wp-easycart' ) ),
+			array( 'dashicons-upload', __( 'Import & export variations', 'wp-easycart' ), __( 'Bulk-edit SKUs, prices and stock in a spreadsheet and import them back.', 'wp-easycart' ) ),
+		);
+		foreach ( $bullets as $b ) {
+			echo '<li onclick="ecdv2_upsell( { context: \'products\', feature: \'variants\' } );"><span class="dashicons ' . esc_attr( $b[0] ) . '"></span><span><strong>' . esc_html( $b[1] ) . '</strong><em>' . esc_html( $b[2] ) . '</em></span></li>';
+		}
+		echo '</ul>';
+		echo '</div>';
+	}
+
+	/**
+	 * Resolve a stored image value ( legacy file name or absolute URL ) to a URL.
+	 */
+	protected function image_value_url( $value, $slot ) {
+		$value = (string) $value;
+		if ( '' === $value ) {
+			return '';
+		}
+		if ( 0 === strpos( $value, 'http://' ) || 0 === strpos( $value, 'https://' ) ) {
+			return $value;
+		}
+		return plugins_url( '/wp-easycart-data/products/pics' . (int) $slot . '/' . $value, EC_PLUGIN_DATA_DIRECTORY );
+	}
+
+	/**
+	 * Free-edition Media tab: five image slots with real previews, then a PRO
+	 * gallery preview that shows exactly what the merchant is missing.
+	 * Values are saved through the existing image1..image5 section save.
+	 */
+	public function print_free_media_v2() {
+		$p = $this->product;
+		$free_limit = (int) apply_filters( 'wp_easycart_admin_free_image_slot_limit', 2 );
+		$uses_option_images = ! empty( $p->use_optionitem_images );
+		$pro_status = class_exists( 'wp_easycart_admin_pro_gate' ) ? wp_easycart_admin_pro_gate::pro_status() : array( 'installed' => false, 'active' => false );
+		$pro_inactive = ( $pro_status['installed'] && ! $pro_status['active'] );
+
+		// PRO data still on this product ( a former PRO install ): images past the free limit and/or per-option sets.
+		$extra_images = 0;
+		for ( $i = $free_limit + 1; $i <= 5; $i++ ) {
+			if ( ! empty( $p->{ 'image' . $i } ) ) {
+				$extra_images++;
+			}
+		}
+		$gallery_count = 0;
+		if ( isset( $p->product_images ) && '' !== trim( (string) $p->product_images ) ) {
+			$gallery_count = count( array_filter( array_map( 'trim', explode( ',', (string) $p->product_images ) ) ) );
+		}
+		$has_legacy = ( $extra_images > 0 || $uses_option_images || $gallery_count > 0 );
+
+		$this->section_open( 'images', __( 'Product images', 'wp-easycart' ), sprintf( __( 'Up to %d images in the free edition. The first is your main listing image.', 'wp-easycart' ), $free_limit ) );
+
+		if ( $has_legacy ) {
+			$parts = array();
+			if ( $gallery_count > 0 ) {
+				$parts[] = sprintf( _n( 'a %d-image gallery', 'a %d-image gallery', $gallery_count, 'wp-easycart' ), $gallery_count );
+			}
+			if ( $extra_images > 0 ) {
+				$parts[] = sprintf( _n( '%d extra image', '%d extra images', $extra_images, 'wp-easycart' ), $extra_images );
+			}
+			if ( $uses_option_images ) {
+				$parts[] = __( 'per-option image sets', 'wp-easycart' );
+			}
+			echo '<div class="ecdv2-media-notice is-warning" id="ecdv2_media_legacy_notice" data-extra="' . esc_attr( $extra_images ) . '" data-sets="' . ( $uses_option_images ? '1' : '0' ) . '" data-gallery="' . esc_attr( $gallery_count ) . '">';
+			echo '<span class="dashicons dashicons-warning"></span>';
+			echo '<span><strong>' . esc_html__( 'This product has PRO media:', 'wp-easycart' ) . ' ' . esc_html( implode( __( ' and ', 'wp-easycart' ), $parts ) ) . '.</strong> ';
+			echo esc_html( sprintf( __( 'Your storefront is still showing it. Saving this section keeps the first %d images, removes the rest and switches the product page back to the standard image display. Nothing changes until you save.', 'wp-easycart' ), $free_limit ) ) . '</span>';
+			if ( $pro_inactive ) {
+				echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate PRO to keep it', 'wp-easycart' ) . '</a>';
+			} else {
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: \'products\', feature: \'images\' } ); return false;">' . esc_html__( 'Keep it with PRO', 'wp-easycart' ) . '</button>';
+			}
+			echo '</div>';
+		}
+
+		$sec = ' data-ecdv2-sec="' . esc_attr( $this->current_section ) . '"';
+		// use_optionitem_images is posted as 0 from the free panel: saving intentionally returns the product to plain images.
+		echo '<input type="hidden" name="use_optionitem_images" id="use_optionitem_images" value="0"' . $sec . ' />';
+		echo '<div class="ecdv2-media-slots">';
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$name   = 'image' . $i;
+			$value  = isset( $p->{ $name } ) ? (string) $p->{ $name } : '';
+			$url    = $this->image_value_url( $value, $i );
+			$locked = ( $i > $free_limit );
+			echo '<div class="ecdv2-media-slot' . ( '' !== $url ? ' has-image' : '' ) . ( $locked ? ' is-locked' : '' ) . '" data-slot="' . esc_attr( $i ) . '">';
+			if ( $locked ) {
+				// Locked slot: shows any legacy image dimmed, opens the upsell, never edits.
+				echo '<div class="ecdv2-media-slot-thumb" id="' . esc_attr( $name ) . '_preview"' . ( '' !== $url ? ' style="background-image:url(' . esc_url( $url ) . ');"' : '' ) . ' onclick="ecdv2_upsell( { context: \'products\', feature: \'images\' } ); return false;" role="button" tabindex="0" aria-label="' . esc_attr( sprintf( __( 'Image %d — PRO', 'wp-easycart' ), $i ) ) . '">';
+				echo '<span class="ecdv2-media-slot-lock"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg></span>';
+				echo '<span class="ecdv2-media-slot-tag is-pro">PRO</span>';
+				echo '</div>';
+				// Value is echoed unchanged so a save without PRO data is a no-op here; the server clears it regardless.
+				echo '<input type="hidden" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . $sec . ' />';
+				echo '<div class="ecdv2-media-slot-actions"><span class="ecdv2-media-slot-locked-label">' . esc_html( '' !== $url ? __( 'Removed on save', 'wp-easycart' ) : __( 'PRO slot', 'wp-easycart' ) ) . '</span></div>';
+				echo '</div>';
+				continue;
+			}
+			echo '<div class="ecdv2-media-slot-thumb" id="' . esc_attr( $name ) . '_preview"' . ( '' !== $url ? ' style="background-image:url(' . esc_url( $url ) . ');"' : '' ) . ' onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\', false, \'image\' ); return false;" role="button" tabindex="0" aria-label="' . esc_attr( sprintf( __( 'Choose image %d', 'wp-easycart' ), $i ) ) . '">';
+			echo '<svg class="ecdv2-media-slot-ph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>';
+			if ( 1 === $i ) {
+				echo '<span class="ecdv2-media-slot-tag">' . esc_html__( 'Main', 'wp-easycart' ) . '</span>';
+			}
+			echo '</div>';
+			echo '<input type="hidden" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . $sec . ' />';
+			echo '<div class="ecdv2-media-slot-actions">';
+			echo '<button type="button" class="ecdv2-media-link" onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\', false, \'image\' ); return false;">' . esc_html( '' !== $url ? __( 'Replace', 'wp-easycart' ) : __( 'Choose', 'wp-easycart' ) ) . '</button>';
+			echo '<button type="button" class="ecdv2-media-link ecdv2-media-link-remove" onclick="ecdv2.media_clear( \'' . esc_attr( $name ) . '\' ); return false;"' . ( '' === $url ? ' hidden' : '' ) . '>' . esc_html__( 'Remove', 'wp-easycart' ) . '</button>';
+			echo '</div>';
+			echo '</div>';
+		}
+		echo '</div>';
+		echo '<div class="ecdv2-media-hint">' . esc_html( sprintf( __( 'Images are saved with this section. The first slot is used in your product list and as the storefront thumbnail. Slots %d–5 need PRO.', 'wp-easycart' ), $free_limit + 1 ) ) . '</div>';
+
+		$this->section_close();
+
+		// ---- PRO gallery preview ------------------------------------------
+		$main_url = $this->image_value_url( isset( $p->image1 ) ? $p->image1 : '', 1 );
+		echo '<div class="ecdv2-media-upsell" data-upsell-context="products">';
+		echo '<div class="ecdv2-media-upsell-head">';
+		echo '<span class="ecdv2-media-pill">PRO</span>';
+		echo '<div class="ecdv2-media-upsell-copy"><strong>' . esc_html__( 'Gallery, video and per-option image sets', 'wp-easycart' ) . '</strong>';
+		echo '<span>' . esc_html__( 'What this product page looks like with PRO. Click anything to see how it works.', 'wp-easycart' ) . '</span></div>';
+		if ( $pro_inactive ) {
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate PRO', 'wp-easycart' ) . '</a>';
+		} else {
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="ecdv2_upsell( { context: \'products\', feature: \'images\' } ); return false;">' . esc_html__( "See what's included", 'wp-easycart' ) . '</button>';
+		}
+		echo '</div>';
+
+		// Mock gallery: the merchant's own main image leads, then sample tiles.
+		echo '<div class="ecdv2-media-mock" onclick="ecdv2_upsell( { context: \'products\', feature: \'images\' } ); return false;" role="button" tabindex="0">';
+		echo '<div class="ecdv2-media-mock-tag"><span class="dashicons dashicons-visibility"></span> ' . esc_html__( 'Preview with sample gallery', 'wp-easycart' ) . '</div>';
+		echo '<div class="ecdv2-media-mock-strip">';
+		echo '<div class="ecdv2-media-mock-tile is-main"' . ( '' !== $main_url ? ' style="background-image:url(' . esc_url( $main_url ) . ');"' : '' ) . '><span>' . esc_html__( 'Main', 'wp-easycart' ) . '</span></div>';
+		echo '<div class="ecdv2-media-mock-tile t2"></div>';
+		echo '<div class="ecdv2-media-mock-tile t3"></div>';
+		echo '<div class="ecdv2-media-mock-tile is-video"><span class="ecdv2-media-mock-play">▶</span><em>' . esc_html__( 'YouTube', 'wp-easycart' ) . '</em></div>';
+		echo '<div class="ecdv2-media-mock-tile t5"></div>';
+		echo '<div class="ecdv2-media-mock-tile is-video is-vimeo"><span class="ecdv2-media-mock-play">▶</span><em>' . esc_html__( 'Vimeo', 'wp-easycart' ) . '</em></div>';
+		echo '<div class="ecdv2-media-mock-tile is-add">+</div>';
+		echo '</div>';
+		echo '<div class="ecdv2-media-mock-sets">';
+		echo '<span class="ecdv2-media-mock-sets-label">' . esc_html__( 'Image set for', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-chip is-on">' . esc_html__( 'Red', 'wp-easycart' ) . '</span><span class="ecdv2-media-mock-chip">' . esc_html__( 'Blue', 'wp-easycart' ) . '</span><span class="ecdv2-media-mock-chip">' . esc_html__( 'Green', 'wp-easycart' ) . '</span>';
+		echo '<span class="ecdv2-media-mock-drag">' . esc_html__( 'Drag to reorder · first tile is the listing image', 'wp-easycart' ) . '</span>';
+		echo '</div>';
+		echo '<div class="ecdv2-media-mock-veil"><span class="ecv2-btn ecv2-btn-primary"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Unlock gallery & video', 'wp-easycart' ) . '</span></div>';
+		echo '</div>';
+
+		echo '<ul class="ecdv2-media-upsell-list">';
+		$bullets = array(
+			array( 'dashicons-format-gallery', __( 'Unlimited images', 'wp-easycart' ), __( 'Pull straight from the Media Library or paste an image URL — no five-slot limit.', 'wp-easycart' ) ),
+			array( 'dashicons-video-alt3', __( 'Video in the gallery', 'wp-easycart' ), __( 'YouTube, Vimeo or a hosted MP4 sits alongside the photos.', 'wp-easycart' ) ),
+			array( 'dashicons-move', __( 'Drag to reorder', 'wp-easycart' ), __( 'The first tile becomes the listing image; changes save automatically.', 'wp-easycart' ) ),
+			array( 'dashicons-color-picker', __( 'Per-option image sets', 'wp-easycart' ), __( 'A different gallery for each color, material or style the shopper picks.', 'wp-easycart' ) ),
+		);
+		foreach ( $bullets as $b ) {
+			echo '<li onclick="ecdv2_upsell( { context: \'products\', feature: \'images\' } );"><span class="dashicons ' . esc_attr( $b[0] ) . '"></span><span><strong>' . esc_html( $b[1] ) . '</strong><em>' . esc_html( $b[2] ) . '</em></span></li>';
+		}
+		echo '</ul>';
+		echo '</div>';
+	}
+
+	/**
 	 * Render a locked PRO feature row using the central gate.
 	 * $feature_key controls the optional enabled_filter check.
 	 */
@@ -192,17 +529,33 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 	 */
 	public function v2_featured_tag_inactive( $fields, $product = false ) {
 		global $wpdb;
-		$inactive_ids = $wpdb->get_col( 'SELECT product_id FROM ec_product WHERE activate_in_store = 0' );
-		if ( empty( $inactive_ids ) ) {
-			return $fields;
+		/* Only the options actually present need checking ( the base query already flags them
+		 * when the V2 editor is active; this covers the classic full-list path without a
+		 * whole-table scan ). Also mark each picker as an AJAX product search. */
+		$ids = array();
+		foreach ( $fields as $field ) {
+			if ( isset( $field['data'] ) && is_array( $field['data'] ) ) {
+				foreach ( $field['data'] as $option ) {
+					if ( is_object( $option ) && ! isset( $option->inactive ) ) {
+						$ids[] = (int) $option->id;
+					}
+				}
+			}
 		}
-		$lookup = array_flip( array_map( 'intval', $inactive_ids ) );
+		$lookup = array();
+		if ( $ids ) {
+			$ids = array_slice( array_unique( $ids ), 0, 500 );
+			$lookup = array_flip( array_map( 'intval', $wpdb->get_col( 'SELECT product_id FROM ec_product WHERE activate_in_store = 0 AND product_id IN ( ' . implode( ',', $ids ) . ' )' ) ) );
+		}
 		foreach ( $fields as $fi => $field ) {
+			if ( isset( $field['name'] ) && 0 === strpos( $field['name'], 'featured_product_id_' ) ) {
+				$fields[ $fi ]['ajax'] = 'products';
+			}
 			if ( ! isset( $field['data'] ) || ! is_array( $field['data'] ) ) {
 				continue;
 			}
 			foreach ( $field['data'] as $option ) {
-				if ( is_object( $option ) && isset( $lookup[ (int) $option->id ] ) ) {
+				if ( is_object( $option ) && ! isset( $option->inactive ) && isset( $lookup[ (int) $option->id ] ) ) {
 					$option->inactive = 1;
 				}
 			}
@@ -341,6 +694,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			return array();
 		};
 		add_filter( 'wp_easycart_admin_product_details_google_merchant_fields_list', $capture_cb, 9999 );
+
 		ob_start();
 		do_action( 'wp_easycart_admin_product_details_googlemerchant_fields' );
 		$legacy_html = ob_get_clean();
@@ -492,6 +846,24 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			$req_value = array_key_exists( 'value', $field['requires'] ) ? $field['requires']['value'] : 1;
 			$req_val = is_array( $req_value ) ? implode( ',', $req_value ) : $req_value;
 			$attrs .= ' data-ecdv2-requires="' . esc_attr( $field['requires']['name'] ) . '" data-ecdv2-requires-value="' . esc_attr( $req_val ) . '"';
+		} else if ( isset( $field['requires'] ) && is_array( $field['requires'] ) && isset( $field['requires'][0]['name'] ) ) {
+			/* Multi-condition requires ( e.g. download_file_name shows only
+			 * when is_download=1 AND is_amazon_download=0 ). All conditions
+			 * must match, mirroring the legacy printer's evaluation. */
+			$conditions = array();
+			foreach ( $field['requires'] as $condition ) {
+				if ( ! isset( $condition['name'] ) ) {
+					continue;
+				}
+				$condition_value = array_key_exists( 'value', $condition ) ? $condition['value'] : 1;
+				$conditions[] = array(
+					'name'  => (string) $condition['name'],
+					'value' => is_array( $condition_value ) ? implode( ',', $condition_value ) : (string) $condition_value,
+				);
+			}
+			if ( ! empty( $conditions ) ) {
+				$attrs .= " data-ecdv2-requires-multi='" . esc_attr( wp_json_encode( $conditions ) ) . "'";
+			}
 		}
 		return $attrs;
 	}
@@ -633,6 +1005,10 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			case 'select':
 				$multiple = ( isset( $field['multiple'] ) && $field['multiple'] ) ? ' multiple="multiple"' : '';
 				$select2 = ( isset( $field['select2'] ) && 'none' !== $field['select2'] ) ? ' ecdv2-select2' : '';
+				if ( ! empty( $field['ajax'] ) ) {
+					$select2 = ' ecdv2-select2-ajax';
+					$onchange .= ' data-ecdv2-ajax="' . esc_attr( $field['ajax'] ) . '" data-ecdv2-exclude="' . esc_attr( (int) $this->product->product_id ) . '"';
+				}
 				echo '<div class="ecdv2-field"' . $deps . ( $hidden_dep ? ' style="display:none;"' : '' ) . '>';
 				echo '<label class="ecdv2-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . $required . '</label>';
 				echo '<select name="' . esc_attr( $name ) . ( $multiple ? '[]' : '' ) . '" id="' . esc_attr( $name ) . '" class="' . esc_attr( trim( $select2 ) ) . '"' . $multiple . $sec . $onchange . $validation . '>';
@@ -737,7 +1113,9 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				echo '<div style="display:flex; gap:8px;">';
 				echo '<input type="text" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" style="flex:1;"' . $sec . $placeholder . ' />';
 				if ( 'image_upload' === $type ) {
-					echo '<input type="button" value="' . esc_attr__( 'Select File', 'wp-easycart' ) . '" onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\' ); return false;" />';
+					// Image fields filter the library to images; other uploads ( downloads ) stay unfiltered.
+					$is_image_field = ( 0 === strpos( $name, 'image' ) || false !== strpos( $name, '_image' ) || false !== strpos( $name, 'swatch' ) );
+					echo '<input type="button" value="' . esc_attr( $is_image_field ? __( 'Select Image', 'wp-easycart' ) : __( 'Select File', 'wp-easycart' ) ) . '" onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\', false' . ( $is_image_field ? ', \'image\'' : '' ) . ' ); return false;" />';
 				}
 				echo '</div></div>';
 				break;
@@ -755,7 +1133,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				echo '<div style="display:flex; align-items:center; gap:10px;">';
 				echo '<div id="' . esc_attr( $name ) . '_preview" style="width:64px; height:64px; border-radius:6px; background:var(--ecv2-g100) center/cover no-repeat; flex-shrink:0;' . ( $preview ? ' background-image:url(' . esc_url( $preview ) . ');' : '' ) . '"></div>';
 				echo '<input type="hidden" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . $sec . ' />';
-				echo '<input type="button" value="' . esc_attr__( 'Choose Image', 'wp-easycart' ) . '" onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\', true ); return false;" />';
+				echo '<input type="button" value="' . esc_attr__( 'Choose Image', 'wp-easycart' ) . '" onclick="ecdv2.media_pick( \'' . esc_attr( $name ) . '\', true, \'image\' ); return false;" />';
 				echo '<input type="button" value="' . esc_attr__( 'Remove', 'wp-easycart' ) . '" onclick="ecdv2.media_clear( \'' . esc_attr( $name ) . '\' ); return false;" />';
 				echo '</div></div>';
 				break;
@@ -830,18 +1208,26 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			echo '<span class="ecdv2-cat-token" data-category-id="' . esc_attr( $cat_id ) . '">' . esc_html( $cat_name ) . '<button type="button" onclick="ecdv2.category_remove( ' . (int) $cat_id . ' );" aria-label="' . esc_attr__( 'Remove category', 'wp-easycart' ) . '">&times;</button></span>';
 		}
 		echo '</div>';
-		echo '<div class="ecdv2-cat-add">';
-		echo '<select id="ecdv2_cat_select" class="ecdv2-select2">';
-		echo '<option value="0">' . esc_html__( 'Select a category to add...', 'wp-easycart' ) . '</option>';
+		/*
+		 * Unified add/create combobox: type to filter existing categories or
+		 * create a new one inline ( products-details-v2.js drives it from the
+		 * JSON catalog below; assignment state lives in the tokens ).
+		 */
+		$ecdv2_cat_catalog = array();
 		foreach ( $all_categories as $category ) {
 			if ( ! isset( $assigned[ $category->category_id ] ) ) {
-				echo '<option value="' . esc_attr( $category->category_id ) . '">' . esc_html( $category->category_name ) . '</option>';
+				$ecdv2_cat_catalog[] = array( 'id' => (int) $category->category_id, 'name' => wp_unslash( $category->category_name ) );
 			}
 		}
-		echo '</select>';
-		echo '<input type="button" value="' . esc_attr__( 'Add', 'wp-easycart' ) . '" onclick="ecdv2.category_add(); return false;" />';
-		echo '<a href="admin.php?page=wp-easycart-products&subpage=categories" target="_blank" style="align-self:center; font-size:12px;">' . esc_html__( 'Manage categories', 'wp-easycart' ) . '</a>';
-		echo '</div></div>';
+		echo '<div class="ecdv2-cat-add">';
+		echo '<div class="ecdv2-cat-combo" id="ecdv2_cat_combo">';
+		echo '<input type="text" id="ecdv2_cat_input" class="ecv2-input" autocomplete="off" placeholder="' . esc_attr__( 'Type to add a category — or create a new one…', 'wp-easycart' ) . '" />';
+		echo '<div class="ecdv2-cat-menu" id="ecdv2_cat_menu" style="display:none;"></div>';
+		echo '</div>';
+		echo '<a href="admin.php?page=wp-easycart-products&subpage=category" target="_blank" class="ecv2-btn ecdv2-cat-manage">' . esc_html__( 'Manage', 'wp-easycart' ) . ' <span class="dashicons dashicons-external"></span></a>';
+		echo '</div>';
+		echo '<script type="application/json" id="ecdv2_cat_data">' . wp_json_encode( $ecdv2_cat_catalog ) . '</script>';
+		echo '</div>';
 	}
 
 	private function print_tier_pricing_v2( $label ) {

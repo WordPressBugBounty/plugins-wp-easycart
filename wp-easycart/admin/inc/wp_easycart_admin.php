@@ -121,7 +121,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$this->new_unviewed_orders = $this->get_total_new_unviewed_orders( );
 
 			// EasyCart Admin Actions
+			add_action( 'wp_easycart_admin_messages', array( $this, 'print_core_notices_in_shell' ), 5 );
 			add_action( 'wp_easycart_admin_messages', array( $this, 'load_upsell_image' ) );
+			add_action( 'wp_easycart_admin_messages', array( $this, 'load_renewal_notice' ) );
+			add_action( 'wp_ajax_ec_admin_ajax_ecv2_dismiss_renewal', array( $this, 'ajax_dismiss_renewal_notice' ) );
 			add_action( 'wp_easycart_admin_upsell_popup', array( $this, 'load_upsell_popup' ) );
 			add_action( 'wp_easycart_admin_mobile_navigation', array( $this, 'load_mobile_navigation' ), 1, 0 );
 			add_action( 'wp_easycart_admin_left_navigation', array( $this, 'load_left_navigation' ), 1, 0 );
@@ -2471,6 +2474,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_giftcard_details', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_promotion_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_promotion_details', array( $this, 'show_upgrade' ) );
+			add_action( 'wp_easycart_admin_offers_hub', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_fee_list_example' ) );
 			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_fee_details', array( $this, 'show_upgrade' ) );
@@ -2794,21 +2798,24 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		public function load_marketing_content( ){
-			if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "gift-cards" ){
+			if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "gift-cards" ) {
 				$giftcards = new wp_easycart_admin_giftcards( );
 				$giftcards = $giftcards->load_giftcards_list();
-			}else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "coupons" ){
+			} else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "coupons" ) {
 				$coupons = new wp_easycart_admin_coupons( );
 				$coupons = $coupons->load_coupons_list();
-			}else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "promotions" ){
+			} else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "promotions" ) {
 				$promotions = new wp_easycart_admin_promotions( );
 				$promotions = $promotions->load_promotions_list();
-			}else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "abandon-cart" ){
+			} else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "abandon-cart" ) {
 				$abandon_cart = new wp_easycart_admin_abandon_cart( );
 				$abandon_cart->load_abandon_cart( );
-			}else{
-				$coupons = new wp_easycart_admin_coupons( );
-				$coupons = $coupons->load_coupons_list();
+			} else if( isset( $_GET['subpage'] ) && $_GET['subpage'] == "cart-links" ) {
+				$cart_links = new wp_easycart_admin_cart_links( );
+				$cart_links->load_cart_links_list( );
+			} else {
+				$offers = new wp_easycart_admin_offers( );
+				$offers->load_offers_hub();
 			}
 		}
 
@@ -2882,7 +2889,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "subscribers" ) {
 				return __( 'WP EasyCart Subscribers', 'wp-easycart' );
 
-			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "coupons" ) ) {
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "offers" ) ) {
+				return __( 'WP EasyCart Offers', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "coupons" ) {
 				return __( 'WP EasyCart Coupons', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "gift-cards" ) {
 				return __( 'WP EasyCart Gift Cards', 'wp-easycart' );
@@ -2890,6 +2899,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return __( 'WP EasyCart Promotions', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "abandon-cart" ) {
 				return __( 'WP EasyCart Abandoned Cart', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-rates" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "cart-links" ) {
+				return __( 'WP EasyCart Cart Links', 'wp-easycart' );
 
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "initial-setup" ) ) {
 				return __( 'WP EasyCart Initial Setup', 'wp-easycart' );
@@ -3089,10 +3100,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_enqueue_style( 'wpeasycart-jquery-ui-css' );
 				wp_enqueue_style( 'wp-color-picker' );
 
-				if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "inventory" ) {
-					wp_register_script( 'wp_easycart_admin_inventory_js', plugins_url( 'wp-easycart/admin/js/inventory.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_inventory_js' );	
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "category" ){
+				if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "category" ){
 					wp_register_script( 'wp_easycart_admin_category_js', plugins_url( 'wp-easycart/admin/js/category.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_category_js' );	
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-orders" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "orders" ) ){
@@ -3100,12 +3108,20 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					wp_enqueue_style('jquery-ui-datepicker');
 					wp_register_script( 'wp_easycart_admin_orders_js', plugins_url( 'wp-easycart/admin/js/orders.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-datepicker' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_orders_js' );
+					$this->wp_easycart_enqueue_orders_v2_script();
+					if ( isset( $_GET['page'] ) && 'wp-easycart-orders' == $_GET['page'] && ( ! isset( $_GET['subpage'] ) || 'orders' == $_GET['subpage'] ) && isset( $_GET['order_id'] ) && isset( $_GET['ec_admin_form_action'] ) && 'edit' == $_GET['ec_admin_form_action'] ) {
+						wp_enqueue_style( 'wp_easycart_admin_v2_css', plugins_url( '../css/admin-v2.css', __FILE__ ), array(), EC_CURRENT_VERSION );
+						wp_enqueue_style( 'wp_easycart_admin_details_v2_css', plugins_url( '../css/admin-details-v2.css', __FILE__ ), array(), EC_CURRENT_VERSION );
+						wp_enqueue_style( 'wp_easycart_admin_order_details_v2_css', plugins_url( '../css/admin-order-details-v2.css', __FILE__ ), array(), EC_CURRENT_VERSION );
+						wp_enqueue_script( 'wp_easycart_admin_orders_details_v2_js', plugins_url( '../js/orders-details-v2.js', __FILE__ ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+					}
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "menus" ){
 					wp_register_script( 'wp_easycart_admin_menus_js', plugins_url( 'wp-easycart/admin/js/menus.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_menus_js' );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && ( $_GET['subpage'] == "option" || $_GET['subpage'] == "optionitems" ) ){
 					wp_register_script( 'wp_easycart_admin_option_js', plugins_url( 'wp-easycart/admin/js/option.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_option_js' );
+					$this->enqueue_option_set_slideout_assets();
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "products" ) ){
 					$this->wp_easycart_enqueue_products_script( );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "accounts" || $_GET['subpage'] == "user-roles" ) ){
@@ -3116,6 +3132,79 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						'processing-import'         => __( 'Processing Import File...  Please wait.', 'wp-easycart' ),
 						'import-completed'          => __( 'Completed!  You may refresh your screen.', 'wp-easycart' )
 					) );
+					wp_register_script( 'wp_easycart_admin_users_v2', plugins_url( 'wp-easycart/admin/js/users-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+					wp_enqueue_script( 'wp_easycart_admin_users_v2' );
+					wp_register_style( 'wp_easycart_admin_users_v2_css', plugins_url( 'wp-easycart/admin/css/admin-users-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
+					wp_enqueue_style( 'wp_easycart_admin_users_v2_css' );
+
+					wp_localize_script( 'wp_easycart_admin_users_v2', 'ecv2_user_nonces', array(
+						'inline_update' => wp_create_nonce( 'wp-easycart-ecv2-user-inline-update' ),
+						'bulk_edit'     => wp_create_nonce( 'wp-easycart-ecv2-user-bulk-edit' ),
+						'quick_edit'    => wp_create_nonce( 'wp-easycart-ecv2-user-quick-edit' ),
+					) );
+
+					wp_localize_script( 'wp_easycart_admin_users_v2', 'ecv2_user_lang', array(
+						'saved'                    => esc_html__( 'Saved successfully.', 'wp-easycart' ),
+						'error'                    => esc_html__( 'An error occurred. Please try again.', 'wp-easycart' ),
+						'undone'                   => esc_html__( 'Change reverted.', 'wp-easycart' ),
+						'undo_available'           => esc_html__( 'Action completed. Undo available.', 'wp-easycart' ),
+						'field_updated'            => esc_html__( 'Field updated', 'wp-easycart' ),
+						'click_undo'               => esc_html__( 'Click Undo to revert.', 'wp-easycart' ),
+						'applying_filters'         => esc_html__( 'Applying filters…', 'wp-easycart' ),
+						'clear_filter'             => esc_html__( 'Clear this filter', 'wp-easycart' ),
+						'customers'                => esc_html__( 'customers', 'wp-easycart' ),
+						'no_changes'               => esc_html__( 'No changes selected.', 'wp-easycart' ),
+						'no_name'                  => esc_html__( '(no name)', 'wp-easycart' ),
+						'bulk_no_action'           => esc_html__( 'Please select a bulk action.', 'wp-easycart' ),
+						'bulk_none_selected'       => esc_html__( 'Please select customers first.', 'wp-easycart' ),
+						'bulk_max_exceeded'        => esc_html__( 'You can only process up to 100 customers at a time with this action. Please narrow your selection.', 'wp-easycart' ),
+						'bulk_max_exceeded_500'    => esc_html__( 'You can only process up to 500 customers at a time.', 'wp-easycart' ),
+						'bulk_confirm_delete_title' => esc_html__( 'Delete customers?', 'wp-easycart' ),
+						'bulk_confirm_delete_one'  => esc_html__( 'Permanently delete this customer account? Their addresses are removed too. Orders are kept. This cannot be undone.', 'wp-easycart' ),
+						/* translators: %d: number of customer accounts. */
+						'bulk_confirm_delete_many' => esc_html__( 'Permanently delete %d customer accounts? Their addresses are removed too. Orders are kept. This cannot be undone.', 'wp-easycart' ),
+						'bulk_confirm_reset_title' => esc_html__( 'Force password reset?', 'wp-easycart' ),
+						/* translators: %d: number of customer accounts. */
+						'bulk_confirm_reset'       => esc_html__( 'Invalidate the current password for %d customer(s) and email each a reset link?', 'wp-easycart' ),
+						'row_confirm_reset_title'  => esc_html__( 'Send password reset?', 'wp-easycart' ),
+						'row_confirm_reset'        => esc_html__( 'This invalidates the customer’s current password immediately and emails them a reset link. Continue?', 'wp-easycart' ),
+						'pro_gate'                 => wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => '5.9.3' ) ),
+					) );
+					
+					$wpec_is_user_details = isset( $_GET['ec_admin_form_action'] ) && in_array( $_GET['ec_admin_form_action'], array( 'edit', 'add-new' ), true );
+					if ( ( ! isset( $_GET['subpage'] ) || 'accounts' == $_GET['subpage'] ) && $wpec_is_user_details ) {
+						wp_register_style( 'wp_easycart_admin_details_v2_css', plugins_url( 'wp-easycart/admin/css/admin-details-v2.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
+						wp_enqueue_style( 'wp_easycart_admin_details_v2_css' );
+						wp_register_style( 'wp_easycart_admin_users_v2_css', plugins_url( 'wp-easycart/admin/css/admin-users-v2.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
+						wp_enqueue_style( 'wp_easycart_admin_users_v2_css' );
+						wp_register_style( 'wp_easycart_admin_users_details_v2_css', plugins_url( 'wp-easycart/admin/css/admin-users-details-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_details_v2_css' ), EC_CURRENT_VERSION );
+						wp_enqueue_style( 'wp_easycart_admin_users_details_v2_css' );
+
+						wp_register_script( 'wp_easycart_admin_users_details_v2', plugins_url( 'wp-easycart/admin/js/users-details-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+						wp_enqueue_script( 'wp_easycart_admin_users_details_v2' );
+						wp_localize_script( 'wp_easycart_admin_users_details_v2', 'ecudv2_lang', array(
+							'first_required'  => esc_html__( 'Please enter a first name.', 'wp-easycart' ),
+							'last_required'   => esc_html__( 'Please enter a last name.', 'wp-easycart' ),
+							'email_required'  => esc_html__( 'Please enter a valid email address.', 'wp-easycart' ),
+							'role_required'   => esc_html__( 'Please select a user access level.', 'wp-easycart' ),
+							'password_length' => esc_html__( 'Please enter a password 8 characters or greater.', 'wp-easycart' ),
+							'password_match'  => esc_html__( 'Passwords do not match.', 'wp-easycart' ),
+							'nothing_to_save' => esc_html__( 'No changes to save.', 'wp-easycart' ),
+							'save_failed'     => esc_html__( 'Save failed. Please try again.', 'wp-easycart' ),
+							'saved'           => esc_html__( 'Customer saved.', 'wp-easycart' ),
+							'save_first'      => esc_html__( 'Save the essentials first to unlock this section.', 'wp-easycart' ),
+							'email_in_use'    => esc_html__( 'Another account already uses this email address.', 'wp-easycart' ),
+							'copied'          => esc_html__( 'Billing address copied to shipping.', 'wp-easycart' ),
+							'active'          => esc_html__( 'Active', 'wp-easycart' ),
+							'activated'       => esc_html__( 'Activated', 'wp-easycart' ),
+							'error'           => esc_html__( 'An error occurred. Please try again.', 'wp-easycart' ),
+							'reset_title'     => esc_html__( 'Send password reset?', 'wp-easycart' ),
+							'reset_body'      => esc_html__( 'This invalidates the customer’s current password immediately and emails them a reset link. Continue?', 'wp-easycart' ),
+							'delete_title'    => esc_html__( 'Delete customer?', 'wp-easycart' ),
+							'delete_body'     => esc_html__( 'Permanently delete this customer account? The profile and addresses are removed. Orders are kept. This cannot be undone.', 'wp-easycart' ),
+							'created'         => esc_html__( 'Customer created. All sections are now unlocked.', 'wp-easycart' ),
+						) );
+					}
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "initial-setup" ) ){
 					wp_register_script( 'wp_easycart_admin_initial_setup_js', plugins_url( 'wp-easycart/admin/js/initial-setup.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_initial_setup_js' );
@@ -3205,7 +3294,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_register_style( 'wp_easycart_upgrade_css', plugins_url( 'wp-easycart/admin/css/upgrade.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_upgrade_css' );
 				
-				if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "products" ) && function_exists( 'wp_easycart_product_details_v2_enabled' ) && wp_easycart_product_details_v2_enabled() ){
+				if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "products" ) ) {
 					wp_register_style( 'wp_easycart_admin_details_v2_css', plugins_url( 'wp-easycart/admin/css/admin-details-v2.css', EC_PLUGIN_DIRECTORY ), array( ), EC_CURRENT_VERSION );
 					wp_enqueue_style( 'wp_easycart_admin_details_v2_css' );
 
@@ -3214,10 +3303,120 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					wp_localize_script( 'wp-easycart-products-details-v2', 'wpeasycart_ecdv2_i18n', array(
 						'save' => __( 'Save', 'wp-easycart' ),
 						'saved' => __( 'Product saved.', 'wp-easycart' ),
+						/* Free Media tab. */
+						'searching'           => __( 'Searching…', 'wp-easycart' ),
+						'no_products'         => __( 'No products match', 'wp-easycart' ),
+						'loading_more'        => __( 'Loading more…', 'wp-easycart' ),
+						'inactive'            => __( 'inactive', 'wp-easycart' ),
+						'select_image'        => __( 'Select image', 'wp-easycart' ),
+						'use_image'           => __( 'Use this image', 'wp-easycart' ),
+						'choose_image'        => __( 'Choose', 'wp-easycart' ),
+						'replace_image'       => __( 'Replace', 'wp-easycart' ),
+						'one_extra_image'     => __( '1 extra image', 'wp-easycart' ),
+						/* translators: %d is a count. */
+						'n_extra_images'      => __( '%d extra images', 'wp-easycart' ),
+						'option_image_sets'   => __( 'the per-option image sets', 'wp-easycart' ),
+						/* translators: %d is a count. */
+						'n_image_gallery'     => __( 'the %d-image gallery', 'wp-easycart' ),
+						/* Free Options tab. */
+						'loading'             => __( 'Loading…', 'wp-easycart' ),
+						'opt_no_sets'         => __( 'No option sets — this product sells as a single item.', 'wp-easycart' ),
+						/* translators: %1 = set name, %2 = count. */
+						'opt_one_set'         => __( '%1 · %2 variations', 'wp-easycart' ),
+						/* translators: %1 = set name, %2 = set name, %3 = count. */
+						'opt_two_sets'        => __( '%1 × %2 · %3 variations', 'wp-easycart' ),
+						'one_extra_set'       => __( '1 extra option set', 'wp-easycart' ),
+						/* translators: %d is a count. */
+						'n_extra_sets'        => __( '%d extra option sets', 'wp-easycart' ),
+						'one_modifier'        => __( '1 modifier', 'wp-easycart' ),
+						/* translators: %d is a count. */
+						'n_modifiers'         => __( '%d modifiers', 'wp-easycart' ),
+						/* translators: %d is a count. */
+						'variant_stock'       => __( 'stock tracking on %d variations', 'wp-easycart' ),
+						/* translators: %s describes the PRO option data that will be removed. */
+						'lossy_options_confirm' => __( 'Saving will remove %s from this product and keep only the first two option sets. This cannot be undone without PRO. Save anyway?', 'wp-easycart' ),
+						/* translators: %s describes the PRO media that will be removed. */
+						'lossy_media_confirm' => __( 'Saving will remove %s from this product and keep only the first two images. This cannot be undone without PRO. Save anyway?', 'wp-easycart' ),
 					) );
 
 					wp_add_inline_script( 'wp-easycart-products-details-v2', 'window.wpeasycart_ecdv2_currency = ' . wp_json_encode( get_option( 'ec_option_currency_symbol', '$' ) ) . ';', 'before' );
+
+					// Unified Create / Quick Edit product slideout.
+					wp_register_style( 'wp_easycart_product_slideout_v2_css', plugins_url( 'wp-easycart/admin/css/product-slideout-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
+					wp_enqueue_style( 'wp_easycart_product_slideout_v2_css' );
+					wp_register_script( 'wp_easycart_product_slideout_v2_js', plugins_url( 'wp-easycart/admin/js/product-slideout-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'wp_easycart_admin_js' ), EC_CURRENT_VERSION, true );
+					wp_enqueue_script( 'wp_easycart_product_slideout_v2_js' );
+					$this->enqueue_option_set_slideout_assets();
+					wp_localize_script( 'wp_easycart_product_slideout_v2_js', 'ecpsv2_vars', array(
+						'currency'     => get_option( 'ec_option_currency_symbol', '$' ),
+						'decimals'     => (int) $GLOBALS['currency']->get_decimal_length(),
+						'is_pro'       => ( '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) ),
+						'variants_pro' => ( function_exists( 'ecv2_is_variant_tracking_enabled' ) && ecv2_is_variant_tracking_enabled() ),
+						'default_tax'  => '0',
+						'lang'         => array(
+							'untitled'         => __( 'Untitled product', 'wp-easycart' ),
+							'loading'          => __( 'Loading…', 'wp-easycart' ),
+							'saved'            => __( 'Product saved.', 'wp-easycart' ),
+							/* translators: %s is the product title. */
+							'created_named'    => __( '“%s” created.', 'wp-easycart' ),
+							'error'            => __( 'An error occurred. Please try again.', 'wp-easycart' ),
+							'network'          => __( 'Network error. Please check your connection and try again.', 'wp-easycart' ),
+							'confirm_discard'  => __( 'You have unsaved changes. Close without saving?', 'wp-easycart' ),
+							'sku_blank'        => __( 'Leave blank to generate from the title.', 'wp-easycart' ),
+							'sku_generated'    => __( 'Generated from the title — edit to override.', 'wp-easycart' ),
+							'sku_custom'       => __( 'Custom SKU.', 'wp-easycart' ),
+							'sku_edit_hint'    => __( 'Changing the SKU changes the product URL.', 'wp-easycart' ),
+							'sku_required'     => __( 'A SKU is required.', 'wp-easycart' ),
+							'sku_duplicate'    => __( 'That SKU is already in use — choose another.', 'wp-easycart' ),
+							/* translators: %1 = list price, %2 = percent off. */
+							'disc_shows'       => __( 'Storefront shows %1 struck through · %2% off', 'wp-easycart' ),
+							'disc_not_higher'  => __( 'List price should be higher than the price.', 'wp-easycart' ),
+							'disc_default'     => __( 'Shows a strike-through price and "% off" badge.', 'wp-easycart' ),
+							'type_pro_hint'    => __( 'Downloads, subscriptions, gift cards and more are PRO types.', 'wp-easycart' ),
+							'type_stripe'      => __( 'Subscriptions and memberships bill through Stripe, Authorize.net or PayPal.', 'wp-easycart' ),
+							'type_digital'     => __( 'This type is delivered without shipping.', 'wp-easycart' ),
+							'opt_max'          => __( 'Maximum of 5 — use modifiers for more', 'wp-easycart' ),
+							/* translators: %d is the free-edition option set limit. */
+							'opt_max_free'     => __( 'Free edition allows %d — PRO allows 5', 'wp-easycart' ),
+							'opt_one_left'     => __( '1 more option set available', 'wp-easycart' ),
+							/* translators: %d is a count. */
+							'opt_left'         => __( '%d more option sets available', 'wp-easycart' ),
+							'no_options'       => __( 'No option sets or modifiers.', 'wp-easycart' ),
+							'opt_pick'         => __( '+ Add an option set…', 'wp-easycart' ),
+							'opt_none_left'    => __( 'All option sets added', 'wp-easycart' ),
+							'drag'             => __( 'Drag to reorder', 'wp-easycart' ),
+							'remove'           => __( 'Remove', 'wp-easycart' ),
+							'manu_existing'    => __( 'Existing brand.', 'wp-easycart' ),
+							/* translators: %s is the typed brand name. */
+							'manu_new'         => __( '“%s” will be created as a new brand when you save.', 'wp-easycart' ),
+							/* translators: %s is the typed brand name. */
+							'manu_create'      => __( 'Create “%s”', 'wp-easycart' ),
+							/* translators: %d is a count. */
+							'modifiers_n'      => __( '%d modifiers', 'wp-easycart' ),
+							'no_image'         => __( 'No main image yet', 'wp-easycart' ),
+							'select_image'     => __( 'Select image', 'wp-easycart' ),
+							'use_image'        => __( 'Use this image', 'wp-easycart' ),
+							'chip_volume'      => __( '+ Volume tiers', 'wp-easycart' ),
+							/* translators: %d is a count. */
+							'chip_volume_n'    => __( '%d volume tiers', 'wp-easycart' ),
+							'chip_b2b'         => __( '+ B2B pricing', 'wp-easycart' ),
+							/* translators: %d is a count. */
+							'chip_b2b_n'       => __( '%d B2B roles', 'wp-easycart' ),
+							'chip_advanced'    => __( '+ Price label, range, login-to-view', 'wp-easycart' ),
+							'chip_advanced_on' => __( 'Price label / range set', 'wp-easycart' ),
+							/* translators: %d is a count. */
+							'images_n'         => __( '%d images in gallery', 'wp-easycart' ),
+							'images_none'      => __( 'Gallery is empty.', 'wp-easycart' ),
+						),
+					) );
 				}
+
+				wp_register_style( 'wp_easycart_shell_v2_css', plugins_url( 'wp-easycart/admin/css/shell-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_css' ), EC_CURRENT_VERSION );
+				wp_enqueue_style( 'wp_easycart_shell_v2_css' );
+				wp_register_style( 'wp_easycart_settings_v2_css', plugins_url( 'wp-easycart/admin/css/settings-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_css', 'wp_easycart_shell_v2_css' ), EC_CURRENT_VERSION );
+				wp_enqueue_style( 'wp_easycart_settings_v2_css' );
+				wp_register_script( 'wp_easycart_shell_v2_js', plugins_url( 'wp-easycart/admin/js/shell-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+				wp_enqueue_script( 'wp_easycart_shell_v2_js' );
 
 				add_editor_style( );
 				add_thickbox( );
@@ -3412,39 +3611,131 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			) );
 		}
 
-		public function wp_easycart_pro_check( ){
+		public function wp_easycart_enqueue_orders_v2_script() {
+			// V2 Order List JS + CSS.
+			wp_register_script( 'wp_easycart_admin_orders_v2_js', plugins_url( 'wp-easycart/admin/js/orders-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+			wp_enqueue_script( 'wp_easycart_admin_orders_v2_js' );
+
+			wp_register_style( 'wp_easycart_admin_orders_v2_css', plugins_url( 'wp-easycart/admin/css/orders-v2.css', EC_PLUGIN_DIRECTORY ), array(), EC_CURRENT_VERSION );
+			wp_enqueue_style( 'wp_easycart_admin_orders_v2_css' );
+
+			// Select2 for the filter drawer selects (same assets the products page uses).
+			wp_enqueue_script( 'wp-easycart-select2' );
+			wp_enqueue_style( 'wp-easycart-select2' );
+
+			// Language strings + PRO gate payload for wpec_gate popups.
+			$ecv2_order_pro_gate = ecv2_get_order_pro_gate();
+			wp_localize_script( 'wp_easycart_admin_orders_v2_js', 'ecv2_lang', array(
+				'saved'                 => esc_html__( 'Saved successfully.', 'wp-easycart' ),
+				'error'                 => esc_html__( 'An error occurred. Please try again.', 'wp-easycart' ),
+				'undone'                => esc_html__( 'Change reverted.', 'wp-easycart' ),
+				'click_undo'            => esc_html__( 'Click Undo to revert.', 'wp-easycart' ),
+				'undo_available'        => esc_html__( 'Action completed. Undo available.', 'wp-easycart' ),
+				'copied'                => esc_html__( 'Copied to clipboard.', 'wp-easycart' ),
+				'order_status_updated'  => esc_html__( 'Order status updated.', 'wp-easycart' ),
+				'select_bulk_action'    => esc_html__( 'Please choose a bulk action.', 'wp-easycart' ),
+				'select_orders'         => esc_html__( 'Please select at least one order.', 'wp-easycart' ),
+				'delete_orders_title'   => esc_html__( 'Delete Orders', 'wp-easycart' ),
+				'delete_orders_confirm' => esc_html__( 'Permanently delete the selected orders? This cannot be undone.', 'wp-easycart' ),
+				'order_pro_gate'        => $ecv2_order_pro_gate,
+				'pro_gate'              => $ecv2_order_pro_gate,
+			) );
+		}
+
+		/**
+		 * True on any EasyCart admin shell page. Notices for these pages
+		 * render inside the shell (wp_easycart_admin_messages) instead of
+		 * the wp-admin top-of-page admin_notices position, which sits
+		 * above/outside the shell chrome in the V2 design.
+		 */
+		private function is_easycart_admin_page( ){
+			if ( ! isset( $_GET['page'] ) ) {
+				return false;
+			}
+			$ec_admin_page = sanitize_text_field( wp_unslash( $_GET['page'] ) );
+			return ( 0 === strpos( $ec_admin_page, 'wp-easycart' ) || 'ec_adminv2' == $ec_admin_page );
+		}
+
+		/** Fired at priority 5 on wp_easycart_admin_messages (see shell.php). */
+		public function print_core_notices_in_shell( ){
+			$this->wp_easycart_pro_check( true );
+			$this->square_check( true );
+			$this->database_check( true );
+		}
+
+		public function wp_easycart_pro_check( $in_shell = false ){
+			if ( ! $in_shell && $this->is_easycart_admin_page( ) ) {
+				return; // rendered in-shell via print_core_notices_in_shell instead
+			}
+			if ( ! function_exists( 'is_plugin_active' ) ) {
+				include_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
 			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
 			if( file_exists( $pro_plugin_file ) && !is_plugin_active( $pro_plugin_base ) ) {
-				echo '<div class="updated">';
-				echo '<p>' . esc_attr__( 'WP EasyCart PRO is installed but NOT ACTIVATED. Please', 'wp-easycart' ) . ' <a href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_attr__( 'click here to activate your WP EasyCart PRO plugin', 'wp-easycart' ) . '</a>.</p>';
-				echo '</div>';
+				if ( $in_shell ) {
+					echo '<div id="ec_pro_activate_message" class="wpec-pro-notice wpec-pro-notice--brand">';
+					echo '<span class="wpec-pro-notice-icon dashicons dashicons-admin-plugins"></span>';
+					echo '<div class="wpec-pro-notice-body"><strong>' . esc_html__( 'WP EasyCart PRO is installed but not activated.', 'wp-easycart' ) . '</strong> ' . esc_html__( 'Activate it to unlock your PRO features.', 'wp-easycart' ) . '</div>';
+					echo '<a class="wpec-pro-notice-button" href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_html__( 'Activate PRO', 'wp-easycart' ) . '</a>';
+					echo '</div>';
+				} else {
+					echo '<div class="updated">';
+					echo '<p>' . esc_attr__( 'WP EasyCart PRO is installed but NOT ACTIVATED. Please', 'wp-easycart' ) . ' <a href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_attr__( 'click here to activate your WP EasyCart PRO plugin', 'wp-easycart' ) . '</a>.</p>';
+					echo '</div>';
+				}
 			}
 		}
 
-		public function square_check( ){
+		public function square_check( $in_shell = false ){
+			if ( ! $in_shell && $this->is_easycart_admin_page( ) ) {
+				return; // rendered in-shell via print_core_notices_in_shell instead
+			}
+			$square_message = '';
 			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_settings' ) ) && get_option( 'ec_option_payment_process_method' ) == 'square' && !get_option( 'ec_option_square_is_sandbox' ) && get_option( 'ec_option_square_access_token' ) == '' ){
-				echo '<div class="error notice"><p>' . esc_attr__( 'Your Square connection is no longer active and you cannot receive payments. Please visit the Settings -> Payments and reconnect to begin processing payments again.', 'wp-easycart' ) . '</p></div>';
-
+				$square_message = esc_attr__( 'Your Square connection is no longer active and you cannot receive payments. Please visit the Settings -> Payments and reconnect to begin processing payments again.', 'wp-easycart' );
 			}else if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_settings' ) ) && get_option( 'ec_option_payment_process_method' ) == 'square' && !get_option( 'ec_option_square_is_sandbox' ) && get_option( 'ec_option_square_access_token' ) != '' && strtotime( '+15 day', strtotime( get_option( 'ec_option_square_token_expires' ) ) ) < time( ) ){
-				echo '<div class="error notice"><p>' . esc_attr__( 'Your Square connection has expired, please visit the Settings -> Payments and renew the connection to begin processing payments again.', 'wp-easycart' ) . '</p></div>';
-
+				$square_message = esc_attr__( 'Your Square connection has expired, please visit the Settings -> Payments and renew the connection to begin processing payments again.', 'wp-easycart' );
+			}
+			if ( '' != $square_message ) {
+				if ( $in_shell ) {
+					echo '<div id="ec_square_check_message" class="wpec-pro-notice wpec-pro-notice--danger">';
+					echo '<span class="wpec-pro-notice-icon dashicons dashicons-warning"></span>';
+					echo '<div class="wpec-pro-notice-body">' . $square_message . '</div>';
+					echo '<a class="wpec-pro-notice-button" href="admin.php?page=wp-easycart-settings&subpage=payment">' . esc_html__( 'Open Payment Settings', 'wp-easycart' ) . '</a>';
+					echo '</div>';
+				} else {
+					echo '<div class="error notice"><p>' . $square_message . '</p></div>';
+				}
 			}
 		}
 
-		public function database_check( ){
+		public function database_check( $in_shell = false ){
+			if ( ! $in_shell && $this->is_easycart_admin_page( ) ) {
+				return; // rendered in-shell via print_core_notices_in_shell instead
+			}
 			if( !$this->database_check_current( ) ){
 				$db_manager = new ec_db_manager( );
 				$errors = $db_manager->verify_db( );
 				if( count( $errors ) ){
-					echo '<div class="error notice">';
+					if ( $in_shell ) {
+						echo '<div class="wpec-pro-notice wpec-pro-notice--danger wpec-pro-notice--stacked">';
+						echo '<span class="wpec-pro-notice-icon dashicons dashicons-database"></span>';
+						echo '<div class="wpec-pro-notice-body">';
+					} else {
+						echo '<div class="error notice">';
+					}
 						echo '<p>' . esc_attr__( 'We have found problems with your WP EasyCart database structure.', 'wp-easycart' ) . ' <a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=repair-database">' . esc_attr__( 'Click to Repair!', 'wp-easycart' ) . '</a> ' . esc_attr__( 'If you would like to dismiss this notice', 'wp-easycart' ) . ', <a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=dismiss-database-error">' . esc_attr__( 'please click here', 'wp-easycart' ) . '</a>.</p>';
 						echo '<p><span id="wpeasycart_database_errors_min">' . esc_attr__( 'For Complete Details', 'wp-easycart' ) . ', <a href="#" onclick="jQuery( \'#wpeasycart_database_errors\' ).show( ); jQuery( \'#wpeasycart_database_errors_min\' ).hide( ); return false;">' . esc_attr__( 'Click Here', 'wp-easycart' ) . '</a></span><ul id="wpeasycart_database_errors" style="display:none;">';
 						foreach( $errors as $error ){
 							echo '<li>' . esc_attr( $error['error'] ) . '</li>';
 						}
 						echo '</ul></p>';
-					echo '</div>';
+					if ( $in_shell ) {
+						echo '</div></div>';
+					} else {
+						echo '</div>';
+					}
 				}
 
 			}
@@ -3489,20 +3780,108 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 		}
 
+		/**
+		 * Renewal urgency notice for paid licenses inside 30 days of expiry ( and after ).
+		 * Dismissible for 24 hours while there is more than a week left; not dismissible in
+		 * the final week or once lapsed. Never shown for trials ( PRO handles those ).
+		 */
+		public function load_renewal_notice() {
+			if ( ! class_exists( 'wp_easycart_admin_upsell' ) ) {
+				return;
+			}
+			$r = wp_easycart_admin_upsell::renewal();
+			if ( ! $r || 'ok' === $r['tone'] ) {
+				return;
+			}
+			$dismissible = ( 'soon' === $r['tone'] );
+			if ( $dismissible && (int) get_user_meta( get_current_user_id(), 'wpec_renewal_notice_snooze', true ) > time() ) {
+				return;
+			}
+			$stakes = wp_easycart_admin_upsell::renewal_stakes( $r );
+			if ( 'lapsed' === $r['tone'] ) {
+				$title = sprintf( __( 'Your %1$s license lapsed on %2$s.', 'wp-easycart' ), $r['edition'], $r['end_fmt'] );
+				$lead  = __( 'PRO panels are locked and the 2% gateway fee is back. Renew to reopen everything — nothing has been deleted.', 'wp-easycart' );
+			} else if ( 'critical' === $r['tone'] ) {
+				$title = sprintf( _n( 'Your %2$s license ends tomorrow ( %3$s ).', 'Your %2$s license ends in %1$d days ( %3$s ).', $r['days'], 'wp-easycart' ), $r['days'], $r['edition'], $r['end_fmt'] );
+				$lead  = __( 'When it does:', 'wp-easycart' );
+			} else {
+				$title = sprintf( __( 'Support & updates end in %1$d days ( %2$s ).', 'wp-easycart' ), $r['days'], $r['end_fmt'] );
+				$lead  = __( 'Renewing now adds a full year on top — nothing is lost by renewing early. If it lapses:', 'wp-easycart' );
+			}
+			echo '<div class="ecv2-renewal-notice is-' . esc_attr( $r['tone'] ) . ( 'lapsed' !== $r['tone'] ? ' has-stakes' : '' ) . '" id="ecv2_renewal_notice">';
+			echo '<span class="ecv2-renewal-icon"><span class="dashicons ' . ( 'lapsed' === $r['tone'] ? 'dashicons-lock' : 'dashicons-clock' ) . '"></span></span>';
+			echo '<div class="ecv2-renewal-body">';
+			echo '<strong>' . esc_html( $title ) . '</strong> <span>' . esc_html( $lead ) . '</span>';
+			if ( 'lapsed' !== $r['tone'] ) {
+				echo '<ul class="ecv2-renewal-stakes">';
+				foreach ( array_slice( $stakes, 0, 4 ) as $st ) {
+					echo '<li>' . esc_html( $st ) . '</li>';
+				}
+				echo '</ul>';
+			}
+			echo '</div>';
+			echo '<div class="ecv2-renewal-actions">';
+			echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $r['url'] ) . '" target="_blank">' . esc_html( 'lapsed' === $r['tone'] ? __( 'Renew & reopen', 'wp-easycart' ) : __( 'Renew now', 'wp-easycart' ) ) . '</a>';
+			echo '<a class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration' ) ) . '">' . esc_html__( 'License details', 'wp-easycart' ) . '</a>';
+			if ( 'lapsed' === $r['tone'] ) {
+				$deact = wp_easycart_admin_upsell::pro_deactivate_url();
+				if ( '' !== $deact ) {
+					echo '<a class="ecv2-renewal-free" href="' . esc_url( $deact ) . '" onclick="return window.confirm( ' . esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the PRO plugin. Your products, orders and settings are kept; PRO-only features stop until PRO is activated again.', 'wp-easycart' ) ) ) . ' );">' . esc_html__( 'or switch to the free edition', 'wp-easycart' ) . '</a>';
+				}
+			}
+			if ( $dismissible ) {
+				echo '<button type="button" class="ecv2-renewal-snooze" onclick="ecv2_renewal_snooze( this ); return false;" data-nonce="' . esc_attr( wp_create_nonce( 'wpec-renewal-snooze' ) ) . '" title="' . esc_attr__( 'Hide for a day', 'wp-easycart' ) . '" aria-label="' . esc_attr__( 'Hide for a day', 'wp-easycart' ) . '"><span class="dashicons dashicons-no-alt"></span></button>';
+			}
+			echo '</div>';
+			echo '</div>';
+			echo '<script>function ecv2_renewal_snooze( b ) { var n = document.getElementById( "ecv2_renewal_notice" ); if ( n ) { n.style.display = "none"; } jQuery.post( ajaxurl, { action: "ec_admin_ajax_ecv2_dismiss_renewal", nonce: b.getAttribute( "data-nonce" ) } ); }</script>';
+		}
+
+		public function ajax_dismiss_renewal_notice() {
+			if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'wpec-renewal-snooze' ) || ! current_user_can( 'wpec_diagnostics' ) && ! current_user_can( 'manage_options' ) ) {
+				die();
+			}
+			$which = ( isset( $_POST['which'] ) && 'gate' === $_POST['which'] ) ? 'wpec_renewal_gate_snooze' : 'wpec_renewal_notice_snooze';
+			update_user_meta( get_current_user_id(), $which, time() + DAY_IN_SECONDS );
+			die();
+		}
+
 		public function load_upsell_image( ){
-			if( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-settings' && !isset( $_GET['subpage'] ) )
+			if ( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-settings' && !isset( $_GET['subpage'] ) ) {
 				return;
+			}
 
-			if( isset( $_GET['subpage'] ) && $_GET['subpage'] == 'setup-wizard' )
+			if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == 'setup-wizard' ) {
 				return;
+			}
 
-			if( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-dashboard' )
+			if ( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-dashboard' ) {
 				return;
+			}
 
-			if( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-license-status' )
+			if ( isset( $_GET['page'] ) && $_GET['page'] == 'wp-easycart-license-status' ) {
 				return;
+			}
 
-			echo '<div style="width:100%; text-align:center; max-width:100%;"><a href="admin.php?page=wp-easycart-registration&ec_trial=start"><img src="' . esc_attr( plugins_url( 'wp-easycart/admin/images/banner-ad-' . rand(1,2) . '-750x100.jpg?v=' . EC_CURRENT_VERSION, EC_PLUGIN_DIRECTORY ) ) . '" style="max-width:100%; height:auto;" alt="' . esc_attr__( 'Start Your PRO Trial Today!', 'wp-easycart' ) . '" /></a></div>';
+			/* Modern upsell strip ( replaces the banner image ). Same trigger, same pages. */
+			$ecv2_banner_stats = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
+			$ecv2_banner_text  = __( 'Free edition. Card payments carry a 2% fee; PRO removes it and unlocks the locked panels you see around the admin.', 'wp-easycart' );
+			if ( ! empty( $ecv2_banner_stats['orders_30d'] ) && $ecv2_banner_stats['orders_30d'] >= 3 && ! empty( $ecv2_banner_stats['avg_order'] ) ) {
+				$ecv2_banner_text = sprintf(
+					/* translators: %1$s = orders last 30 days, %2$s = estimated monthly fee. */
+					__( 'Free edition. On your last 30 days ( %1$s orders ) the 2%% gateway fee came to about %2$s — PRO removes it and unlocks the locked panels around the admin.', 'wp-easycart' ),
+					number_format_i18n( $ecv2_banner_stats['orders_30d'] ),
+					wp_easycart_admin_upsell::money( $ecv2_banner_stats['orders_30d'] * $ecv2_banner_stats['avg_order'] * 0.02 )
+				);
+			}
+			echo '<div class="ecv2-upsell-banner">';
+			echo '<span class="ecv2-upsell-banner-pill">PRO</span>';
+			echo '<span class="ecv2-upsell-banner-text">' . esc_html( $ecv2_banner_text ) . '</span>';
+			if ( class_exists( 'wp_easycart_admin_upsell' ) ) {
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: \'default\' } ); return false;">' . esc_html__( "See what's included", 'wp-easycart' ) . '</button>';
+			}
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' ) ) . '">' . esc_html__( 'Try PRO free', 'wp-easycart' ) . '</a>';
+			echo '</div>';
 		}
 
 		public function load_upsell_popup( ){
@@ -3520,23 +3899,68 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			include( apply_filters( 'wp_easycart_admin_upgrade_file', EC_PLUGIN_DIRECTORY . '/admin/template/upgrade/upgrade-screen.php' ) );
 		}
 
-		public function load_new_slideout( $slide ){
-			if( $slide == 'product' ){
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/new-product-slideout.php' );
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/quick-edit-product-slideout.php' );
+		/**
+		 * Assets for the V2 Create Option Set slideout. Safe to call more than once.
+		 */
+		public function enqueue_option_set_slideout_assets() {
+			if ( wp_script_is( 'wp_easycart_option_set_slideout_v2_js', 'enqueued' ) ) {
+				return;
+			}
+			wp_register_style( 'wp_easycart_option_set_slideout_v2_css', plugins_url( 'wp-easycart/admin/css/option-set-slideout-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
+			wp_enqueue_style( 'wp_easycart_option_set_slideout_v2_css' );
+			wp_register_script( 'wp_easycart_option_set_slideout_v2_js', plugins_url( 'wp-easycart/admin/js/option-set-slideout-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable', 'wp_easycart_admin_js' ), EC_CURRENT_VERSION, true );
+			wp_enqueue_script( 'wp_easycart_option_set_slideout_v2_js' );
+			wp_localize_script( 'wp_easycart_option_set_slideout_v2_js', 'ecosv2_vars', array(
+				'currency'            => get_option( 'ec_option_currency_symbol', '$' ),
+				'decimals'            => (int) $GLOBALS['currency']->get_decimal_length(),
+				'weight_unit'         => get_option( 'ec_option_weight_unit', 'lb' ),
+				'reload_after_create' => ( isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'option', 'optionitems' ), true ) ),
+				'lang'                => array(
+					'title'           => __( 'Create an option set', 'wp-easycart' ),
+					/* translators: %s is the option set name. */
+					'title_named'     => __( 'Create “%s”', 'wp-easycart' ),
+					/* translators: %s is the option set name, lower-cased. */
+					'label_tpl'       => __( 'Choose a %s', 'wp-easycart' ),
+					'label_generated' => __( 'Generated from the name — edit to override.', 'wp-easycart' ),
+					'label_custom'    => __( 'Custom label.', 'wp-easycart' ),
+					/* translators: %1 = product title, %2 = slot number. */
+					'sub_product'     => __( 'It will be added to <strong>%1</strong> as slot %2. Reusable on any other product too.', 'wp-easycart' ),
+					'this_product'    => __( 'this product', 'wp-easycart' ),
+					'choice_name'     => __( 'Choice name', 'wp-easycart' ),
+					'one_choice'      => __( '1 choice', 'wp-easycart' ),
+					/* translators: %d is a count. */
+					'n_choices'       => __( '%d choices', 'wp-easycart' ),
+					'need_two'        => __( 'add at least 2', 'wp-easycart' ),
+					'dropdown'        => __( 'Dropdown', 'wp-easycart' ),
+					'swatches'        => __( 'Swatches', 'wp-easycart' ),
+					'preview_empty'   => __( 'Add a choice to see it here.', 'wp-easycart' ),
+					'drag'            => __( 'Drag to reorder', 'wp-easycart' ),
+					'remove'          => __( 'Remove', 'wp-easycart' ),
+					'pick_photo'      => __( 'Choose a photo', 'wp-easycart' ),
+					'use_photo'       => __( 'Use this photo', 'wp-easycart' ),
+					/* translators: %s is the option set name. */
+					'created'         => __( '“%s” created.', 'wp-easycart' ),
+					'error'           => __( 'An error occurred. Please try again.', 'wp-easycart' ),
+					'network'         => __( 'Network error. Please check your connection and try again.', 'wp-easycart' ),
+				),
+			) );
+		}
 
-			}else if( $slide == 'manufacturer' ){
+		public function load_new_slideout( $slide ){
+			if ( $slide == 'product' ) {
+				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-slideout-v2.php' );
+
+			} else if( $slide == 'manufacturer' ) {
 				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/manufacturers/new-manufacturer-slideout.php' );
 
-			}else if( $slide == 'optionset' ){
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/new-optionset-slideout.php' );
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/new-optionitem-slideout.php' );
+			}else if( $slide == 'optionset' || $slide == 'advanced-optionset' ){
+				static $option_slideout_loaded = false;
+				if ( ! $option_slideout_loaded ) {
+					$option_slideout_loaded = true;
+					include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/option-set-slideout-v2.php' );
+				}
 
-			}else if( $slide == 'advanced-optionset' ){
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/new-advanced-optionset-slideout.php' );
-				include( EC_PLUGIN_DIRECTORY . '/admin/template/products/options/new-advanced-optionitem-slideout.php' );
-
-			}else if( $slide == 'order' ){
+			} else if( $slide == 'order' ) {
 				include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-quick-edit-slideout.php' );
 				include( EC_PLUGIN_DIRECTORY . '/admin/template/orders/orders/order-duplicate-slideout.php' );
 			}
@@ -4395,4 +4819,28 @@ function ec_admin_ajax_save_terms_accepted( ){
 
 	update_option( 'ec_option_wpeasycart_terms_accepted', 1 );
 	die( );
+}
+
+add_action( 'wp_ajax_wp_easycart_ecv2_save_order_date', 'wp_easycart_ecv2_save_order_date' );
+function wp_easycart_ecv2_save_order_date() {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_orders' ) ) {
+		wp_send_json_error( array( 'message' => 'permission' ) );
+	}
+	check_ajax_referer( 'wp_easycart_ecv2_order_date', 'nonce' );
+	global $wpdb;
+	$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+	$date_raw = ( isset( $_POST['order_date'] ) ) ? sanitize_text_field( wp_unslash( $_POST['order_date'] ) ) : '';
+	$time_raw = ( isset( $_POST['order_time'] ) ) ? sanitize_text_field( wp_unslash( $_POST['order_time'] ) ) : '';
+	$local_ts = strtotime( $date_raw . ' ' . $time_raw );
+	if ( ! $order_id || false === $local_ts ) {
+		wp_send_json_error( array( 'message' => 'invalid' ) );
+	}
+	$now_server = $wpdb->get_var( 'SELECT NOW() AS the_time' );
+	$storage_offset = strtotime( $now_server ) - time();
+	$local_offset = get_option( 'gmt_offset' ) * 60 * 60;
+	$date_diff = $local_offset - $storage_offset;
+	$storage_ts = $local_ts - $date_diff;
+	$wpdb->update( 'ec_order', array( 'order_date' => date( 'Y-m-d H:i:s', $storage_ts ) ), array( 'order_id' => $order_id ), array( '%s' ), array( '%d' ) );
+	do_action( 'wp_easycart_admin_order_date_updated', $order_id, $storage_ts );
+	wp_send_json_success( array( 'display' => date( 'M j Y ' . get_option( 'time_format' ), $local_ts ) ) );
 }

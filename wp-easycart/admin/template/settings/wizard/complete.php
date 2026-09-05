@@ -1,102 +1,88 @@
-<form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate">
-	<?php wp_easycart_admin_verification( )->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-payments' ); ?>
-	<input type="hidden" name="ec_admin_form_action" id="ec_admin_form_action" value="process-wizard-payments">
-	<p style="background:#f3f3f3; padding:10px; text-align:center; font-weight: bold;"><?php esc_attr_e( 'If you need to make changes to items from the setup wizard, all features and more are available at any time in the settings of the WP EasyCart.', 'wp-easycart' ); ?></p>
-	<h3><?php esc_attr_e( 'You\'re Done!', 'wp-easycart' ); ?></h3>
-	<p><?php esc_attr_e( 'Thank you for taking the time to complete setup, now onwards to create your first product and make your first sale!', 'wp-easycart' ); ?></p>
-	<div class="wp_easycart_wizard_success_container">
-
-		<?php wp_easycart_admin_verification( )->print_nonce_field( 'wp_easycart_demo_settings_nonce', 'wp-easycart-initial-setup-demo-setup' ); ?>
-
-		<?php if( !get_option( 'ec_option_demo_data_installed' ) ){ ?>
-		<div class="wp_easycart_wizard_success_box" id="easycart_wizard_demo_data">
-			<?php wp_easycart_admin( )->preloader->print_preloader( "ec_admin_demo_data_loader" ); ?>
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'JUST TRYING THE CART?', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'If you are new to EasyCart, try our demo data first.', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="admin.php?page=wp-easycart-settings&subpage=initial-setup&action=easycart-install-demo-data" onclick="return ec_admin_install_demo_data( );"><?php esc_attr_e( 'Install Demo Data', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<div class="wp_easycart_wizard_success_box" id="easycart_wizard_demo_data_done" style="display:none;">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'DEMO DATA INSTALLED!', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'You are all set! Now check out your new store.', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="<?php $storepageid = get_option( 'ec_option_storepage' ); $store_page = get_permalink( $storepageid ); echo esc_url_raw( $store_page ); ?>" style="background:#03A9F4;" target="_blank"><?php esc_attr_e( 'View Your Store', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<?php }?>
-		<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'EMAIL RELIABILITY', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'Did you know that order and cart based emails rely on WordPress to send? Most servers are pretty bad at sending email, so it is important for you to test before going live. We have lots of info to help you get going, including several great recommendations to improve email delivery to your customers.', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="https://docs.wpeasycart.com/docs/administrative-console-guide/email-settings-and-setup/" target="_blank"><?php esc_attr_e( 'Learn More', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'NEXT STEP', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'You\'re ready to add your first product.', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=add-new" onclick="wp_easycart_admin_open_slideout( 'new_product_box' ); return false;"><?php esc_attr_e( 'Create a Product', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<?php if( class_exists( "WooCommerce" ) ){ ?>
-		<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'IMPORT FROM WOOCOMMERCE', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'It looks like you already have WooCommerce installed -- Import automatically to EasyCart now!', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="admin.php?page=wp-easycart-settings&subpage=cart-importer" target="_blank"><?php esc_attr_e( 'Import Products', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<?php }?>
-		<?php if( get_option( 'ec_option_square_access_token' ) != '' ){ ?>
-		<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'IMPORT FROM SQUARE', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'It looks like you are connected with SquareUp Payments -- Import automatically to EasyCart now!', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="admin.php?page=wp-easycart-settings&subpage=cart-importer" target="_blank"><?php esc_attr_e( 'Import Products', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<?php }?>
-		<?php if ( '' != apply_filters( 'wp_easycart_trial_start_content', 'true' ) ) { ?>
-		'<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_left">
-				<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'TRY PRO FREE', 'wp-easycart' ); ?></div>
-				<div class="wp_easycart_wizard_success_box_content"><?php esc_attr_e( 'Want to try all the features WP EasyCart has to offer? Try our 14 day FREE PRO Trial.', 'wp-easycart' ); ?></div>
-			</div>
-			<div class="wp_easycart_wizard_success_box_right">
-				<div class="wp_easycart_wizard_success_box_button"><a href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_attr_e( 'Install PRO Trial', 'wp-easycart' ); ?></a></div>
-			</div>
-			<div style="clear:both;"></div>
-		</div>
-		<?php } ?>
-		<div class="wp_easycart_wizard_success_box">
-			<div class="wp_easycart_wizard_success_box_title"><?php esc_attr_e( 'Learn More', 'wp-easycart' ); ?></div>
-			<div><a href="http://support.wpeasycart.com/video-tutorials/" target="_blank"><?php esc_attr_e( 'Watch our video tutorials', 'wp-easycart' ); ?></a></div>
-			<div><a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/" target="_blank"><?php esc_attr_e( 'Read our documentation guide', 'wp-easycart' ); ?></a></div>
-			<div><a href="https://www.wpeasycart.com/contact-information/" target="_blank"><?php esc_attr_e( 'Submit a sales question', 'wp-easycart' ); ?></a></div>
+<?php
+/**
+ * Step 5 — Done. Launch checklist + secondary actions.
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+$wizard = wp_easycart_admin_setup_wizard();
+$upsell = $wizard->show_upsell();
+$demo_installed = (bool) get_option( 'ec_option_demo_data_installed' );
+$store_url = wp_easycart_admin()->store_page;
+$has_woo    = class_exists( 'WooCommerce' );
+$has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
+?>
+<div class="ecwz-body">
+	<div class="ecwz-done-hero">
+		<div class="ecwz-done-big"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></div>
+		<div>
+			<h2><?php esc_html_e( 'Your store is set up', 'wp-easycart' ); ?></h2>
+			<p><?php echo sprintf( esc_html__( 'A few launch tasks remain. This list stays on %s until every item is done, so nothing gets lost when you leave this page.', 'wp-easycart' ), '<strong>' . esc_html__( 'Store Status', 'wp-easycart' ) . '</strong>' ); ?></p>
 		</div>
 	</div>
-	<?php
-		wp_easycart_admin( )->load_new_slideout( 'product' );
-		wp_easycart_admin( )->load_new_slideout( 'manufacturer' );
-		wp_easycart_admin( )->load_new_slideout( 'optionset' );
-	?>
-</form>
+
+	<div class="ecwz-done-grid">
+		<div>
+			<?php wp_easycart_admin_verification()->print_nonce_field( 'wp_easycart_demo_settings_nonce', 'wp-easycart-initial-setup-demo-setup' ); ?>
+			<?php $wizard->render_checklist( 'wizard' ); ?>
+		</div>
+
+		<div class="ecwz-ncards">
+			<?php if ( ! $demo_installed ) { ?>
+			<div class="ecwz-ncard" id="easycart_wizard_demo_data">
+				<?php wp_easycart_admin()->preloader->print_preloader( 'ec_admin_demo_data_loader' ); ?>
+				<h4><?php esc_html_e( 'Just trying it out?', 'wp-easycart' ); ?></h4>
+				<p><?php esc_html_e( 'Install demo products, categories and options so you can see a working store immediately. Remove them any time.', 'wp-easycart' ); ?></p>
+				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=initial-setup&action=easycart-install-demo-data" onclick="return ec_admin_install_demo_data( );"><?php esc_html_e( 'Install demo data', 'wp-easycart' ); ?></a>
+			</div>
+			<div class="ecwz-ncard" id="easycart_wizard_demo_data_done" style="display:none">
+				<h4><?php esc_html_e( 'Demo data installed', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-green">&#10003;</span></h4>
+				<p><?php esc_html_e( 'You are all set. Take a look at your store with sample products in it.', 'wp-easycart' ); ?></p>
+				<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( $store_url ); ?>" target="_blank"><?php esc_html_e( 'View your store', 'wp-easycart' ); ?></a>
+			</div>
+			<?php } ?>
+
+			<?php if ( $has_woo ) { ?>
+			<div class="ecwz-ncard">
+				<h4><?php esc_html_e( 'Import from WooCommerce', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-blue"><?php esc_html_e( 'Detected', 'wp-easycart' ); ?></span></h4>
+				<p><?php esc_html_e( 'We noticed WooCommerce on this site. Bring products, categories and customers across automatically.', 'wp-easycart' ); ?></p>
+				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
+			</div>
+			<?php } ?>
+
+			<?php if ( $has_square ) { ?>
+			<div class="ecwz-ncard">
+				<h4><?php esc_html_e( 'Import from Square', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-blue"><?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span></h4>
+				<p><?php esc_html_e( 'Your Square account is connected. Import your catalog into EasyCart now.', 'wp-easycart' ); ?></p>
+				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
+			</div>
+			<?php } ?>
+
+			<?php if ( $upsell ) { ?>
+			<div class="ecwz-ncard">
+				<h4><?php esc_html_e( 'Try Pro free for 14 days', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-amber">PRO</span></h4>
+				<p><?php esc_html_e( 'Live shipping rates, 30+ gateways with no EasyCart fees, subscriptions, gift cards and more.', 'wp-easycart' ); ?></p>
+				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_html_e( 'Start trial', 'wp-easycart' ); ?></a>
+			</div>
+			<?php } ?>
+		</div>
+	</div>
+
+	<div class="ecwz-learn">
+		<a href="https://support.wpeasycart.com/video-tutorials/" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><?php esc_html_e( 'Video tutorials', 'wp-easycart' ); ?></a>
+		<a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h12l4 4v12H4z M8 12h8M8 16h8"/></svg><?php esc_html_e( 'Documentation', 'wp-easycart' ); ?></a>
+		<a href="https://www.wpeasycart.com/contact-information/" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 01-11.6 7.2L4 21l1.8-5.4A8 8 0 1121 12z"/></svg><?php esc_html_e( 'Ask a question', 'wp-easycart' ); ?></a>
+	</div>
+</div>
+<div class="ecwz-foot">
+	<a class="ecwz-btn ecwz-btn-ghost" href="<?php echo esc_url( $wizard->step_url( wp_easycart_admin_setup_wizard::STEP_FINISH ) ); ?>">&larr; <?php esc_html_e( 'Back', 'wp-easycart' ); ?></a>
+	<span class="ecwz-grow"></span>
+	<a class="ecwz-btn" href="admin.php?page=wp-easycart-license-status"><?php esc_html_e( 'Go to Store Status', 'wp-easycart' ); ?></a>
+	<a class="ecwz-btn ecwz-btn-primary" href="<?php echo esc_url( $store_url ); ?>" target="_blank"><?php esc_html_e( 'View my store', 'wp-easycart' ); ?> &#8599;</a>
+</div>
+<?php
+	/* "Create product" on the checklist opens the standard new-product slideout. */
+	wp_easycart_admin()->load_new_slideout( 'product' );
+	wp_easycart_admin()->load_new_slideout( 'manufacturer' );
+	wp_easycart_admin()->load_new_slideout( 'optionset' );
+?>

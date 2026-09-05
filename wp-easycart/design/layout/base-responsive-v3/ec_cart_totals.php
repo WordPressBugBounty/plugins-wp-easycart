@@ -58,6 +58,7 @@
 	</div>
 </div>
 <?php }?>
+<?php wp_easycart_offers_template( 'ec_offer_totals_rows.php', array( 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null ) ); ?>
 <div class="ec_cart_price_row ec_cart_price_row_discount_total<?php if( $this->order_totals->discount_total == 0 ){ ?> ec_no_discount<?php }else{ ?> ec_has_discount<?php }?>">
 	<div class="ec_cart_price_row_label">
 		<?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_discounts' )?>

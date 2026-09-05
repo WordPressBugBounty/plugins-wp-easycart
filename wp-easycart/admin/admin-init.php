@@ -1,6 +1,8 @@
 <?php
 do_action( 'wpeasycart_admin_load_init' );
 // Load Helper Classes 
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shell_theme.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_upsell.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_verification.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_pro_gate.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_account.php' );
@@ -25,6 +27,7 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_perpage.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_country.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_states.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_giftcards.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_cart_links.php' );
 
 if( isset( $_GET['page'] ) && isset( $_GET['subpage'] ) && $_GET['page'] == 'wp-easycart-products' && ( $_GET['subpage'] == 'menus' || $_GET['subpage'] == 'submenus' || $_GET['subpage'] == 'subsubmenus' ) )
 	include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_menus.php' );
@@ -47,7 +50,12 @@ if( isset( $_GET['page'] ) && isset( $_GET['subpage'] ) && $_GET['page'] == 'wp-
 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_table.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_table_v2.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_inventory_table.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_table.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_order_table.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_user_table.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_user.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_user_v2.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_taxes.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_users.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_user_role.php' );
@@ -60,7 +68,8 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_abandon_cart.php' )
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_store_status.php' ); 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_registration.php' ); 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_coupons.php' ); 
-include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_promotions.php' ); 
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_promotions.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_offers.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_extensions.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shortcodes.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_fee.php' );

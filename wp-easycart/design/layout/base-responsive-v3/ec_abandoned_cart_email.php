@@ -309,6 +309,9 @@
 										<table class="full_width" width="560" style="width:560px; mso-cellspacing: 0px; mso-padding-alt: 0px 0px 0px 0px; margin:0 auto;" align="center" border="0" cellpadding="0" cellspacing="0"><!-- start text content -->
 											<?php foreach( $tempcart_rows as $tempcart_row ){ ?>
 											<?php
+												if ( ( isset( $tempcart_row->free_gift_offer_id ) && $tempcart_row->free_gift_offer_id > 0 ) || ( isset( $tempcart_row->bundle_group_key ) && '' != $tempcart_row->bundle_group_key && isset( $tempcart_row->bundle_product_id ) && $tempcart_row->bundle_product_id != $tempcart_row->product_id ) ) {
+													continue;
+												}
 												$product_images = ( isset( $tempcart_row->product_images ) && '' != $tempcart_row->product_images ) ? explode( ',', $tempcart_row->product_images ) : array();
 												$image1 = $tempcart_row->image1;
 												if ( count( $product_images ) > 0 ) {

@@ -38,6 +38,7 @@ class ec_cartpage {
 	private $analytics;
 	private $is_affirm;
 	public $shipping_address_allowed;
+	public $offer_result;
 
 	function __construct( $is_affirm = false ) {
 		$this->is_affirm = $is_affirm;
@@ -196,13 +197,25 @@ class ec_cartpage {
 		$promotion = new ec_promotion();
 		$promotion->apply_free_shipping( $this->cart );
 
+		// Offers v2: single evaluation for this request (engine memoizes).
+		$this->offer_result = ( wp_easycart_offers_active() ) ? ec_offer_integration::evaluate_cart( $this->cart ) : null;
+		$GLOBALS['wpeasycart_offer_result'] = $this->offer_result;
+
 		// Shipping
 		$sales_tax_discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, 0.00, $this->coupon_code, "", 0 );
+		if ( null !== $this->offer_result ) {
+			$sales_tax_discount->coupon_discount += $this->offer_result->discount_total;
+			$sales_tax_discount->discount_total += $this->offer_result->discount_total;
+		}
 		$GLOBALS['wpeasycart_current_coupon_discount'] = $sales_tax_discount->coupon_discount;
 		$this->shipping = new ec_shipping( $this->cart->shipping_subtotal, $this->cart->weight, $this->cart->shippable_total_items, 'RADIO', $GLOBALS['ec_user']->freeshipping, $this->cart->length, $this->cart->width, $this->cart->height, $this->cart->cart );
 		$shipping_price = $this->shipping->get_shipping_price( $this->cart->get_handling_total() );
 		// Tax (no VAT here)
 		$sales_tax_discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, "", 0 );
+		if ( null !== $this->offer_result ) {
+			$sales_tax_discount->coupon_discount += $this->offer_result->discount_total;
+			$sales_tax_discount->discount_total += $this->offer_result->discount_total;
+		}
 		if ( $sales_tax_discount->shipping_discount > 0 ) {
 			$shipping_price_tax = ( $shipping_price > $sales_tax_discount->shipping_discount ) ? $shipping_price - $sales_tax_discount->shipping_discount : 0;
 		} else if ( $this->cart->taxable_subtotal - $sales_tax_discount->coupon_discount < 0 ) { // Apply remainder to shipping
@@ -224,6 +237,10 @@ class ec_cartpage {
 		}
 		// Discount for Coupon
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $total_without_vat_or_discount );
+		if ( null !== $this->offer_result ) {
+			$this->discount->coupon_discount += $this->offer_result->discount_total;
+			$this->discount->discount_total += $this->offer_result->discount_total;
+		}
 		// Amount to Apply VAT on
 		$promotion = new ec_promotion();
 		$vatable_subtotal = $total_without_vat_or_discount - $this->tax->tax_total - $this->discount->coupon_discount - $promotion->get_discount_total( $this->cart->subtotal );
@@ -237,6 +254,10 @@ class ec_cartpage {
 		// Discount for Gift Card
 		$grand_total = ( $this->cart->subtotal + $this->tax->tax_total + $this->tax->pst + $this->tax->hst + $this->tax->gst + $shipping_price + $this->tax->duty_total );
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $grand_total );
+		if ( null !== $this->offer_result ) {
+			$this->discount->coupon_discount += $this->offer_result->discount_total;
+			$this->discount->discount_total += $this->offer_result->discount_total;
+		}
 		// Order Totals
 		$this->order_totals = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount );
 		$GLOBALS['ec_order_grand_total' ] = $this->order_totals->grand_total;
@@ -1302,7 +1323,11 @@ class ec_cartpage {
 					$ec_db_admin->clear_tempcart( $GLOBALS['ec_cart_data']->ec_cart_id );
 					$GLOBALS['ec_cart_data']->checkout_session_complete();
 					$GLOBALS['ec_cart_data']->save_session_to_db();
+					$wpeasycart_offer_prev_session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
 					wpeasycart_session()->rotate_session_id();
+					if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+						ec_offer_integration::migrate_session_codes( $wpeasycart_offer_prev_session_id );
+					}
 					echo '<div class="wpeasycart-stripe-already-paid" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:rgba(0,0,0,.8);">';
 						echo '<div class="wpeasycart-stripe-already-paid-container" style="position:fixed; left:50%; top:50%; margin-left:-250px; margin-top:-80px; width:500px; max-width:100%; max-height:100%; background:#EFEFEF; padding:35px; border-radius:10px; text-align:center;">';
 							echo '<div style="text-align:center; font-size:20px;" class="wpeasycart-stripe-already-paid-note">Your payment has been processed and you may view your order now</div>';
@@ -8068,7 +8093,11 @@ class ec_cartpage {
 				}
 
 				$GLOBALS['ec_cart_data']->save_session_to_db();
+				$wpeasycart_offer_prev_session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
 				wpeasycart_session()->rotate_session_id();
+				if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+					ec_offer_integration::migrate_session_codes( $wpeasycart_offer_prev_session_id );
+				}
 				do_action( 'wpeasycart_cart_updated' );
 				if ( isset( $GLOBALS['ec_cart_data']->cart_data->cart_subscription ) && '' != $GLOBALS['ec_cart_data']->cart_data->cart_subscription ) {
 					if ( $redirect ) {
@@ -8207,7 +8236,11 @@ class ec_cartpage {
 		$GLOBALS['ec_cart_data']->cart_data->amazon_payment_selection = "";
 
 		$GLOBALS['ec_cart_data']->save_session_to_db();
+		$wpeasycart_offer_prev_session_id = $GLOBALS['ec_cart_data']->ec_cart_id;
 		wpeasycart_session()->rotate_session_id();
+		if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+			ec_offer_integration::migrate_session_codes( $wpeasycart_offer_prev_session_id );
+		}
 
 		wp_cache_flush();
 

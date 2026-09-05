@@ -1,38 +1,41 @@
 <?php
 
 class ec_cart{
-	
-	protected $mysqli;										// ec_db structure
-	
-	private $session_id;									// VARCHAR 255
-	
-	public $cart = array( ); 								// Array of ec_cartitem structures
-	public $user;											// ec_user
-	public $subtotal;										// Float 15,3
-	public $taxable_subtotal;								// FLOAT 15,3
-	public $discountable_subtotal;							// FLOAT 15,3
-	public $discount_subtotal;								// Float 15,3
-	public $shipping_subtotal;								// FLOAT 15,3
-	public $vat_subtotal;									// FLOAT 15,3
-	
-	public $weight;											// INT
-	public $length;											// FLOAT 15,3
-	public $width;											// FLOAT 15,3
-	public $height;											// FLOAT 15,3
-	public $total_items;									// INT
-	public $shippable_total_items;							// INT
-	public $excluded_shippable_total_items;					// INT
-	
-	public $cart_promo_discount;							// FLOAT
-	public $cart_total_promotion;							// TEXT
-	
-	//Get sessionid and create the cart
+
+	protected $mysqli;
+
+	private $session_id;
+
+	public $cart = array( );
+	public $user;
+	public $subtotal;
+	public $taxable_subtotal;
+	public $discountable_subtotal;
+	public $discount_subtotal;
+	public $shipping_subtotal;
+	public $vat_subtotal;
+
+	public $weight;
+	public $length;
+	public $width;
+	public $height;
+	public $total_items;
+	public $shippable_total_items;
+	public $excluded_shippable_total_items;
+
+	public $cart_promo_discount;
+	public $cart_total_promotion;
+
 	function __construct( $session_id ){
 		$this->mysqli = new ec_db( );
 		$this->session_id = $session_id;
-		
+
+		if ( ! wp_easycart_offers_active() ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( "DELETE FROM ec_tempcart WHERE session_id = %s AND ( free_gift_offer_id > 0 OR bundle_group_key != '' )", $session_id ) );
+		}
+
 		$this->cart = $this->mysqli->get_temp_cart( $session_id );
-		
 		$this->user =& $GLOBALS['ec_user'];
 		$this->make_vat_adjustments( );
 		$this->update_cart_values();

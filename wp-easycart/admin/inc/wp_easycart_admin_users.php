@@ -198,8 +198,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 
 		public function load_users_list() {
 			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['user_id'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
-				include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_user.php' );
-				$details = new wp_easycart_admin_details_user();
+				$details = new wp_easycart_admin_details_user_v2();
 				$valid = $details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
 				if ( ! $valid ) {
 					$user_not_found = true;
@@ -436,6 +435,18 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 
 			$user_id = (int) $_GET['user_id'];
 			$user = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_user WHERE user_id = %d', $user_id ) );
+			
+			if ( ! is_object( $user ) ) {
+				return false; // Stale/removed account — avoid a fatal on ->user_id.
+			}
+			if ( ! current_user_can( 'manage_options' ) ) {
+				$admin_access = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT admin_access FROM ec_role WHERE role_label = %s', $user->user_level ) );
+				if ( $admin_access ) {
+					return false; // Managers may not impersonate admin-level accounts.
+				}
+			}
+			do_action( 'wpeasycart_admin_login_as_user', (int) $user->user_id, get_current_user_id() ); // Audit hook.
+			
 			$GLOBALS['ec_cart_data']->cart_data->user_id = (int) $user->user_id;
 			$GLOBALS['ec_cart_data']->cart_data->email = sanitize_email( $user->email );
 			$GLOBALS['ec_cart_data']->cart_data->email_other = sanitize_email( $user->email_other );

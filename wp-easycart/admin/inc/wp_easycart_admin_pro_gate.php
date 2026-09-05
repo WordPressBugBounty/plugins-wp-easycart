@@ -68,8 +68,16 @@ class wp_easycart_admin_pro_gate {
 			$enabled = (bool) $args['enabled'];
 		} else if ( '' !== $args['enabled_filter'] ) {
 			$filter_enabled = (bool) apply_filters( $args['enabled_filter'], false );
-			$version_ok     = ( $status['active'] && '' !== $status['version'] && version_compare( $status['version'], $args['min_version'], '>=' ) );
-			$enabled        = ( $filter_enabled && $version_ok );
+			/*
+			 * A truthy filter can only come from running PRO code, so it is
+			 * authoritative proof of an installed + active PRO plugin - more
+			 * reliable than folder-path detection (which breaks on renamed
+			 * or symlinked plugin directories). Prefer the runtime version
+			 * constant for the same reason, falling back to the file header.
+			 */
+			$runtime_version = defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ? WP_EASYCART_ADMIN_PRO_VERSION : $status['version'];
+			$version_ok      = ( '' !== $runtime_version && version_compare( $runtime_version, $args['min_version'], '>=' ) );
+			$enabled         = ( $filter_enabled && $version_ok );
 		} else {
 			$enabled = ( $status['active'] && $status['licensed'] && '' !== $status['version'] && version_compare( $status['version'], $args['min_version'], '>=' ) );
 		}

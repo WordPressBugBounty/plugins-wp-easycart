@@ -126,8 +126,7 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 					'post_title' => $category->name,
 					'post_type' => 'ec_store'
 				);
-				$post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_category SET ec_category.post_id = %s WHERE ec_category.category_id = %d', $post_id, $category_id ) );
+				wp_easycart_post_sync()->insert( 'category', $category_id, $post );
 			}
 
 			$wpdb->query( 'INSERT INTO ec_manufacturer( `name` ) VALUES( "Woo Products" )' );
@@ -139,8 +138,7 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 				'post_title' => 'WOO Products',
 				'post_type' => 'ec_store'
 			);
-			$post_id = wp_insert_post( $post );
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_manufacturer SET ec_manufacturer.post_id = %s WHERE ec_manufacturer.manufacturer_id = %d', $post_id, $manufacturer_id ) );
+			wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_id, $post );
 
 			$product_args = array(
 				'posts_per_page' => 100000,
@@ -291,8 +289,7 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 					'post_title' => $title,
 					'post_type' => 'ec_store'
 				);
-				$post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET ec_product.post_id = %s WHERE ec_product.product_id = %d', $post_id, $product_id ) );
+				wp_easycart_post_sync()->insert( 'product', $product_id, $post );
 
 				foreach ( $product_options as $option_id ) {
 					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option_to_product( option_id, product_id ) VALUES( %d, %d )', $option_id, $product_id ) );

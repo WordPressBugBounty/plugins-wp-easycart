@@ -2,6 +2,7 @@
 
 	<div class="ec_product_widget_images">
 		<a href="<?php echo esc_attr( $product->get_product_link( ) ); ?>" class="ec_product_image">
+			<?php wp_easycart_offers_template( 'ec_offer_product_badge.php', array( 'badge_product_id' => $product->product_id, 'badge_manufacturer_id' => $product->manufacturer_id, 'badge_price' => $product->price ) ); ?>
 			<img src="<?php if( count( $product->images->product_images ) > 0 ) { 
 				if ( 'image1' == $product->images->product_images[0] ) {
 					echo esc_attr( $product->get_first_image_url( ) );

@@ -14,6 +14,10 @@ class ec_orderdetail{
 	public $total_price;
 	public $total_discount_promotion;
 	public $total_discount_coupon;
+	public $is_free_gift;
+	public $bundle_group_key;
+	public $bundle_product_id;
+	public $applied_offers;
 	public $quantity;// INT
 	public $image1;// VARCHAR 255
 	public $optionitem_name_1;// VARCHAR 128
@@ -88,6 +92,10 @@ class ec_orderdetail{
 		$this->total_price = $orderdetail_row->total_price;
 		$this->total_discount_promotion = $orderdetail_row->total_discount_promotion;
 		$this->total_discount_coupon = $orderdetail_row->total_discount_coupon;
+		$this->is_free_gift = ( isset( $orderdetail_row->is_free_gift ) ) ? (int) $orderdetail_row->is_free_gift : 0;
+		$this->bundle_group_key = ( isset( $orderdetail_row->bundle_group_key ) ) ? $orderdetail_row->bundle_group_key : '';
+		$this->bundle_product_id = ( isset( $orderdetail_row->bundle_product_id ) ) ? (int) $orderdetail_row->bundle_product_id : 0;
+		$this->applied_offers = ( isset( $orderdetail_row->applied_offers ) ) ? $orderdetail_row->applied_offers : '';
 		$this->quantity = $orderdetail_row->quantity;
 		$this->image1 = $orderdetail_row->image1;
 		$this->optionitem_name_1 = $orderdetail_row->optionitem_name_1;
@@ -597,6 +605,19 @@ class ec_orderdetail{
 		if ( $this->is_download ) {
 			$this->download_count++;
 			if ( ( $this->download_timelimit_seconds == 0 || $this->timecheck <= $this->download_timelimit_seconds ) && ( $this->maximum_downloads_allowed  == 0 || $this->download_count <= $this->maximum_downloads_allowed ) ) {
+				if ( function_exists( 'wp_easycart_log_user_activity' ) && isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) && '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) {
+					wp_easycart_log_user_activity( (int) $GLOBALS['ec_cart_data']->cart_data->user_id, 'download', array(
+						'object_type' => 'download',
+						'object_id'   => (int) $this->download->download_id,
+						'meta'        => array(
+							'order_id'       => (int) $this->order_id,
+							'title'          => $this->title,
+							'file'           => basename( (string) $this->download->download_file_name ),
+							'download_count' => (int) $this->download_count,
+						),
+						'actor_type'  => 'customer',
+					) );
+				}
 				if ( $this->download->is_amazon_download ) {
 					if ( phpversion() >= 5.3 ) {
 						require_once( EC_PLUGIN_DIRECTORY . "/inc/classes/account/ec_amazons3.php" );

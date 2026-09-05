@@ -1,26 +1,77 @@
-<form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate">
-	<?php wp_easycart_admin_verification( )->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-shipping' ); ?>
+<?php
+/**
+ * Step 3 — Shipping. Radio cards preview the preset rates that will be installed.
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+global $wpdb;
+$wizard  = wp_easycart_admin_setup_wizard();
+$presets = $wizard->get_shipping_presets();
+$upsell  = $wizard->show_upsell();
+$symbol  = html_entity_decode( get_option( 'ec_option_currency' ) ? get_option( 'ec_option_currency' ) : '$' );
+$weight  = get_option( 'ec_option_paypal_weight_unit' ) ? get_option( 'ec_option_paypal_weight_unit' ) : 'lbs';
+$current = $wpdb->get_var( 'SELECT shipping_method FROM ec_setting LIMIT 1' );
+$counts  = $wizard->get_shipping_rate_counts();
+$map     = array( 'method' => 'static', 'price' => 'price', 'weight' => 'weight' );
+/* Pre-select the saved method only if this step was actually completed; the DB default is 'method'. */
+$selected = ( isset( $map[ $current ] ) && $wizard->completed_through() >= wp_easycart_admin_setup_wizard::STEP_SHIPPING ) ? $map[ $current ] : 'static';
+
+$fmt = function( $n ) use ( $symbol ) {
+	return $symbol . number_format( (float) $n, 2 );
+};
+?>
+<form action="" method="POST" name="wpeasycart_admin_setup_wizard_form" id="wpeasycart_admin_setup_wizard_form" novalidate="novalidate" class="ecwz-form">
+	<?php wp_easycart_admin_verification()->print_nonce_field( 'wp_easycart_nonce', 'wp-easycart-process-wizard-shipping' ); ?>
 	<input type="hidden" name="ec_admin_form_action" id="ec_admin_form_action" value="process-wizard-shipping">
-	<h3><?php esc_attr_e( 'Shipping', 'wp-easycart' ); ?></h3>
-	<p><?php esc_attr_e( 'WP EasyCart offers static shipping rates, weight based rates, cart total based rates, and a few more by default. You can upgrade to PRO and activate live shipping rates with UPS, USPS, FedEx, DHL, CanadaPost, or Australia Post later. For now, please choose a preferred method below and let EasyCart install some common shipping rates for you and your store\'s location.', 'wp-easycart' ); ?></p>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'Shipping Method', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input"><select name="shipping_method" id="wp_easycart_shipping_method" class="select2-basic">
-			<option value="static"><?php esc_attr_e( 'Static Rates', 'wp-easycart' ); ?></option>
-			<option value="price"><?php esc_attr_e( 'Cart Total Based Rates', 'wp-easycart' ); ?></option>
-			<option value="weight"><?php esc_attr_e( 'Weight Based Rates', 'wp-easycart' ); ?></option>
-		</select></div>
+
+	<div class="ecwz-body">
+		<h2><?php esc_html_e( 'How do you want to charge for shipping?', 'wp-easycart' ); ?></h2>
+		<p class="ecwz-lede"><?php echo sprintf( esc_html__( 'Pick a starting point and we\'ll install these rates for you. Edit amounts, add free-shipping rules or switch methods later under %s.', 'wp-easycart' ), '<a href="admin.php?page=wp-easycart-settings&subpage=shipping-rates">' . esc_html__( 'Settings › Shipping Rates', 'wp-easycart' ) . '</a>' ); ?></p>
+
+		<div class="ecwz-cards" id="ecwz_ship_cards">
+			<?php foreach ( $presets as $key => $p ) { ?>
+			<label class="ecwz-ccard ecwz-rcard<?php echo ( $key == $selected ) ? ' is-on' : ''; ?>" data-ship="<?php echo esc_attr( $key ); ?>">
+				<input type="radio" name="shipping_method" value="<?php echo esc_attr( $key ); ?>"<?php checked( $key, $selected ); ?>>
+				<div class="ecwz-ccard-top"><span class="ecwz-dot" aria-hidden="true"></span><div><h4><?php echo esc_html( $p['label'] ); ?></h4><span class="ecwz-sub"><?php echo esc_html( $p['sub'] ); ?></span></div></div>
+				<p><?php echo esc_html( $p['desc'] ); ?><?php if ( 'weight' == $key ) { ?> <?php echo sprintf( esc_html__( 'Weights in %s.', 'wp-easycart' ), '<strong>' . esc_html( $weight ) . '</strong>' ); ?><?php } ?></p>
+				<?php if ( $counts[ $key ] > 0 ) { ?>
+				<div class="ecwz-rates-note"><span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( sprintf( _n( '%d rate already set up', '%d rates already set up', $counts[ $key ], 'wp-easycart' ), $counts[ $key ] ) ); ?></span> <?php esc_html_e( 'Your existing rates will be kept; nothing new is added.', 'wp-easycart' ); ?></div>
+				<?php } else { ?>
+				<div class="ecwz-rates-note"><?php esc_html_e( 'We\'ll install these to get you started:', 'wp-easycart' ); ?></div>
+				<ul class="ecwz-rates">
+					<?php if ( 'static' == $key ) { ?>
+						<?php foreach ( $p['rates'] as $r ) { ?><li><span><?php echo esc_html( $r['shipping_label'] ); ?></span><b><?php echo esc_html( $fmt( $r['shipping_rate'] ) ); ?></b></li><?php } ?>
+					<?php } else {
+						$n = count( $p['rates'] );
+						foreach ( $p['rates'] as $i => $r ) {
+							$from = $r['trigger_rate'];
+							$to   = ( $i + 1 < $n ) ? $p['rates'][ $i + 1 ]['trigger_rate'] : null;
+							if ( 'price' == $key ) {
+								$range = ( null === $to ) ? $fmt( $from ) . ' +' : $fmt( $from ) . ' – ' . $fmt( $to );
+							} else {
+								$range = ( null === $to ) ? rtrim( rtrim( $from, '0' ), '.' ) . ' + ' . $weight : rtrim( rtrim( $from, '0' ), '.' ) . ' – ' . rtrim( rtrim( $to, '0' ), '.' ) . ' ' . $weight;
+							}
+					?><li><span><?php echo esc_html( $range ); ?></span><b><?php echo esc_html( $fmt( $r['shipping_rate'] ) ); ?></b></li><?php
+						}
+					} ?>
+				</ul>
+				<?php } ?>
+			</label>
+			<?php } ?>
+
+			<?php if ( $upsell ) { ?>
+			<div class="ecwz-ccard is-locked">
+				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub">UPS · USPS · FedEx · DHL · Canada Post · Australia Post</span></div></div>
+				<p><?php esc_html_e( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ); ?></p>
+				<div class="ecwz-ccard-act">
+					<span class="ecwz-badge ecwz-badge-amber">PRO</span>
+					<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_html_e( 'Try free for 14 days', 'wp-easycart' ); ?></a>
+				</div>
+			</div>
+			<?php } ?>
+		</div>
 	</div>
-	<?php if ( '' != apply_filters( 'wp_easycart_trial_start_content', 'true' ) ) { ?>
-	<div class="ec_admin_wizard_input_row">
-		<div class="ec_admin_wizard_input_row_title"><?php esc_attr_e( 'Live Shipping Rates', 'wp-easycart' ); ?></div>
-		<div class="ec_admin_wizard_input_row_input" style="padding-right:100px;"><?php esc_attr_e( 'UPS, FedEx, USPS, DHL, CanadaPost, and Australia Post are all available in Professional or Premium', 'wp-easycart' ); ?><br /><a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=shipping-rates" target="_blank"><?php esc_attr_e( 'VIEW DETAILS', 'wp-easycart' ); ?></a> | <a href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_attr_e( 'TRY WITH 14 DAY FREE TRIAL', 'wp-easycart' ); ?></a></div>
-		<div style="clear:both;"></div>
-	</div>
-	<?php } ?>
-	<div class="ec_admin_wizard_button_bar">
-		<a href="admin.php?page=wp-easycart-settings&ec_admin_form_action=skip-wizard&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-skip-wizard' ) ); ?>" class="ec_admin_wizard_quit_button"><?php esc_attr_e( 'Skip Setup Wizard', 'wp-easycart' ); ?></a>
-		<a href="admin.php?page=wp-easycart-products&subpage=products"><?php esc_attr_e( 'Setup Later', 'wp-easycart' ); ?></a>
-		<input type="submit" class="ec_admin_wizard_next_button" value="<?php esc_attr_e( 'Save &amp; Continue', 'wp-easycart' ); ?>" />
-	</div>
+
+	<?php $wizard->render_footer( wp_easycart_admin_setup_wizard::STEP_SHIPPING ); ?>
 </form>

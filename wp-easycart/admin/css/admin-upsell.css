@@ -1,0 +1,184 @@
+/* ====================================================================== */
+/* WP EasyCart — PRO upsell: popup, feature strip, locked-page recreation  */
+/* Depends on admin-v2.css tokens ( fallbacks inline ).                    */
+/* ====================================================================== */
+
+.ecv2-cl-pro-badge { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:.08em; line-height:1; padding:3px 6px; border-radius:4px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; vertical-align:middle; flex-shrink:0; }
+.ecv2-cl-pro-badge-lg { font-size:11px; padding:5px 9px; }
+
+/* ---------- Feature strip ( shared by Cart Links + locked pages ) ------ */
+.ecv2-cl-upsell { background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); padding:14px 16px 12px; margin-bottom:16px; background-image:linear-gradient(180deg, #fffbeb 0%, #fff 60px); }
+.ecv2-cl-upsell-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.ecv2-cl-upsell-copy { flex:1 1 auto; min-width:0; font-size:13px; color:var(--ecv2-g600, #4b5563); display:flex; gap:6px; flex-wrap:wrap; align-items:baseline; }
+.ecv2-cl-upsell-copy strong { color:var(--ecv2-g900, #111827); }
+.ecv2-cl-upsell-grid { display:grid; grid-template-columns:repeat( auto-fill, minmax( 230px, 1fr ) ); gap:8px; }
+.ecv2-cl-upsell-feature { display:flex; align-items:flex-start; gap:10px; text-align:left; width:100%; border:1px solid var(--ecv2-g200, #e5e7eb); background:#fff; border-radius:var(--ecv2-r, 8px); padding:10px 12px; cursor:pointer; transition:border-color .12s ease, box-shadow .12s ease; font:inherit; }
+.ecv2-cl-upsell-feature:hover { border-color:#f59e0b; box-shadow:0 2px 8px rgba(245,158,11,.15); }
+.ecv2-cl-upsell-feature > .dashicons:first-child { color:#d97706; font-size:18px; width:18px; height:18px; margin-top:1px; flex-shrink:0; }
+.ecv2-cl-upsell-feature-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.ecv2-cl-upsell-feature-text strong { font-size:12.5px; color:var(--ecv2-g900, #111827); }
+.ecv2-cl-upsell-feature-text span { font-size:11.5px; line-height:1.4; color:var(--ecv2-g500, #6b7280); }
+.ecv2-cl-upsell-lock { color:var(--ecv2-g300, #d1d5db); font-size:14px; width:14px; height:14px; flex-shrink:0; margin-top:2px; }
+.ecv2-cl-upsell-feature:hover .ecv2-cl-upsell-lock { color:#d97706; }
+
+/* ---------- Locked-page recreation ----------------------------------- */
+.ecv2-locked-page .ecv2-page-header-right .ecv2-btn .dashicons { font-size:14px; width:14px; height:14px; margin-right:2px; }
+.ecv2-upsell-stat-inline { display:flex; align-items:flex-start; gap:8px; margin:4px 0 16px; font-size:13px; color:var(--ecv2-g700, #374151); }
+.ecv2-upsell-stat-inline .dashicons { color:var(--ecv2-primary, #16a34a); flex-shrink:0; }
+
+.ecv2-locked-preview { position:relative; cursor:pointer; border-radius:var(--ecv2-rl, 12px); outline:none; }
+.ecv2-locked-preview:focus-visible .ecv2-locked-preview-veil, .ecv2-locked-preview:hover .ecv2-locked-preview-veil { opacity:1; }
+.ecv2-locked-preview-tag { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); margin:2px 0 8px; }
+.ecv2-locked-preview-tag .dashicons { font-size:14px; width:14px; height:14px; }
+.ecv2-locked-preview > .ecv2-locked-kpis, .ecv2-locked-preview > .ecv2-table-card { filter:saturate(.85); user-select:none; pointer-events:none; }
+.ecv2-locked-preview-veil { position:absolute; inset:30px 0 0 0; display:flex; align-items:center; justify-content:center; border-radius:var(--ecv2-rl, 12px); background:linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.55) 45%, rgba(255,255,255,.85) 100%); opacity:.92; transition:opacity .15s ease; pointer-events:none; }
+.ecv2-locked-preview-veil .ecv2-btn { box-shadow:0 8px 24px rgba(22,163,74,.28); font-size:14px; padding:10px 18px; }
+.ecv2-locked-preview-veil .ecv2-btn .dashicons { margin-right:4px; }
+
+.ecv2-locked-kpis { display:grid; grid-template-columns:repeat( 4, 1fr ); gap:10px; margin-bottom:12px; }
+.ecv2-locked-kpi { background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-r, 8px); padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
+.ecv2-locked-kpi span { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); }
+.ecv2-locked-kpi strong { font-size:20px; color:var(--ecv2-g900, #111827); }
+.ecv2-locked-table { width:100%; border-collapse:collapse; }
+.ecv2-locked-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); padding:10px 14px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); }
+.ecv2-locked-table td { padding:12px 14px; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); font-size:13px; color:var(--ecv2-g700, #374151); vertical-align:middle; }
+.ecv2-locked-table tr:last-child td { border-bottom:none; }
+
+/* ---------- Popup ---------------------------------------------------- */
+#ec_admin_upsell_popup { display:none; position:fixed; inset:0; z-index:100000; background:rgba(17,24,39,.55); padding:24px 16px; align-items:center; justify-content:center; overflow:auto; }
+#ec_admin_upsell_popup .ec_admin_upsell_popup_close { display:none; } /* legacy X; replaced by .ecv2-upsell-x inside the card */
+#ec_admin_upsell_popup .ec_admin_upsell_popup_inner { width:640px; max-width:100%; max-height:calc(100vh - 48px); overflow:auto; padding:0; background:#fff; border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.3); margin:auto; }
+#ec_admin_upsell_popup .ec_admin_upsell_popup_content { padding:0; }
+body.ecv2-upsell-lock { overflow:hidden; }
+
+.ecv2-upsell { position:relative; }
+/* The same template renders inline on locked pages ( Subscription Plans, etc. ). Outside the
+   modal there is no .ec_admin_upsell_popup_inner to provide the card, so provide it here and
+   drop the close button, which only makes sense in the popup. */
+.ecv2-upsell:not(#ec_admin_upsell_popup *) { background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:14px; box-shadow:var(--ecv2-sh, 0 1px 3px rgba(0,0,0,.1)); overflow:hidden; margin:0 0 20px; }
+.ecv2-upsell:not(#ec_admin_upsell_popup *) .ecv2-upsell-x { display:none; }
+.ecv2-upsell:not(#ec_admin_upsell_popup *) .ecv2-upsell-features { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; padding:6px 26px 4px; }
+@media screen and (max-width:900px) { .ecv2-upsell:not(#ec_admin_upsell_popup *) .ecv2-upsell-features { grid-template-columns:1fr; } }
+.ecv2-upsell-x { position:absolute; top:12px; right:12px; z-index:2; border:none; background:rgba(255,255,255,.7); cursor:pointer; color:var(--ecv2-g500, #6b7280); padding:5px; line-height:1; border-radius:8px; }
+.ecv2-upsell-x:hover { color:var(--ecv2-g900, #111827); background:var(--ecv2-g100, #f3f4f6); }
+
+.ecv2-upsell-hero { padding:24px 26px 14px; background:linear-gradient(180deg, #fffbeb, #fff); }
+.ecv2-upsell-title { margin:12px 0 5px; font-size:19px; font-weight:700; line-height:1.25; color:var(--ecv2-g900, #111827); }
+.ecv2-upsell-lede { font-size:13px; line-height:1.5; color:var(--ecv2-g600, #4b5563); }
+
+.ecv2-upsell-stat { display:flex; align-items:flex-start; gap:8px; margin:0 26px 8px; padding:10px 14px; background:var(--ecv2-primary-light, #ecfdf5); border:1px solid #bbf7d0; border-radius:8px; font-size:12.5px; line-height:1.5; color:var(--ecv2-g800, #1f2937); }
+.ecv2-upsell-stat .dashicons { color:var(--ecv2-primary, #16a34a); flex-shrink:0; margin-top:1px; }
+
+.ecv2-upsell-features { display:flex; flex-direction:column; padding:6px 16px 4px; }
+.ecv2-upsell-feature { display:flex; align-items:flex-start; gap:12px; padding:9px 10px; border-radius:8px; }
+.ecv2-upsell-feature.is-highlight { background:#fffbeb; box-shadow:inset 0 0 0 1px #fde68a; }
+.ecv2-upsell-feature > .dashicons { color:#d97706; font-size:18px; width:18px; height:18px; margin-top:1px; flex-shrink:0; }
+.ecv2-upsell-feature-text { display:flex; flex-direction:column; gap:1px; }
+.ecv2-upsell-feature-text strong { font-size:13px; color:var(--ecv2-g900, #111827); }
+.ecv2-upsell-feature-text span { font-size:12px; line-height:1.45; color:var(--ecv2-g500, #6b7280); }
+
+.ecv2-upsell-notice { display:flex; align-items:center; gap:10px; margin:8px 26px 0; padding:9px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:12.5px; color:#92400e; }
+.ecv2-upsell-notice .dashicons { color:#d97706; flex-shrink:0; }
+.ecv2-upsell-notice span:nth-child(2) { flex:1 1 auto; }
+.ecv2-locked-page .ecv2-upsell-notice { margin:0 0 14px; }
+
+.ecv2-upsell-plans { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px 26px 6px; }
+.ecv2-upsell-plan { position:relative; display:flex; flex-direction:column; gap:6px; padding:16px 14px 14px; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:12px; text-decoration:none !important; color:inherit; transition:border-color .12s ease, box-shadow .12s ease; }
+.ecv2-upsell-plan:hover { border-color:var(--ecv2-primary, #16a34a); box-shadow:0 4px 14px rgba(22,163,74,.12); }
+.ecv2-upsell-plan.is-recommended { border-color:var(--ecv2-primary, #16a34a); background:var(--ecv2-primary-light, #ecfdf5); }
+.ecv2-upsell-plan-tag { display:none; position:absolute; top:-9px; left:12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 8px; border-radius:999px; background:var(--ecv2-primary, #16a34a); color:#fff; }
+.ecv2-upsell-plan.is-recommended .ecv2-upsell-plan-tag { display:inline-block; }
+.ecv2-upsell-plan strong { font-size:14.5px; color:var(--ecv2-g900, #111827); }
+.ecv2-upsell-plan-desc { font-size:12px; line-height:1.45; color:var(--ecv2-g600, #4b5563); flex:1 1 auto; }
+.ecv2-upsell-plan .ecv2-btn { margin-top:6px; justify-content:center; }
+
+.ecv2-upsell-foot { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 26px 20px; flex-wrap:wrap; }
+.ecv2-upsell-trial { display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.45; color:var(--ecv2-g600, #4b5563); text-decoration:none !important; }
+.ecv2-upsell-trial strong { color:var(--ecv2-g900, #111827); }
+.ecv2-upsell-trial:hover strong { text-decoration:underline; }
+.ecv2-upsell-trial .dashicons { color:var(--ecv2-g400, #9ca3af); flex-shrink:0; font-size:16px; width:16px; height:16px; }
+.ecv2-upsell-docs { font-size:12px; font-weight:600; color:var(--ecv2-primary-dark, #15803d); text-decoration:none !important; white-space:nowrap; }
+.ecv2-upsell-docs:hover { text-decoration:underline !important; }
+
+@media screen and (max-width:640px) {
+	.ecv2-upsell-plans, .ecv2-locked-kpis { grid-template-columns:1fr; }
+	.ecv2-upsell-hero, .ecv2-upsell-plans, .ecv2-upsell-foot { padding-left:16px; padding-right:16px; }
+	.ecv2-upsell-stat, .ecv2-upsell-notice { margin-left:16px; margin-right:16px; }
+	.ecv2-cl-upsell-head { flex-wrap:wrap; }
+}
+
+/* ---------- Registration page ( free, no license ) ---------- */
+.ecreg .ecv2-page-intro { max-width:760px; margin:0 0 16px; }
+.ecreg-notice { display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:var(--ecv2-r, 8px); font-size:13px; color:#92400e; }
+.ecreg-notice .dashicons { color:#d97706; flex-shrink:0; }
+.ecreg-notice > span:nth-child(2) { flex:1 1 auto; }
+.ecreg-paths { display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:14px; margin:0 0 14px; }
+.ecreg-path { position:relative; display:flex; flex-direction:column; gap:8px; padding:20px 20px 18px; background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); }
+.ecreg-path.is-featured { border-color:var(--ecv2-primary, #22c55e); background:linear-gradient(180deg, var(--ecv2-primary-light, rgba(34,197,94,.08)), #fff 70%); }
+.ecreg-path-tag { position:absolute; top:-10px; left:16px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 8px; border-radius:999px; background:var(--ecv2-primary, #22c55e); color:#fff; }
+.ecreg-path-icon { font-size:22px; width:22px; height:22px; color:var(--ecv2-g500, #6b7280); }
+.ecreg-path.is-featured .ecreg-path-icon { color:var(--ecv2-primary-hover, #16a34a); }
+.ecreg-path h3 { margin:2px 0 0; font-size:16px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecreg-path p { margin:0; font-size:13px; line-height:1.5; color:var(--ecv2-g600, #4b5563); flex:1 1 auto; }
+.ecreg-path-list { margin:0; padding:0; list-style:none; display:grid; gap:4px; }
+.ecreg-path-list li { font-size:12.5px; color:var(--ecv2-g700, #374151); display:flex; gap:8px; align-items:flex-start; }
+.ecreg-path-list li::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--ecv2-primary, #22c55e); margin-top:7px; flex-shrink:0; }
+.ecreg-path-cta { justify-content:center; margin-top:6px; }
+.ecreg-path-cta .dashicons { font-size:14px; width:14px; height:14px; }
+.ecreg-path-fine { font-size:11.5px; color:var(--ecv2-g400, #9ca3af); line-height:1.45; }
+.ecreg-stat { display:flex; align-items:flex-start; gap:8px; margin:0 0 16px; font-size:13px; color:var(--ecv2-g700, #374151); }
+.ecreg-stat .dashicons { color:var(--ecv2-primary, #22c55e); flex-shrink:0; }
+.ecreg-upsell { clear:both; }
+.ecreg-upsell .ecv2-upsell-plans { grid-template-columns:1fr 1fr; }
+@media screen and (max-width:1000px) { .ecreg-paths { grid-template-columns:1fr; } }
+
+/* Trial state */
+.ecreg-trial-pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--ecv2-blue-light, rgba(59,130,246,.1)); color:#1e40af; }
+.ecreg-trial-pill.is-urgent { background:var(--ecv2-amber-light, rgba(245,158,11,.1)); color:#b45309; }
+.ecreg-notice.is-ended { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.ecreg-notice.is-ended .dashicons { color:var(--ecv2-danger, #ef4444); }
+.ecreg-path-actions { display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+.ecreg-path-actions .ecreg-path-cta { margin-top:0; }
+.ecreg-form { display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+.ecreg-f { display:flex; flex-direction:column; gap:4px; }
+.ecreg-f label { font-size:12px; font-weight:500; color:var(--ecv2-g700, #374151); }
+.ecreg-fine { font-weight:400; color:var(--ecv2-g400, #9ca3af); }
+.ecreg .ecv2-input { width:100%; margin:0 !important; }
+.ecreg-mono { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12.5px !important; letter-spacing:.02em; }
+.ecreg-inline { display:flex; gap:6px; }
+.ecreg-inline .ecv2-input { flex:1 1 auto; }
+.ecreg-dl { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0 0 10px; font-size:12.5px; }
+.ecreg-dl dt { color:var(--ecv2-g500, #6b7280); }
+.ecreg-dl dd { margin:0; color:var(--ecv2-g800, #1f2937); word-break:break-all; }
+.ecreg-trial .ecreg-path h3 { margin-bottom:2px; }
+
+/* Licensed / expired registration screens */
+.ecreg-notice.is-ok { background:#ecfdf5; border-color:#bbf7d0; color:#166534; }
+.ecreg-notice.is-ok .dashicons { color:var(--ecv2-primary-hover, #16a34a); }
+.ecreg-license-card { margin:0 0 14px; }
+.ecreg-dl-wide { grid-template-columns:auto 1fr; font-size:13px; margin-bottom:12px; }
+.ecreg-days { margin-left:8px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--ecv2-primary-light, rgba(34,197,94,.1)); color:var(--ecv2-primary-hover, #16a34a); }
+.ecreg-days.is-soon { background:var(--ecv2-amber-light, rgba(245,158,11,.1)); color:#b45309; }
+.ecreg-form-inline { max-width:420px; }
+.ecreg-paths-3 { grid-template-columns:1fr 1fr 1fr; }
+.ecreg-danger { color:var(--ecv2-danger, #ef4444) !important; border-color:#fecaca !important; }
+.ecreg-danger:hover { background:#fef2f2 !important; }
+.ecreg .ecss-license { background:#fff; }
+
+/* Registration: stakes list inside the renewal notice */
+.ecreg-notice-stakes { align-items:flex-start; }
+.ecreg-notice-stakes > span:nth-child(2) { display:block; }
+.ecreg-stakes { margin:6px 0 0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:3px 18px; }
+.ecreg-stakes li { font-size:12.5px; display:flex; gap:7px; align-items:flex-start; line-height:1.45; }
+.ecreg-stakes li::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6; margin-top:7px; flex-shrink:0; }
+
+.ecreg-quiet-link { display:block; margin-top:4px; font-size:12px; color:inherit; opacity:.8; text-decoration:underline; text-underline-offset:2px; }
+.ecreg-quiet-link:hover { opacity:1; }
+
+/* Lapsed-license page body ( PRO renew.php ) */
+.ecv2-cl-upsell.is-lapsed { border-color:#fecaca; background-image:linear-gradient(180deg, #fef2f2 0%, #fff 60px); }
+.ecv2-cl-upsell.is-lapsed .ecv2-cl-pro-badge { background:var(--ecv2-danger, #ef4444); }
+.ecv2-cl-upsell.is-lapsed .ecv2-cl-upsell-lock { color:var(--ecv2-danger, #ef4444); }
+.ecpr-lapsed-foot { display:flex; gap:8px; align-items:flex-start; margin:0 0 20px; font-size:12.5px; color:var(--ecv2-g500, #6b7280); line-height:1.5; }
+.ecpr-lapsed-foot .dashicons { flex-shrink:0; color:var(--ecv2-g400, #9ca3af); }
+.ecpr-lapsed-foot a { color:var(--ecv2-primary-hover, #16a34a); font-weight:600; }

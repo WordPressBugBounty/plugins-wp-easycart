@@ -1,3 +1,26 @@
+<?php
+// Offers v2: line-level offer flags, keyed by orderdetail_id. The scripts
+// and classes that build this template's line rows predate the offer
+// columns and cannot be assumed to select them, so fetch them directly for
+// the whole order in one query.
+$wpec_offer_line_flags = array();
+$wpec_offer_order_summary = array();
+if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+	global $wpdb;
+	$wpec_offer_flag_order_id = ( isset( $order[0]->order_id ) ) ? (int) $order[0]->order_id : 0;
+	if ( $wpec_offer_flag_order_id > 0 ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', $wpec_offer_flag_order_id ) ) as $wpec_offer_flag_row ) {
+			$wpec_offer_line_flags[ (int) $wpec_offer_flag_row->orderdetail_id ] = $wpec_offer_flag_row;
+		}
+		// Order-level applied-offers snapshot (ec_order.applied_offers).
+		$wpec_offer_order_json = $wpdb->get_var( $wpdb->prepare( 'SELECT applied_offers FROM ec_order WHERE order_id = %d', $wpec_offer_flag_order_id ) );
+		$wpec_offer_order_decoded = ( $wpec_offer_order_json ) ? json_decode( (string) $wpec_offer_order_json, true ) : false;
+		if ( is_array( $wpec_offer_order_decoded ) && isset( $wpec_offer_order_decoded['applied_offers'] ) && is_array( $wpec_offer_order_decoded['applied_offers'] ) ) {
+			$wpec_offer_order_summary = $wpec_offer_order_decoded['applied_offers'];
+		}
+	}
+}
+?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 	<head>
@@ -174,6 +197,24 @@
 													<tr>
 														<td class="style20">
 															<?php echo esc_attr( $orderdetails[$i]->title ); ?>
+															<?php // Offers v2 fulfillment markers — flags come from the order-wide map
+															// built at the top of this template, not from the line row itself.
+															$wpec_line_flags = ( isset( $orderdetails[$i]->orderdetail_id ) && isset( $wpec_offer_line_flags[ (int) $orderdetails[$i]->orderdetail_id ] ) ) ? $wpec_offer_line_flags[ (int) $orderdetails[$i]->orderdetail_id ] : false;
+															if ( $wpec_line_flags && $wpec_line_flags->is_free_gift ) { ?>
+															<span style="display:inline-block; margin-left:6px; padding:1px 8px; background:#fce7f0; color:#c2185b; font-size:11px; font-weight:bold; border-radius:3px; text-transform:uppercase; vertical-align:middle;"><?php echo wp_easycart_offers_text( 'cart_offers', 'gift_line_label' ); ?></span>
+															<?php }
+															if ( $wpec_line_flags && '' != $wpec_line_flags->bundle_group_key && $wpec_line_flags->bundle_product_id != $wpec_line_flags->product_id ) { ?>
+															<span style="display:inline-block; margin-left:6px; padding:1px 8px; background:#eef1f4; color:#4a5560; font-size:11px; font-weight:bold; border-radius:3px; text-transform:uppercase; vertical-align:middle;"><?php echo wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ); ?></span>
+															<?php } ?>
+															<?php if ( $wpec_line_flags && isset( $wpec_line_flags->applied_offers ) && '' != $wpec_line_flags->applied_offers ) {
+																$wpec_line_offer_rows = json_decode( (string) $wpec_line_flags->applied_offers, true );
+																if ( is_array( $wpec_line_offer_rows ) && count( $wpec_line_offer_rows ) > 0 ) { ?>
+															<div style="margin-top:4px;">
+																<?php foreach ( $wpec_line_offer_rows as $wpec_line_offer_row ) { if ( ! isset( $wpec_line_offer_row['label'] ) || ! isset( $wpec_line_offer_row['amount'] ) || (float) $wpec_line_offer_row['amount'] <= 0 ) { continue; } ?>
+																<span style="display:inline-block; margin:2px 4px 0 0; padding:1px 8px; background:#e7f5ec; color:#1f7a3d; font-size:11px; border-radius:3px;"><?php echo esc_attr( $wpec_line_offer_row['label'] ); ?> &minus;<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( (float) $wpec_line_offer_row['amount'] ) ); ?></span>
+																<?php } ?>
+															</div>
+															<?php } } ?>
 														</td>
 													</tr>
 
@@ -415,6 +456,27 @@
 				</td>
 			</tr>
 			<?php }?>
+
+			<?php
+			// Offers v2: itemized applied-offer rows above the discount total.
+			foreach ( $wpec_offer_order_summary as $wpec_order_offer_row ) {
+				if ( ! isset( $wpec_order_offer_row['label'] ) || ! isset( $wpec_order_offer_row['amount'] ) || (float) $wpec_order_offer_row['amount'] <= 0 ) { continue; }
+			?>
+			<tr>
+				<td align="left" class="style20">
+					<table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+						<tbody>
+							<tr>
+								<td>&nbsp;</td>
+								<td align="center" class="style22">&nbsp;</td>
+								<td align="right" class="style22"><?php echo esc_attr( $wpec_order_offer_row['label'] ); ?><?php if ( isset( $wpec_order_offer_row['code'] ) && '' != $wpec_order_offer_row['code'] ) { echo ' (' . esc_attr( $wpec_order_offer_row['code'] ) . ')'; } ?></td>
+								<td  align="right"  class="style22">-<?php echo esc_attr( $GLOBALS['currency']->get_currency_display( (float) $wpec_order_offer_row['amount'] ) ); ?></td>
+							</tr>
+						</tbody>
+					</table>
+				</td>
+			</tr>
+			<?php } ?>
 
 			<?php if( $order[0]->discount_total > 0 ){ ?>
 			<tr>

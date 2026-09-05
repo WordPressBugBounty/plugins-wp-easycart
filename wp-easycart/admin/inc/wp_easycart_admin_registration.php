@@ -19,15 +19,29 @@ class wp_easycart_admin_registration {
 			$license_status = wp_easycart_admin_license()->license_check();
 		}
 		if ( $license_status == 'trial' ) {
-			include( $this->trial_file );
-			wp_easycart_admin()->show_upgrade();
+			/* V2 trial page renders its own upsell ( only once the trial has ended ). */
+			$trial_v2 = EC_PLUGIN_DIRECTORY . '/admin/template/registration/trial-v2.php';
+			if ( file_exists( $trial_v2 ) ) {
+				include( $trial_v2 );
+			} else {
+				include( $this->trial_file );
+				wp_easycart_admin()->show_upgrade();
+			}
 		} else if ( $license_status == 'activated' || $license_status == 'deactivated' || $license_status == 'communications_error' ) {
-			include( $this->registration_file );
+			$status_v2 = EC_PLUGIN_DIRECTORY . '/admin/template/registration/registration-status-v2.php';
+			include( file_exists( $status_v2 ) ? $status_v2 : $this->registration_file );
 		} else if ( $license_status == 'expired' ) {
-			include( $this->registration_expired_file );
+			$expired_v2 = EC_PLUGIN_DIRECTORY . '/admin/template/registration/registration-expired-v2.php';
+			include( file_exists( $expired_v2 ) ? $expired_v2 : $this->registration_expired_file );
 		} else {
-			include( $this->registration_none_file );
-			wp_easycart_admin()->show_upgrade();
+			/* Free, no license: the V2 template renders the upsell card itself, cleared below the three paths. */
+			$none_v2 = EC_PLUGIN_DIRECTORY . '/admin/template/registration/registration-none-v2.php';
+			if ( file_exists( $none_v2 ) ) {
+				include( $none_v2 );
+			} else {
+				include( $this->registration_none_file );
+				wp_easycart_admin()->show_upgrade();
+			}
 		}
 	}
 

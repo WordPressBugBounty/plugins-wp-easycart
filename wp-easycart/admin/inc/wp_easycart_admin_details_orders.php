@@ -13,6 +13,7 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 		parent::__construct();
 		add_action( 'wp_easycart_admin_orders_details_basic_fields', array( $this, 'basic_fields' ) );
 		add_action( 'wp_easycart_admin_orders_details_shipment', array( $this, 'shipment_fields' ) );
+		add_action( 'wp_easycart_ecv2_order_details_payment_meta', array( $this, 'payment_fields' ) );
 	}
 
 	protected function init() {
@@ -155,6 +156,9 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 	}
 
 	public function shipment_fields() {
+		/* V2.1: weight only — gift card + coupon moved to payment_fields()
+		   ( Payment & Totals card ). The filter name is unchanged; filters
+		   that append extra shipment fields keep working. */
 		$fields = apply_filters(
 			'wp_easycart_admin_orders_details_shipment_fields_list',
 			array(
@@ -167,6 +171,18 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 					'validation_type' => 'text',
 					'value' => $this->order->order_weight,
 				),
+			)
+		);
+		$this->print_fields( $fields );
+	}
+
+	public function payment_fields() {
+		/* V2.1: gift card + coupon render inside the Payment & Totals card
+		   via 'wp_easycart_ecv2_order_details_payment_meta'. Element IDs are
+		   unchanged ( orders.js ec_admin_process_order_info reads them ). */
+		$fields = apply_filters(
+			'wp_easycart_ecv2_order_details_payment_fields_list',
+			array(
 				array(
 					'name' => 'giftcard_id',
 					'type' => 'text',
@@ -188,3 +204,109 @@ class wp_easycart_admin_details_orders extends wp_easycart_admin_details {
 		$this->print_fields( $fields );
 	}
 }
+
+if ( ! function_exists( 'wp_easycart_format_phone' ) ) :
+/**
+ * Display-format a phone number using the order's country as a hint.
+ * Returns array( 'display' => '(541) 969-0424', 'href' => 'tel:+15419690424' ).
+ * Covers the common patterns without a libphonenumber dependency;
+ * filter 'wp_easycart_ecv2_format_phone' lets PRO/plugins replace it.
+ * Global (not a class method) because the V2 template is rendered by the
+ * base wp_easycart_admin_details_orders class.
+ */
+function wp_easycart_format_phone( $raw, $country = '' ) {
+	$raw     = trim( (string) $raw );
+	$country = strtoupper( trim( (string) $country ) );
+	if ( '' === $raw ) {
+		return array( 'display' => '', 'href' => '' );
+	}
+	$has_plus = ( 0 === strpos( $raw, '+' ) ) || ( 0 === strpos( $raw, '00' ) );
+	$digits   = preg_replace( '/\D/', '', $raw );
+	if ( 0 === strpos( $raw, '00' ) ) {
+		$digits = substr( $digits, 2 );
+	}
+	$display = $raw;
+	$href    = '';
+
+	$nanp = array( 'US', 'CA', 'PR', 'VI', 'GU', 'AS', 'MP', 'BS', 'BB', 'BM', 'DO', 'JM', 'TT' );
+
+	if ( $has_plus && strlen( $digits ) >= 8 ) {
+		/* International: +CC then group the national part. */
+		$cc  = '';
+		$nat = $digits;
+		foreach ( array( 1, 2, 3 ) as $len ) {
+			$try = substr( $digits, 0, $len );
+			if ( '1' === $try || ( 2 === $len && in_array( $try, array( '20','27','30','31','32','33','34','36','39','40','41','43','44','45','46','47','48','49','51','52','53','54','55','56','57','58','60','61','62','63','64','65','66','81','82','84','86','90','91','92','93','94','95','98' ), true ) ) || 3 === $len ) {
+				$cc  = $try;
+				$nat = substr( $digits, $len );
+				break;
+			}
+		}
+		if ( '1' === $cc && 10 === strlen( $nat ) ) {
+			$display = '+1 (' . substr( $nat, 0, 3 ) . ') ' . substr( $nat, 3, 3 ) . '-' . substr( $nat, 6 );
+		} else {
+			$display = '+' . $cc . ' ' . wp_easycart_group_phone_digits( $nat );
+		}
+		$href = '+' . $digits;
+	} else if ( in_array( $country, $nanp, true ) || '' === $country ) {
+		if ( 11 === strlen( $digits ) && '1' === $digits[0] ) {
+			$digits = substr( $digits, 1 );
+		}
+		if ( 10 === strlen( $digits ) ) {
+			$display = '(' . substr( $digits, 0, 3 ) . ') ' . substr( $digits, 3, 3 ) . '-' . substr( $digits, 6 );
+			$href    = '+1' . $digits;
+		}
+	} else if ( 'GB' === $country ) {
+		if ( 11 === strlen( $digits ) && '0' === $digits[0] ) {
+			if ( '02' === substr( $digits, 0, 2 ) ) {
+				$display = substr( $digits, 0, 3 ) . ' ' . substr( $digits, 3, 4 ) . ' ' . substr( $digits, 7 );
+			} else if ( '07' === substr( $digits, 0, 2 ) ) {
+				$display = substr( $digits, 0, 5 ) . ' ' . substr( $digits, 5 );
+			} else {
+				$display = substr( $digits, 0, 4 ) . ' ' . substr( $digits, 4, 3 ) . ' ' . substr( $digits, 7 );
+			}
+			$href = '+44' . substr( $digits, 1 );
+		}
+	} else if ( 'AU' === $country ) {
+		if ( 10 === strlen( $digits ) && '0' === $digits[0] ) {
+			$display = ( '04' === substr( $digits, 0, 2 ) )
+				? substr( $digits, 0, 4 ) . ' ' . substr( $digits, 4, 3 ) . ' ' . substr( $digits, 7 )
+				: substr( $digits, 0, 2 ) . ' ' . substr( $digits, 2, 4 ) . ' ' . substr( $digits, 6 );
+			$href = '+61' . substr( $digits, 1 );
+		}
+	} else if ( 'FR' === $country ) {
+		if ( 10 === strlen( $digits ) && '0' === $digits[0] ) {
+			$display = implode( ' ', str_split( $digits, 2 ) );
+			$href    = '+33' . substr( $digits, 1 );
+		}
+	} else if ( 'DE' === $country || 'NL' === $country || 'ES' === $country || 'IT' === $country ) {
+		if ( strlen( $digits ) >= 9 ) {
+			$display = wp_easycart_group_phone_digits( $digits );
+		}
+	}
+
+	if ( '' === $href ) {
+		$href = ( $has_plus ? '+' : '' ) . $digits;
+	}
+	return apply_filters( 'wp_easycart_ecv2_format_phone', array( 'display' => $display, 'href' => 'tel:' . $href ), $raw, $country );
+}
+
+function wp_easycart_group_phone_digits( $d ) {
+	$len = strlen( $d );
+	if ( $len <= 4 ) {
+		return $d;
+	}
+	/* Leading area-ish block, then 3s, with a final 3 or 4. */
+	$first = ( $len % 3 === 0 ) ? 3 : ( $len % 3 === 1 ? 4 : 2 );
+	$out   = array( substr( $d, 0, $first ) );
+	$rest  = substr( $d, $first );
+	while ( strlen( $rest ) > 4 ) {
+		$out[] = substr( $rest, 0, 3 );
+		$rest  = substr( $rest, 3 );
+	}
+	if ( '' !== $rest ) {
+		$out[] = $rest;
+	}
+	return implode( ' ', $out );
+}
+endif;

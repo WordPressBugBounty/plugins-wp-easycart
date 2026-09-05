@@ -91,8 +91,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 						'post_title' => $name,
 						'post_type' => 'ec_store',
 					);
-					$post_id = wp_insert_post( $post );
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_manufacturer SET post_id = %d WHERE manufacturer_id = %d', $post_id, $manufacturer_id ) );
+					wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_id, $post );
 					update_option( 'ec_option_default_manufacturer', $manufacturer_id );
 				}
 
@@ -127,6 +126,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 							'post_status' => 'publish'
 						 );
 						$store_id = wp_insert_post( $store_page );
+						if ( is_wp_error( $store_id ) ) {
+							$store_id = 0;
+						}
 					}
 					update_option( 'ec_option_storepage', $store_id );
 
@@ -140,6 +142,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 							'post_status' => 'publish'
 						 );
 						$cart_id = wp_insert_post( $cart_page );
+						if ( is_wp_error( $cart_id ) ) {
+							$cart_id = 0;
+						}
 					}
 					update_option( 'ec_option_cartpage', $cart_id );
 
@@ -153,6 +158,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 							'post_status' => 'publish'
 						 );
 						$account_id = wp_insert_post( $account_page );
+						if ( is_wp_error( $account_id ) ) {
+							$account_id = 0;
+						}
 					}
 					update_option( 'ec_option_accountpage', $account_id );
 				}
@@ -254,6 +262,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 				'post_status' => 'publish',
 			);
 			$post_id = wp_insert_post( $post );
+			if ( is_wp_error( $post_id ) ) {
+				$post_id = 0;
+			}
 			update_option( 'ec_option_storepage', $post_id );
 			return $post_id;
 		}
@@ -270,6 +281,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 				'post_status' => 'publish',
 			);
 			$post_id = wp_insert_post( $post );
+			if ( is_wp_error( $post_id ) ) {
+				$post_id = 0;
+			}
 			update_option( 'ec_option_cartpage', $post_id );
 		}
 
@@ -285,6 +299,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 				'post_status' => 'publish',
 			);
 			$post_id = wp_insert_post( $post );
+			if ( is_wp_error( $post_id ) ) {
+				$post_id = 0;
+			}
 			update_option( 'ec_option_accountpage', $post_id );
 		}
 
@@ -330,8 +347,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_title' => $categories[ $i ]->name,
 					'post_type' => 'ec_store',
 				);
-				$categories[ $i ]->post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_category SET post_id = %d WHERE category_id = %d', $categories[ $i ]->post_id, $categories[ $i ]->category_id ) );
+				$categories[ $i ]->post_id = wp_easycart_post_sync()->insert( 'category', $categories[ $i ]->category_id, $post );
 			}
 
 			$manufacturers = array( 
@@ -356,8 +372,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_title' => $manufacturers[ $i ]->name,
 					'post_type' => 'ec_store',
 				);
-				$manufacturers[ $i ]->post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_manufacturer SET post_id = %d WHERE manufacturer_id = %d', $manufacturers[ $i ]->post_id, $manufacturers[ $i ]->manufacturer_id ) );
+				$manufacturers[ $i ]->post_id = wp_easycart_post_sync()->insert( 'manufacturer', $manufacturers[ $i ]->manufacturer_id, $post );
 			}
 
 			$menulevel1_items = array(
@@ -396,8 +411,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_title' => $menulevel1_items[ $i ]->name,
 					'post_type' => 'ec_store',
 				);
-				$menulevel1_items[ $i ]->post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_menulevel1 SET post_id = %d WHERE menulevel1_id = %d', $menulevel1_items[ $i ]->post_id, $menulevel1_items[ $i ]->menulevel1_id ) );
+				$menulevel1_items[ $i ]->post_id = wp_easycart_post_sync()->insert( 'menulevel1', $menulevel1_items[ $i ]->menulevel1_id, $post );
 			}
 
 			$menulevel2_items = array(
@@ -433,8 +447,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_title' => $menulevel2_items[ $i ]->name,
 					'post_type' => 'ec_store',
 				);
-				$menulevel2_items[ $i ]->post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_menulevel2 SET post_id = %d WHERE menulevel2_id = %d', $menulevel2_items[ $i ]->post_id, $menulevel2_items[ $i ]->menulevel2_id ) );
+				$menulevel2_items[ $i ]->post_id = wp_easycart_post_sync()->insert( 'menulevel2', $menulevel2_items[ $i ]->menulevel2_id, $post );
 			}
 
 			$menulevel3_items = array(
@@ -463,8 +476,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_title' => $menulevel3_items[ $i ]->name,
 					'post_type' => 'ec_store',
 				);
-				$menulevel3_items[ $i ]->post_id = wp_insert_post( $post );
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_menulevel3 SET post_id = %d WHERE menulevel3_id = %d', $menulevel3_items[ $i ]->post_id, $menulevel3_items[ $i ]->menulevel3_id ) );
+				$menulevel3_items[ $i ]->post_id = wp_easycart_post_sync()->insert( 'menulevel3', $menulevel3_items[ $i ]->menulevel3_id, $post );
 			}
 
 			$options = array(
@@ -864,6 +876,10 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_type' => 'ec_store',
 				);
 				$products[ $i ]->post_id = wp_insert_post( $post );
+				if ( is_wp_error( $products[ $i ]->post_id ) ) {
+					$products[ $i ]->post_id = 0;
+				}
+				wp_easycart_post_sync()->tag_post( $products[ $i ]->post_id, 'product', $products[ $i ]->product_id );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d, featured_product_id_1 = %d, featured_product_id_2 = %d, featured_product_id_3 = %d, featured_product_id_4 = %d WHERE product_id = %d', $products[ $i ]->post_id, $products[rand( 0, count( $products ) - 1 )]->product_id, $products[rand( 0, count( $products ) - 1 )]->product_id, $products[rand( 0, count( $products ) - 1 )]->product_id, $products[rand( 0, count( $products ) - 1 )]->product_id, $products[ $i ]->product_id ) );
 			}
 
@@ -987,7 +1003,7 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 			$products = $wpdb->get_results( 'SELECT product_id, post_id FROM ec_product WHERE is_demo_item = 1' );
 			$products_count = count( $products );
 			for ( $i = 0; $i < $products_count; $i++ ) {
-				wp_delete_post( $products[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'product', $products[ $i ]->product_id, $products[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_product WHERE product_id = %d', $products[ $i ]->product_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_review WHERE product_id = %d', $products[ $i ]->product_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE product_id = %d', $products[ $i ]->product_id ) );
@@ -1005,31 +1021,31 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 			$menus_level3 = $wpdb->get_results( 'SELECT menulevel3_id, post_id FROM ec_menulevel3 WHERE is_demo_item = 1' );
 			$menu_level1_count = count( $menus_level1 );
 			for ( $i = 0; $i < $menu_level1_count; $i++ ) {
-				wp_delete_post( $menus_level1[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'menulevel1', $menus_level1[ $i ]->menulevel1_id, $menus_level1[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel1 WHERE menulevel1_id = %d', $menus_level1[ $i ]->menulevel1_id ) );
 			}
 			$menu_level2_count = count( $menus_level2 );
 			for ( $i = 0; $i < $menu_level2_count; $i++ ) {
-				wp_delete_post( $menus_level2[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'menulevel2', $menus_level2[ $i ]->menulevel2_id, $menus_level2[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel2 WHERE menulevel2_id = %d', $menus_level2[ $i ]->menulevel2_id ) );
 			}
 			$menu_level3_count = count( $menus_level3 );
 			for ( $i = 0; $i < $menu_level3_count; $i++ ) {
-				wp_delete_post( $menus_level3[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'menulevel3', $menus_level3[ $i ]->menulevel3_id, $menus_level3[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_menulevel3 WHERE menulevel3_id = %d', $menus_level3[ $i ]->menulevel3_id ) );
 			}
 
 			$manufacturers = $wpdb->get_results( 'SELECT manufacturer_id, post_id FROM ec_manufacturer WHERE is_demo_item = 1' );
 			$manufacturers_count = count( $manufacturers );
 			for ( $i = 0; $i < $manufacturers_count; $i++ ) {
-				wp_delete_post( $manufacturers[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'manufacturer', $manufacturers[ $i ]->manufacturer_id, $manufacturers[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturers[ $i ]->manufacturer_id ) );
 			}
 
 			$categories = $wpdb->get_results( 'SELECT category_id, post_id FROM ec_category WHERE is_demo_item = 1' );
 			$categories_count = count( $categories );
 			for ( $i = 0; $i < $categories_count; $i++ ) {
-				wp_delete_post( $categories[ $i ]->post_id, true );
+				wp_easycart_post_sync()->delete( 'category', $categories[ $i ]->category_id, $categories[ $i ]->post_id );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_category WHERE category_id = %d', $categories[ $i ]->category_id ) );
 			}
 

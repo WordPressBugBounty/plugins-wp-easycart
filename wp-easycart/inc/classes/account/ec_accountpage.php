@@ -1703,6 +1703,7 @@ class ec_accountpage {
 		$password_hash = wp_easycart_hash_password( $new_password );
 		$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $new_password );
 		$this->mysqli->reset_password( $user->email, $password_hash );
+		do_action( 'wpeasycart_password_reset_complete', $user->user_id );
 
 		if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
 			$wp_user = get_user_by( 'email', $user->email );
@@ -1857,6 +1858,7 @@ class ec_accountpage {
 			}
 
 			if ( $success ) {
+				do_action( 'wpeasycart_password_updated', $user_id );
 				$GLOBALS['ec_cart_data']->save_session_to_db();
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'password_updated' ) ) ) );
 				die();
@@ -2019,6 +2021,10 @@ class ec_accountpage {
 
 	private function process_logout() {
 		$account_logout_url = apply_filters( 'wp_easycart_account_logout_redirect_url', wpeasycart_links()->get_account_page( 'login' ) );
+		$wpec_logout_user_id = ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) && '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0;
+		if ( $wpec_logout_user_id > 0 ) {
+			do_action( 'wpeasycart_logout', $wpec_logout_user_id );
+		}
 		$GLOBALS['ec_cart_data']->cart_data->user_id = "";
 		$GLOBALS['ec_cart_data']->cart_data->email = "";
 		$GLOBALS['ec_cart_data']->cart_data->username = "";
@@ -2163,6 +2169,7 @@ class ec_accountpage {
 		do_action( 'wpeasycart_subscription_cancelled', $this->user->user_id, $subscription_id );
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		if ( $cancel_success ) {
+			do_action( 'wpeasycart_subscription_cancelled', $this->user->user_id, $subscription_id );
 			$this->mysqli->cancel_subscription( $subscription_id );
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscriptions', array( 'account_success' => 'subscription_canceled' ) ) ) );
 			die();

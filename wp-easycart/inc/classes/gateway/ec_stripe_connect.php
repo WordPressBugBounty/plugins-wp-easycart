@@ -1384,6 +1384,7 @@ class ec_stripe_connect extends ec_gateway {
 	////////////////////////////////////////////////
 
 	private function get_insert_subscription_data( $product, $user, $card, $coupon, $prorate, $trial_end, $quantity, $tax_rate = 0.00, $subscription_options = array(), $tax_rates = array(), $subscription_option_quantities = array(), $shipping_plan_id = false ){
+		$trial_end = apply_filters( 'wp_easycart_stripe_subscription_trial_end', $trial_end, $product, $subscription_options, $user );
 		$price_id = false;
 		if ( isset( $product->stripe_product_id ) && isset( $product->stripe_default_price_id ) && '' != $product->stripe_product_id && '' != $product->stripe_default_price_id ) {
 			$product_id = $product->stripe_product_id;
@@ -1507,8 +1508,8 @@ class ec_stripe_connect extends ec_gateway {
 			}
 		}
 
+		$gateway_data = apply_filters( 'wp_easycart_stripe_subscription_insert_data', $gateway_data, $product, $user, $subscription_options );
 		return $gateway_data;
-
 	}
 
 	private function get_update_subscription_data( $product, $user, $card, $coupon, $prorate, $trial_end, $quantity, $subscription_item_id ) {
@@ -1550,6 +1551,7 @@ class ec_stripe_connect extends ec_gateway {
 			$gateway_data['source'] = sanitize_text_field( $_POST['stripeToken'] );
 		}
 
+		$gateway_data = apply_filters( 'wp_easycart_stripe_subscription_update_data', $gateway_data, $product, $user, $subscription_item_id );
 		return $gateway_data;
 	}
 

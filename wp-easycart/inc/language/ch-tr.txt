@@ -1080,6 +1080,119 @@
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"申請"
+				},
+				"coupon_applied":{
+					"title":"Cart, Offer Code Applied",
+					"value":"優惠卷已套用至您的購物車！"
+				},
+				"coupon_removed":{
+					"title":"Cart, Offer Code Removed",
+					"value":"優惠卷已移除。"
+				},
+				"coupon_remove_label":{
+					"title":"Cart, Remove Offer Code Label",
+					"value":"移除優惠卷"
+				},
+				"coupon_already_applied":{
+					"title":"Cart, Offer Code Already Applied",
+					"value":"此優惠卷已套用至您的購物車。"
+				},
+				"coupon_not_combinable":{
+					"title":"Cart, Offer Code Not Combinable",
+					"value":"此優惠卷無法與其他折扣合併使用。"
+				},
+				"coupon_not_for_account":{
+					"title":"Cart, Offer Code Wrong Account",
+					"value":"此優惠卷已指定給其他帳戶。"
+				},
+				"coupon_stacking_disabled":{
+					"title":"Cart, Offer Stacking Disabled",
+					"value":"每筆訂單只能使用一張優惠卷。"
+				},
+				"coupon_stacking_limit":{
+					"title":"Cart, Offer Stacking Limit",
+					"value":"您已達到此訂單可使用的優惠卷數量上限。"
+				},
+				"free_gift_out_of_stock":{
+					"title":"Cart, Free Gift Out of Stock",
+					"value":"很抱歉，此優惠的免費贈品已無庫存。"
+				},
+				"bundle_added":{
+					"title":"Cart, Bundle Added",
+					"value":"組合已加入您的購物車！"
+				},
+				"bundle_not_found":{
+					"title":"Cart, Bundle Not Found",
+					"value":"此組合目前無法提供。"
+				},
+				"bundle_selection_required":{
+					"title":"Cart, Bundle Selection Required",
+					"value":"請為組合中的每項商品進行選擇。"
+				},
+				"bundle_component_out_of_stock":{
+					"title":"Cart, Bundle Component Out of Stock",
+					"value":"此組合中有商品已無庫存。"
+				},
+				"bundle_out_of_stock":{
+					"title":"Cart, Bundle Out of Stock",
+					"value":"此組合已無庫存。"
+				},
+				"bundle_mode_requires_component_lines":{
+					"title":"Cart, Bundle Mode Error",
+					"value":"此組合設定有誤，請與商店聯絡。"
+				}
+			}
+		},
+		"cart_offers":{
+			"label":"Cart and Product Offer Displays",
+			"options":{
+				"gift_line_label":{
+					"title":"Cart, Free Gift Line Tag",
+					"value":"免費贈品"
+				},
+				"bundle_line_label":{
+					"title":"Cart, Bundle Line Tag",
+					"value":"組合商品"
+				},
+				"gift_chooser_title":{
+					"title":"Cart, Gift Chooser Title",
+					"value":"選擇您的免費贈品"
+				},
+				"gift_claim_button":{
+					"title":"Cart, Gift Claim Button",
+					"value":"領取贈品"
+				},
+				"gift_free_label":{
+					"title":"Cart, Gift Free Label",
+					"value":"免費"
+				},
+				"offer_badge_default":{
+					"title":"Product, Offer Badge Default",
+					"value":"特價"
+				},
+				"offer_applied_label":{
+					"title":"Cart, Offer Applied Label",
+					"value":"已套用"
+				},
+				"countdown_ends_in":{
+					"title":"Product, Offer Countdown Label",
+					"value":"距離結束"
+				},
+				"progress_spend_message":{
+					"title":"Cart, Offer Progress Spend Message",
+					"value":"再加購 [amount] 即可獲得：[label]"
+				},
+				"progress_quantity_message":{
+					"title":"Cart, Offer Progress Quantity Message",
+					"value":"再加購 [quantity] 件商品即可獲得：[label]"
+				},
+				"bundle_includes_title":{
+					"title":"Product, Bundle Includes Title",
+					"value":"此組合包含"
+				},
+				"bundle_save_label":{
+					"title":"Product, Bundle Save Label",
+					"value":"省下"
 				}
 			}
 		},

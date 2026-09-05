@@ -155,6 +155,15 @@ class ec_shipping {
 				return $order_a - $order_b;
 			} );
 			$this->method_based = apply_filters( 'wpeasycart_method_based_shipping', $this->method_based );
+			
+			/* Offers v2 core patch: publish the cart-wide fee components so the
+			 * offer system can decompose a displayed rate (base + handling +
+			 * per-product fees) when a shipping offer waives only part of it.
+			 * Both values are per-cart constants across every rate option. */
+			$GLOBALS['wpeasycart_shipping_fee_components'] = array(
+				'base_handling' => (float) $this->handling,
+				'product_fees' => (float) $this->add_cart_handling( 0 ),
+			);
 
 			$this->subtotal = $subtotal - $GLOBALS['wpeasycart_current_coupon_discount'];
 			$this->weight = $weight;
@@ -1700,6 +1709,9 @@ class ec_shipping {
 				$rate = 0;
 			}
 			$rate = floatval( $rate ) + floatval( $this->handling ) + floatval( $cart_handling );
+			if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() && class_exists( 'ec_offer_integration' ) ) {
+				$rate = ec_offer_integration::apply_shipping_fee_waivers( $rate, ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) ? (string) $GLOBALS['ec_cart_data']->cart_data->shipping_method : '', floatval( $this->handling ), floatval( $cart_handling ) );
+			}
 			if ( $include_promotions ) {
 				$discount = $promotion->get_shipping_discounts( $cart_subtotal, $rate, $this->shipping_promotion_text );
 				$rate = floatval( $rate ) - floatval( $discount );

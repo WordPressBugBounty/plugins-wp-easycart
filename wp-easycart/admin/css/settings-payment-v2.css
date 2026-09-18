@@ -1,0 +1,352 @@
+/* WP EasyCart Admin — Settings › Payment ( V2 ). Layered on settings-page-v2.css; the drawer chrome
+   ( .ecdrawer ) comes from settings-lists-v2.css. Accent follows the admin colorizer ( --ecst-accent ).
+   The second half maps the legacy gateway partials, shown inside the drawer, onto the V2 look. */
+
+/* flash + terms gate + test banner */
+.ecpay-flash { margin:0 0 12px; padding:10px 14px; border-radius:var(--ecv2-r); font-size:13px; border:1px solid var(--ecv2-g200); background:var(--ecv2-g50); color:var(--ecv2-g800); }
+.ecpay-flash.is-brand { background:var(--ecst-accent-soft); border-color:transparent; }
+.ecpay-flash.is-amber { background:#fff7e6; border-color:#ffd591; color:#874d00; }
+.ecpay-terms { margin:0 0 14px; padding:12px 14px; border:1px solid #ffd591; background:#fffbf2; border-radius:var(--ecv2-r); }
+.ecpay-terms-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+.ecpay-terms-head b { font-size:13px; }
+.ecpay-terms p { margin:0 0 10px; font-size:12.5px; color:var(--ecv2-g600); line-height:1.5; max-width:80ch; }
+.ecpay-terms-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+.ecpay-terms-row input[type="checkbox"] { margin:0; }
+.ecpay-terms-row span { flex:1; min-width:200px; }
+.ecpay-terms-row a { color:var(--ecst-accent); font-weight:600; }
+.ecpay-banner { display:flex; align-items:center; gap:12px; margin:0 0 14px; padding:12px 14px; border-radius:var(--ecv2-r); background:#fff7e6; border:1px solid #ffd591; color:#874d00; }
+.ecpay-banner .dashicons { color:#d97706; font-size:22px; width:22px; height:22px; flex-shrink:0; }
+.ecpay-banner-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; font-size:12.5px; }
+.ecpay-banner-text b { font-size:13.5px; color:#78350f; }
+.ecpay-banner-btn { flex-shrink:0; }
+
+/* cards */
+.ecpay-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+.ecpay-card { position:relative; display:flex; flex-direction:column; gap:10px; padding:14px 16px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; min-width:0; }
+.ecpay-card.is-connected { border-color:var(--ecst-accent); box-shadow:0 0 0 1px var(--ecst-accent-soft) inset; }
+.ecpay-card.is-incomplete { border-color:#ffd591; }
+.ecpay-card.is-locked { border-color:#fca5a5; }
+.ecpay-card.is-empty { border-style:dashed; background:var(--ecv2-g50); }
+.ecpay-card-role { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ecv2-g500); display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.ecpay-card-role span { font-weight:400; letter-spacing:0; text-transform:none; font-size:11.5px; color:var(--ecv2-g400); }
+.ecpay-card-head { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+.ecpay-logo { width:34px; height:34px; border-radius:8px; background:var(--ecv2-g100); color:var(--ecv2-g700); display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0; user-select:none; }
+.ecpay-logo.is-empty { background:transparent; border:1px dashed var(--ecv2-g300); color:var(--ecv2-g400); }
+.ecpay-card-title { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.ecpay-card-title h4 { margin:0; font-size:14px; font-weight:600; color:var(--ecv2-g900); }
+.ecpay-card-title span { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecpay-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.ecpay-card-note { margin:0; font-size:12px; color:#991b1b; }
+.ecpay-facts { margin:0; display:grid; grid-template-columns:1fr; gap:4px 12px; font-size:12px; }
+.ecpay-facts div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:8px; align-items:baseline; }
+.ecpay-facts dt { color:var(--ecv2-g500); font-weight:500; }
+.ecpay-facts dd { margin:0; color:var(--ecv2-g800); overflow-wrap:anywhere; }
+.ecpay-card-actions { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:auto; padding-top:6px; border-top:1px solid var(--ecv2-g100); }
+.ecpay-card-actions .ecv2-btn-primary, .ecpay-more-act .ecv2-btn-primary { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecpay-card-actions .ecv2-btn-primary:hover, .ecpay-more-act .ecv2-btn-primary:hover { filter:brightness(.95); }
+.ecpay-card-actions a.ecv2-btn { text-decoration:none; }
+.ecpay-card-actions .ecv2-btn.is-busy { opacity:.6; }
+.ecpay-connect[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
+.ecpay-fee-note { margin:12px 0 0; font-size:12px; color:var(--ecv2-g500); line-height:1.5; }
+.ecpay-fee-note a { color:var(--ecst-accent); font-weight:600; text-decoration:none; }
+.ecpay-fee-note a:hover { text-decoration:underline; }
+
+/* partner-first chooser ( empty live / third-party slot, or "Change gateway" ) */
+.ecpay-chooser { margin:0 0 14px; padding:14px 16px 16px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:linear-gradient(180deg, var(--ecst-accent-soft), #fff 70px); }
+.ecpay-cards + .ecpay-chooser { margin:14px 0 0; }
+.ecpay-chooser[hidden] { display:none; }
+.ecpay-chooser.is-change { border-color:var(--ecst-accent); }
+.ecpay-chooser-head { display:flex; align-items:flex-start; gap:12px; margin:0 0 12px; }
+.ecpay-chooser-titles { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ecpay-chooser-titles h4 { margin:0; font-size:15px; font-weight:600; color:var(--ecv2-g900); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ecpay-chooser-titles h4:focus { outline:none; }
+.ecpay-chooser-titles h4:focus-visible { box-shadow:0 0 0 3px var(--ecst-accent-soft); border-radius:4px; }
+.ecpay-chooser-titles > span { font-size:12.5px; color:var(--ecv2-g600); line-height:1.45; max-width:80ch; }
+.ecpay-chooser-grid { display:grid; gap:12px; grid-template-columns:repeat(2, minmax(0,1fr)) minmax(180px, .72fr); }
+.ecpay-chooser-grid.is-n1 { grid-template-columns:minmax(0,1fr) minmax(180px, .72fr); max-width:760px; }
+.ecpay-chooser-grid.is-n3 { grid-template-columns:repeat(3, minmax(0,1fr)) minmax(180px, .72fr); }
+.ecpay-partner { display:flex; flex-direction:column; gap:10px; min-width:0; padding:16px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; box-shadow:0 1px 2px rgba(16,24,40,.04); transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecpay-partner:not(.is-other):hover { border-color:var(--ecv2-g300); box-shadow:0 2px 8px rgba(16,24,40,.07); }
+.ecpay-partner.is-current { border-color:var(--ecst-accent); box-shadow:0 0 0 1px var(--ecst-accent-soft) inset; }
+.ecpay-partner.is-locked .ecpay-partner-benefit { opacity:.72; }
+.ecpay-partner-mark { height:40px; display:flex; align-items:center; gap:8px; min-width:0; }
+.ecpay-partner-img { display:block; width:auto; max-width:100%; }
+.ecpay-partner-img.is-wordmark { height:44px; margin-left:-6px; }
+.ecpay-partner-img.is-paypal { height:40px; margin-left:-4px; }
+.ecpay-partner-img.is-icon { height:30px; }
+.ecpay-partner-word { font-size:18px; font-weight:700; color:var(--ecv2-g900); letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecpay-partner-benefit { margin:0; font-size:12.5px; line-height:1.5; color:var(--ecv2-g600); }
+.ecpay-partner-chips { display:flex; gap:6px; flex-wrap:wrap; }
+.ecpay-partner-act { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:auto; padding-top:4px; }
+.ecpay-partner-act a.ecv2-btn { text-decoration:none; }
+.ecpay-partner-act .ecv2-btn-primary { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecpay-partner-act .ecv2-btn-primary:hover { filter:brightness(.95); }
+.ecpay-partner-act .ecv2-btn.is-busy { opacity:.6; }
+/* "Other gateway": present, but deliberately quieter than the partners */
+.ecpay-partner.is-other { background:transparent; border-style:dashed; border-color:var(--ecv2-g300); box-shadow:none; }
+.ecpay-partner.is-other.is-current { border-style:solid; border-color:var(--ecst-accent); }
+.ecpay-partner-mark.is-other .dashicons { color:var(--ecv2-g400); font-size:20px; width:20px; height:20px; }
+.ecpay-partner-mark.is-other .ecpay-partner-word { font-size:14px; font-weight:600; color:var(--ecv2-g700); }
+.ecpay-partner.is-other .ecpay-partner-benefit { font-size:12px; color:var(--ecv2-g500); }
+.ecpay-card.is-changing { opacity:.6; }
+
+/* more gateways: summary row, expanding in place */
+.ecpay-more-summary { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); background:var(--ecv2-g50); font-size:13px; color:var(--ecv2-g700); }
+.ecpay-more-summary .dashicons { color:var(--ecv2-g400); font-size:18px; width:18px; height:18px; }
+.ecpay-more-summary b { font-weight:600; color:var(--ecv2-g900); }
+.ecpay-more-summary.is-open { border-style:solid; border-radius:var(--ecv2-r) var(--ecv2-r) 0 0; border-bottom:0; }
+.ecpay-more-list { padding:12px; border:1px solid var(--ecv2-g300); border-top:0; border-radius:0 0 var(--ecv2-r) var(--ecv2-r); }
+.ecpay-more-list[hidden] { display:none; }
+.ecpay-more-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.ecpay-pill { border:1px solid var(--ecv2-g300); background:#fff; border-radius:999px; padding:4px 11px; font-size:12px; color:var(--ecv2-g700); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+.ecpay-pill em { font-style:normal; font-size:11px; color:var(--ecv2-g400); }
+.ecpay-pill.is-on { background:var(--ecst-accent-soft); border-color:var(--ecst-accent); color:var(--ecv2-g900); font-weight:600; }
+.ecpay-more-group { margin-bottom:12px; }
+.ecpay-more-group.is-hidden { display:none; }
+.ecpay-more-group h4 { margin:0 0 4px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecpay-more-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:8px 10px; border:1px solid var(--ecv2-g100); border-radius:var(--ecv2-rs); background:#fff; margin-bottom:6px; }
+.ecpay-more-row:hover { border-color:var(--ecv2-g300); }
+.ecpay-more-row.is-locked .ecpay-more-text { opacity:.72; }
+.ecpay-more-row .ecpay-logo { width:28px; height:28px; font-size:12px; border-radius:6px; }
+.ecpay-more-text { min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ecpay-more-text b { font-size:13px; color:var(--ecv2-g900); display:flex; align-items:center; gap:6px; }
+.ecpay-more-text span { font-size:11.5px; color:var(--ecv2-g500); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecpay-more-chips { display:flex; gap:4px; }
+.ecpay-more-act { display:flex; gap:6px; align-items:center; }
+.ecpay-more-act a.ecv2-btn { text-decoration:none; }
+.ecpay-more-empty { padding:16px; text-align:center; font-size:12.5px; color:var(--ecv2-g500); border:1px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); }
+
+/* ================================================================== */
+/* Drawer                                                              */
+/* ================================================================== */
+/* The drawer is appended to <body>, outside .ecst-wrap, so it defines the accent tokens itself. */
+.ecpay-drawer { --ecst-accent:var(--ec-brand, var(--ecv2-primary)); --ecst-accent-soft:var(--ec-brand-soft, var(--ecv2-primary-light)); --ecst-on-accent:var(--ec-on-brand, #fff); width:640px; }
+.ecpay-drawer .ecdrawer-h { flex-wrap:wrap; }
+.ecpay-drawer .ecdrawer-h h3 { flex:0 1 auto; }
+.ecpay-drawer-chips { display:inline-flex; gap:6px; flex-wrap:wrap; margin-right:auto; }
+.ecpay-drawer .ecdrawer-h a.ecv2-btn { text-decoration:none; }
+.ecpay-drawer .ecdrawer-b { background:var(--ecv2-g50); padding:14px 16px 20px; }
+/* Footer: the drawer's save bar. The right padding keeps the buttons clear of floating launchers ( help, chat or
+   screenshot buttons that other plugins and browser extensions pin to the bottom-right corner of the window ). */
+.ecpay-drawer .ecdrawer-f { flex-wrap:wrap; row-gap:6px; padding:12px 84px 12px 18px; background:#fff; box-shadow:0 -1px 0 var(--ecv2-g200), 0 -6px 16px rgba(16,24,40,.04); position:relative; z-index:1; }
+.ecpay-drawer .ecdrawer-f .ecv2-btn-primary { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecpay-drawer .ecdrawer-f .ecv2-btn-primary:hover { filter:brightness(.95); }
+.ecpay-drawer .ecdrawer-f .ecv2-btn:disabled { opacity:.6; cursor:progress; }
+.ecpay-drawer-loading { padding:30px; text-align:center; color:var(--ecv2-g500); font-size:13px; }
+.ecpay-drawer-error { padding:14px; border:1px solid #fca5a5; background:#fff7f7; color:#991b1b; border-radius:var(--ecv2-r); font-size:13px; }
+.ecpay-drawer-note { font-size:12px; color:var(--ecv2-g500); min-width:0; }
+.ecpay-drawer-note.is-dirty { color:#92400e; font-weight:600; }
+.ecpay-drawer-note.is-dirty:before { content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:#f59e0b; margin-right:6px; vertical-align:1px; }
+body.ecdrawer-open { overflow:hidden; }
+@media (max-width:640px) {
+	.ecpay-drawer .ecdrawer-f { padding-right:76px; }
+	.ecpay-drawer-note { flex-basis:100%; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Declared gateway form ( V2 fields )                                 */
+/* ------------------------------------------------------------------ */
+.ecpay-gwform { display:flex; flex-direction:column; gap:12px; margin:0; }
+.ecpay-gwintro { margin:0; padding:10px 12px; border-radius:var(--ecv2-r); background:var(--ecst-accent-soft); color:var(--ecv2-g800); font-size:12.5px; line-height:1.5; }
+.ecpay-gwsec { background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); box-shadow:0 1px 2px rgba(16,24,40,.04); }
+.ecpay-gwsec[hidden] { display:none; }
+.ecpay-gwsec-h { display:flex; flex-direction:column; gap:2px; padding:10px 16px 9px; border-bottom:1px solid var(--ecv2-g100); }
+.ecpay-gwsec-h h4 { margin:0; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g600); }
+.ecpay-gwsec-h span { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecpay-gwrows { padding:2px 16px; }
+.ecpay-gwrow { display:flex; flex-direction:column; gap:5px; padding:12px 0; border-top:1px solid var(--ecv2-g100); min-width:0; }
+.ecpay-gwrows > .ecpay-gwrow:not([hidden]):first-child, .ecpay-gwrows > .ecpay-gwrow[hidden] + .ecpay-gwrow:not([hidden]) { border-top:0; }
+.ecpay-gwrow[hidden] { display:none; }
+.ecpay-gwlabel { font-size:13px; font-weight:600; color:var(--ecv2-g900); line-height:1.4; cursor:default; }
+.ecpay-req { color:var(--ecv2-danger); font-weight:600; }
+.ecpay-gwdesc { display:block; font-size:12px; color:var(--ecv2-g500); line-height:1.5; max-width:70ch; }
+.ecpay-gwmsg { display:block; font-size:12px; font-weight:500; color:var(--ecv2-danger); }
+.ecpay-gwmsg[hidden] { display:none; }
+.ecpay-gwctl { display:flex; min-width:0; }
+.ecpay-gwctl .ecv2-input { width:100%; box-sizing:border-box; min-height:34px; }
+.ecpay-gwctl .ecv2-select { width:100%; max-width:100% !important; min-height:34px; box-sizing:border-box; }
+.ecpay-gwrow.is-short .ecpay-gwctl { max-width:240px; }
+.ecpay-gwctl .ecv2-input.is-mono, .ecpay-copy .ecv2-input.is-mono { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12.5px; }
+.ecpay-gwctl .ecv2-input:focus, .ecpay-gwctl .ecv2-select:focus { border-color:var(--ecst-accent); box-shadow:0 0 0 3px var(--ecst-accent-soft); }
+.ecpay-gwctl textarea.ecv2-input { min-height:120px; resize:vertical; line-height:1.45; }
+.ecpay-gwrow.is-error .ecv2-input, .ecpay-gwrow.is-error .ecv2-select, .ecpay-gwrow.is-error .ecst-pills { border-color:var(--ecv2-danger); box-shadow:0 0 0 3px var(--ecv2-danger-light); }
+/* secrets: masked input + Show / Hide */
+.ecpay-secret { display:flex; align-items:flex-start; gap:6px; width:100%; min-width:0; }
+.ecpay-secret > .ecv2-input { flex:1 1 auto; min-width:0; }
+.ecpay-secret > .ecpay-reveal { flex-shrink:0; min-width:56px; justify-content:center; height:34px; }
+@supports ( -webkit-text-security:disc ) { .ecpay-secret.is-masked textarea { -webkit-text-security:disc; } }
+@supports not ( -webkit-text-security:disc ) { .ecpay-secret.is-masked textarea { color:transparent; text-shadow:0 0 7px rgba(17,24,39,.55); } }
+/* toggles and pills */
+.ecpay-gwtoggle { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.ecpay-gwtext { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ecpay-gwtoggle .ecst-toggle { flex-shrink:0; }
+.ecpay-pills .ecst-pill { position:relative; }
+.ecpay-pills .ecst-pill:focus-within { box-shadow:inset 0 0 0 2px var(--ecst-accent); }
+/* notes and copy rows */
+.ecpay-gwrow.is-note { gap:0; }
+.ecpay-gwnote { padding:10px 12px; border-radius:var(--ecv2-r); font-size:12.5px; line-height:1.55; color:var(--ecv2-g700); background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); }
+.ecpay-gwnote.is-warn { background:#fff7e6; border-color:#ffd591; color:#874d00; }
+.ecpay-gwnote > b { display:block; margin:0 0 4px; color:var(--ecv2-g900); }
+.ecpay-gwnote ol, .ecpay-gwnote ul { margin:4px 0 0 18px; padding:0; }
+.ecpay-gwnote li { margin:0 0 4px; }
+.ecpay-gwnote code { font-size:12px; background:#fff; padding:1px 4px; border-radius:4px; overflow-wrap:anywhere; }
+.ecpay-copy { display:flex; gap:6px; width:100%; min-width:0; }
+.ecpay-copy .ecv2-input { flex:1 1 auto; min-width:0; background:var(--ecv2-g50); color:var(--ecv2-g700); }
+.ecpay-copy .ecpay-copy-btn { flex-shrink:0; min-width:64px; justify-content:center; height:34px; }
+/* a legacy partial saved from the footer: its own Save Options button is not shown */
+.ecpay-drawer .ecpay-legacy input[type].ecpay-legacy-save, .ecpay-drawer .ecpay-legacy button.ecpay-legacy-save.ecpay-legacy-save { display:none !important; }
+.ecpay-drawer .ecpay-legacy { background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:14px 16px; }
+
+/* Bill later wording form ( V2 ) */
+.ecpay-manual-form { display:flex; flex-direction:column; gap:14px; }
+.ecpay-manual-form .ecdv2-label { font-size:13px; color:var(--ecv2-g900); }
+.ecpay-manual-form .ecv2-input { width:100%; box-sizing:border-box; }
+.ecpay-manual-form textarea.ecv2-input { min-height:140px; resize:vertical; font-family:inherit; line-height:1.5; }
+.ecpay-manual-form .ecdv2-field-desc { display:block; font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+
+/* ------------------------------------------------------------------ */
+/* Legacy gateway partial → V2 look ( scoped; the partials are untouched ) */
+/* ------------------------------------------------------------------ */
+.ecpay-drawer .ecpay-legacy { position:relative; font-size:13px; color:var(--ecv2-g800); line-height:1.45; }
+.ecpay-drawer .ecpay-legacy:after { content:""; display:table; clear:both; }
+.ecpay-drawer .ecpay-legacy * { box-sizing:border-box; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_hide { display:block; }
+
+/* containers: no floats, no borders, no legacy paddings */
+.ecpay-drawer .ecpay-legacy .ec_admin_list_line_item,
+.ecpay-drawer .ecpay-legacy .ec_admin_list_line_item_fullwidth,
+.ecpay-drawer .ecpay-legacy .ec_admin_slider_row,
+.ecpay-drawer .ecpay-legacy .ec_admin_slider_row_description,
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_holder,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > div,
+.ecpay-drawer .ecpay-legacy .ec_admin_toggles_wrap,
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_section,
+.ecpay-drawer .ecpay-legacy .ec_admin_webhook { float:none; width:auto; min-height:0; display:block; border:0; box-shadow:none; background:transparent; padding:0; margin:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_slider_row_description > div:first-child { font-size:12.5px; color:var(--ecv2-g500); margin:0 0 12px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input { padding:0 0 4px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input .ec_admin_settings_input { padding:0; }
+
+/* duplicate gateway name headings and Help / Video buttons: the drawer header carries them */
+.ecpay-drawer .ecpay-legacy .ec_admin_slider_row > h1,
+.ecpay-drawer .ecpay-legacy .ec_admin_slider_row > h3,
+.ecpay-drawer .ecpay-legacy .easycart-wp-heading-inline,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_label,
+.ecpay-drawer .ecpay-legacy > .ec_admin_settings_input > span:first-child,
+.ecpay-drawer .ecpay-legacy .ec_help_icon_link,
+.ecpay-drawer .ecpay-legacy .ec_admin_paypal_or { display:none !important; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_title { font-size:14px; font-weight:600; color:var(--ecv2-g900); text-align:left; float:none; width:auto; margin:0 0 4px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_subtitle { font-size:12.5px; color:var(--ecv2-g500); text-align:left; float:none; width:auto; margin:0 0 12px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_legal { text-align:left; font-size:11.5px; color:var(--ecv2-g400); margin:8px 0 12px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_button_row { text-align:left; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_button_row img { max-width:180px; height:auto; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_section > h3,
+.ecpay-drawer .ecpay-legacy #stripe_wallet_payments > h3 { float:none; width:auto; margin:18px 0 8px !important; padding:0 0 4px !important; border-bottom:1px solid var(--ecv2-g200) !important; font-size:11px !important; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500); }
+
+/* rows: 13px label, 12px grey description, full-width field */
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > div,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > label,
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group-text > label { display:flex; flex-direction:column; gap:4px; font-size:13px; font-weight:600; color:var(--ecv2-g900); margin:0 0 12px; line-height:1.4; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > label { margin-bottom:4px; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group-text { padding:0; margin:0 0 12px; min-height:0; top:auto; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group-text > label { margin:0 0 4px; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group-text > label > .subtitle,
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group-text > label > div { position:static; font-size:12px; font-weight:400; color:var(--ecv2-g500) !important; line-height:1.45; padding:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input .dashicons-lock { display:none; }
+
+/* fields: the V2 input */
+.ecpay-drawer .ecpay-legacy input[type="text"],
+.ecpay-drawer .ecpay-legacy input[type="password"],
+.ecpay-drawer .ecpay-legacy input[type="number"],
+.ecpay-drawer .ecpay-legacy input[type="email"],
+.ecpay-drawer .ecpay-legacy select,
+.ecpay-drawer .ecpay-legacy textarea,
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-field { float:none !important; display:block; width:100% !important; max-width:100% !important; min-width:0 !important; height:34px !important; line-height:1.4 !important; min-height:0; margin:0 !important; padding:6px 10px !important; border:1px solid var(--ecv2-g300) !important; border-radius:var(--ecv2-r) !important; background:#fff !important; color:var(--ecv2-g800) !important; font-size:13px !important; font-weight:400; box-shadow:none !important; transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecpay-drawer .ecpay-legacy select { padding-right:28px !important; }
+.ecpay-drawer .ecpay-legacy textarea { height:auto !important; min-height:110px; resize:vertical; font-family:inherit; line-height:1.5 !important; }
+.ecpay-drawer .ecpay-legacy input:focus,
+.ecpay-drawer .ecpay-legacy select:focus,
+.ecpay-drawer .ecpay-legacy textarea:focus { outline:none; border-color:var(--ecst-accent) !important; box-shadow:0 0 0 3px var(--ecst-accent-soft) !important; }
+.ecpay-drawer .ecpay-legacy input[type="hidden"] { display:none !important; }
+.ecpay-drawer .ecpay-legacy input[type="checkbox"] { width:auto !important; height:auto !important; display:inline-block; margin:0 6px 0 0 !important; padding:0 !important; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-field-container { position:relative; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-field-container .wp-easycart-admin-field { padding-right:40px !important; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-icons-container { top:0; right:0; width:34px; height:34px; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-icon-close { top:4px; right:4px; width:26px; height:26px; border-color:var(--ecv2-g200); border-radius:var(--ecv2-rs); }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-field:focus + .wp-easycart-admin-icons-container .wp-easycart-admin-icon-close > .wp-easycart-admin-icon-close-check { border-bottom-color:var(--ecst-accent); border-right-color:var(--ecst-accent); }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-icon-close .wp_easycart_toggle_saved,
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch-switch > .dashicons-before { color:var(--ecst-accent); }
+.ecpay-drawer .ecpay-legacy .select2 { width:100% !important; }
+
+/* checkbox toggle groups ( wp-easycart-admin-toggle-group ) → V2 toggle rows */
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group { display:flex; align-items:center; justify-content:space-between; gap:12px; float:none; width:auto; min-height:0; top:auto; margin:0; padding:10px 0; border-bottom:1px solid var(--ecv2-g100); font-family:inherit; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group:last-child { border-bottom:0; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group > label { position:static; flex:1; min-width:0; height:auto; padding:0; line-height:1.4; font-size:13px; font-weight:600; color:var(--ecv2-g900); display:flex; flex-direction:column; gap:2px; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group > label > div { position:static; font-size:12px; font-weight:400; color:var(--ecv2-g500) !important; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group input[type="checkbox"] { position:absolute; opacity:0; width:1px !important; height:1px !important; margin:0 !important; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch { position:relative; top:auto; left:auto; flex-shrink:0; width:36px; height:20px; font-size:0; order:2; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label { height:20px; border:0; border-radius:10px; background:var(--ecv2-g300); transition:background var(--ecv2-tr); }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-inner { display:none; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-switch { position:absolute; top:2px; left:2px; right:auto; width:16px; height:16px; margin:0; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left var(--ecv2-tr); }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group input[type="checkbox"]:checked ~ .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label { background:var(--ecst-accent) !important; border-color:var(--ecst-accent) !important; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group input[type="checkbox"]:checked ~ .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-switch { left:18px; right:auto; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-toggle-group input[type="checkbox"]:focus-visible ~ .wp-easycart-admin-onoffswitch { outline:none; box-shadow:0 0 0 3px var(--ecst-accent-soft); border-radius:10px; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch-switch .wp_easycart_toggle_saving,
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-onoffswitch-switch .wp_easycart_toggle_saved { position:absolute; left:-24px; top:-4px; }
+
+/* slider toggles ( .ec_admin_switch, used by the Connect partials ) → V2 toggle rows */
+.ecpay-drawer .ecpay-legacy .ec_admin_toggles_wrap { display:flex; flex-direction:column; margin:0 0 12px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; height:auto; padding:10px 0; border-bottom:1px solid var(--ecv2-g100); }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle:last-child { border-bottom:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle > span { font-size:13px; font-weight:600; color:var(--ecv2-g900); line-height:1.4; flex:1; }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle > a { float:none; width:auto; height:auto; display:inline-flex; flex-shrink:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle > a > span { position:static; width:auto; height:auto; }
+.ecpay-drawer .ecpay-legacy .ec_admin_switch { float:none; width:36px; height:20px; margin:0; flex-shrink:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_slider { background:var(--ecv2-g300); transition:background var(--ecv2-tr); }
+.ecpay-drawer .ecpay-legacy .ec_admin_slider:before { width:16px; height:16px; left:2px; bottom:2px; transition:transform var(--ecv2-tr); }
+.ecpay-drawer .ecpay-legacy input.ec_admin_slider_checkbox:checked + .ec_admin_slider { background:var(--ecst-accent); }
+.ecpay-drawer .ecpay-legacy input.ec_admin_slider_checkbox:checked + .ec_admin_slider:before { transform:translateX(16px); }
+
+/* links and buttons → V2 buttons */
+.ecpay-drawer .ecpay-legacy a:not(.ec_help_icon_link) { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g800); font-size:12px; font-weight:500; text-decoration:none; line-height:1.3; margin:2px 6px 2px 0; }
+.ecpay-drawer .ecpay-legacy a:not(.ec_help_icon_link):hover { border-color:var(--ecv2-g400); background:var(--ecv2-g50); color:var(--ecv2-g900); }
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle > a { padding:0; border:0; background:transparent; margin:0; }
+.ecpay-drawer .ecpay-legacy .ec_admin_stripe_button_row > a:first-child:not(:only-child) { padding:0; border:0; background:transparent; }
+.ecpay-drawer .ecpay-legacy input[type="submit"],
+.ecpay-drawer .ecpay-legacy input[type="button"],
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_simple_button,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > span.ec_admin_settings_simple_button,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > input.ec_admin_settings_simple_button { display:inline-flex !important; align-items:center; width:auto !important; height:32px !important; margin:6px 6px 0 0 !important; padding:0 14px !important; border:1px solid var(--ecst-accent) !important; border-radius:var(--ecv2-r) !important; background:var(--ecst-accent) !important; color:var(--ecst-on-accent) !important; font-size:12.5px !important; font-weight:600; line-height:1 !important; cursor:pointer; box-shadow:none !important; float:none !important; }
+.ecpay-drawer .ecpay-legacy input[type="submit"]:hover,
+.ecpay-drawer .ecpay-legacy input[type="button"]:hover,
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_simple_button:hover { filter:brightness(.95); }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_input > .ec_admin_settings_input:last-child { padding:0; }
+
+/* notes and messages */
+.ecpay-drawer .ecpay-legacy .ec_admin_message_error,
+.ecpay-drawer .ecpay-legacy .ec_status_error,
+.ecpay-drawer .ecpay-legacy .ec_method_deactivated { float:none; width:auto; margin:6px 0 10px !important; padding:8px 10px !important; border:1px solid #ffd591 !important; border-radius:var(--ecv2-r); background:#fff7e6 !important; color:#874d00 !important; font-size:12px; line-height:1.45; box-shadow:none !important; }
+.ecpay-drawer .ecpay-legacy .ec_status_error .ec_status_label { line-height:1.45 !important; }
+.ecpay-drawer .ecpay-legacy .ec_admin_message_success { float:none; width:auto; margin:6px 0 10px !important; padding:8px 10px !important; border:1px solid transparent !important; border-radius:var(--ecv2-r); background:var(--ecst-accent-soft) !important; color:var(--ecv2-g900) !important; font-size:12px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_settings_notice { text-align:left !important; padding:0 0 8px !important; font-size:12px; color:var(--ecv2-g600); }
+.ecpay-drawer .ecpay-legacy .ec_admin_webhook { margin:10px 0 0 !important; font-size:12px; color:var(--ecv2-g600); }
+.ecpay-drawer .ecpay-legacy .ec_admin_webhook .dashicons { font-size:16px; width:16px; height:16px; vertical-align:middle; }
+.ecpay-drawer .ecpay-legacy .ec_admin_webhook_copy { position:static; background:var(--ecv2-g900); color:#fff; padding:6px 10px; border-radius:var(--ecv2-r); font-size:12px; margin-top:6px; text-align:left; }
+.ecpay-drawer .ecpay-legacy .wp-easycart-admin-icons-container .wp-easycart-admin-dual-ring { width:20px; height:20px; }
+
+/* the legacy overlay spinner sits over the drawer body */
+.ecpay-drawer .ecpay-legacy .ec_admin_loader { border-radius:var(--ecv2-r); }
+
+@media (max-width:1100px) {
+	.ecpay-chooser-grid, .ecpay-chooser-grid.is-n3 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+	.ecpay-chooser-grid.is-n1 { grid-template-columns:minmax(0,1fr) minmax(180px, .72fr); }
+	.ecpay-chooser-grid:not(.is-n1) .ecpay-partner.is-other { grid-column:1 / -1; }
+}
+@media (max-width:760px) {
+	.ecpay-chooser-grid, .ecpay-chooser-grid.is-n1, .ecpay-chooser-grid.is-n3 { grid-template-columns:minmax(0,1fr); }
+	.ecpay-chooser-head { flex-wrap:wrap; }
+	.ecpay-banner { flex-wrap:wrap; }
+	.ecpay-more-row { grid-template-columns:auto minmax(0,1fr); }
+	.ecpay-more-chips, .ecpay-more-act { grid-column:2; justify-content:flex-start; }
+	.ecpay-facts div { grid-template-columns:1fr; gap:0; }
+}

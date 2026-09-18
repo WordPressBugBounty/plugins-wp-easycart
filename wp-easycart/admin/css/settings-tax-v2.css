@@ -1,0 +1,105 @@
+/* Settings › Taxes ( V2 ): rate tables, VAT country rates and the Canada grid.
+   Sits inside .ecst-wrap, so --ecst-accent already resolves to var(--ec-brand). */
+
+.ectx-intro { margin:0 0 10px; font-size:13px; color:var(--ecv2-g600); }
+
+/* Frame: the border lives on a wrapper, not the collapsed table. With border-collapse the last
+   row's light border-bottom beat the table's own bottom edge ( the template row is the real
+   :last-child ), so the frame looked open at the bottom. The wrapper also scrolls sideways
+   when the inputs no longer fit, instead of squeezing them. */
+.ectx-frame { background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); box-shadow:0 1px 2px rgba(0,0,0,.05); overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
+.ectx-frame[hidden] { display:none; }
+.ectx-frame > .ectx-table { margin:0; border:0; border-radius:0; box-shadow:none; overflow:visible; }
+.ectx-frame > .ectx-table tbody tr { border-bottom:0; border-top:1px solid var(--ecv2-g100); }
+.ectx-frame > .ectx-table tbody tr:first-child { border-top:0; }
+.ectx-table tbody td { padding:8px 12px; }
+.ectx-table .ecv2-select { width:100%; min-width:150px; max-width:280px !important; }
+.ectx-geo-name { font-size:13px; font-weight:500; color:var(--ecv2-g800); }
+.ectx-group { font-size:12px; color:var(--ecv2-g500); white-space:nowrap; }
+/* rate inputs keep an editable width; the frame scrolls rather than shrinking them */
+.ectx-in { min-width:108px; max-width:130px; }
+.ectx-in .ecv2-input { height:30px; padding:0 8px; min-width:64px; }
+.ectx-col-rate { width:150px; }
+.ectx-col-toggle { width:130px; }
+.ectx-actions { text-align:right; white-space:nowrap; width:1%; }
+.ectx-actions .ecst-state { display:inline-block; margin-right:6px; vertical-align:middle; }
+.ectx-delete { padding:4px 6px !important; color:var(--ecv2-g400); vertical-align:middle; }
+.ectx-delete:hover { color:var(--ecv2-danger); background:var(--ecv2-g100); }
+.ectx-delete .dashicons { font-size:16px; width:16px; height:16px; }
+.ectx-empty { margin:10px 2px 0; font-size:13px; color:var(--ecv2-g500); }
+.ectx-add { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--ecv2-g100); }
+.ectx-add .ecv2-select { max-width:280px !important; }
+.ectx-add-btn { background:var(--ecst-accent) !important; border-color:var(--ecst-accent) !important; color:var(--ecst-on-accent) !important; }
+.ectx-add-btn:hover { filter:brightness(.94); }
+.ectx-add-btn:disabled { opacity:.6; cursor:default; }
+.ectx-add .ecst-state { font-size:12px; }
+
+/* Inline save ( ✓ ): space is always reserved so the columns never jump; visible only while the row is dirty */
+.ectx-save { visibility:hidden; width:30px; height:30px; padding:0 !important; justify-content:center; vertical-align:middle; margin-right:2px; background:var(--ecst-accent) !important; border-color:var(--ecst-accent) !important; color:var(--ecst-on-accent) !important; }
+.ectx-save .dashicons { font-size:20px; width:20px; height:20px; }
+.ectx-save:hover { filter:brightness(.94); }
+.ectx-save:focus-visible { outline:0; box-shadow:0 0 0 3px var(--ecst-accent-soft); }
+.ectx-row.is-dirty .ectx-save, .ectx-row.is-saving .ectx-save { visibility:visible; }
+.ectx-row.is-saving .ectx-save { opacity:.55; cursor:progress; }
+.ectx-row.is-pending .ectx-save { box-shadow:0 0 0 3px var(--ecst-accent-soft); animation:ectx-nudge 1.6s ease-in-out 2; }
+@keyframes ectx-nudge { 0%, 100% { transform:scale(1); } 50% { transform:scale(1.12); } }
+.ectx-table .ecv2-select.is-dirty { border-color:var(--ecv2-amber) !important; }
+.ecst-state.is-pending { color:#b45309; }
+.ectx-row.is-dirty > td { background:var(--ecv2-amber-light); }
+@media (prefers-reduced-motion:reduce) { .ectx-row.is-pending .ectx-save { animation:none; } }
+
+/* toggles reuse the engine's .ecst-toggle; .ectx-toggle only opts them out of the row autosave */
+.ectx-toggle { vertical-align:middle; }
+
+/* Narrow: state / country / VAT rows become cards ( name on top, rate + ✓ + delete below ) so the ✓ never scrolls out of view. */
+.ectx-rates { container-type:inline-size; container-name:ectx-rates; }
+@container ectx-rates (max-width:520px) {
+	.ectx-rates .ectx-frame { overflow:hidden; }
+	.ectx-rates .ectx-table, .ectx-rates .ectx-table tbody { display:block; width:100%; }
+	.ectx-rates .ectx-table thead { display:none; }
+	.ectx-rates .ectx-table tbody tr.ectx-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:10px 12px; }
+	.ectx-rates .ectx-table tbody tr.ectx-row[hidden] { display:none; }
+	.ectx-rates .ectx-table tbody tr.ectx-row.is-dirty { background:var(--ecv2-amber-light); }
+	.ectx-rates .ectx-table tbody td { display:block; padding:0; background:transparent !important; }
+	.ectx-rates .ectx-table tbody td:first-child { flex:1 1 100%; }
+	.ectx-rates .ectx-table .ecv2-select { min-width:0; max-width:none !important; }
+	.ectx-rates .ectx-toggle-cell { display:flex !important; align-items:center; gap:6px; }
+	.ectx-rates .ectx-toggle-cell:before { content:attr(data-label); font-size:11.5px; color:var(--ecv2-g500); }
+	.ectx-rates .ectx-actions { margin-left:auto; width:auto; }
+	.ectx-rates .ectx-actions .ecst-state { min-width:0; }
+}
+
+/* Canada grid */
+.ectx-canada { container-type:inline-size; container-name:ectx-canada; }
+.ectx-canada-bar { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; font-size:13px; font-weight:500; color:var(--ecv2-g700); }
+.ectx-canada-bar .ecv2-select { max-width:220px !important; }
+.ectx-canada-bar .ectx-hint { font-weight:400; font-size:12px; color:var(--ecv2-g500); }
+.ectx-canada-table tbody td { padding:8px 10px; }
+.ectx-canada-table .ectx-prov { font-weight:500; color:var(--ecv2-g800); min-width:110px; }
+.ectx-canada-table .ectx-col-rate { width:auto; }
+.ectx-row.is-off .ectx-in { opacity:.45; }
+.ectx-row.is-off .ectx-in:focus-within, .ectx-row.is-off .ectx-in.is-dirty { opacity:1; }
+
+/* Narrow: one card per province, GST / PST / HST side by side under the name. */
+@container ectx-canada (max-width:700px) {
+	.ectx-canada-frame { overflow:hidden; }
+	.ectx-canada-table, .ectx-canada-table tbody { display:block; width:100%; }
+	.ectx-canada-table thead { display:none; }
+	.ectx-canada-table tbody tr.ectx-row { display:flex; flex-wrap:wrap; align-items:center; gap:0 10px; padding:10px 12px; }
+	.ectx-canada-table tbody tr.ectx-row:after { content:""; order:4; flex-basis:100%; height:0; } /* line break between the name line and the rates */
+	.ectx-canada-table tbody td { display:block; padding:0; background:transparent !important; }
+	.ectx-canada-table tbody tr.ectx-row.is-dirty { background:var(--ecv2-amber-light); }
+	.ectx-canada-table .ectx-prov { order:1; flex:1 1 auto; min-width:0; }
+	.ectx-canada-table .ectx-collect-cell { order:2; display:flex; align-items:center; gap:6px; }
+	.ectx-canada-table .ectx-collect-cell:before { content:attr(data-label); font-size:11.5px; color:var(--ecv2-g500); }
+	.ectx-canada-table .ectx-actions { order:3; width:auto; }
+	.ectx-canada-table .ectx-rate-cell { order:5; flex:1 1 90px; min-width:90px; margin-top:8px; }
+	.ectx-canada-table .ectx-rate-cell:before { content:attr(data-label); display:block; margin-bottom:3px; font-size:10.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); }
+	.ectx-canada-table .ectx-rate-cell .ectx-in { min-width:0; max-width:none; width:100%; }
+	.ectx-canada-table .ectx-actions .ecst-state { min-width:0; }
+}
+
+@media ( max-width: 782px ) {
+	.ectx-add .ecv2-select { max-width:100% !important; }
+	.ectx-col-rate, .ectx-col-toggle { width:auto; }
+}

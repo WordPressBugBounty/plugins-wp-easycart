@@ -716,6 +716,29 @@ function ec_admin_reorder_products( ids ){
 		
 		<?php do_action( 'wpeasycart_sidebar_position5', $this ); ?>
 
+		<?php if ( isset( $sidebar_include_pricepoints ) && $sidebar_include_pricepoints ) {
+			$sidebar_pricepoints = $this->get_sidebar_pricepoints();
+			if ( count( $sidebar_pricepoints ) > 0 ) { ?>
+		<div class="ec_product_sidebar_group ec_product_sidebar_pricepoints">
+
+			<h3 class="ec_product_sidebar_group_title ec_product_sidebar_title_pricepoints"><?php $sidebar_price_title = wp_easycart_language( )->get_text( 'ec_pricepoint_widget', 'sidebar_title' ); echo ( '' !== trim( (string) $sidebar_price_title ) ) ? $sidebar_price_title : esc_html__( 'Price', 'wp-easycart' ); // Language text, escaped by the language class like the other sidebar titles. ?></h3>
+
+			<ul class="ec_product_sidebar_group_filter_list ec_product_sidebar_group_filter_list_pricepoints">
+				<?php foreach ( $sidebar_pricepoints as $sidebar_pricepoint ) { ?>
+				<li class="ec_product_sidebar_filter_item ec_product_sidebar_filter_item_pricepoint<?php echo ( $sidebar_pricepoint->selected ) ? ' selected' : ''; ?>" data-pricepointid="<?php echo esc_attr( $sidebar_pricepoint->pricepoint_id ); ?>">
+					<a href="<?php echo esc_url( $sidebar_pricepoint->url ); ?>"<?php echo ( $sidebar_pricepoint->selected ) ? ' aria-current="true"' : ''; ?>>
+						<span class="ec_product_sidebar_filter_checkbox"></span>
+						<span class="ec_product_sidebar_filter_label"><?php echo esc_html( $sidebar_pricepoint->label ); ?></span>
+						<span class="ec_product_sidebar_filter_count"><?php echo esc_html( $sidebar_pricepoint->count ); ?></span>
+					</a>
+				</li>
+				<?php } ?>
+			</ul>
+
+		</div>
+		<?php }
+		} ?>
+
 		<?php if( isset( $sidebar_include_manufacturers ) && $sidebar_include_manufacturers ) { ?>
 		<div class="ec_product_sidebar_group ec_product_sidebar_manufacturers">
 

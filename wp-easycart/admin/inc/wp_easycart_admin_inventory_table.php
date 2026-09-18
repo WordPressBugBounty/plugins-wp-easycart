@@ -20,7 +20,10 @@
  *  - filter 'wp_easycart_admin_inventory_health_where'   PRO resolves its stat card filters.
  *  - action 'wp_easycart_admin_inventory_cell_{name}'    PRO prints its column cells.
  *  - action 'wp_easycart_admin_inventory_row_menu'       PRO prints live row-menu items.
- *  - action 'wp_easycart_admin_inventory_toolbar'        PRO adds toolbar buttons ( import, digest ).
+ *  - action 'wp_easycart_admin_inventory_toolbar'        PRO adds toolbar buttons ( Import panel, activity, alerts ).
+ *  - action 'wp_easycart_admin_inventory_qty_pop'        PRO prints On hand popover fields ( the required reason ).
+ *  - filter 'wp_easycart_admin_inventory_qty_reason'     ( wp_easycart_admin_inventory ) PRO validates that reason.
+ *  - filter 'wp_easycart_admin_inventory_qty_reason_error' ( wp_easycart_admin_inventory ) PRO refuses a save without one.
  *  - action 'wp_easycart_admin_ecv2_render_modals'       ( fired by base ) PRO renders its modals.
  *
  * @since 6.x.x
@@ -58,8 +61,8 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			$this->set_docs_link( 'products', 'inventory' );
 			$this->set_view_modes( array( 'table' ) );
 
-			/* Export CSV rides the standard add-new slot. */
-			$this->set_add_new( true, 'export-inventory-list', __( 'Export CSV', 'wp-easycart' ) );
+			/* Export rides the standard add-new slot ( the FREE CSV export; with PRO the same button opens the import / export panel ). */
+			$this->set_add_new( true, 'export-inventory-list', __( 'Export', 'wp-easycart' ) );
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-ghost' );
 
 			/* No form-submitting bulk actions; PRO uses its own bulk modal. */
@@ -81,11 +84,12 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			$this->set_filters( array(
 				array(
 					'label' => __( 'Stock Status', 'wp-easycart' ),
+					/* Same wording as the stat strip above the list. */
 					'data'  => array(
-						(object) array( 'value' => 'in_stock', 'label' => __( 'In Stock', 'wp-easycart' ), 'icon' => 'yes-alt' ),
-						(object) array( 'value' => 'low_stock', 'label' => __( 'Low Stock', 'wp-easycart' ), 'icon' => 'warning' ),
-						(object) array( 'value' => 'out_of_stock', 'label' => __( 'Out of Stock', 'wp-easycart' ), 'icon' => 'dismiss' ),
-						(object) array( 'value' => 'untracked', 'label' => __( 'Not Tracked', 'wp-easycart' ), 'icon' => 'marker' ),
+						(object) array( 'value' => 'in_stock', 'label' => __( 'In stock', 'wp-easycart' ), 'icon' => 'yes-alt' ),
+						(object) array( 'value' => 'low_stock', 'label' => __( 'Low stock', 'wp-easycart' ), 'icon' => 'warning' ),
+						(object) array( 'value' => 'out_of_stock', 'label' => __( 'Out of stock', 'wp-easycart' ), 'icon' => 'dismiss' ),
+						(object) array( 'value' => 'untracked', 'label' => __( 'Not tracked', 'wp-easycart' ), 'icon' => 'marker' ),
 					),
 				),
 				array(
@@ -111,9 +115,23 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 		/* Shared helpers                                                       */
 		/* ------------------------------------------------------------------ */
 
+		/**
+		 * The store-wide low stock number. One setting now drives the Low chip, the
+		 * filters, the PRO digest and the low stock emails: see
+		 * wp_easycart_store_low_stock_threshold() in inc/classes/core/ec_stock.php.
+		 * Kept as the admin-facing wrapper that PRO already calls.
+		 */
 		public static function low_stock_threshold() {
-			$threshold = (int) get_option( 'ec_option_inventory_low_stock_threshold' );
+			if ( function_exists( 'wp_easycart_store_low_stock_threshold' ) ) {
+				return wp_easycart_store_low_stock_threshold();
+			}
+			$threshold = (int) get_option( 'ec_option_low_stock_trigger_total' );
 			return ( $threshold > 0 ) ? $threshold : 10;
+		}
+
+		/** Where a merchant changes that number. @since 6.0.0 */
+		public static function low_stock_threshold_url() {
+			return admin_url( 'admin.php?page=wp-easycart-settings&subpage=checkout&highlight=ec_option_low_stock_trigger_total' );
 		}
 
 		/**
@@ -284,9 +302,9 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 		}
 
 		protected function get_data() {
-			$this->results = $this->wpdb->get_results( $this->get_query() );
+			$this->results = $this->wpdb->get_results( $this->get_query() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- get_query() is static SQL plus a whitelisted sort column, int-cast LIMIT and prepared/whitelisted WHERE clauses.
 			$this->showing = count( $this->results );
-			$record_count = $this->wpdb->get_var( 'SELECT COUNT(*) FROM ' . $this->get_union_sql() . $this->get_outer_where() );
+			$record_count = $this->wpdb->get_var( 'SELECT COUNT(*) FROM ' . $this->get_union_sql() . $this->get_outer_where() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- get_union_sql() is static SQL; get_outer_where() only emits prepared or whitelisted clauses.
 			$this->record_count = ( null !== $record_count ) ? (int) $record_count : 0;
 			$this->total_pages = ( $this->perpage > 0 ) ? ceil( $this->record_count / $this->perpage ) : 1;
 			if ( $this->current_page > $this->total_pages && 0 == $this->record_count ) {
@@ -328,12 +346,17 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				$this->health_data[ $key ] = (int) ( isset( $product_row->$key ) ? $product_row->$key : 0 ) + (int) ( isset( $variant_row->$key ) ? $variant_row->$key : 0 );
 			}
 
+			/*
+			 * Same strip as the other V2 lists: stats carrying a 'group' render as the grouped pill bar
+			 * ( wp_easycart_admin_table_v2::print_health_dashboard ), sentence case, stock health last so
+			 * PRO's own stat ( Below reorder ) joins that group. Keep the groups contiguous.
+			 */
 			$stats = array(
-				array( 'label' => __( 'Total Items', 'wp-easycart' ), 'value' => $this->health_data['total'], 'filter_value' => '', 'color' => 'default' ),
-				array( 'label' => __( 'In Stock', 'wp-easycart' ), 'value' => $this->health_data['in_stock'], 'filter_value' => 'in_stock', 'color' => 'green' ),
-				array( 'label' => __( 'Low Stock', 'wp-easycart' ), 'value' => $this->health_data['low_stock'], 'filter_value' => 'low_stock', 'color' => 'amber' ),
-				array( 'label' => __( 'Out of Stock', 'wp-easycart' ), 'value' => $this->health_data['out_of_stock'], 'filter_value' => 'out_of_stock', 'color' => 'red' ),
-				array( 'label' => __( 'Not Tracked', 'wp-easycart' ), 'value' => $this->health_data['untracked'], 'filter_value' => 'untracked', 'color' => 'gray' ),
+				array( 'label' => __( 'All', 'wp-easycart' ), 'value' => $this->health_data['total'], 'filter_value' => '', 'color' => 'default', 'group' => 'catalog' ),
+				array( 'label' => __( 'In stock', 'wp-easycart' ), 'value' => $this->health_data['in_stock'], 'filter_value' => 'in_stock', 'color' => 'green', 'group' => 'catalog' ),
+				array( 'label' => __( 'Not tracked', 'wp-easycart' ), 'value' => $this->health_data['untracked'], 'filter_value' => 'untracked', 'color' => 'gray', 'group' => 'catalog' ),
+				array( 'label' => __( 'Low stock', 'wp-easycart' ), 'value' => $this->health_data['low_stock'], 'filter_value' => 'low_stock', 'color' => 'amber', 'group' => 'attention' ),
+				array( 'label' => __( 'Out of stock', 'wp-easycart' ), 'value' => $this->health_data['out_of_stock'], 'filter_value' => 'out_of_stock', 'color' => 'red', 'group' => 'attention' ),
 			);
 
 			/* PRO appends e.g. Below Reorder Point. */
@@ -348,45 +371,37 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 		protected function print_page_header() {
 			echo '<div class="ecv2-page-header">';
 			echo '<div class="ecv2-page-header-left">';
-			echo '<h1 class="ecv2-page-title">';
-			echo '<span class="dashicons dashicons-' . esc_attr( $this->icon ) . '"></span> ';
-			echo esc_html( $this->custom_header );
-			echo '</h1>';
-			echo '<span class="ecv2-record-count">' . esc_html( $this->record_count ) . ' ' . esc_html( 1 == $this->record_count ? $this->item_label : $this->item_label_plural ) . '</span>';
+			echo '<span class="dashicons dashicons-' . esc_attr( $this->icon ) . ' ecv2-page-header-icon"></span>';
+			echo '<div class="ecv2-page-header-text">';
+			echo '<h1 class="ecv2-page-title">' . esc_html( $this->custom_header ) . '</h1>';
+			echo '<p class="ecv2-page-subline"><span class="ecv2-record-count">' . esc_html( $this->record_count ) . ' ' . esc_html( 1 == $this->record_count ? $this->item_label : $this->item_label_plural ) . '</span></p>';
+			echo '</div>'; // .ecv2-page-header-text
 			echo '</div>';
 
 			echo '<div class="ecv2-page-header-right">';
 
-			/* Low stock threshold control ( free ). */
-			echo '<div class="ecv2i-threshold-wrap">';
-			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" id="ecv2i-threshold-btn" title="' . esc_attr__( 'Low stock threshold', 'wp-easycart' ) . '">';
+			/* Low stock threshold ( free ). One store-wide number, edited in Settings: it
+			   drives the Low badge, stat card and filters here and the low stock emails. */
+			echo '<a href="' . esc_url( self::low_stock_threshold_url() ) . '" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm ecv2i-threshold-link" title="' . esc_attr__( 'Change the low stock threshold in Settings > Checkout > Stock alerts', 'wp-easycart' ) . '">';
 			echo '<span class="dashicons dashicons-admin-settings"></span> ' . esc_html__( 'Low Stock at', 'wp-easycart' ) . ' <strong>' . esc_html( self::low_stock_threshold() ) . '</strong>';
-			echo '</button>';
-			echo '<div class="ecv2i-threshold-pop" id="ecv2i-threshold-pop" style="display:none;">';
-			echo '<label class="ecv2i-pop-label">' . esc_html__( 'Flag items as low stock at or below', 'wp-easycart' ) . '</label>';
-			echo '<div class="ecv2i-pop-row">';
-			echo '<input type="number" min="1" step="1" class="ecv2-input ecv2-input-sm" id="ecv2i-threshold-input" value="' . esc_attr( self::low_stock_threshold() ) . '" />';
-			echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="ecv2i-threshold-save">' . esc_html__( 'Save', 'wp-easycart' ) . '</button>';
-			echo '</div>';
-			echo '<p class="ecv2i-pop-note">' . esc_html__( 'Used by the Low Stock badge, stat card and filters.', 'wp-easycart' ) . '</p>';
-			echo '</div>';
-			echo '</div>';
+			echo '</a>';
 
-			/* PRO toolbar buttons ( Import CSV, Digest settings, Activity ) or locked upsells. */
+			/* PRO toolbar buttons ( Import, Activity, Alerts ) or the locked Import upsell. */
 			do_action( 'wp_easycart_admin_inventory_toolbar', $this->pro_gate );
 			if ( ! $this->pro_enabled ) {
 				echo '<a href="#" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm ecv2i-locked-btn" onclick="ecv2i_show_locked( \'import\' ); return false;" title="' . esc_attr( $this->pro_gate['desc'] ) . '">';
-				echo '<span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Import CSV', 'wp-easycart' );
+				echo '<span class="dashicons dashicons-lock"></span> <span class="ecv2-btn-label">' . esc_html__( 'Import', 'wp-easycart' ) . '</span>';
 				echo '</a>';
 			}
 
 			/* Help link. */
 			if ( isset( $this->docs_guide ) ) {
-				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> ' . esc_html__( 'Help', 'wp-easycart' ) . '</a>';
+				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label">' . esc_html__( 'Help', 'wp-easycart' ) . '</span></a>';
 			}
 
-			/* Export CSV. */
-			echo '<a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=inventory&ec_admin_form_action=export-inventory-list&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-export-inventory' ) ) ) . '" class="ecv2-btn ecv2-btn-primary"><span class="dashicons dashicons-download"></span> ' . esc_html( $this->add_new_label ) . '</a>';
+			/* Export. The href is the FREE CSV export; with PRO live, inventory-import-v2.js intercepts
+			   data-ecv2ii-open and opens the Export tab of the import / export panel instead ( @since 6.0.0 ). */
+			echo '<a href="' . esc_url( wp_easycart_admin_inventory::export_url() ) . '" class="ecv2-btn ecv2-btn-primary" id="ecv2i-export-btn" data-ecv2ii-open="export"><span class="dashicons dashicons-download"></span> ' . esc_html( $this->add_new_label ) . '</a>';
 
 			echo '</div>'; // .ecv2-page-header-right
 			echo '</div>'; // .ecv2-page-header
@@ -431,9 +446,9 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 					break;
 				case 'row_type':
 					if ( 'variant' === $result->row_type ) {
-						echo '<span class="ecv2i-type-tag ecv2i-type-variant">' . esc_html__( 'Variant', 'wp-easycart' ) . '</span>';
+						echo '<span class="ecv2-chip ecv2-chip-blue">' . esc_html__( 'Variant', 'wp-easycart' ) . '</span>';
 					} else {
-						echo '<span class="ecv2i-type-tag">' . esc_html__( 'Product', 'wp-easycart' ) . '</span>';
+						echo '<span class="ecv2-chip ecv2-chip-gray">' . esc_html__( 'Product', 'wp-easycart' ) . '</span>';
 					}
 					break;
 				case 'quantity':
@@ -469,49 +484,86 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				echo '<span class="ecv2i-variant-label">' . esc_html( wp_unslash( $result->variant_label ) ) . '</span>';
 			}
 			if ( ! $result->activate_in_store ) {
-				echo '<span class="ecv2i-hidden-tag">' . esc_html__( 'Hidden', 'wp-easycart' ) . '</span>';
+				echo '<span class="ecv2-chip ecv2-chip-gray ecv2i-hidden-tag">' . esc_html__( 'Hidden', 'wp-easycart' ) . '</span>';
 			}
 			echo '</div>';
 		}
 
+		/**
+		 * On-hand cell. One pill, worded like the Products list ( "∞ Unlimited", "12 in stock · Low", "Out of Stock" ),
+		 * and always the affordance for changing stock: clicking it opens the quantity popover. Untracked items open
+		 * a "Track stock" form; tracked items get Set / Add / Remove with a stepper and a "Stop tracking" link.
+		 * Square-managed rows are read-only ( lock ).
+		 */
 		protected function print_quantity_cell( $result ) {
 			$threshold = self::low_stock_threshold();
 			$qty = (int) $result->quantity;
 			$tracked = (bool) $result->tracked;
 			$locked = (bool) $result->square_locked;
 
-			echo '<div class="ecv2i-qty-wrap" data-row-key="' . esc_attr( $result->row_key ) . '" data-product-id="' . esc_attr( (int) $result->product_id ) . '" data-oiq-id="' . esc_attr( (int) $result->oiq_id ) . '" data-qty="' . esc_attr( $qty ) . '" data-tracked="' . esc_attr( $tracked ? 1 : 0 ) . '">';
+			echo '<div class="ecv2i-qty-wrap" data-row-key="' . esc_attr( $result->row_key ) . '" data-product-id="' . esc_attr( (int) $result->product_id ) . '" data-oiq-id="' . esc_attr( (int) $result->oiq_id ) . '" data-qty="' . esc_attr( $qty ) . '" data-tracked="' . ( $tracked ? 1 : 0 ) . '" data-title="' . esc_attr( wp_unslash( $result->title ) . ( isset( $result->variant_label ) && $result->variant_label ? ' — ' . wp_unslash( $result->variant_label ) : '' ) ) . '">';
 
-			if ( ! $tracked ) {
-				echo '<span class="ecv2-stock-badge ecv2-stock-unlimited">&infin; ' . esc_html__( 'Not Tracked', 'wp-easycart' ) . '</span>';
-			} else if ( $locked ) {
-				echo '<span class="ecv2-stock-badge ' . esc_attr( $this->qty_badge_class( $qty, $threshold ) ) . '">' . esc_html( $qty ) . '</span>';
-				echo ' <span class="dashicons dashicons-lock ecv2-cell-lock-icon" title="' . esc_attr__( 'Stock managed by Square', 'wp-easycart' ) . '"></span>';
-			} else {
-				echo '<button type="button" class="ecv2i-qty-badge-btn" onclick="ecv2i_open_qty( this );">';
-				echo '<span class="ecv2-stock-badge ' . esc_attr( $this->qty_badge_class( $qty, $threshold ) ) . '">' . esc_html( $qty );
-				if ( $qty <= 0 ) {
-					echo ' &middot; ' . esc_html__( 'Out', 'wp-easycart' );
-				} else if ( $qty <= $threshold ) {
-					echo ' &middot; ' . esc_html__( 'Low', 'wp-easycart' );
-				}
-				echo '</span>';
-				echo '</button>';
-
-				/* Inline set-quantity popover. */
-				echo '<div class="ecv2i-qty-pop">';
-				echo '<label class="ecv2i-pop-label">' . esc_html__( 'On Hand', 'wp-easycart' ) . '</label>';
-				echo '<div class="ecv2i-pop-row">';
-				echo '<button type="button" class="ecv2i-step" data-step="-1">&minus;</button>';
-				echo '<input type="number" step="1" class="ecv2-input ecv2-input-sm ecv2i-qty-input" value="' . esc_attr( $qty ) . '" data-original="' . esc_attr( $qty ) . '" />';
-				echo '<button type="button" class="ecv2i-step" data-step="1">+</button>';
-				echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm ecv2i-qty-save">' . esc_html__( 'Save', 'wp-easycart' ) . '</button>';
+			if ( $locked ) {
+				echo '<span class="ecv2-stock-badge ' . esc_attr( $tracked ? $this->qty_badge_class( $qty, $threshold ) : 'ecv2-stock-unlimited' ) . '">' . ( $tracked ? esc_html( $this->qty_label( $qty, $threshold ) ) : '&infin; ' . esc_html__( 'Unlimited', 'wp-easycart' ) ) . '</span>';
+				echo ' <span class="dashicons dashicons-lock ecv2-cell-lock-icon" title="' . esc_attr__( 'Stock is managed by Square — change it there and it syncs here.', 'wp-easycart' ) . '"></span>';
 				echo '</div>';
-				do_action( 'wp_easycart_admin_inventory_qty_pop', $result, $this->pro_gate );
-				echo '</div>';
+				return;
 			}
 
+			echo '<button type="button" class="ecv2-stock-badge-btn ecv2i-qty-badge-btn" onclick="ecv2i_open_qty( this );" title="' . esc_attr( $tracked ? __( 'Change the quantity on hand', 'wp-easycart' ) : __( 'Stock isn’t tracked for this item — click to start tracking', 'wp-easycart' ) ) . '" aria-haspopup="dialog">';
+			if ( $tracked ) {
+				echo '<span class="ecv2-stock-badge ' . esc_attr( $this->qty_badge_class( $qty, $threshold ) ) . '">' . esc_html( $this->qty_label( $qty, $threshold ) ) . '</span>';
+			} else {
+				echo '<span class="ecv2-stock-badge ecv2-stock-unlimited">&infin; ' . esc_html__( 'Unlimited', 'wp-easycart' ) . '</span>';
+			}
+			echo '<span class="ecv2i-edit-hint dashicons dashicons-edit" aria-hidden="true"></span>';
+			echo '</button>';
+
+			/* Popover — one markup, two states ( JS switches on data-tracked ). */
+			echo '<div class="ecv2i-qty-pop" role="dialog" aria-label="' . esc_attr__( 'Change stock', 'wp-easycart' ) . '">';
+			echo '<div class="ecv2i-pop-title">' . esc_html( wp_unslash( $result->title ) ) . ( isset( $result->variant_label ) && $result->variant_label ? ' <span class="ecv2-sub" style="display:inline">' . esc_html( wp_unslash( $result->variant_label ) ) . '</span>' : '' ) . '</div>';
+			/* tracked state */
+			echo '<div class="ecv2i-pop-tracked">';
+			echo '<div class="ecv2i-mode" role="tablist"><button type="button" class="ecv2i-mode-btn is-on" data-mode="set">' . esc_html__( 'Set to', 'wp-easycart' ) . '</button><button type="button" class="ecv2i-mode-btn" data-mode="add">' . esc_html__( 'Add', 'wp-easycart' ) . '</button><button type="button" class="ecv2i-mode-btn" data-mode="remove">' . esc_html__( 'Remove', 'wp-easycart' ) . '</button></div>';
+			echo '<div class="ecv2i-pop-row">';
+			echo '<button type="button" class="ecv2i-step" data-step="-1" aria-label="' . esc_attr__( 'Minus one', 'wp-easycart' ) . '">&minus;</button>';
+			echo '<input type="number" step="1" min="0" class="ecv2-input ecv2-input-sm ecv2i-qty-input" value="' . esc_attr( $qty ) . '" data-original="' . esc_attr( $qty ) . '" aria-label="' . esc_attr__( 'Quantity', 'wp-easycart' ) . '" />';
+			echo '<button type="button" class="ecv2i-step" data-step="1" aria-label="' . esc_attr__( 'Plus one', 'wp-easycart' ) . '">+</button>';
 			echo '</div>';
+			echo '<div class="ecv2i-pop-preview" aria-live="polite"></div>';
+
+			/*
+			 * PRO prints its fields here ( the adjustment reason, required like Bulk Update ). Any field
+			 * with class .ecv2i-pop-extra and a name is posted with the save by inventory-v2.js; a field
+			 * marked required blocks the save until it has a value.
+			 * Free edition: the same row, locked, opening the inventory upsell.
+			 * Save sits below these fields, as the Apply button does in the Bulk Update modal.
+			 */
+			do_action( 'wp_easycart_admin_inventory_qty_pop', $result, $this->pro_gate );
+			if ( ! $this->pro_enabled ) {
+				echo '<a href="#" class="ecv2i-pop-reason-locked" onclick="jQuery( this ).closest( \'.ecv2i-qty-pop\' ).removeClass( \'ecv2i-pop-open\' ); ecv2i_show_locked( \'adjust\' ); return false;" title="' . esc_attr( $this->pro_gate['desc'] ) . '"><span class="dashicons dashicons-lock" aria-hidden="true"></span> ' . esc_html__( 'Add a reason', 'wp-easycart' ) . ' <span class="ecv2i-menu-pro">' . esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ) . '</span></a>';
+			}
+			echo '<div class="ecv2i-pop-actions"><button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm ecv2i-qty-save">' . esc_html__( 'Save', 'wp-easycart' ) . '</button></div>';
+			echo '<div class="ecv2i-pop-foot"><span class="ecv2i-pop-kbd">' . esc_html__( 'Enter to save · Esc to close', 'wp-easycart' ) . '</span><a href="#" class="ecv2i-stop-tracking">' . esc_html__( 'Stop tracking', 'wp-easycart' ) . '</a></div>';
+			echo '</div>';
+			/* untracked state */
+			echo '<div class="ecv2i-pop-untracked">';
+			echo '<p class="ecv2i-pop-note">' . esc_html__( 'Stock isn’t tracked, so customers can always buy this. Enter what you have on hand to start tracking — it shows Out of Stock at zero and appears in low-stock alerts.', 'wp-easycart' ) . '</p>';
+			echo '<div class="ecv2i-pop-row">';
+			echo '<input type="number" step="1" min="0" class="ecv2-input ecv2-input-sm ecv2i-track-input" value="" placeholder="0" aria-label="' . esc_attr__( 'Quantity on hand', 'wp-easycart' ) . '" />';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm ecv2i-track-start">' . esc_html__( 'Start tracking', 'wp-easycart' ) . '</button>';
+			echo '</div>';
+			echo '</div>';
+			echo '</div>';
+
+			echo '</div>';
+		}
+
+		/** Same words as the Products list stock pill, plus a "· Low" suffix at or under the threshold. */
+		protected function qty_label( $qty, $threshold ) {
+			if ( $qty <= 0 ) { return __( 'Out of Stock', 'wp-easycart' ); }
+			$label = sprintf( __( '%s in stock', 'wp-easycart' ), number_format_i18n( $qty ) );
+			return $qty <= $threshold ? $label . ' · ' . __( 'Low', 'wp-easycart' ) : $label;
 		}
 
 		protected function qty_badge_class( $qty, $threshold ) {
@@ -547,7 +599,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 						$visible_cols++;
 					}
 				}
-				$this->print_empty_state( $visible_cols + 2 );
+				$this->print_inventory_empty_row( $visible_cols + 2 );
 			}
 			echo '</tbody>';
 			echo '</table>';
@@ -610,7 +662,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			return $chips;
 		}
 
-		protected function print_empty_state( $colspan ) {
+		protected function print_inventory_empty_row( $colspan ) { /* 6.0.0: renamed; the base list class now owns print_empty_state() with no arguments. */
 			$chips = $this->get_empty_state_chips();
 
 			echo '<tr><td colspan="' . (int) $colspan . '" class="ecv2-empty-state ecv2i-empty-state">';
@@ -645,8 +697,15 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 
 			echo '<a href="' . esc_url( $edit_url ) . '" class="ecv2-row-menu-item"><span class="dashicons dashicons-edit"></span> ' . esc_html__( 'Edit Product', 'wp-easycart' ) . '</a>';
 
-			if ( $result->tracked && ! $result->square_locked ) {
-				echo '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_set_qty( this ); return false;"><span class="dashicons dashicons-update"></span> ' . esc_html__( 'Set Quantity', 'wp-easycart' ) . '</a>';
+			if ( ! $result->square_locked ) {
+				if ( $result->tracked ) {
+					echo '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_set_qty( this ); return false;"><span class="dashicons dashicons-edit"></span> ' . esc_html__( 'Change quantity…', 'wp-easycart' ) . '</a>';
+					echo '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_stop_tracking( this ); return false;"><span class="dashicons dashicons-dismiss"></span> ' . esc_html__( 'Stop tracking stock', 'wp-easycart' ) . '</a>';
+				} else {
+					echo '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_set_qty( this ); return false;"><span class="dashicons dashicons-plus-alt2"></span> ' . esc_html__( 'Track stock…', 'wp-easycart' ) . '</a>';
+				}
+			} else {
+				echo '<span class="ecv2-row-menu-item is-disabled" title="' . esc_attr__( 'Stock is managed by Square', 'wp-easycart' ) . '"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Managed by Square', 'wp-easycart' ) . '</span>';
 			}
 
 			if ( $this->pro_enabled ) {
@@ -660,7 +719,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				foreach ( $locked_items as $item ) {
 					echo '<a href="#" class="ecv2-row-menu-item ecv2i-locked-menu-item" onclick="jQuery( this ).closest( \'.ecv2-row-menu\' ).removeClass( \'ecv2-row-menu-open\' ); ecv2i_show_locked( \'' . esc_attr( $item['feature'] ) . '\' ); return false;" title="' . esc_attr( $this->pro_gate['desc'] ) . '">';
 					echo '<span class="dashicons dashicons-' . esc_attr( $item['icon'] ) . '"></span> ' . esc_html( $item['label'] );
-					echo ' <span class="ecv2i-menu-pro">PRO</span></a>';
+					echo ' <span class="ecv2i-menu-pro">' . esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ) . '</span></a>';
 				}
 			}
 

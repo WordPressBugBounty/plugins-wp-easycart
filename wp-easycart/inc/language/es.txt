@@ -395,6 +395,26 @@
 					"title":"Store Missing Option",
 					"value":"Falta la opción:"
 				},
+				"product_details_min_length":{
+					"title":"Text Option Minimum Length (%d is the number of characters)",
+					"value":"Introduce al menos %d caracteres."
+				},
+				"product_details_file_type_error":{
+					"title":"File Upload Type Not Accepted (%s is the list of accepted types)",
+					"value":"Este tipo de archivo no se puede subir. Tipos de archivo aceptados: %s"
+				},
+				"product_details_file_size_error":{
+					"title":"File Upload Too Large (%s is the size limit)",
+					"value":"Este archivo es demasiado grande. El tamaño máximo que puedes subir es %s."
+				},
+				"product_details_file_upload_error":{
+					"title":"File Upload Could Not Be Saved",
+					"value":"No se pudo subir tu archivo. Inténtalo de nuevo o contáctanos si sigue ocurriendo."
+				},
+				"product_details_file_types_hint":{
+					"title":"File Upload Accepted Types (%s is the list of accepted types)",
+					"value":"Tipos de archivo aceptados: %s"
+				},
 				"product_details_maximum_quantity":{
 					"title":"Store Maximum Quantity Exceeded",
 					"value":"Superó la cantidad máxima"
@@ -1294,6 +1314,22 @@
 				"cart_totals_duty":{
 					"title":"Cart, Cart Totals, Duty",
 					"value":"Derechos"
+				},
+				"cart_totals_gst":{
+					"title":"Cart, Cart Totals, Canada GST",
+					"value":"GST"
+				},
+				"cart_totals_pst":{
+					"title":"Cart, Cart Totals, Canada PST",
+					"value":"PST"
+				},
+				"cart_totals_qst":{
+					"title":"Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)",
+					"value":"QST"
+				},
+				"cart_totals_hst":{
+					"title":"Cart, Cart Totals, Canada HST",
+					"value":"HST"
 				},
 				"cart_totals_grand_total":{
 					"title":"Cart, Cart Totals, Grand Total",
@@ -3196,6 +3232,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"Cambia tu plan"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"Activa"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"Prueba"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"Pago vencido"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"Incompleta"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"En pausa"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"Suspendida"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"Se cancela al final del periodo"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"Cancelada"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"Finalizada"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"Volver a suscripciones"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"Inicio"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"Finaliza"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"Finalizó"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"Cantidad"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"Administrar suscripción"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"Tus selecciones"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"Cuota de inscripción única"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"Estas son las selecciones de tu compra original de %s. Tu plan ha cambiado desde entonces."
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"Ver pedido original"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"No hay tarjeta registrada"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"Esta suscripción ha finalizado. Ya no se pueden cambiar el método de pago ni el plan."
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"Esta suscripción no se renovará. Seguirá activa hasta el final del periodo de facturación actual."
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"Tu último pago no se completó. Actualiza tu método de pago para mantener activa esta suscripción."
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"Cerrar"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"Plan actual"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"Disminuir cantidad"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"Aumentar cantidad"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"Introduce una cantidad de 1 o más."
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"Datos de la tarjeta"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"No tienes suscripciones activas."
 				}
 			}
 		},
@@ -3614,6 +3770,10 @@
 				"greater_than":{
 					"title":"Greater Than Text",
 					"value":"Mayor Que"
+				},
+				"sidebar_title":{
+					"title":"Store Sidebar Price Filter Title",
+					"value":"Precio"
 				}
 			}
 		},

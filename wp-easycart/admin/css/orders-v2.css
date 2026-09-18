@@ -326,3 +326,20 @@ body.ecv2-qe-open { overflow:hidden; }
 	.ecv2-health-group-period { margin-left:0; }
 	.ecv2-health-group { flex-wrap:wrap; }
 }
+/* 6.0.0: orders with nothing to ship ( downloads, gift cards, services ) — fulfilled on payment, no Fulfill button. */
+.ecv2-order-fulfill-digital { background:#f3f4f6; color:#4b5563; cursor:default; }
+.ecv2-order-fulfill-digital .dashicons { color:#6b7280; }
+
+/* 6.0.0: email delivery chip under the order number ( "Receipt not sent" / "Email retrying" + Resend ). The shared
+   .ecv2-chip rules live in catalog-v2.css, which the orders list does not load, so the chip is styled here and
+   wraps inside the narrow order column instead of running into the date. */
+.ecv2-order-number-wrap .ecem-order-chip { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; max-width:100%; margin:4px 0 2px; }
+.ecv2-order-number-wrap .ecem-order-chip .ecv2-chip { display:inline-flex; align-items:center; font-size:11px; font-weight:600; line-height:1.3; padding:2px 8px; border-radius:10px; white-space:normal; }
+.ecv2-order-number-wrap .ecem-order-chip .ecv2-chip-red { background:var(--ecv2-danger-light, #fee2e2); color:#b91c1c; }
+.ecv2-order-number-wrap .ecem-order-chip .ecv2-chip-amber { background:#fff7e6; color:#874d00; border:1px solid #ffd591; }
+.ecv2-order-number-wrap .ecem-order-chip .ecem-order-resend { font-size:11px; font-weight:600; white-space:nowrap; text-decoration:none; }
+.ecv2-view-card .ecem-order-chip { margin:6px 0; }
+
+/* Fulfilled without a tracking number ( status Order Shipped / Picked Up ). @since 6.0.0 */
+.ecv2-order-fulfill-done { background:#ecfdf3; color:#067647; cursor:default; }
+.ecv2-order-fulfill-done .dashicons { color:#12b76a; }

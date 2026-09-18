@@ -12,6 +12,44 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		public $store_status_file;
 		public $settings;
 
+		/**
+		 * Nonce action for the resumable repair jobs ( AJAX action ecv2_status_job ).
+		 *
+		 * @since 6.0.0
+		 */
+		const JOB_NONCE = 'wp-easycart-ecv2-status-job';
+
+		/**
+		 * Nonce action for the "check the database structure again" link ( recheck=1 ).
+		 *
+		 * @since 6.0.0
+		 */
+		const RECHECK_NONCE = 'wp-easycart-status-recheck';
+
+		/**
+		 * Transient holding the gateway / webhook log row counts shown on the status page.
+		 *
+		 * @since 6.0.0
+		 */
+		const LOG_SIZE_TRANSIENT = 'ec_status_log_sizes';
+
+		/**
+		 * Rows handled per job request, and the soft time budget ( seconds ) per request.
+		 *
+		 * @since 6.0.0
+		 */
+		const JOB_BATCH = 200;
+		const JOB_DELETE_BATCH = 5000;
+		const JOB_TIME_BUDGET = 20;
+
+		/**
+		 * Per-request memo of the shortcode page lookups ( shortcode => row|null ).
+		 *
+		 * @since 6.0.0
+		 * @var array
+		 */
+		private $shortcode_pages = array();
+
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
 				self::$_instance = new self();
@@ -32,7 +70,95 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_gateway_log' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_webhook_log' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_data_folders' ) );
+			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_upload_protection' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'fix_post_tags' ) );
+
+			/* The template constructs a second instance while rendering; only the singleton
+			   registers the job engine so the AJAX handler and script are hooked once. @since 6.0.0 */
+			if ( is_null( self::$_instance ) ) {
+				add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_job_script' ) );
+				add_action( 'wp_ajax_ecv2_status_job', array( $this, 'ajax_job' ) );
+			}
+		}
+
+		/**
+		 * The resumable repair jobs: key => label shown while the job runs, and the
+		 * success flag the page redirects to when the job completes.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array
+		 */
+		public static function jobs() {
+			return array(
+				'reset-store-permalinks'   => array( 'label' => __( 'Resetting store permalinks', 'wp-easycart' ), 'success' => 'reset-store-permalinks', 'phases' => array( 'delete', 'menulevel1', 'menulevel2', 'menulevel3', 'product', 'manufacturer', 'category' ) ),
+				'rebuild-store-permalinks' => array( 'label' => __( 'Rebuilding store permalinks', 'wp-easycart' ), 'success' => 'rebuild-store-permalinks', 'phases' => array( 'menulevel1', 'menulevel2', 'menulevel3', 'product', 'manufacturer', 'category' ) ),
+				'fix-category-permalinks'  => array( 'label' => __( 'Fixing category permalinks', 'wp-easycart' ), 'success' => 'fix-category-permalinks', 'phases' => array( 'category' ) ),
+				'fix-product-permalinks'   => array( 'label' => __( 'Fixing product permalinks', 'wp-easycart' ), 'success' => 'fix-product-permalinks', 'phases' => array( 'product' ) ),
+				'fix-post-tags'            => array( 'label' => __( 'Fixing post tags', 'wp-easycart' ), 'success' => 'fix-post-tags', 'phases' => array( 'product', 'category', 'manufacturer' ) ),
+				'fix-gateway-log'          => array( 'label' => __( 'Trimming the gateway log', 'wp-easycart' ), 'success' => 'fix-gateway-log', 'phases' => array( 'trim' ) ),
+				'fix-webhook-log'          => array( 'label' => __( 'Trimming the webhook log', 'wp-easycart' ), 'success' => 'fix-webhook-log', 'phases' => array( 'trim' ) ),
+			);
+		}
+
+		/**
+		 * Load the job runner on the Diagnostics screen only.
+		 *
+		 * @since 6.0.0
+		 */
+		public function enqueue_job_script() {
+			if ( ! isset( $_GET['page'] ) || 'wp-easycart-status' !== sanitize_key( wp_unslash( $_GET['page'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only check of which admin screen is loading.
+				return;
+			}
+			$autostart = isset( $_GET['ecds_job'] ) ? sanitize_key( wp_unslash( $_GET['ecds_job'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- set only by the nonce-checked legacy handlers below; the job itself is nonce-checked in ajax_job().
+			if ( '' !== $autostart && ! isset( self::jobs()[ $autostart ] ) ) {
+				$autostart = '';
+			}
+			wp_enqueue_script( 'wp_easycart_admin_store_status_js', plugins_url( '/admin/js/store-status-v2.js', EC_PLUGIN_DIRECTORY . '/wpeasycart.php' ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+			$labels = array();
+			foreach ( self::jobs() as $key => $job ) {
+				$labels[ $key ] = $job['label'];
+			}
+			wp_localize_script(
+				'wp_easycart_admin_store_status_js',
+				'ecv2_status_vars',
+				array(
+					'ajax_url'  => admin_url( 'admin-ajax.php' ),
+					'nonce'     => wp_create_nonce( self::JOB_NONCE ),
+					'autostart' => $autostart,
+					'labels'    => $labels,
+					'i18n'      => array(
+						'starting'    => __( 'Starting…', 'wp-easycart' ),
+						/* translators: 1: rows processed so far, 2: rows in total. */
+						'progress'    => __( '%1$s of %2$s', 'wp-easycart' ),
+						/* translators: %s: rows processed so far. */
+						'progress_na' => __( '%s processed', 'wp-easycart' ),
+						'finishing'   => __( 'Finishing…', 'wp-easycart' ),
+					/* translators: 1: current step number, 2: number of steps. */
+					'step'        => __( 'Step %1$s of %2$s', 'wp-easycart' ),
+						'error'       => __( 'The repair stopped before it finished. Your data is safe; click Resume to continue where it left off.', 'wp-easycart' ),
+						'network'     => __( 'The connection dropped. Click Resume to continue where it left off.', 'wp-easycart' ),
+						'resume'      => __( 'Resume', 'wp-easycart' ),
+						'discard'     => __( 'Discard', 'wp-easycart' ),
+						'interrupted' => __( 'A repair was interrupted before it finished.', 'wp-easycart' ),
+						'running'     => __( 'A repair is already running. Wait for it to finish first.', 'wp-easycart' ),
+						'leave'       => __( 'A repair is still running. Leaving this page pauses it; you can resume it later.', 'wp-easycart' ),
+						'confirm_reset' => __( 'This deletes every store post and recreates it. Existing store links keep working once the rebuild finishes. Continue?', 'wp-easycart' ),
+					),
+				)
+			);
+		}
+
+		/**
+		 * Send an old-style tool link into the JS job runner ( keeps bookmarks working ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $job Job key from jobs().
+		 */
+		private function redirect_to_job( $job ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'ecds_job' => $job ), admin_url( 'admin.php' ) ) );
+			die();
 		}
 
 		public function load_status() {
@@ -49,7 +175,15 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 
 		public function add_success_messages( $messages ) {
 			if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-repair-complete' ) {
-				$messages[] = __( 'The database repair tool has completed. If you are still seeing errors, please contact WP EasyCart support for help.', 'wp-easycart' );
+				$messages[] = __( 'The database repair tool has completed and your database structure verified clean.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-repair-incomplete' ) {
+				$messages[] = __( 'The database repair tool ran, but some structure errors could not be fixed automatically. Please review the remaining errors below or contact WP EasyCart support for help.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-install-complete' ) {
+				$messages[] = __( 'The database install completed successfully.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-install-failed' ) {
+				$messages[] = __( 'The database install could not complete. Please review the install errors shown in your admin notices or contact WP EasyCart support for help.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'download-recovery-dismissed' ) {
+				$messages[] = __( 'The downloadable products notice has been dismissed.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-repair-dismissed' ) {
 				$messages[] = __( 'The database notice has been dismissed, but will continue to show in your store status. Please contact WP EasyCart support for help.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'reset-store-permalinks' ) {
@@ -66,6 +200,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$messages[] = __( 'Your webhook log size has been reduced.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-data-folders' ) {
 				$messages[] = __( 'Your data folders have been repaired.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && 'fix-upload-protection' === sanitize_key( wp_unslash( $_GET['success'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only success flag after a nonce-checked redirect.
+				$messages[] = __( 'The protection files for customer uploads and paid downloads were rewritten and the folders were checked again.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-post-tags' ) {
 				$messages[] = __( 'Your post tags have been fixed.', 'wp-easycart' );
 			}
@@ -79,8 +215,26 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			if ( $_GET['ec_admin_form_action'] == 'repair-database' ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-repair-database' ) ) {
 					$db_manager = new ec_db_manager();
-					$db_manager->try_repair();
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-repair-complete' );
+					$remaining = $db_manager->try_repair();
+					if ( is_array( $remaining ) && count( $remaining ) ) {
+						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-repair-incomplete' );
+					} else {
+						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-repair-complete' );
+					}
+					die();
+				}
+
+			} else if ( $_GET['ec_admin_form_action'] == 'retry-database-install' ) {
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-retry-database-install' ) ) {
+					/* Explicit retry from the install-failure notice: clear the backoff
+					   and force a fresh install_db() pass. */
+					delete_transient( 'ec_db_install_backoff' );
+					$db_manager = new ec_db_manager();
+					if ( $db_manager->install_db( true ) ) {
+						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-install-complete' );
+					} else {
+						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-install-failed' );
+					}
 					die();
 				}
 
@@ -89,6 +243,14 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					$db_manager = new ec_db_manager();
 					$db_manager->install_base_data();
 					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-repair-complete' );
+					die();
+				}
+
+			} else if ( $_GET['ec_admin_form_action'] == 'dismiss-download-recovery' ) {
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-dismiss-download-recovery' ) ) {
+					update_option( 'ec_option_dismiss_download_recovery_notice', '1' );
+					delete_transient( 'ec_download_recovery_count' );
+					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=download-recovery-dismissed' );
 					die();
 				}
 
@@ -107,13 +269,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			if ( 'reset-store-permalinks' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-reset-store-permalinks' ) ) {
-					$this->ec_reset_store_permalinks();
-					if ( isset( $_GET['ec_reset_phase2'] ) ) {
-						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=rebuild-store-permalinks' );
-					} else {
-						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=reset-store-permalinks' );
-					}
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( isset( $_GET['ec_reset_phase2'] ) ? 'rebuild-store-permalinks' : 'reset-store-permalinks' );
 				}
 			}
 		}
@@ -124,24 +281,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			if ( 'fix-category-permalinks' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-category-permalinks' ) ) {
-					global $wpdb;
-					$count_fixed = 0;
-					$categories = $wpdb->get_results( "SELECT * FROM ec_category" );
-					foreach ( $categories as $category ) {
-						wp_easycart_post_sync()->resolve(
-							'category',
-							$category->category_id,
-							$category->post_id,
-							array(
-								'post_content' => "[ec_store groupid=\"" . $category->category_id . "\"]",
-								'post_status' => "publish",
-								'post_title' => wp_easycart_language( )->convert_text( $category->category_name ),
-								'post_type' => "ec_store",
-							)
-						);
-					}
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-category-permalinks' );
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( 'fix-category-permalinks' );
 				}
 			}
 		}
@@ -152,27 +293,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			if ( 'fix-product-permalinks' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-product-permalinks' ) ) {
-					global $wpdb;
-					$products = $wpdb->get_results( 'SELECT activate_in_store, post_id, title, product_id, model_number FROM ec_product' );
-					foreach ( $products as $product ) {
-						$target_status = $product->activate_in_store ? 'publish' : 'private';
-						$verified_id = wp_easycart_post_sync()->resolve(
-							'product',
-							$product->product_id,
-							$product->post_id,
-							array(
-								'post_content' => "[ec_store modelnumber=\"" . $product->model_number . "\"]",
-								'post_status' => $target_status,
-								'post_title' => wp_easycart_language( )->convert_text( $product->title ),
-								'post_type' => "ec_store",
-							)
-						);
-						if ( $verified_id && get_post_status( $verified_id ) != $target_status && in_array( get_post_status( $verified_id ), array( 'publish', 'private' ) ) ) {
-							wp_easycart_post_sync()->set_status( 'product', $product->product_id, $verified_id, $target_status );
-						}
-					}
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-product-permalinks' );
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( 'fix-product-permalinks' );
 				}
 			}
 		}
@@ -183,17 +305,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			if ( 'fix-gateway-log' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-gateway-log' ) ) {
-					global $wpdb;
-					$gateway_log_items = $wpdb->get_results( 'SELECT * FROM ec_response ORDER BY response_time DESC LIMIT 100' );
-					$response_ids = array();
-					foreach ( $gateway_log_items as $log_item ) {
-						$response_ids[] = $log_item->response_id;
-					}
-					if ( count( $response_ids ) > 0 ) {
-						$wpdb->query( 'DELETE FROM ec_response WHERE response_id NOT IN (' . implode( ',', $response_ids ) . ')' );
-					}
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-gateway-log' );
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( 'fix-gateway-log' );
 				}
 			}
 		}
@@ -204,17 +317,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 			if ( 'fix-webhook-log' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-webhook-log' ) ) {
-					global $wpdb;
-					$webhook_items = $wpdb->get_results( 'SELECT * FROM ec_webhook ORDER BY webhook_id DESC LIMIT 10000000000000 OFFSET 1000' );
-					$webhook_ids = array();
-					foreach ( $webhook_items as $webhook_item ) {
-						$webhook_ids[] = $webhook_item->webhook_id;
-					}
-					if ( count( $webhook_ids ) > 0 ) {
-						$wpdb->query( 'DELETE FROM ec_webhook WHERE webhook_id IN (' . implode( ',', $webhook_ids ) . ')' );
-					}
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-webhook-log' );
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( 'fix-webhook-log' );
 				}
 			}
 		}
@@ -232,62 +336,220 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			}
 		}
 		
+		/**
+		 * Rewrite the deny rules in products/uploads and the downloads folders and re-run the public access checks.
+		 *
+		 * @since 6.0.0
+		 */
+		public function fix_upload_protection() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_diagnostics' ) ) {
+				return false;
+			}
+			if ( ! isset( $_GET['ec_admin_form_action'] ) || 'fix-upload-protection' !== sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- routing only; the nonce is verified by verify_access() below.
+				return false;
+			}
+			if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-upload-protection' ) && class_exists( 'wp_easycart_customer_uploads' ) ) {
+				wp_easycart_customer_uploads::protect_all();
+				wp_easycart_customer_uploads::check_public_access( true );
+				wp_easycart_customer_uploads::check_public_access( true, 'downloads' );
+				wp_safe_redirect( admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-upload-protection' ) );
+				die();
+			}
+		}
+
+		/**
+		 * Whether customer uploads can be downloaded by URL ( cached loopback check ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array|false Result of wp_easycart_customer_uploads::check_public_access(), false when unavailable.
+		 */
+		public function uploads_access_check() {
+			if ( ! class_exists( 'wp_easycart_customer_uploads' ) ) {
+				return false;
+			}
+			return wp_easycart_customer_uploads::check_public_access();
+		}
+
+		/**
+		 * Whether paid download files can be downloaded by URL ( cached loopback check ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array|false Result of wp_easycart_customer_uploads::check_public_access( false, 'downloads' ), false when unavailable.
+		 */
+		public function downloads_access_check() {
+			if ( ! class_exists( 'wp_easycart_customer_uploads' ) || ! method_exists( 'wp_easycart_customer_uploads', 'protect_area' ) ) {
+				return false;
+			}
+			return wp_easycart_customer_uploads::check_public_access( false, 'downloads' );
+		}
+
+		/**
+		 * Live counts behind the Store Status "Offers" tile.
+		 *
+		 * Reads ec_offer directly ( no transient ) so the tile is right the moment an
+		 * offer is saved. Unconverted legacy coupons ( ec_promocode ) and promotions
+		 * ( ec_promotion ) are counted separately so the tile can point the merchant at
+		 * the Legacy tab of the Offers hub when there are no v2 offers yet.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array { 'offers' => int active, unexpired v2 offers ( 0 when ec_offer is missing ), 'legacy' => int unexpired legacy coupons + promotions }
+		 */
+		public function active_offers_count() {
+			global $wpdb;
+			$counts = array( 'offers' => 0, 'legacy' => 0 );
+			if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+				return $counts;
+			}
+			if ( $wpdb->get_var( "SHOW TABLES LIKE 'ec_offer'" ) ) {
+				$counts['offers'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_offer WHERE offer_status = 'active' AND ( end_date IS NULL OR end_date >= NOW() )" );
+			}
+			if ( $wpdb->get_var( "SHOW TABLES LIKE 'ec_promocode'" ) ) {
+				$counts['legacy'] += (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_promocode WHERE expiration_date IS NULL OR expiration_date >= NOW()' );
+			}
+			if ( $wpdb->get_var( "SHOW TABLES LIKE 'ec_promotion'" ) ) {
+				$counts['legacy'] += (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_promotion WHERE end_date IS NULL OR end_date >= NOW()' );
+			}
+			return $counts;
+		}
+
 		public function fix_post_tags() {
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_diagnostics' ) ) {
 				return false;
 			}
 			if ( 'fix-post-tags' == $_GET['ec_admin_form_action'] ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-fix-post-tags' ) ) {
-					$this->ec_fix_post_tags();
-					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=fix-post-tags' );
-					die();
+					/* Runs as a resumable batch job now ( ajax_job() ). @since 6.0.0 */
+					$this->redirect_to_job( 'fix-post-tags' );
 				}
 			}
 		}
 
+		/**
+		 * Whether this page load asked for a fresh structure check ( recheck=1 with a valid nonce ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return bool
+		 */
+		public function recheck_requested() {
+			if ( ! isset( $_GET['recheck'] ) || '1' !== sanitize_key( wp_unslash( $_GET['recheck'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is verified on the next line.
+				return false;
+			}
+			if ( ! isset( $_GET['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['wp_easycart_nonce'] ) ), self::RECHECK_NONCE ) ) {
+				return false;
+			}
+			return current_user_can( 'manage_options' ) || current_user_can( 'wpec_diagnostics' );
+		}
+
+		/**
+		 * URL that re-runs the structure check instead of using the cached result.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return string
+		 */
+		public function recheck_url() {
+			return add_query_arg(
+				array(
+					'page'              => 'wp-easycart-status',
+					'subpage'           => 'store-status',
+					'recheck'           => '1',
+					'wp_easycart_nonce' => wp_create_nonce( self::RECHECK_NONCE ),
+				),
+				admin_url( 'admin.php' )
+			);
+		}
+
+		/**
+		 * The pending database upgrade step, when ec_db_manager reports one, otherwise ''.
+		 * Guarded so this file works with or without the helper on the db manager.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return string
+		 */
+		public function upgrade_in_progress() {
+			if ( ! class_exists( 'ec_db_manager' ) || ! method_exists( 'ec_db_manager', 'update_in_progress' ) ) {
+				return '';
+			}
+			$step = ec_db_manager::update_in_progress();
+			if ( ! $step ) {
+				return '';
+			}
+			if ( is_array( $step ) ) {
+				if ( isset( $step['step'] ) ) {
+					$step = $step['step'];
+				} elseif ( isset( $step['function'] ) ) {
+					$step = $step['function'];
+				} else {
+					$step = implode( ' ', array_map( 'strval', array_filter( $step, 'is_scalar' ) ) );
+				}
+			} elseif ( is_object( $step ) ) {
+				$step = isset( $step->step ) ? $step->step : __( 'unknown', 'wp-easycart' );
+			}
+			return (string) $step;
+		}
+
 		public function database_check() {
 			$db_manager = new ec_db_manager();
-			$errors = $db_manager->verify_db();
-			if ( count( $errors ) ) {
+			/* verify_db() may cache its result; only a nonce-checked recheck=1 asks it to run the
+			   full check again, and only when the manager actually accepts a $force argument. @since 6.0.0 */
+			$force = $this->recheck_requested();
+			if ( $force && method_exists( $db_manager, 'verify_db' ) ) {
+				$reflection = new ReflectionMethod( $db_manager, 'verify_db' );
+				if ( $reflection->getNumberOfParameters() < 1 ) {
+					$force = false;
+				}
+			}
+			$errors = $force ? $db_manager->verify_db( true ) : $db_manager->verify_db();
+			if ( is_array( $errors ) && count( $errors ) ) {
 				return $errors;
 			}
 			return false;
 		}
 
-		public function settings_check() {
+		/**
+		 * Whether a reference table has at least one row ( SELECT 1 … LIMIT 1, never the whole table ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $table One of the fixed ec_* reference tables.
+		 * @return bool
+		 */
+		private function table_has_rows( $table ) {
 			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_setting' );
-			return ( $results && count( $results ) > 0 );
+			$allowed = array( 'ec_setting', 'ec_country', 'ec_orderstatus', 'ec_timezone', 'ec_state', 'ec_zone' );
+			if ( ! in_array( $table, $allowed, true ) ) {
+				return false;
+			}
+			return (bool) $wpdb->get_var( 'SELECT 1 FROM ' . $table . ' LIMIT 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is validated against the fixed list above.
+		}
+
+		public function settings_check() {
+			return $this->table_has_rows( 'ec_setting' );
 		}
 
 		public function countries_check() {
-			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_country' );
-			return ( $results && count( $results ) > 0 );
+			return $this->table_has_rows( 'ec_country' );
 		}
 
 		public function order_status_check() {
-			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_orderstatus' );
-			return ( $results && count( $results ) > 0 );
+			return $this->table_has_rows( 'ec_orderstatus' );
 		}
 
 		public function timezone_check() {
-			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_timezone' );
-			return ( $results && count( $results ) > 0 );
+			return $this->table_has_rows( 'ec_timezone' );
 		}
 
 		public function state_check() {
-			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_state' );
-			return ( $results && count( $results ) > 0 );
+			return $this->table_has_rows( 'ec_state' );
 		}
 
 		public function zone_check() {
-			global $wpdb;
-			$results = $wpdb->get_results( 'SELECT * FROM ec_zone' );
-			return ( $results && count( $results ) > 0 );
+			return $this->table_has_rows( 'ec_zone' );
 		}
 
 		public function wpeasycart_is_data_folder_setup() {
@@ -320,50 +582,506 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$folders = $this->wpeasycart_get_data_folder_list();
 			foreach ( $folders as $dir ) {
 				if ( !file_exists( $dir[0] ) || !is_dir( $dir[0] ) ) {
-					mkdir( $dir[0], $dir[1] );
+					/* The list holds permissions as strings ( "0751" ). mkdir() read them as decimal 751, which set broken
+					 * permissions, and it was not recursive. Convert from octal and create parents too. @since 6.0.0 */
+					$mode = is_string( $dir[1] ) ? octdec( $dir[1] ) : (int) $dir[1];
+					if ( wp_mkdir_p( $dir[0] ) ) {
+						@chmod( $dir[0], $mode ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- best effort; some hosts refuse chmod.
+					}
 				}
+			}
+			/* A recreated uploads folder needs its deny rules again. @since 6.0.0 */
+			if ( class_exists( 'wp_easycart_customer_uploads' ) ) {
+				wp_easycart_customer_uploads::protect_all();
 			}
 		}
 		
-		public function ec_fix_post_tags() {
+		/* ------------------------------------------------------------------
+		 * Resumable repair jobs ( @since 6.0.0 )
+		 *
+		 * Every tool that used to walk a whole table in one request now runs as
+		 * a job: the browser posts { job, phase, last_id, processed, total } to
+		 * ecv2_status_job, the server handles at most JOB_BATCH rows ( or
+		 * JOB_TIME_BUDGET seconds of deletes ) and answers with the cursor to
+		 * continue from. Each step is idempotent for a given cursor, so an
+		 * interrupted run can be resumed from the last answer.
+		 * ------------------------------------------------------------------ */
+
+		/**
+		 * AJAX: run one step of a repair job.
+		 *
+		 * Nonce: JOB_NONCE ( POST nonce ). Capability: the same pair the GET tools
+		 * required ( manage_options, or wpec_diagnostics for the page plus
+		 * wpec_manager for verify_access() ).
+		 *
+		 * @since 6.0.0
+		 */
+		public function ajax_job() {
+			if ( ! current_user_can( 'manage_options' ) && ! ( current_user_can( 'wpec_diagnostics' ) && current_user_can( 'wpec_manager' ) ) ) {
+				wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
+			}
+			check_ajax_referer( self::JOB_NONCE, 'nonce' );
+
+			$jobs = self::jobs();
+			$job = isset( $_POST['job'] ) ? sanitize_key( wp_unslash( $_POST['job'] ) ) : '';
+			if ( ! isset( $jobs[ $job ] ) ) {
+				wp_send_json_error( array( 'message' => __( 'Unknown repair tool.', 'wp-easycart' ) ) );
+			}
+			$phases = $jobs[ $job ]['phases'];
+			$phase = isset( $_POST['phase'] ) ? sanitize_key( wp_unslash( $_POST['phase'] ) ) : '';
+			$cursor = isset( $_POST['last_id'] ) ? sanitize_text_field( wp_unslash( $_POST['last_id'] ) ) : '';
+			$processed = isset( $_POST['processed'] ) ? absint( $_POST['processed'] ) : 0;
+			$total = isset( $_POST['total'] ) ? absint( $_POST['total'] ) : 0;
+			if ( ! in_array( $phase, $phases, true ) ) {
+				$phase = $phases[0];
+				$cursor = '';
+				$processed = 0;
+				$total = 0;
+			}
+			if ( '' === $cursor ) {
+				$processed = 0;
+				$total = $this->job_phase_total( $job, $phase );
+			}
+
+			$deadline = microtime( true ) + self::JOB_TIME_BUDGET;
+			$result = $this->run_job_step( $job, $phase, $cursor, $deadline );
+			if ( isset( $result['error'] ) ) {
+				wp_send_json_error( array( 'message' => $result['error'] ) );
+			}
+			if ( isset( $result['total'] ) ) {
+				$total = (int) $result['total'];
+			}
+			$processed += (int) $result['count'];
+			$next = (string) $result['next'];
+			$done = false;
+
+			if ( ! empty( $result['phase_done'] ) ) {
+				$index = array_search( $phase, $phases, true );
+				if ( isset( $phases[ $index + 1 ] ) ) {
+					$phase = $phases[ $index + 1 ];
+					$next = '';
+					$processed = 0;
+					$total = 0;
+				} else {
+					$done = true;
+				}
+			}
+
+			$response = array(
+				'done'      => $done,
+				'next'      => $next,
+				'phase'     => $phase,
+				'phase_no'  => (int) array_search( $phase, $phases, true ) + 1,
+				'phases'    => count( $phases ),
+				'processed' => $processed,
+				'total'     => $total,
+			);
+			if ( $done ) {
+				$response['redirect'] = add_query_arg(
+					array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'success' => $jobs[ $job ]['success'] ),
+					admin_url( 'admin.php' )
+				);
+			}
+			wp_send_json_success( $response );
+		}
+
+		/**
+		 * Fixed table map for the entity phases ( never built from request data ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array phase => { table, id, title, attr, type }
+		 */
+		private function entity_map() {
+			return array(
+				'menulevel1'   => array( 'table' => 'ec_menulevel1', 'id' => 'menulevel1_id', 'title' => 'name', 'attr' => 'menuid', 'type' => 'menulevel1' ),
+				'menulevel2'   => array( 'table' => 'ec_menulevel2', 'id' => 'menulevel2_id', 'title' => 'name', 'attr' => 'submenuid', 'type' => 'menulevel2' ),
+				'menulevel3'   => array( 'table' => 'ec_menulevel3', 'id' => 'menulevel3_id', 'title' => 'name', 'attr' => 'subsubmenuid', 'type' => 'menulevel3' ),
+				'product'      => array( 'table' => 'ec_product', 'id' => 'product_id', 'title' => 'title', 'attr' => 'modelnumber', 'type' => 'product' ),
+				'manufacturer' => array( 'table' => 'ec_manufacturer', 'id' => 'manufacturer_id', 'title' => 'name', 'attr' => 'manufacturerid', 'type' => 'manufacturer' ),
+				'category'     => array( 'table' => 'ec_category', 'id' => 'category_id', 'title' => 'category_name', 'attr' => 'groupid', 'type' => 'category' ),
+			);
+		}
+
+		/**
+		 * Row count a phase starts with, so the progress bar has a denominator.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $job   Job key.
+		 * @param string $phase Phase key.
+		 * @return int
+		 */
+		private function job_phase_total( $job, $phase ) {
 			global $wpdb;
-			$products = $wpdb->get_results( 'SELECT ec_product.post_id, ec_product.product_id FROM ec_product' );
-			if ( $products && is_array( $products ) ) {
-				foreach ( $products as $product ) {
+			if ( 'fix-gateway-log' === $job || 'fix-webhook-log' === $job ) {
+				return 0; // The trim step reports its own total once it knows the cutoff.
+			}
+			if ( 'delete' === $phase ) {
+				return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'ec_store'" );
+			}
+			$map = $this->entity_map();
+			if ( ! isset( $map[ $phase ] ) ) {
+				return 0;
+			}
+			$rebuild = ( 'reset-store-permalinks' === $job || 'rebuild-store-permalinks' === $job );
+			return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $map[ $phase ]['table'] . ( $rebuild ? ' WHERE post_id = 0' : '' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the fixed entity_map().
+		}
+
+		/**
+		 * Dispatch one step. Steps return { next, count, phase_done } plus optional { total, error }.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $job      Job key.
+		 * @param string $phase    Phase key.
+		 * @param string $cursor   Cursor from the previous answer ( '' at the start of a phase ).
+		 * @param float  $deadline microtime() to stop processing at.
+		 * @return array
+		 */
+		private function run_job_step( $job, $phase, $cursor, $deadline ) {
+			switch ( $job ) {
+				case 'fix-product-permalinks':
+					return $this->step_fix_product_permalinks( (int) $cursor, $deadline );
+				case 'fix-category-permalinks':
+					return $this->step_fix_category_permalinks( (int) $cursor, $deadline );
+				case 'fix-post-tags':
+					return $this->step_fix_post_tags( $phase, (int) $cursor, $deadline );
+				case 'reset-store-permalinks':
+				case 'rebuild-store-permalinks':
+					if ( 'delete' === $phase ) {
+						return $this->step_delete_store_posts( (int) $cursor, $deadline );
+					}
+					return $this->step_rebuild_entity( $phase, (int) $cursor, $deadline );
+				case 'fix-gateway-log':
+					return $this->step_trim_log( 'ec_response', 'response_id', 100, $cursor, $deadline );
+				case 'fix-webhook-log':
+					return $this->step_trim_log( 'ec_webhook', 'webhook_id', 1000, $cursor, $deadline );
+			}
+			return array( 'next' => $cursor, 'count' => 0, 'phase_done' => true );
+		}
+
+		/**
+		 * Shape a batch answer: the phase is done when the batch was short and every row was handled.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param array $rows  Rows fetched for this batch.
+		 * @param int   $count Rows actually processed ( fewer than fetched when the deadline hit ).
+		 * @param mixed $next  Cursor of the last processed row.
+		 * @return array
+		 */
+		private function batch_result( $rows, $count, $next ) {
+			$fetched = is_array( $rows ) ? count( $rows ) : 0;
+			return array(
+				'next'       => $next,
+				'count'      => $count,
+				'phase_done' => ( $fetched < self::JOB_BATCH && $count === $fetched ),
+			);
+		}
+
+		/**
+		 * Step: relink / recreate product posts and correct their status, 200 products per call.
+		 *
+		 * @since 6.0.0
+		 */
+		private function step_fix_product_permalinks( $last_id, $deadline ) {
+			global $wpdb;
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT activate_in_store, post_id, title, product_id, model_number FROM ec_product WHERE product_id > %d ORDER BY product_id LIMIT %d', $last_id, self::JOB_BATCH ) );
+			$count = 0;
+			$next = $last_id;
+			foreach ( (array) $rows as $product ) {
+				$target_status = $product->activate_in_store ? 'publish' : 'private';
+				$verified_id = wp_easycart_post_sync()->resolve(
+					'product',
+					$product->product_id,
+					$product->post_id,
+					array(
+						'post_content' => '[ec_store modelnumber="' . $product->model_number . '"]',
+						'post_status'  => $target_status,
+						'post_title'   => wp_easycart_language()->convert_text( $product->title ),
+						'post_type'    => 'ec_store',
+					)
+				);
+				if ( $verified_id ) {
+					$current_status = get_post_status( $verified_id );
+					if ( $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
+						wp_easycart_post_sync()->set_status( 'product', $product->product_id, $verified_id, $target_status );
+					}
+				}
+				$next = (int) $product->product_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
+				}
+			}
+			return $this->batch_result( $rows, $count, $next );
+		}
+
+		/**
+		 * Step: relink / recreate category posts, 200 categories per call.
+		 *
+		 * @since 6.0.0
+		 */
+		private function step_fix_category_permalinks( $last_id, $deadline ) {
+			global $wpdb;
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT category_id, post_id, category_name FROM ec_category WHERE category_id > %d ORDER BY category_id LIMIT %d', $last_id, self::JOB_BATCH ) );
+			$count = 0;
+			$next = $last_id;
+			foreach ( (array) $rows as $category ) {
+				wp_easycart_post_sync()->resolve(
+					'category',
+					$category->category_id,
+					$category->post_id,
+					array(
+						'post_content' => '[ec_store groupid="' . $category->category_id . '"]',
+						'post_status'  => 'publish',
+						'post_title'   => wp_easycart_language()->convert_text( $category->category_name ),
+						'post_type'    => 'ec_store',
+					)
+				);
+				$next = (int) $category->category_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
+				}
+			}
+			return $this->batch_result( $rows, $count, $next );
+		}
+
+		/**
+		 * Step: post tags. Phase 'product' rebuilds each product's tag list from its categories;
+		 * 'category' and 'manufacturer' add the default tag where none is set. 200 rows per call.
+		 *
+		 * @since 6.0.0
+		 */
+		private function step_fix_post_tags( $phase, $last_id, $deadline ) {
+			global $wpdb;
+			$count = 0;
+			$next = $last_id;
+			if ( 'product' === $phase ) {
+				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT post_id, product_id FROM ec_product WHERE product_id > %d ORDER BY product_id LIMIT %d', $last_id, self::JOB_BATCH ) );
+				foreach ( (array) $rows as $product ) {
 					$post_tags = wp_get_post_tags( $product->post_id );
 					$new_post_tags = array( 'product' );
-					foreach ( $post_tags as $post_tag ) {
-						if ( ! in_array( $post_tag->name, $new_post_tags ) ) {
+					foreach ( (array) $post_tags as $post_tag ) {
+						if ( ! in_array( $post_tag->name, $new_post_tags, true ) ) {
 							$new_post_tags[] = $post_tag->name;
 						}
 					}
 					$category_items = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_category.category_name FROM ec_categoryitem, ec_category WHERE ec_categoryitem.product_id = %d AND ec_category.category_id = ec_categoryitem.category_id', $product->product_id ) );
-					if ( $category_items !== false && is_array( $category_items ) && count( $category_items ) > 0 ) {
-						foreach ( $category_items as $category_item ) {
-							if ( ! in_array( $category_item->category_name, $new_post_tags ) ) {
-								$new_post_tags[] = $category_item->category_name;
-							}
+					foreach ( (array) $category_items as $category_item ) {
+						if ( ! in_array( $category_item->category_name, $new_post_tags, true ) ) {
+							$new_post_tags[] = $category_item->category_name;
 						}
 					}
 					wp_set_post_tags( $product->post_id, $new_post_tags, false );
-				}
-			}
-			$categories = $wpdb->get_results( 'SELECT ec_category.post_id FROM ec_category' );
-			if ( $categories && is_array( $categories ) ) {
-				foreach ( $categories as $category ) {
-					if ( ! get_the_tags( $category->post_id ) ) {
-						wp_set_post_tags( $category->post_id, array( 'category' ) );
+					$next = (int) $product->product_id;
+					$count++;
+					if ( microtime( true ) > $deadline ) {
+						break;
 					}
 				}
+				return $this->batch_result( $rows, $count, $next );
 			}
-			$manufacturers = $wpdb->get_results( 'SELECT ec_manufacturer.post_id FROM ec_manufacturer' );
-			if ( $manufacturers && is_array( $manufacturers ) ) {
-				foreach ( $manufacturers as $manufacturer ) {
-					if ( ! get_the_tags( $manufacturer->post_id ) ) {
-						wp_set_post_tags( $manufacturer->post_id, array( 'manufacturer' ) );
-					}
+
+			$map = $this->entity_map();
+			if ( ! isset( $map[ $phase ] ) ) {
+				return array( 'next' => $next, 'count' => 0, 'phase_done' => true );
+			}
+			$entity = $map[ $phase ];
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT post_id, ' . $entity['id'] . ' AS entity_id FROM ' . $entity['table'] . ' WHERE ' . $entity['id'] . ' > %d ORDER BY ' . $entity['id'] . ' LIMIT %d', $last_id, self::JOB_BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers come from the fixed entity_map(); values are prepared.
+			foreach ( (array) $rows as $row ) {
+				if ( $row->post_id && ! get_the_tags( $row->post_id ) ) {
+					wp_set_post_tags( $row->post_id, array( $phase ) );
+				}
+				$next = (int) $row->entity_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
 				}
 			}
+			return $this->batch_result( $rows, $count, $next );
+		}
+
+		/**
+		 * Step ( reset only ): delete ec_store posts 200 at a time by ascending ID. Once the
+		 * table is empty, zero every forward link so the rebuild phases recreate everything.
+		 *
+		 * @since 6.0.0
+		 */
+		private function step_delete_store_posts( $last_id, $deadline ) {
+			global $wpdb;
+			$where = function ( $sql ) use ( $last_id, $wpdb ) {
+				return $sql . $wpdb->prepare( " AND {$wpdb->posts}.ID > %d", $last_id );
+			};
+			add_filter( 'posts_where', $where );
+			$ids = get_posts(
+				array(
+					'post_type'              => 'ec_store',
+					'post_status'            => 'any',
+					'posts_per_page'         => self::JOB_BATCH,
+					'orderby'                => 'ID',
+					'order'                  => 'ASC',
+					'fields'                 => 'ids',
+					'no_found_rows'          => true,
+					'suppress_filters'       => false,
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+				)
+			);
+			remove_filter( 'posts_where', $where );
+
+			$count = 0;
+			$next = $last_id;
+			foreach ( (array) $ids as $post_id ) {
+				wp_delete_post( (int) $post_id, true );
+				$next = (int) $post_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
+				}
+			}
+			$result = $this->batch_result( $ids, $count, $next );
+			if ( $result['phase_done'] ) {
+				$wpdb->query( 'UPDATE ec_product SET ec_product.post_id = 0' );
+				$wpdb->query( 'UPDATE ec_menulevel1 SET ec_menulevel1.post_id = 0' );
+				$wpdb->query( 'UPDATE ec_menulevel2 SET ec_menulevel2.post_id = 0' );
+				$wpdb->query( 'UPDATE ec_menulevel3 SET ec_menulevel3.post_id = 0' );
+				$wpdb->query( 'UPDATE ec_category SET ec_category.post_id = 0' );
+				$wpdb->query( 'UPDATE ec_manufacturer SET ec_manufacturer.post_id = 0' );
+			}
+			return $result;
+		}
+
+		/**
+		 * Step ( reset / rebuild ): create the post for every row of one entity table that has
+		 * no post yet, 200 rows per call. Inserting sets post_id, so the cursor and the
+		 * post_id = 0 filter both move the batch forward.
+		 *
+		 * @since 6.0.0
+		 */
+		private function step_rebuild_entity( $phase, $last_id, $deadline ) {
+			global $wpdb;
+			$map = $this->entity_map();
+			if ( ! isset( $map[ $phase ] ) ) {
+				return array( 'next' => $last_id, 'count' => 0, 'phase_done' => true );
+			}
+			$entity = $map[ $phase ];
+			$columns = $entity['id'] . ' AS entity_id, post_id, ' . $entity['title'] . ' AS title';
+			if ( 'product' === $phase ) {
+				$columns .= ', model_number, description, activate_in_store';
+			}
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $columns . ' FROM ' . $entity['table'] . ' WHERE post_id = 0 AND ' . $entity['id'] . ' > %d ORDER BY ' . $entity['id'] . ' LIMIT %d', $last_id, self::JOB_BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers come from the fixed entity_map(); values are prepared.
+			$count = 0;
+			$next = $last_id;
+			foreach ( (array) $rows as $row ) {
+				if ( 'product' === $phase ) {
+					$post = array(
+						'post_content' => '[ec_store modelnumber="' . $row->model_number . '"]',
+						'post_status'  => $row->activate_in_store ? 'publish' : 'private',
+						'post_title'   => $row->title,
+						'post_type'    => 'ec_store',
+						'post_excerpt' => $row->description,
+					);
+				} else {
+					$post = array(
+						'post_content' => '[ec_store ' . $entity['attr'] . '="' . (int) $row->entity_id . '"]',
+						'post_status'  => 'publish',
+						'post_title'   => $row->title,
+						'post_type'    => 'ec_store',
+					);
+				}
+				wp_easycart_post_sync()->insert( $entity['type'], (int) $row->entity_id, $post );
+				$next = (int) $row->entity_id;
+				$count++;
+				if ( microtime( true ) > $deadline ) {
+					break;
+				}
+			}
+			return $this->batch_result( $rows, $count, $next );
+		}
+
+		/**
+		 * Step: trim a log table to its newest $keep rows. The first call finds the cutoff id
+		 * ( the row just past the ones we keep ) and that becomes the cursor; every call then
+		 * deletes JOB_DELETE_BATCH rows at a time up to the cutoff until nothing is left or the
+		 * time budget runs out. ec_webhook ids are strings ( gateway event ids ) and compare
+		 * lexically, matching the ORDER BY the old tool used.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $table    ec_response or ec_webhook.
+		 * @param string $id_col   Primary key column.
+		 * @param int    $keep     Rows to keep.
+		 * @param string $cursor   Cutoff id, or '' on the first call.
+		 * @param float  $deadline microtime() to stop at.
+		 * @return array
+		 */
+		private function step_trim_log( $table, $id_col, $keep, $cursor, $deadline ) {
+			global $wpdb;
+			if ( ! in_array( $table, array( 'ec_response', 'ec_webhook' ), true ) ) {
+				return array( 'next' => '', 'count' => 0, 'phase_done' => true );
+			}
+			$is_int = ( 'ec_response' === $table );
+			$placeholder = $is_int ? '%d' : '%s';
+			$result = array( 'next' => $cursor, 'count' => 0, 'phase_done' => false );
+
+			if ( '' === $cursor ) {
+				$cutoff = $wpdb->get_var( $wpdb->prepare( 'SELECT ' . $id_col . ' FROM ' . $table . ' ORDER BY ' . $id_col . ' DESC LIMIT 1 OFFSET %d', $keep ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers are validated above; the offset is prepared.
+				if ( null === $cutoff || '' === $cutoff ) {
+					$this->clear_log_sizes();
+					return array( 'next' => '', 'count' => 0, 'phase_done' => true, 'total' => 0 );
+				}
+				$cursor = $is_int ? (string) (int) $cutoff : (string) $cutoff;
+				$result['next'] = $cursor;
+				$result['total'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $table . ' WHERE ' . $id_col . ' <= ' . $placeholder, $is_int ? (int) $cursor : $cursor ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers are validated above; the value is prepared.
+			}
+
+			$value = $is_int ? (int) $cursor : $cursor;
+			do {
+				$deleted = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $table . ' WHERE ' . $id_col . ' <= ' . $placeholder . ' ORDER BY ' . $id_col . ' LIMIT %d', $value, self::JOB_DELETE_BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers are validated above; values are prepared.
+				if ( false === $deleted ) {
+					$result['error'] = __( 'The database refused the delete. Check the WP EasyCart log for the SQL error and try again.', 'wp-easycart' );
+					return $result;
+				}
+				$result['count'] += (int) $deleted;
+			} while ( $deleted > 0 && microtime( true ) < $deadline );
+
+			if ( 0 === (int) $deleted ) {
+				$result['phase_done'] = true;
+				$this->clear_log_sizes();
+			}
+			return $result;
+		}
+
+		/**
+		 * Gateway and webhook log row counts, cached for five minutes ( the trim tools clear it ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array { response: int, webhook: int }
+		 */
+		public function log_sizes() {
+			$sizes = get_transient( self::LOG_SIZE_TRANSIENT );
+			if ( ! is_array( $sizes ) || ! isset( $sizes['response'], $sizes['webhook'] ) ) {
+				global $wpdb;
+				$sizes = array(
+					'response' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_response' ),
+					'webhook'  => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_webhook' ),
+				);
+				set_transient( self::LOG_SIZE_TRANSIENT, $sizes, 5 * MINUTE_IN_SECONDS );
+			}
+			return $sizes;
+		}
+
+		/**
+		 * Forget the cached log row counts.
+		 *
+		 * @since 6.0.0
+		 */
+		public function clear_log_sizes() {
+			delete_transient( self::LOG_SIZE_TRANSIENT );
 		}
 
 		public function wpeasycart_get_data_folder_list() {
@@ -443,43 +1161,53 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		}
 
 		public function ec_fix_database_errors() {
+			/* Explicit admin fix action: bypass the 10-minute failure backoff,
+			   otherwise this silently no-ops right after a failed install. */
+			delete_transient( 'ec_db_install_backoff' );
 			$db_manager = new ec_db_manager();
-			return $db_manager->install_db();
+			return $db_manager->install_db( true );
+		}
+
+		/**
+		 * Find a published page carrying a shortcode with one indexed-friendly query instead of
+		 * loading every page through get_pages(). Prefers the page the store setting points at,
+		 * so one row answers both "does any page have it" and "is it the selected page".
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param string $shortcode   Shortcode prefix, e.g. '[ec_store'.
+		 * @param int    $selected_id Page ID stored in the matching ec_option_*page setting.
+		 * @return array { found: bool, match: bool }
+		 */
+		private function shortcode_page_status( $shortcode, $selected_id ) {
+			global $wpdb;
+			$selected_id = (int) $selected_id;
+			$key = $shortcode . '|' . $selected_id;
+			if ( ! array_key_exists( $key, $this->shortcode_pages ) ) {
+				$this->shortcode_pages[ $key ] = $wpdb->get_var(
+					$wpdb->prepare(
+						"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ( ID = %d ) DESC, ID ASC LIMIT 1",
+						'%' . $wpdb->esc_like( $shortcode ) . '%',
+						$selected_id
+					)
+				);
+			}
+			$found_id = (int) $this->shortcode_pages[ $key ];
+			return array(
+				'found' => $found_id > 0,
+				'match' => $found_id > 0 && $found_id === $selected_id,
+			);
 		}
 
 		public function ec_is_store_page_setup() {
-			$store_page_found = false;
-			$store_is_match = false;
-			$store_page_ids = array();
-			$selected_store_id = get_option( 'ec_option_storepage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_store' ) ) {
-					$store_page_ids[] = $page->ID;
-					$store_page_found = true;
-				}
-			}
-			if ( in_array( $selected_store_id, $store_page_ids ) ) {
-				$store_is_match = true;
-			}
-			return ( $store_page_found && $store_is_match );
+			$store = $this->shortcode_page_status( '[ec_store', get_option( 'ec_option_storepage' ) );
+			return ( $store['found'] && $store['match'] );
 		}
 
 		public function ec_get_store_page_error() {
-			$store_page_found = false;
-			$store_is_match = false;
-			$store_page_ids = array();
-			$selected_store_id = get_option( 'ec_option_storepage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_store' ) ) {
-					$store_page_ids[] = $page->ID;
-					$store_page_found = true;
-				}
-			}
-			if ( in_array( $selected_store_id, $store_page_ids ) ) {
-				$store_is_match = true;
-			}
+			$store = $this->shortcode_page_status( '[ec_store', get_option( 'ec_option_storepage' ) );
+			$store_page_found = $store['found'];
+			$store_is_match = $store['match'];
 			if ( !$store_page_found ) {
 				return __( "The shortcode [ec_store] was not found on any page. Please add [ec_store] to a WordPress page to correct this.", 'wp-easycart' );
 			} else if ( !$store_is_match ) {
@@ -490,38 +1218,14 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		}
 
 		public function ec_is_cart_page_setup() {
-			$cart_page_found = false;
-			$cart_is_match = false;
-			$cart_page_ids = array();
-			$selected_cart_id = get_option( 'ec_option_cartpage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_cart' ) ) {
-					$cart_page_ids[] = $page->ID;
-					$cart_page_found = true;
-				}
-			}
-			if ( in_array( $selected_cart_id, $cart_page_ids ) ) {
-				$cart_is_match = true;
-			}
-			return ( $cart_page_found && $cart_is_match );
+			$cart = $this->shortcode_page_status( '[ec_cart', get_option( 'ec_option_cartpage' ) );
+			return ( $cart['found'] && $cart['match'] );
 		}
 
 		public function ec_get_cart_page_error() {
-			$cart_page_found = false;
-			$cart_is_match = false;
-			$cart_page_ids = array();
-			$selected_cart_id = get_option( 'ec_option_cartpage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_cart' ) ) {
-					$cart_page_ids[] = $page->ID;
-					$cart_page_found = true;
-				}
-			}
-			if ( in_array( $selected_cart_id, $cart_page_ids ) ) {
-				$cart_is_match = true;
-			}
+			$cart = $this->shortcode_page_status( '[ec_cart', get_option( 'ec_option_cartpage' ) );
+			$cart_page_found = $cart['found'];
+			$cart_is_match = $cart['match'];
 			if ( !$cart_page_found ) {
 				return __( "The shortcode [ec_cart] was not found on any page. Please add [ec_cart] to a WordPress page to correct this.", 'wp-easycart' );
 			} else if ( !$cart_is_match ) {
@@ -532,38 +1236,14 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		}
 
 		public function ec_is_account_page_setup() {
-			$account_page_found = false;
-			$account_is_match = false;
-			$account_page_ids = array();
-			$selected_account_id = get_option( 'ec_option_accountpage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_account' ) ) {
-					$account_page_ids[] = $page->ID;
-					$account_page_found = true;
-				}
-			}
-			if ( in_array( $selected_account_id, $account_page_ids ) )
-				$account_is_match = true;
-
-			return ( $account_page_found && $account_is_match );
+			$account = $this->shortcode_page_status( '[ec_account', get_option( 'ec_option_accountpage' ) );
+			return ( $account['found'] && $account['match'] );
 		}
 
 		public function ec_get_account_page_error() {
-			$account_page_found = false;
-			$account_is_match = false;
-			$account_page_ids = array();
-			$selected_account_id = get_option( 'ec_option_accountpage' );
-			$pages = get_pages();
-			foreach ( $pages as $page ) {
-				if ( strstr( $page->post_content, '[ec_account' ) ) {
-					$account_page_ids[] = $page->ID;
-					$account_page_found = true;
-				}
-			}
-			if ( in_array( $selected_account_id, $account_page_ids ) ) {
-				$account_is_match = true;
-			}
+			$account = $this->shortcode_page_status( '[ec_account', get_option( 'ec_option_accountpage' ) );
+			$account_page_found = $account['found'];
+			$account_is_match = $account['match'];
 			if ( !$account_page_found ) {
 				return __( "The shortcode [ec_account] was not found on any page. Please add [ec_account] to a WordPress page to correct this.", 'wp-easycart' );
 			} else if ( !$account_is_match ) {
@@ -1496,123 +2176,6 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				return "Converge (Virtual Merchant)";
 			} else if ( $live_payment == "custom" ) {
 				return __( "Custom Payment Gateway", 'wp-easycart' );
-			}
-		}
-
-		public function ec_reset_store_permalinks() {
-			global $wpdb;
-			$db = new ec_db();
-			if ( !isset( $_GET['ec_reset_phase2'] ) ) {
-				$args = array(
-					'posts_per_page' => 1000000,
-					'offset' => 0,
-					'orderby' => 'date',
-					'order' => 'DESC',
-					'post_type' => 'ec_store',
-					'post_status' => 'any'
-				);
-				$posts_array = get_posts( $args );
-				foreach ( $posts_array as $post ) {
-					wp_delete_post( $post->ID, true );
-				}
-				$wpdb->query( "UPDATE ec_product SET ec_product.post_id = 0" );
-				$wpdb->query( "UPDATE ec_menulevel1 SET ec_menulevel1.post_id = 0" );
-				$wpdb->query( "UPDATE ec_menulevel2 SET ec_menulevel2.post_id = 0" );
-				$wpdb->query( "UPDATE ec_menulevel3 SET ec_menulevel3.post_id = 0" );
-				$wpdb->query( "UPDATE ec_category SET ec_category.post_id = 0" );
-				$wpdb->query( "UPDATE ec_manufacturer SET ec_manufacturer.post_id = 0" );
-			}
-
-			$menulevel1_items = $wpdb->get_results( "SELECT * FROM ec_menulevel1 WHERE ec_menulevel1.post_id = 0" );
-			$menulevel2_items = $wpdb->get_results( "SELECT * FROM ec_menulevel2 WHERE ec_menulevel2.post_id = 0" );
-			$menulevel3_items = $wpdb->get_results( "SELECT * FROM ec_menulevel3 WHERE ec_menulevel3.post_id = 0" );
-			$product_list = $wpdb->get_results( "SELECT ec_product.model_number, ec_product.post_id, ec_product.title, ec_product.product_id, ec_product.description FROM ec_product WHERE ec_product.post_id = 0" );
-			$category_list = $wpdb->get_results( "SELECT * FROM ec_category WHERE ec_category.post_id = 0" );
-			$manufacturer_list = $wpdb->get_results( "SELECT * FROM ec_manufacturer WHERE ec_manufacturer.post_id = 0" );
-
-			echo sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 1 ) . ": ";
-			foreach ( $menulevel1_items as $menu_item ) {
-				if ( $menu_item->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store menuid=\"" . $menu_item->menulevel1_id . "\"]",
-						'post_status' => 'publish',
-						'post_title' => $menu_item->name,
-						'post_type' => 'ec_store',
-					);
-					wp_easycart_post_sync()->insert( 'menulevel1', $menu_item->menulevel1_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel1_id ) );
-			}
-
-			echo "<br />" . sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 2 ) . ": ";
-			foreach ( $menulevel2_items as $menu_item ) {
-				if ( $menu_item->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store submenuid=\"" . $menu_item->menulevel2_id . "\"]",
-						'post_status' => 'publish',
-						'post_title' => $menu_item->name,
-						'post_type' => 'ec_store',
-					);
-					wp_easycart_post_sync()->insert( 'menulevel2', $menu_item->menulevel2_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel2_id ) );
-			}
-
-			echo "<br />" . sprintf( esc_attr__( "Rebuilding Menu %d", 'wp-easycart' ), 1 ) . ": ";
-			foreach ( $menulevel3_items as $menu_item ) {
-				if ( $menu_item->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store subsubmenuid=\"" . $menu_item->menulevel3_id . "\"]",
-						'post_status' => 'publish',
-						'post_title' => $menu_item->name,
-						'post_type' => 'ec_store',
-					);
-					wp_easycart_post_sync()->insert( 'menulevel3', $menu_item->menulevel3_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $menu_item->menulevel3_id ) );
-			}
-
-			echo "<br>" . esc_attr( 'Rebuilding Products', 'wp-easycart' ) . ": ";
-			foreach ( $product_list as $product_single ) {
-				if ( $product_single->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store modelnumber=\"" . $product_single->model_number . "\"]",
-						'post_status' => "publish",
-						'post_title' => $product_single->title,
-						'post_type' => "ec_store",
-						'post_excerpt' => $product_single->description,
-					);
-					wp_easycart_post_sync()->insert( 'product', $product_single->product_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $product_single->model_number ) );
-			}
-
-			echo "<br>" . esc_attr( 'Rebuilding Manufacturers', 'wp-easycart' ) . ": ";
-			foreach ( $manufacturer_list as $manufacturer_single ) {
-				if ( $manufacturer_single->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store manufacturerid=\"" . $manufacturer_single->manufacturer_id . "\"]",
-						'post_status' => 'publish',
-						'post_title' => $manufacturer_single->name,
-						'post_type' => 'ec_store',
-					);
-					wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_single->manufacturer_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $manufacturer_single->manufacturer_id ) );
-			}
-
-			echo "<br>" . esc_attr( 'Rebuilding Categories', 'wp-easycart' ) . ": ";
-			foreach ( $category_list as $category_single ) {
-				if ( $category_single->post_id == 0 ) {
-					$post = array(
-						'post_content' => "[ec_store groupid=\"" . $category_single->category_id . "\"]",
-						'post_status' => 'publish',
-						'post_title' => $category_single->category_name,
-						'post_type' => 'ec_store',
-					);
-					wp_easycart_post_sync()->insert( 'category', $category_single->category_id, $post );
-				}
-				echo sprintf( esc_attr__( "Item %s Done...", 'wp-easycart' ), esc_attr( $category_single->category_id ) );
 			}
 		}
 	}

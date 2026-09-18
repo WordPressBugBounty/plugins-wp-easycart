@@ -553,6 +553,19 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_control(
+			'sidebar_include_pricepoints',
+			array(
+				'type'        => Controls_Manager::SWITCHER,
+				'label'       => esc_attr__( 'Enable Sidebar Price Filter', 'wp-easycart' ),
+				'description' => esc_attr__( 'Uses the price ranges from Settings > Price Points.', 'wp-easycart' ),
+				'default'     => 'no',
+				'condition'   => array(
+					'sidebar' => 'yes',
+				),
+			)
+		);
+
+		$this->add_control(
 			'sidebar_include_option_filters',
 			array(
 				'type'  => Controls_Manager::SWITCHER,

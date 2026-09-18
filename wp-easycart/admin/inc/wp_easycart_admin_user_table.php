@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_user_import.php' );
+
 if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 
 	class wp_easycart_admin_user_table extends wp_easycart_admin_table_v2 {
@@ -68,7 +70,7 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 			$this->set_default_sort( 'date_created', 'DESC' );
 			$this->set_header( __( 'Customers', 'wp-easycart' ) );
 			$this->set_icon( 'admin-users' );
-			$this->set_importer( true, __( 'Import Users', 'wp-easycart' ) );
+			$this->set_importer( true, __( 'Import Users', 'wp-easycart' ) ); /* the base prints the button; print_page_header() below swaps the legacy form for the V2 importer dialog */
 			$this->set_docs_link( 'users', 'user-accounts' );
 			$this->set_add_new( true, 'add-new', __( 'Add Customer', 'wp-easycart' ) );
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
@@ -152,6 +154,9 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 				array( 'name' => 'last_login', 'label' => __( 'Last Login', 'wp-easycart' ), 'format' => 'last_login', 'ss_default_hidden' => true ),
 				array( 'name' => 'user_id', 'label' => __( 'ID', 'wp-easycart' ), 'format' => 'int', 'is_id' => true ),
 			) ) );
+
+			/* ?role=<label> ( User Roles list → "View users", older bookmarks ) is the Role filter ( index 0 ). */
+			if ( isset( $_GET['role'] ) && '' !== $_GET['role'] && ! isset( $_GET['filter_0'] ) ) { $_GET['filter_0'] = sanitize_text_field( wp_unslash( $_GET['role'] ) ); }
 
 			// Filters. PRO appends spend/orders/recency/country/tag/etc.
 			$filters = array(
@@ -262,6 +267,18 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 		/* ------------------------------------------------------------------ */
 		/* Cell rendering                                                       */
 		/* ------------------------------------------------------------------ */
+
+		/**
+		 * The base header renders the legacy CSV importer ( Media Library upload + paste URL ), which no longer works
+		 * on the V2 page. Swap its button for the V2 import dialog and drop the hidden legacy form.
+		 */
+		protected function print_page_header() {
+			ob_start(); parent::print_page_header(); $html = ob_get_clean();
+			$btn = '<a href="#" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" id="ecv2-user-import-btn" data-nonce="' . esc_attr( wp_create_nonce( wp_easycart_admin_user_import::NONCE ) ) . '" onclick="return ecv2u_import.open( this );"><span class="dashicons dashicons-upload"></span> ' . esc_html__( 'Import Users', 'wp-easycart' ) . '</a>';
+			$html = preg_replace( '/<a onclick="ec_admin_importer_open_close\([^"]*"[^>]*>.*?<\/a>/s', $btn, $html, 1 );
+			$html = preg_replace( '/<div id="[a-z_]+_importer" class="ec_importer_form">.*?<\/div>\s*<div id="[a-z_]+_importer_status" class="ec_importer_status"><\/div>/s', '', $html, 1 );
+			echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $html is the parent's already-escaped header output with an esc_attr()/esc_html()-built button swapped in.
+		}
 
 		protected function print_cell_content( $result, $col ) {
 			switch ( isset( $col['format'] ) ? $col['format'] : '' ) {
@@ -442,7 +459,7 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 				if ( isset( $col['laptop_hide'] ) && $col['laptop_hide'] ) {
 					$extra_classes .= ' ecv2-hide-laptop';
 				}
-				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '">';
+				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $extra_classes only ever holds literal class names set above.
 				$this->print_cell_content( $result, $col );
 				echo '</td>';
 			}
@@ -590,6 +607,7 @@ function ecv2_user_backfill() {
 
 	if ( ! empty( $batch_ids ) ) {
 		$id_list = implode( ',', array_map( 'intval', $batch_ids ) );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list is an implode of intval() ids built on the line above.
 		$wpdb->query(
 			"UPDATE ec_user u
 			 LEFT JOIN (
@@ -603,6 +621,7 @@ function ecv2_user_backfill() {
 			     u.history_aggregates_built = 1
 			 WHERE u.user_id IN ( {$id_list} )"
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		wp_cache_flush();
 	}
 
@@ -841,4 +860,16 @@ function ecv2_user_quick_save() {
 		'user_level' => $data['user_level'],
 		'message'    => __( 'Customer saved.', 'wp-easycart' ),
 	) );
+}
+/**
+ * Stale links: several places ( the order editor's "View account", older bookmarks ) point at
+ * subpage=users, which is not a route and renders the V1 shell without styles. Redirect to accounts,
+ * preserving the rest of the query ( user_id, ec_admin_form_action ).
+ */
+add_action( 'admin_init', 'ecv2_users_subpage_alias' );
+function ecv2_users_subpage_alias() {
+	if ( ! isset( $_GET['page'], $_GET['subpage'] ) || 'wp-easycart-users' !== $_GET['page'] || 'users' !== $_GET['subpage'] || wp_doing_ajax() ) { return; }
+	$q = $_GET; $q['subpage'] = 'accounts';
+	wp_safe_redirect( add_query_arg( array_map( 'sanitize_text_field', array_map( 'wp_unslash', $q ) ), admin_url( 'admin.php' ) ) );
+	exit;
 }

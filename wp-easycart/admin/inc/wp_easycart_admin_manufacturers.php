@@ -9,8 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 
 		protected static $_instance = null;
 
-		public $manufacturers_list_file;
-		public $manufacturers_details_file;
 
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
@@ -20,46 +18,26 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 		}
 
 		public function __construct() {
-			$this->manufacturers_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/products/manufacturers/manufacturer-list.php';
-			$this->manufacturers_details_file = EC_PLUGIN_DIRECTORY . '/admin/template/products/manufacturers/manufacturer-details.php';
 
 			/* Process Admin Messages */
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'add_failure_messages' ) );
 
 			/* Process Form Actions */
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_add_new_manufacturer' ) );
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_update_manufacturer' ) );
 
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_delete_manufacturer' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_manufacturer' ) );
+
+			/* V2 list + editor */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_safe_delete.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_manufacturer_table.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
 		}
 
-		public function process_add_new_manufacturer() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( isset( $_POST['ec_admin_form_action'] ) && 'add-new-manufacturer' == $_POST['ec_admin_form_action'] ) {
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-manufacturer-details' ) ) {
-					$result = $this->insert_manufacturer();
-					wp_easycart_admin()->redirect( 'wp-easycart-products', 'manufacturers', $result );
-				}
-			}
-		}
-
-		public function process_update_manufacturer() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( isset( $_POST['ec_admin_form_action'] ) && 'update-manufacturer' == $_POST['ec_admin_form_action'] ) {
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-manufacturer-details' ) ) {
-					$result = $this->update_manufacturer();
-					wp_easycart_admin()->redirect( 'wp-easycart-products', 'manufacturers', $result );
-				}
-			}
-		}
+		public function is_v2_page() { return isset( $_GET['page'] ) && 'wp-easycart-products' === $_GET['page'] && isset( $_GET['subpage'] ) && 'manufacturers' === $_GET['subpage']; }
+		public function is_v2_editor() { return $this->is_v2_page() && isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['manufacturer_id'] ); }
+		public function enqueue_v2_assets() { if ( $this->is_v2_page() ) { wp_easycart_admin_catalog_v2_enqueue( $this->is_v2_editor() ? 'manufacturer-editor' : 'manufacturer-list' ); } }
 
 		public function process_delete_manufacturer() {
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
@@ -112,12 +90,15 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 		}
 
 		public function load_manufacturers_list() {
-			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['manufacturer_id'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
-					include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_manufacturer.php' );
-					$details = new wp_easycart_admin_details_manufacturer();
-					$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-			} else {
-				include( $this->manufacturers_list_file );
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['manufacturer_id'] ) ) {
+				$editor = new wp_easycart_admin_manufacturer_editor_v2();
+				$editor->output();
+				return;
+			}
+			$table = new wp_easycart_admin_manufacturer_table();
+			$table->print_table();
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'add-new' === $_GET['ec_admin_form_action'] ) {
+				echo '<script>jQuery( function() { if ( window.ecv2_catalog ) { ecv2_catalog.new_manufacturer(); } } );</script>';
 			}
 		}
 
@@ -174,56 +155,13 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 			);
 		}
 
-		public function update_manufacturer() {	
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-manufacturer-details' ) ) {
-				return false;
-			}
-
-			global $wpdb;
-
-			$manufacturer_id = ( isset( $_POST['manufacturer_id'] ) ) ? (int) $_POST['manufacturer_id'] : 0;
-			$name = ( isset( $_POST['manufacturer_name'] ) ) ? sanitize_text_field( wp_unslash( $_POST['manufacturer_name'] ) ) : '';
-			$post_slug = ( isset( $_POST['post_slug'] ) ) ? preg_replace( '/[^A-Za-z0-9\-]/', '', str_replace( ' ', '-', sanitize_text_field( wp_unslash( $_POST['post_slug'] ) ) ) ) : '';
-			$post_id = ( isset( $_POST['post_id'] ) ) ? (int) $_POST['post_id'] : 0;
-			$post_excerpt = ( isset( $_POST['post_excerpt'] ) ) ? sanitize_text_field( wp_unslash( $_POST['post_excerpt'] ) ) : '';
-			$featured_image = ( isset( $_POST['featured_image'] ) && '' != $_POST['featured_image'] ) ? (int) $_POST['featured_image'] : 0;
-
-			$post = array(
-				'post_content' => '[ec_store manufacturerid="' . $manufacturer_id . '"]',
-				'post_status' => 'publish',
-				'post_title' => wp_easycart_language()->convert_text( $name ),
-				'post_type' => 'ec_store',
-				'post_name' => $post_slug,
-				'post_excerpt' => $post_excerpt,
-			);
-			$post_id = wp_easycart_post_sync()->update( 'manufacturer', $manufacturer_id, $post_id, $post );
-			if ( 0 == $featured_image ) {
-				delete_post_thumbnail( $post_id );
-			} else {
-				set_post_thumbnail( $post_id, $featured_image );
-			}
-
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET ' . $wpdb->prefix . 'posts.guid = %s WHERE ' . $wpdb->prefix . 'posts.ID = %d', get_permalink( $post_id ), $post_id ) );
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_manufacturer SET name = %s WHERE manufacturer_id = %d', $name, $manufacturer_id ) );
-			do_action( 'wpeasycart_manufacturer_updated', $manufacturer_id );
-
-			return array(
-				'success' => 'manufacturer-updated',
-			);
-		}
-
 		public function delete_manufacturer() {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-delete-manufacturer' ) ) {
 				return false;
 			}
 
-			global $wpdb;
 			$manufacturer_id = ( isset( $_GET['manufacturer_id'] ) ) ? (int) $_GET['manufacturer_id'] : 0;
-			do_action( 'wpeasycart_manufacturer_deleting', $manufacturer_id );
-			$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
-			wp_easycart_post_sync()->delete( 'manufacturer', $manufacturer_id, $post_id );
-			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', $manufacturer_id ) );
-			do_action( 'wpeasycart_manufacturer_deleted', $manufacturer_id );
+			wp_easycart_admin_safe_delete()->execute( 'manufacturer', $manufacturer_id, array( 'strategy' => 'remove', 'redirect' => true ) );
 			return array(
 				'success' => 'manufacturer-deleted',
 			);
@@ -234,13 +172,8 @@ if ( ! class_exists( 'wp_easycart_admin_manufacturers' ) ) :
 				return false;
 			}
 
-			global $wpdb;
-			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
-
-			foreach ( $bulk_ids as $bulk_id ) {
-				do_action( 'wpeasycart_manufacturer_deleting', (int) $bulk_id );
-				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_manufacturer WHERE manufacturer_id = %d', (int) $bulk_id ) );
-				do_action( 'wpeasycart_manufacturer_deleted', (int) $bulk_id );
+			foreach ( (array) $_GET['bulk'] as $bulk_id ) {
+				wp_easycart_admin_safe_delete()->execute( 'manufacturer', (int) $bulk_id, array( 'strategy' => 'remove', 'redirect' => true ) );
 			}
 			return array(
 				'success' => 'manufacturer-deleted',

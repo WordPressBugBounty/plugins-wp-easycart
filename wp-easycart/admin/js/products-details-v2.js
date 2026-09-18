@@ -247,6 +247,7 @@ window.ecdv2_cart_links = ( function( $ ) {
 		else if ( used === 1 ) { $v.text( I18N( 'opt_one_set', '%1 · %2 variations' ).replace( '%1', names[ 0 ] ).replace( '%2', total ) ); }
 		else { $v.text( I18N( 'opt_two_sets', '%1 × %2 · %3 variations' ).replace( '%1', names[ 0 ] ).replace( '%2', names[ 1 ] ).replace( '%3', total ) ); }
 	}
+	window.ecdv2_opt_render = ecdv2_opt_render;
 	window.ecdv2_opt_clear = function( name ) {
 		$( '#' + name ).val( '0' ).trigger( 'change' );
 	};
@@ -392,6 +393,7 @@ window.ecdv2 = ( function( $ ) {
 		'downloads'                    : 'downloads',
 		'deconetwork'                  : 'deconetwork',
 		'seo'                          : 'seo',
+		'yoast_seo'                    : 'yoast_seo',
 		'googlemerchant'               : 'google_merchant_pro',
 		'order_completed_note'         : 'order_completed_note',
 		'order_completed_email_note'   : 'order_completed_email_note',
@@ -621,6 +623,18 @@ window.ecdv2 = ( function( $ ) {
 				seo_keywords    : v( 'seo_keywords' ),
 				post_excerpt    : ed( 'post_excerpt' ),
 				featured_image  : v( 'featured_image' )
+			};
+		},
+
+		/* Yoast SEO card ( SEO tab, only printed while Yoast is active ). Saved to
+		 * the product post's _yoast_wpseo_* meta by ec_admin_ajax_save_product_details_yoast_seo. */
+		yoast_seo: function() {
+			return {
+				yoast_title     : v( 'ecdv2_yoast_title' ),
+				yoast_metadesc  : v( 'ecdv2_yoast_metadesc' ),
+				yoast_focuskw   : v( 'ecdv2_yoast_focuskw' ),
+				yoast_canonical : v( 'ecdv2_yoast_canonical' ),
+				yoast_noindex   : v( 'ecdv2_yoast_noindex' )
 			};
 		},
 
@@ -975,6 +989,7 @@ window.ecdv2 = ( function( $ ) {
 					toast( _t( 'saved', 'Product saved.' ), 'success' );
 					update_header_meta();
 				}
+				refresh_feeds( queue );
 				return;
 			}
 			save_endpoint( queue[ i ], seen[ queue[ i ] ] )
@@ -1085,6 +1100,7 @@ window.ecdv2 = ( function( $ ) {
 		if ( 'activity' === key && ! activity_loaded ) {
 			load_activity();
 		}
+		load_panel_feeds( key );
 		/* mobile pill bar: keep active pill in view */
 		if ( tab[ 0 ].scrollIntoView && window.innerWidth <= 782 ) {
 			tab[ 0 ].scrollIntoView( { block: 'nearest', inline: 'center', behavior: 'smooth' } );
@@ -1118,10 +1134,14 @@ window.ecdv2 = ( function( $ ) {
 		'photo'     : [ 'image', 'media' ],
 		'picture'   : [ 'image', 'media' ],
 		'sale'      : [ 'previous price', 'list price', 'volume pricing' ],
-		'discount'  : [ 'previous price', 'volume pricing' ],
+		'discount'  : [ 'previous price', 'volume pricing', 'offers' ],
 		'stock'     : [ 'inventory', 'quantity' ],
 		'variant'   : [ 'option', 'variation' ],
-		'seo'       : [ 'search engine', 'meta' ],
+		'seo'       : [ 'search engine', 'meta', 'yoast' ],
+		'yoast'     : [ 'yoast seo', 'meta description', 'keyphrase' ],
+		'coupon'    : [ 'offers' ],
+		'promotion' : [ 'offers' ],
+		'history'   : [ 'stock history' ],
 		'url'       : [ 'slug', 'permalink' ],
 		'tax'       : [ 'vat', 'taxable' ],
 		'file'      : [ 'download' ],
@@ -1523,15 +1543,13 @@ window.ecdv2 = ( function( $ ) {
 	/* Categories ( instant save, token UI )                                */
 	/* ------------------------------------------------------------------ */
 
-	/* Unassigned categories, hydrated from the JSON the template prints.
-	 * Tokens carry assignment state; this list backs the combobox menu. */
-	var cat_catalog = null;
-	function cat_list() {
-		if ( null === cat_catalog ) {
-			try { cat_catalog = JSON.parse( $( '#ecdv2_cat_data' ).text() || '[]' ); } catch ( e ) { cat_catalog = []; }
-		}
-		return cat_catalog;
-	}
+	/* Categories are searched on the server as you type ( ecv2_category_search,
+	 * 20 matches per request ). Tokens carry assignment state; cat_results holds
+	 * only the matches for the term currently shown in the menu. */
+	var cat_results = [];
+	var cat_search_timer = null;
+	var cat_search_xhr = null;
+	var cat_search_seq = 0;
 
 
 	function category_token( category_id, label ) {
@@ -1562,7 +1580,6 @@ window.ecdv2 = ( function( $ ) {
 			},
 			success : function() {
 				category_token( category_id, label );
-				cat_catalog = cat_list().filter( function( entry ) { return entry.id !== category_id; } );
 				cat_combo_reset();
 				toast( _t( 'category_added', 'Category added.' ), 'success' );
 			},
@@ -1593,7 +1610,6 @@ window.ecdv2 = ( function( $ ) {
 					return;
 				}
 				category_token( parseInt( response.data.category_id, 10 ), response.data.category_name );
-				cat_catalog = cat_list().filter( function( entry ) { return entry.id !== parseInt( response.data.category_id, 10 ); } );
 				cat_combo_reset();
 				toast( response.data.existed ? _t( 'category_added', 'Category added.' ) : _t( 'category_created', 'Category created and added.' ), 'success' );
 			},
@@ -1608,7 +1624,38 @@ window.ecdv2 = ( function( $ ) {
 
 	function cat_combo_reset() {
 		$( '#ecdv2_cat_input' ).val( '' ).trigger( 'focus' );
+		cat_results = [];
 		cat_menu_render( '' );
+	}
+
+	/* Ask the server for matches ( debounced; a newer term cancels the older request ). */
+	function cat_fetch( term ) {
+		var $combo = $( '#ecdv2_cat_combo' );
+		var seq = ++cat_search_seq;
+		clearTimeout( cat_search_timer );
+		cat_search_timer = setTimeout( function() {
+			if ( cat_search_xhr && cat_search_xhr.abort ) { cat_search_xhr.abort(); }
+			cat_search_xhr = $.ajax( {
+				url  : wpeasycart_admin_ajax_object.ajax_url,
+				type : 'post',
+				data : {
+					action            : 'ecv2_category_search',
+					search            : term,
+					product_id        : $combo.data( 'product-id' ) || v( 'product_id' ),
+					wp_easycart_nonce : $combo.data( 'nonce' )
+				},
+				success : function( response ) {
+					if ( seq !== cat_search_seq ) { return; } /* stale */
+					cat_results = ( response && response.success && response.data && response.data.results ) ? response.data.results : [];
+					cat_menu_paint( term );
+				},
+				error : function( xhr, status ) {
+					if ( 'abort' === status || seq !== cat_search_seq ) { return; }
+					cat_results = [];
+					cat_menu_paint( term );
+				}
+			} );
+		}, 250 );
 	}
 
 	function cat_menu_render( term ) {
@@ -1617,23 +1664,43 @@ window.ecdv2 = ( function( $ ) {
 			return;
 		}
 		term = $.trim( term );
+		if ( '' === term ) {
+			clearTimeout( cat_search_timer );
+			cat_search_seq++;
+			cat_results = [];
+			$menu.html( '<div class="ecdv2-cat-menu-none">' + _t( 'type_to_search', 'Type to search categories, or a new name to create one.' ) + '</div>' ).show();
+			return;
+		}
+		$menu.html( '<div class="ecdv2-cat-menu-none">' + _t( 'searching', 'Searching…' ) + '</div>' ).show();
+		cat_fetch( term );
+	}
+
+	/* Paint the menu from cat_results ( assigned matches are listed but not pickable ). */
+	function cat_menu_paint( term ) {
+		var $menu = $( '#ecdv2_cat_menu' );
+		if ( ! $menu.length ) {
+			return;
+		}
 		var lower = term.toLowerCase();
-		var matches = cat_list().filter( function( entry ) {
-			return '' === lower || entry.name.toLowerCase().indexOf( lower ) > -1;
-		} );
-		var exact = cat_list().some( function( entry ) { return entry.name.toLowerCase() === lower; } );
+		var exact = cat_results.some( function( entry ) { return String( entry.name ).toLowerCase() === lower; } );
 		var assigned_exact = false;
 		$( '.ecdv2-cat-token' ).each( function() {
 			var label = $.trim( $( this ).clone().children().remove().end().text() );
 			if ( label.toLowerCase() === lower ) { assigned_exact = true; }
 		} );
 
-		var html = '';
-		matches.slice( 0, 12 ).forEach( function( entry, index ) {
-			html += '<button type="button" class="ecdv2-cat-menu-item' + ( 0 === index ? ' is-active' : '' ) + '" data-id="' + entry.id + '">' + $( '<i>' ).text( entry.name ).html() + '</button>';
+		var html = '', first_pickable = true;
+		cat_results.forEach( function( entry ) {
+			var is_assigned = !! entry.assigned || $( '.ecdv2-cat-token[data-category-id="' + entry.id + '"]' ).length > 0;
+			if ( is_assigned ) {
+				html += '<div class="ecdv2-cat-menu-none">' + $( '<i>' ).text( entry.name ).html() + ' · ' + _t( 'category_assigned', 'Already assigned.' ) + '</div>';
+				return;
+			}
+			html += '<button type="button" class="ecdv2-cat-menu-item' + ( first_pickable ? ' is-active' : '' ) + '" data-id="' + entry.id + '">' + $( '<i>' ).text( entry.name ).html() + '</button>';
+			first_pickable = false;
 		} );
 		if ( '' !== term && ! exact && ! assigned_exact ) {
-			html += '<button type="button" class="ecdv2-cat-menu-item ecdv2-cat-menu-create' + ( matches.length ? '' : ' is-active' ) + '" data-create="1"><span class="dashicons dashicons-plus-alt2"></span>' + _t( 'create_category', 'Create' ) + ' “' + $( '<i>' ).text( term ).html() + '”</button>';
+			html += '<button type="button" class="ecdv2-cat-menu-item ecdv2-cat-menu-create' + ( first_pickable ? ' is-active' : '' ) + '" data-create="1"><span class="dashicons dashicons-plus-alt2"></span>' + _t( 'create_category', 'Create' ) + ' “' + $( '<i>' ).text( term ).html() + '”</button>';
 		}
 		if ( '' === html ) {
 			html = '<div class="ecdv2-cat-menu-none">' + ( assigned_exact ? _t( 'category_assigned', 'Already assigned.' ) : _t( 'no_matches', 'No matching categories.' ) ) + '</div>';
@@ -1696,10 +1763,7 @@ window.ecdv2 = ( function( $ ) {
 				wp_easycart_nonce : v( 'wp_easycart_product_details_nonce' )
 			},
 			success : function() {
-				var token = $( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' );
-				var label = $.trim( token.clone().children().remove().end().text() );
-				token.remove();
-				cat_list().push( { id: parseInt( category_id, 10 ), name: label } );
+				$( '.ecdv2-cat-token[data-category-id="' + category_id + '"]' ).remove();
 				if ( ! $( '#ecdv2_cat_tokens .ecdv2-cat-token' ).length ) {
 					$( '#ecdv2_cat_tokens' ).append( '<span class="ecdv2-cat-empty" id="ecdv2_cat_empty">' + _t( 'no_categories', 'No categories assigned yet.' ) + '</span>' );
 				}
@@ -1790,7 +1854,6 @@ window.ecdv2 = ( function( $ ) {
 		html += metric( money( data.revenue ), _t( 'revenue', 'Revenue' ) );
 		html += metric( data.order_count, _t( 'orders', 'Orders' ) );
 		html += metric( data.views, _t( 'views', 'Product views' ) );
-		html += metric( data.avg_rating ? Number( data.avg_rating ) + '<span class="ecdv2-metric-star">★</span>' : '&mdash;', _t( 'avg_rating', 'Avg rating' ), true );
 		html += metric( data.subscribers, _t( 'waitlist', 'Stock waitlist' ) );
 		html += '</div></div></div>';
 
@@ -1835,31 +1898,149 @@ window.ecdv2 = ( function( $ ) {
 		}
 		html += '</div></div>';
 
-		/* Reviews with inline moderation */
-		html += '<div class="ecdv2-card"><div class="ecdv2-card-header"><h3 class="ecdv2-card-title">' + esc_html( _t( 'reviews', 'Reviews' ) ) + '</h3>';
-		if ( parseInt( data.pending_reviews, 10 ) > 0 ) {
-			html += '<span class="ecdv2-activity-pending">' + esc_html( data.pending_reviews ) + ' ' + esc_html( _t( 'pending', 'pending approval' ) ) + '</span>';
-		}
-		html += '</div><div class="ecdv2-card-body ecdv2-activity-body">';
-		if ( data.reviews && data.reviews.length ) {
-			$.each( data.reviews, function( idx, review ) {
-				var approved = parseInt( review.approved, 10 ) ? 1 : 0;
-				html += '<div class="ecdv2-activity-row" data-review-id="' + parseInt( review.review_id, 10 ) + '">';
-				html += '<span class="ecdv2-activity-row-main"><span class="ecdv2-activity-stars">' + esc_html( review.rating ) + ' ★</span><span class="ecdv2-activity-name">' + esc_html( review.title || '' ) + '</span><span class="ecdv2-activity-reviewer">&mdash; ' + esc_html( review.reviewer_name || '' ) + '</span></span>';
-				html += '<span class="ecdv2-activity-row-meta">';
-				html += '<button type="button" class="ecdv2-review-toggle' + ( approved ? ' is-approved' : '' ) + '" onclick="ecdv2.review_toggle( this, ' + parseInt( review.review_id, 10 ) + ', ' + ( approved ? 0 : 1 ) + ' );">' + ( approved ? esc_html( _t( 'unapprove', 'Unapprove' ) ) : esc_html( _t( 'approve', 'Approve' ) ) ) + '</button>';
-				html += '</span></div>';
-			} );
-		} else {
-			html += '<div class="ecdv2-activity-empty">' + esc_html( _t( 'no_reviews', 'No reviews yet.' ) ) + '</div>';
-		}
-		html += '</div></div>';
-
+		/* Reviews are not part of Activity: they have their own Reviews tab. */
 		holder.html( html );
 	}
 
 	function metric( value, label, raw_html ) {
 		return '<div class="ecdv2-metric"><span class="ecdv2-metric-value">' + ( raw_html ? String( value ) : esc_html( value ) ) + '</span><span class="ecdv2-metric-label">' + esc_html( label ) + '</span></div>';
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Lazy feeds ( PRO panels: stock history, offers )                     */
+	/* ------------------------------------------------------------------ */
+
+	/*
+	 * Markup contract, printed by PRO inside a panel:
+	 *   <div class="ecdv2-feed" data-ecdv2-feed="AJAX_ACTION" data-ecdv2-feed-nonce="NONCE"
+ *        data-ecdv2-feed-error="Translated load error"                ( optional )
+	 *        data-ecdv2-feed-refresh="quantities">            ( optional: save endpoints that make it stale )
+	 *     <div class="ecdv2-feed-body">…loading…</div>
+	 *     <button type="button" class="ecdv2-feed-more" hidden>Load more</button>
+	 *   </div>
+	 * The action receives product_id, page and nonce, and answers
+	 * { success: true, data: { html, has_more } }. Page 1 replaces the body; later
+	 * pages append into the last [data-ecdv2-feed-rows] element ( or the body ).
+	 * The server escapes everything in html. A feed loads the first time its tab opens.
+	 */
+	function feed_load( feed, more ) {
+		var $feed = $( feed );
+		if ( ! $feed.length || $feed.data( 'ecdv2FeedBusy' ) ) {
+			return;
+		}
+		var page = more ? ( parseInt( $feed.data( 'ecdv2FeedPage' ), 10 ) || 1 ) + 1 : 1;
+		var $body = $feed.find( '.ecdv2-feed-body' ).first();
+		var $more = $feed.find( '.ecdv2-feed-more' ).first();
+		var fail = function( response ) {
+			var message = ( response && response.data && response.data.message ) ? response.data.message : ( $feed.attr( 'data-ecdv2-feed-error' ) || _t( 'feed_failed', 'Could not load this section. Please try again.' ) );
+			if ( more ) {
+				toast( message, 'error' );
+			} else {
+				$feed.attr( 'data-ecdv2-feed-loaded', '0' );
+				$body.html( '<div class="ecdv2-activity-empty">' + esc_html( message ) + '</div>' );
+			}
+		};
+		$feed.data( 'ecdv2FeedBusy', true ).attr( 'data-ecdv2-feed-loaded', '1' ).addClass( 'is-loading' );
+		$more.prop( 'disabled', true );
+		$.ajax( {
+			url      : wpeasycart_admin_ajax_object.ajax_url,
+			type     : 'post',
+			dataType : 'json',
+			data     : {
+				action     : $feed.attr( 'data-ecdv2-feed' ),
+				product_id : v( 'product_id' ),
+				page       : page,
+				nonce      : $feed.attr( 'data-ecdv2-feed-nonce' )
+			}
+		} ).done( function( response ) {
+			if ( ! response || ! response.success || ! response.data ) {
+				fail( response );
+				return;
+			}
+			var html = String( response.data.html || '' );
+			if ( more ) {
+				var $rows = $body.find( '[data-ecdv2-feed-rows]' ).last();
+				( $rows.length ? $rows : $body ).append( html );
+			} else {
+				$body.html( html );
+			}
+			$feed.data( 'ecdv2FeedPage', page );
+			$more.prop( 'hidden', ! response.data.has_more );
+		} ).fail( function() {
+			fail( null );
+		} ).always( function() {
+			$feed.data( 'ecdv2FeedBusy', false ).removeClass( 'is-loading' );
+			$more.prop( 'disabled', false );
+		} );
+	}
+
+	function load_panel_feeds( key ) {
+		$( '.ecdv2-panel[data-ecdv2-panel="' + key + '"] .ecdv2-feed' ).not( '[data-ecdv2-feed-loaded="1"]' ).each( function() {
+			feed_load( this, false );
+		} );
+	}
+
+	/* After a save, feeds that depend on a saved endpoint ( e.g. stock history on
+	 * 'quantities' ) go stale: reload now when visible, otherwise on next open. */
+	function refresh_feeds( endpoints ) {
+		$( '.ecdv2-feed[data-ecdv2-feed-refresh]' ).each( function() {
+			var $feed = $( this );
+			var watch = String( $feed.attr( 'data-ecdv2-feed-refresh' ) ).split( /[\s,]+/ );
+			var hit = false;
+			$.each( endpoints || [], function( i, endpoint ) {
+				if ( -1 !== $.inArray( endpoint, watch ) ) {
+					hit = true;
+				}
+			} );
+			if ( ! hit || '1' !== $feed.attr( 'data-ecdv2-feed-loaded' ) ) {
+				return;
+			}
+			if ( $feed.closest( '.ecdv2-panel' ).hasClass( 'is-active' ) ) {
+				feed_load( this, false );
+			} else {
+				$feed.attr( 'data-ecdv2-feed-loaded', '0' );
+			}
+		} );
+	}
+
+	function feed_reload( node ) {
+		feed_load( $( node ).closest( '.ecdv2-feed' ), false );
+	}
+
+	function bind_feeds() {
+		$( document ).on( 'click', '.ecdv2-feed-more', function( e ) {
+			e.preventDefault();
+			feed_load( $( this ).closest( '.ecdv2-feed' ), true );
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Yoast SEO card: live search-result preview                           */
+	/* ------------------------------------------------------------------ */
+
+	function bind_yoast_preview() {
+		var $preview = $( '#ecdv2_yoast_preview' );
+		if ( ! $preview.length ) {
+			return;
+		}
+		var default_title = $preview.attr( 'data-default-title' ) || '';
+		var default_desc = $preview.attr( 'data-default-desc' ) || '';
+		var title_touched = false;
+		function update() {
+			var title = $.trim( v( 'ecdv2_yoast_title' ) );
+			var desc = $.trim( v( 'ecdv2_yoast_metadesc' ) );
+			/* Stored titles may hold Yoast %%variables%% the browser cannot resolve: keep the
+			 * server-rendered preview until the merchant edits the field. */
+			if ( title_touched ) {
+				$( '#ecdv2_yoast_preview_title' ).text( '' !== title ? title : default_title );
+			}
+			$( '#ecdv2_yoast_preview_desc' ).text( '' !== desc ? desc : default_desc );
+		}
+		$( document ).on( 'input change', '#ecdv2_yoast_title', function() {
+			title_touched = true;
+			update();
+		} );
+		$( document ).on( 'input change', '#ecdv2_yoast_metadesc', update );
 	}
 
 	function review_toggle( node, review_id, approved ) {
@@ -2265,6 +2446,50 @@ window.ecdv2 = ( function( $ ) {
 
 		$( document ).on( 'input change', '#price, #list_price', update );
 		update();
+	}
+
+	/*
+	 * Pricing & Tax tab: the "Base price" card mirrors Price / Previous Price
+	 * from General ( read-only, live ) so merchants on this tab can see what
+	 * they are adjusting, and edit_base_price() jumps back to the field.
+	 */
+	function bind_base_price() {
+		var now = $( '#ecdv2_base_price_now' );
+		var was = $( '#ecdv2_base_price_was' );
+		if ( ! now.length ) {
+			return;
+		}
+		function update() {
+			var price = parseFloat( v( 'price' ) ) || 0;
+			var list  = parseFloat( v( 'list_price' ) ) || 0;
+			now.text( money( price ) );
+			was.text( money( list ) ).prop( 'hidden', ! ( list > 0 && list > price ) );
+		}
+		$( document ).on( 'input change', '#price, #list_price', update );
+		update();
+	}
+
+	function edit_base_price() {
+		go_tab( 'general' );
+		var input = $( '#price' );
+		if ( ! input.length ) {
+			return;
+		}
+		var field = input.closest( '.ecdv2-field' );
+		if ( ! field.length ) {
+			field = input;
+		}
+		field[ 0 ].scrollIntoView( { block: 'center', behavior: 'smooth' } );
+		field.addClass( 'ecdv2-flash' );
+		setTimeout( function() {
+			field.removeClass( 'ecdv2-flash' );
+		}, 1800 );
+		/* Focus without a second jump; the smooth scroll above positions it. */
+		try {
+			input[ 0 ].focus( { preventScroll: true } );
+		} catch ( e ) {
+			input[ 0 ].focus();
+		}
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -2687,7 +2912,10 @@ window.ecdv2 = ( function( $ ) {
 		bind_sale_preview();
 		bind_variant_stock_note();
 		bind_price_context();
+		bind_base_price();
 		bind_featured_products();
+		bind_feeds();
+		bind_yoast_preview();
 
 		/* Override the legacy handler from products.js ( ready runs after
 		 * every script has parsed, so this assignment always wins ). */
@@ -2749,6 +2977,55 @@ window.ecdv2 = ( function( $ ) {
 					if ( d.title ) { $opt.text( d.title ); }
 				} );
 			} );
+			/* Manufacturer + option-set pickers: the select holds only its current value;
+			 * matches come from ecv2_manufacturer_search ( 40/page ) and
+			 * ecv2_option_set_search ( 30/page ). Nonce rides on the element. */
+			var ajax_pickers = {
+				manufacturers : { action: 'ecv2_manufacturer_search', none: _t( 'no_manufacturers', 'No manufacturers match' ) },
+				option_sets   : { action: 'ecv2_option_set_search', none: _t( 'no_option_sets', 'No option sets match' ) }
+			};
+			$( '.ecdv2-select2-ajax[data-ecdv2-ajax="manufacturers"], .ecdv2-select2-ajax[data-ecdv2-ajax="option_sets"]' ).each( function() {
+				var $sel = $( this ), kind = $sel.attr( 'data-ecdv2-ajax' ), cfg = ajax_pickers[ kind ];
+				if ( ! cfg || $sel.hasClass( 'select2-hidden-accessible' ) ) { return; }
+				$sel.select2( {
+					width: '100%',
+					placeholder: $sel.find( 'option' ).first().text() || '',
+					minimumInputLength: 0,
+					ajax: {
+						url: wpeasycart_admin_ajax_object.ajax_url,
+						type: 'POST',
+						dataType: 'json',
+						delay: 250,
+						cache: true,
+						data: function( params ) {
+							return { action: cfg.action, q: params.term || '', page: params.page || 1, wp_easycart_nonce: $sel.attr( 'data-ecdv2-nonce' ) };
+						},
+						processResults: function( data, params ) {
+							params.page = params.page || 1;
+							var d = ( data && data.data ) ? data.data : data;
+							return { results: ( d && d.results ) ? d.results : [], pagination: { more: !! ( d && d.more ) } };
+						}
+					},
+					language: {
+						searching: function() { return _t( 'searching', 'Searching…' ); },
+						noResults: function() { return cfg.none; },
+						loadingMore: function() { return _t( 'loading_more', 'Loading more…' ); }
+					}
+				} );
+				if ( 'option_sets' === kind ) {
+					/* Remember the choice count so the variation total stays right. */
+					$sel.on( 'select2:select', function( e ) {
+						var d = e.params && e.params.data ? e.params.data : {};
+						if ( ! d.id ) { return; }
+						var $wrap = $( '#ecdv2_opt_slots' ), counts;
+						try { counts = JSON.parse( $wrap.attr( 'data-counts' ) || '{}' ); } catch ( err ) { counts = {}; }
+						counts[ d.id ] = parseInt( d.item_count, 10 ) || 0;
+						$wrap.attr( 'data-counts', JSON.stringify( counts ) );
+						/* select2 fires change ( and the first render ) before this event. */
+						if ( typeof window.ecdv2_opt_render === 'function' ) { window.ecdv2_opt_render(); }
+					} );
+				}
+			} );
 		}
 
 		route_initial();
@@ -2762,6 +3039,7 @@ window.ecdv2 = ( function( $ ) {
 	return {
 		download_qr: download_qr,
 		go_tab           : go_tab,
+		edit_base_price  : edit_base_price,
 		save_all         : save_all,
 		quick_activate   : quick_activate,
 		mark_dirty       : mark_dirty,
@@ -2775,8 +3053,28 @@ window.ecdv2 = ( function( $ ) {
 		slug_lock_toggle : slug_lock_toggle,
 		review_toggle    : review_toggle,
 		load_activity    : load_activity,
+		feed_reload      : feed_reload,
 		add_role_price   : add_role_price,
 		toast            : toast
 	};
 
 } )( window.jQuery );
+/* ---- Reviews card: allow toggle saves immediately and mirrors the hidden carrier in the general card ---- */
+function ecdv2_reviews_toggle( cb ) {
+	var $card = jQuery( '#ecdv2-reviews-card' ), on = cb.checked ? 1 : 0;
+	/* The product list's toast is only there when products-v2.js is loaded; fall back to the editor's own. */
+	var say = function( message, type ) {
+		if ( window.ecv2_toast ) { window.ecv2_toast( message, type ); }
+		else if ( window.ecdv2 && 'function' === typeof window.ecdv2.toast ) { window.ecdv2.toast( message, type ); }
+	};
+	jQuery( '#use_customer_reviews' ).val( on ); /* general-options save posts this too */
+	$card.toggleClass( 'is-off', ! on ); jQuery( '#ecdv2_reviews_off' ).toggle( ! on );
+	if ( cb.getAttribute( 'data-new' ) ) { return; } /* unsaved product: the value rides along with the first save */
+	jQuery.post( wpeasycart_admin_ajax_object.ajax_url, { action: 'ecdv2_reviews_toggle', product_id: $card.data( 'product-id' ), on: on, nonce: $card.data( 'nonce' ) }, function( r ) {
+		if ( r && r.success ) { say( r.data.message, 'success' ); }
+		else { cb.checked = ! on; jQuery( '#use_customer_reviews' ).val( on ? 0 : 1 ); $card.toggleClass( 'is-off', !! on ); jQuery( '#ecdv2_reviews_off' ).toggle( !! on ); say( ( r && r.data && r.data.message ) || 'Something went wrong.', 'error' ); }
+	}, 'json' ).fail( function() {
+		cb.checked = ! on; jQuery( '#use_customer_reviews' ).val( on ? 0 : 1 ); $card.toggleClass( 'is-off', !! on ); jQuery( '#ecdv2_reviews_off' ).toggle( !! on );
+		say( 'Something went wrong.', 'error' );
+	} );
+}

@@ -10,7 +10,6 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 		protected static $_instance = null;
 
 		public $users_list_file;
-		public $users_details_file;
 		public $export_accounts_csv;
 
 		public static function instance() {
@@ -22,7 +21,6 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 
 		public function __construct() {
 			$this->users_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-list.php';
-			$this->users_details_file = EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-details.php';
 			$this->export_accounts_csv = EC_PLUGIN_DIRECTORY . '/admin/template/exporters/export-accounts-csv.php';
 
 			/* Process Admin Messages */
@@ -97,6 +95,10 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				return false;
 			}
 			if ( isset( $_GET['ec_admin_form_action'] ) && ( 'export-accounts-csv' == $_GET['ec_admin_form_action'] || 'export-accounts-csv-all' == $_GET['ec_admin_form_action'] ) ) {
+				/* 6.0.0: the export routes now require the list's bulk nonce, like the order and product exporters. */
+				if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-bulk-accounts' ) ) {
+					return false;
+				}
 				include( $this->export_accounts_csv );
 				die();
 			}
@@ -180,7 +182,17 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			} else if ( isset( $_GET['success'] ) && 'user-deleted' == $_GET['success'] ) {
 				$messages[] = __( 'Users(s) successfully deleted', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && 'user-logged-in' == $_GET['success'] ) {
-				$messages[] = __( 'You are now logged in as this user. Please use caution when viewing the store.', 'wp-easycart' );
+				$store_page = (int) get_option( 'ec_option_storepage' );
+				$account_page = (int) get_option( 'ec_option_accountpage' );
+				$messages[] = array(
+					'text'    => __( 'You are now signed in to the store as this customer.', 'wp-easycart' ),
+					'detail'  => __( 'Anything you do on the storefront, including orders, is done on their account. Sign out from the account page when you are finished.', 'wp-easycart' ),
+					'tone'    => 'warning',
+					'actions' => array(
+						array( 'label' => __( 'Open the store', 'wp-easycart' ), 'url' => $store_page ? get_permalink( $store_page ) : home_url( '/' ), 'target' => '_blank', 'primary' => true ),
+						array( 'label' => __( 'Their account page', 'wp-easycart' ), 'url' => $account_page ? get_permalink( $account_page ) : '', 'target' => '_blank' ),
+					),
+				);
 			} else if ( isset( $_GET['success'] ) && 'user-password-reset' == $_GET['success'] ) {
 				$messages[] = __( 'User(s) passwords were successfully reset and emailed with information to update their password.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && 'user-activation-resent' == $_GET['success'] ) {
@@ -241,6 +253,9 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$last_name = sanitize_text_field( wp_unslash( $_POST['last_name'] ) );
 
 			$user_level = ( isset( $_POST['user_level'] ) ) ? sanitize_text_field( wp_unslash( $_POST['user_level'] ) ) : 'shopper';
+			if ( '' === $user_level ) {
+				$user_level = 'shopper';
+			}
 			$user_notes = ( isset( $_POST['user_notes'] ) ) ? sanitize_textarea_field( wp_unslash( $_POST['user_notes'] ) ) : '';
 			$vat_registration_number = ( isset( $_POST['vat_registration_number'] ) ) ? sanitize_text_field( wp_unslash( $_POST['vat_registration_number'] ) ) : '';
 
@@ -536,10 +551,6 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			return array( 'success' => 'user-password-reset' );
 		}
 
-		private function send_new_password_email( $user, $new_password ) {
-			// Discontinued function
-		}
-
 		private function send_password_reset_email( $user, $reset_url ) {
 			$email = $user->email;
 			$email_logo_url = get_option( 'ec_option_email_logo' );
@@ -595,272 +606,6 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			}
 
 		}
-
-		private function get_random_password() {
-			$rand_chars = array( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J' );
-			$rand_password = $rand_chars[ rand( 0, 9 ) ] . $rand_chars[ rand( 0, 9 ) ] . $rand_chars[ rand( 0, 9 ) ] . $rand_chars[ rand( 0, 9 ) ] . rand( 0, 9 ) . rand( 0, 9 ) . rand( 0, 9 ) . rand( 0, 9 ) . rand( 0, 9 );
-			return $rand_password;
-		}
-
-		public function check_existing_email() {
-			global $wpdb;
-			if ( isset( $_POST['email'] ) ) {
-				$email = sanitize_email( wp_unslash( $_POST['email'] ) );
-				$user_id = ( isset( $_POST['user_id'] ) ) ? (int) $_POST['user_id'] : 0;
-				$emails = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_user WHERE ec_user.email = %s AND ec_user.user_id != %d', $email, $user_id ) );
-
-				if ( count( $emails ) > 0 ) {
-					esc_attr_e( 'Email Already Exist', 'wp-easycart' );
-				} else {
-					esc_attr_e( 'OK', 'wp-easycart' );
-				}
-			}
-		}
-
-		public function run_importer() {
-
-			global $wpdb;
-			$error_list = '';
-			$email_index = -1;
-			$first_name_index = -1;
-			$last_name_index = -1;
-			$user_level_index = -1;
-
-			$billing_first_name_index = -1;
-			$billing_last_name_index = -1;
-			$billing_company_name_index = -1;
-			$billing_address_line_1_index = -1;
-			$billing_address_line_2_index = -1;
-			$billing_city_index = -1;
-			$billing_state_index = -1;
-			$billing_zip_index = -1;
-			$billing_country_index = -1;
-			$billing_phone_index = -1;
-
-			$shipping_first_name_index = -1;
-			$shipping_last_name_index = -1;
-			$shipping_company_name_index = -1;
-			$shipping_address_line_1_index = -1;
-			$shipping_address_line_2_index = -1;
-			$shipping_city_index = -1;
-			$shipping_state_index = -1;
-			$shipping_zip_index = -1;
-			$shipping_country_index = -1;
-			$shipping_phone_index = -1;
-
-			$limit = 20;
-
-			require_once( 'Encoding.php' );
-
-			if ( isset( $_POST['import_file_url'] ) ) {
-
-				set_time_limit( 500 );
-
-				$file_path = get_attached_file( (int) $_POST['import_file_url'] );
-				if ( ! $file_path ) {
-					echo esc_attr__( 'Invalid file path.', 'wp-easycart' );
-					return;
-				}
-
-				$file_type = wp_check_filetype( $file_path );
-				if ( ! $file_type || ! isset( $file_type['ext'] ) || ! isset( $file_type['type'] ) || 'csv' != $file_type['ext'] || 'text/csv' != $file_type['type'] ) {
-					echo esc_attr__( 'Invalid file type.', 'wp-easycart' );
-					return;
-				}
-
-				$file =  fopen( esc_url_raw( $file_path ), 'r' );
-				if ( ! $file ) {
-					echo esc_attr__( 'Could not open your import file.', 'wp-easycart' );
-					return;
-				}
-
-				$valid_headers_result = $wpdb->get_results( "SELECT `COLUMN_NAME` FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_NAME`='ec_user'", ARRAY_N );
-				$valid_headers = array();
-				foreach ( $valid_headers_result as $header ) {
-					$valid_headers[] = $header[0];
-				}
-				$headers = fgetcsv( $file );
-
-				$headers_count = count( $headers );
-				for ( $i = 0; $i < $headers_count; $i++ ) {
-
-					$headers[ $i ] = trim( $headers[ $i ] );
-
-					if ( 'email' == $headers[ $i ] ) {
-						$email_index = $i;
-
-					} else if ( 'user_level' == $headers[ $i ] ) {
-						$user_level_index = $i;
-
-					} else if ( 'first_name' == $headers[ $i ] ) {
-						$first_name_index = $i;
-
-					} else if ( 'last_name' == $headers[ $i ] ) {
-						$last_name_index = $i;
-
-					} else if ( 'billing_first_name' == $headers[ $i ] ) {
-						$billing_first_name_index = $i;
-
-					} else if ( 'billing_last_name' == $headers[ $i ] ) {
-						$billing_last_name_index = $i;
-
-					} else if ( 'billing_company_name' == $headers[ $i ] ) {
-						$billing_company_name_index = $i;
-
-					} else if ( 'billing_address_line_1' == $headers[ $i ] ) {
-						$billing_address_line_1_index = $i;
-
-					} else if ( 'billing_address_line_2' == $headers[ $i ] ) {
-						$billing_address_line_2_index = $i;
-
-					} else if ( 'billing_city' == $headers[ $i ] ) {
-						$billing_city_index = $i;
-
-					} else if ( 'billing_state' == $headers[ $i ] ) {
-						$billing_state_index = $i;
-
-					} else if ( 'billing_zip' == $headers[ $i ] ) {
-						$billing_zip_index = $i;
-
-					} else if ( 'billing_country' == $headers[ $i ] ) {
-						$billing_country_index = $i;
-
-					} else if ( 'billing_phone' == $headers[ $i ] ) {
-						$billing_phone_index = $i;
-
-					} else if ( 'shipping_first_name' == $headers[ $i ] ) {
-						$shipping_first_name_index = $i;
-
-					} else if ( 'shipping_last_name' == $headers[ $i ] ) {
-						$shipping_last_name_index = $i;
-
-					} else if ( 'shipping_company_name' == $headers[ $i ] ) {
-						$shipping_company_name_index = $i;
-
-					} else if ( 'shipping_address_line_1' == $headers[ $i ] ) {
-						$shipping_address_line_1_index = $i;
-
-					} else if ( 'shipping_address_line_2' == $headers[ $i ] ) {
-						$shipping_address_line_2_index = $i;
-
-					} else if ( 'shipping_city' == $headers[ $i ] ) {
-						$shipping_city_index = $i;
-
-					} else if ( 'shipping_state' == $headers[ $i ] ) {
-						$shipping_state_index = $i;
-
-					} else if ( 'shipping_zip' == $headers[ $i ] ) {
-						$shipping_zip_index = $i;
-
-					} else if ( 'shipping_country' == $headers[ $i ] ) {
-						$shipping_country_index = $i;
-
-					} else if ( 'shipping_phone' == $headers[ $i ] ) {
-						$shipping_phone_index = $i;
-
-					} else if ( ! in_array( $headers[ $i ], $valid_headers ) ) {
-						if ( 'billing_address_id' != $headers[ $i ] && 'billing_user_id' != $headers[ $i ] && 'shipping_address_id' != $headers[ $i ] && 'shipping_user_id' != $headers[ $i ] && 'customer_value' != $headers[ $i ] ) {
-							/* translators: %1$d is replaced with a column header index, %2$s is replaced with the column header value. */
-							echo sprintf( esc_attr__( 'You have an invalid column header at column %1$d (value %2$s), please remove or correct the label of that column to continue.', 'wp-easycart' ), esc_attr( $i ), esc_attr( $headers[ $i ] ) );
-						}
-					}
-				}
-
-				if ( -1 == $email_index ) {
-					esc_attr_e( 'Missing `email` Key field! Unique values are required.', 'wp-easycart' );
-				}
-
-				if ( -1 == $first_name_index ) {
-					esc_attr_e( 'Missing `first_name` Key field! Some value is required.', 'wp-easycart' );
-				}
-
-				if ( -1 == $last_name_index ) {
-					esc_attr_e( 'Missing `last_name` Key field! Some value is required.', 'wp-easycart' );
-				}
-
-				$current_iteration = 0;
-				$eof_reached = false;
-
-				while ( ! feof( $file ) && ! $eof_reached ) {
-					$rows = array();
-					for ( $current_row = 0; ! feof( $file ) && ! $eof_reached && $current_row < $limit; $current_row++ ) {
-						$this_row = fgetcsv( $file );
-						if ( ! is_array( $this_row ) || ! isset( $this_row[ $email_index ] ) || strlen( trim( $this_row[ $email_index ] ) ) <= 0 ) {
-							$eof_reached = true;
-						} else {
-							$rows[] = $this_row;
-						}
-					}
-
-					$rows_count = count( $rows );
-					for ( $i = 0; $i < $rows_count; $i++ ) {
-						$wpdb->query(
-							$wpdb->prepare(
-								'INSERT INTO ec_user( `email`, `password`, `first_name`, `last_name`, `user_level` ) VALUES( %s, %s, %s, %s, %s)',
-								$rows[ $i ][ $email_index ],
-								wp_easycart_hash_password( bin2hex( random_bytes( 16 ) ) ),
-								$rows[ $i ][ $first_name_index ],
-								$rows[ $i ][ $last_name_index ],
-								( ( -1 != $user_level_index && '' != $rows[ $i ][ $user_level_index ] ) ? $rows[ $i ][ $user_level_index ] : 'shopper' )
-							)
-						);
-						$user_id = $wpdb->insert_id;
-						$billing_address_id = 0;
-						$shipping_address_id = 0;
-
-						if ( $user_id ) {
-							$wpdb->query(
-								$wpdb->prepare(
-									'INSERT INTO ec_address( `user_id`, `first_name`, `last_name`, `company_name`, `address_line_1`, `address_line_2`, `city`, `state`, `zip`, `country`, `phone` ) VALUES( %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )',
-									$user_id,
-									( ( -1 != $billing_first_name_index ) ? $rows[ $i ][ $billing_first_name_index ] : '' ),
-									( ( -1 != $billing_last_name_index ) ? $rows[ $i ][ $billing_last_name_index ] : '' ),
-									( ( -1 != $billing_company_name_index ) ? $rows[ $i ][ $billing_company_name_index ] : '' ),
-									( ( -1 != $billing_address_line_1_index ) ? $rows[ $i ][ $billing_address_line_1_index ] : '' ),
-									( ( -1 != $billing_address_line_2_index ) ? $rows[ $i ][ $billing_address_line_2_index ] : '' ),
-									( ( -1 != $billing_city_index ) ? $rows[ $i ][ $billing_city_index ] : '' ),
-									( ( -1 != $billing_state_index ) ? $rows[ $i ][ $billing_state_index ] : '' ),
-									( ( -1 != $billing_zip_index ) ? $rows[ $i ][ $billing_zip_index ] : '' ),
-									( ( -1 != $billing_country_index ) ? $rows[ $i ][ $billing_country_index ] : '' ),
-									( ( -1 != $billing_phone_index ) ? $rows[ $i ][ $billing_phone_index ] : '' )
-								)
-							);
-							$billing_address_id = $wpdb->insert_id;
-							$wpdb->query(
-								$wpdb->prepare(
-									'INSERT INTO ec_address( `user_id`, `first_name`, `last_name`, `company_name`, `address_line_1`, `address_line_2`, `city`, `state`, `zip`, `country`, `phone` ) VALUES( %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )',
-									$user_id,
-									( ( -1 != $shipping_first_name_index ) ? $rows[ $i ][ $shipping_first_name_index ] : '' ),
-									( ( -1 != $shipping_last_name_index ) ? $rows[ $i ][ $shipping_last_name_index ] : '' ),
-									( ( -1 != $shipping_company_name_index ) ? $rows[ $i ][ $shipping_company_name_index ] : '' ),
-									( ( -1 != $shipping_address_line_1_index ) ? $rows[ $i ][ $shipping_address_line_1_index ] : '' ),
-									( ( -1 != $shipping_address_line_2_index ) ? $rows[ $i ][ $shipping_address_line_2_index ] : '' ),
-									( ( -1 != $shipping_city_index ) ? $rows[ $i ][ $shipping_city_index ] : '' ),
-									( ( -1 != $shipping_state_index ) ? $rows[ $i ][ $shipping_state_index ] : '' ),
-									( ( -1 != $shipping_zip_index ) ? $rows[ $i ][ $shipping_zip_index ] : '' ),
-									( ( -1 != $shipping_country_index ) ? $rows[ $i ][ $shipping_country_index ] : '' ),
-									( ( -1 != $shipping_phone_index ) ? $rows[ $i ][ $shipping_phone_index ] : '' )
-								)
-							);
-							$shipping_address_id = $wpdb->insert_id;
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET default_billing_address_id = %d, default_shipping_address_id = %d WHERE user_id = %d', $billing_address_id, $shipping_address_id, $user_id ) );
-						}
-					}
-					unset( $rows );
-					$current_iteration++;
-				}
-				unset( $headers );
-				fclose( $file );
-				if ( '' == $error_list ) {
-					echo 'success';
-				} else {
-					echo esc_attr( $error_list );
-				}
-			} else {
-				echo esc_attr__( 'No URL', 'wp-easycart' );
-			}
-			die();
-		}
 	}
 endif;
 
@@ -868,20 +613,3 @@ function wp_easycart_admin_users() {
 	return wp_easycart_admin_users::instance();
 }
 wp_easycart_admin_users();
-
-add_action( 'wp_ajax_ec_admin_check_email_exists', 'ec_admin_check_email_exists' );
-function ec_admin_check_email_exists() {
-	$users = new wp_easycart_admin_users();
-	$users->check_existing_email();
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_import_users', 'ec_admin_ajax_import_users' );
-function ec_admin_ajax_import_users() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-start-import' ) ) {
-		return false;
-	}
-
-	$import_results = wp_easycart_admin_users()->run_importer();
-	die();
-}

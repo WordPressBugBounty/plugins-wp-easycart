@@ -1,3 +1,4 @@
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin — Order List V2 (FREE)
  *
@@ -206,15 +207,60 @@ jQuery( function( $ ) {
 		window.ecv2_close_filter_drawer();
 	});
 
+	/* select2 AJAX options for a typeahead filter ( a <select data-ajax-action="…"> printed by
+	   wp_easycart_admin_table_v2 ), or null for a plain select. Accepts the three response shapes the
+	   admin-ajax search handlers use: { results:[…] }, { data:{ results:[…] } } and { items:[…] }. @since 6.0.0 */
+	function ecv2_filter_ajax_opts( $select ) {
+		var action = $select.data( 'ajax-action' );
+		if ( ! action ) { return null; }
+		var nonce = $select.data( 'ajax-nonce' ) || '';
+		var nonce_key = $select.data( 'ajax-nonce-key' ) || 'wp_easycart_nonce';
+		var term_key = $select.data( 'ajax-term-key' ) || 'q';
+		return {
+			url: ( typeof ajaxurl !== 'undefined' ) ? ajaxurl : wpeasycart_admin_ajax_object.ajax_url,
+			type: 'POST',
+			dataType: 'json',
+			delay: 250,
+			data: function( params ) {
+				var d = { action: action, page: params.page || 1 };
+				d[ term_key ] = params.term || '';
+				if ( nonce ) { d[ nonce_key ] = nonce; }
+				return d;
+			},
+			processResults: function( r ) {
+				var list = [];
+				if ( r && Array.isArray( r.results ) ) { list = r.results; }
+				else if ( r && r.data && Array.isArray( r.data.results ) ) { list = r.data.results; }
+				else if ( r && Array.isArray( r.items ) ) { list = r.items; }
+				var out = [];
+				for ( var i = 0; i < list.length; i++ ) {
+					var it = list[ i ];
+					if ( ! it || typeof it.id === 'undefined' || it.id === null ) { continue; }
+					out.push( { id: String( it.id ), text: String( it.text || it.name || it.label || it.title || it.id ) } );
+				}
+				return { results: out, pagination: { more: !! ( r && r.more ) } };
+			},
+			cache: true
+		};
+	}
+
 	function ecv2_init_filter_selects() {
 		if ( typeof $.fn.select2 !== 'function' ) { return; }
 		$( '.ecv2-filter-select' ).each( function() {
 			if ( $( this ).hasClass( 'select2-hidden-accessible' ) ) { return; }
-			$( this ).select2({
+			var $select = $( this );
+			var opts = {
 				width: '100%',
 				dropdownParent: $( '#ecv2-filter-drawer' ),
-				placeholder: $( this ).data( 'placeholder' ) || ''
-			});
+				placeholder: $select.data( 'placeholder' ) || ''
+			};
+			var ajax = ecv2_filter_ajax_opts( $select );
+			if ( ajax ) {
+				opts.ajax = ajax;
+				opts.allowClear = true;
+				opts.minimumInputLength = parseInt( $select.data( 'ajax-min' ), 10 ) || 0;
+			}
+			$select.select2( opts );
 		});
 	}
 
@@ -359,7 +405,7 @@ jQuery( function( $ ) {
 	/* ===================================================================== */
 
 	function ecv2_update_bulk_count() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		$( '#ecv2-selected-count' ).text( count );
 		$( '.ecv2-bulk-count' ).toggle( count > 0 );
 	}
@@ -611,7 +657,29 @@ jQuery( function( $ ) {
 				}
 			});
 		});
+		ecv2_order_sync_fulfill_for_status( order_id, data.status_id );
 	}
+
+	/*
+	 * 6.0.0: Order Shipped / Picked Up counts as fulfilled without a tracking number ( same rule as the order details
+	 * banner ). Rows with tracking or nothing to ship keep their chip; a fulfilled chip turns back into the Fulfill button
+	 * when the status moves off shipped ( or a dash for refunded / cancelled ).
+	 */
+	function ecv2_order_sync_fulfill_for_status( order_id, status_id ) {
+		var L = window.ecv2_lang || {};
+		var done_ids = ( L.fulfilled_status_ids || [ 2, 18 ] ).map( function( v ) { return parseInt( v, 10 ); } );
+		status_id = parseInt( status_id, 10 );
+		$( '.ecv2-order-fulfill-wrap[data-order-id="' + order_id + '"]' ).each( function() {
+			var $wrap = $( this ), $state = $wrap.find( '.ecv2-order-fulfill-state' );
+			if ( $wrap.attr( 'data-tracking' ) || $state.find( '.ecv2-order-fulfill-digital' ).length ) { return; }
+			if ( done_ids.indexOf( status_id ) !== -1 ) {
+				if ( L.fulfilled_chip ) { $state.html( L.fulfilled_chip ); }
+			} else if ( $state.find( '.ecv2-order-fulfill-done' ).length ) {
+				$state.html( ( 16 === status_id || 19 === status_id || ! L.fulfill_button ) ? '<span class="ecv2-sku-empty">&mdash;</span>' : L.fulfill_button );
+			}
+		});
+	}
+	window.ecv2_order_sync_fulfill_for_status = ecv2_order_sync_fulfill_for_status;
 
 	/* ===================================================================== */
 	/* Order: bulk status modal (feeds V1 GET handler)                        */
@@ -882,10 +950,12 @@ jQuery( function( $ ) {
 			var $state = $wrap.find( '.ecv2-order-fulfill-state' );
 			if ( d.chip_html ) {
 				$state.html( d.chip_html );
-			} else if ( $state.find( '.ecv2-order-track-chip' ).length ) {
+			} else if ( $state.find( '.ecv2-order-track-chip' ).not( '.ecv2-order-fulfill-digital, .ecv2-order-fulfill-done' ).length ) {
 				/* Tracking was cleared; row will show the Fulfill button again on reload. */
 				$state.html( '<span class="ecv2-sku-empty">&mdash;</span>' );
 			}
+			/* No tracking: a shipped / picked up status still reads as fulfilled. */
+			if ( ! d.chip_html && d.status_id ) { ecv2_order_sync_fulfill_for_status( d.order_id, d.status_id ); }
 
 			var $line2 = $wrap.find( '.ecv2-order-fulfill-line2' );
 			var $meta  = $line2.find( '.ecv2-order-fulfill-meta' );
@@ -965,6 +1035,15 @@ jQuery( function( $ ) {
 		});
 		return false;
 	};
+
+	/* 6.0.0: the order details menu links here with ?ecv2_duplicate=ID ( the drawer only exists on the list ). */
+	var dup_auto = ( window.location.search.match( /[?&]ecv2_duplicate=(\d+)/ ) || [] )[ 1 ];
+	if ( dup_auto ) {
+		window.wp_easycart_open_order_duplicate( dup_auto );
+		if ( window.history && window.history.replaceState ) {
+			window.history.replaceState( null, '', window.location.href.replace( /([?&])ecv2_duplicate=\d+&?/, '$1' ).replace( /[?&]$/, '' ) );
+		}
+	}
 
 	window.ecv2_order_dup_close = function() {
 		$( '#ecv2-order-dup-backdrop' ).removeClass( 'ecv2-drawer-open' );

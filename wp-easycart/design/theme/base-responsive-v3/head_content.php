@@ -278,6 +278,7 @@ if( get_option( 'ec_option_font_main' ) ){ ?>
 ////////////////////////////////////////////////////////////////////////
 ?>
 .ec_out_of_stock_notify{ border-color:<?php echo esc_attr( $color1 ); ?>; }
+section.ec_account_subscription_v2, div.ec_account_subscriptions_v2{ --ec-sub-accent:<?php echo esc_attr( $color1 ); ?>; }
 .ec_out_of_stock_notify_title, .ec_out_of_stock_notify_button > input, #ec_user_login_link a{ background-color:<?php echo esc_attr( $color1 ); ?>; }
 .ec_product_type1 .ec_product_addtocart{ background-color:<?php echo esc_attr( $color1 ); ?>; border-bottom-color:<?php echo esc_attr( $color2 ); ?>; }
 .ec_product_type3 .ec_product_addtocart{ background-color:<?php echo esc_attr( $color1 ); ?> !important; }

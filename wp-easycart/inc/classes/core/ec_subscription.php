@@ -34,6 +34,14 @@ class ec_subscription{
 	public $cart_page;									// VARCHAR
 	public $permalink_divider;							// CHAR
 
+	public $subscription_type;							// stripe, paypal
+	public $start_date;									// timestamp column ( DATETIME string )
+	public $number_payments_completed;					// INT
+	public $num_failed_payment;							// INT
+	public $model_number;								// VARCHAR
+
+	private $purchase_details = false;					// Lazy cache for get_purchase_details()
+
 	function __construct( $subscription_row, $is_details = false ){
 
 		$this->mysqli = new ec_db();
@@ -78,19 +86,18 @@ class ec_subscription{
 	public function display_next_bill_date( $date_format = "" ){
 		if( $date_format == "" ){
 			$date_format = get_option('date_format');
-			echo esc_attr( gmdate( $date_format, $this->next_payment ) );
-		}else{
-			echo esc_attr( gmdate( $date_format, $this->next_payment ) );
 		}
+		/* 6.0.0: next_payment_date is VARCHAR and holds epoch seconds or a DATETIME string ( PRO sync ); gmdate() on a DATETIME string fatals on PHP 8. */
+		$timestamp = self::to_timestamp( $this->next_payment );
+		echo esc_attr( ( $timestamp ) ? gmdate( $date_format, $timestamp ) : '' );
 	}
 
 	public function display_last_bill_date( $date_format = "" ){
 		if( $date_format == "" ){
 			$date_format = get_option('date_format');
-			echo esc_attr( gmdate( $date_format, $this->last_billed ) );
-		}else{
-			echo esc_attr( gmdate( $date_format, $this->last_billed ) );
 		}
+		$timestamp = self::to_timestamp( $this->last_billed );
+		echo esc_attr( ( $timestamp ) ? gmdate( $date_format, $timestamp ) : '' );
 	}
 
 	public function display_price( ){
@@ -446,11 +453,543 @@ class ec_subscription{
 	}
 
 	public function is_canceled( ){
-		if( $this->status == "Canceled" ){
-			return true;
-		}else{
+		/* 6.0.0: every ended status counts ( Canceled, cancelled, incomplete_expired, expired ), not only the exact string "Canceled". */
+		return in_array( self::get_status_key_for( $this->status ), array( 'canceled', 'expired' ), true );
+	}
+
+	/////////////////////////////////////////////////////////
+	// 6.0.0: status, customer actions, purchase details
+	/////////////////////////////////////////////////////////
+
+	/**
+	 * Normalize a stored ec_subscription.subscription_status value.
+	 *
+	 * Legacy rows use Active / Canceled / Failed. The Stripe webhooks and the PRO sync also write
+	 * canceling, paused, trialing, incomplete, past_due, unpaid and incomplete_expired.
+	 *
+	 * @since 6.0.0
+	 * @param string $status Stored status.
+	 * @return string active|trialing|past_due|incomplete|paused|suspended|canceling|canceled|expired|other
+	 */
+	public static function get_status_key_for( $status ) {
+		$status = strtolower( trim( (string) $status ) );
+		$map    = array(
+			'active'             => 'active',
+			'trialing'           => 'trialing',
+			'trial'              => 'trialing',
+			'failed'             => 'past_due',
+			'past_due'           => 'past_due',
+			'unpaid'             => 'past_due',
+			'incomplete'         => 'incomplete',
+			'paused'             => 'paused',
+			'suspended'          => 'suspended',
+			'canceling'          => 'canceling',
+			'cancelling'         => 'canceling',
+			'canceled'           => 'canceled',
+			'cancelled'          => 'canceled',
+			'incomplete_expired' => 'expired',
+			'expired'            => 'expired',
+			'ended'              => 'expired',
+			'completed'          => 'expired',
+			'complete'           => 'expired',
+		);
+		return ( isset( $map[ $status ] ) ) ? $map[ $status ] : 'other';
+	}
+
+	/**
+	 * Normalized status key for this subscription.
+	 *
+	 * @since 6.0.0
+	 * @return string
+	 */
+	public function get_status_key() {
+		return self::get_status_key_for( $this->status );
+	}
+
+	/**
+	 * Customer-facing status label ( language editor: Account - Subscriptions ).
+	 *
+	 * @since 6.0.0
+	 * @return string Escaped text.
+	 */
+	public function get_status_label() {
+		$key      = $this->get_status_key();
+		$defaults = array(
+			'active'     => 'Active',
+			'trialing'   => 'Trial',
+			'past_due'   => 'Payment past due',
+			'incomplete' => 'Incomplete',
+			'paused'     => 'Paused',
+			'suspended'  => 'Suspended',
+			'canceling'  => 'Cancels at period end',
+			'canceled'   => 'Canceled',
+			'expired'    => 'Ended',
+		);
+		if ( ! isset( $defaults[ $key ] ) ) {
+			return esc_html( ucwords( str_replace( '_', ' ', strtolower( (string) $this->status ) ) ) );
+		}
+		return self::get_text( 'subscription_status_' . $key, $defaults[ $key ] );
+	}
+
+	/**
+	 * Language text with an English fallback, for keys added in 6.0.0 that an existing
+	 * install has not merged into its saved language data yet.
+	 *
+	 * @since 6.0.0
+	 * @param string $key      Language key.
+	 * @param string $fallback English fallback.
+	 * @param string $section  Language section.
+	 * @return string Escaped text.
+	 */
+	public static function get_text( $key, $fallback, $section = 'account_subscriptions' ) {
+		$text = ( function_exists( 'wp_easycart_language' ) ) ? trim( (string) wp_easycart_language()->get_text( $section, $key ) ) : '';
+		return ( '' === $text ) ? esc_html( $fallback ) : $text;
+	}
+
+	/**
+	 * Only Stripe subscriptions can be changed from the account page, and only while the store
+	 * still processes payments through Stripe. PayPal subscriptions are managed at PayPal.
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public function is_customer_manageable() {
+		$gateway = get_option( 'ec_option_payment_process_method' );
+		if ( 'stripe' != $gateway && 'stripe_connect' != $gateway ) {
 			return false;
 		}
+		if ( '' == $this->stripe_subscription_id || 'paypal' == $this->subscription_type ) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Whether the customer may run an action on this subscription from the account page.
+	 * The same check guards the templates and the handlers that make the change.
+	 *
+	 * @since 6.0.0
+	 * @param string $action update_payment|change_plan|cancel.
+	 * @return bool
+	 */
+	public function customer_can( $action ) {
+		$allowed_statuses = array(
+			'update_payment' => array( 'active', 'trialing', 'past_due', 'incomplete', 'paused' ),
+			'change_plan'    => array( 'active', 'trialing' ),
+			'cancel'         => array( 'active', 'trialing', 'past_due', 'incomplete', 'paused' ),
+		);
+		$allowed = ( isset( $allowed_statuses[ $action ] ) && $this->is_customer_manageable() && in_array( $this->get_status_key(), $allowed_statuses[ $action ], true ) );
+		if ( $allowed && 'change_plan' == $action ) {
+			$allowed = $this->has_plan_choices();
+		}
+		return (bool) apply_filters( 'wp_easycart_subscription_customer_can', $allowed, $action, $this );
+	}
+
+	/** @since 6.0.0 */
+	public function can_update_payment_method() {
+		return $this->customer_can( 'update_payment' );
+	}
+
+	/** @since 6.0.0 */
+	public function can_change_plan() {
+		return $this->customer_can( 'change_plan' );
+	}
+
+	/** @since 6.0.0 */
+	public function can_cancel() {
+		return $this->customer_can( 'cancel' );
+	}
+
+	/**
+	 * has_upgrades() without the hidden input it prints.
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public function has_upgrade_options() {
+		if ( is_array( $this->upgrades ) ) {
+			foreach ( $this->upgrades as $upgrade ) {
+				if ( $this->product_id == $upgrade->product_id ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Something to change: another product in the plan, or the quantity.
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public function has_plan_choices() {
+		return ( $this->has_upgrade_options() || ! get_option( 'ec_option_subscription_one_only' ) );
+	}
+
+	/**
+	 * Whether a product may be selected by the customer, following the same rules as display_upgrade_dropdown().
+	 *
+	 * @since 6.0.0
+	 * @param int $product_id Selected product.
+	 * @return bool
+	 */
+	public function is_allowed_plan( $product_id ) {
+		$product_id = (int) $product_id;
+		if ( $product_id == (int) $this->product_id ) {
+			return true;
+		}
+		if ( ! $this->has_upgrade_options() ) {
+			return false;
+		}
+		$found_this = false;
+		foreach ( $this->upgrades as $upgrade ) {
+			if ( (int) $this->product_id == (int) $upgrade->product_id ) {
+				$found_this = true;
+			}
+			if ( (int) $upgrade->product_id == $product_id ) {
+				return ( $upgrade->can_downgrade || $found_this );
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Plans the customer can pick on the change-plan panel ( same rules and order as display_upgrade_dropdown() ).
+	 *
+	 * @since 6.0.0
+	 * @return array[] { product_id: int, title: string ( escaped ), amount: string, period: string, current: bool }
+	 */
+	public function get_plan_choices() {
+		$choices = array();
+		if ( ! $this->has_upgrade_options() ) {
+			return $choices;
+		}
+		$found_this = false;
+		foreach ( $this->upgrades as $upgrade ) {
+			$is_current = ( (int) $this->product_id == (int) $upgrade->product_id );
+			if ( $is_current ) {
+				$found_this = true;
+			}
+			if ( $upgrade->can_downgrade || $found_this ) {
+				$choices[] = array(
+					'product_id' => (int) $upgrade->product_id,
+					'title'      => wp_easycart_language()->convert_text( $upgrade->title ),
+					'amount'     => $GLOBALS['currency']->get_currency_display( $upgrade->price ),
+					'period'     => $this->get_new_bill_period_formatted( $upgrade->subscription_bill_length, $upgrade->subscription_bill_period ),
+					'current'    => $is_current,
+				);
+			}
+		}
+		return $choices;
+	}
+
+	/**
+	 * Subscription dates are VARCHAR columns holding epoch seconds, a DATETIME string, a zero date or nothing.
+	 *
+	 * @since 6.0.0
+	 * @param mixed $value Stored value.
+	 * @return int Timestamp or 0.
+	 */
+	public static function to_timestamp( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value || 0 === strpos( $value, '0000-00-00' ) ) {
+			return 0;
+		}
+		if ( ctype_digit( $value ) ) {
+			return ( (int) $value > 100000 ) ? (int) $value : 0;
+		}
+		$timestamp = strtotime( $value );
+		return ( false === $timestamp || $timestamp < 86400 ) ? 0 : $timestamp;
+	}
+
+	/** @since 6.0.0 */
+	public function get_next_payment_timestamp() {
+		return self::to_timestamp( $this->next_payment );
+	}
+
+	/** @since 6.0.0 */
+	public function get_last_payment_timestamp() {
+		return self::to_timestamp( $this->last_billed );
+	}
+
+	/** @since 6.0.0 */
+	public function get_start_timestamp() {
+		return self::to_timestamp( $this->start_date );
+	}
+
+	/**
+	 * Localized date for a timestamp.
+	 *
+	 * @since 6.0.0
+	 * @param int    $timestamp   Timestamp.
+	 * @param string $date_format PHP date format, site format when empty.
+	 * @return string Unescaped text, empty for no date.
+	 */
+	public static function format_date( $timestamp, $date_format = '' ) {
+		if ( ! $timestamp ) {
+			return '';
+		}
+		if ( '' == $date_format ) {
+			$date_format = get_option( 'date_format' );
+		}
+		return ( function_exists( 'wp_date' ) ) ? wp_date( $date_format, $timestamp ) : date_i18n( $date_format, $timestamp );
+	}
+
+	/**
+	 * Price per billing period, split for the details card.
+	 *
+	 * @since 6.0.0
+	 * @return array { amount: string, period: string } Unescaped text.
+	 */
+	public function get_price_parts() {
+		return array(
+			'amount' => $GLOBALS['currency']->get_currency_display( $this->amount * $this->quantity ),
+			'period' => $this->get_bill_period_formatted(),
+		);
+	}
+
+	/**
+	 * Image for the subscription: the image saved on the original order line, else the product's first image.
+	 *
+	 * @since 6.0.0
+	 * @return string URL or empty.
+	 */
+	public function get_image_url() {
+		$details = $this->get_purchase_details();
+		if ( $details && ! $details['plan_changed'] ) {
+			$url = self::resolve_image_url( $details['image1'] );
+			if ( '' != $url ) {
+				return $url;
+			}
+		}
+		global $wpdb;
+		$product = $wpdb->get_row( $wpdb->prepare( 'SELECT image1, product_images FROM ec_product WHERE product_id = %d', $this->product_id ) );
+		if ( ! $product ) {
+			return '';
+		}
+		$first = ( isset( $product->product_images ) && '' != $product->product_images ) ? trim( current( explode( ',', $product->product_images ) ) ) : '';
+		if ( 'image:' == substr( $first, 0, 6 ) ) {
+			return esc_url_raw( substr( $first, 6 ) );
+		} else if ( '' != $first && ctype_digit( $first ) && function_exists( 'wp_get_attachment_image_src' ) ) {
+			$media = wp_get_attachment_image_src( (int) $first, 'medium' );
+			if ( $media && isset( $media[0] ) ) {
+				return $media[0];
+			}
+		}
+		return self::resolve_image_url( $product->image1 );
+	}
+
+	/**
+	 * URL for an image1 value ( full URL or a file name in products/pics1 ).
+	 *
+	 * @since 6.0.0
+	 * @param string $image Stored value.
+	 * @return string URL or empty.
+	 */
+	public static function resolve_image_url( $image ) {
+		$image = trim( (string) $image );
+		if ( '' === $image ) {
+			return '';
+		}
+		if ( 'http://' === substr( $image, 0, 7 ) || 'https://' === substr( $image, 0, 8 ) ) {
+			return $image;
+		}
+		if ( false !== strpos( $image, '..' ) ) {
+			return '';
+		}
+		if ( defined( 'EC_PLUGIN_DATA_DIRECTORY' ) && file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/pics1/' . $image ) && ! is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/pics1/' . $image ) ) {
+			return plugins_url( 'wp-easycart-data/products/pics1/' . $image, EC_PLUGIN_DATA_DIRECTORY );
+		}
+		if ( file_exists( EC_PLUGIN_DIRECTORY . '/products/pics1/' . $image ) && ! is_dir( EC_PLUGIN_DIRECTORY . '/products/pics1/' . $image ) ) {
+			return plugins_url( 'wp-easycart/products/pics1/' . $image, EC_PLUGIN_DIRECTORY );
+		}
+		return '';
+	}
+
+	/**
+	 * Cached get_purchase_details_for() for this subscription.
+	 *
+	 * @since 6.0.0
+	 * @return array|null
+	 */
+	public function get_purchase_details() {
+		if ( false === $this->purchase_details ) {
+			$this->purchase_details = self::get_purchase_details_for( $this->subscription_id, $this->product_id );
+		}
+		return $this->purchase_details;
+	}
+
+	/**
+	 * What the customer bought when the subscription started: the order line that created it, with its
+	 * option items ( variants ), advanced options ( modifiers ) and one-time sign-up fee.
+	 *
+	 * Orders link to a subscription through ec_order.subscription_id. The first order is the purchase;
+	 * renewal orders copy its options, so if that line holds nothing the first renewal line that does is used.
+	 * After a plan change ec_subscription.product_id no longer matches the line, which is flagged as plan_changed.
+	 * Also used by the PRO admin subscription screen.
+	 *
+	 * @since 6.0.0
+	 * @param int $subscription_id    Subscription.
+	 * @param int $current_product_id Product the subscription is on now.
+	 * @return array|null Null when no order line is linked to the subscription.
+	 */
+	public static function get_purchase_details_for( $subscription_id, $current_product_id = 0 ) {
+		global $wpdb;
+		$subscription_id = (int) $subscription_id;
+		if ( $subscription_id <= 0 ) {
+			return null;
+		}
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_orderdetail.*, ec_order.order_date AS subscription_order_date FROM ec_orderdetail INNER JOIN ec_order ON ec_order.order_id = ec_orderdetail.order_id WHERE ec_order.subscription_id = %d ORDER BY ec_order.order_id ASC, ec_orderdetail.orderdetail_id ASC LIMIT 200', $subscription_id ) );
+		if ( ! $lines ) {
+			return null;
+		}
+
+		$first_order_id = (int) $lines[0]->order_id;
+		$source         = null;
+		foreach ( $lines as $line ) {
+			if ( (int) $line->order_id != $first_order_id ) {
+				break;
+			}
+			if ( null === $source ) {
+				$source = $line;
+			}
+			if ( $current_product_id && (int) $line->product_id == (int) $current_product_id ) {
+				$source = $line;
+				break;
+			}
+		}
+
+		$advanced = self::get_line_advanced_options( $source );
+		if ( ! self::line_has_details( $source, $advanced ) ) {
+			foreach ( $lines as $line ) {
+				if ( (int) $line->orderdetail_id == (int) $source->orderdetail_id || (int) $line->product_id != (int) $source->product_id ) {
+					continue;
+				}
+				$line_advanced = self::get_line_advanced_options( $line );
+				if ( self::line_has_details( $line, $line_advanced ) ) {
+					$source   = $line;
+					$advanced = $line_advanced;
+					break;
+				}
+			}
+		}
+
+		$options = array();
+		for ( $i = 1; $i <= 5; $i++ ) {
+			$name  = ( isset( $source->{'optionitem_name_' . $i} ) ) ? (string) $source->{'optionitem_name_' . $i} : '';
+			$label = ( isset( $source->{'optionitem_label_' . $i} ) ) ? (string) $source->{'optionitem_label_' . $i} : '';
+			if ( '' == $name && '' == $label ) {
+				continue;
+			}
+			$price     = ( isset( $source->{'optionitem_price_' . $i} ) ) ? (float) $source->{'optionitem_price_' . $i} : 0;
+			$options[] = array(
+				'kind'           => 'basic',
+				'type'           => 'basic',
+				'label'          => $label,
+				'name'           => $label,
+				'value'          => $name,
+				'raw_value'      => $name,
+				'price_text'     => ( 0 != $price ) ? ( ( $price > 0 ) ? '+' : '' ) . $GLOBALS['currency']->get_currency_display( $price ) : '',
+				'orderdetail_id' => (int) $source->orderdetail_id,
+			);
+		}
+		foreach ( $advanced as $option ) {
+			$value = (string) $option->option_value;
+			if ( 'file' == $option->option_type ) {
+				$parts = explode( '/', $value );
+				$value = (string) end( $parts );
+			} else if ( 'grid' == $option->option_type ) {
+				$value = $option->optionitem_name . ' (' . $option->option_value . ')';
+			}
+			$options[] = array(
+				'kind'           => 'advanced',
+				'type'           => (string) $option->option_type,
+				'label'          => ( isset( $option->option_label ) && '' != $option->option_label ) ? (string) $option->option_label : (string) $option->option_name,
+				'name'           => ( '' != $option->option_name ) ? (string) $option->option_name : ( isset( $option->option_label ) ? (string) $option->option_label : '' ),
+				'value'          => $value,
+				'raw_value'      => (string) $option->option_value,
+				'price_text'     => self::get_advanced_option_price_text( $option ),
+				'orderdetail_id' => (int) $source->orderdetail_id,
+			);
+		}
+
+		$details = array(
+			'order_id'       => (int) $source->order_id,
+			'orderdetail_id' => (int) $source->orderdetail_id,
+			'order_date'     => (string) $source->subscription_order_date,
+			'product_id'     => (int) $source->product_id,
+			'title'          => (string) $source->title,
+			'model_number'   => (string) $source->model_number,
+			'image1'         => (string) $source->image1,
+			'quantity'       => (int) $source->quantity,
+			'signup_fee'     => ( isset( $source->subscription_signup_fee ) ) ? (float) $source->subscription_signup_fee : 0,
+			'plan_changed'   => ( $current_product_id && (int) $source->product_id && (int) $source->product_id != (int) $current_product_id ),
+			'options'        => $options,
+		);
+		return apply_filters( 'wp_easycart_subscription_purchase_details', $details, $subscription_id, $current_product_id );
+	}
+
+	/**
+	 * ec_order_option rows for an order line.
+	 *
+	 * @param object $line ec_orderdetail row.
+	 * @return array
+	 */
+	private static function get_line_advanced_options( $line ) {
+		global $wpdb;
+		if ( ! $line ) {
+			return array();
+		}
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order_option WHERE orderdetail_id = %d ORDER BY option_order ASC, order_option_id ASC', (int) $line->orderdetail_id ) );
+		return ( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * @param object $line     ec_orderdetail row.
+	 * @param array  $advanced ec_order_option rows.
+	 * @return bool
+	 */
+	private static function line_has_details( $line, $advanced ) {
+		if ( count( $advanced ) > 0 || ( isset( $line->subscription_signup_fee ) && (float) $line->subscription_signup_fee > 0 ) ) {
+			return true;
+		}
+		for ( $i = 1; $i <= 5; $i++ ) {
+			if ( isset( $line->{'optionitem_name_' . $i} ) && '' != $line->{'optionitem_name_' . $i} ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Price note for a modifier, the same wording the order details use ( "+$3.00 per item" ).
+	 *
+	 * @param object $option ec_order_option row.
+	 * @return string Unescaped text.
+	 */
+	private static function get_advanced_option_price_text( $option ) {
+		$currency = $GLOBALS['currency'];
+		$price    = ( isset( $option->optionitem_price ) ) ? (float) $option->optionitem_price : 0;
+		$onetime  = ( isset( $option->optionitem_price_onetime ) ) ? (float) $option->optionitem_price_onetime : 0;
+		$per_item = html_entity_decode( (string) wp_easycart_language()->get_text( 'cart', 'cart_item_adjustment' ), ENT_QUOTES, 'UTF-8' );
+		$per_order = html_entity_decode( (string) wp_easycart_language()->get_text( 'cart', 'cart_order_adjustment' ), ENT_QUOTES, 'UTF-8' );
+		if ( ! empty( $option->optionitem_enable_custom_price_label ) && ( 0 != $price || 0 != $onetime ) ) {
+			return (string) $option->optionitem_custom_price_label;
+		} else if ( $price > 0 ) {
+			return trim( '+' . $currency->get_currency_display( $price ) . ' ' . $per_item );
+		} else if ( $price < 0 ) {
+			return trim( $currency->get_currency_display( $price ) . ' ' . $per_item );
+		} else if ( $onetime > 0 ) {
+			return trim( '+' . $currency->get_currency_display( $onetime ) . ' ' . $per_order );
+		} else if ( $onetime < 0 ) {
+			return trim( $currency->get_currency_display( $onetime ) . ' ' . $per_order );
+		} else if ( isset( $option->optionitem_price_override ) && null !== $option->optionitem_price_override && (float) $option->optionitem_price_override > -1 ) {
+			return trim( html_entity_decode( (string) wp_easycart_language()->get_text( 'cart', 'cart_item_new_price_option' ), ENT_QUOTES, 'UTF-8' ) . ' ' . $currency->get_currency_display( $option->optionitem_price_override ) );
+		} else if ( isset( $option->option_price_change ) && '' != $option->option_price_change && 0 != (float) $option->option_price_change ) {
+			return ( is_numeric( $option->option_price_change ) ) ? $currency->get_currency_display( $option->option_price_change ) : (string) $option->option_price_change;
+		}
+		return '';
 	}
 
 	/////////////////////////////////////////////////////////
@@ -544,6 +1083,11 @@ class ec_subscription{
 			$this->last4 = "";
 		$this->stripe_subscription_id = $db_row->stripe_subscription_id;
 		$this->membership_page = $db_row->membership_page;
+		$this->subscription_type = ( isset( $db_row->subscription_type ) ) ? $db_row->subscription_type : '';
+		$this->start_date = ( isset( $db_row->start_date ) ) ? $db_row->start_date : '';
+		$this->number_payments_completed = ( isset( $db_row->number_payments_completed ) ) ? (int) $db_row->number_payments_completed : 0;
+		$this->num_failed_payment = ( isset( $db_row->num_failed_payment ) ) ? (int) $db_row->num_failed_payment : 0;
+		$this->model_number = ( isset( $db_row->model_number ) ) ? $db_row->model_number : '';
 
 	}
 

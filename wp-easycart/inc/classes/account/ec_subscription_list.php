@@ -43,32 +43,63 @@ class ec_subscription_list{
 		}
 	}
 	
+	/**
+	 * Subscriptions still running ( active, trial, past due, paused, cancels at period end ).
+	 *
+	 * @since 6.0.0
+	 * @return int
+	 */
+	public function get_active_count() {
+		$count = 0;
+		foreach ( $this->subscription_list as $subscription ) {
+			if ( ! $subscription->is_canceled() ) {
+				$count++;
+			}
+		}
+		return $count;
+	}
+
+	/**
+	 * Subscriptions that have ended ( canceled, expired ).
+	 *
+	 * @since 6.0.0
+	 * @return int
+	 */
+	public function get_ended_count() {
+		return count( $this->subscription_list ) - $this->get_active_count();
+	}
+
 	///////////////////////////////////////////////////
 	// Display Functions
 	///////////////////////////////////////////////////
-	
+
 	public function display_subscription_list( ){
-		
+
 		$i=0;
 		if( count( $this->subscription_list ) > 0 ){
-			
+
 			foreach( $this->subscription_list as $subscription ){
-				
+
 				if( !$subscription->is_canceled( ) ){
-				
-					if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_subscription_line.php' ) )	
+
+					if( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_account_subscription_line.php' ) )
 						include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_account_subscription_line.php' );
 					else if( file_exists( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_account_subscription_line.php' ) )
 						include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_account_subscription_line.php' );
-				
+
 					$i++;
-					
+
 				}
 			}
-			
+
+			/* 6.0.0: every subscription has ended, so the active list would otherwise print nothing. */
+			if ( $i <= 0 ) {
+				echo "<div class=\"ec_subscription_none_found\">" . wp_easycart_escape_html( wp_easycart_language( )->get_text( 'account_subscriptions', 'account_subscriptions_none_found' ) ) . "</div>";
+			}
+
 		}else{
 			
-			echo "<div class=\"ec_subscription_none_found\">" . wp_easycart_language( )->get_text( 'account_subscriptions', 'account_subscriptions_none_found' ) . "</div>";
+			echo "<div class=\"ec_subscription_none_found\">" . wp_easycart_escape_html( wp_easycart_language( )->get_text( 'account_subscriptions', 'account_subscriptions_none_found' ) ) . "</div>";
 			
 		}
 		
@@ -97,7 +128,7 @@ class ec_subscription_list{
         
         if( $i <= 0 ){
 			
-			echo "<div class=\"ec_subscription_none_found\">" . wp_easycart_language( )->get_text( 'account_subscriptions', 'account_subscriptions_none_found' ) . "</div>";
+			echo "<div class=\"ec_subscription_none_found\">" . wp_easycart_escape_html( wp_easycart_language( )->get_text( 'account_subscriptions', 'account_subscriptions_none_found' ) ) . "</div>";
 			
 		}
 		

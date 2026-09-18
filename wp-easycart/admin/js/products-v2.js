@@ -1,3 +1,4 @@
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin Product List V2 - JavaScript
  *
@@ -65,6 +66,71 @@
 		}, 3500 );
 	}
 	window.ecv2_toast = ecv2_toast;
+
+	/* One-time product text repair banner ( wp_easycart_admin_product_table::print_repair_banner ). */
+	function ecv2_text_repair_request( btn, action, busy_label ) {
+		var $banner = $( '#ecv2-product-text-repair' );
+		var $buttons = $banner.find( 'button' );
+		var $btn = $( btn );
+		var label = $btn.text();
+		$buttons.prop( 'disabled', true );
+		if ( busy_label ) {
+			$btn.text( busy_label );
+		}
+		return $.post( ajaxurl, { action: action, nonce: $banner.attr( 'data-nonce' ) } ).done( function( r ) {
+			if ( r && r.success ) {
+				$banner.slideUp( 150, function() { $banner.remove(); } );
+				if ( r.data && r.data.message ) {
+					ecv2_toast( r.data.message, 'success' );
+				}
+				return;
+			}
+			$buttons.prop( 'disabled', false );
+			$btn.text( label );
+			ecv2_toast( ( r && r.data && r.data.message ) ? r.data.message : 'The clean-up could not be run. Please try again.', 'error' );
+		} ).fail( function() {
+			$buttons.prop( 'disabled', false );
+			$btn.text( label );
+			ecv2_toast( 'The clean-up could not be run. Please try again.', 'error' );
+		} );
+	}
+	/* "Fix now" runs in batches of 200 products ( 6.0.0 ): loop on { done, next, processed } and carry the running
+	   fixed / excerpts totals back so the server can word the final message. */
+	window.ecv2_product_text_repair = function( btn ) {
+		var $banner = $( '#ecv2-product-text-repair' );
+		var $buttons = $banner.find( 'button' );
+		var $btn = $( btn );
+		var label = $btn.text();
+		var processed = 0;
+		$buttons.prop( 'disabled', true );
+		function fail( message ) {
+			$buttons.prop( 'disabled', false );
+			$btn.text( label );
+			ecv2_toast( message || 'The clean-up could not be run. Please try again.', 'error' );
+		}
+		function step( after, fixed, excerpts ) {
+			$btn.text( 'Fixing…' + ( processed ? ' ' + processed : '' ) );
+			$.post( ajaxurl, { action: 'ecv2_product_text_repair', nonce: $banner.attr( 'data-nonce' ), after: after, fixed: fixed, excerpts: excerpts } ).done( function( r ) {
+				if ( ! r || ! r.success || ! r.data ) {
+					fail( r && r.data && r.data.message );
+					return;
+				}
+				processed += parseInt( r.data.processed, 10 ) || 0;
+				if ( ! r.data.done ) {
+					step( r.data.next, r.data.fixed, r.data.excerpts );
+					return;
+				}
+				$banner.slideUp( 150, function() { $banner.remove(); } );
+				if ( r.data.message ) {
+					ecv2_toast( r.data.message, 'success' );
+				}
+			} ).fail( function() { fail(); } );
+		}
+		step( 0, 0, 0 );
+	};
+	window.ecv2_product_text_repair_dismiss = function( btn ) {
+		ecv2_text_repair_request( btn, 'ecv2_product_text_repair_dismiss', '' );
+	};
 
 	function ecv2_esc_html( str ) {
 		if ( ! str ) return '';
@@ -190,6 +256,8 @@
 	});
 
 	$( document ).on( 'click', '.ecv2-stat-card', function() {
+		/* Informational tiles ( e.g. the product editor Offers tab ) are not filters. */
+		if ( $( this ).hasClass( 'ecv2-stat-static' ) ) { return; }
 		var filter_val = $( this ).data( 'filter' );
 		$( '#ecv2-health-filter-input' ).val( filter_val );
 		$( '.ecv2-stat-card' ).removeClass( 'ecv2-stat-active' );
@@ -509,6 +577,44 @@
 		}
 	});
 
+	/* select2 AJAX options for a typeahead filter ( a <select data-ajax-action="…"> printed by
+	   wp_easycart_admin_table_v2 ), or null for a plain select. Accepts the three response shapes the
+	   admin-ajax search handlers use: { results:[…] }, { data:{ results:[…] } } and { items:[…] }. @since 6.0.0 */
+	function ecv2_filter_ajax_opts( $select ) {
+		var action = $select.data( 'ajax-action' );
+		if ( ! action ) { return null; }
+		var nonce = $select.data( 'ajax-nonce' ) || '';
+		var nonce_key = $select.data( 'ajax-nonce-key' ) || 'wp_easycart_nonce';
+		var term_key = $select.data( 'ajax-term-key' ) || 'q';
+		return {
+			url: ( typeof ajaxurl !== 'undefined' ) ? ajaxurl : wpeasycart_admin_ajax_object.ajax_url,
+			type: 'POST',
+			dataType: 'json',
+			delay: 250,
+			data: function( params ) {
+				var d = { action: action, page: params.page || 1 };
+				d[ term_key ] = params.term || '';
+				if ( nonce ) { d[ nonce_key ] = nonce; }
+				return d;
+			},
+			processResults: function( r ) {
+				var list = [];
+				if ( r && Array.isArray( r.results ) ) { list = r.results; }
+				else if ( r && r.data && Array.isArray( r.data.results ) ) { list = r.data.results; }
+				else if ( r && Array.isArray( r.items ) ) { list = r.items; }
+				var out = [];
+				for ( var i = 0; i < list.length; i++ ) {
+					var it = list[ i ];
+					if ( ! it || typeof it.id === 'undefined' || it.id === null ) { continue; }
+					out.push( { id: String( it.id ), text: String( it.text || it.name || it.label || it.title || it.id ) } );
+				}
+				return { results: out, pagination: { more: !! ( r && r.more ) } };
+			},
+			cache: true
+		};
+	}
+	window.ecv2_filter_ajax_opts = ecv2_filter_ajax_opts;
+
 	// Initialize select2 on filter selects.
 	function ecv2_init_filter_selects() {
 		if ( typeof $.fn.select2 === 'function' ) {
@@ -526,6 +632,12 @@
 					var $drawer = $select.closest( '#ecv2-filter-drawer' );
 					if ( $drawer.length ) {
 						opts.dropdownParent = $drawer;
+					}
+					var ajax = ecv2_filter_ajax_opts( $select );
+					if ( ajax ) {
+						opts.ajax = ajax;
+						opts.minimumResultsForSearch = 0;
+						opts.minimumInputLength = parseInt( $select.data( 'ajax-min' ), 10 ) || 0;
 					}
 					$select.select2( opts );
 				}
@@ -587,7 +699,7 @@
 	});
 
 	function ecv2_update_bulk_count() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		if ( count > 0 ) {
 			$( '#ecv2-selected-count' ).text( count );
 			$( '.ecv2-bulk-count' ).show();
@@ -1192,7 +1304,7 @@
 	}
 
 	function ecv2_bulk_refresh_apply_button() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		var $apply = $( '#ecv2-bulk-apply' );
 		if ( ! $apply.length || $apply.data( 'ecv2-busy' ) ) return;
 
@@ -1522,7 +1634,7 @@
 		if ( e.key !== 'Escape' ) return;
 		if ( $( '.ecv2-modal-overlay:visible' ).length ) return;
 		if ( $( e.target ).is( 'input, textarea, select, [contenteditable="true"]' ) ) return;
-		if ( $( '.ecv2-row-check:checked' ).length > 0 ) {
+		if ( ecv2_row_check_count() > 0 ) {
 			ecv2_bulk_reset_selection();
 		}
 	});
@@ -1590,7 +1702,8 @@
 	window.ecv2_apply_bulk_edit = function() {
 		var product_ids = [];
 		$( '.ecv2-row-check:checked' ).each( function() {
-			product_ids.push( $( this ).val() );
+			var v = $( this ).val();
+			if ( product_ids.indexOf( v ) === -1 ) { product_ids.push( v ); }
 		});
 
 		var changes = {};

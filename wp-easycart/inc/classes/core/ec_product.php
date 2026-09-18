@@ -1418,7 +1418,10 @@ class ec_product {
 			$test_src2 = EC_PLUGIN_DIRECTORY . "/products/swatches/" . $optionitem->optionitem_icon;
 			$test_src3 = EC_PLUGIN_DATA_DIRECTORY . "/design/themes/" . get_option( 'ec_option_base_theme' ) . "/images/ec_image_not_found.jpg";
 
-			if ( substr( $optionitem->optionitem_icon, 0, 7 ) == 'http://' || substr( $optionitem->optionitem_icon, 0, 8 ) == 'https://' ) {
+			if ( $color_src = ec_optionitem::swatch_image_src( $optionitem->optionitem_icon, 'large' ) ) {
+				$thumb_src = $color_src; /* color swatch: "#rrggbb" or "#rrggbb,#rrggbb" */
+
+			} else if ( substr( $optionitem->optionitem_icon, 0, 7 ) == 'http://' || substr( $optionitem->optionitem_icon, 0, 8 ) == 'https://' ) {
 				$thumb_src = $optionitem->optionitem_icon;
 
 			} else if ( file_exists( $test_src ) && !is_dir( $test_src ) ) {
@@ -1487,7 +1490,7 @@ class ec_product {
 	}
 	public function display_advanced_option_file( $optionset, $i ){
 		echo "<div class=\"ec_option_error_row\" id=\"ec_option" . esc_attr( $i ) . "_" . esc_attr( $this->model_number ) . "_error\"><div class=\"ec_option_error_row_inner\">" . wp_easycart_language( )->convert_text( $optionset->option_error_text ) . "</div></div>";
-		echo "<div class=\"ec_option_file_label_row\">" . wp_easycart_language( )->convert_text( $optionset->option_label ) . ":</div><div class=\"ec_option_file_row\"><input class=\"ec_option_text\" type=\"file\" name=\"ec_option_" . esc_attr( $optionset->option_id ) . "\" id=\"ec_option" . esc_attr( $i ) . "_" . esc_attr( $this->model_number ) . "\" data-ec-required=\"" . esc_attr( $optionset->option_required ) . "\" /></div>";
+		echo "<div class=\"ec_option_file_label_row\">" . wp_easycart_language( )->convert_text( $optionset->option_label ) . ":</div><div class=\"ec_option_file_row\"><input class=\"ec_option_text\" type=\"file\"" . ( class_exists( 'wp_easycart_customer_uploads' ) ? wp_easycart_customer_uploads::input_attributes( $optionset ) : '' ) . " name=\"ec_option_" . esc_attr( $optionset->option_id ) . "\" id=\"ec_option" . esc_attr( $i ) . "_" . esc_attr( $this->model_number ) . "\" data-ec-required=\"" . esc_attr( $optionset->option_required ) . "\" />" . ( class_exists( 'wp_easycart_customer_uploads' ) ? wp_easycart_customer_uploads::accepted_types_html( $optionset ) : '' ) . "</div>"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- 6.0.0: input_attributes() and accepted_types_html() escape their own output.
 	}
 	public function display_advanced_option_radio( $optionset, $i ){
 		$optionitems = $this->mysqli->get_advanced_optionitems( $optionset->option_id );
@@ -1542,7 +1545,10 @@ class ec_product {
 				$test_src2 = EC_PLUGIN_DIRECTORY . "/products/swatches/" . $optionset->optionset[$i]->optionitem_icon;
 				$test_src3 = EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/images/ec_image_not_found.jpg";
 
-				if ( substr( $optionset->optionset[$i]->optionitem_icon, 0, 7 ) == 'http://' || substr( $optionset->optionset[$i]->optionitem_icon, 0, 8 ) == 'https://' ) {
+				if ( $color_src = ec_optionitem::swatch_image_src( $optionset->optionset[$i]->optionitem_icon, $size ) ) {
+					$thumb_src = $color_src; /* color swatch: "#rrggbb" or "#rrggbb,#rrggbb" */
+
+				} else if ( substr( $optionset->optionset[$i]->optionitem_icon, 0, 7 ) == 'http://' || substr( $optionset->optionset[$i]->optionitem_icon, 0, 8 ) == 'https://' ) {
 					$thumb_src = $optionset->optionset[$i]->optionitem_icon;
 
 				} else if ( file_exists( $test_src ) && !is_dir( $test_src ) ) {
@@ -1561,7 +1567,7 @@ class ec_product {
 					$thumb_src = plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_latest_theme' ) . "/images/ec_image_not_found.jpg", EC_PLUGIN_DIRECTORY );
 
 				}
-				echo "<img src=\"" . esc_url( $thumb_src ) . "\" alt=\"" . esc_js( $optionset->optionset[$i]->optionitem_name ) . "\" class=\"";
+				echo "<img src=\"" . esc_url( $thumb_src, ec_optionitem::swatch_url_protocols() ) . "\" alt=\"" . esc_js( $optionset->optionset[$i]->optionitem_name ) . "\" class=\"";
 
 				if( $this->use_optionitem_quantity_tracking && $this->options->quantity_array[$i][1] < 1 )
 					echo "ec_product_swatch_out_of_stock";

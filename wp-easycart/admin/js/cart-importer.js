@@ -259,3 +259,54 @@ function wpeasycart_continue_shopify_users_import( cursor, curr_count ){
         }
 	} } );
 }
+/* WooCommerce importer ( since 6.0.0 ): stage "begin" copies option sets, categories and the
+   manufacturer, then "batch" converts 50 products per request until { done }. Labels come from
+   data-l-* on #wpeasycart_woo_import_progress_bar ( printed by settings/integrations.php ). */
+function wpeasycart_start_woo_import() {
+	var $bar = jQuery( '#wpeasycart_woo_import_progress_bar' );
+	if ( ! $bar.length ) {
+		return false;
+	}
+	jQuery( '#wpeasycart_woo_start_button' ).hide();
+	jQuery( '#wpeasycart_woo_processing_button' ).show();
+	jQuery( '#wpeasycart_woo_import_done, #wpeasycart_woo_import_error' ).hide();
+	$bar.show().find( '.ec_admin_progress_bar > div' ).removeClass( 'done' ).width( '2%' );
+	$bar.find( '.ec_admin_process_status > span' ).text( $bar.data( 'l-starting' ) );
+	wpeasycart_continue_woo_import( 'begin', 0 );
+	return false;
+}
+
+function wpeasycart_continue_woo_import( stage, cursor ) {
+	var $bar = jQuery( '#wpeasycart_woo_import_progress_bar' );
+	var data = {
+		action: 'ec_admin_ajax_woo_import',
+		stage: stage,
+		cursor: cursor,
+		wp_easycart_nonce: ec_admin_get_value( 'wpec_woo_importer_nonce', 'text' )
+	};
+	var fail = function( message ) {
+		jQuery( '#wpeasycart_woo_processing_button' ).hide();
+		jQuery( '#wpeasycart_woo_start_button' ).show();
+		jQuery( '#wpeasycart_woo_import_error' ).show().find( '.ecimp-msg' ).text( message || $bar.data( 'l-error' ) );
+	};
+	jQuery.ajax( { url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( r ) {
+		if ( ! r || ! r.success || ! r.data ) {
+			fail( ( r && r.data && r.data.message ) ? r.data.message : '' );
+			return;
+		}
+		var d = r.data;
+		var pct = ( d.total > 0 ) ? Math.max( 2, Math.min( 100, Math.round( d.processed / d.total * 100 ) ) ) : 100;
+		$bar.find( '.ec_admin_progress_bar > div' ).width( pct + '%' );
+		$bar.find( '.ec_admin_process_status > span' ).text( d.processed + ' / ' + d.total + ' ' + $bar.data( 'l-products' ) );
+		if ( d.done ) {
+			$bar.find( '.ec_admin_progress_bar > div' ).width( '100%' ).addClass( 'done' );
+			$bar.find( '.ec_admin_process_status > span' ).text( $bar.data( 'l-done' ) );
+			jQuery( '#wpeasycart_woo_processing_button' ).hide();
+			jQuery( '#wpeasycart_woo_import_done' ).show();
+		} else {
+			wpeasycart_continue_woo_import( 'batch', d.next );
+		}
+	}, error: function() {
+		fail( '' );
+	} } );
+}

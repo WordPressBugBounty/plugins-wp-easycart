@@ -93,6 +93,19 @@
 .ecodv2-line-items .ec_admin_order_details_item_details > span { float: none; width: auto; display: block; font-size: 13px; font-weight: 600; margin: 0 0 2px; line-height: 1.5; }
 .ecodv2-line-items .ec_admin_order_details_item_details a { color: var(--ecv2-g900); text-decoration: none; }
 .ecodv2-line-items .ec_admin_order_details_item_details a:hover { color: var(--ecv2-primary); }
+/* 6.0.0: product title links to the product editor ( new tab ) while the product still exists. */
+.ecodv2-line-items .ec_admin_order_details_item_details > a.ecodv2-line-title-link { display: flex; align-items: center; gap: 4px; width: fit-content; max-width: 100%; margin: 0 0 2px; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.ecodv2-line-items .ecodv2-line-title-link .ecodv2-line-title { display: inline; min-width: 0; overflow-wrap: anywhere; }
+.ecodv2-line-items .ecodv2-line-title-link:hover .ecodv2-line-title,
+.ecodv2-line-items .ecodv2-line-title-link:focus-visible .ecodv2-line-title { text-decoration: underline; text-underline-offset: 2px; }
+.ecodv2-line-title-ext { flex: 0 0 auto; font-size: 13px; width: 13px; height: 13px; color: var(--ecv2-g400); }
+.ecodv2-line-title-link:hover .ecodv2-line-title-ext,
+.ecodv2-line-title-link:focus-visible .ecodv2-line-title-ext { color: var(--ecv2-primary); }
+/* 6.0.0: status chips ( Refunded, Download, Gift Card, ... ) sit beside the title as small pills.
+   The generic "> span" rule above makes every direct child a block, which stretched them across the row. */
+.ecodv2-line-items .ec_admin_order_details_item_details > span.ecodv2-line-title { display: inline-block; vertical-align: middle; max-width: 100%; }
+.ecodv2-line-items .ec_admin_order_details_item_details > a.ecodv2-line-title-link { display: inline-flex; vertical-align: middle; margin-bottom: 0; }
+.ecodv2-line-items .ec_admin_order_details_item_details > span.ecodv2-chip { display: inline-flex; width: auto; margin: 0 0 2px 6px; font-size: 10.5px; font-weight: 600; line-height: 1.6; vertical-align: middle; }
 .ecodv2-item-meta { font-size: 11.5px; color: var(--ecv2-g500); line-height: 1.7; }
 .ecodv2-item-meta .ec_details_option_label { display: inline; float: none; font-size: 11.5px; color: var(--ecv2-g400); font-weight: 500; margin: 0; line-height: inherit; }
 .ecodv2-item-meta .ec_details_option_value { display: inline; float: none; font-size: 11.5px; color: var(--ecv2-g600); margin: 0 8px 0 2px; line-height: inherit; }
@@ -315,14 +328,25 @@
 .ecodv2-block span,
 .ecodv2-block > div { line-height: 1.7; }
 
-/* Shipment ( weight ) hook block inside the Shipping card. */
-.ecodv2-shipment-details fieldset,
-.ecodv2-shipment-details .wp-easycart-admin-field-container { border: none; padding: 0; margin: 0 0 10px; min-width: 0; }
-.ecodv2-shipment-details fieldset label { display: block; font-size: 11px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
-.ecodv2-shipment-details input { width: 100%; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; float: none; min-width: 0 !important; }
-.ecodv2-shipment-details input:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
-.ecodv2-shipment-details .wp-easycart-admin-toggle-group-text,
-.ecodv2-shipment-details .wp_easycart_admin_no_padding { float: none; width: auto; padding: 0; display: contents; }
+/* Shipment hook fields ( order weight + any fields added through wp_easycart_admin_orders_details_shipment_fields_list )
+   in the edit drawer's Fulfillment section. The hook prints legacy field markup ( row div > label + fieldset > input ),
+   restyled here to match the V2 fields above it. Scoped to the drawer: .ecodv2-shipment-details is the page's shipment strip. */
+.ecodv2-drawer-shipment { margin-top: 14px; }
+.ecodv2-drawer-shipment > .ecodv2-eyebrow { margin-bottom: 10px !important; }
+.ecodv2-drawer-shipment-fields > div { float: none !important; width: auto !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; }
+.ecodv2-drawer-shipment-fields > .ec_admin_hidden { display: none !important; }
+.ecodv2-drawer-shipment-fields .wp_easycart_admin_no_padding,
+.ecodv2-drawer-shipment-fields .wp-easycart-admin-toggle-group-text { display: block !important; float: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+.ecodv2-drawer-shipment-fields label { display: block !important; float: none !important; width: auto !important; font-size: 10.5px !important; font-weight: 600 !important; line-height: 1.4 !important; color: var(--ecv2-g500) !important; margin: 0 0 4px !important; padding: 0 !important; }
+.ecodv2-drawer-shipment-fields fieldset { border: none !important; float: none !important; width: auto !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; }
+.ecodv2-drawer-shipment-fields input[type="text"],
+.ecodv2-drawer-shipment-fields input[type="number"],
+.ecodv2-drawer-shipment-fields select,
+.ecodv2-drawer-shipment-fields textarea { display: block; float: none !important; width: 100% !important; min-width: 0 !important; max-width: none !important; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; line-height: 1.4; color: var(--ecv2-g800); background: #fff; box-sizing: border-box; margin: 0; }
+.ecodv2-drawer-shipment-fields input:focus,
+.ecodv2-drawer-shipment-fields select:focus,
+.ecodv2-drawer-shipment-fields textarea:focus { outline: none; border-color: var(--ecv2-primary); box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+@media ( max-width: 700px ) { .ecodv2-drawer .ecodv2-drawer-shipment-fields { grid-template-columns: 1fr; } }
 
 /* ==================================================================
    Targeted legacy overrides ( the only V1 touch points left )
@@ -494,9 +518,6 @@ body.ecodv2-drawer-open { overflow: hidden; }
 .ecodv2-drawer-account label { display: block; font-size: 10.5px; font-weight: 600; color: var(--ecv2-g500); margin-bottom: 4px; }
 #ecodv2_sec_fulfillment .ecodv2-form { background: transparent; border: none; padding: 0; margin: 0; }
 #ecodv2_sec_fulfillment .ecodv2-form.ec_admin_initial_hide { display: block; }
-.ecodv2-shipment-weight { margin-top: 12px; }
-.ecodv2-shipment-weight .ecodv2-block { border: none; margin: 0; padding: 0; float: none; }
-.ecodv2-shipment-weight .ecodv2-eyebrow { margin-bottom: 8px !important; }
 
 /* 11. Customer notes popover. */
 .ecodv2-cnotes-anchor { position: relative; }
@@ -534,6 +555,9 @@ body > .select2-container { z-index: 9999999 !important; }
 .ecodv2-drawer .ecodv2-field label { display: block !important; float: none !important; width: auto !important; font-size: 10.5px; font-weight: 600; color: var(--ecv2-g500); margin: 0 0 4px !important; }
 .ecodv2-drawer .ecodv2-field > input,
 .ecodv2-drawer .ecodv2-field > select { display: block; float: none !important; width: 100% !important; min-width: 0 !important; max-width: none !important; border: 1px solid var(--ecv2-g300); border-radius: 9px; padding: 8px 11px; font-size: 12.5px; background: #fff; box-sizing: border-box; }
+.ecodv2-drawer .ecodv2-field > input,
+.ecodv2-drawer .ecodv2-field > select { line-height: 1.4 !important; min-height: 0 !important; height: auto !important; }
+.ecodv2-drawer .ecodv2-field > select { padding-right: 28px; }
 .ecodv2-drawer .ecodv2-cc-wrap,
 .ecodv2-drawer .ecodv2-exp-wrap { display: flex !important; float: none !important; width: 100% !important; min-height: 36px; }
 .ecodv2-drawer .ecodv2-cc-wrap input { width: 60px !important; min-width: 60px !important; flex: 1 1 auto; border: none !important; }
@@ -620,18 +644,44 @@ body > .select2-container { z-index: 9999999 !important; }
 .ecodv2-fulfill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 500; }
 .ecodv2-fulfill-row .ecv2-btn { margin-left: auto; }
 .ecodv2-fulfill-row .ecv2-btn ~ .ecv2-btn { margin-left: 0; }
-.ecodv2-fulfill-banner #ec_admin_view_shipping_method { float: none; width: auto; margin: 10px 0 0; padding: 10px 14px; background: rgba(255,255,255,.75); border: 1px solid rgba(0,0,0,.06); border-radius: 10px; font-size: 12.5px; font-weight: 400; color: var(--ecv2-g700); }
-.ecodv2-fulfill-banner #ec_admin_view_shipping_method .ecodv2-block-head { margin-bottom: 3px; }
-.ecodv2-fulfill-banner #ec_admin_view_shipping_method span { line-height: 1.7; }
 .ecodv2-tracking-line { display: inline-flex; align-items: center; gap: 4px; }
 .ecodv2-tracking-line #ec_admin_order_details_tracking_number { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .ecodv2-tracking-copy { padding: 1px 5px; }
-.ecodv2-fulfill-banner #ec_admin_order_details_shipping_empty_message a { font-weight: 500; }
 
 /* ==================================================================
    V3.0 — fulfillment card + date/time inputs
    ================================================================== */
-.ecodv2-card-fulfillment .ecodv2-fulfill-banner { border-bottom: none; border-radius: 0 0 var(--ecv2-r, 8px) var(--ecv2-r, 8px); }
+.ecodv2-card-fulfillment .ecodv2-fulfill-banner { border-bottom: 1px solid var(--ecv2-g100); border-left-width: 3px; padding: 10px 16px; }
+/* Shipment details ( method / carrier / tracking ) below the status strip. */
+.ecodv2-shipment { padding: 14px 16px; font-size: 13px; color: var(--ecv2-g700); }
+.ecodv2-legacy-hidden { display: none !important; }
+/* Order item: customer upload that never reached the server. */
+.ecodv2-file-missing { display: inline-flex; align-items: center; gap: 3px; color: #b45309; font-weight: 600; cursor: help; }
+.ecodv2-file-missing .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecodv2-shipment-empty { display: none; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ecodv2-shipment.is-empty .ecodv2-shipment-empty { display: flex; }
+.ecodv2-shipment.is-empty .ecodv2-shipment-details { display: none; }
+.ecodv2-shipment-empty-icon.dashicons { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--ecv2-g50); border: 1px dashed var(--ecv2-g300); color: var(--ecv2-g400); font-size: 18px; line-height: 36px; text-align: center; box-sizing: border-box; }
+.ecodv2-shipment-empty-text { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.45; }
+.ecodv2-shipment-empty-text strong { font-size: 13px; font-weight: 600; color: var(--ecv2-g800, #1f2937); }
+.ecodv2-shipment-empty-text span { font-size: 12.5px; color: var(--ecv2-g500); }
+.ecodv2-shipment-add { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; }
+.ecodv2-shipment-add .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecodv2-shipment-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px 20px; align-items: start; }
+.ecodv2-shipment-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ecodv2-shipment-label { font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--ecv2-g400); }
+.ecodv2-shipment-value { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; line-height: 1.5; color: var(--ecv2-g800, #1f2937); font-weight: 500; overflow-wrap: anywhere; }
+.ecodv2-shipment-value br { display: none; }
+.ecodv2-shipment-value > span[data-empty]:empty::before { content: attr(data-empty); color: var(--ecv2-g400); font-weight: 400; }
+.ecodv2-shipment-chip:empty { display: none; }
+#ec_admin_order_details_tracking_number:empty::before { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+.ecodv2-shipment-chip { display: inline-flex; padding: 1px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; }
+.ecodv2-shipment-edit { margin-left: 0; align-self: center; }
+@media ( max-width: 700px ) {
+	.ecodv2-shipment-details { grid-template-columns: 1fr; }
+	.ecodv2-shipment-edit { justify-self: start; padding-left: 0; }
+	.ecodv2-shipment-add { width: 100%; justify-content: center; }
+}
 .ecodv2-card-fulfillment .ecdv2-card-header { border-bottom: 1px solid var(--ecv2-g100); }
 .ecodv2-date-form input[type="time"] { width: 92px; border: 1px solid var(--ecv2-primary); border-radius: 8px; padding: 5px 8px; font-size: 12.5px; box-shadow: 0 0 0 3px rgba(22,163,74,.12); outline: none; }
 
@@ -825,4 +875,101 @@ body.ecodv2-hdrawer-open { overflow: hidden; }
 	.ecodv2-header .ecdv2-header-spacer { display: none; }
 	.ecodv2-header .ecodv2-status-wrap { flex: 1 1 auto; min-width: 0; }
 	.ecodv2-header .ecodv2-status-pill { max-width: 100%; }
+}
+/* ==================================================================
+   Header actions between ~1228px and ~1388px: the status select, prev/next and the ⋯ menu used to wrap
+   one at a time, leaving the ⋯ stranded at the far left with its right-anchored dropdown off screen.
+   Keep the actions as one right-aligned unit that wraps as a whole, and let the title block shrink first.
+   ================================================================== */
+.ecodv2-header .ecdv2-header-meta { flex: 1 1 320px; min-width: 240px; }
+.ecodv2-header .ecdv2-header-actions { flex: 0 0 auto; flex-wrap: nowrap; margin-left: auto; justify-content: flex-end; }
+.ecodv2-header .ecodv2-status-wrap { min-width: 170px; }
+@media ( max-width: 1400px ) {
+	.ecodv2-header .ecodv2-status-wrap { min-width: 150px; }
+}
+@media ( max-width: 900px ) {
+	.ecodv2-header .ecdv2-header-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
+}
+/* the dropdown never anchors off the left edge, even if a theme narrows the header further */
+.ecodv2-menu-wrap .ecdv2-menu { right: 0; left: auto; max-width: calc(100vw - 32px); }
+/* the generic phone rule hides .ecdv2-menu-wrap inside header actions ( editors keep only Save ); the order header has
+   no Save and its ⋯ menu carries print/email, so keep it */
+@media screen and ( max-width: 600px ) {
+	.ecodv2-header .ecdv2-header-actions .ecdv2-menu-wrap { display: block; }
+	.ecodv2-header .ecdv2-header-actions { flex-wrap: wrap; }
+}
+
+/* 6.0.0 — account-dependent fragments repainted after the order's user changes.
+   The wrappers exist only as AJAX refill targets, so they add no layout box. */
+.ecodv2-header-chips,
+.ecodv2-user-account { display: contents; }
+.ecodv2-customer-card-extra { clear: both; }
+
+/* 6.0.0 — drawer-native feedback. The drawer sits at z-index 999999 ( above the WP admin bar ), so the
+   order toast has to sit above it; while the drawer is open it moves left of the panel so it never covers
+   the fields. The spinner inherits the text color so it works on the primary Save button and inline. */
+.ecodv2-save-toast { position: fixed; bottom: 24px; right: 24px; z-index: 1000001; display: flex; align-items: center; gap: 8px; max-width: 360px; padding: 12px 18px; border-radius: var(--ecv2-r, 8px); background: var(--ecv2-primary); color: #fff; font-size: 13px; font-weight: 500; line-height: 1.4; box-shadow: var(--ecv2-shlg, 0 10px 30px rgba(0,0,0,.2)); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+.ecodv2-save-toast.is-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.ecodv2-save-toast.is-error { background: var(--ecv2-danger); }
+.ecodv2-save-toast .dashicons { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; }
+body.ecodv2-drawer-open .ecodv2-save-toast { right: calc( min( 460px, 96vw ) + 24px ); }
+@media screen and ( max-width: 782px ) {
+	body.ecodv2-drawer-open .ecodv2-save-toast { right: 50%; transform: translate(50%, 8px); bottom: 76px; max-width: calc( 100vw - 48px ); }
+	body.ecodv2-drawer-open .ecodv2-save-toast.is-visible { transform: translate(50%, 0); }
+}
+.ecodv2-save-spin { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ecodv2-spin .7s linear infinite; }
+@keyframes ecodv2-spin { to { transform: rotate(360deg); } }
+/* The V1 full-page preloaders never show while a drawer save is in flight. */
+body.ecodv2-drawer-saving #ec_admin_shipping_details,
+body.ecodv2-drawer-saving #ec_admin_order_management { display: none !important; }
+
+/* Account picker: inline status line + locked state while the change saves. */
+/* The legacy admin.css floats every .select2-container right at min-width 80%; inside the drawer that float
+   squeezed the status line into a narrow column beside it. Keep the picker a full-width block and clear it. */
+.ecodv2-drawer-account .select2-container { display: block; float: none !important; width: 100% !important; min-width: 0 !important; margin: 0 !important; }
+.ecodv2-drawer-account::after { content: ""; display: table; clear: both; }
+.ecodv2-account-status { display: flex; align-items: flex-start; gap: 6px; clear: both; width: 100%; box-sizing: border-box; margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--ecv2-g600); white-space: normal; overflow-wrap: anywhere; }
+.ecodv2-account-status[hidden] { display: none; }
+.ecodv2-account-status .ecodv2-account-status-msg { flex: 1 1 auto; min-width: 0; }
+.ecodv2-account-status .ecodv2-save-spin { margin: 2px 0 0; color: var(--ecv2-primary); }
+.ecodv2-account-status .dashicons { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; }
+.ecodv2-account-status.is-ok { color: var(--ecv2-primary); }
+.ecodv2-account-status.is-error { color: var(--ecv2-danger); }
+
+/* 6.0.0 — email actions ( resend receipt, resend gift card, order shipped ) show a busy state on the
+   control they were fired from, and the shipped email leaves a line on the fulfillment card. */
+.ecdv2-menu a.is-busy,
+.ecodv2-giftcard-resend.is-busy { opacity: .55; pointer-events: none; }
+.ecodv2-shipped-note { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 8px; font-size: 12px; color: var(--ecv2-primary); }
+.ecodv2-shipped-note .dashicons { font-size: 15px; width: 15px; height: 15px; }
+.ecodv2-drawer.is-account-busy .ecodv2-drawer-account .select2-container { opacity: .6; }
+.ecodv2-drawer.is-account-busy #ecodv2_drawer_save { opacity: .55; pointer-events: none; }
+
+/* Plan badges show "Pro/Premium", "Pro" or "Premium" ( wp_easycart_admin_edition ); keep them caps on one line. @since 6.0.0 */
+.ecodv2-pro-pill { text-transform:uppercase; white-space:nowrap; }
+
+/* Send dialog: resend receipt / order shipped email ( orders-details-v2.js, ecodv2_email_dialog ). @since 6.0.0 */
+.ecodv2-send-modal { max-width: 460px; }
+.ecodv2-send-field { display: flex; flex-direction: column; gap: 5px; margin: 0 0 12px; }
+.ecodv2-send-field label { font-size: 12.5px; font-weight: 600; color: var(--ecv2-g700); }
+.ecodv2-send-opt { font-weight: 400; color: var(--ecv2-g400); }
+.ecodv2-send-field .ecv2-input { width: 100%; box-sizing: border-box; }
+.ecodv2-send-field .ecv2-input.is-invalid { border-color: var(--ecv2-danger, #dc2626); box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
+.ecodv2-send-hint { margin: -2px 0 0; font-size: 12px; color: var(--ecv2-g500); }
+.ecodv2-send-error { margin: 10px 0 0; font-size: 12.5px; color: var(--ecv2-danger, #dc2626); }
+.ecodv2-send-error[hidden] { display: none; }
+
+/* Order header on a phone: the status pill ran off the right edge and the "..." menu was pushed out of the row.
+   Title and chips wrap, then the status pill and the three action buttons share a full-width row. @since 6.0.0 */
+@media screen and (max-width:600px) {
+	.ecodv2-header { flex-wrap: wrap; row-gap: 8px; }
+	.ecodv2-header .ecdv2-header-meta { flex: 1 1 100%; order: 2; }
+	.ecodv2-header .ecdv2-header-spacer { display: none; }
+	/* The status pill, prev / next and the "..." menu share one row that wraps inside the header instead of running off it. */
+	.ecodv2-header .ecdv2-header-actions { flex: 1 1 100%; order: 3; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+	.ecodv2-header .ecodv2-status-wrap { flex: 1 1 auto; min-width: 0; }
+	.ecodv2-header .ecodv2-status-pill { max-width: 100%; width: 100%; justify-content: space-between; }
+	.ecodv2-header .ecodv2-status-pill > span:not(.ecodv2-status-dot):not(.ecodv2-status-caret) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	/* The menu hangs off its wrapper, which is now the full header width: align it to the pill instead of the right edge. */
+	.ecodv2-header .ecodv2-status-menu { left: 0; right: auto; min-width: 0; width: 100%; max-height: 60vh; }
 }

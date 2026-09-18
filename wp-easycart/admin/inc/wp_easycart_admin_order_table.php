@@ -52,6 +52,30 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 */
 		private $storage_offset = 0;
 
+		/**
+		 * Subscription the list is narrowed to ( ?subscription_id=N ), 0 when not filtering.
+		 * Set by "View orders" on a subscription ( PRO ); shown as a removable chip in the toolbar.
+		 *
+		 * @since 6.0.0
+		 * @var int
+		 */
+		private $subscription_filter = 0;
+
+		/**
+		 * Transient for the distinct payment gateways used by orders ( filter pills ). 1 hour.
+		 *
+		 * @since 6.0.0
+		 */
+		const GATEWAYS_TRANSIENT = 'ecv2_order_gateways';
+
+		/**
+		 * Order counts for the customers on this page: 'u' . user_id for account orders,
+		 * 'e' . email for guest orders. Filled by prime_page_rows().
+		 *
+		 * @var array
+		 */
+		private $customer_counts = array();
+
 		/* Core status ids (see ec_db_manager defaults). */
 		const STATUS_SHIPPED         = 2;
 		const STATUS_READY_PICKUP    = 11;
@@ -77,6 +101,15 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 
 			$this->set_table( 'ec_order', 'order_id' );
 			$this->set_table_id( 'ec_admin_order_list_v2' );
+			if ( isset( $_GET['email_status'] ) && 'failed' === $_GET['email_status'] && class_exists( 'ec_email' ) && ec_email::tables_exist() ) {
+				$this->set_custom_where( " AND ( ec_order.order_id IN ( SELECT order_id FROM ec_email_queue WHERE status IN ( 'pending', 'failed' ) ) OR ec_order.order_id IN ( SELECT order_id FROM ec_email_log WHERE status = 'failed' AND queue_id = 0 AND created_at >= DATE_SUB( NOW(), INTERVAL 30 DAY ) ) )" );
+				$this->set_get_vars( array( 'email_status' ) );
+			}
+			/* ?subscription_id=N: only the orders a subscription created ( "View orders" on the PRO subscriptions list ). */
+			$this->subscription_filter = isset( $_GET['subscription_id'] ) ? (int) $_GET['subscription_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter; the value only selects which rows are shown.
+			if ( $this->subscription_filter > 0 ) {
+				$this->set_custom_where( $this->custom_where . $wpdb->prepare( ' AND ec_order.subscription_id = %d', $this->subscription_filter ) );
+			}
 			$this->set_table_class( 'ecv2-order-table' );
 			$this->set_default_sort( 'order_id', 'DESC' );
 			$this->set_header( __( 'Manage Orders', 'wp-easycart' ) );
@@ -124,7 +157,8 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				array( 'select' => 'ec_order.billing_phone', 'name' => 'billing_phone', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.billing_company_name', 'name' => 'billing_company_name', 'format' => 'hidden', 'label' => '' ),
 				array(
-					'select' => '(SELECT COUNT(*) FROM ec_order o2 WHERE ( ec_order.user_id > 0 AND o2.user_id = ec_order.user_id ) OR ( ec_order.user_id = 0 AND ec_order.user_email != \'\' AND o2.user_email = ec_order.user_email ) ) AS customer_order_count',
+					/* 6.0.0: filled per page by prime_page_rows() ( two grouped queries ) instead of a correlated COUNT(*) per row. */
+					'select' => '0 AS customer_order_count',
 					'name'   => 'customer_order_count',
 					'format' => 'hidden',
 					'label'  => '',
@@ -146,6 +180,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				array( 'select' => 'ec_order.shipping_method', 'name' => 'shipping_method', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.includes_preorder_items', 'name' => 'includes_preorder_items', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.includes_restaurant_type', 'name' => 'includes_restaurant_type', 'format' => 'hidden', 'label' => '' ),
+				array( 'select' => '( ' . self::requires_shipping_sql() . ' ) AS requires_shipping', 'name' => 'requires_shipping', 'format' => 'hidden', 'label' => '', 'orderby' => false ),
 				array( 'select' => 'ec_order.pickup_date', 'name' => 'pickup_date', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.pickup_time', 'name' => 'pickup_time', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.subscription_id', 'name' => 'subscription_id', 'format' => 'hidden', 'label' => '' ),
@@ -161,13 +196,36 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				$status_options[] = (object) array( 'value' => $status->status_id, 'label' => $status->order_status );
 			}
 
-			$gateways = $wpdb->get_results( "SELECT DISTINCT order_gateway AS value, order_gateway AS label FROM ec_order WHERE order_gateway != '' ORDER BY order_gateway ASC" );
-			foreach ( $gateways as $gw ) {
-				$gw->label = $this->gateway_label( $gw->value );
+			/* DISTINCT over every order is a full scan: keep the gateway list for an hour ( see GATEWAYS_TRANSIENT ). */
+			$gateway_values = get_transient( self::GATEWAYS_TRANSIENT );
+			if ( ! is_array( $gateway_values ) ) {
+				$gateway_values = (array) $wpdb->get_col( "SELECT DISTINCT order_gateway FROM ec_order WHERE order_gateway != '' ORDER BY order_gateway ASC" );
+				set_transient( self::GATEWAYS_TRANSIENT, $gateway_values, HOUR_IN_SECONDS );
+			}
+			$gateways = array();
+			foreach ( $gateway_values as $gateway_value ) {
+				$gateways[] = (object) array( 'value' => $gateway_value, 'label' => $this->gateway_label( $gateway_value ) );
 			}
 
-			$products = $wpdb->get_results( 'SELECT product_id AS value, title AS label FROM ec_product ORDER BY title ASC LIMIT 500' );
-			$users    = $wpdb->get_results( "SELECT user_id AS value, CONCAT(last_name, ', ', first_name) AS label FROM ec_user ORDER BY last_name, first_name ASC LIMIT 500" );
+			/*
+			 * 6.0.0: product and customer filters are typeaheads ( ec_admin_ajax_ecv2_product_search /
+			 * ecv2_order_customer_search ); only the currently selected choice is printed so its label shows.
+			 */
+			$products = array();
+			$selected_product = $this->filter_value( 4 );
+			if ( '' !== $selected_product ) {
+				$product_label = ( (int) $selected_product > 0 ) ? $wpdb->get_var( $wpdb->prepare( 'SELECT title FROM ec_product WHERE product_id = %d', (int) $selected_product ) ) : null;
+				$products[] = (object) array( 'value' => $selected_product, 'label' => ( null !== $product_label ) ? wp_unslash( $product_label ) : $selected_product );
+			}
+			$users = array();
+			$selected_user = $this->filter_value( 5 );
+			if ( '' !== $selected_user ) {
+				$user_label = ( (int) $selected_user > 0 ) ? $wpdb->get_var( $wpdb->prepare( "SELECT CONCAT( last_name, ', ', first_name ) FROM ec_user WHERE user_id = %d", (int) $selected_user ) ) : null;
+				if ( null === $user_label ) {
+					$user_label = ( '0' === (string) $selected_user ) ? __( 'Guest', 'wp-easycart' ) : $selected_user;
+				}
+				$users[] = (object) array( 'value' => $selected_user, 'label' => wp_unslash( $user_label ) );
+			}
 
 			$filters = array(
 				array(
@@ -194,6 +252,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 						(object) array( 'value' => 'unfulfilled', 'label' => __( 'Awaiting Fulfillment', 'wp-easycart' ), 'icon' => 'warning' ),
 						(object) array( 'value' => 'fulfilled', 'label' => __( 'Fulfilled', 'wp-easycart' ), 'icon' => 'yes-alt' ),
 						(object) array( 'value' => 'pickup', 'label' => __( 'Pickup', 'wp-easycart' ), 'icon' => 'store' ),
+						(object) array( 'value' => 'no_shipping', 'label' => __( 'No Shipping Needed', 'wp-easycart' ), 'icon' => 'download' ),
 					),
 					'label' => __( 'Fulfillment', 'wp-easycart' ),
 					'type'  => 'pills',
@@ -209,6 +268,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					'data'   => $products,
 					'label'  => __( 'Purchased Product', 'wp-easycart' ),
 					'type'   => 'select',
+					'ajax'   => array( 'action' => 'ec_admin_ajax_ecv2_product_search' ),
 					'where'  => 'ec_order.order_id IN ( SELECT ec_orderdetail.order_id FROM ec_orderdetail WHERE ec_orderdetail.product_id = %s )',
 					'where2' => 'ec_order.order_id IN ( SELECT ec_orderdetail.order_id FROM ec_orderdetail WHERE ec_orderdetail.model_number = %s )',
 				),
@@ -216,6 +276,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					'data'   => $users,
 					'label'  => __( 'By Customer', 'wp-easycart' ),
 					'type'   => 'select',
+					'ajax'   => array( 'action' => 'ecv2_order_customer_search', 'nonce' => wp_create_nonce( 'wp-easycart-ecv2-order-customer-search' ), 'min' => 2 ),
 					'where'  => 'ec_order.user_id = %d',
 					'where2' => '( ec_order.user_id = 0 AND ec_order.user_email <> \'\' AND ec_order.user_email = ( SELECT email FROM ec_user WHERE ec_user.user_id = %d ) )',
 				),
@@ -325,6 +386,85 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$this->order_statuses = $this->wpdb->get_results( 'SELECT status_id, order_status, is_approved, color_code FROM ec_orderstatus ORDER BY status_id ASC' );
 		}
 
+		/**
+		 * Fetch the page, then load everything that used to cost a query per row in one pass:
+		 * the repeat-customer counts ( two grouped queries ) and the email delivery chips.
+		 *
+		 * @since 6.0.0
+		 */
+		protected function get_data() {
+			parent::get_data();
+			$this->prime_page_rows();
+		}
+
+		private function prime_page_rows() {
+			$user_ids  = array();
+			$emails    = array();
+			$order_ids = array();
+			foreach ( (array) $this->results as $row ) {
+				$order_ids[] = (int) $row->order_id;
+				if ( isset( $row->user_id ) && (int) $row->user_id > 0 ) {
+					$user_ids[] = (int) $row->user_id;
+				} elseif ( isset( $row->user_email ) && '' !== (string) $row->user_email ) {
+					$emails[] = (string) $row->user_email;
+				}
+			}
+			/* Skip customers already counted ( get_data() re-runs itself when the page number overflows ). */
+			$counts   = $this->customer_counts;
+			$user_ids = array_values( array_filter( array_unique( $user_ids ), function( $id ) use ( $counts ) { return ! array_key_exists( 'u' . $id, $counts ); } ) );
+			$emails   = array_values( array_filter( array_unique( $emails ), function( $email ) use ( $counts ) { return ! array_key_exists( 'e' . strtolower( $email ), $counts ); } ) );
+
+			if ( ! empty( $user_ids ) ) {
+				$rows = $this->wpdb->get_results( 'SELECT user_id, COUNT(*) AS n FROM ec_order WHERE user_id IN ( ' . implode( ',', $user_ids ) . ' ) GROUP BY user_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- IN list is an implode of (int)-cast ids.
+				foreach ( (array) $rows as $r ) {
+					$this->customer_counts[ 'u' . (int) $r->user_id ] = (int) $r->n;
+				}
+			}
+			if ( ! empty( $emails ) ) {
+				$placeholders = implode( ',', array_fill( 0, count( $emails ), '%s' ) );
+				$rows = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT user_email, COUNT(*) AS n FROM ec_order WHERE user_email IN ( ' . $placeholders . ' ) GROUP BY user_email', $emails ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $placeholders is a list of %s markers; the emails are the prepare() arguments.
+				foreach ( (array) $rows as $r ) {
+					$this->customer_counts[ 'e' . strtolower( (string) $r->user_email ) ] = (int) $r->n;
+				}
+			}
+			foreach ( (array) $this->results as $row ) {
+				$row->customer_order_count = $this->customer_order_count( $row );
+			}
+
+			if ( ! empty( $order_ids ) && class_exists( 'wp_easycart_admin_email_health' ) && method_exists( 'wp_easycart_admin_email_health', 'prime' ) ) {
+				wp_easycart_admin_email_health::prime( $order_ids );
+			}
+		}
+
+		/**
+		 * Orders placed by this row's customer: the primed page map, or one lookup for a row
+		 * rendered outside get_data() ( e.g. PRO single-row refreshes ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param object $result Order row.
+		 * @return int
+		 */
+		private function customer_order_count( $result ) {
+			$user_id = isset( $result->user_id ) ? (int) $result->user_id : 0;
+			$email   = isset( $result->user_email ) ? (string) $result->user_email : '';
+			if ( $user_id > 0 ) {
+				$key = 'u' . $user_id;
+				if ( ! array_key_exists( $key, $this->customer_counts ) ) {
+					$this->customer_counts[ $key ] = (int) $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT COUNT(*) FROM ec_order WHERE user_id = %d', $user_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared through $this->wpdb->prepare(); the sniff only recognises the global $wpdb.
+				}
+				return (int) $this->customer_counts[ $key ];
+			}
+			if ( '' === $email ) {
+				return 0;
+			}
+			$key = 'e' . strtolower( $email );
+			if ( ! array_key_exists( $key, $this->customer_counts ) ) {
+				$this->customer_counts[ $key ] = (int) $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT COUNT(*) FROM ec_order WHERE user_email = %s', $email ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared through $this->wpdb->prepare(); the sniff only recognises the global $wpdb.
+			}
+			return (int) $this->customer_counts[ $key ];
+		}
+
 		public function get_order_statuses() {
 			return $this->order_statuses;
 		}
@@ -372,7 +512,43 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		public static function unfulfilled_where() {
-			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.orderstatus_id NOT IN ( " . self::STATUS_SHIPPED . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PICKED_UP . ', ' . self::STATUS_CANCELLED . ' ) )';
+			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.orderstatus_id NOT IN ( " . self::STATUS_SHIPPED . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PICKED_UP . ', ' . self::STATUS_CANCELLED . ' ) AND ' . self::requires_shipping_sql() . ' )';
+		}
+
+		/**
+		 * SQL that is true when the order has at least one line that has to be shipped: not a download, not a gift
+		 * card, and a product with shipping enabled ( the ec_orderdetail snapshot, so later product edits do not
+		 * change history ). Orders with nothing to ship ( downloads, gift cards, subscriptions / services, products
+		 * with shipping disabled ) are fulfilled the moment the payment is approved.
+		 *
+		 * @since 6.0.0
+		 * @param string $order_alias Table / alias holding order_id, `ec_order` in the list query.
+		 * @return string
+		 */
+		public static function requires_shipping_sql( $order_alias = 'ec_order' ) {
+			return 'EXISTS ( SELECT 1 FROM ec_orderdetail od_ship WHERE od_ship.order_id = ' . $order_alias . '.order_id AND od_ship.is_shippable = 1 AND od_ship.is_download = 0 AND od_ship.is_giftcard = 0 )';
+		}
+
+		/**
+		 * Does this order have anything to ship? Cached per request.
+		 *
+		 * @since 6.0.0
+		 * @param int $order_id Order.
+		 * @return bool
+		 */
+		public static function requires_shipping( $order_id ) {
+			static $cache = array();
+			global $wpdb;
+			$order_id = (int) $order_id;
+			if ( ! isset( $cache[ $order_id ] ) ) {
+				$cache[ $order_id ] = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_orderdetail WHERE order_id = %d AND is_shippable = 1 AND is_download = 0 AND is_giftcard = 0', $order_id ) );
+			}
+			return $cache[ $order_id ];
+		}
+
+		/** Approved, nothing to ship, and not refunded / cancelled: the "No shipping" fulfillment preset. @since 6.0.0 */
+		public static function no_shipping_where() {
+			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.includes_restaurant_type = 0 AND ec_order.orderstatus_id NOT IN ( " . self::STATUS_SHIPPED . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PICKED_UP . ', ' . self::STATUS_CANCELLED . ' ) AND NOT ' . self::requires_shipping_sql() . ' )';
 		}
 
 		private function compute_health_data() {
@@ -381,6 +557,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$today_start = $this->db_local_day_start( 0 );
 			$week_start  = $this->db_local_day_start( 6 );
 
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- unfulfilled_where() is a static fragment built from class STATUS_* constants.
 			$row = $wpdb->get_row( $wpdb->prepare(
 				'SELECT
 					COUNT(*) AS total,
@@ -401,6 +578,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				$week_start,
 				self::STATUS_READY_PICKUP
 			) );
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 			$this->health_data = array(
 				'total'        => $row ? (int) $row->total : 0,
@@ -476,6 +654,8 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 						return '( ec_order.orderstatus_id IN ( ' . self::STATUS_SHIPPED . ', ' . self::STATUS_PICKED_UP . " ) OR ec_order.tracking_number != '' )";
 					case 'pickup':
 						return '( ec_order.includes_restaurant_type = 1 OR ec_order.orderstatus_id IN ( ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_PICKED_UP . ' ) )';
+					case 'no_shipping':
+						return self::no_shipping_where();
 				}
 			}
 
@@ -536,6 +716,37 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		/**
+		 * Carry the subscription filter through form submits ( search, drawer, paging ). The input id follows the
+		 * ecv2-filter-input-* pattern so the shared tag-remove and clear-all JS reset it like any other filter.
+		 *
+		 * @since 6.0.0
+		 */
+		protected function print_hidden_fields() {
+			parent::print_hidden_fields();
+			if ( $this->subscription_filter > 0 ) {
+				echo '<input type="hidden" name="subscription_id" id="ecv2-filter-input-subscription_id" value="' . esc_attr( $this->subscription_filter ) . '" />';
+			}
+		}
+
+		/**
+		 * Active-filter chip for the subscription filter, next to the regular filter tags.
+		 *
+		 * @since 6.0.0
+		 */
+		protected function print_filter_button() {
+			parent::print_filter_button();
+			if ( $this->subscription_filter > 0 ) {
+				echo '<div class="ecv2-active-filter-tags">';
+				echo '<span class="ecv2-active-tag">';
+				/* translators: %d: subscription id. */
+				echo esc_html( sprintf( __( 'Subscription #%d', 'wp-easycart' ), $this->subscription_filter ) );
+				echo '<button type="button" class="ecv2-active-tag-remove" data-filter="subscription_id" title="' . esc_attr__( 'Remove filter', 'wp-easycart' ) . '">&times;</button>';
+				echo '</span>';
+				echo '</div>';
+			}
+		}
+
+		/**
 		 * Add a locked spreadsheet toggle when PRO is not enabled.
 		 */
 		protected function print_view_toggle() {
@@ -546,7 +757,8 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			echo '<div class="ecv2-view-toggle">';
 			echo '<button type="button" class="ecv2-view-btn' . ( 'table' === $this->current_view_mode ? ' ecv2-view-btn-active' : '' ) . '" data-mode="table" title="' . esc_attr__( 'Table View', 'wp-easycart' ) . '"><span class="dashicons dashicons-list-view"></span></button>';
 			echo '<button type="button" class="ecv2-view-btn' . ( 'card' === $this->current_view_mode ? ' ecv2-view-btn-active' : '' ) . '" data-mode="card" title="' . esc_attr__( 'Card View', 'wp-easycart' ) . '"><span class="dashicons dashicons-grid-view"></span></button>';
-			echo '<button type="button" class="ecv2-view-btn ecv2-view-btn-locked" title="' . esc_attr__( 'Spreadsheet View (PRO)', 'wp-easycart' ) . '" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-editor-table"></span><span class="dashicons dashicons-lock ecv2-view-btn-lock"></span></button>';
+			/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+			echo '<button type="button" class="ecv2-view-btn ecv2-view-btn-locked" title="' . esc_attr( sprintf( __( 'Spreadsheet View (%s)', 'wp-easycart' ), ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ) ) . '" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-editor-table"></span><span class="dashicons dashicons-lock ecv2-view-btn-lock"></span></button>';
 			echo '</div>';
 		}
 
@@ -578,7 +790,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				if ( isset( $col['laptop_hide'] ) && $col['laptop_hide'] ) {
 					$extra_classes .= ' ecv2-hide-laptop';
 				}
-				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '">';
+				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $extra_classes only ever holds literal class names set above.
 				$this->print_cell_content( $result, $col );
 				echo '</td>';
 			}
@@ -641,6 +853,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$this->print_viewed_dot( $result );
 			echo '<a href="' . esc_url( $edit_url ) . '" class="ecv2-order-number ecv2-link-primary" onclick="ecv2_order_open_marks_viewed( ' . esc_attr( $order_id ) . ' );">#' . esc_html( $order_id ) . '</a>';
 			echo '</div>';
+			if ( function_exists( 'wp_easycart_admin_email_order_chip' ) ) { echo wp_easycart_admin_email_order_chip( $order_id ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- order_chip() returns HTML built from esc_attr()/esc_html() and an (int) cast id.
 			echo '<div class="ecv2-product-row-actions">';
 			echo '<a href="' . esc_url( $edit_url ) . '" class="ecv2-row-action-link">' . esc_html__( 'Edit', 'wp-easycart' ) . '</a>';
 			echo '<span class="ecv2-row-action-sep">&middot;</span>';
@@ -653,7 +866,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$name    = trim( isset( $result->billing_name ) ? strip_tags( wp_unslash( $result->billing_name ) ) : '' );
 			$email   = isset( $result->user_email ) ? $result->user_email : '';
 			$company = isset( $result->billing_company_name ) ? trim( strip_tags( wp_unslash( $result->billing_company_name ) ) ) : '';
-			$count   = isset( $result->customer_order_count ) ? (int) $result->customer_order_count : 0;
+			$count   = $this->customer_order_count( $result );
 			$is_guest = ( isset( $result->user_id ) && 0 === (int) $result->user_id );
 
 			echo '<div class="ecv2-order-customer">';
@@ -809,12 +1022,14 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			echo '<div class="ecv2-order-fulfill-state">';
 			if ( '' !== $tracking ) {
 				echo self::tracking_chip_html( $tracking, $carrier ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
+			} else if ( in_array( $status, self::fulfilled_status_ids(), true ) ) {
+				/* 6.0.0: shipped or picked up without a tracking number is still fulfilled ( matches the order details banner ). */
+				echo self::fulfilled_chip_html(); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
+			} else if ( $approved && isset( $result->requires_shipping ) && ! (int) $result->requires_shipping && empty( $result->includes_restaurant_type ) && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
+				/* 6.0.0: nothing to ship ( downloads, gift cards, services, shipping disabled ): fulfilled on payment, no Fulfill button. */
+				echo '<span class="ecv2-order-track-chip ecv2-order-fulfill-digital" title="' . esc_attr__( 'Every item in this order is a download, gift card, subscription or a product with shipping disabled, so there is nothing to ship.', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> ' . esc_html__( 'No shipping', 'wp-easycart' ) . '</span>';
 			} else if ( $approved && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
-				if ( 'enabled' === $gate['state'] ) {
-					echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn" onclick="ecv2_open_fulfill( this );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . '</button>';
-				} else {
-					echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn ecv2-order-fulfill-locked" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . ' <span class="dashicons dashicons-lock"></span></button>';
-				}
+				echo self::fulfill_button_html( $gate ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
 			} else {
 				echo '<span class="ecv2-sku-empty">&mdash;</span>';
 			}
@@ -853,6 +1068,40 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 * Tracking chip markup. Public/static so PRO (and JS via ecv2_lang) can
 		 * reproduce the exact same chip after an inline fulfill.
 		 */
+		/**
+		 * Statuses that mean the order is fulfilled even without a tracking number ( same rule as the order details banner ).
+		 *
+		 * @since 6.0.0
+		 * @return int[]
+		 */
+		public static function fulfilled_status_ids() {
+			return array( self::STATUS_SHIPPED, self::STATUS_PICKED_UP );
+		}
+
+		/**
+		 * Fulfillment cell chip for a fulfilled order that has no tracking number.
+		 *
+		 * @since 6.0.0
+		 * @return string
+		 */
+		public static function fulfilled_chip_html() {
+			return '<span class="ecv2-order-track-chip ecv2-order-fulfill-done" title="' . esc_attr__( 'This order has been fulfilled.', 'wp-easycart' ) . '"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__( 'Fulfilled', 'wp-easycart' ) . '</span>';
+		}
+
+		/**
+		 * Fulfill button ( locked when PRO is not available ).
+		 *
+		 * @since 6.0.0
+		 * @param array $gate ecv2_get_order_pro_gate() result.
+		 * @return string
+		 */
+		public static function fulfill_button_html( $gate ) {
+			if ( isset( $gate['state'] ) && 'enabled' === $gate['state'] ) {
+				return '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn" onclick="ecv2_open_fulfill( this );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . '</button>';
+			}
+			return '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn ecv2-order-fulfill-locked" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . ' <span class="dashicons dashicons-lock"></span></button>';
+		}
+
 		public static function tracking_chip_html( $tracking, $carrier = '' ) {
 			$html  = '<span class="ecv2-order-track-chip" title="' . esc_attr( ( '' !== $carrier ? $carrier . ' — ' : '' ) . $tracking ) . '">';
 			$html .= '<span class="dashicons dashicons-car"></span>';
@@ -1034,6 +1283,42 @@ function ecv2_order_set_status() {
 		'is_approved'   => (int) $status->is_approved,
 		'old_status_id' => $old_status_id,
 	) );
+}
+
+/**
+ * Customer typeahead for the "By Customer" filter ( @since 6.0.0 ). Read-only; name / email search,
+ * 25 rows, select2-shaped { results:[{id,text}], more }. Own handler rather than
+ * ec_admin_ajax_get_order_users because that one requires wpec_manager and the orders list is
+ * open to wpec_orders.
+ */
+add_action( 'wp_ajax_ecv2_order_customer_search', 'ecv2_order_customer_search' );
+function ecv2_order_customer_search() {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_orders' ) ) {
+		wp_send_json( array( 'results' => array(), 'more' => false ) );
+	}
+	if ( ! isset( $_POST['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-order-customer-search' ) ) {
+		wp_send_json( array( 'results' => array(), 'more' => false ) );
+	}
+	global $wpdb;
+	$q        = isset( $_POST['q'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
+	$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
+	$per_page = 25;
+	$results  = array();
+	if ( '' === $q ) {
+		$results[] = array( 'id' => '0', 'text' => __( 'Guest checkouts', 'wp-easycart' ) );
+	}
+	$like = '%' . $wpdb->esc_like( $q ) . '%';
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT user_id, first_name, last_name, email FROM ec_user WHERE last_name LIKE %s OR first_name LIKE %s OR email LIKE %s OR CONCAT( first_name, ' ', last_name ) LIKE %s ORDER BY last_name ASC, first_name ASC LIMIT %d OFFSET %d", $like, $like, $like, $like, $per_page + 1, ( $page - 1 ) * $per_page ) );
+	$rows = is_array( $rows ) ? $rows : array();
+	$more = ( count( $rows ) > $per_page );
+	if ( $more ) {
+		array_pop( $rows );
+	}
+	foreach ( $rows as $u ) {
+		$name = trim( wp_unslash( $u->last_name . ', ' . $u->first_name ), ', ' );
+		$results[] = array( 'id' => (int) $u->user_id, 'text' => ( '' !== $name ? $name : $u->email ) . ( '' !== (string) $u->email ? ' (' . $u->email . ')' : '' ) );
+	}
+	wp_send_json( array( 'results' => $results, 'more' => $more ) );
 }
 
 /**

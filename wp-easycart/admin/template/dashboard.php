@@ -37,12 +37,13 @@ $ecrp_stats = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_ups
 $ecrp_strip = null;
 if ( ! $license_data ) {
 	$ecrp_strip = array( 'tone' => 'free', 'icon' => 'dashicons-chart-area',
-		'text' => __( 'Free edition. These reports cover the basics; PRO adds product, customer and coupon breakdowns, the abandoned-cart recovery report and scheduled email summaries.', 'wp-easycart' ),
-		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try PRO free', 'wp-easycart' ) ), 'more' => true );
+		/* translators: %s: plan name, "Pro/Premium". */
+		'text' => sprintf( __( 'Free edition. These reports cover the basics; %s adds product, customer and coupon breakdowns, the abandoned-cart recovery report and scheduled email summaries.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
+		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try Pro free', 'wp-easycart' ) ), 'more' => true );
 } else if ( $is_trial && $days_left > 0 ) {
-	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day left on your PRO trial.', '%d days left on your PRO trial.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $upgrade_url, __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
+	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day left on your Pro trial.', '%d days left on your Pro trial.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $upgrade_url, __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
 } else if ( $is_trial ) {
-	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your PRO trial has ended. Upgrade to reopen the PRO panels; nothing has been lost.', 'wp-easycart' ), 'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
+	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your Pro trial has ended. Upgrade to reopen the Pro panels; nothing has been lost.', 'wp-easycart' ), 'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
 } else if ( $days_left <= 0 ) {
 	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ), 'cta' => array( $renew_url, __( 'Renew', 'wp-easycart' ) ), 'more' => false );
 } else if ( $days_left < 100 ) {
@@ -50,7 +51,7 @@ if ( ! $license_data ) {
 }
 
 global $wpdb;
-$products  = $wpdb->get_results( 'SELECT ec_product.title, ec_product.product_id FROM ec_product ORDER BY ec_product.title ASC LIMIT 500' );
+/* 6.0.0: the product filter is a search-as-you-type picker ( see wp_easycart_admin::print_picker() ); the catalog is no longer listed here. */
 $countries = $wpdb->get_results( 'SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY sort_order ASC' );
 
 /* Stat cards: [ id, label, value, money? ] — ids 1–10 are fixed ( the chart script updates them by number ). */
@@ -121,16 +122,19 @@ $ecrp_cards = array(
 		</div>
 		<div class="ec_admin_dashboard_chart_filters ecrp-filters">
 			<?php do_action( 'wp_easycart_admin_reports_filters_pre' ); ?>
-			<?php if ( count( $products ) >= 500 ) : ?>
-				<input type="text" class="ecv2-input ecv2-input-sm" name="product_filter" placeholder="<?php esc_attr_e( 'Product ID', 'wp-easycart' ); ?>" value="" onkeydown="wpeasycart_admin_update_chart_data( );" />
-			<?php else : ?>
-				<select id="product_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
-					<option value="0" selected="selected"><?php esc_html_e( 'All products', 'wp-easycart' ); ?></option>
-					<?php foreach ( $products as $product ) : ?>
-					<option value="<?php echo esc_attr( $product->product_id ); ?>"><?php echo esc_html( $product->title ); ?></option>
-					<?php endforeach; ?>
-				</select>
-			<?php endif; ?>
+			<?php /* 6.0.0: search-as-you-type product filter; #product_filter stays the hidden value the chart script reads ( 0 = all products ). */ ?>
+			<input type="hidden" id="product_filter" value="0" />
+			<?php
+			wp_easycart_admin::print_picker( array(
+				'id'          => 'wpec_report_product_pick',
+				'mode'        => 'product',
+				'target'      => 'product_filter',
+				'multiple'    => false,
+				'placeholder' => __( 'All products', 'wp-easycart' ),
+				'on_change'   => 'wpeasycart_admin_update_chart_data',
+				'class'       => 'ecv2-input ecv2-input-sm',
+			) );
+			?>
 			<select id="country_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
 				<option value="0" selected="selected"><?php esc_html_e( 'Ships to: anywhere', 'wp-easycart' ); ?></option>
 				<?php foreach ( $countries as $country ) : ?>
@@ -669,22 +673,47 @@ function wpeasycart_admin_export_report( ){
 		location_id: location_filter,
 		wp_easycart_nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-export-stats' ) ); ?>'
 	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){ 
+	/* 6.0.0: the export is a resumable job. Each call writes up to 1,000 orders and returns { done, next }; loop
+	   until done, then show the same download modal as before. */
+	var export_finish = function( ){
 		jQuery( '.wpeasycart_admin_chart_export > .dashicons' ).removeClass( 'dashicons-image-rotate' ).addClass( 'dashicons-download' );
-		var reports = JSON.parse( response );
-		var modal = '<div class="wpeasycart_admin_modal"><div class="wpeasycart_admin_modal_content">';
-		modal += '<div class="wpeasycart_admin_modal_close" onclick="jQuery( this ).parent( ).parent( ).remove( )">X</div>';
-		<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
-		modal += '<a href="' + reports.report1 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
-		if( reports.report2 ){
-			modal += '<a href="' + reports.report2 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
-		}
-		modal += '<a href="' + reports.reporttax + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
-		<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
-		modal += '</div></div>';
+		jQuery( '.wpeasycart_admin_chart_export' ).removeAttr( 'title' );
+	};
+	var export_fail = function( message ){
+		export_finish( );
+		window.alert( message || '<?php echo esc_js( __( 'The export could not be completed. Please try again.', 'wp-easycart' ) ); ?>' );
+	};
+	var export_step = function( cursor ){
+		var step_data = jQuery.extend( {}, data, cursor || {} );
+		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: step_data, dataType: 'json', success: function( response ){
+			if( !response || response.error ){
+				export_fail( response && response.message ? response.message : '' );
+				return;
+			}
+			if( !response.done ){
+				jQuery( '.wpeasycart_admin_chart_export' ).attr( 'title', '<?php echo esc_js( __( 'Exporting…', 'wp-easycart' ) ); ?> ' + response.total );
+				export_step( { job: response.next.job, phase: response.next.phase, last_order_id: response.next.last_order_id } );
+				return;
+			}
+			export_finish( );
+			var reports = response.reports;
+			var modal = '<div class="wpeasycart_admin_modal"><div class="wpeasycart_admin_modal_content">';
+			modal += '<div class="wpeasycart_admin_modal_close" onclick="jQuery( this ).parent( ).parent( ).remove( )">X</div>';
+			<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
+			modal += '<a href="' + reports.report1 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
+			if( reports.report2 ){
+				modal += '<a href="' + reports.report2 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
+			}
+			modal += '<a href="' + reports.reporttax + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
+			<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
+			modal += '</div></div>';
 
-		jQuery( 'body' ).append( modal );
-	} } );
+			jQuery( 'body' ).append( modal );
+		}, error: function( ){
+			export_fail( '' );
+		} } );
+	};
+	export_step( null );
 }
 function wpeasycart_admin_update_chart_data( ){
 	jQuery( '.wpeasycart_admin_chart_types' ).prepend( '<div class="dashicons dashicons-image-rotate"></div>' );

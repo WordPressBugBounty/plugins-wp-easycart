@@ -168,3 +168,144 @@
 	.ecv2-slideout { width:100vw; max-width:100vw; }
 	.ecv2-user-pro-teaser-cta { display:none; }
 }
+/* ---- Customers CSV import dialog ---- */
+.ecv2u-import-modal { max-width:640px; width:100%; }
+.ecv2u-drop { position:relative; border:2px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); padding:26px 20px; text-align:center; cursor:pointer; background:var(--ecv2-g50); display:flex; flex-direction:column; align-items:center; gap:6px; }
+.ecv2u-drop:hover, .ecv2u-drop.is-over { border-color:var(--ecv2-primary); background:var(--ecv2-primary-light); }
+.ecv2u-drop .dashicons { font-size:28px; width:28px; height:28px; color:var(--ecv2-g400); }
+.ecv2u-drop .ecv2-sub { display:block; max-width:440px; }
+.ecv2u-drop input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.ecv2u-cols { margin-top:14px; font-size:12px; color:var(--ecv2-g600); line-height:1.6; }
+.ecv2u-cols b { display:block; color:var(--ecv2-g800); margin-bottom:2px; }
+.ecv2u-file { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); background:var(--ecv2-g50); margin-bottom:14px; }
+.ecv2u-file .dashicons { flex-shrink:0; color:var(--ecv2-g500); }
+.ecv2u-file-meta { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.ecv2u-file-meta b { font-size:13px; color:var(--ecv2-g800); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecv2u-file-meta .ecv2-sub { margin-top:0; }
+.ecv2u-file a { flex-shrink:0; font-size:12.5px; white-space:nowrap; }
+.ecv2u-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.ecv2u-totals div { display:flex; flex-direction:column; gap:3px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); padding:12px 14px; min-width:0; }
+.ecv2u-totals b { display:block; font-size:22px; font-weight:600; line-height:1.1; color:var(--ecv2-g800); } .ecv2u-totals span { font-size:12px; line-height:1.3; color:var(--ecv2-g500); }
+.ecv2u-totals .is-create b { color:var(--ecv2-primary-hover); } .ecv2u-totals .is-update b { color:#1d4ed8; } .ecv2u-totals .is-skip b { color:#b45309; }
+.ecv2u-reasons { margin:14px 0; font-size:12.5px; } .ecv2u-reasons b { display:block; margin-bottom:6px; color:var(--ecv2-g800); } .ecv2u-reasons div { display:flex; align-items:baseline; gap:8px; padding:3px 0; }
+
+/* Shared admin bits the dialog uses; scoped because catalog-v2.css is not loaded on the customer list. */
+.ecv2u-import .ecv2-sub { display:block; font-size:11.5px; color:var(--ecv2-g500); margin-top:2px; line-height:1.4; }
+.ecv2u-import code { font-size:11px; padding:1px 4px; border-radius:3px; background:var(--ecv2-g100); color:var(--ecv2-g700); }
+.ecv2u-import .ecos-hint { font-size:12.5px; color:var(--ecv2-g500); padding:24px 0; text-align:center; }
+.ecv2u-import .ecos-grow { flex:1 1 auto; }
+.ecv2u-import .ecv2-modal-footer-right { flex:1 1 auto; justify-content:flex-end; align-items:center; flex-wrap:wrap; }
+.ecv2u-import .ecv2-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px; line-height:1.5; white-space:nowrap; vertical-align:middle; }
+.ecv2u-import .ecv2-chip-gray { background:var(--ecv2-g100); color:var(--ecv2-g600); }
+.ecv2u-import .ecv2-chip-green { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); }
+.ecv2u-import .ecv2-chip-blue { background:var(--ecv2-blue-light); color:#1d4ed8; }
+.ecv2u-import .ecos-note { display:flex; gap:10px; align-items:flex-start; margin:0 0 14px; padding:10px 12px; border:1px solid #fcd34d; border-radius:var(--ecv2-rs); background:#fffbeb; color:#78350f; font-size:12.5px; line-height:1.5; }
+.ecv2u-import .ecos-note > div { flex:1 1 auto; min-width:0; overflow-wrap:anywhere; word-break:break-word; }
+.ecv2u-import .ecos-note .dashicons { flex-shrink:0; margin-top:1px; font-size:16px; width:16px; height:16px; color:#b45309; }
+.ecv2u-import .ecos-note.info { background:var(--ecv2-blue-light); border-color:#bfdbfe; color:#1e3a8a; }
+.ecv2u-import .ecos-note.info .dashicons { color:#1d4ed8; }
+.ecv2u-import .ecv2-modal-body > :last-child { margin-bottom:0; }
+
+/* "Update existing customers by email" toggle row. */
+.ecv2u-import .ecv2u-opt { display:flex; align-items:flex-start; gap:12px; margin:0 0 16px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); cursor:pointer; }
+.ecv2u-import .ecv2u-opt .ecv2-toggle { flex-shrink:0; margin-top:2px; }
+.ecv2u-opt-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ecv2u-import .ecv2u-opt .ecos-toggle-t { display:block; font-size:13px; font-weight:600; line-height:1.4; color:var(--ecv2-g800); }
+.ecv2u-import .ecv2u-opt small { display:block; font-size:12px; font-weight:400; line-height:1.45; color:var(--ecv2-g500); }
+
+/* Preview table. */
+.ecv2u-sample-wrap { overflow-x:auto; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); }
+table.ecv2u-sample { width:100%; border-collapse:collapse; font-size:12.5px; margin:0; }
+table.ecv2u-sample th { text-align:left; vertical-align:middle; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ecv2-g500); padding:8px 12px; background:var(--ecv2-g50); border-bottom:1px solid var(--ecv2-g200); white-space:nowrap; }
+table.ecv2u-sample td { padding:9px 12px; border-bottom:1px solid var(--ecv2-g100); vertical-align:top; line-height:1.4; }
+table.ecv2u-sample tbody tr:last-child td { border-bottom:0; }
+table.ecv2u-sample .ecv2u-col-row { width:48px; color:var(--ecv2-g500); font-variant-numeric:tabular-nums; }
+table.ecv2u-sample .ecv2u-col-action { width:1%; white-space:nowrap; }
+table.ecv2u-sample td.ecv2u-col-action .ecv2-sub { white-space:normal; min-width:140px; }
+.ecv2u-col-cust { min-width:0; overflow-wrap:anywhere; }
+.ecv2u-cust-name { display:block; font-weight:500; color:var(--ecv2-g800); }
+.ecv2u-cust-email { display:block; margin-top:1px; font-size:12px; color:var(--ecv2-g500); }
+.ecv2u-cust-none { color:var(--ecv2-g400); font-style:italic; }
+.ecv2u-import .ecv2u-sample-more { margin-top:8px; }
+
+@media ( max-width: 600px ) {
+	.ecv2u-import.ecv2-modal-overlay { padding:10px; }
+	.ecv2u-import .ecv2-modal-body { padding:16px; }
+	.ecv2u-import .ecv2-modal-footer { padding:12px 16px; }
+	.ecv2u-totals { gap:8px; }
+	.ecv2u-totals div { padding:10px; }
+	.ecv2u-totals b { font-size:18px; }
+	.ecv2u-file { flex-wrap:wrap; }
+	.ecv2u-file-meta { flex-basis:calc(100% - 30px); }
+	.ecv2u-file a { margin-left:30px; }
+	table.ecv2u-sample th, table.ecv2u-sample td { padding-left:8px; padding-right:8px; }
+	table.ecv2u-sample .ecv2u-col-row { width:32px; }
+}
+.ecv2u-progress { padding:20px 0; } .ecv2u-bar { height:8px; border-radius:4px; background:var(--ecv2-g100); overflow:hidden; margin-bottom:8px; } .ecv2u-bar span { display:block; height:100%; width:0; background:var(--ecv2-primary); transition:width .2s; }
+
+/* ============================================================================
+ * User role editor — Role prices card ( user-role-editor-v2.js ). @since 6.0.0
+ * One flow: add-product search → toolbar ( filter, selection, % off, bulk ) →
+ * paged list with inline price + off chip → empty state. Loaded on
+ * wp-easycart-users → user-roles alongside catalog-v2.css / settings-lists-v2.css.
+ * ========================================================================= */
+.ecrl-rp-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 8px; }
+.ecrl-rp-toolbar .ecrl-rp-q { flex:0 1 260px; min-width:180px; height:32px; }
+.ecrl-rp-sel { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ecv2-g600,#4b5563); padding:4px 8px 4px 10px; border-radius:var(--ecv2-rs,4px); background:var(--ecv2-primary-light,#ecfdf5); }
+.ecrl-rp-sel > span { font-weight:600; color:var(--ecv2-primary-hover,#16a34a); white-space:nowrap; }
+.ecrl-rp-actions { display:flex; align-items:center; gap:6px; }
+.ecrl-rp-actions .ecv2-btn { white-space:nowrap; }
+.ecrl-rp-actions .ecv2-btn .dashicons { font-size:14px; width:14px; height:14px; margin:0 4px 0 -2px; vertical-align:text-bottom; color:var(--ecv2-g400,#9ca3af); }
+.ecrl-rp-divider { width:1px; height:18px; background:var(--ecv2-g200,#e5e7eb); margin:0 2px; }
+
+.ecrl-rp-list { border:1px solid var(--ecv2-g200,#e5e7eb); border-radius:var(--ecv2-rs,4px); overflow:hidden; transition:opacity .15s ease; }
+.ecrl-rp-list.is-loading { opacity:.5; pointer-events:none; }
+.ecrl-rp-head, .ecrl-rp-row { display:grid; grid-template-columns:28px minmax(0,1fr) 90px 130px 140px 64px; gap:10px; align-items:center; padding:8px 10px; font-size:13px; }
+.ecrl-rp-head { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ecv2-g500,#6b7280); background:var(--ecv2-g50,#f9fafb); border-bottom:1px solid var(--ecv2-g200,#e5e7eb); }
+.ecrl-rp-head .ecrl-rp-role { text-transform:none; font-weight:600; color:var(--ecv2-g700,#374151); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecrl-rp-head input[type="checkbox"], .ecrl-rp-row input[type="checkbox"] { margin:0; vertical-align:middle; }
+.ecrl-rp-row { border-bottom:1px solid var(--ecv2-g100,#f3f4f6); transition:background .12s ease, opacity .15s ease; }
+.ecrl-rp-row:last-child { border-bottom:0; }
+.ecrl-rp-row:hover { background:var(--ecv2-g50,#f9fafb); }
+.ecrl-rp-row.is-selected { background:var(--ecv2-primary-light,#ecfdf5); }
+.ecrl-rp-row.is-new { animation:ecrl-rp-flash 1.6s ease; }
+@keyframes ecrl-rp-flash { 0%,40% { background:var(--ecv2-primary-light,#ecfdf5); } 100% { background:transparent; } }
+.ecrl-rp-row.is-orphan { opacity:.6; }
+.ecrl-rp-row.is-orphan b { font-style:italic; font-weight:500; }
+.ecrl-rp-row.is-removing { opacity:.35; pointer-events:none; }
+.ecrl-rp-p { display:flex; gap:10px; align-items:center; min-width:0; }
+.ecrl-rp-p-text { min-width:0; display:flex; flex-direction:column; }
+.ecrl-rp-p b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.ecrl-rp-p .ecv2-sub { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecrl-rp-reg { font-variant-numeric:tabular-nums; color:var(--ecv2-g600,#4b5563); }
+.ecrl-rp-input { height:30px; width:110px; font-variant-numeric:tabular-nums; }
+.ecrl-rp-input.is-invalid { border-color:var(--ecv2-danger,#ef4444); }
+.ecrl-rp-pct .ecv2-chip { white-space:nowrap; }
+.ecrl-rp-rm { text-align:right; }
+.ecrl-rp-remove { font-size:12px; color:var(--ecv2-g500,#6b7280); text-decoration:none; }
+.ecrl-rp-remove:hover { color:var(--ecv2-danger,#ef4444); }
+.ecrl-rp-nomatch { padding:18px 12px; justify-content:center; }
+.ecrl-rp-list .ecrl-pager { margin:0; padding:8px 10px; border-top:1px solid var(--ecv2-g100,#f3f4f6); background:var(--ecv2-g50,#f9fafb); }
+
+/* Empty state: the two ways to start. */
+.ecrl-rp-empty { display:flex; flex-direction:column; align-items:center; text-align:center; gap:4px; padding:28px 20px; border:1px dashed var(--ecv2-g300,#d1d5db); border-radius:var(--ecv2-r,8px); background:var(--ecv2-g50,#f9fafb); }
+.ecrl-rp-empty > .dashicons { font-size:26px; width:26px; height:26px; color:var(--ecv2-g400,#9ca3af); margin-bottom:4px; }
+.ecrl-rp-empty b { font-size:14px; color:var(--ecv2-g800,#1f2937); }
+.ecrl-rp-empty p { margin:0 0 10px; font-size:12.5px; color:var(--ecv2-g500,#6b7280); max-width:420px; }
+.ecrl-rp-empty-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.ecrl-rp-empty-actions .ecv2-btn .dashicons { font-size:14px; width:14px; height:14px; margin:0 4px 0 -2px; vertical-align:text-bottom; }
+
+/* Modals: percent input with unit, and the bulk-action acknowledgement. */
+.ecrl-rp-pct-in { display:flex; align-items:center; gap:6px; }
+.ecrl-rp-pct-in .ecv2-input { width:110px; }
+.ecrl-rp-pct-in span { font-size:13px; color:var(--ecv2-g500,#6b7280); }
+.ecrl-rp-confirm { display:flex; align-items:flex-start; gap:8px; margin-top:12px; font-size:13px; color:var(--ecv2-g700,#374151); cursor:pointer; }
+.ecrl-rp-confirm input { margin:2px 0 0; }
+
+/* Narrow: stack the toolbar, collapse the grid to product + price. */
+@media ( max-width: 782px ) {
+	.ecrl-rp-toolbar .ecrl-rp-q { flex:1 1 100%; }
+	.ecrl-rp-head, .ecrl-rp-row { grid-template-columns:24px minmax(0,1fr) 110px 56px; }
+	.ecrl-rp-head > :nth-child(3), .ecrl-rp-row > :nth-child(3), .ecrl-rp-head > :nth-child(5), .ecrl-rp-row > :nth-child(5) { display:none; }
+	.ecrl-rp-input { width:100%; }
+}

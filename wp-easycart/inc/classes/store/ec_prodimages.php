@@ -31,11 +31,11 @@ class ec_prodimages {
 		$this->is_deconetwork = $is_deconetwork;
 		$this->deconetwork_link = $deconetwork_link;
 
-		$this->image1 = $image1;
-		$this->image2 = $image2;
-		$this->image3 = $image3;
-		$this->image4 = $image4;
-		$this->image5 = $image5;
+		$this->image1 = (string) $image1;
+		$this->image2 = (string) $image2;
+		$this->image3 = (string) $image3;
+		$this->image4 = (string) $image4;
+		$this->image5 = (string) $image5;
 		$this->product_images = ( isset( $product_images ) && '' != $product_images ) ? explode( ',', $product_images ) : array();
 
 		$storepageid = get_option( 'ec_option_storepage' );
@@ -60,11 +60,11 @@ class ec_prodimages {
 		if ( $this->use_optionitem_images ) {
 			for ( $i = 0; $i < count( $image_data ); $i++ ) {
 				if ( 0 == $i ) {
-					$this->image1 = $image_data[$i]->image1;
-					$this->image2 = $image_data[$i]->image2;
-					$this->image3 = $image_data[$i]->image3;
-					$this->image4 = $image_data[$i]->image4;
-					$this->image5 = $image_data[$i]->image5;
+					$this->image1 = (string) $image_data[$i]->image1;
+					$this->image2 = (string) $image_data[$i]->image2;
+					$this->image3 = (string) $image_data[$i]->image3;
+					$this->image4 = (string) $image_data[$i]->image4;
+					$this->image5 = (string) $image_data[$i]->image5;
 					if ( isset( $image_data[$i]->product_images ) && is_array( $image_data[$i]->product_images ) ) { 
 						$this->product_images = $image_data[$i]->product_images;
 					} else {

@@ -301,19 +301,19 @@ function ec_admin_save_cart_options() {
 
 			<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 			<div class="ec_cart_price_row ec_cart_price_row_gst_total" id="ec_cart_gst_row_mobile"<?php if ( $gst_total <= 0 ) { ?> style="display:none"<?php }?>>
-				<div class="ec_cart_price_row_label">GST (<span id="ec_cart_gst_rate_mobile"><?php echo esc_attr( $gst_rate ); ?></span>%)</div>
+				<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?> (<span id="ec_cart_gst_rate_mobile"><?php echo esc_attr( $gst_rate ); ?></span>%)</div>
 				<div class="ec_cart_price_row_total" id="ec_cart_gst_mobile"><?php echo esc_attr( $product->get_option_price_formatted( $gst_total, 1 ) ); ?></div>
 			</div>
 			<?php }?>
 			<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 			<div class="ec_cart_price_row ec_cart_price_row_pst_total" id="ec_cart_pst_row_mobile"<?php if ( $pst_total <= 0 ) { ?> style="display:none"<?php }?>>
-				<div class="ec_cart_price_row_label">PST (<span id="ec_cart_pst_rate_mobile"><?php echo esc_attr( $pst_rate ); ?></span>%)</div>
+				<div class="ec_cart_price_row_label"><span id="ec_cart_pst_label_mobile"><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?></span> (<span id="ec_cart_pst_rate_mobile"><?php echo esc_attr( $pst_rate ); ?></span>%)</div>
 				<div class="ec_cart_price_row_total" id="ec_cart_pst_mobile"><?php echo esc_attr( $product->get_option_price_formatted( $pst_total, 1 ) ); ?></div>
 			</div>
 			<?php }?>
 			<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 			<div class="ec_cart_price_row ec_cart_price_row_hst_total" id="ec_cart_hst_row_mobile"<?php if ( $hst_total <= 0 ) { ?> style="display:none"<?php }?>>
-				<div class="ec_cart_price_row_label">HST (<span id="ec_cart_hst_rate_mobile"><?php echo esc_attr( $hst_rate ); ?></span>%)</div>
+				<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?> (<span id="ec_cart_hst_rate_mobile"><?php echo esc_attr( $hst_rate ); ?></span>%)</div>
 				<div class="ec_cart_price_row_total" id="ec_cart_hst_mobile"><?php echo esc_attr( $product->get_option_price_formatted( $hst_total, 1 ) ); ?></div>
 			</div>
 			<?php }?>
@@ -1459,19 +1459,19 @@ function ec_admin_save_cart_options() {
 
 		<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 		<div class="ec_cart_price_row ec_cart_price_row_gst_total" id="ec_cart_gst_row"<?php if ( $gst_total <= 0 ) { ?> style="display:none"<?php }?>>
-			<div class="ec_cart_price_row_label">GST (<span id="ec_cart_gst_rate"><?php echo esc_attr( $gst_rate ); ?></span>%)</div>
+			<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?> (<span id="ec_cart_gst_rate"><?php echo esc_attr( $gst_rate ); ?></span>%)</div>
 			<div class="ec_cart_price_row_total" id="ec_cart_gst"><?php echo esc_attr( $product->get_option_price_formatted( $gst_total, 1 ) ); ?></div>
 		</div>
 		<?php }?>
 		<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 		<div class="ec_cart_price_row ec_cart_price_row_pst_total" id="ec_cart_pst_row"<?php if ( $pst_total <= 0 ) { ?> style="display:none"<?php }?>>
-			<div class="ec_cart_price_row_label">PST (<span id="ec_cart_pst_rate"><?php echo esc_attr( $pst_rate ); ?></span>%)</div>
+			<div class="ec_cart_price_row_label"><span id="ec_cart_pst_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?></span> (<span id="ec_cart_pst_rate"><?php echo esc_attr( $pst_rate ); ?></span>%)</div>
 			<div class="ec_cart_price_row_total" id="ec_cart_pst"><?php echo esc_attr( $product->get_option_price_formatted( $pst_total, 1 ) ); ?></div>
 		</div>
 		<?php }?>
 		<?php if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) { ?>
 		<div class="ec_cart_price_row ec_cart_price_row_hst_total" id="ec_cart_hst_row"<?php if ( $hst_total <= 0 ) { ?> style="display:none"<?php }?>>
-			<div class="ec_cart_price_row_label">HST (<span id="ec_cart_hst_rate"><?php echo esc_attr( $hst_rate ); ?></span>%)</div>
+			<div class="ec_cart_price_row_label"><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '' ) ) ); ?> (<span id="ec_cart_hst_rate"><?php echo esc_attr( $hst_rate ); ?></span>%)</div>
 			<div class="ec_cart_price_row_total" id="ec_cart_hst"><?php echo esc_attr( $product->get_option_price_formatted( $hst_total, 1 ) ); ?></div>
 		</div>
 		<?php }?>

@@ -87,9 +87,9 @@ class ec_wpoptionset{
 		//Use this to track the db																					
 		array_push($this->wp_option_names, 'ec_option_db_version');							array_push($this->wp_option_defaults, '1_30' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
-		array_push($this->wp_option_names, 'ec_option_db_version_verified');				array_push($this->wp_option_defaults, '5.9.4' );
+		array_push($this->wp_option_names, 'ec_option_db_version_verified');				array_push($this->wp_option_defaults, '6.0.0' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
-		array_push($this->wp_option_names, 'ec_option_db_version_updated');				    array_push($this->wp_option_defaults, '5.9.4' );
+		array_push($this->wp_option_names, 'ec_option_db_version_updated');				    array_push($this->wp_option_defaults, '6.0.0' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
 		array_push($this->wp_option_names, 'ec_option_show_lite_message');					array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-db-group');
@@ -296,6 +296,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_include_manufacturers');array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_manufacturers');		array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_store_sidebar_include_pricepoints');	array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_include_location');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -505,7 +507,7 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_send_out_of_stock_emails');			array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_low_stock_trigger_total');			array_push($this->wp_option_defaults, '5' );
+		array_push($this->wp_option_names, 'ec_option_low_stock_trigger_total');			array_push($this->wp_option_defaults, '10' ); /* 6.0.0: the one store-wide low stock number. add_option() never overwrites, so existing stores keep their value. */
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_show_delivery_days_live_shipping');	array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -699,8 +701,6 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_admin_product_show_variant_option');	array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_admin_enable_product_details_v2');	array_push($this->wp_option_defaults, 0 );
-																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_enable_push_notifications');			array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_short_description_on_product');		array_push($this->wp_option_defaults, 0 );
@@ -746,6 +746,19 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_email_signature_text');				array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_email_signature_image');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		// 6.0.0: PDF copy of the order attached to receipt / invoice emails ( PRO ).
+		array_push($this->wp_option_names, 'ec_option_pdf_attach_customer');				array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pdf_attach_admin');					array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pdf_document_title');					array_push($this->wp_option_defaults, 'invoice' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pdf_filename');						array_push($this->wp_option_defaults, 'invoice-{order_id}.pdf' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pdf_seller_details');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_pdf_paper_size');						array_push($this->wp_option_defaults, 'auto' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 
 		// Payment Options
@@ -842,6 +855,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_authorize_developer_account');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_authorize_use_legacy_url');			array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_authorize_public_client_key');		array_push($this->wp_option_defaults, '' ); // 6.0.0: Accept.js ( PRO ). Empty = classic card form.
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_authorize_currency_code');			array_push($this->wp_option_defaults, 'USD' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
@@ -1498,6 +1513,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_default_quick_view');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-theme-options-group');
 		array_push($this->wp_option_names, 'ec_option_enable_product_paging_per_page');		array_push($this->wp_option_defaults, '25' );
+																							array_push($this->wp_option_groups, 'ec-theme-options-group');
+		array_push($this->wp_option_names, 'ec_option_perpage_default');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-theme-options-group');
 		array_push($this->wp_option_names, 'ec_option_store_sidebar_position');				array_push($this->wp_option_defaults, 'left' );
 																							array_push($this->wp_option_groups, 'ec-theme-options-group');

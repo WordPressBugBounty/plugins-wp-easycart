@@ -9,9 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_perpage' ) ) :
 
 		protected static $_instance = null;
 
-		public $perpage_list_file;
-		public $perpage_details_file;
-
 		public static function instance() {
 
 			if ( is_null( self::$_instance ) ) {
@@ -22,8 +19,8 @@ if ( ! class_exists( 'wp_easycart_admin_perpage' ) ) :
 		}
 
 		public function __construct() { 
-			$this->perpage_list_file 	= EC_PLUGIN_DIRECTORY . '/admin/template/settings/perpage/perpage-list.php';
-			$this->perpage_details_file 	= EC_PLUGIN_DIRECTORY . '/admin/template/settings/perpage/perpage-details.php';
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_perpage_v2.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_add_new_perpage' ) );
 			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_update_perpage' ) );
@@ -89,14 +86,14 @@ if ( ! class_exists( 'wp_easycart_admin_perpage' ) ) :
 		}
 
 		public function load_perpage_list() {
-			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['perpage_id'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
-				include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_perpage.php' );
-				$details = new wp_easycart_admin_details_perpage();
-				$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-			} else {
-				include( $this->perpage_list_file );
-			}
+			/* V2: one screen replaces list + details; legacy edit/add URLs land here ( edit highlights the row ) */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_perpage_v2.php' );
+			$screen = new wp_easycart_admin_perpage_v2();
+			$screen->output();
 		}
+		public function is_v2_page() { return isset( $_GET['page'] ) && 'wp-easycart-settings' === $_GET['page'] && isset( $_GET['subpage'] ) && 'perpage' === $_GET['subpage']; }
+		public function enqueue_v2_assets() { if ( $this->is_v2_page() ) { include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' ); wp_easycart_admin_catalog_v2_enqueue( 'perpage' ); } }
 
 		public function insert_perpage() {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-perpage-details' ) ) {

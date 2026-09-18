@@ -632,6 +632,10 @@ class ec_orderdetail{
 
 					} else if ( strstr( $this->download->download_file_name, "uploads/wp-easycart" ) && file_exists( WP_CONTENT_DIR . "/uploads/wp-easycart/" . basename( $this->download->download_file_name ) ) ) {
 						$this->download->download_file_name = basename( $this->download->download_file_name );
+
+					} else if ( ( 0 === strpos( $this->download->download_file_name, 'http://' ) || 0 === strpos( $this->download->download_file_name, 'https://' ) ) && false !== strpos( $this->download->download_file_name, '/' . basename( EC_PLUGIN_DATA_DIRECTORY ) . '/products/downloads/' ) && file_exists( EC_PLUGIN_DATA_DIRECTORY . '/products/downloads/' . basename( $this->download->download_file_name ) ) ) {
+						/* 6.0.0: the retired PRO download editor saved full URLs to the downloads folder. That folder now denies direct requests, so stream the file instead of redirecting to it. */
+						$this->download->download_file_name = basename( $this->download->download_file_name );
 					}
 
 					if ( substr( $this->download->download_file_name, 0, 7 ) == "http://" || substr( $this->download->download_file_name, 0, 8 ) == "https://" ) {

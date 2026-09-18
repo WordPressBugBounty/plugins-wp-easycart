@@ -171,3 +171,105 @@ tr.ecv2-row.ecpsv2-row-flash > td { animation:ecpsv2-flash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) {
 	.ecpsv2, .ecpsv2-knob, .ecpsv2-knob::after, .ecpsv2-pro-row { transition:none; animation:none; }
 }
+
+/* ==========================================================================
+   Cards ( 6.0.0 refresh ) — the panel now mirrors the lite editor cards
+   ( admin-details-v2 .ecdv2-card ): a bordered white card per topic with a
+   title + one-line hint header, toggle rows, currency-prefixed money inputs
+   and the option-set picker as chips + search. Tokens come from admin-v2.css.
+   Earlier rules above are left in place; these override by specificity.
+   ========================================================================== */
+
+/* body is the editor's grey canvas so the cards read as cards */
+.ecpsv2 .ecpsv2-body { background:var(--ecv2-g50); padding-top:16px; padding-bottom:18px; }
+.ecpsv2 .ecpsv2-body > .ecpsv2-notice { margin:0 0 14px; }
+
+/* ---- card ---- */
+.ecpsv2-card { background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); margin:0 0 14px; position:relative; }
+.ecpsv2-card:last-child { margin-bottom:0; }
+.ecpsv2-card-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; padding:11px 16px; border-bottom:1px solid var(--ecv2-g100); }
+.ecpsv2-card-title { font-size:13px; font-weight:600; color:var(--ecv2-g900); margin:0; line-height:1.3; }
+.ecpsv2-card-hint { font-size:12px; color:var(--ecv2-g400); line-height:1.3; min-width:0; }
+.ecpsv2-card-body { padding:14px 16px; }
+.ecpsv2-card-body > .ecpsv2-f:last-child,
+.ecpsv2-card-body > .ecpsv2-grid2:last-child { margin-bottom:0; }
+.ecpsv2-card .ecpsv2-grid2 { margin-bottom:12px; }
+.ecpsv2-card .ecpsv2-grid2 .ecpsv2-f { margin-bottom:0; }
+.ecpsv2-card .ecpsv2-f > label { font-weight:600; color:var(--ecv2-g600); }
+.ecpsv2-card .ecpsv2-f > label .ecpsv2-hint { font-weight:400; }
+.ecpsv2-group + .ecpsv2-group { margin-top:12px; padding-top:12px; border-top:1px dashed var(--ecv2-g100); }
+.ecpsv2-card .ecpsv2-pro-row { margin-top:12px; }
+.ecpsv2-card .ecpsv2-pro-live { margin-top:12px; }
+.ecpsv2-card .ecpsv2-after-create { margin-top:10px; }
+.ecpsv2-card .ecpsv2-tax-row { margin-top:0; }
+.ecpsv2-body > .ecpsv2-upsell-card { margin-top:0; }
+
+/* ---- toggle rows ( .ecdv2-toggle-row anatomy ) ---- */
+.ecpsv2-toggle-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:4px 16px; margin:-4px 0 10px; }
+.ecpsv2-toggle-row { display:flex; align-items:flex-start; gap:10px; padding:7px 0; min-width:0; }
+.ecpsv2-toggle { position:relative; width:36px; height:20px; flex-shrink:0; margin-top:1px; display:inline-block; }
+.ecpsv2-toggle input { position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:2; left:0; top:0; }
+.ecpsv2-toggle-track { position:absolute; inset:0; background:var(--ecv2-g300); border-radius:10px; transition:background var(--ecv2-tr); }
+.ecpsv2-toggle-track::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform var(--ecv2-tr); box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.ecpsv2-toggle input:checked + .ecpsv2-toggle-track { background:var(--ecv2-primary); }
+.ecpsv2-toggle input:checked + .ecpsv2-toggle-track::after { transform:translateX(16px); }
+.ecpsv2-toggle input:focus-visible + .ecpsv2-toggle-track { box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecpsv2-toggle-meta { display:flex; flex-direction:column; gap:1px; min-width:0; padding-top:1px; }
+.ecpsv2-toggle-label { font-size:13px; font-weight:500; color:var(--ecv2-g800); cursor:pointer; line-height:1.35; }
+.ecpsv2-toggle-desc { font-size:11.5px; color:var(--ecv2-g400); line-height:1.4; }
+
+/* ---- money inputs ( .ecdv2-currency-wrap look ) ---- */
+.ecpsv2-money { display:flex; align-items:stretch; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; background:#fff; transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecpsv2-money:focus-within { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecpsv2-money.is-invalid { border-color:var(--ecv2-danger); box-shadow:0 0 0 2px var(--ecv2-danger-light); }
+.ecpsv2-money-sym { display:flex; align-items:center; padding:0 11px; background:var(--ecv2-g50); border-right:1px solid var(--ecv2-g200); color:var(--ecv2-g500); font-size:13px; font-weight:600; white-space:nowrap; pointer-events:none; }
+.ecpsv2-money .ecv2-input { flex:1 1 auto; min-width:0; border:0 !important; border-radius:0 !important; box-shadow:none !important; background:transparent !important; padding-left:11px; }
+.ecpsv2-money .ecv2-input:focus { outline:none; }
+
+/* ---- option sets: chips ---- */
+.ecpsv2-opt-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.ecpsv2-opt-chips:empty { display:none; }
+.ecpsv2-opt-chip.ecpsv2-opt-row { display:inline-flex; align-items:center; gap:6px; padding:4px 4px 4px 6px; border:1px solid var(--ecv2-g200); border-radius:999px; background:#fff; font-size:12.5px; color:var(--ecv2-g800); cursor:grab; max-width:100%; user-select:none; }
+.ecpsv2-opt-chip.ecpsv2-opt-row:hover { border-color:var(--ecv2-g400); }
+.ecpsv2-opt-chip.ecpsv2-opt-row.ui-sortable-helper { box-shadow:var(--ecv2-shlg); cursor:grabbing; }
+.ecpsv2-opt-chip.ecpsv2-opt-placeholder { display:inline-block; border:1px dashed var(--ecv2-g300); border-radius:999px; background:var(--ecv2-g50); min-width:96px; height:30px; visibility:visible !important; }
+.ecpsv2-opt-chip .ecpsv2-opt-n { width:18px; height:18px; font-size:10.5px; }
+.ecpsv2-opt-chip .ecpsv2-opt-name { flex:0 1 auto; font-size:12.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+.ecpsv2-opt-c { font-size:11px; color:var(--ecv2-g400); white-space:nowrap; }
+.ecpsv2-opt-c[hidden] { display:none; }
+.ecpsv2-opt-chip .ecpsv2-opt-rm { width:22px; height:22px; border-radius:50%; font-size:15px; }
+
+/* ---- option sets: search ---- */
+.ecpsv2-opt-search { position:relative; }
+.ecpsv2-opt-search .ecv2-input { padding-left:32px; }
+.ecpsv2-opt-search .ecv2-input:disabled { background:var(--ecv2-g50); color:var(--ecv2-g400); cursor:not-allowed; }
+.ecpsv2-opt-search-icon { position:absolute; left:11px; top:50%; width:14px; height:14px; transform:translateY(-50%); color:var(--ecv2-g400); pointer-events:none; }
+.ecpsv2-opt-results li[data-id] { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.ecpsv2-opt-res-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecpsv2-opt-res-count { font-size:11px; color:var(--ecv2-g400); white-space:nowrap; }
+.ecpsv2-combo-list .ecpsv2-combo-note { color:var(--ecv2-g400); cursor:default; font-size:12px; }
+.ecpsv2-combo-list .ecpsv2-combo-note:hover { background:transparent; }
+.ecpsv2-opt-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:8px; }
+.ecpsv2-opt-foot .ecpsv2-link { white-space:nowrap; }
+.ecpsv2-card .ecpsv2-opt-empty { margin:8px 0 0; }
+.ecpsv2-card .ecpsv2-opt-more { margin-top:8px; }
+
+/* ---- option sets: variant summary ( "Variants: Size × Colour · 6 combinations" ) ---- */
+.ecpsv2-opt-summary { display:flex; flex-direction:column; gap:2px; margin-top:10px; padding:9px 12px; border-radius:var(--ecv2-r); background:var(--ecv2-g50); border:1px solid var(--ecv2-g100); }
+.ecpsv2-opt-summary strong { font-size:12.5px; font-weight:600; color:var(--ecv2-g800); line-height:1.35; }
+.ecpsv2-opt-summary span { font-size:11.5px; color:var(--ecv2-g500); line-height:1.4; }
+
+/* ---- readonly summary in quick edit ---- */
+.ecpsv2-card .ecpsv2-readonly-block { gap:8px; }
+
+@media screen and (max-width:640px) {
+	.ecpsv2 .ecpsv2-body { padding-top:12px; padding-bottom:14px; }
+	.ecpsv2-card-head { padding:10px 14px; }
+	.ecpsv2-card-body { padding:12px 14px; }
+	.ecpsv2-toggle-grid { grid-template-columns:1fr; gap:0; }
+	.ecpsv2-opt-chip .ecpsv2-opt-name { max-width:140px; }
+	.ecpsv2-opt-foot { align-items:flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.ecpsv2-toggle-track, .ecpsv2-toggle-track::after, .ecpsv2-money { transition:none; }
+}

@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $full_name     = trim( $this->user->first_name . ' ' . $this->user->last_name );
 $billing_phone = ( isset( $this->billing_info->phone ) ) ? $this->billing_info->phone : '';
-$orders_link   = 'admin.php?page=wp-easycart-orders&subpage=orders&filter_2=' . (int) $this->user->user_id;
+$orders_link   = 'admin.php?page=wp-easycart-orders&subpage=orders&filter_5=' . (int) $this->user->user_id;
 
 /*
  * PRO gate (same system as the product table, see wp_easycart_admin_pro_gate).
@@ -39,7 +39,7 @@ $pro_outdated  = ( defined( 'WP_EASYCART_ADMIN_PRO_VERSION' )
 	&& function_exists( 'wp_easycart_admin_license' )
 	&& wp_easycart_admin_license()->is_licensed() );
 $update_url    = $pro_outdated ? admin_url( 'plugins.php?plugin_status=upgrade' ) : '';
-$cta_label     = $pro_outdated ? __( 'Update WP EasyCart PRO', 'wp-easycart' ) : __( 'Upgrade to PRO', 'wp-easycart' );
+$cta_label     = $pro_outdated ? __( 'Update WP EasyCart PRO', 'wp-easycart' ) : sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Upgrade to %s', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() );
 
 /* Static placeholder rows for the blurred mockup. Never real data. */
 $ecuo_demo_orders = array(
@@ -133,7 +133,7 @@ $ecuo_demo_orders = array(
 			<!-- Overlay -->
 			<div class="ecuo-lock-overlay">
 				<span class="dashicons <?php echo $pro_outdated ? 'dashicons-update' : 'dashicons-lock'; ?> ecuo-lock-icon"></span>
-				<span class="ecuo-lock-title"><?php esc_html_e( 'Customer Snapshot', 'wp-easycart' ); ?> <span class="ecuo-lock-badge"><?php echo $pro_outdated ? esc_html__( 'UPDATE', 'wp-easycart' ) : esc_html__( 'PRO', 'wp-easycart' ); ?></span></span>
+				<span class="ecuo-lock-title"><?php esc_html_e( 'Customer Snapshot', 'wp-easycart' ); ?> <span class="ecuo-lock-badge"><?php echo $pro_outdated ? esc_html__( 'UPDATE', 'wp-easycart' ) : esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span></span>
 				<span class="ecuo-lock-text"><?php echo esc_html( $gate_message ); ?></span>
 				<?php if ( ! $pro_outdated ) { ?>
 					<span class="ecuo-lock-text"><?php esc_html_e( 'See lifetime value, full order history, subscriptions, downloads, abandoned carts and a customer notes feed — all in one place.', 'wp-easycart' ); ?></span>

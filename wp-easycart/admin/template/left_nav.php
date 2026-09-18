@@ -7,9 +7,11 @@
  *   <div class="ecsh-sb-sub [ecsh-open]" id="..."> submenu links </div>
  *
  * All capability checks, subpage matching (incl. multi-subpage groups like
- * option|optionitems), the wp_easycart_admin_lock_icon filter, the
- * wp_easycart_enable_multiple_locations filter, and the
- * wp_easycart_main_nav_left_end action are preserved from V1.
+ * option|optionitems), the wp_easycart_admin_lock_icon filter and the
+ * wp_easycart_main_nav_left_end action are preserved from V1. Store schedule
+ * and store locations are one "Schedule & Locations" entry ( 6.0.0; the old
+ * wp_easycart_enable_multiple_locations filter that hid the locations link was
+ * never set by anything ).
  * The six duplicated store-status license blocks are replaced by
  * wp_easycart_shell_store_status().
  */
@@ -26,7 +28,8 @@ $ecsh_status  = wp_easycart_shell_store_status();
 function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 	echo '<a href="' . esc_attr( $href ) . '"' . ( $is_current ? ' class="ecsh-current"' : '' ) . '>' . esc_html( $label );
 	if ( $locked ) {
-		echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; float:right;"></span>' ) );
+		$tip = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::included_text( 'pro' ) : '';
+		echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" title="' . esc_attr( $tip ) . '" style="color:#FC0; float:right;"></span>' ) );
 	}
 	echo '</a>' . "\n";
 }
@@ -162,7 +165,7 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 <?php if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_settings' ) ) {
 	$ecsh_in = ( 'wp-easycart-settings' === $ecsh_page ); ?>
 <div class="ecsh-sb-item<?php if ( $ecsh_in ) { echo ' ecsh-active'; } ?>">
-	<a href="admin.php?page=wp-easycart-settings">
+	<a href="admin.php?page=wp-easycart-settings&subpage=home">
 		<svg class="ecsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 		<?php esc_attr_e( 'Settings', 'wp-easycart' ); ?>
 	</a>
@@ -172,9 +175,10 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 </div>
 <div class="ecsh-sb-sub<?php if ( $ecsh_in ) { echo ' ecsh-open'; } ?>" id="ecsh_sub_settings">
 	<div class="ecsh-sb-sub-inner">
+		<?php ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=home', __( 'All settings', 'wp-easycart' ), $ecsh_in && ( 'home' === $ecsh_subpage || '' === $ecsh_subpage ) ); ?>
 		<div class="ecsh-sb-sub-head"><?php esc_attr_e( 'Store Setup', 'wp-easycart' ); ?></div>
 		<?php
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings', __( 'Initial Setup', 'wp-easycart' ), $ecsh_in && '' === $ecsh_subpage );
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=initial-setup', __( 'Store details', 'wp-easycart' ), $ecsh_in && 'initial-setup' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=products', __( 'Products', 'wp-easycart' ), $ecsh_in && 'products' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=checkout', __( 'Checkout', 'wp-easycart' ), 'checkout' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=account', __( 'Accounts', 'wp-easycart' ), 'account' === $ecsh_subpage );
@@ -183,29 +187,28 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 		<?php
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=payment', __( 'Payment', 'wp-easycart' ), 'payment' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=tax', __( 'Taxes', 'wp-easycart' ), 'tax' === $ecsh_subpage );
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=fee', __( 'Flex-Fees', 'wp-easycart' ), 'fee' === $ecsh_subpage );
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=fee', __( 'Flex-Fees', 'wp-easycart' ), 'fee' === $ecsh_subpage, true );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=shipping-settings', __( 'Shipping Settings', 'wp-easycart' ), 'shipping-settings' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=shipping-rates', __( 'Shipping Rates', 'wp-easycart' ), 'shipping-rates' === $ecsh_subpage );
 		?>
 		<div class="ecsh-sb-sub-head"><?php esc_attr_e( 'Customize', 'wp-easycart' ); ?></div>
 		<?php
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=miscellaneous', __( 'Additional Settings', 'wp-easycart' ), 'miscellaneous' === $ecsh_subpage );
+		/* "Additional Settings" was split: admin-side options live here, search moved to Products, cart icon + newsletter popup to Design. subpage=miscellaneous still lands here. */
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=admin', __( 'Admin', 'wp-easycart' ), 'admin' === $ecsh_subpage || 'miscellaneous' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=design', __( 'Design', 'wp-easycart' ), 'design' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=language-editor', __( 'Language', 'wp-easycart' ), 'language-editor' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=email-setup', __( 'Email', 'wp-easycart' ), 'email-setup' === $ecsh_subpage );
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=country', __( 'Countries', 'wp-easycart' ), 'country' === $ecsh_subpage );
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=states', __( 'States/Territories', 'wp-easycart' ), 'states' === $ecsh_subpage );
+		/* Countries and regions ( states / provinces ) are one screen; subpage=states is kept as an alias for old bookmarks. */
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=country', __( 'Countries & Regions', 'wp-easycart' ), 'country' === $ecsh_subpage || 'states' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=perpage', __( 'Per Page Options', 'wp-easycart' ), 'perpage' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=pricepoint', __( 'Price Points', 'wp-easycart' ), 'pricepoint' === $ecsh_subpage );
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=schedule', __( 'Store Schedule', 'wp-easycart' ), 'schedule' === $ecsh_subpage );
-		if ( apply_filters( 'wp_easycart_enable_multiple_locations', false ) ) {
-			ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=location', __( 'Store Locations', 'wp-easycart' ), 'location' === $ecsh_subpage );
-		}
+		/* 6.0.0: one page with Store schedule and Locations tabs ( subpage=schedule / subpage=location ). */
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=schedule', __( 'Schedule & Locations', 'wp-easycart' ), 'schedule' === $ecsh_subpage || 'location' === $ecsh_subpage, true );
 		?>
 		<div class="ecsh-sb-sub-head"><?php esc_attr_e( 'Integrations', 'wp-easycart' ); ?></div>
 		<?php
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=third-party', __( 'Third Party', 'wp-easycart' ), 'third-party' === $ecsh_subpage );
-		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=cart-importer', __( 'Cart Importer', 'wp-easycart' ), 'cart-importer' === $ecsh_subpage );
+		/* Third Party + Cart Importer are one Integrations page; the old slugs still land there. */
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=integrations', __( 'Integrations', 'wp-easycart' ), 'integrations' === $ecsh_subpage || 'third-party' === $ecsh_subpage || 'cart-importer' === $ecsh_subpage );
 		?>
 		<div class="ecsh-sb-sub-head"><?php esc_attr_e( 'Troubleshoot', 'wp-easycart' ); ?></div>
 		<?php

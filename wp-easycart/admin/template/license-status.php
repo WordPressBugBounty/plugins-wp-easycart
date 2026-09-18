@@ -47,34 +47,38 @@ $is_expired   = ( $license_data && $days_left <= 0 );
 $has_pro_now  = ( $license_data && $days_left > 0 && ( $is_pro || $is_premium || $is_trial ) );
 $has_prem_now = ( $license_data && $days_left > 0 && $is_premium );
 $stats        = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
+/* Plan name for copy: 'Pro/Premium' with no license, else this store's own plan ( a trial is a Pro trial ). */
+$ecss_plan    = $is_free ? __( 'Pro/Premium', 'wp-easycart' ) : ( $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ) );
 
 /* ---- License hero ( one state ) ------------------------------------- */
 if ( $is_free ) {
 	$hero = array( 'badge' => __( 'Free', 'wp-easycart' ), 'tone' => 'free', 'ring' => 0, 'title' => __( 'Free edition', 'wp-easycart' ),
-		'text' => __( 'Everything you need to sell is running. Card payments through Stripe, Square and PayPal carry a 2% fee on the free edition; PRO removes it and unlocks the features below.', 'wp-easycart' ),
-		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try PRO free for 14 days', 'wp-easycart' ), 'primary' ),
+		/* translators: %s: plan name, "Pro/Premium". */
+		'text' => sprintf( __( 'Everything you need to sell is running. Card payments through Stripe, Square and PayPal carry a 2%% fee on the free edition; a %s license removes it and unlocks the features below.', 'wp-easycart' ), $ecss_plan ),
+		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try Pro free for 14 days', 'wp-easycart' ), 'primary' ),
 		'cta2' => array( 'admin.php?page=wp-easycart-registration', __( 'I have a license key', 'wp-easycart' ), '' ) );
 } else if ( $is_trial && $days_left > 0 ) {
-	$hero = array( 'badge' => __( 'Trial', 'wp-easycart' ), 'tone' => 'trial', 'ring' => min( 1, $days_left / 14 ), 'title' => sprintf( _n( '%d day left on your PRO trial', '%d days left on your PRO trial', $days_left, 'wp-easycart' ), $days_left ),
-		'text' => __( 'Every PRO feature is unlocked. Upgrade before the trial ends and nothing changes; let it lapse and the PRO panels lock again with your data intact.', 'wp-easycart' ),
+	$hero = array( 'badge' => __( 'Trial', 'wp-easycart' ), 'tone' => 'trial', 'ring' => min( 1, $days_left / 14 ), 'title' => sprintf( _n( '%d day left on your Pro trial', '%d days left on your Pro trial', $days_left, 'wp-easycart' ), $days_left ),
+		'text' => __( 'Every Pro feature is unlocked. Upgrade before the trial ends and nothing changes; let it lapse and the Pro panels lock again with your data intact.', 'wp-easycart' ),
 		'cta' => array( $upgrade_url, __( 'Upgrade now', 'wp-easycart' ), 'primary' ), 'cta2' => null );
 } else if ( $is_trial ) {
-	$hero = array( 'badge' => __( 'Trial ended', 'wp-easycart' ), 'tone' => 'expired', 'ring' => 0, 'title' => __( 'Your PRO trial has ended', 'wp-easycart' ),
-		'text' => __( 'The PRO panels are locked again. Your products, orders and settings are exactly as you left them; upgrade to pick up where you stopped.', 'wp-easycart' ),
+	$hero = array( 'badge' => __( 'Trial ended', 'wp-easycart' ), 'tone' => 'expired', 'ring' => 0, 'title' => __( 'Your Pro trial has ended', 'wp-easycart' ),
+		'text' => __( 'The Pro panels are locked again. Your products, orders and settings are exactly as you left them; upgrade to pick up where you stopped.', 'wp-easycart' ),
 		'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ), 'primary' ), 'cta2' => null );
 } else if ( $is_expired ) {
-	$hero = array( 'badge' => $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'PRO', 'wp-easycart' ), 'tone' => 'expired', 'ring' => 0, 'title' => $is_premium ? __( 'Premium license expired', 'wp-easycart' ) : __( 'PRO license expired', 'wp-easycart' ),
+	$hero = array( 'badge' => $ecss_plan, 'tone' => 'expired', 'ring' => 0, 'title' => $is_premium ? __( 'Premium license expired', 'wp-easycart' ) : __( 'Pro license expired', 'wp-easycart' ),
 		'text' => __( 'Support and updates have lapsed, so the paid panels are locked. Renew to reopen them; no data is lost while you decide.', 'wp-easycart' ),
 		'cta' => array( $renew_url, __( 'Renew license', 'wp-easycart' ), 'primary' ), 'cta2' => null );
 } else {
 	$soon = ( $days_left <= 30 );
 	$crit = ( $days_left <= 7 );
-	$hero = array( 'badge' => $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'PRO', 'wp-easycart' ), 'tone' => $crit ? 'expired' : ( $soon ? 'trial' : 'active' ), 'ring' => min( 1, $days_left / 365 ),
+	$hero = array( 'badge' => $ecss_plan, 'tone' => $crit ? 'expired' : ( $soon ? 'trial' : 'active' ), 'ring' => min( 1, $days_left / 365 ),
 		'title' => $soon
-			? sprintf( _n( '%1$s license ends tomorrow', '%1$s license ends in %2$d days', $days_left, 'wp-easycart' ), $is_premium ? __( 'Premium', 'wp-easycart' ) : __( 'PRO', 'wp-easycart' ), $days_left )
-			: ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'PRO license active', 'wp-easycart' ) ),
+			? sprintf( _n( '%1$s license ends tomorrow', '%1$s license ends in %2$d days', $days_left, 'wp-easycart' ), $ecss_plan, $days_left )
+			: ( $is_premium ? __( 'Premium license active', 'wp-easycart' ) : __( 'Pro license active', 'wp-easycart' ) ),
 		'text' => $soon
-			? sprintf( __( 'Support & updates end %s. Renew now and a full year is added on top — nothing is lost by renewing early. Let it lapse and the PRO panels lock, the 2%% gateway fee returns, and updates stop.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ) )
+			/* translators: 1: support end date, 2: plan name, Pro or Premium. */
+			? sprintf( __( 'Support & updates end %1$s. Renew now and a full year is added on top — nothing is lost by renewing early. Let it lapse and the %2$s panels lock, the 2%% gateway fee returns, and updates stop.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $license_data->support_end_date ) ), $ecss_plan )
 			: sprintf( _n( '%d day of support and updates remaining.', '%d days of support and updates remaining.', $days_left, 'wp-easycart' ), $days_left ),
 		'cta' => array( $renew_url, $soon ? __( 'Renew now', 'wp-easycart' ) : __( 'Renew', 'wp-easycart' ), $soon ? 'primary' : '' ), 'cta2' => $is_premium ? null : array( $upgrade_url, __( 'Upgrade to Premium', 'wp-easycart' ), '' ) );
 }
@@ -92,13 +96,22 @@ foreach ( $checks as $c ) { if ( $c['ok'] ) { $ready++; } }
 
 /* ---- Feature tiles ( same set as the legacy bubbles ) ---------------- */
 /* tier: pro | premium. When unlocked: link. When locked: upsell context/feature. */
+/* Coupons and promotions are one Offers tile since 6.0.0 ( Marketing > Offers; unconverted items sit under its Legacy tab ). */
+$offer_counts = ( $has_pro_now && method_exists( $status, 'active_offers_count' ) ) ? $status->active_offers_count() : array( 'offers' => 0, 'legacy' => 0 );
+if ( $offer_counts['offers'] > 0 ) {
+	$offers_desc = sprintf( _n( '%s active offer running right now.', '%s active offers running right now.', $offer_counts['offers'], 'wp-easycart' ), number_format_i18n( $offer_counts['offers'] ) );
+} elseif ( $offer_counts['legacy'] > 0 ) {
+	$offers_desc = sprintf( _n( 'No offers yet; %s legacy coupon or promotion is waiting under the Legacy tab.', 'No offers yet; %s legacy coupons and promotions are waiting under the Legacy tab.', $offer_counts['legacy'], 'wp-easycart' ), number_format_i18n( $offer_counts['legacy'] ) );
+} else {
+	$offers_desc = __( 'Coupon codes, BOGO, free shipping and spend-threshold deals in one place.', 'wp-easycart' );
+}
 $features = array(
-	array( 'tier' => 'pro', 'icon' => 'dashicons-tickets-alt', 'title' => __( 'Coupons', 'wp-easycart' ), 'desc' => __( 'Percent or fixed codes with limits and expiry.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-rates&subpage=coupons', 'link' => __( 'View coupons', 'wp-easycart' ), 'ctx' => 'coupons' ),
-	array( 'tier' => 'pro', 'icon' => 'dashicons-megaphone', 'title' => __( 'Promotions', 'wp-easycart' ), 'desc' => __( 'BOGO, free shipping and spend-threshold offers.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-rates&subpage=promotions', 'link' => __( 'View promotions', 'wp-easycart' ), 'ctx' => 'offers' ),
-	array( 'tier' => 'pro', 'icon' => 'dashicons-update', 'title' => __( 'Subscriptions', 'wp-easycart' ), 'desc' => __( 'Recurring billing through Stripe, Authorize.net or PayPal.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-products&subpage=products', 'link' => __( 'New subscription', 'wp-easycart' ), 'ctx' => 'subscriptions' ),
-	array( 'tier' => 'pro', 'icon' => 'dashicons-download', 'title' => __( 'Downloads', 'wp-easycart' ), 'desc' => __( 'Digital products with limits, expiry and delivery logs.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-products&subpage=products', 'link' => __( 'New download', 'wp-easycart' ), 'ctx' => 'downloads' ),
-	array( 'tier' => 'pro', 'icon' => 'dashicons-tickets', 'title' => __( 'Gift cards', 'wp-easycart' ), 'desc' => __( 'Sell cards, track balances, issue store credit.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-products&subpage=products', 'link' => __( 'New gift card', 'wp-easycart' ), 'ctx' => 'giftcards' ),
-	array( 'tier' => 'premium', 'icon' => 'dashicons-media-spreadsheet', 'title' => __( 'QuickBooks', 'wp-easycart' ), 'desc' => __( 'Orders and customers synced to your books.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
+	array( 'tier' => 'pro', 'icon' => 'dashicons-megaphone', 'title' => __( 'Offers', 'wp-easycart' ), 'desc' => $offers_desc, 'url' => 'admin.php?page=wp-easycart-rates&subpage=offers', 'link' => __( 'View offers', 'wp-easycart' ), 'ctx' => 'offers' ),
+	array( 'tier' => 'pro', 'icon' => 'dashicons-update', 'title' => __( 'Subscriptions', 'wp-easycart' ), 'desc' => __( 'Recurring billing through Stripe.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-orders&subpage=subscriptions', 'link' => __( 'View subscriptions', 'wp-easycart' ), 'ctx' => 'subscriptions' ),
+	array( 'tier' => 'pro', 'icon' => 'dashicons-download', 'title' => __( 'Downloads', 'wp-easycart' ), 'desc' => __( 'Digital products with limits, expiry and delivery logs.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-orders&subpage=downloads', 'link' => __( 'Manage downloads', 'wp-easycart' ), 'ctx' => 'downloads' ),
+	array( 'tier' => 'pro', 'icon' => 'dashicons-tickets', 'title' => __( 'Gift cards', 'wp-easycart' ), 'desc' => __( 'Sell cards, track balances, issue store credit.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-rates&subpage=gift-cards', 'link' => __( 'View gift cards', 'wp-easycart' ), 'ctx' => 'giftcards' ),
+	/* 6.0.0: Stamps.com replaces the QuickBooks tile ( the QuickBooks extension targets QuickBooks Desktop, which few stores still use ). */
+	array( 'tier' => 'premium', 'icon' => 'dashicons-tag', 'title' => __( 'Stamps.com', 'wp-easycart' ), 'desc' => __( 'Buy and print USPS postage labels for your orders.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
 	array( 'tier' => 'premium', 'icon' => 'dashicons-airplane', 'title' => __( 'ShipStation', 'wp-easycart' ), 'desc' => __( 'Labels and fulfillment from one place.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
 	array( 'tier' => 'premium', 'icon' => 'dashicons-facebook', 'title' => __( 'Facebook & Instagram', 'wp-easycart' ), 'desc' => __( 'Catalog sync for social shops.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
 	array( 'tier' => 'premium', 'icon' => 'dashicons-smartphone', 'title' => __( 'Mobile apps', 'wp-easycart' ), 'desc' => __( 'Manage orders from your phone.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Get the apps', 'wp-easycart' ), 'ctx' => 'default' ),
@@ -118,7 +131,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Store status', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="https://www.wpeasycart.com/professional-edition-ecommerce/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About PRO', 'wp-easycart' ); ?></a>
+			<a href="https://www.wpeasycart.com/professional-edition-ecommerce/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Pro', 'wp-easycart' ); ?></a>
 			<a href="https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><?php esc_html_e( 'About Premium', 'wp-easycart' ); ?></a>
 		</div>
 	</div>
@@ -149,7 +162,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 				<?php endif; ?>
 				<?php if ( $is_free && ! empty( $stats['orders_30d'] ) && $stats['orders_30d'] >= 3 && ! empty( $stats['avg_order'] ) ) : ?>
 				<p class="ecss-fee-line"><span class="dashicons dashicons-chart-line"></span>
-					<?php echo esc_html( sprintf( __( 'At %1$s orders a month averaging %2$s, the 2%% free-edition fee is roughly %3$s a month — more than a PRO license.', 'wp-easycart' ), number_format_i18n( $stats['orders_30d'] ), wp_easycart_admin_upsell::money( $stats['avg_order'] ), wp_easycart_admin_upsell::money( $stats['orders_30d'] * $stats['avg_order'] * 0.02 ) ) ); ?>
+					<?php echo esc_html( sprintf( __( 'At %1$s orders a month averaging %2$s, the 2%% free-edition fee is roughly %3$s a month — more than a Pro license.', 'wp-easycart' ), number_format_i18n( $stats['orders_30d'] ), wp_easycart_admin_upsell::money( $stats['avg_order'] ), wp_easycart_admin_upsell::money( $stats['orders_30d'] * $stats['avg_order'] * 0.02 ) ) ); ?>
 				</p>
 				<?php endif; ?>
 			</div>
@@ -172,12 +185,12 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 
 	<!-- ========================== FEATURES ========================== -->
 	<div class="ecss-features-head">
-		<h3><?php echo esc_html( $has_prem_now ? __( 'Your features', 'wp-easycart' ) : ( $has_pro_now ? __( 'Your features and Premium extensions', 'wp-easycart' ) : __( 'What PRO and Premium add', 'wp-easycart' ) ) ); ?></h3>
+		<h3><?php echo esc_html( $has_prem_now ? __( 'Your features', 'wp-easycart' ) : ( $has_pro_now ? __( 'Your features and Premium extensions', 'wp-easycart' ) : __( 'What Pro and Premium add', 'wp-easycart' ) ) ); ?></h3>
 		<?php if ( $locked_pro || $locked_prem ) : ?>
 		<span class="ecss-features-sub">
 			<?php
 			$bits = array();
-			if ( $locked_pro )  { $bits[] = sprintf( _n( '%d PRO feature locked', '%d PRO features locked', $locked_pro, 'wp-easycart' ), $locked_pro ); }
+			if ( $locked_pro )  { /* translators: 1: number of features, 2: plan name ( Pro/Premium, Pro or Premium ). */ $bits[] = sprintf( _n( '%1$d %2$s feature locked', '%1$d %2$s features locked', $locked_pro, 'wp-easycart' ), $locked_pro, $ecss_plan ); }
 			if ( $locked_prem ) { $bits[] = sprintf( _n( '%d Premium extension locked', '%d Premium extensions locked', $locked_prem, 'wp-easycart' ), $locked_prem ); }
 			echo esc_html( implode( ' · ', $bits ) );
 			?>
@@ -209,7 +222,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 			<?php else : ?>
 			<button type="button" class="ecss-tile is-locked is-<?php echo esc_attr( $f['tier'] ); ?>" onclick="<?php echo ( 'premium' === $f['tier'] ) ? "window.open( '" . esc_js( $upgrade_url ) . "', '_blank' );" : "ecdv2_upsell( { context: '" . esc_js( $f['ctx'] ) . "' } );"; ?> return false;">
 				<span class="dashicons <?php echo esc_attr( $f['icon'] ); ?> ecss-tile-icon"></span>
-				<span class="ecss-tile-pill"><?php echo 'premium' === $f['tier'] ? 'PREMIUM' : 'PRO'; ?></span>
+				<span class="ecss-tile-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( $f['tier'] ) ); ?></span>
 				<strong><?php echo esc_html( $f['title'] ); ?></strong>
 				<span class="ecss-tile-desc"><?php echo esc_html( $f['desc'] ); ?></span>
 				<span class="ecss-tile-link"><?php echo 'premium' === $f['tier'] ? esc_html__( 'About Premium', 'wp-easycart' ) : esc_html__( 'See how it works', 'wp-easycart' ); ?></span>

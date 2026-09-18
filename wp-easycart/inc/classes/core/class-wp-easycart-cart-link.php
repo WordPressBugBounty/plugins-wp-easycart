@@ -362,6 +362,11 @@ class wp_easycart_cart_link {
 					);
 				} else if ( in_array( $set->option_type, array( 'text', 'textarea' ), true ) ) {
 					$text = isset( $val['optionitem_value'] ) ? sanitize_text_field( $val['optionitem_value'] ) : '';
+					if ( class_exists( 'wp_easycart_text_input_rules' ) ) {
+						/* 6.0.0: the set's current input rules ( case, allowed characters, max length ); a value they empty is dropped like any stale add-on. */
+						$checked = wp_easycart_text_input_rules::validate( $text, $set );
+						$text    = $checked['value'];
+					}
 					if ( '' === $text ) {
 						continue;
 					}

@@ -1,0 +1,10 @@
+/* WP EasyCart Admin — Settings › Store details ( V2 ): currency preview strip. */
+.ecsd-preview { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:10px 12px; border-radius:var(--ecv2-r); background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); }
+.ecsd-preview-label { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecsd-samples { display:flex; flex-wrap:wrap; gap:6px; }
+.ecsd-sample { display:inline-flex; align-items:center; height:28px; padding:0 10px; border-radius:6px; background:#fff; border:1px solid var(--ecv2-g200); font-size:14px; font-weight:600; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ecsd-sample.is-negative { color:var(--ecv2-danger, #b91c1c); }
+.ecsd-preset { display:inline-flex; align-items:center; gap:8px; margin-left:auto; font-size:12.5px; color:var(--ecv2-g600); }
+.ecsd-preset[hidden] { display:none; }
+.ecsd-preset .ecv2-btn { border-color:var(--ecst-accent); color:var(--ecv2-g900); }
+@media ( max-width:760px ) { .ecsd-preset { margin-left:0; } }

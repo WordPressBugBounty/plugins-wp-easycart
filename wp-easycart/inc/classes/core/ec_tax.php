@@ -82,13 +82,14 @@ class ec_tax{
 	private $taxable_subtotal;	// Used for Tax				// FLOAT 7,2
 	private $vatable_total;		// Used for VAT				// FLOAT 15,3
 
-	private $shipping_state;								// VARCHAR 255
-	private $shipping_country;								// VARCHAR 255
+	public $shipping_state;									// VARCHAR 255
+	public $shipping_country;								// VARCHAR 255
 
-	private $taxfree;										// BOOLEAN
+	public $taxfree;										// BOOLEAN
 
 	public $fee_rules;										// Array( feerow )
 	public $fees;											// Array( applied feerows + fee total )
+	public $fee_discount_total;								// FLOAT 15,3 - discount subtracted from the 'order_total' fee basis
 
 	function __construct( $cart_subtotal, $taxable_subtotal, $vatable_total, $shipping_state, $shipping_country, $taxfree = false, $shipping_total = 0.00, $cart = false, $is_subscription = false ) {
 
@@ -136,7 +137,66 @@ class ec_tax{
 			$this->calculate_taxes( );
 		}
 
+		// Coupon / offer discount known at this point (set by ec_cartpage and the checkout AJAX paths before
+		// ec_tax is built). ec_order_totals replaces it with the full discount_total (coupon + gift card)
+		// via set_fee_discount_total() once the ec_discount object exists.
+		$this->fee_discount_total = ( isset( $GLOBALS['wpeasycart_current_coupon_discount'] ) ) ? (float) $GLOBALS['wpeasycart_current_coupon_discount'] : 0;
+
 		$this->fees = $this->calculate_fees();
+	}
+
+	/**
+	 * Supply the order discount that percentage fees with fee_basis 'order_total' subtract from
+	 * their basis, then recalculate the fees. Callers that never call this keep the coupon/offer
+	 * discount picked up in the constructor. Recalculates only when something actually changes.
+	 *
+	 * @since 6.0.0
+	 * @param float $discount_total ec_discount->discount_total ( coupon + gift card ).
+	 */
+	public function set_fee_discount_total( $discount_total ) {
+		$discount_total = (float) $discount_total;
+		if ( $discount_total == $this->fee_discount_total ) {
+			return;
+		}
+		$this->fee_discount_total = $discount_total;
+		if ( $this->has_order_total_fee_basis() ) {
+			$this->fees = $this->calculate_fees();
+		}
+	}
+
+	private function has_order_total_fee_basis() {
+		foreach ( $this->fee_rules as $fee_rule ) {
+			if ( 1 == $fee_rule->fee_type && isset( $fee_rule->fee_basis ) && 'order_total' == $fee_rule->fee_basis ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Basis for a percentage fee with fee_basis 'order_total': the amount the customer is actually
+	 * charged, before fees and tips, so a card-processing fee ( e.g. 2.9% ) covers the whole charge.
+	 *
+	 *   basis = $subtotal ( cart subtotal, or the category subtotal for a category-limited fee )
+	 *         + shipping_total ( shipping after any shipping discount )
+	 *         + tax_total ( sales tax; already includes shipping tax when tax-on-shipping is on )
+	 *         + gst + pst + hst ( Canada )
+	 *         + duty_total
+	 *         + vat_total when VAT is added on top ( skipped when VAT is included in prices )
+	 *         - fee_discount_total ( coupon / offer discount, plus gift card once ec_order_totals runs )
+	 *
+	 * This mirrors ec_order_totals::get_grand_total() minus fee_total and tip_total, so fees are never
+	 * part of their own basis. Never below zero.
+	 *
+	 * @since 6.0.0
+	 */
+	private function get_order_total_fee_basis( $subtotal ) {
+		$basis = (float) $subtotal + (float) $this->shipping_total + (float) $this->tax_total + (float) $this->gst + (float) $this->pst + (float) $this->hst + (float) $this->duty_total;
+		if ( ! $this->vat_included ) {
+			$basis += (float) $this->vat_total;
+		}
+		$basis -= (float) $this->fee_discount_total;
+		return ( $basis > 0 ) ? $basis : 0;
 	}
 
 	private function initialize_tax_values( ){
@@ -474,12 +534,12 @@ class ec_tax{
 						$this->pst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_pst'] * 100;
 						$this->hst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_hst'] * 100;
 
-					}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NF" ){
+					}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
 						$this->gst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_gst'] * 100;
 						$this->pst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_pst'] * 100;
 						$this->hst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_hst'] * 100;
 
-					}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
+					}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
 						$this->gst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_gst'] * 100;
 						$this->pst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_pst'] * 100;
 						$this->hst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_hst'] * 100;
@@ -533,7 +593,11 @@ class ec_tax{
 						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 							if ( $this->cart[$i]->is_taxable ) {
 								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								if ( $this->quebec_compounds_qst() ) {
+									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
+								} else {
+									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+								}
 								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
 							}
 						}
@@ -542,7 +606,11 @@ class ec_tax{
 						$this->hst = $hst_tax_sub_total;
 					} else {
 						$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-						$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+						if ( $this->quebec_compounds_qst() ) {
+							$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+						} else {
+							$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+						}
 						$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 					}
 					if( $this->tax_shipping ){
@@ -569,7 +637,7 @@ class ec_tax{
 						$this->pst = round( $this->taxable_subtotal * .08, 2 );
 						$this->pst_rate = 8;
 
-					}else if( $this->collect_newfoundland && $this->shipping_state == "NF" ){
+					}else if( $this->collect_newfoundland && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
 						$this->hst = round( $this->taxable_subtotal * .13, 2 );
 						$this->hst_rate = 13;
 
@@ -600,7 +668,7 @@ class ec_tax{
 					}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
 						$this->gst = round( $this->taxable_subtotal * .05, 2 );
 						$this->gst_rate = 5;
-						$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * .09975, 2 );
+						$this->pst = round( ( $this->quebec_compounds_qst() ? $this->taxable_subtotal + $this->gst : $this->taxable_subtotal ) * .09975, 2 );
 						$this->pst_rate = 9.975;
 
 					}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
@@ -622,7 +690,7 @@ class ec_tax{
 						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
 							if ( $this->cart[$i]->is_taxable ) {
 								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								if( $this->collect_quebec && $this->shipping_state == "QC" ){
+								if( $this->collect_quebec && $this->quebec_compounds_qst() ){
 									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
 								} else {
 									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
@@ -693,14 +761,36 @@ class ec_tax{
 					$is_applicable = false;
 				}
 			}
+			/* ZIP and city rules are comma-separated lists ( the fee editor stores one entry per chip ). Any entry may
+			 * match; each entry keeps the long-standing "contains" match, with * as a digit wildcard for ZIPs, and is
+			 * escaped so characters such as / or ( in a city name cannot break the pattern. @since 6.0.0 */
 			if ( '' != $fee_rule->fee_zip ) {
-				$fee_zip_rule = str_replace( '*', '[0-9]', $fee_rule->fee_zip );
-				if ( 0 === (int) preg_match( '/' . $fee_zip_rule . '/m', $shipping_zip ) ) {
+				$fee_zip_found = false;
+				foreach ( explode( ',', (string) $fee_rule->fee_zip ) as $fee_zip_entry ) {
+					$fee_zip_entry = trim( $fee_zip_entry );
+					if ( '' === $fee_zip_entry ) {
+						continue;
+					}
+					$fee_zip_rule = str_replace( '\*', '[0-9]', preg_quote( $fee_zip_entry, '/' ) );
+					if ( preg_match( '/' . $fee_zip_rule . '/i', (string) $shipping_zip ) ) {
+						$fee_zip_found = true;
+						break;
+					}
+				}
+				if ( ! $fee_zip_found ) {
 					$is_applicable = false;
 				}
 			}
 			if ( '' != $fee_rule->fee_city ) {
-				if ( 0 === (int) preg_match( '/' . strtolower( $fee_rule->fee_city ) . '/m', strtolower( $shipping_city ) ) ) {
+				$fee_city_found = false;
+				foreach ( explode( ',', (string) $fee_rule->fee_city ) as $fee_city_entry ) {
+					$fee_city_entry = trim( $fee_city_entry );
+					if ( '' !== $fee_city_entry && preg_match( '/' . preg_quote( $fee_city_entry, '/' ) . '/iu', (string) $shipping_city ) ) {
+						$fee_city_found = true;
+						break;
+					}
+				}
+				if ( ! $fee_city_found ) {
 					$is_applicable = false;
 				}
 			}
@@ -768,7 +858,13 @@ class ec_tax{
 			}
 			if ( $is_applicable ) {
 				if ( 1 == $fee_rule->fee_type ) {
-					$fee_total = round( ( $fee_rule->fee_rate / 100 ) * ( ( $is_cat_fee_based ) ? $cat_based_subtotal : $this->cart_subtotal ), 2 );
+					$fee_basis_subtotal = ( $is_cat_fee_based ) ? $cat_based_subtotal : $this->cart_subtotal;
+					// fee_basis 'order_total' ( 6.0.0 ) widens the basis to subtotal + shipping + tax - discounts;
+					// rows saved before the column existed have no fee_basis and keep the subtotal basis.
+					if ( isset( $fee_rule->fee_basis ) && 'order_total' == $fee_rule->fee_basis ) {
+						$fee_basis_subtotal = $this->get_order_total_fee_basis( $fee_basis_subtotal );
+					}
+					$fee_total = round( ( $fee_rule->fee_rate / 100 ) * $fee_basis_subtotal, 2 );
 				} else {
 					$fee_total = round( $fee_rule->fee_price, 2 );
 				}
@@ -787,6 +883,32 @@ class ec_tax{
 			}
 		}
 		return $applicable_fees;
+	}
+
+	/**
+	 * Quebec: charge QST on the GST-inclusive amount ( ( subtotal + GST ) * QST ).
+	 * Applies to the current Canada tax settings ( ec_option_canada_tax_options )
+	 * the same way the legacy Canada branch already did. Filter to false to
+	 * charge QST on the pre-GST subtotal instead.
+	 */
+	/**
+	 * Should Quebec QST be calculated on the price plus GST? No: since 1 January 2013 Revenu Québec charges
+	 * QST on the selling price excluding GST, so GST 5% and QST 9.975% both apply to the same base ( 14.975%
+	 * combined ). Compounding was the pre-2013 rule; a store with a specific need can still turn it on with
+	 * add_filter( 'wp_easycart_quebec_compound_qst', '__return_true' ).
+	 *
+	 * @since 6.0.0 default changed to false.
+	 */
+	private function quebec_compounds_qst() {
+		return 'QC' == $this->shipping_state && apply_filters( 'wp_easycart_quebec_compound_qst', false );
+	}
+
+	/** The PST/QST rate to hand a gateway that only accepts a flat rate on the subtotal. */
+	private function get_compounded_pst_rate() {
+		if ( $this->quebec_compounds_qst() ) {
+			return round( $this->pst_rate * ( 1 + $this->gst_rate / 100 ), 4 );
+		}
+		return $this->pst_rate;
 	}
 
 	public function get_square_tax_rates( $taxable, $vatable, $taxcloud_rate ){
@@ -905,7 +1027,7 @@ class ec_tax{
 					$this->hst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_hst'] * 100;
 					$hst_square_var = 'ec_option_manitoba_tax_' . $user_level . '_hst_square_id';
 
-				}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NF" ){
+				}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
 					$this->gst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_gst'] * 100;
 					$gst_square_var = 'ec_option_new_brunswick_tax_' . $user_level . '_gst_square_id';
 
@@ -915,7 +1037,7 @@ class ec_tax{
 					$this->hst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_hst'] * 100;
 					$hst_square_var = 'ec_option_new_brunswick_tax_' . $user_level . '_hst_square_id';
 
-				}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
+				}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
 					$this->gst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_gst'] * 100;
 					$gst_square_var = 'ec_option_newfoundland_tax_' . $user_level . '_gst_square_id';
 
@@ -1013,7 +1135,11 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				if ( $this->quebec_compounds_qst() ) {
+					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+				} else {
+					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				}
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
@@ -1021,7 +1147,8 @@ class ec_tax{
 				}
 
 				if( $this->pst_rate > 0 ){
-					$square_taxrates[] = array( $pst_tax_rule_name, $this->pst_rate, 'ADDITIVE', 'tax' );
+					// Square applies each rate to the line subtotal, so hand it the GST-compounded rate for Quebec.
+					$square_taxrates[] = array( $pst_tax_rule_name, $this->get_compounded_pst_rate(), 'ADDITIVE', 'tax' );
 				}
 
 				if( $this->hst_rate > 0 ){
@@ -1165,7 +1292,7 @@ class ec_tax{
 					$this->hst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_hst'] * 100;
 					$hst_stripe_var = 'ec_option_manitoba_tax_' . $user_level . '_hst_stripe_id';
 
-				}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NF" ){
+				}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
 					$this->gst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_gst'] * 100;
 					$gst_stripe_var = 'ec_option_new_brunswick_tax_' . $user_level . '_gst_stripe_id';
 
@@ -1175,7 +1302,7 @@ class ec_tax{
 					$this->hst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_hst'] * 100;
 					$hst_stripe_var = 'ec_option_new_brunswick_tax_' . $user_level . '_hst_stripe_id';
 
-				}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
+				}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
 					$this->gst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_gst'] * 100;
 					$gst_stripe_var = 'ec_option_newfoundland_tax_' . $user_level . '_gst_stripe_id';
 
@@ -1273,7 +1400,11 @@ class ec_tax{
 
 
 				$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-				$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				if ( $this->quebec_compounds_qst() ) {
+					$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+				} else {
+					$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+				}
 				$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
 
 				if( $this->gst_rate > 0 ){
@@ -1284,7 +1415,8 @@ class ec_tax{
 				}
 
 				if( $this->pst_rate > 0 ){
-					if( $pst_stripe_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $pst_stripe_id, $pst_tax_rule_name, $this->pst_rate ) ){
+					// Stripe tax rates are flat percentages of the line subtotal, so use the GST-compounded rate for Quebec.
+					if( $pst_stripe_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $pst_stripe_id, $pst_tax_rule_name, $this->get_compounded_pst_rate() ) ){
 						$canada_tax_options[$pst_stripe_id] = $new_stripe_taxrate_id;
 					}
 					$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $new_stripe_taxrate_id );

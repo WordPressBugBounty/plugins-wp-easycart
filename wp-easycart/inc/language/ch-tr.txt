@@ -396,6 +396,26 @@
 					"title":"Store Missing Option",
 					"value":"請先選取商品的"
 				},
+				"product_details_min_length":{
+					"title":"Text Option Minimum Length (%d is the number of characters)",
+					"value":"請至少輸入 %d 個字元。"
+				},
+				"product_details_file_type_error":{
+					"title":"File Upload Type Not Accepted (%s is the list of accepted types)",
+					"value":"無法上傳此檔案類型。可接受的檔案類型：%s"
+				},
+				"product_details_file_size_error":{
+					"title":"File Upload Too Large (%s is the size limit)",
+					"value":"檔案太大。可上傳的檔案大小上限為 %s。"
+				},
+				"product_details_file_upload_error":{
+					"title":"File Upload Could Not Be Saved",
+					"value":"無法上傳您的檔案，請再試一次；若問題持續發生，請與我們聯絡。"
+				},
+				"product_details_file_types_hint":{
+					"title":"File Upload Accepted Types (%s is the list of accepted types)",
+					"value":"可接受的檔案類型：%s"
+				},
 				"product_details_maximum_quantity":{
 					"title":"Store Maximum Quantity Exceeded",
 					"value":"購買數量多過存貨數量，請重選。"
@@ -1295,6 +1315,22 @@
 				"cart_totals_duty":{
 					"title":"Cart, Cart Totals, Duty",
 					"value":"關稅"
+				},
+				"cart_totals_gst":{
+					"title":"Cart, Cart Totals, Canada GST",
+					"value":"GST"
+				},
+				"cart_totals_pst":{
+					"title":"Cart, Cart Totals, Canada PST",
+					"value":"PST"
+				},
+				"cart_totals_qst":{
+					"title":"Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)",
+					"value":"QST"
+				},
+				"cart_totals_hst":{
+					"title":"Cart, Cart Totals, Canada HST",
+					"value":"HST"
 				},
 				"cart_totals_grand_total":{
 					"title":"Cart, Cart Totals, Grand Total",
@@ -3197,6 +3233,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"更改您的計劃"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"有效"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"試用中"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"付款逾期"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"未完成"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"已暫停"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"已停權"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"將於本期結束時取消"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"已取消"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"已結束"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"返回訂閱"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"開始日期"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"結束日期"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"已結束於"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"數量"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"管理訂閱"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"您的選擇"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"一次性註冊費"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"這些是您最初購買 %s 時的選擇。您的方案之後已變更。"
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"查看原始訂單"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"未儲存卡片"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"此訂閱已結束，無法再變更付款方式或方案。"
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"此訂閱不會續訂，將維持有效至本期帳單週期結束。"
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"您上一次付款未成功。請更新付款方式以維持此訂閱有效。"
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"關閉"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"目前方案"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"減少數量"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"增加數量"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"請輸入 1 或以上的數量。"
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"卡片資料"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"您沒有有效的訂閱。"
 				}
 			}
 		},
@@ -3615,6 +3771,10 @@
 				"greater_than":{
 					"title":"Greater Than Text",
 					"value":"大於"
+				},
+				"sidebar_title":{
+					"title":"Store Sidebar Price Filter Title",
+					"value":"價格"
 				}
 			}
 		},

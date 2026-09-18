@@ -21,6 +21,15 @@ class wp_easycart_admin_details {
 
 	protected function load_record( $row ) {
 		if ( is_object( $row ) ) {
+			/* Several text/datetime columns became nullable in the 6.0.0 schema and
+			   hydrate as PHP null. Normalize to '' here so the field printers and
+			   esc_*()/wp_unslash() calls behave identically to the old
+			   `NOT NULL DEFAULT ''` columns and stay clean on PHP 8.1+. */
+			foreach ( get_object_vars( $row ) as $key => $value ) {
+				if ( null === $value ) {
+					$row->$key = '';
+				}
+			}
 			return $row;
 		}
 		$this->record_not_found = true;

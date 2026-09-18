@@ -383,6 +383,26 @@
                     "title": "Store Missing Option",
                     "value": "Ontbrekende optie:"
                 },
+                "product_details_min_length": {
+                    "title": "Text Option Minimum Length (%d is the number of characters)",
+                    "value": "Voer minimaal %d tekens in."
+                },
+                "product_details_file_type_error": {
+                    "title": "File Upload Type Not Accepted (%s is the list of accepted types)",
+                    "value": "Dit bestandstype kan niet worden geüpload. Toegestane bestandstypen: %s"
+                },
+                "product_details_file_size_error": {
+                    "title": "File Upload Too Large (%s is the size limit)",
+                    "value": "Dit bestand is te groot. Het grootste bestand dat je kunt uploaden is %s."
+                },
+                "product_details_file_upload_error": {
+                    "title": "File Upload Could Not Be Saved",
+                    "value": "Je bestand kon niet worden geüpload. Probeer het opnieuw of neem contact met ons op als het blijft gebeuren."
+                },
+                "product_details_file_types_hint": {
+                    "title": "File Upload Accepted Types (%s is the list of accepted types)",
+                    "value": "Toegestane bestandstypen: %s"
+                },
                 "product_details_maximum_quantity": {
                     "title": "Store Maximum Quantity Exceeded",
                     "value": "Maximale hoeveelheid overschreden"
@@ -1282,6 +1302,22 @@
                 "cart_totals_duty": {
                     "title": "Winkelmand, Winkelmandtotalen, Overig",
                     "value": "Overige kosten"
+                },
+                "cart_totals_gst": {
+                    "title": "Cart, Cart Totals, Canada GST",
+                    "value": "GST"
+                },
+                "cart_totals_pst": {
+                    "title": "Cart, Cart Totals, Canada PST",
+                    "value": "PST"
+                },
+                "cart_totals_qst": {
+                    "title": "Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)",
+                    "value": "QST"
+                },
+                "cart_totals_hst": {
+                    "title": "Cart, Cart Totals, Canada HST",
+                    "value": "HST"
                 },
                 "cart_totals_grand_total": {
                     "title": "Winkelmand, Winkelmandtotalen, Ordertotaal",
@@ -3184,6 +3220,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"Verander uw plan"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"Actief"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"Proefperiode"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"Betaling achterstallig"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"Onvolledig"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"Gepauzeerd"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"Opgeschort"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"Stopt aan het einde van de periode"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"Geannuleerd"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"Beëindigd"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"Terug naar abonnementen"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"Gestart"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"Eindigt"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"Beëindigd op"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"Aantal"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"Abonnement beheren"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"Uw keuzes"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"Eenmalige aanmeldkosten"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"Dit zijn de keuzes van uw oorspronkelijke aankoop van %s. Uw abonnement is sindsdien gewijzigd."
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"Oorspronkelijke bestelling bekijken"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"Geen kaart opgeslagen"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"Dit abonnement is beëindigd. De betaalmethode en het abonnement kunnen niet meer worden gewijzigd."
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"Dit abonnement wordt niet verlengd. Het blijft actief tot het einde van de huidige factuurperiode."
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"Uw laatste betaling is niet gelukt. Werk uw betaalmethode bij om dit abonnement actief te houden."
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"Sluiten"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"Huidig abonnement"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"Aantal verlagen"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"Aantal verhogen"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"Voer een aantal van 1 of meer in."
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"Kaartgegevens"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"U hebt geen actieve abonnementen."
 				}
             }
         },
@@ -3598,6 +3754,10 @@
                 "greater_than": {
                     "title": "groter dan tekst",
                     "value": "groter dan"
+                },
+                "sidebar_title": {
+                    "title": "Store Sidebar Price Filter Title",
+                    "value": "Prijs"
                 }
             }
         },

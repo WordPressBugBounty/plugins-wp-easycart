@@ -13,6 +13,17 @@ if ( ! class_exists( 'wp_easycart_admin_pro_gate' ) ) :
 
 class wp_easycart_admin_pro_gate {
 	const PRO_BASENAME = 'wp-easycart-pro/wp-easycart-admin-pro.php';
+
+	/**
+	 * Oldest PRO this FREE release can load into its admin. 6.0.0 removed the legacy admin
+	 * controllers older PRO releases call unguarded, so an older PRO is kept out of the admin
+	 * ( see wp_easycart_admin::setup_pro_hooks() ) and every gate reports 'update'. Mirrors the
+	 * MIN_WP_EASYCART_VERSION gate in the PRO bootstrap.
+	 *
+	 * @since 6.0.0
+	 */
+	const MIN_PRO_VERSION = '6.0.0';
+
 	private static $status = null;
 
 	public static function pro_status() {
@@ -42,13 +53,31 @@ class wp_easycart_admin_pro_gate {
 			$licensed = (bool) wp_easycart_admin_license()->is_licensed();
 		}
 
+		/* The runtime constant wins over the file header when PRO is active ( renamed or symlinked folders ). */
+		if ( $active && defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) && '' !== WP_EASYCART_ADMIN_PRO_VERSION ) {
+			$version = WP_EASYCART_ADMIN_PRO_VERSION;
+		}
+		$outdated = ( $active && ( '' === $version || version_compare( $version, self::MIN_PRO_VERSION, '<' ) ) );
+
 		self::$status = array(
 			'installed' => $installed,
 			'active'    => $active,
 			'version'   => $version,
 			'licensed'  => $licensed,
+			'outdated'  => $outdated,
 		);
 		return self::$status;
+	}
+
+	/**
+	 * Whether an active PRO is older than MIN_PRO_VERSION ( its admin is not loaded then ).
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public static function is_outdated() {
+		$status = self::pro_status();
+		return ! empty( $status['outdated'] );
 	}
 
 	public static function evaluate( $args = array() ) {
@@ -82,8 +111,14 @@ class wp_easycart_admin_pro_gate {
 			$enabled = ( $status['active'] && $status['licensed'] && '' !== $status['version'] && version_compare( $status['version'], $args['min_version'], '>=' ) );
 		}
 
+		if ( ! empty( $status['outdated'] ) ) {
+			$enabled = false; // An outdated PRO never unlocks anything: its admin is not loaded.
+		}
+
 		if ( $enabled ) {
 			$state = 'enabled';
+		} else if ( ! empty( $status['outdated'] ) ) {
+			$state = 'update';
 		} else if ( ! $status['installed'] ) {
 			$state = 'upsell';
 		} else if ( ! $status['active'] ) {
@@ -115,17 +150,23 @@ class wp_easycart_admin_pro_gate {
 		$feature_label = ( '' !== $feature_label ) ? $feature_label : __( 'This feature', 'wp-easycart' );
 		switch ( isset( $gate['state'] ) ? $gate['state'] : '' ) {
 			case 'upsell':
+				if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+					return wp_easycart_admin_edition::requires_text( $feature_label );
+				}
 				/* translators: %s: feature name. */
-				return sprintf( __( '%s requires WP EasyCart PRO.', 'wp-easycart' ), $feature_label );
+				return sprintf( __( '%s is included with Pro and Premium licenses.', 'wp-easycart' ), $feature_label );
 			case 'inactive':
 				/* translators: %s: feature name. */
-				return sprintf( __( '%s requires WP EasyCart PRO to be activated.', 'wp-easycart' ), $feature_label );
+				return sprintf( __( '%s requires the WP EasyCart PRO plugin to be activated.', 'wp-easycart' ), $feature_label );
 			case 'update':
 				/* translators: %s: feature name. */
-				return sprintf( __( '%s requires an updated version of WP EasyCart PRO. Please update WP EasyCart PRO.', 'wp-easycart' ), $feature_label );
+				return sprintf( __( '%s requires an update to the WP EasyCart PRO plugin. Please update WP EasyCart PRO.', 'wp-easycart' ), $feature_label );
 			case 'license':
+				if ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_lapsed() ) {
+					return wp_easycart_admin_edition::requires_text( $feature_label );
+				}
 				/* translators: %s: feature name. */
-				return sprintf( __( '%s requires an active WP EasyCart PRO license. Please check your license under Store Status.', 'wp-easycart' ), $feature_label );
+				return sprintf( __( '%s requires an active Pro or Premium license. Please check your license under Store Status.', 'wp-easycart' ), $feature_label );
 			default:
 				return '';
 		}
@@ -134,10 +175,10 @@ class wp_easycart_admin_pro_gate {
 	private static function default_labels() {
 		return array(
 			'enabled'  => '',
-			'upsell'   => __( 'Available in WP EasyCart PRO', 'wp-easycart' ),
+			'upsell'   => class_exists( 'wp_easycart_admin_edition' ) ? rtrim( wp_easycart_admin_edition::included_text( 'pro' ), '.' ) : __( 'Included with Pro and Premium licenses', 'wp-easycart' ),
 			'inactive' => __( 'Activate WP EasyCart PRO', 'wp-easycart' ),
 			'update'   => __( 'Update WP EasyCart PRO to use this', 'wp-easycart' ),
-			'license'  => __( 'Activate your WP EasyCart PRO license', 'wp-easycart' ),
+			'license'  => ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_lapsed() ) ? rtrim( wp_easycart_admin_edition::included_text( 'pro' ), '.' ) : __( 'Activate your Pro or Premium license', 'wp-easycart' ),
 		);
 	}
 

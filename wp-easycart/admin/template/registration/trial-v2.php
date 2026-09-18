@@ -33,7 +33,7 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 	<div class="ecv2-page-header">
 		<div class="ecv2-page-header-left">
 			<span class="dashicons <?php echo $ectr_ended ? 'dashicons-lock' : 'dashicons-clock'; ?> ecv2-page-header-icon"></span>
-			<h2 class="ecv2-page-title"><?php echo $ectr_ended ? esc_html__( 'Your PRO trial has ended', 'wp-easycart' ) : esc_html__( 'PRO trial', 'wp-easycart' ); ?></h2>
+			<h2 class="ecv2-page-title"><?php echo $ectr_ended ? esc_html__( 'Your Pro trial has ended', 'wp-easycart' ) : esc_html__( 'Pro trial', 'wp-easycart' ); ?></h2>
 			<?php if ( ! $ectr_ended ) : ?>
 			<span class="ecreg-trial-pill<?php echo $ectr_days <= 3 ? ' is-urgent' : ''; ?>"><?php echo esc_html( sprintf( _n( '%d day left', '%d days left', $ectr_days, 'wp-easycart' ), $ectr_days ) ); ?></span>
 			<?php endif; ?>
@@ -46,11 +46,11 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 	<?php if ( $ectr_ended ) : ?>
 	<div class="ecreg-notice is-ended">
 		<span class="dashicons dashicons-warning"></span>
-		<span><strong><?php echo esc_html( sprintf( __( 'The trial ended on %s.', 'wp-easycart' ), $ectr_end_label ) ); ?></strong> <?php esc_html_e( 'PRO panels are locked again. Your products, orders and settings are exactly as you left them — upgrade to pick up where you stopped.', 'wp-easycart' ); ?></span>
+		<span><strong><?php echo esc_html( sprintf( __( 'The trial ended on %s.', 'wp-easycart' ), $ectr_end_label ) ); ?></strong> <?php esc_html_e( 'Pro panels are locked again. Your products, orders and settings are exactly as you left them — upgrade to pick up where you stopped.', 'wp-easycart' ); ?></span>
 	</div>
 	<?php else : ?>
 	<p class="ecv2-page-intro">
-		<?php echo esc_html( sprintf( __( 'Every PRO feature is unlocked until %s. Upgrade before then and nothing changes; let it lapse and the PRO panels lock with your data intact.', 'wp-easycart' ), $ectr_end_label ) ); ?>
+		<?php echo esc_html( sprintf( __( 'Every Pro feature is unlocked until %s. Upgrade before then and nothing changes; let it lapse and the Pro panels lock with your data intact.', 'wp-easycart' ), $ectr_end_label ) ); ?>
 	</p>
 	<?php endif; ?>
 
@@ -61,14 +61,14 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 			<span class="ecreg-path-tag"><?php echo $ectr_ended ? esc_html__( 'Pick up where you left off', 'wp-easycart' ) : esc_html__( 'Keep everything', 'wp-easycart' ); ?></span>
 			<span class="dashicons dashicons-star-filled ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Upgrade this trial', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Your trial key becomes the license — no reinstall, no re-entering anything. Professional includes every PRO feature plus a year of priority support and updates; Premium adds every extension.', 'wp-easycart' ); ?></p>
+			<p><?php esc_html_e( 'Your trial key becomes the license — no reinstall, no re-entering anything. Pro includes every paid feature plus a year of priority support and updates; Premium adds every extension.', 'wp-easycart' ); ?></p>
 			<ul class="ecreg-path-list">
 				<li><?php esc_html_e( 'Instant — the site stays exactly as configured', 'wp-easycart' ); ?></li>
 				<li><?php esc_html_e( 'Removes the 2% gateway fee for good', 'wp-easycart' ); ?></li>
 				<li><?php esc_html_e( 'One license per site; move it any time', 'wp-easycart' ); ?></li>
 			</ul>
 			<div class="ecreg-path-actions">
-				<a class="ecv2-btn ecv2-btn-primary ecreg-path-cta" href="<?php echo esc_url( $ectr_upgrade ); ?>" target="_blank"><?php esc_html_e( 'Upgrade to Professional', 'wp-easycart' ); ?></a>
+				<a class="ecv2-btn ecv2-btn-primary ecreg-path-cta" href="<?php echo esc_url( $ectr_upgrade ); ?>" target="_blank"><?php esc_html_e( 'Upgrade to Pro', 'wp-easycart' ); ?></a>
 				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ectr_premium ); ?>" target="_blank"><?php esc_html_e( 'Upgrade to Premium', 'wp-easycart' ); ?></a>
 			</div>
 		</div>
@@ -115,7 +115,7 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 				</div>
 			</form>
 			<?php else : ?>
-			<p class="ecreg-path-fine"><?php esc_html_e( 'Prefer the free edition? Deactivate and delete WP EasyCart PRO under Plugins. Nothing is lost; the PRO panels simply lock.', 'wp-easycart' ); ?></p>
+			<p class="ecreg-path-fine"><?php esc_html_e( 'Prefer the free edition? Deactivate and delete WP EasyCart PRO under Plugins. Nothing is lost; the Pro panels simply lock.', 'wp-easycart' ); ?></p>
 			<a class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" href="<?php echo esc_url( self_admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Go to Plugins', 'wp-easycart' ); ?></a>
 			<?php endif; ?>
 		</div>

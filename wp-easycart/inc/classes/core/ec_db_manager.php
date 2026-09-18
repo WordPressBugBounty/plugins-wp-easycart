@@ -2,25 +2,163 @@
 
 class ec_db_manager {
 
-	public function install_db() {
+	/**
+	 * Set by update functions when a required ALTER did not take effect
+	 * ( $wpdb->query() returns false on SQL errors without throwing, so
+	 * Throwable-only catching in try_db_update() misses those failures ).
+	 */
+	private $update_failed = false;
+	private $update_errors = array();
+
+	/**
+	 * Wall-clock budget (seconds) one admin/cron request may spend inside try_db_update().
+	 * Batched steps return false when it is exhausted and the next request resumes them.
+	 *
+	 * @since 6.0.0
+	 */
+	const UPDATE_TIME_BUDGET = 20;
+
+	/** Rows per UPDATE when a version step rewrites an existing table. @since 6.0.0 */
+	const UPDATE_BATCH_SIZE = 5000;
+
+	/** Option holding the version-chain progress ( array of completed step names ). @since 6.0.0 */
+	const PROGRESS_OPTION = 'ec_option_db_update_progress';
+
+	/** Option that records the EC_UPGRADE_DB the schema was last verified against. @since 6.0.0 */
+	const SCHEMA_VERIFIED_OPTION = 'ec_option_db_schema_verified';
+
+	/** microtime() at which the running try_db_update() must stop starting new work; 0 = no limit. */
+	private $update_deadline = 0;
+
+	public function install_db( $force = false ) {
 		global $wpdb;
-		$this->run_initial_update();
-		$wpdb->hide_errors();
-		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-		dbDelta( self::get_schema( ) );
-		$user_test = $wpdb->get_row( "SELECT * FROM ec_user" );
-		if ( ! $user_test ) {
-			$this->install_base_data();
+
+		if ( ! $force && get_transient( 'ec_db_install_backoff' ) ) {
+			return false;
 		}
+
+		$this->run_initial_update();
+		$show_errors = $wpdb->hide_errors();
+		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+		/* Index definitions dbDelta cannot convert (unique -> plain, prefix length changes) must be
+		   converged before dbDelta runs, otherwise it issues ADD KEY and hits "Duplicate key name". */
+		$this->normalize_indexes();
+		dbDelta( self::get_schema( ) );
+
+		$install_errors = $this->get_missing_table_errors();
+
+		if ( ! count( $install_errors ) ) {
+			/* Seed base data only on a truly empty store. install_base_data() never writes to ec_user,
+			   so testing ec_user (as older versions did) re-seeds every store with no registered
+			   customers and produces hundreds of "Duplicate entry for key PRIMARY" errors. ec_setting
+			   row 1 is always written by the seed, so it is the reliable marker. */
+			$setting_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_setting" );
+			if ( 0 === $setting_count ) {
+				$this->install_base_data();
+			}
+		}
+
+		if ( $show_errors ) {
+			$wpdb->show_errors();
+		}
+
+		if ( count( $install_errors ) ) {
+			update_option( 'ec_option_db_install_errors', $install_errors );
+			set_transient( 'ec_db_install_backoff', 1, 10 * MINUTE_IN_SECONDS );
+			foreach ( $install_errors as $install_error ) {
+				//error_log( 'WP EasyCart DB install: ' . $install_error );
+			}
+			return false;
+		}
+
+		delete_option( 'ec_option_db_install_errors' );
+		delete_transient( 'ec_db_install_backoff' );
 		$this->install_recommended_defaults();
+		$this->apply_default_order_status_colors();
 		update_option( 'ec_option_db_version', EC_CURRENT_DB );
 		update_option( 'ec_option_db_new_version', EC_UPGRADE_DB );
+		return true;
+	}
+
+	public function get_missing_table_errors() {
+		global $wpdb;
+		$errors = array();
+		$create_statements = explode( ';', $this->get_schema() );
+		foreach ( $create_statements as $create_statement ) {
+			if ( ! preg_match( '/CREATE\sTABLE\s([a-z0-9\_]+)\s\(/', $create_statement, $match ) ) {
+				continue;
+			}
+			$table = $match[1];
+			if ( $this->table_exists( $table ) ) {
+				continue;
+			}
+			$wpdb->query( $this->sanitize_column_sql( $create_statement ) );
+			if ( $this->table_exists( $table ) ) {
+				continue;
+			}
+			$errors[] = $table . ': ' . ( $wpdb->last_error ? $wpdb->last_error : 'table could not be created' );
+		}
+		return $errors;
+	}
+
+	public function table_exists( $table ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s", $table ) );
+	}
+
+	public function get_install_errors() {
+		$errors = get_option( 'ec_option_db_install_errors' );
+		return is_array( $errors ) ? $errors : array();
 	}
 
 	public function install_recommended_defaults() {
-		if ( class_exists( 'ec_wpoptionset' ) ) {
-			ec_wpoptionset::apply_recommended_defaults();
+		if ( class_exists( 'ec_wpoptionset' ) && method_exists( 'ec_wpoptionset', 'apply_recommended_defaults' ) ) {
+			try {
+				ec_wpoptionset::apply_recommended_defaults();
+			} catch ( \Throwable $e ) {
+				//error_log( 'WP EasyCart: apply_recommended_defaults failed: ' . $e->getMessage() );
+			}
 			return;
+		}
+	}
+
+	/**
+	 * Built-in order statuses still on the colour column's old default ( white, from 5.7.6, or empty ) get the colours a
+	 * fresh install seeds, so the status editor and order chips are not a wall of white swatches. A colour the merchant
+	 * picked is never changed, and custom statuses are left alone. Runs from install_db(), so once per EC_UPGRADE_DB.
+	 *
+	 * @since 6.0.0
+	 */
+	public function apply_default_order_status_colors() {
+		global $wpdb;
+		if ( ! $this->table_exists( 'ec_orderstatus' ) || ! $this->column_exists( 'ec_orderstatus', 'color_code' ) ) {
+			return;
+		}
+		$green    = '#81D742';
+		$amber    = '#DD9933';
+		$red      = '#FF3030';
+		$defaults = array(
+			1  => '#999999', // Status Not Found.
+			2  => $green,    // Order Shipped.
+			3  => $green,    // Order Confirmed.
+			4  => $amber,    // Order on Hold.
+			5  => $amber,    // Order Started.
+			6  => $green,    // Card Approved.
+			7  => $red,      // Card Denied.
+			8  => $amber,    // Third Party Pending.
+			9  => $red,      // Third Party Error.
+			10 => $green,    // Third Party Approved.
+			11 => $amber,    // Ready for Pickup.
+			12 => $amber,    // Pending Approval.
+			14 => $amber,    // Direct Deposit Pending.
+			15 => $green,    // Direct Deposit Received.
+			16 => $red,      // Refunded Order.
+			17 => $amber,    // Partial Refund.
+			18 => $green,    // Order Picked Up.
+			19 => $red,      // Order Cancelled.
+		);
+		foreach ( $defaults as $status_id => $color ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_orderstatus SET color_code = %s WHERE status_id = %d AND ( color_code IS NULL OR TRIM( color_code ) = '' OR UPPER( TRIM( color_code ) ) IN ( '#FFFFFF', '#FFF', 'WHITE' ) )", $color, $status_id ) );
 		}
 	}
 
@@ -36,17 +174,37 @@ class ec_db_manager {
 		global $wpdb;
 		$tables = $this->get_uninstall_tables( );
 		foreach ( $tables as $table ) {
-			$result = $wpdb->get_results( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) );
-			if ( 0 == count( $result ) ) {
+			if ( ! $this->table_exists( $table ) ) {
 				return false;
 			}
 		}
 		return true;
 	}
 
-	public function verify_db() {
+	/**
+	 * Compare every ec_* table against get_schema() and return the fixes needed.
+	 *
+	 * Runs SHOW FULL COLUMNS for every table, so once a pass has come back clean for the current
+	 * EC_UPGRADE_DB the result is remembered in SCHEMA_VERIFIED_OPTION and later calls return
+	 * array() immediately. Pass $force = true to re-check anyway ( Diagnostics "re-check":
+	 * callers may hand through `! empty( $_GET['recheck'] )` ). try_repair() and the end of
+	 * try_db_update() always force.
+	 *
+	 * @since 6.0.0 Added $force; earlier versions always ran the full check.
+	 * @param bool $force Re-check even when the schema was already verified at this EC_UPGRADE_DB.
+	 * @return array
+	 */
+	public function verify_db( $force = false ) {
 		global $wpdb;
 		$errors = array( );
+		if ( ! $force && (string) get_option( self::SCHEMA_VERIFIED_OPTION ) === (string) EC_UPGRADE_DB ) {
+			/* Same schema, already verified: keep the plugin-version marker current so
+			   database_check_current() stops asking on every admin page. */
+			if ( version_compare( str_replace( '_', '.', EC_CURRENT_VERSION ), (string) get_option( 'ec_option_db_version_verified' ), '>' ) ) {
+				update_option( 'ec_option_db_version_verified', str_replace( '_', '.', EC_CURRENT_VERSION ) );
+			}
+			return $errors;
+		}
 		$collate = '';
 		$collation = '';
 		if( $wpdb->has_cap( 'collation' ) ){
@@ -98,7 +256,7 @@ class ec_db_manager {
 
 						// Check that the table column exists
 						if( !isset( $table_schema[ $table_row_item->Field ] ) ){
-							$errors[] = array( 'type' => 'missing_field', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' ADD COLUMN ' . $table_row_item->SQL, 'error' => $table_name . ' is missing "' . $table_row_item->Field . '"' );
+							$errors[] = array( 'type' => 'missing_field', 'sql_fix' => 'ALTER TABLE ' . $table_name . ' ADD COLUMN ' . $this->sanitize_column_sql( $table_row_item->SQL ), 'error' => $table_name . ' is missing "' . $table_row_item->Field . '"' );
 
 						// Exists, lets check its valid
 						}else{
@@ -138,6 +296,9 @@ class ec_db_manager {
 		}
 		if ( ! count( $errors ) ) {
 			update_option( 'ec_option_db_version_verified', str_replace( '_', '.', EC_CURRENT_VERSION ) );
+			update_option( self::SCHEMA_VERIFIED_OPTION, (string) EC_UPGRADE_DB );
+		} else {
+			delete_option( self::SCHEMA_VERIFIED_OPTION );
 		}
 		return $errors;
 	}
@@ -145,10 +306,29 @@ class ec_db_manager {
 	public function try_repair() {
 		global $wpdb;
 		$wpdb->query( 'SET innodb_strict_mode=OFF' );
-		$errors = $this->verify_db();
+		$errors = $this->verify_db( true );
 		foreach ( $errors as $error ) {
-			$wpdb->query( $error['sql_fix'] );
+			$result = $wpdb->query( $this->sanitize_column_sql( $error['sql_fix'] ) );
 		}
+		$remaining = $this->verify_db( true );
+		if ( ! count( $remaining ) ) {
+			/* Structure is clean: clear any recorded install failures and the retry
+			   backoff so the next install_db() pass runs immediately, and mark the
+			   current version verified so the repair notice stops showing. */
+			delete_option( 'ec_option_db_install_errors' );
+			delete_transient( 'ec_db_install_backoff' );
+			delete_transient( 'ec_db_update_backoff' );
+			update_option( 'ec_option_db_version_verified', str_replace( '_', '.', EC_CURRENT_VERSION ) );
+		}
+		return $remaining;
+	}
+
+	/**
+	 * MySQL 5.7/8.0 reject literal defaults on BLOB/TEXT/GEOMETRY/JSON columns.
+	 * Strip them from any column definition or ALTER we are about to run.
+	 */
+	public function sanitize_column_sql( $sql ) {
+		return preg_replace( "/\\b((?:tiny|medium|long)?(?:text|blob)|geometry|json)(\\s+NOT\\s+NULL|\\s+NULL)?\\s+DEFAULT\\s+''/i", '$1 NULL', $sql );
 	}
 
 	public function get_db_errors() {
@@ -157,8 +337,7 @@ class ec_db_manager {
 		$tables = $this->get_uninstall_tables( );
 		$first = true;
 		foreach ( $tables as $table ) {
-			$result = $wpdb->get_results( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) );
-			if ( 0 == count( $result ) ) {
+			if ( ! $this->table_exists( $table ) ) {
 				if ( ! $first ) {
 					$error .= ", ";
 				}
@@ -169,20 +348,170 @@ class ec_db_manager {
 		return $error;
 	}
 
-	public function try_db_update() {
-		$functions = $this->get_new_update_functions( );
-		if ( count( $functions ) ) {
-			foreach ( $functions as $function ) {
-				if ( method_exists( $this, $function ) ) {
-					$this->$function();
-				}
+	/**
+	 * Whether the current request may run the version-upgrade chain.
+	 *
+	 * Only a plain admin page load, WP-Cron or WP-CLI pays for the upgrade; the storefront and
+	 * admin-ajax never do. Cron keeps a store moving even when nobody opens wp-admin.
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public static function update_allowed_in_request() {
+		if ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) {
+			return true;
+		}
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			return true;
+		}
+		if ( function_exists( 'is_admin' ) && is_admin() && ! ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * True while the stored DB version is behind the plugin version, i.e. the chain still has to run.
+	 *
+	 * @since 6.0.0
+	 * @return bool
+	 */
+	public static function update_pending() {
+		return version_compare( str_replace( '_', '.', EC_CURRENT_VERSION ), (string) get_option( 'ec_option_db_version_updated' ), '>' );
+	}
+
+	/**
+	 * The upgrade step that has not finished yet, for Store Status / Diagnostics.
+	 *
+	 * Returns false once the chain has completed for this version. While it is pending it returns
+	 * the name of the first step not recorded in PROGRESS_OPTION ( the one a resume will run next ),
+	 * or 'finalize' when every step is done and only the version bump / verify remains.
+	 *
+	 * @since 6.0.0
+	 * @return string|false
+	 */
+	public static function update_in_progress() {
+		if ( ! self::update_pending() ) {
+			return false;
+		}
+		$manager = new ec_db_manager();
+		$completed = self::get_update_progress();
+		foreach ( $manager->get_new_update_functions() as $function ) {
+			if ( ! in_array( $function, $completed, true ) ) {
+				return $function;
 			}
 		}
-		update_option( 'ec_option_db_version_updated', str_replace( '_', '.', EC_CURRENT_VERSION ) );
-		$errors = $this->verify_db( );
-		if ( ! count( $errors ) ) {
-			update_option( 'ec_option_db_version_verified', str_replace( '_', '.', EC_CURRENT_VERSION ) );
+		return 'finalize';
+	}
+
+	/**
+	 * Names of the version steps already completed for the pending upgrade.
+	 *
+	 * @since 6.0.0
+	 * @return string[]
+	 */
+	public static function get_update_progress() {
+		$progress = get_option( self::PROGRESS_OPTION );
+		if ( ! is_array( $progress ) || ! isset( $progress['completed'] ) || ! is_array( $progress['completed'] ) ) {
+			return array();
 		}
+		return array_values( array_filter( array_map( 'strval', $progress['completed'] ) ) );
+	}
+
+	private function save_update_progress( array $completed ) {
+		update_option( self::PROGRESS_OPTION, array(
+			'target'    => str_replace( '_', '.', EC_CURRENT_VERSION ),
+			'completed' => array_values( array_unique( $completed ) ),
+			'updated'   => time(),
+		), false );
+	}
+
+	/**
+	 * True once the request's UPDATE_TIME_BUDGET is spent. Batched steps call this between
+	 * chunks and return false ( "come back later" ) when it is.
+	 */
+	private function out_of_time() {
+		return $this->update_deadline > 0 && microtime( true ) >= $this->update_deadline;
+	}
+
+	/**
+	 * Run the outstanding version steps for this release.
+	 *
+	 * Resumable: every completed step is recorded in PROGRESS_OPTION, so a request that times out
+	 * ( or a batched step that returns false because UPDATE_TIME_BUDGET is spent ) continues at the
+	 * first unfinished step on the next admin/cron request instead of starting over. The version
+	 * option is only bumped once every step has finished cleanly, so a partial run never claims a
+	 * version it did not complete.
+	 */
+	public function try_db_update() {
+		if ( ! self::update_allowed_in_request() ) {
+			return;
+		}
+		if ( get_transient( 'ec_db_update_lock' ) || get_transient( 'ec_db_update_backoff' ) ) {
+			return;
+		}
+		set_transient( 'ec_db_update_lock', 1, 5 * MINUTE_IN_SECONDS );
+		$this->update_deadline = microtime( true ) + self::UPDATE_TIME_BUDGET;
+
+		$functions = $this->get_new_update_functions( );
+		$completed = self::get_update_progress();
+		$failed = false;
+		$paused = false;
+		$this->update_failed = false;
+		$this->update_errors = array();
+		foreach ( $functions as $function ) {
+			if ( in_array( $function, $completed, true ) || ! method_exists( $this, $function ) ) {
+				continue;
+			}
+			if ( $this->out_of_time() ) {
+				$paused = true;
+				break;
+			}
+			$errors_before = count( $this->update_errors );
+			$result = null;
+			try {
+				$result = $this->$function();
+			} catch ( \Throwable $e ) {
+				$result = null;
+				$failed = true;
+				$this->update_errors[] = $function . ': ' . $e->getMessage();
+			}
+			if ( count( $this->update_errors ) > $errors_before ) {
+				/* Not recorded as complete: it re-runs after the backoff. Keep going so steps that do
+				   not depend on it still land ( every step is idempotent ). */
+				$failed = true;
+				continue;
+			}
+			if ( false === $result ) {
+				/* A batched step ran out of time with work left; it saved its own cursor. */
+				$paused = true;
+				break;
+			}
+			$completed[] = $function;
+			$this->save_update_progress( $completed );
+		}
+		if ( $paused ) {
+			/* No backoff: the next admin/cron request resumes at the first unfinished step. */
+			delete_transient( 'ec_db_update_lock' );
+			return;
+		}
+		/* $wpdb->query() returns false on SQL errors without throwing; update functions
+		   that verify their own ALTERs report those failures via $this->update_failed
+		   so the version only bumps when the migration actually took effect. */
+		if ( ! $failed && ! $this->update_failed ) {
+			update_option( 'ec_option_db_version_updated', str_replace( '_', '.', EC_CURRENT_VERSION ) );
+			delete_option( self::PROGRESS_OPTION );
+		} else {
+			/* Do not re-run the migration on every request while the cause persists; surface the
+			   messages on the Store Status page. try_repair() clears both on a clean verify. The
+			   progress option is kept so the steps that did complete are not repeated. */
+			set_transient( 'ec_db_update_backoff', 1, 10 * MINUTE_IN_SECONDS );
+			update_option( 'ec_option_db_install_errors', array_merge( $this->get_install_errors(), $this->update_errors ) );
+		}
+		/* One forced structure check per completed chain; verify_db() marks the version on a clean pass. */
+		$this->verify_db( true );
+		$this->update_deadline = 0;
+		delete_transient( 'ec_db_update_lock' );
 	}
 
 	public function get_new_update_functions() {
@@ -280,6 +609,20 @@ class ec_db_manager {
 			'5.9.4' => array(
 				'wpeasycart_sql_5_9_4'
 			),
+			'6.0.0' => array(
+				'wpeasycart_sql_6_0_0',
+				'wpeasycart_sql_6_0_0_catalog',
+				'wpeasycart_sql_6_0_0_reviews',
+				'wpeasycart_sql_6_0_0_email',
+				'wpeasycart_sql_6_0_0_abandoned',
+				'wpeasycart_sql_6_0_0_fees',
+				'wpeasycart_sql_6_0_0_live_rates',
+				'wpeasycart_sql_6_0_0_stock',
+				'wpeasycart_sql_6_0_0_indexes',
+				/* Batched data steps last so every schema change above lands before the long-running rewrites start. */
+				'wpeasycart_sql_6_0_0_user_dates',
+				'wpeasycart_sql_6_0_0_zero_dates'
+			),
 		);
 
 		$return_functions = array();
@@ -290,18 +633,17 @@ class ec_db_manager {
 				}
 			}
 		}
-		update_option( 'ec_option_db_version_updated', str_replace( '_', '.', EC_CURRENT_VERSION ) );
 		return $return_functions;
 	}
 
 	private function run_initial_update( ){
 		if( !get_option( 'ec_option_db_insert_v4' ) || get_option( 'ec_option_db_insert_v4' ) == '0' ){
 			global $wpdb;
-			$wpdb->query( "ALTER TABLE `ec_menulevel1` CHANGE `order` `menu_order` int(11)" );
-			$wpdb->query( "ALTER TABLE `ec_menulevel2` CHANGE `order` `menu_order` int(11)" );
-			$wpdb->query( "ALTER TABLE `ec_menulevel3` CHANGE `order` `menu_order` int(11)" );
-			$wpdb->query( "ALTER TABLE `ec_pricepoint` CHANGE `order` `pricepoint_order` int(11)" );
-			$wpdb->query( "ALTER TABLE `ec_promotion` CHANGE `limit` `promo_limit` int(11)" );
+			$this->rename_column( 'ec_menulevel1', 'order', 'menu_order', 'int(11)' );
+			$this->rename_column( 'ec_menulevel2', 'order', 'menu_order', 'int(11)' );
+			$this->rename_column( 'ec_menulevel3', 'order', 'menu_order', 'int(11)' );
+			$this->rename_column( 'ec_pricepoint', 'order', 'pricepoint_order', 'int(11)' );
+			$this->rename_column( 'ec_promotion', 'limit', 'promo_limit', 'int(11)' );
 			update_option( 'ec_option_db_insert_v4', 1 );
 		}
 	}
@@ -309,25 +651,25 @@ class ec_db_manager {
 	/* Database Upgrade Scripts */
 	private function wpeasycart_sql_4_3_3() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_country ADD COLUMN vat_b2b_enabled tinyint(1) NOT NULL DEFAULT '1'" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN tip_total float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_orderstatus ADD COLUMN is_archieved tinyint(1) DEFAULT '0'" );
+		$this->add_column( 'ec_country', 'vat_b2b_enabled', "tinyint(1) NOT NULL DEFAULT '1'" );
+		$this->add_column( 'ec_order', 'tip_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_orderstatus', 'is_archieved', "tinyint(1) DEFAULT '0'" );
 		$wpdb->query( "ALTER TABLE ec_taxrate MODIFY stripe_taxrate_id varchar(255) NOT NULL" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN tip_amount float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN tip_rate varchar(10) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_review ADD COLUMN reviewer_name varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'tip_amount', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_tempcart_data', 'tip_rate', "varchar(10) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_review', 'reviewer_name', "varchar(255) NOT NULL DEFAULT ''" );
 	}
 	
 	private function wpeasycart_sql_5_0_0() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_optionitemimage ADD COLUMN product_images text NULL" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN product_images text NULL" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN sort_position int(11) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_optionitemimage', 'product_images', "text NULL" );
+		$this->add_column( 'ec_product', 'product_images', "text NULL" );
+		$this->add_column( 'ec_product', 'sort_position', "int(11) NOT NULL DEFAULT '0'" );
 	}
 	
 	private function wpeasycart_sql_5_0_2() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN shopify_id varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_product', 'shopify_id', "varchar(255) NOT NULL DEFAULT ''" );
 	}
 	
 	private function wpeasycart_sql_5_1_14() {
@@ -337,7 +679,7 @@ class ec_db_manager {
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
-		$wpdb->query( "CREATE TABLE ec_order_log (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_log (
 		  order_log_id int(11) NOT NULL AUTO_INCREMENT,
 		  order_id int(11) NOT NULL DEFAULT '0',
 		  order_log_key varchar(100) NOT NULL DEFAULT '',
@@ -346,7 +688,7 @@ class ec_db_manager {
 		  UNIQUE KEY order_log_id (order_log_id),
 		  KEY order_id (order_id)
 		) $collate;
-		CREATE TABLE ec_order_log_meta (
+		CREATE TABLE IF NOT EXISTS ec_order_log_meta (
 		  order_log_meta_id int(11) NOT NULL AUTO_INCREMENT,
 		  order_log_id int(11) NOT NULL DEFAULT '0',
 		  order_id int(11) NOT NULL DEFAULT '0',
@@ -361,78 +703,78 @@ class ec_db_manager {
 	
 	private function wpeasycart_sql_5_1_16() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN amazon_session_id varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN amazon_buyer_id varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN amazon_payment_selection varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'amazon_session_id', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'amazon_buyer_id', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'amazon_payment_selection', "varchar(255) NOT NULL DEFAULT ''" );
 	}
 	
 	private function wpeasycart_sql_5_2_1() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN success_page_shown tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_order', 'success_page_shown', "tinyint(1) NOT NULL DEFAULT 0" );
 	}
 	
 	private function wpeasycart_sql_5_2_2() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN email_other varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN email_other varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN email_other varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_order', 'email_other', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'email_other', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_user', 'email_other', "varchar(255) NOT NULL DEFAULT ''" );
 	}
 	
 	private function wpeasycart_sql_5_3_4() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN square_variation_id varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_product', 'square_variation_id', "varchar(255) NOT NULL DEFAULT ''" );
 	}
 	
 	private function wpeasycart_sql_5_3_5() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_category ADD COLUMN is_active tinyint(1) NOT NULL DEFAULT '1'" );
-		$wpdb->query( "ALTER TABLE ec_optionitem ADD COLUMN optionitem_enable_custom_price_label tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_optionitem ADD COLUMN optionitem_custom_price_label text" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN sku varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN price float(15,3) NOT NULL DEFAULT '-1.000'" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN is_enabled tinyint(1) NOT NULL DEFAULT '1'" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN is_stock_tracking_enabled tinyint(1) NOT NULL DEFAULT '1'" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN square_id varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN use_both_option_types tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN use_both_option_types tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_category', 'is_active', "tinyint(1) NOT NULL DEFAULT '1'" );
+		$this->add_column( 'ec_optionitem', 'optionitem_enable_custom_price_label', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_optionitem', 'optionitem_custom_price_label', "text" );
+		$this->add_column( 'ec_optionitemquantity', 'sku', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_optionitemquantity', 'price', "float(15,3) NOT NULL DEFAULT '-1.000'" );
+		$this->add_column( 'ec_optionitemquantity', 'is_enabled', "tinyint(1) NOT NULL DEFAULT '1'" );
+		$this->add_column( 'ec_optionitemquantity', 'is_stock_tracking_enabled', "tinyint(1) NOT NULL DEFAULT '1'" );
+		$this->add_column( 'ec_optionitemquantity', 'square_id', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_orderdetail', 'use_both_option_types', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_product', 'use_both_option_types', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_3_11() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN ship_to_billing tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_product', 'ship_to_billing', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_3_14() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN taxjar_tax_amount varchar(255) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN taxjar_address_verified tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_tempcart_data', 'taxjar_tax_amount', "varchar(255) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'taxjar_address_verified', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_4_1() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN subscription_shipping_recurring tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_product', 'subscription_shipping_recurring', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_4_3() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN taxcloud_address_last_verified text" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_price float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_price_onetime float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_price_override float(15,3) NOT NULL DEFAULT '-1.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_price_multiplier float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_price_per_character float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_weight float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_weight_onetime float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_weight_override float(15,3) NOT NULL DEFAULT '-1.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_weight_multiplier float(15,3) NOT NULL DEFAULT '0.00'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_disallow_shipping tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_enable_custom_price_label tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_order_option ADD COLUMN optionitem_custom_price_label text" );
+		$this->add_column( 'ec_tempcart_data', 'taxcloud_address_last_verified', "text" );
+		$this->add_column( 'ec_order_option', 'optionitem_price', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_price_onetime', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_price_override', "float(15,3) NOT NULL DEFAULT '-1.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_price_multiplier', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_price_per_character', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_weight', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_weight_onetime', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_weight_override', "float(15,3) NOT NULL DEFAULT '-1.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_weight_multiplier', "float(15,3) NOT NULL DEFAULT '0.00'" );
+		$this->add_column( 'ec_order_option', 'optionitem_disallow_shipping', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_order_option', 'optionitem_enable_custom_price_label', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_order_option', 'optionitem_custom_price_label', "text" );
 	}
 
 	private function wpeasycart_sql_5_4_6() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN stripe_last_pi_data text" );
+		$this->add_column( 'ec_tempcart_data', 'stripe_last_pi_data', "text" );
 	}
 
 	private function wpeasycart_sql_5_4_9() {
@@ -442,7 +784,7 @@ class ec_db_manager {
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
-		$wpdb->query( "CREATE TABLE ec_fee (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_fee (
 		  fee_id int(11) NOT NULL AUTO_INCREMENT,
 		  fee_label varchar(512)  NOT NULL DEFAULT '',
 		  fee_admin_description text,
@@ -458,48 +800,48 @@ class ec_db_manager {
 		  fee_price float(15,3) NOT NULL DEFAULT '0.000',
 		  fee_min float(15,3) NOT NULL DEFAULT '0.000',
 		  fee_max float(15,3) NOT NULL DEFAULT '-1.000',
-		  PRIMARY KEY (fee_id)
+		  PRIMARY KEY  (fee_id)
 		) $collate;" );
-		$wpdb->query( "CREATE TABLE ec_order_fee (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_fee (
 		  order_fee_id int(11) NOT NULL AUTO_INCREMENT,
 		  order_id int(11) NOT NULL DEFAULT '0',
 		  fee_label varchar(512)  NOT NULL DEFAULT '',
 		  fee_rate float(15,3) NOT NULL DEFAULT '0.000',
 		  fee_total float(15,3) NOT NULL DEFAULT '0.000',
-		  PRIMARY KEY (order_fee_id),
+		  PRIMARY KEY  (order_fee_id),
 		  KEY order_id (order_id)
 		) $collate;" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN shipping_restriction tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_product', 'shipping_restriction', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_5_6() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN enable_price_label int(11) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN replace_price_label int(11) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN custom_price_label varchar(512) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_product', 'enable_price_label', "int(11) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_product', 'replace_price_label', "int(11) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_product', 'custom_price_label', "varchar(512) NOT NULL DEFAULT ''" );
 	}
 
 	private function wpeasycart_sql_5_5_11() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_fee ADD COLUMN fee_payment_type varchar(255) DEFAULT ''" );
+		$this->add_column( 'ec_fee', 'fee_payment_type', "varchar(255) DEFAULT ''" );
 	}
 
 	private function wpeasycart_sql_5_6_0() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_product_id varchar(255) DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_default_price_id varchar(255) DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN subscription_recurring_email tinyint(1) NOT NULL DEFAULT '1'" );
+		$this->add_column( 'ec_product', 'stripe_product_id', "varchar(255) DEFAULT ''" );
+		$this->add_column( 'ec_product', 'stripe_default_price_id', "varchar(255) DEFAULT ''" );
+		$this->add_column( 'ec_product', 'subscription_recurring_email', "tinyint(1) NOT NULL DEFAULT '1'" );
 	}
 
 	private function wpeasycart_sql_5_6_1() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_promocode ADD COLUMN apply_to_shipping tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_promocode', 'apply_to_shipping', "tinyint(1) NOT NULL DEFAULT '0'" );
 	}
 
 	private function wpeasycart_sql_5_6_4() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_option_to_product ADD COLUMN stripe_price_id text" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN google_merchant text NULL" );
+		$this->add_column( 'ec_option_to_product', 'stripe_price_id', "text" );
+		$this->add_column( 'ec_optionitemquantity', 'google_merchant', "text NULL" );
 	}
 
 	private function wpeasycart_sql_5_7_5() {
@@ -509,7 +851,7 @@ class ec_db_manager {
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
-		$wpdb->query( "CREATE TABLE ec_schedule (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_schedule (
 			  schedule_id int(11) NOT NULL AUTO_INCREMENT,
 			  schedule_label varchar(255) DEFAULT '',
 			  day_of_week varchar(20) NOT NULL DEFAULT '',
@@ -529,19 +871,19 @@ class ec_db_manager {
 			  retail_closed tinyint(1) NOT NULL DEFAULT 0,
 			  preorder_closed tinyint(1) NOT NULL DEFAULT 0,
 			  restaurant_closed tinyint(1) NOT NULL DEFAULT 0,
-			  PRIMARY KEY (schedule_id),
+			  PRIMARY KEY  (schedule_id),
 			  UNIQUE KEY schedule_id (schedule_id)
 		) $collate;" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_preorder_type tinyint(1) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_restaurant_type tinyint(1) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_date varchar(32) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_asap tinyint(1) NOT NULL DEFAULT 1" );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_time varchar(32) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN includes_preorder_items tinyint(1) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN includes_restaurant_type tinyint(1) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00'" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_asap tinyint(1) NOT NULL DEFAULT 1" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00'" );
+		$this->add_column( 'ec_product', 'is_preorder_type', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_product', 'is_restaurant_type', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_tempcart_data', 'pickup_date', "varchar(32) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart_data', 'pickup_asap', "tinyint(1) NOT NULL DEFAULT 1" );
+		$this->add_column( 'ec_tempcart_data', 'pickup_time', "varchar(32) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_order', 'includes_preorder_items', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_order', 'includes_restaurant_type', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_order', 'pickup_date', "datetime NULL" );
+		$this->add_column( 'ec_order', 'pickup_asap', "tinyint(1) NOT NULL DEFAULT 1" );
+		$this->add_column( 'ec_order', 'pickup_time', "datetime NULL" );
 		$wpdb->insert( 
 			"ec_schedule",
 			array( 
@@ -595,6 +937,7 @@ class ec_db_manager {
 				"schedule_label" => "Tuesday",
 				"day_of_week" => "TUE",
 				"is_holiday" => "0",
+
 				"apply_to_retail" => "0",
 				"apply_to_preorder" => "1",
 				"apply_to_restaurant" => "1",
@@ -707,17 +1050,17 @@ class ec_db_manager {
 
 	private function wpeasycart_sql_5_7_6() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_orderstatus ADD COLUMN color_code varchar(40) NOT NULL DEFAULT '#FFFFFF'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_1 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_2 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_3 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_4 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_5 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_1 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_2 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_3 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_4 text NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_5 text NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_orderstatus', 'color_code', "varchar(40) NOT NULL DEFAULT '#FFFFFF'" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_1 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_2 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_3 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_4 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_name_5 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_1 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_2 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_3 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_4 text NULL" );
+		$wpdb->query( "ALTER TABLE ec_orderdetail MODIFY COLUMN optionitem_label_5 text NULL" );
 	}
 
 	private function wpeasycart_sql_5_8_1() {
@@ -726,7 +1069,7 @@ class ec_db_manager {
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
-		$wpdb->query( "CREATE TABLE ec_location (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_location (
 		  location_id int(11) NOT NULL AUTO_INCREMENT,
 		  location_label varchar(255) DEFAULT '',
 		  address_line_1 varchar(255) NOT NULL DEFAULT '',
@@ -739,10 +1082,10 @@ class ec_db_manager {
 		  email varchar(255) NOT NULL DEFAULT '',
 		  latitude decimal(9,6) DEFAULT NULL,
 		  longitude decimal(9,6) DEFAULT NULL,
-		  PRIMARY KEY (location_id),
+		  PRIMARY KEY  (location_id),
 		  UNIQUE KEY location_id (location_id)
 		) $collate;" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN pickup_locations text NULL" );
+		$this->add_column( 'ec_product', 'pickup_locations', "text NULL" );
 	}
 
 	private function wpeasycart_sql_5_8_2() {
@@ -751,7 +1094,7 @@ class ec_db_manager {
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
-		$wpdb->query( "CREATE TABLE ec_location_to_product (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_location_to_product (
 		  location_product_id int(11) NOT NULL AUTO_INCREMENT,
 		  location_id int(11) NOT NULL DEFAULT 0,
 		  product_id int(11) NOT NULL DEFAULT 0,
@@ -760,7 +1103,7 @@ class ec_db_manager {
 		  KEY location_id (location_id),
 		  KEY product_id (product_id)
 		) $collate;" );
-		$wpdb->query( "CREATE TABLE ec_location_to_schedule (
+		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_location_to_schedule (
 		  location_schedule_id int(11) NOT NULL AUTO_INCREMENT,
 		  location_id int(11) NOT NULL DEFAULT 0,
 		  schedule_id int(11) NOT NULL DEFAULT 0,
@@ -769,32 +1112,32 @@ class ec_db_manager {
 		  KEY location_id (location_id),
 		  KEY product_id (schedule_id)
 		) $collate;" );
-		$wpdb->query( 'ALTER TABLE ec_order ADD COLUMN location_id int(11) NOT NULL DEFAULT 0' );
-		$wpdb->query( "ALTER TABLE ec_tempcart_data ADD COLUMN pickup_location int(11) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_location ADD COLUMN hours_note text NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_order', 'location_id', "int(11) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_tempcart_data', 'pickup_location', "int(11) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_location', 'hours_note', "text NULL" );
 	}
 
 	private function wpeasycart_sql_5_8_11() {
 		global $wpdb;
-		$wpdb->query( 'ALTER TABLE ec_promocode ADD COLUMN first_order_only tinyint(1) NOT NULL DEFAULT 0' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN allow_shipping_bypass tinyint(1) NOT NULL DEFAULT 0' );
+		$this->add_column( 'ec_promocode', 'first_order_only', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_user', 'allow_shipping_bypass', "tinyint(1) NOT NULL DEFAULT 0" );
 	}
 
 	private function wpeasycart_sql_5_8_12() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN converted_cart_id varchar(100) NOT NULL DEFAULT ''" );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN is_stripe_test_user tinyint(1) NOT NULL DEFAULT 0' );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_product_id_sandbox varchar(255) DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN stripe_default_price_id_sandbox varchar(255) DEFAULT ''" );
+		$this->add_column( 'ec_order', 'converted_cart_id', "varchar(100) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_user', 'is_stripe_test_user', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_product', 'stripe_product_id_sandbox', "varchar(255) DEFAULT ''" );
+		$this->add_column( 'ec_product', 'stripe_default_price_id_sandbox', "varchar(255) DEFAULT ''" );
 	}
 
 	private function wpeasycart_sql_5_8_13() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_orderdetail', 'unit_discount_promotion', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_orderdetail', 'unit_discount_coupon', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_orderdetail', 'total_discount_promotion', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_orderdetail', 'total_discount_coupon', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_order', 'promo_code_message', "varchar(1024) NOT NULL DEFAULT ''" );
 	}
 
 	private function wpeasycart_sql_5_8_15() {
@@ -802,18 +1145,18 @@ class ec_db_manager {
 		// Test for failed DB update in last DB version and correct if missing.
 		$column_exists = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema = %s AND table_name = "ec_orderdetail" AND column_name = "unit_discount_promotion"', DB_NAME ) );
 		if ( ! $column_exists ) {
-			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
-			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
-			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_promotion float(15,3) NOT NULL DEFAULT '0.000'" );
-			$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN total_discount_coupon float(15,3) NOT NULL DEFAULT '0.000'" );
-			$wpdb->query( "ALTER TABLE ec_order ADD COLUMN promo_code_message varchar(1024) NOT NULL DEFAULT ''" );
+			$this->add_column( 'ec_orderdetail', 'unit_discount_promotion', "float(15,3) NOT NULL DEFAULT '0.000'" );
+			$this->add_column( 'ec_orderdetail', 'unit_discount_coupon', "float(15,3) NOT NULL DEFAULT '0.000'" );
+			$this->add_column( 'ec_orderdetail', 'total_discount_promotion', "float(15,3) NOT NULL DEFAULT '0.000'" );
+			$this->add_column( 'ec_orderdetail', 'total_discount_coupon', "float(15,3) NOT NULL DEFAULT '0.000'" );
+			$this->add_column( 'ec_order', 'promo_code_message', "varchar(1024) NOT NULL DEFAULT ''" );
 		}
 	}
 	private function wpeasycart_sql_5_8_16() {
 		global $wpdb;
 
 		$indexes = array(
-			'ec_roleprice' => array( 'idx_product_role' => 'product_id, role_label' ),
+			'ec_roleprice' => array( 'idx_product_role' => 'product_id, role_label(100)' ),
 			'ec_review' => array( 'idx_product_approved' => 'product_id, approved' ),
 			'ec_categoryitem' => array( 'idx_category_product' => 'category_id, product_id' ),
 			'ec_product' => array(
@@ -829,17 +1172,13 @@ class ec_db_manager {
 			}
 
 			foreach ( $defs as $index_name => $columns ) {
-				$has_index = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s", $table, $index_name ) );
-
-				if ( ! $has_index ) {
-					$wpdb->query( "ALTER TABLE {$table} ADD INDEX {$index_name} ({$columns})" );
-				}
+				$this->add_index( $table, $index_name, $columns );
 			}
 		}
 	}
 	private function wpeasycart_sql_5_9_2() {
 		global $wpdb;
-		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN password_admin_v1 varchar(32) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_user', 'password_admin_v1', "varchar(32) NOT NULL DEFAULT ''" );
 	}
 	private function wpeasycart_sql_5_9_4() {
 		global $wpdb;
@@ -862,7 +1201,7 @@ class ec_db_manager {
 			  created_by bigint(20) NOT NULL DEFAULT 0,
 			  created_at datetime DEFAULT NULL,
 			  last_used datetime DEFAULT NULL,
-			  PRIMARY KEY (cart_link_id),
+			  PRIMARY KEY  (cart_link_id),
 			  UNIQUE KEY cart_link_token (link_token)
 		) $collate;" );
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_cart_link_item (
@@ -877,39 +1216,41 @@ class ec_db_manager {
 			  optionitem_id_5 int(11) NOT NULL DEFAULT 0,
 			  modifier_values text,
 			  sort_order int(11) NOT NULL DEFAULT 0,
-			  PRIMARY KEY (cart_link_item_id),
+			  PRIMARY KEY  (cart_link_item_id),
 			  KEY cart_link_item_link (cart_link_id),
 			  KEY cart_link_item_product (product_id)
 		) $collate;" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN cart_link_id int(11) NOT NULL DEFAULT 0" );
-		$wpdb->query( "ALTER TABLE ec_order ADD INDEX order_cart_link (cart_link_id)" );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN is_bundle tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN bundle_group_key varchar(64) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN bundle_product_id int(11) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_tempcart ADD COLUMN free_gift_offer_id int(11) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_tempcart ADD INDEX tempcart_bundle_group (bundle_group_key)" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN bundle_group_key varchar(64) NOT NULL DEFAULT ''" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN bundle_product_id int(11) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN is_free_gift tinyint(1) NOT NULL DEFAULT '0'" );
-		$wpdb->query( 'ALTER TABLE ec_orderdetail ADD COLUMN applied_offers longtext' );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN offer_discount_total float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( 'ALTER TABLE ec_order ADD COLUMN applied_offers longtext' );
-		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN lifetime_spend float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_user ADD COLUMN completed_order_count int(11) NOT NULL DEFAULT '0'" );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN last_order_date datetime DEFAULT NULL' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN history_aggregates_built tinyint(1) NOT NULL DEFAULT 0' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN date_created timestamp NULL DEFAULT CURRENT_TIMESTAMP' );
-		$wpdb->query( 'UPDATE ec_user SET date_created = NULL' );
-		$wpdb->query( 'UPDATE ec_user u SET u.date_created = ( SELECT MIN( o.order_date ) FROM ec_order o WHERE o.user_id = u.user_id )' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD COLUMN last_login datetime DEFAULT NULL' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD INDEX user_date_created (date_created)' );
-		$wpdb->query( 'ALTER TABLE ec_user ADD INDEX user_last_order_date (last_order_date)' );
-		$wpdb->query( 'ALTER TABLE ec_orderdetail ADD INDEX idx_order_product (order_id,product_id)' );
-		$wpdb->query( "ALTER TABLE ec_product ADD COLUMN reorder_point int(11) NOT NULL DEFAULT '-1'" );
-		$wpdb->query( "ALTER TABLE ec_optionitemquantity ADD COLUMN reorder_point int(11) NOT NULL DEFAULT '-1'" );
-		$wpdb->query( "ALTER TABLE ec_orderdetail ADD COLUMN refunded_quantity int(11) NOT NULL DEFAULT '0'" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN shipping_refund_total float(15,3) NOT NULL DEFAULT '0.000'" );
-		$wpdb->query( "ALTER TABLE ec_order ADD COLUMN tax_refund_total float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_order', 'cart_link_id', "int(11) NOT NULL DEFAULT 0" );
+		$this->add_index( 'ec_order', 'order_cart_link', 'cart_link_id' );
+		$this->add_column( 'ec_product', 'is_bundle', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_tempcart', 'bundle_group_key', "varchar(64) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_tempcart', 'bundle_product_id', "int(11) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_tempcart', 'free_gift_offer_id', "int(11) NOT NULL DEFAULT '0'" );
+		$this->add_index( 'ec_tempcart', 'tempcart_bundle_group', 'bundle_group_key' );
+		$this->add_column( 'ec_orderdetail', 'bundle_group_key', "varchar(64) NOT NULL DEFAULT ''" );
+		$this->add_column( 'ec_orderdetail', 'bundle_product_id', "int(11) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_orderdetail', 'is_free_gift', "tinyint(1) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_orderdetail', 'applied_offers', "longtext" );
+		$this->add_column( 'ec_order', 'offer_discount_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_order', 'applied_offers', "longtext" );
+		$this->add_column( 'ec_user', 'lifetime_spend', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_user', 'completed_order_count', "int(11) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_user', 'last_order_date', "datetime DEFAULT NULL" );
+		$this->add_column( 'ec_user', 'history_aggregates_built', "tinyint(1) NOT NULL DEFAULT 0" );
+		$this->add_column( 'ec_user', 'date_created', "timestamp NULL DEFAULT CURRENT_TIMESTAMP" );
+		/* Backfilling date_created from each customer's first order used to be one correlated UPDATE
+		   over the whole table here. It is now queued and drained in 5,000-row chunks by
+		   wpeasycart_sql_6_0_0_user_dates() at the end of the chain ( @since 6.0.0 ). */
+		$this->queue_batch_job( 'user_dates', array( array( 'table' => 'ec_user', 'pk' => 'user_id', 'cursor' => 0 ) ) );
+		$this->add_column( 'ec_user', 'last_login', "datetime DEFAULT NULL" );
+		$this->add_index( 'ec_user', 'user_date_created', 'date_created' );
+		$this->add_index( 'ec_user', 'user_last_order_date', 'last_order_date' );
+		$this->add_index( 'ec_orderdetail', 'idx_order_product', 'order_id,product_id' );
+		$this->add_column( 'ec_product', 'reorder_point', "int(11) NOT NULL DEFAULT '-1'" );
+		$this->add_column( 'ec_optionitemquantity', 'reorder_point', "int(11) NOT NULL DEFAULT '-1'" );
+		$this->add_column( 'ec_orderdetail', 'refunded_quantity', "int(11) NOT NULL DEFAULT '0'" );
+		$this->add_column( 'ec_order', 'shipping_refund_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		$this->add_column( 'ec_order', 'tax_refund_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer (
 		  offer_id int(11) NOT NULL AUTO_INCREMENT,
 		  offer_name varchar(255) NOT NULL DEFAULT '',
@@ -1057,7 +1398,7 @@ class ec_db_manager {
 		  tag_id int(11) NOT NULL AUTO_INCREMENT,
 		  tag_label varchar(100) NOT NULL DEFAULT '',
 		  tag_color varchar(20) NOT NULL DEFAULT '#6a737d',
-		  PRIMARY KEY (tag_id)
+		  PRIMARY KEY  (tag_id)
 		) $collate;" );
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_order_tag_item (
 		  order_id int(11) NOT NULL,
@@ -1116,14 +1457,575 @@ class ec_db_manager {
 			source varchar(40) NOT NULL DEFAULT '',
 			note text NULL,
 			user_id bigint(20) NOT NULL DEFAULT '0',
-			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			created timestamp NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (log_id),
 			KEY product_id (product_id),
 			KEY optionitemquantity_id (optionitemquantity_id),
 			KEY created (created)
 		) $collate;" );
-		if ( function_exists( 'wp_easycart_post_sync' ) ) {
-			wp_easycart_post_sync()->audit( true );
+		update_option( 'ec_option_db_5_9_4_tables_complete', '1' );
+		$this->run_post_sync_audit();
+	}
+
+	private function wpeasycart_sql_6_0_0() {
+		global $wpdb;
+		if ( ! get_option( 'ec_option_db_5_9_4_tables_complete' ) ) {
+			$this->wpeasycart_sql_5_9_4();
+		}
+		// Converge these TEXT columns to `text NULL` on every database type. Older versions /
+		// repairs left them as `text NOT NULL DEFAULT ''` on MariaDB (which accepts TEXT
+		// defaults; MySQL does not). A bare DROP DEFAULT is NOT safe here: it would leave
+		// `text NOT NULL` with no default on MariaDB, and MariaDB 10.2.4+ runs
+		// STRICT_TRANS_TABLES by default, so any INSERT that omits the column would then
+		// fail with error 1364. MODIFY ... text NULL matches get_schema() on both engines,
+		// and dbDelta never fixes nullability on its own, so this is the only place the
+		// two engine states converge.
+		$text_columns = array(
+			'ec_download' => array( 'download_file_name' ),
+			'ec_location' => array( 'hours_note' ),
+			'ec_optionitemimage' => array( 'image1', 'image2', 'image3', 'image4', 'image5' ),
+			'ec_orderdetail' => array( 'optionitem_name_1', 'optionitem_name_2', 'optionitem_name_3', 'optionitem_name_4', 'optionitem_name_5', 'optionitem_label_1', 'optionitem_label_2', 'optionitem_label_3', 'optionitem_label_4', 'optionitem_label_5', 'download_file_name', 'download_key' ),
+			'ec_product' => array( 'download_file_name', 'image1', 'image2', 'image3', 'image4', 'image5' ),
+			'ec_subscriber' => array( 'email' ),
+			'ec_subscription' => array( 'title', 'email' ),
+			'ec_tempcart_optionitem' => array( 'optionitem_model_number' ),
+		);
+		foreach ( $text_columns as $table => $columns ) {
+			if ( ! $this->table_exists( $table ) ) {
+				continue;
+			}
+			foreach ( $columns as $column ) {
+				$col = $wpdb->get_row( $wpdb->prepare( "SHOW FULL COLUMNS FROM `$table` WHERE Field = %s" , $column ) );
+				if ( ! $col ) {
+					continue;
+				}
+				if ( 'NO' === $col->Null || null !== $col->Default ) {
+					$wpdb->query( "ALTER TABLE `$table` MODIFY COLUMN `$column` text NULL" );
+					$alter_error = $wpdb->last_error; // the SHOW below resets $wpdb->last_error
+					$col = $wpdb->get_row( $wpdb->prepare( "SHOW FULL COLUMNS FROM `$table` WHERE Field = %s" , $column ) );
+					if ( $col && ( 'NO' === $col->Null || null !== $col->Default ) ) {
+						$this->record_update_failure( '6.0.0: could not relax ' . $table . '.' . $column . ' to text NULL: ' . $alter_error );
+					}
+				}
+			}
+		}
+		// Relax event-specific datetimes. NOT NULL without a default breaks any insert that omits
+		// the column on a strict-mode connection, and the old zero-date defaults are invalid on
+		// stock MySQL 5.7+. These columns are only set for certain product/order types, so allow NULL.
+		$datetime_columns = array(
+			'ec_order' => array( 'pk' => 'order_id', 'columns' => array( 'last_updated', 'pickup_date', 'pickup_time' ) ),
+			'ec_product' => array( 'pk' => 'product_id', 'columns' => array( 'last_viewed' ) ),
+			'ec_promotion' => array( 'pk' => 'promotion_id', 'columns' => array( 'start_date', 'end_date' ) ),
+		);
+		/* Hosts that re-enforce STRICT_TRANS_TABLES / NO_ZERO_DATE on the session reject a MODIFY
+		   while rows still hold '0000-00-00 00:00:00'. Relax the session for this block only;
+		   set_sql_mode() with no arguments restores WP's sanitized mode. */
+		$wpdb->query( "SET SESSION sql_mode = ''" );
+		$zero_date_jobs = array();
+		foreach ( $datetime_columns as $table => $def ) {
+			if ( ! $this->table_exists( $table ) ) {
+				continue;
+			}
+			foreach ( $def['columns'] as $column ) {
+				$col = $wpdb->get_row( $wpdb->prepare( "SHOW FULL COLUMNS FROM `$table` WHERE Field = %s", $column ) );
+				if ( ! $col ) {
+					continue;
+				}
+				if ( 'NO' === $col->Null || null !== $col->Default ) {
+					$wpdb->query( "ALTER TABLE `$table` MODIFY COLUMN `$column` datetime NULL" );
+					$alter_error = $wpdb->last_error; // the SHOW below resets $wpdb->last_error
+					$col = $wpdb->get_row( $wpdb->prepare( "SHOW FULL COLUMNS FROM `$table` WHERE Field = %s", $column ) );
+					if ( $col && ( 'NO' === $col->Null || null !== $col->Default ) ) {
+						$this->record_update_failure( '6.0.0: could not relax ' . $table . '.' . $column . ' to datetime NULL: ' . $alter_error );
+						continue;
+					}
+				}
+				/* Normalizing legacy zero-dates to NULL used to be one unbounded UPDATE per column here.
+				   It is now queued and drained by primary-key range in wpeasycart_sql_6_0_0_zero_dates(). */
+				$zero_date_jobs[] = array( 'table' => $table, 'pk' => $def['pk'], 'column' => $column, 'cursor' => 0 );
+			}
+		}
+		$wpdb->set_sql_mode();
+		$this->queue_batch_job( 'zero_dates', $zero_date_jobs );
+		$this->normalize_indexes();
+		// Force install_db() (full dbDelta with the corrected schema) to run again on next load.
+		delete_option( 'ec_option_db_new_version' );
+		delete_transient( 'ec_db_install_backoff' );
+	}
+
+	private function wpeasycart_sql_6_0_0_catalog() {
+		$cols = array(
+			array( 'ec_category', 'smart_mode', "tinyint(1) NOT NULL DEFAULT '0'" ),
+			array( 'ec_category', 'smart_rules', 'text' ),
+			array( 'ec_categoryitem', 'is_smart', "tinyint(1) NOT NULL DEFAULT '0'" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.0 catalog: could not add ' . $c[0] . '.' . $c[1] );
+			}
+		}
+	}
+
+	/**
+	 * Flex-Fees: fee_basis chooses what a percentage fee is calculated on.
+	 * 'subtotal' (default, legacy behavior) or 'order_total' (subtotal + shipping + tax - discounts).
+	 * install_db() / dbDelta adds the column from get_schema() as well (EC_UPGRADE_DB 104); this keeps
+	 * the version-script path in step for stores whose dbDelta pass has not run yet.
+	 */
+	/**
+	 * 6.0.0 merges the two low stock numbers into one.
+	 *
+	 * ec_option_low_stock_trigger_total ( Settings > Checkout > Stock alerts ) predates
+	 * 6.0.0 and stays canonical, so a merchant's long-standing value survives.
+	 * ec_option_inventory_low_stock_threshold was added for the Inventory screen during
+	 * 6.0.0 development: its row only exists if someone saved that control, so when it
+	 * does and the canonical key was never moved off its shipped default, the merchant's
+	 * number is carried across. If both were set and they differ, the canonical one wins
+	 * and the discarded number is recorded so it can be checked.
+	 *
+	 * Runs once: its own flag option, not the version chain, since 6.0.0 upgrade steps
+	 * can repeat.
+	 */
+	private function wpeasycart_sql_6_0_0_stock() {
+		if ( get_option( 'ec_option_db_6_0_0_stock_threshold_merged' ) ) {
+			return;
+		}
+		update_option( 'ec_option_db_6_0_0_stock_threshold_merged', '1' );
+
+		$legacy = get_option( 'ec_option_inventory_low_stock_threshold', false );
+		if ( false === $legacy || '' === $legacy ) {
+			return;
+		}
+		$legacy = (int) $legacy;
+		if ( $legacy < 1 ) {
+			return;
+		}
+
+		$canonical = get_option( 'ec_option_low_stock_trigger_total', '' );
+		/* 5 is the default every pre-6.0.0 store shipped with; a fresh 6.0.0 install has no legacy row to migrate. */
+		$untouched = ( '' === $canonical || false === $canonical || null === $canonical || 5 === (int) $canonical );
+
+		if ( $untouched ) {
+			if ( (int) $canonical !== $legacy ) {
+				update_option( 'ec_option_low_stock_trigger_total', (string) $legacy );
+			}
+			return;
+		}
+
+		if ( (int) $canonical !== $legacy ) {
+			update_option( 'ec_option_low_stock_threshold_merge_note', sprintf( 'Kept the Stock alerts threshold of %1$d; the Inventory screen was set to %2$d.', (int) $canonical, $legacy ) );
+		}
+	}
+
+	private function wpeasycart_sql_6_0_0_fees() {
+		if ( ! $this->add_column( 'ec_fee', 'fee_basis', "varchar(32) NOT NULL DEFAULT 'subtotal'" ) || ( $this->table_exists( 'ec_fee' ) && ! $this->column_exists( 'ec_fee', 'fee_basis' ) ) ) {
+			$this->record_update_failure( '6.0.0 fees: could not add ec_fee.fee_basis' );
+		}
+	}
+
+	/**
+	 * Live rate cache: an index on ec_cart_id ( every cart update reads and replaces a cart's saved quote ) and a
+	 * created date so PRO can delete quotes for carts that no longer exist. dbDelta adds both from get_schema()
+	 * as well ( EC_UPGRADE_DB 105 ).
+	 *
+	 * `timestamp NULL DEFAULT CURRENT_TIMESTAMP` ( the same shape as ec_order_log.order_log_timestamp and
+	 * ec_user.date_created ): MySQL before 5.6.5 only accepts DEFAULT CURRENT_TIMESTAMP on timestamp columns.
+	 */
+	private function wpeasycart_sql_6_0_0_live_rates() {
+		if ( ! $this->table_exists( 'ec_live_rate_cache' ) ) {
+			return;
+		}
+		if ( ! $this->add_column( 'ec_live_rate_cache', 'created', 'timestamp NULL DEFAULT CURRENT_TIMESTAMP' ) || ! $this->column_exists( 'ec_live_rate_cache', 'created' ) ) {
+			$this->record_update_failure( '6.0.0 live rates: could not add ec_live_rate_cache.created' );
+		}
+		if ( ! $this->add_index( 'ec_live_rate_cache', 'ec_cart_id', 'ec_cart_id(191)' ) || ! $this->index_exists( 'ec_live_rate_cache', 'ec_cart_id' ) ) {
+			$this->record_update_failure( '6.0.0 live rates: could not index ec_live_rate_cache.ec_cart_id' );
+		}
+		if ( ! $this->add_index( 'ec_live_rate_cache', 'created', 'created' ) || ! $this->index_exists( 'ec_live_rate_cache', 'created' ) ) {
+			$this->record_update_failure( '6.0.0 live rates: could not index ec_live_rate_cache.created' );
+		}
+	}
+
+	private function wpeasycart_sql_6_0_0_reviews() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		$cols = array(
+			array( 'reply_text', 'text' ),
+			array( 'reply_date', 'datetime DEFAULT NULL' ),
+			array( 'reply_user_id', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'verified', "tinyint(1) NOT NULL DEFAULT '0'" ),
+			array( 'request_id', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'reviewer_email', "varchar(255) NOT NULL DEFAULT ''" ),
+			array( 'held_reason', "varchar(255) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( 'ec_review', $c[0], $c[1] ) || ! $this->column_exists( 'ec_review', $c[0] ) ) {
+				$this->record_update_failure( '6.0.0 reviews: could not add ec_review.' . $c[0] );
+			}
+		}
+		if ( ! $this->table_exists( 'ec_review_request' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_review_request (
+			request_id int(11) NOT NULL AUTO_INCREMENT,
+			order_id int(11) NOT NULL DEFAULT '0',
+			product_id int(11) NOT NULL DEFAULT '0',
+			user_id int(11) NOT NULL DEFAULT '0',
+			email varchar(255) NOT NULL DEFAULT '',
+			first_name varchar(255) NOT NULL DEFAULT '',
+			token varchar(64) NOT NULL DEFAULT '',
+			scheduled_at datetime DEFAULT NULL,
+			sent_at datetime DEFAULT NULL,
+			reminded_at datetime DEFAULT NULL,
+			opened_at datetime DEFAULT NULL,
+			reviewed_at datetime DEFAULT NULL,
+			review_id int(11) NOT NULL DEFAULT '0',
+			unsubscribed tinyint(1) NOT NULL DEFAULT '0',
+			created_at datetime DEFAULT NULL,
+			PRIMARY KEY  (request_id),
+			UNIQUE KEY token (token),
+			KEY order_id (order_id),
+			KEY product_id (product_id),
+			KEY email_product (email(100), product_id),
+			KEY scheduled_at (scheduled_at)
+		) $collate;" );
+			if ( ! $this->table_exists( 'ec_review_request' ) ) {
+				$this->record_update_failure( '6.0.0 reviews: could not create ec_review_request: ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	private function wpeasycart_sql_6_0_0_email() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_email_log' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_email_log (
+			log_id int(11) NOT NULL AUTO_INCREMENT,
+			created_at datetime DEFAULT NULL,
+			email_type varchar(40) NOT NULL DEFAULT '',
+			order_id int(11) NOT NULL DEFAULT '0',
+			to_email varchar(255) NOT NULL DEFAULT '',
+			subject varchar(255) NOT NULL DEFAULT '',
+			transport varchar(30) NOT NULL DEFAULT '',
+			status varchar(20) NOT NULL DEFAULT '',
+			error_text text,
+			attempts int(11) NOT NULL DEFAULT '1',
+			queue_id int(11) NOT NULL DEFAULT '0',
+			body_hash varchar(40) NOT NULL DEFAULT '',
+			PRIMARY KEY  (log_id),
+			KEY created_at (created_at),
+			KEY order_id (order_id),
+			KEY status (status),
+			KEY to_email (to_email(100))
+		) $collate;" );
+			if ( ! $this->table_exists( 'ec_email_log' ) ) {
+				$this->record_update_failure( '6.0.0 email: could not create ec_email_log: ' . $wpdb->last_error );
+			}
+		}
+		if ( ! $this->table_exists( 'ec_email_queue' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_email_queue (
+			queue_id int(11) NOT NULL AUTO_INCREMENT,
+			created_at datetime DEFAULT NULL,
+			email_type varchar(40) NOT NULL DEFAULT '',
+			order_id int(11) NOT NULL DEFAULT '0',
+			channel varchar(20) NOT NULL DEFAULT 'order',
+			to_email varchar(255) NOT NULL DEFAULT '',
+			subject varchar(255) NOT NULL DEFAULT '',
+			message longtext,
+			headers text,
+			attempts int(11) NOT NULL DEFAULT '0',
+			next_attempt datetime DEFAULT NULL,
+			status varchar(20) NOT NULL DEFAULT 'pending',
+			last_error text,
+			PRIMARY KEY  (queue_id),
+			KEY status_next (status, next_attempt),
+			KEY order_id (order_id)
+		) $collate;" );
+			if ( ! $this->table_exists( 'ec_email_queue' ) ) {
+				$this->record_update_failure( '6.0.0 email: could not create ec_email_queue: ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	private function wpeasycart_sql_6_0_0_abandoned() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_abandoned_cart' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_abandoned_cart ( abandoned_cart_id int(11) NOT NULL AUTO_INCREMENT, session_id varchar(191) NOT NULL DEFAULT '', email varchar(255) NOT NULL DEFAULT '', first_name varchar(255) NOT NULL DEFAULT '', last_name varchar(255) NOT NULL DEFAULT '', user_id int(11) NOT NULL DEFAULT '0', phone varchar(64) NOT NULL DEFAULT '', status varchar(20) NOT NULL DEFAULT 'active', stage varchar(20) NOT NULL DEFAULT 'cart', items_json longtext, item_count int(11) NOT NULL DEFAULT '0', subtotal decimal(12,2) NOT NULL DEFAULT '0.00', currency varchar(8) NOT NULL DEFAULT '', coupon_code varchar(64) NOT NULL DEFAULT '', shipping_country varchar(8) NOT NULL DEFAULT '', locale varchar(16) NOT NULL DEFAULT '', card_error varchar(255) NOT NULL DEFAULT '', first_seen datetime DEFAULT NULL, last_activity datetime DEFAULT NULL, abandoned_at datetime DEFAULT NULL, recovered_at datetime DEFAULT NULL, recovered_order_id int(11) NOT NULL DEFAULT '0', recovered_total decimal(12,2) NOT NULL DEFAULT '0.00', sequence_step int(11) NOT NULL DEFAULT '0', next_send_at datetime DEFAULT NULL, offer_code_id int(11) NOT NULL DEFAULT '0', offer_code varchar(64) NOT NULL DEFAULT '', offer_code_expires datetime DEFAULT NULL, admin_notes text, PRIMARY KEY  (abandoned_cart_id), UNIQUE KEY session_id (session_id), KEY status_next (status, next_send_at), KEY email (email(100)), KEY last_activity (last_activity), KEY first_seen (first_seen) ) $collate;" );
+			if ( ! $this->table_exists( 'ec_abandoned_cart' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart: ' . $wpdb->last_error ); }
+		}
+		if ( ! $this->table_exists( 'ec_abandoned_cart_event' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_abandoned_cart_event ( event_id int(11) NOT NULL AUTO_INCREMENT, abandoned_cart_id int(11) NOT NULL DEFAULT '0', type varchar(24) NOT NULL DEFAULT '', step int(11) NOT NULL DEFAULT '0', detail text, created_at datetime DEFAULT NULL, PRIMARY KEY  (event_id), KEY cart_type (abandoned_cart_id, type), KEY created_at (created_at) ) $collate;" );
+			if ( ! $this->table_exists( 'ec_abandoned_cart_event' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart_event: ' . $wpdb->last_error ); }
+		}
+	}
+
+	/**
+	 * Converge index definitions that dbDelta cannot change on its own. Idempotent and cheap
+	 * (information_schema lookups only), so it is safe to run before every dbDelta pass.
+	 */
+	public function normalize_indexes() {
+		global $wpdb;
+		// ec_product.model_number: a UNIQUE prefix index rejects a second product with an empty / shared model number.
+		if ( $this->table_exists( 'ec_product' ) && $this->index_is_unique( 'ec_product', 'product_model_number' ) ) {
+			$wpdb->query( "ALTER TABLE ec_product DROP INDEX product_model_number" );
+			$this->add_index( 'ec_product', 'product_model_number', 'model_number(191)' );
+		}
+		// ec_roleprice.idx_product_role: 4 + 191*4 = 768 bytes exceeds the 767 byte limit on InnoDB COMPACT rows.
+		if ( $this->table_exists( 'ec_roleprice' ) ) {
+			$sub_part = $wpdb->get_var( $wpdb->prepare( "SELECT sub_part FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s AND column_name = %s", 'ec_roleprice', 'idx_product_role', 'role_label' ) );
+			if ( null !== $sub_part && (int) $sub_part !== 100 ) {
+				$wpdb->query( "ALTER TABLE ec_roleprice DROP INDEX idx_product_role" );
+			}
+			if ( ! $this->index_exists( 'ec_roleprice', 'idx_product_role' ) ) {
+				$this->add_index( 'ec_roleprice', 'idx_product_role', 'product_id, role_label(100)' );
+			}
+		}
+	}
+
+	/**
+	 * Idempotent schema helpers for upgrade scripts. install_db() runs dbDelta on plugins_loaded
+	 * and try_db_update() runs on init, so by the time a version script executes, dbDelta has
+	 * usually already added the column / index. Plain ALTER ... ADD then fails with
+	 * "Duplicate column name" / "Duplicate key name"; these helpers check first so an upgrade
+	 * never logs errors regardless of which hook reaches the database first.
+	 */
+	public function column_exists( $table, $column ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s", $table, $column ) );
+	}
+
+	public function add_column( $table, $column, $definition ) {
+		global $wpdb;
+		if ( ! $this->table_exists( $table ) || $this->column_exists( $table, $column ) ) {
+			return true;
+		}
+		return false !== $wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$column` " . $this->sanitize_column_sql( $definition ) );
+	}
+
+	public function add_index( $table, $index, $columns ) {
+		global $wpdb;
+		if ( ! $this->table_exists( $table ) || $this->index_exists( $table, $index ) ) {
+			return true;
+		}
+		return false !== $wpdb->query( "ALTER TABLE `$table` ADD INDEX `$index` ($columns)" );
+	}
+
+	public function rename_column( $table, $from, $to, $definition ) {
+		global $wpdb;
+		if ( ! $this->table_exists( $table ) || ! $this->column_exists( $table, $from ) || $this->column_exists( $table, $to ) ) {
+			return true;
+		}
+		return false !== $wpdb->query( "ALTER TABLE `$table` CHANGE `$from` `$to` $definition" );
+	}
+
+	private function record_update_failure( $message ) {
+		$this->update_failed = true;
+		$this->update_errors[] = $message;
+		//error_log( 'WP EasyCart DB update ' . $message );
+	}
+
+	private function index_exists( $table, $index ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s", $table, $index ) );
+	}
+
+	private function index_is_unique( $table, $index ) {
+		global $wpdb;
+		$non_unique = $wpdb->get_var( $wpdb->prepare( "SELECT non_unique FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s LIMIT 1", $table, $index ) );
+		return null !== $non_unique && '0' === (string) $non_unique;
+	}
+
+	/**
+	 * Hand the post-sync audit to WP-Cron instead of running it inline.
+	 *
+	 * audit( true ) walks every product / category row and calls get_post() per row, so on a large
+	 * catalog it cannot finish inside the admin request that runs the version chain, and a timeout
+	 * here would have re-run the whole 5.9.4 step forever. wpeasycart.php handles the
+	 * 'wp_easycart_post_sync_audit' event ( @since 6.0.0 ).
+	 */
+	private function run_post_sync_audit() {
+		if ( ! function_exists( 'wp_schedule_single_event' ) || ! function_exists( 'wp_next_scheduled' ) ) {
+			return;
+		}
+		if ( ! wp_next_scheduled( 'wp_easycart_post_sync_audit' ) ) {
+			wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'wp_easycart_post_sync_audit' );
+		}
+	}
+
+	/**
+	 * Indexes for the admin's hot queries: order list filters / sorts, the response log,
+	 * abandoned-cart sweeps, the catalog price sort and the stock-adjustment lookup.
+	 * One ALTER per index so a failure on one does not block the rest; existing indexes are
+	 * skipped. Prefix ( 191 ) on the varchar(255) columns keeps utf8mb4 under the 767-byte
+	 * limit on MySQL 5.5 / 5.6. dbDelta adds the same keys from get_schema() ( EC_UPGRADE_DB 106 ).
+	 *
+	 * Returns false when the request's time budget runs out between indexes so the chain
+	 * resumes here on the next admin/cron request.
+	 *
+	 * @since 6.0.0
+	 */
+	private function wpeasycart_sql_6_0_0_indexes() {
+		global $wpdb;
+		$indexes = array(
+			array( 'ec_order', 'order_order_date', 'order_date' ),
+			array( 'ec_order', 'order_orderstatus_id', 'orderstatus_id' ),
+			array( 'ec_order', 'order_order_viewed', 'order_viewed' ),
+			array( 'ec_order', 'order_user_email', 'user_email(191)' ),
+			array( 'ec_order', 'order_shipping_country', 'shipping_country(191)' ),
+			array( 'ec_order', 'order_billing_country', 'billing_country(191)' ),
+			array( 'ec_response', 'response_response_time', 'response_time' ),
+			array( 'ec_response', 'response_error_time', 'is_error, response_time' ),
+			array( 'ec_response', 'response_processor', 'processor(191)' ),
+			array( 'ec_tempcart', 'tempcart_last_changed_date', 'last_changed_date' ),
+			array( 'ec_product', 'product_active_price', 'activate_in_store, price' ),
+			array( 'ec_orderdetail', 'orderdetail_product_stock', 'product_id, stock_adjusted' ),
+		);
+		foreach ( $indexes as $i => $def ) {
+			list( $table, $index, $columns ) = $def;
+			if ( ! $this->table_exists( $table ) || $this->index_exists( $table, $index ) ) {
+				continue;
+			}
+			$added = $this->add_index( $table, $index, $columns );
+			if ( ! $added || ! $this->index_exists( $table, $index ) ) {
+				$this->record_update_failure( '6.0.0 indexes: could not add ' . $table . '.' . $index . ' (' . $columns . '): ' . $wpdb->last_error );
+			}
+			if ( $i < count( $indexes ) - 1 && $this->out_of_time() ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Drain the ec_user.date_created backfill queued by wpeasycart_sql_5_9_4(): each customer's
+	 * date_created becomes the date of their first order ( NULL when they have none ), exactly
+	 * what the old single UPDATE produced, but 5,000 users per statement and resumable.
+	 *
+	 * @since 6.0.0
+	 */
+	private function wpeasycart_sql_6_0_0_user_dates() {
+		return $this->drain_batch_job( 'user_dates', 'date_created = ( SELECT MIN( o.order_date ) FROM ec_order o WHERE o.user_id = ec_user.user_id )', '' );
+	}
+
+	/**
+	 * Drain the zero-date normalisations queued by wpeasycart_sql_6_0_0(): every
+	 * '0000-00-00 00:00:00' in the relaxed datetime columns becomes NULL, by primary-key range.
+	 *
+	 * @since 6.0.0
+	 */
+	private function wpeasycart_sql_6_0_0_zero_dates() {
+		global $wpdb;
+		/* NO_ZERO_DATE hosts reject the zero-date literal in the WHERE; relax the session for the batch only. */
+		$wpdb->query( "SET SESSION sql_mode = ''" );
+		$done = $this->drain_batch_job( 'zero_dates', '`{column}` = NULL', "`{column}` = '0000-00-00 00:00:00'" );
+		$wpdb->set_sql_mode();
+		return $done;
+	}
+
+	/**
+	 * Queue a set of row-rewrite jobs for a later batched step. Each job is
+	 * array( 'table', 'pk', 'cursor' [, 'column' ] ). Re-queuing a job for a table/column that is
+	 * already pending keeps the pending cursor so a re-run of the queuing step does not restart it.
+	 *
+	 * @since 6.0.0
+	 */
+	private function queue_batch_job( $job_key, array $jobs ) {
+		if ( ! count( $jobs ) ) {
+			return;
+		}
+		$option = 'ec_option_db_batch_' . $job_key;
+		$pending = get_option( $option );
+		$pending = is_array( $pending ) ? $pending : array();
+		foreach ( $jobs as $job ) {
+			$id = $job['table'] . '.' . ( isset( $job['column'] ) ? $job['column'] : '*' );
+			if ( isset( $pending[ $id ] ) && isset( $pending[ $id ]['cursor'] ) ) {
+				continue;
+			}
+			$pending[ $id ] = $job;
+		}
+		update_option( $option, $pending, false );
+	}
+
+	/**
+	 * Run the queued jobs for $job_key until they are finished or the request's time budget is
+	 * spent. `{column}` in $set_sql / $where_sql is replaced with the job's column. Returns true
+	 * when nothing is left ( the queue option is removed ), false when the chain should come back.
+	 *
+	 * @since 6.0.0
+	 */
+	private function drain_batch_job( $job_key, $set_sql, $where_sql ) {
+		$option = 'ec_option_db_batch_' . $job_key;
+		$pending = get_option( $option );
+		if ( ! is_array( $pending ) || ! count( $pending ) ) {
+			delete_option( $option );
+			return true;
+		}
+		foreach ( $pending as $id => $job ) {
+			if ( empty( $job['table'] ) || empty( $job['pk'] ) || ! $this->table_exists( $job['table'] ) ) {
+				unset( $pending[ $id ] );
+				continue;
+			}
+			$column = isset( $job['column'] ) ? $job['column'] : '';
+			if ( '' !== $column && ! $this->column_exists( $job['table'], $column ) ) {
+				unset( $pending[ $id ] );
+				continue;
+			}
+			$cursor = isset( $job['cursor'] ) ? (int) $job['cursor'] : 0;
+			/* Persist the cursor after every chunk so a hard PHP timeout resumes at the last chunk,
+			   not at the last soft pause. One option write per UPDATE_BATCH_SIZE rows. */
+			$persist = function ( $position ) use ( &$pending, $id, $option ) {
+				$pending[ $id ]['cursor'] = (int) $position;
+				update_option( $option, $pending, false );
+			};
+			$finished = $this->batch_update_by_pk(
+				$job['table'],
+				$job['pk'],
+				str_replace( '{column}', $column, $set_sql ),
+				str_replace( '{column}', $column, $where_sql ),
+				$cursor,
+				$persist
+			);
+			if ( $finished ) {
+				unset( $pending[ $id ] );
+				update_option( $option, $pending, false );
+				continue;
+			}
+			return false;
+		}
+		delete_option( $option );
+		return true;
+	}
+
+	/**
+	 * UPDATE `$table` SET $set_sql [WHERE $where_sql] in UPDATE_BATCH_SIZE-row primary-key ranges,
+	 * starting after $cursor. The upper bound of each range is the real Nth key after the cursor
+	 * ( not cursor + N ), so gaps in the id sequence never produce runaway empty passes. $cursor is
+	 * advanced by reference; returns true when the last row has been passed, false when the time
+	 * budget ran out first. Identifiers are hard-coded schema names supplied by the update scripts.
+	 *
+	 * @since 6.0.0
+	 */
+	private function batch_update_by_pk( $table, $pk, $set_sql, $where_sql, &$cursor, $on_progress = null ) {
+		global $wpdb;
+		$cursor = (int) $cursor;
+		$extra = ( '' !== trim( (string) $where_sql ) ) ? ' AND ( ' . $where_sql . ' )' : '';
+		while ( true ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table / $pk are schema identifiers from the upgrade scripts, not input.
+			$upper = $wpdb->get_var( $wpdb->prepare( "SELECT `$pk` FROM `$table` WHERE `$pk` > %d ORDER BY `$pk` ASC LIMIT 1 OFFSET %d", $cursor, self::UPDATE_BATCH_SIZE - 1 ) );
+			if ( null === $upper ) {
+				/* Fewer than a full batch remains: finish the tail in one statement. */
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- identifiers and the SET / WHERE fragments are hard-coded in this file.
+				$wpdb->query( $wpdb->prepare( "UPDATE `$table` SET $set_sql WHERE `$pk` > %d" . $extra, $cursor ) );
+				return true;
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- identifiers and the SET / WHERE fragments are hard-coded in this file.
+			$wpdb->query( $wpdb->prepare( "UPDATE `$table` SET $set_sql WHERE `$pk` > %d AND `$pk` <= %d" . $extra, $cursor, (int) $upper ) );
+			$cursor = (int) $upper;
+			if ( $on_progress && is_callable( $on_progress ) ) {
+				call_user_func( $on_progress, $cursor );
+			}
+			if ( $this->out_of_time() ) {
+				return false;
+			}
 		}
 	}
 	/* END DATABASE UPGRADE SCRIPTS */
@@ -1227,7 +2129,54 @@ class ec_db_manager {
 		if( $wpdb->has_cap( 'collation' ) ){
 			$collate = $wpdb->get_charset_collate( );
 		}
-		$schema = "
+		$schema = "CREATE TABLE ec_abandoned_cart (
+  abandoned_cart_id int(11) NOT NULL AUTO_INCREMENT,
+  session_id varchar($max_index_length) NOT NULL DEFAULT '',
+  email varchar(255) NOT NULL DEFAULT '',
+  first_name varchar(255) NOT NULL DEFAULT '',
+  last_name varchar(255) NOT NULL DEFAULT '',
+  user_id int(11) NOT NULL DEFAULT '0',
+  phone varchar(64) NOT NULL DEFAULT '',
+  status varchar(20) NOT NULL DEFAULT 'active',
+  stage varchar(20) NOT NULL DEFAULT 'cart',
+  items_json longtext,
+  item_count int(11) NOT NULL DEFAULT '0',
+  subtotal decimal(12,2) NOT NULL DEFAULT '0.00',
+  currency varchar(8) NOT NULL DEFAULT '',
+  coupon_code varchar(64) NOT NULL DEFAULT '',
+  shipping_country varchar(8) NOT NULL DEFAULT '',
+  locale varchar(16) NOT NULL DEFAULT '',
+  card_error varchar(255) NOT NULL DEFAULT '',
+  first_seen datetime DEFAULT NULL,
+  last_activity datetime DEFAULT NULL,
+  abandoned_at datetime DEFAULT NULL,
+  recovered_at datetime DEFAULT NULL,
+  recovered_order_id int(11) NOT NULL DEFAULT '0',
+  recovered_total decimal(12,2) NOT NULL DEFAULT '0.00',
+  sequence_step int(11) NOT NULL DEFAULT '0',
+  next_send_at datetime DEFAULT NULL,
+  offer_code_id int(11) NOT NULL DEFAULT '0',
+  offer_code varchar(64) NOT NULL DEFAULT '',
+  offer_code_expires datetime DEFAULT NULL,
+  admin_notes text,
+  PRIMARY KEY  (abandoned_cart_id),
+  UNIQUE KEY session_id (session_id),
+  KEY status_next (status, next_send_at),
+  KEY email (email(100)),
+  KEY last_activity (last_activity),
+  KEY first_seen (first_seen)
+) $collate;
+CREATE TABLE ec_abandoned_cart_event (
+  event_id int(11) NOT NULL AUTO_INCREMENT,
+  abandoned_cart_id int(11) NOT NULL DEFAULT '0',
+  type varchar(24) NOT NULL DEFAULT '',
+  step int(11) NOT NULL DEFAULT '0',
+  detail text,
+  created_at datetime DEFAULT NULL,
+  PRIMARY KEY  (event_id),
+  KEY cart_type (abandoned_cart_id, type),
+  KEY created_at (created_at)
+) $collate;
 CREATE TABLE ec_address (
   address_id int(11) NOT NULL AUTO_INCREMENT,
   user_id int(11) NOT NULL DEFAULT '0',
@@ -1296,7 +2245,7 @@ CREATE TABLE ec_cart_link (
   created_by bigint(20) NOT NULL DEFAULT 0,
   created_at datetime DEFAULT NULL,
   last_used datetime DEFAULT NULL,
-  PRIMARY KEY (cart_link_id),
+  PRIMARY KEY  (cart_link_id),
   UNIQUE KEY cart_link_token (link_token)
 ) $collate;
 CREATE TABLE ec_cart_link_item (
@@ -1311,7 +2260,7 @@ CREATE TABLE ec_cart_link_item (
   optionitem_id_5 int(11) NOT NULL DEFAULT 0,
   modifier_values text,
   sort_order int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (cart_link_item_id),
+  PRIMARY KEY  (cart_link_item_id),
   KEY cart_link_item_link (cart_link_id),
   KEY cart_link_item_product (product_id)
 ) $collate;
@@ -1327,6 +2276,8 @@ CREATE TABLE ec_category (
   featured_category tinyint(1) NOT NULL DEFAULT '0',
   priority int(11) NOT NULL DEFAULT '0',
   square_id varchar(255) NOT NULL DEFAULT '',
+  smart_mode tinyint(1) NOT NULL DEFAULT '0',
+  smart_rules text,
   PRIMARY KEY  (category_id),
   UNIQUE KEY category_id (category_id)
 ) $collate;
@@ -1334,6 +2285,7 @@ CREATE TABLE ec_categoryitem (
   categoryitem_id int(11) NOT NULL AUTO_INCREMENT,
   category_id int(11) NOT NULL DEFAULT '0',
   product_id int(11) NOT NULL DEFAULT '0',
+  is_smart tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY  (categoryitem_id),
   UNIQUE KEY categoryitem_id (categoryitem_id),
   KEY product_id (product_id),
@@ -1385,12 +2337,49 @@ CREATE TABLE ec_download (
   download_count int(11) NOT NULL DEFAULT '0',
   order_id int(11) NOT NULL DEFAULT '0',
   product_id int(11) NOT NULL DEFAULT '0',
-  download_file_name text NOT NULL DEFAULT '',
+  download_file_name text NULL,
   is_amazon_download tinyint(1) NOT NULL DEFAULT '0',
   amazon_key varchar(1024) NOT NULL DEFAULT '',
   PRIMARY KEY  (download_id),
   KEY download_order_id (order_id),
   KEY download_product_id (product_id)
+) $collate;
+CREATE TABLE ec_email_log (
+  log_id int(11) NOT NULL AUTO_INCREMENT,
+  created_at datetime DEFAULT NULL,
+  email_type varchar(40) NOT NULL DEFAULT '',
+  order_id int(11) NOT NULL DEFAULT '0',
+  to_email varchar(255) NOT NULL DEFAULT '',
+  subject varchar(255) NOT NULL DEFAULT '',
+  transport varchar(30) NOT NULL DEFAULT '',
+  status varchar(20) NOT NULL DEFAULT '',
+  error_text text,
+  attempts int(11) NOT NULL DEFAULT '1',
+  queue_id int(11) NOT NULL DEFAULT '0',
+  body_hash varchar(40) NOT NULL DEFAULT '',
+  PRIMARY KEY  (log_id),
+  KEY created_at (created_at),
+  KEY order_id (order_id),
+  KEY status (status),
+  KEY to_email (to_email(100))
+) $collate;
+CREATE TABLE ec_email_queue (
+  queue_id int(11) NOT NULL AUTO_INCREMENT,
+  created_at datetime DEFAULT NULL,
+  email_type varchar(40) NOT NULL DEFAULT '',
+  order_id int(11) NOT NULL DEFAULT '0',
+  channel varchar(20) NOT NULL DEFAULT 'order',
+  to_email varchar(255) NOT NULL DEFAULT '',
+  subject varchar(255) NOT NULL DEFAULT '',
+  message longtext,
+  headers text,
+  attempts int(11) NOT NULL DEFAULT '0',
+  next_attempt datetime DEFAULT NULL,
+  status varchar(20) NOT NULL DEFAULT 'pending',
+  last_error text,
+  PRIMARY KEY  (queue_id),
+  KEY status_next (status, next_attempt),
+  KEY order_id (order_id)
 ) $collate;
 CREATE TABLE ec_fee (
   fee_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1409,7 +2398,8 @@ CREATE TABLE ec_fee (
   fee_price float(15,3) NOT NULL DEFAULT '0.000',
   fee_min float(15,3) NOT NULL DEFAULT '0.000',
   fee_max float(15,3) NOT NULL DEFAULT '-1.000',
-  PRIMARY KEY (fee_id)
+  fee_basis varchar(32) NOT NULL DEFAULT 'subtotal',
+  PRIMARY KEY  (fee_id)
 ) $collate;
 CREATE TABLE ec_giftcard (
   giftcard_id varchar(20) NOT NULL DEFAULT '',
@@ -1429,7 +2419,7 @@ CREATE TABLE ec_inventory_log (
 	source varchar(40) NOT NULL DEFAULT '',
 	note text NULL,
 	user_id bigint(20) NOT NULL DEFAULT '0',
-	created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created timestamp NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY  (log_id),
 	KEY product_id (product_id),
 	KEY optionitemquantity_id (optionitemquantity_id),
@@ -1439,7 +2429,10 @@ CREATE TABLE ec_live_rate_cache (
   live_rate_cache_id int(11) NOT NULL AUTO_INCREMENT,
   ec_cart_id varchar(255) NOT NULL DEFAULT '',
   rate_data text,
-  PRIMARY KEY  (live_rate_cache_id)
+  created timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (live_rate_cache_id),
+  KEY ec_cart_id (ec_cart_id(191)),
+  KEY created (created)
 ) $collate;
 CREATE TABLE ec_location (
   location_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1454,8 +2447,8 @@ CREATE TABLE ec_location (
   email varchar(255) NOT NULL DEFAULT '',
   latitude decimal(9,6) DEFAULT NULL,
   longitude decimal(9,6) DEFAULT NULL,
-  hours_note text NOT NULL DEFAULT '',
-  PRIMARY KEY (location_id),
+  hours_note text NULL,
+  PRIMARY KEY  (location_id),
   UNIQUE KEY location_id (location_id)
 ) $collate;
 CREATE TABLE ec_location_to_product (
@@ -1690,11 +2683,11 @@ CREATE TABLE ec_optionitemimage (
   optionitem_id int(11) NOT NULL DEFAULT '0',
   product_id int(11) NOT NULL DEFAULT '0',
   product_images text NULL,
-  image1 text NOT NULL DEFAULT '',
-  image2 text NOT NULL DEFAULT '',
-  image3 text NOT NULL DEFAULT '',
-  image4 text NOT NULL DEFAULT '',
-  image5 text NOT NULL DEFAULT '',
+  image1 text NULL,
+  image2 text NULL,
+  image3 text NULL,
+  image4 text NULL,
+  image5 text NULL,
   PRIMARY KEY  (optionitemimage_id),
   KEY optionitem_id (optionitem_id),
   KEY product_id (product_id)
@@ -1730,7 +2723,7 @@ CREATE TABLE ec_order (
   user_id int(11) NOT NULL DEFAULT '0',
   user_email varchar(255) NOT NULL DEFAULT '',
   user_level varchar(255) NOT NULL DEFAULT 'shopper',
-  last_updated datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  last_updated datetime NULL,
   order_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   orderstatus_id int(11) NOT NULL DEFAULT '5',
   order_weight float(15,3) NOT NULL DEFAULT '0.000',
@@ -1814,9 +2807,9 @@ CREATE TABLE ec_order (
   email_other varchar(255) NOT NULL DEFAULT '',
   includes_preorder_items tinyint(1) NOT NULL DEFAULT 0,
   includes_restaurant_type tinyint(1) NOT NULL DEFAULT 0,
-  pickup_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  pickup_date datetime NULL,
   pickup_asap tinyint(1) NOT NULL DEFAULT 1,
-  pickup_time datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  pickup_time datetime NULL,
   location_id int(11) NOT NULL DEFAULT 0,
   converted_cart_id varchar(100) NOT NULL DEFAULT '',
   cart_link_id int(11) NOT NULL DEFAULT 0,
@@ -1824,7 +2817,13 @@ CREATE TABLE ec_order (
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
   KEY giftcard_id (giftcard_id),
-  KEY order_cart_link (cart_link_id)
+  KEY order_cart_link (cart_link_id),
+  KEY order_order_date (order_date),
+  KEY order_orderstatus_id (orderstatus_id),
+  KEY order_order_viewed (order_viewed),
+  KEY order_user_email (user_email($max_index_length)),
+  KEY order_shipping_country (shipping_country($max_index_length)),
+  KEY order_billing_country (billing_country($max_index_length))
 ) $collate;
 CREATE TABLE ec_order_fee (
   order_fee_id int(11) NOT NULL AUTO_INCREMENT,
@@ -1832,7 +2831,7 @@ CREATE TABLE ec_order_fee (
   fee_label varchar(512)  NOT NULL DEFAULT '',
   fee_rate float(15,3) NOT NULL DEFAULT '0.000',
   fee_total float(15,3) NOT NULL DEFAULT '0.000',
-  PRIMARY KEY (order_fee_id),
+  PRIMARY KEY  (order_fee_id),
   KEY order_id (order_id)
 ) $collate;
 CREATE TABLE ec_order_log (
@@ -1889,7 +2888,7 @@ CREATE TABLE ec_order_tag (
   tag_id int(11) NOT NULL AUTO_INCREMENT,
   tag_label varchar(100) NOT NULL DEFAULT '',
   tag_color varchar(20) NOT NULL DEFAULT '#6a737d',
-  PRIMARY KEY (tag_id)
+  PRIMARY KEY  (tag_id)
 ) $collate;
 CREATE TABLE ec_order_tag_item (
   order_id int(11) NOT NULL,
@@ -1903,7 +2902,7 @@ CREATE TABLE ec_orderdetail (
   product_id int(11) NOT NULL DEFAULT '0',
   title varchar(255) DEFAULT NULL,
   model_number varchar(255) NOT NULL,
-  order_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  order_date datetime NOT NULL,
   unit_price float(15,3) NOT NULL DEFAULT '0.000',
   unit_discount_promotion float(15,3) NOT NULL DEFAULT '0.000',
   unit_discount_coupon float(15,3) NOT NULL DEFAULT '0.000',
@@ -1918,16 +2917,16 @@ CREATE TABLE ec_orderdetail (
   optionitem_id_3 int(11) NOT NULL DEFAULT '0',
   optionitem_id_4 int(11) NOT NULL DEFAULT '0',
   optionitem_id_5 int(11) NOT NULL DEFAULT '0',
-  optionitem_name_1 text NOT NULL DEFAULT '',
-  optionitem_name_2 text NOT NULL DEFAULT '',
-  optionitem_name_3 text NOT NULL DEFAULT '',
-  optionitem_name_4 text NOT NULL DEFAULT '',
-  optionitem_name_5 text NOT NULL DEFAULT '',
-  optionitem_label_1 text NOT NULL DEFAULT '',
-  optionitem_label_2 text NOT NULL DEFAULT '',
-  optionitem_label_3 text NOT NULL DEFAULT '',
-  optionitem_label_4 text NOT NULL DEFAULT '',
-  optionitem_label_5 text NOT NULL DEFAULT '',
+  optionitem_name_1 text NULL,
+  optionitem_name_2 text NULL,
+  optionitem_name_3 text NULL,
+  optionitem_name_4 text NULL,
+  optionitem_name_5 text NULL,
+  optionitem_label_1 text NULL,
+  optionitem_label_2 text NULL,
+  optionitem_label_3 text NULL,
+  optionitem_label_4 text NULL,
+  optionitem_label_5 text NULL,
   optionitem_price_1 float(15,3) NOT NULL DEFAULT '0.000',
   optionitem_price_2 float(15,3) NOT NULL DEFAULT '0.000',
   optionitem_price_3 float(15,3) NOT NULL DEFAULT '0.000',
@@ -1947,8 +2946,8 @@ CREATE TABLE ec_orderdetail (
   is_taxable tinyint(1) NOT NULL DEFAULT '1',
   is_shippable tinyint(1) NOT NULL DEFAULT '1',
   exclude_shippable_calculation tinyint(1) NOT NULL DEFAULT '0',
-  download_file_name text NOT NULL DEFAULT '',
-  download_key text DEFAULT '',
+  download_file_name text NULL,
+  download_key text NULL,
   maximum_downloads_allowed int(11) NOT NULL DEFAULT '0',
   download_timelimit_seconds int(11) DEFAULT '0',
   is_amazon_download tinyint(1) NOT NULL DEFAULT '0',
@@ -1974,7 +2973,8 @@ CREATE TABLE ec_orderdetail (
   KEY orderdetail_order_id (order_id),
   KEY orderdetail_product_id (product_id),
   KEY orderdetail_giftcard_id (giftcard_id),
-  KEY idx_order_product (order_id,product_id)
+  KEY idx_order_product (order_id,product_id),
+  KEY orderdetail_product_stock (product_id,stock_adjusted)
 ) $collate;
 CREATE TABLE ec_orderstatus (
   status_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2048,13 +3048,13 @@ CREATE TABLE ec_product (
   use_specifications tinyint(1) NOT NULL DEFAULT 0,
   use_customer_reviews tinyint(1) NOT NULL DEFAULT 0,
   manufacturer_id int(11) NOT NULL DEFAULT '0',
-  download_file_name text NOT NULL DEFAULT '',
+  download_file_name text NULL,
   product_images text NULL,
-  image1 text NOT NULL DEFAULT '',
-  image2 text NOT NULL DEFAULT '',
-  image3 text NOT NULL DEFAULT '',
-  image4 text NOT NULL DEFAULT '',
-  image5 text NOT NULL DEFAULT '',
+  image1 text NULL,
+  image2 text NULL,
+  image3 text NULL,
+  image4 text NULL,
+  image5 text NULL,
   option_id_1 int(11) NOT NULL DEFAULT '0',
   option_id_2 int(11) NOT NULL DEFAULT '0',
   option_id_3 int(11) NOT NULL DEFAULT '0',
@@ -2090,7 +3090,7 @@ CREATE TABLE ec_product (
   use_optionitem_images tinyint(1) NOT NULL DEFAULT 0,
   use_optionitem_quantity_tracking tinyint(1) NOT NULL DEFAULT 0,
   views int(11) NOT NULL DEFAULT '0',
-  last_viewed datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  last_viewed datetime NULL,
   show_stock_quantity tinyint(1) NOT NULL DEFAULT 1,
   maximum_downloads_allowed int(11) NOT NULL DEFAULT '0',
   download_timelimit_seconds int(11) NOT NULL DEFAULT '0',
@@ -2166,7 +3166,7 @@ CREATE TABLE ec_product (
   reorder_point int(11) NOT NULL DEFAULT '-1',
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
-  UNIQUE KEY product_model_number (model_number($max_index_length)),
+  KEY product_model_number (model_number($max_index_length)),
   KEY product_menulevel1_id_1 (menulevel1_id_1,menulevel2_id_1,menulevel3_id_1),
   KEY product_menulevel1_id_2 (menulevel1_id_2,menulevel2_id_2,menulevel3_id_2),
   KEY product_menulevel1_id_3 (menulevel1_id_3,menulevel2_id_3,menulevel3_id_3),
@@ -2177,7 +3177,8 @@ CREATE TABLE ec_product (
   KEY product_option_id_4 (option_id_4),
   KEY product_option_id_5 (option_id_5),
   KEY idx_storefront_default (activate_in_store, role_id, sort_position),
-  KEY idx_post_id (post_id)
+  KEY idx_post_id (post_id),
+  KEY product_active_price (activate_in_store,price)
 ) $collate;
 CREATE TABLE ec_product_bundle (
   product_bundle_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2265,8 +3266,8 @@ CREATE TABLE ec_promotion (
   promotion_id int(11) NOT NULL AUTO_INCREMENT,
   name varchar(255) NOT NULL DEFAULT '',
   type int(11) NOT NULL DEFAULT '0',
-  start_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  end_date datetime DEFAULT '0000-00-00 00:00:00',
+  start_date datetime NULL,
+  end_date datetime NULL,
   product_id_1 int(11) NOT NULL DEFAULT '0',
   product_id_2 int(11) NOT NULL DEFAULT '0',
   product_id_3 int(11) NOT NULL DEFAULT '0',
@@ -2306,7 +3307,10 @@ CREATE TABLE ec_response (
   response_time timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   response_text text,
   PRIMARY KEY  (response_id),
-  KEY order_id (order_id) 
+  KEY order_id (order_id),
+  KEY response_response_time (response_time),
+  KEY response_error_time (is_error,response_time),
+  KEY response_processor (processor($max_index_length))
 ) $collate;
 CREATE TABLE ec_review (
   review_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2318,11 +3322,41 @@ CREATE TABLE ec_review (
   description mediumblob NOT NULL,
   date_submitted timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reviewer_name varchar(255) NOT NULL DEFAULT '',
+  reply_text text,
+  reply_date datetime DEFAULT NULL,
+  reply_user_id int(11) NOT NULL DEFAULT '0',
+  verified tinyint(1) NOT NULL DEFAULT '0',
+  request_id int(11) NOT NULL DEFAULT '0',
+  reviewer_email varchar(255) NOT NULL DEFAULT '',
+  held_reason varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY  (review_id),
   UNIQUE KEY review_id (review_id),
   KEY product_id (product_id),
   KEY user_id (user_id),
   KEY idx_product_approved (product_id, approved)
+) $collate;
+CREATE TABLE ec_review_request (
+  request_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  product_id int(11) NOT NULL DEFAULT '0',
+  user_id int(11) NOT NULL DEFAULT '0',
+  email varchar(255) NOT NULL DEFAULT '',
+  first_name varchar(255) NOT NULL DEFAULT '',
+  token varchar(64) NOT NULL DEFAULT '',
+  scheduled_at datetime DEFAULT NULL,
+  sent_at datetime DEFAULT NULL,
+  reminded_at datetime DEFAULT NULL,
+  opened_at datetime DEFAULT NULL,
+  reviewed_at datetime DEFAULT NULL,
+  review_id int(11) NOT NULL DEFAULT '0',
+  unsubscribed tinyint(1) NOT NULL DEFAULT '0',
+  created_at datetime DEFAULT NULL,
+  PRIMARY KEY  (request_id),
+  UNIQUE KEY token (token),
+  KEY order_id (order_id),
+  KEY product_id (product_id),
+  KEY email_product (email(100), product_id),
+  KEY scheduled_at (scheduled_at)
 ) $collate;
 CREATE TABLE ec_role (
   role_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2349,7 +3383,7 @@ CREATE TABLE ec_roleprice (
   UNIQUE KEY roleprice_id (roleprice_id),
   KEY product_id (product_id),
   KEY role_label (role_label),
-  KEY idx_product_role (product_id, role_label)
+  KEY idx_product_role (product_id, role_label(100))
 ) $collate;
 CREATE TABLE ec_schedule (
   schedule_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2371,7 +3405,7 @@ CREATE TABLE ec_schedule (
   retail_closed tinyint(1) NOT NULL DEFAULT 0,
   preorder_closed tinyint(1) NOT NULL DEFAULT 0,
   restaurant_closed tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (schedule_id),
+  PRIMARY KEY  (schedule_id),
   UNIQUE KEY schedule_id (schedule_id)
 ) $collate;
 CREATE TABLE ec_setting (
@@ -2484,7 +3518,7 @@ CREATE TABLE ec_state (
 ) $collate;
 CREATE TABLE ec_subscriber (
   subscriber_id int(11) NOT NULL AUTO_INCREMENT,
-  email text NOT NULL DEFAULT '',
+  email text NULL,
   first_name varchar(255) NOT NULL DEFAULT '',
   last_name varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY  (subscriber_id),
@@ -2494,9 +3528,9 @@ CREATE TABLE ec_subscription (
   subscription_id int(11) NOT NULL AUTO_INCREMENT,
   subscription_type varchar(255) NOT NULL DEFAULT 'paypal',
   subscription_status varchar(255) NOT NULL DEFAULT 'Active',
-  title text NOT NULL DEFAULT '',
+  title text NULL,
   user_id int(11) NOT NULL DEFAULT '0',
-  email text NOT NULL DEFAULT '',
+  email text NULL,
   first_name varchar(255) NOT NULL DEFAULT '',
   last_name varchar(255) NOT NULL DEFAULT '',
   user_country varchar(255) NOT NULL DEFAULT 'US',
@@ -2600,7 +3634,8 @@ CREATE TABLE ec_tempcart (
   KEY tempcart_optionitem_id_2 (optionitem_id_2),
   KEY tempcart_optionitem_id_3 (optionitem_id_3),
   KEY tempcart_optionitem_id_4 (optionitem_id_4),
-  KEY tempcart_optionitem_id_5 (optionitem_id_5)
+  KEY tempcart_optionitem_id_5 (optionitem_id_5),
+  KEY tempcart_last_changed_date (last_changed_date)
 ) $collate;
 CREATE TABLE ec_tempcart_data (
   tempcart_data_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2694,7 +3729,7 @@ CREATE TABLE ec_tempcart_optionitem (
   optionitem_id int(11) NOT NULL DEFAULT '0',
   optionitem_value text NOT NULL,
   session_id varchar(100) NOT NULL DEFAULT '',
-  optionitem_model_number text NOT NULL DEFAULT '',
+  optionitem_model_number text NULL,
   PRIMARY KEY  (tempcart_optionitem_id),
   UNIQUE KEY tempcart_optionitem_id (tempcart_optionitem_id),
   KEY tempcart_id (tempcart_id),
@@ -2810,6 +3845,11 @@ CREATE TABLE ec_zone_to_location (
   code_sta varchar(50) NOT NULL DEFAULT '',
   PRIMARY KEY  (zone_to_location_id)
 ) $collate;";
+		/* dbDelta treats an empty line inside a CREATE TABLE body as an index definition and
+		   emits "Undefined array key index_type / index_name / index_columns / column_name"
+		   warnings. Strip blank lines and trailing whitespace so a stray newline in the
+		   schema can never reach it. */
+		$schema = implode( "\n", array_filter( array_map( 'rtrim', explode( "\n", $schema ) ), 'strlen' ) );
 		return $schema;
 	}
 
@@ -3051,2416 +4091,12 @@ CREATE TABLE ec_zone_to_location (
 			)
 		);
 
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "1",
-				"name_cnt" => "Afghanistan",
-				"iso2_cnt" => "AF",
-				"iso3_cnt" => "AFG",
-				"sort_order" => "10"
-			)
-		);
 
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "2",
-				"name_cnt" => "Albania",
-				"iso2_cnt" => "AL",
-				"iso3_cnt" => "ALB",
-				"sort_order" => "11"
-			)
-		);
+		/* Countries and regions come from inc/classes/core/ec_default_countries_states.php ( shared with the
+		   "Restore default countries & regions" admin action ). A fresh store ships everywhere, as it always has. */
+		$this->restore_default_countries_and_states( 1 );
 
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "3",
-				"name_cnt" => "Algeria",
-				"iso2_cnt" => "DZ",
-				"iso3_cnt" => "DZA",
-				"sort_order" => "12"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "4",
-				"name_cnt" => "American Samoa",
-				"iso2_cnt" => "AS",
-				"iso3_cnt" => "ASM",
-				"sort_order" => "13"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "5",
-				"name_cnt" => "Andorra",
-				"iso2_cnt" => "AD",
-				"iso3_cnt" => "AND",
-				"sort_order" => "14"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "6",
-				"name_cnt" => "Angola",
-				"iso2_cnt" => "AO",
-				"iso3_cnt" => "AGO",
-				"sort_order" => "15"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "7",
-				"name_cnt" => "Anguilla",
-				"iso2_cnt" => "AI",
-				"iso3_cnt" => "AIA",
-				"sort_order" => "16"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "8",
-				"name_cnt" => "Antarctica",
-				"iso2_cnt" => "AQ",
-				"iso3_cnt" => "ATA",
-				"sort_order" => "17"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "9",
-				"name_cnt" => "Antigua and Barbuda",
-				"iso2_cnt" => "AG",
-				"iso3_cnt" => "ATG",
-				"sort_order" => "18"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "10",
-				"name_cnt" => "Argentina",
-				"iso2_cnt" => "AR",
-				"iso3_cnt" => "ARG",
-				"sort_order" => "19"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "11",
-				"name_cnt" => "Armenia",
-				"iso2_cnt" => "AM",
-				"iso3_cnt" => "ARM",
-				"sort_order" => "20"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "12",
-				"name_cnt" => "Aruba",
-				"iso2_cnt" => "AW",
-				"iso3_cnt" => "ABW",
-				"sort_order" => "21"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "13",
-				"name_cnt" => "Australia",
-				"iso2_cnt" => "AU",
-				"iso3_cnt" => "AUS",
-				"sort_order" => "3"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "14",
-				"name_cnt" => "Austria",
-				"iso2_cnt" => "AT",
-				"iso3_cnt" => "AUT",
-				"sort_order" => "23"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "15",
-				"name_cnt" => "Azerbaijan",
-				"iso2_cnt" => "AZ",
-				"iso3_cnt" => "AZE",
-				"sort_order" => "24"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "16",
-				"name_cnt" => "Bahamas",
-				"iso2_cnt" => "BS",
-				"iso3_cnt" => "BHS",
-				"sort_order" => "25"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "17",
-				"name_cnt" => "Bahrain",
-				"iso2_cnt" => "BH",
-				"iso3_cnt" => "BHR",
-				"sort_order" => "26"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "18",
-				"name_cnt" => "Bangladesh",
-				"iso2_cnt" => "BD",
-				"iso3_cnt" => "BGD",
-				"sort_order" => "27"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "19",
-				"name_cnt" => "Barbados",
-				"iso2_cnt" => "BB",
-				"iso3_cnt" => "BRB",
-				"sort_order" => "28"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "20",
-				"name_cnt" => "Belarus",
-				"iso2_cnt" => "BY",
-				"iso3_cnt" => "BLR",
-				"sort_order" => "29"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "21",
-				"name_cnt" => "Belgium",
-				"iso2_cnt" => "BE",
-				"iso3_cnt" => "BEL",
-				"sort_order" => "30"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "22",
-				"name_cnt" => "Belize",
-				"iso2_cnt" => "BZ",
-				"iso3_cnt" => "BLZ",
-				"sort_order" => "31"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "23",
-				"name_cnt" => "Benin",
-				"iso2_cnt" => "BJ",
-				"iso3_cnt" => "BEN",
-				"sort_order" => "32"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "24",
-				"name_cnt" => "Bermuda",
-				"iso2_cnt" => "BM",
-				"iso3_cnt" => "BMU",
-				"sort_order" => "33"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "25",
-				"name_cnt" => "Bhutan",
-				"iso2_cnt" => "BT",
-				"iso3_cnt" => "BTN",
-				"sort_order" => "34"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "26",
-				"name_cnt" => "Bolivia",
-				"iso2_cnt" => "BO",
-				"iso3_cnt" => "BOL",
-				"sort_order" => "35"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "28",
-				"name_cnt" => "Botswana",
-				"iso2_cnt" => "BW",
-				"iso3_cnt" => "BWA",
-				"sort_order" => "36"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "29",
-				"name_cnt" => "Bouvet Island",
-				"iso2_cnt" => "BV",
-				"iso3_cnt" => "BVT",
-				"sort_order" => "37"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "30",
-				"name_cnt" => "Brazil",
-				"iso2_cnt" => "BR",
-				"iso3_cnt" => "BRA",
-				"sort_order" => "38"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "32",
-				"name_cnt" => "Brunei Darussalam",
-				"iso2_cnt" => "BN",
-				"iso3_cnt" => "BRN",
-				"sort_order" => "39"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "33",
-				"name_cnt" => "Bulgaria",
-				"iso2_cnt" => "BG",
-				"iso3_cnt" => "BGR",
-				"sort_order" => "40"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "34",
-				"name_cnt" => "Burkina Faso",
-				"iso2_cnt" => "BF",
-				"iso3_cnt" => "BFA",
-				"sort_order" => "41"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "35",
-				"name_cnt" => "Burundi",
-				"iso2_cnt" => "BI",
-				"iso3_cnt" => "BDI",
-				"sort_order" => "42"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "36",
-				"name_cnt" => "Cambodia",
-				"iso2_cnt" => "KH",
-				"iso3_cnt" => "KHM",
-				"sort_order" => "43"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "37",
-				"name_cnt" => "Cameroon",
-				"iso2_cnt" => "CM",
-				"iso3_cnt" => "CMR",
-				"sort_order" => "44"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "38",
-				"name_cnt" => "Canada",
-				"iso2_cnt" => "CA",
-				"iso3_cnt" => "CAN",
-				"sort_order" => "2"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "39",
-				"name_cnt" => "Cape Verde",
-				"iso2_cnt" => "CV",
-				"iso3_cnt" => "CPV",
-				"sort_order" => "46"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "40",
-				"name_cnt" => "Cayman Islands",
-				"iso2_cnt" => "KY",
-				"iso3_cnt" => "CYM",
-				"sort_order" => "47"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "42",
-				"name_cnt" => "Chad",
-				"iso2_cnt" => "TD",
-				"iso3_cnt" => "TCD",
-				"sort_order" => "48"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "43",
-				"name_cnt" => "Chile",
-				"iso2_cnt" => "CL",
-				"iso3_cnt" => "CHL",
-				"sort_order" => "49"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "44",
-				"name_cnt" => "China",
-				"iso2_cnt" => "CN",
-				"iso3_cnt" => "CHN",
-				"sort_order" => "50"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "45",
-				"name_cnt" => "Christmas Island",
-				"iso2_cnt" => "CX",
-				"iso3_cnt" => "CXR",
-				"sort_order" => "51"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "47",
-				"name_cnt" => "Colombia",
-				"iso2_cnt" => "CO",
-				"iso3_cnt" => "COL",
-				"sort_order" => "52"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "48",
-				"name_cnt" => "Comoros",
-				"iso2_cnt" => "KM",
-				"iso3_cnt" => "COM",
-				"sort_order" => "53"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "49",
-				"name_cnt" => "Congo",
-				"iso2_cnt" => "CG",
-				"iso3_cnt" => "COG",
-				"sort_order" => "54"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "50",
-				"name_cnt" => "Cook Islands",
-				"iso2_cnt" => "CK",
-				"iso3_cnt" => "COK",
-				"sort_order" => "55"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "51",
-				"name_cnt" => "Costa Rica",
-				"iso2_cnt" => "CR",
-				"iso3_cnt" => "CRI",
-				"sort_order" => "56"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "52",
-				"name_cnt" => "Cote D''Ivoire",
-				"iso2_cnt" => "CI",
-				"iso3_cnt" => "CIV",
-				"sort_order" => "57"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "53",
-				"name_cnt" => "Croatia",
-				"iso2_cnt" => "HR",
-				"iso3_cnt" => "HRV",
-				"sort_order" => "58"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "54",
-				"name_cnt" => "Cuba",
-				"iso2_cnt" => "CU",
-				"iso3_cnt" => "CUB",
-				"sort_order" => "59"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "55",
-				"name_cnt" => "Cyprus",
-				"iso2_cnt" => "CY",
-				"iso3_cnt" => "CYP",
-				"sort_order" => "60"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "56",
-				"name_cnt" => "Czech Republic",
-				"iso2_cnt" => "CZ",
-				"iso3_cnt" => "CZE",
-				"sort_order" => "61"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "57",
-				"name_cnt" => "Denmark",
-				"iso2_cnt" => "DK",
-				"iso3_cnt" => "DNK",
-				"sort_order" => "62"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "58",
-				"name_cnt" => "Djibouti",
-				"iso2_cnt" => "DJ",
-				"iso3_cnt" => "DJI",
-				"sort_order" => "63"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "59",
-				"name_cnt" => "Dominica",
-				"iso2_cnt" => "DM",
-				"iso3_cnt" => "DMA",
-				"sort_order" => "64"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "60",
-				"name_cnt" => "Dominican Republic",
-				"iso2_cnt" => "DO",
-				"iso3_cnt" => "DOM",
-				"sort_order" => "65"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "61",
-				"name_cnt" => "East Timor",
-				"iso2_cnt" => "TP",
-				"iso3_cnt" => "TMP",
-				"sort_order" => "66"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "62",
-				"name_cnt" => "Ecuador",
-				"iso2_cnt" => "EC",
-				"iso3_cnt" => "ECU",
-				"sort_order" => "67"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "63",
-				"name_cnt" => "Egypt",
-				"iso2_cnt" => "EG",
-				"iso3_cnt" => "EGY",
-				"sort_order" => "68"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "64",
-				"name_cnt" => "El Salvador",
-				"iso2_cnt" => "SV",
-				"iso3_cnt" => "SLV",
-				"sort_order" => "69"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "65",
-				"name_cnt" => "Equatorial Guinea",
-				"iso2_cnt" => "GQ",
-				"iso3_cnt" => "GNQ",
-				"sort_order" => "70"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "66",
-				"name_cnt" => "Eritrea",
-				"iso2_cnt" => "ER",
-				"iso3_cnt" => "ERI",
-				"sort_order" => "71"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "67",
-				"name_cnt" => "Estonia",
-				"iso2_cnt" => "EE",
-				"iso3_cnt" => "EST",
-				"sort_order" => "72"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "68",
-				"name_cnt" => "Ethiopia",
-				"iso2_cnt" => "ET",
-				"iso3_cnt" => "ETH",
-				"sort_order" => "73"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "70",
-				"name_cnt" => "Faroe Islands",
-				"iso2_cnt" => "FO",
-				"iso3_cnt" => "FRO",
-				"sort_order" => "74"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "71",
-				"name_cnt" => "Fiji",
-				"iso2_cnt" => "FJ",
-				"iso3_cnt" => "FJI",
-				"sort_order" => "75"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "72",
-				"name_cnt" => "Finland",
-				"iso2_cnt" => "FI",
-				"iso3_cnt" => "FIN",
-				"sort_order" => "76"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "73",
-				"name_cnt" => "France",
-				"iso2_cnt" => "FR",
-				"iso3_cnt" => "FRA",
-				"sort_order" => "77"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "74",
-				"name_cnt" => "France, Metropolitan",
-				"iso2_cnt" => "FX",
-				"iso3_cnt" => "FXX",
-				"sort_order" => "78"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "75",
-				"name_cnt" => "French Guiana",
-				"iso2_cnt" => "GF",
-				"iso3_cnt" => "GUF",
-				"sort_order" => "79"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "76",
-				"name_cnt" => "French Polynesia",
-				"iso2_cnt" => "PF",
-				"iso3_cnt" => "PYF",
-				"sort_order" => "80"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "78",
-				"name_cnt" => "Gabon",
-				"iso2_cnt" => "GA",
-				"iso3_cnt" => "GAB",
-				"sort_order" => "81"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "79",
-				"name_cnt" => "Gambia",
-				"iso2_cnt" => "GM",
-				"iso3_cnt" => "GMB",
-				"sort_order" => "82"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "80",
-				"name_cnt" => "Georgia",
-				"iso2_cnt" => "GE",
-				"iso3_cnt" => "GEO",
-				"sort_order" => "83"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "81",
-				"name_cnt" => "Germany",
-				"iso2_cnt" => "DE",
-				"iso3_cnt" => "DEU",
-				"sort_order" => "84"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "82",
-				"name_cnt" => "Ghana",
-				"iso2_cnt" => "GH",
-				"iso3_cnt" => "GHA",
-				"sort_order" => "85"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "83",
-				"name_cnt" => "Gibraltar",
-				"iso2_cnt" => "GI",
-				"iso3_cnt" => "GIB",
-				"sort_order" => "86"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "84",
-				"name_cnt" => "Greece",
-				"iso2_cnt" => "GR",
-				"iso3_cnt" => "GRC",
-				"sort_order" => "87"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "85",
-				"name_cnt" => "Greenland",
-				"iso2_cnt" => "GL",
-				"iso3_cnt" => "GRL",
-				"sort_order" => "88"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "86",
-				"name_cnt" => "Grenada",
-				"iso2_cnt" => "GD",
-				"iso3_cnt" => "GRD",
-				"sort_order" => "89"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "87",
-				"name_cnt" => "Guadeloupe",
-				"iso2_cnt" => "GP",
-				"iso3_cnt" => "GLP",
-				"sort_order" => "90"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "88",
-				"name_cnt" => "Guam",
-				"iso2_cnt" => "GU",
-				"iso3_cnt" => "GUM",
-				"sort_order" => "91"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "89",
-				"name_cnt" => "Guatemala",
-				"iso2_cnt" => "GT",
-				"iso3_cnt" => "GTM",
-				"sort_order" => "92"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "90",
-				"name_cnt" => "Guinea",
-				"iso2_cnt" => "GN",
-				"iso3_cnt" => "GIN",
-				"sort_order" => "93"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "91",
-				"name_cnt" => "Guinea-bissau",
-				"iso2_cnt" => "GW",
-				"iso3_cnt" => "GNB",
-				"sort_order" => "94"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "92",
-				"name_cnt" => "Guyana",
-				"iso2_cnt" => "GY",
-				"iso3_cnt" => "GUY",
-				"sort_order" => "95"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "93",
-				"name_cnt" => "Haiti",
-				"iso2_cnt" => "HT",
-				"iso3_cnt" => "HTI",
-				"sort_order" => "96"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "95",
-				"name_cnt" => "Honduras",
-				"iso2_cnt" => "HN",
-				"iso3_cnt" => "HND",
-				"sort_order" => "97"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "96",
-				"name_cnt" => "Hong Kong",
-				"iso2_cnt" => "HK",
-				"iso3_cnt" => "HKG",
-				"sort_order" => "98"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "97",
-				"name_cnt" => "Hungary",
-				"iso2_cnt" => "HU",
-				"iso3_cnt" => "HUN",
-				"sort_order" => "99"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "98",
-				"name_cnt" => "Iceland",
-				"iso2_cnt" => "IS",
-				"iso3_cnt" => "ISL",
-				"sort_order" => "100"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "99",
-				"name_cnt" => "India",
-				"iso2_cnt" => "IN",
-				"iso3_cnt" => "IND",
-				"sort_order" => "101"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "100",
-				"name_cnt" => "Indonesia",
-				"iso2_cnt" => "ID",
-				"iso3_cnt" => "IDN",
-				"sort_order" => "102"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "102",
-				"name_cnt" => "Iraq",
-				"iso2_cnt" => "IQ",
-				"iso3_cnt" => "IRQ",
-				"sort_order" => "103"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "103",
-				"name_cnt" => "Ireland",
-				"iso2_cnt" => "IE",
-				"iso3_cnt" => "IRL",
-				"sort_order" => "104"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "104",
-				"name_cnt" => "Israel",
-				"iso2_cnt" => "IL",
-				"iso3_cnt" => "ISR",
-				"sort_order" => "105"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "105",
-				"name_cnt" => "Italy",
-				"iso2_cnt" => "IT",
-				"iso3_cnt" => "ITA",
-				"sort_order" => "106"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "106",
-				"name_cnt" => "Jamaica",
-				"iso2_cnt" => "JM",
-				"iso3_cnt" => "JAM",
-				"sort_order" => "107"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "107",
-				"name_cnt" => "Japan",
-				"iso2_cnt" => "JP",
-				"iso3_cnt" => "JPN",
-				"sort_order" => "108"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "108",
-				"name_cnt" => "Jordan",
-				"iso2_cnt" => "JO",
-				"iso3_cnt" => "JOR",
-				"sort_order" => "109"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "109",
-				"name_cnt" => "Kazakhstan",
-				"iso2_cnt" => "KZ",
-				"iso3_cnt" => "KAZ",
-				"sort_order" => "110"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "110",
-				"name_cnt" => "Kenya",
-				"iso2_cnt" => "KE",
-				"iso3_cnt" => "KEN",
-				"sort_order" => "111"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "111",
-				"name_cnt" => "Kiribati",
-				"iso2_cnt" => "KI",
-				"iso3_cnt" => "KIR",
-				"sort_order" => "112"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "113",
-				"name_cnt" => "Korea, Republic of",
-				"iso2_cnt" => "KR",
-				"iso3_cnt" => "KOR",
-				"sort_order" => "113"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "114",
-				"name_cnt" => "Kuwait",
-				"iso2_cnt" => "KW",
-				"iso3_cnt" => "KWT",
-				"sort_order" => "114"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "115",
-				"name_cnt" => "Kyrgyzstan",
-				"iso2_cnt" => "KG",
-				"iso3_cnt" => "KGZ",
-				"sort_order" => "115"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "117",
-				"name_cnt" => "Latvia",
-				"iso2_cnt" => "LV",
-				"iso3_cnt" => "LVA",
-				"sort_order" => "116"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "118",
-				"name_cnt" => "Lebanon",
-				"iso2_cnt" => "LB",
-				"iso3_cnt" => "LBN",
-				"sort_order" => "117"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "119",
-				"name_cnt" => "Lesotho",
-				"iso2_cnt" => "LS",
-				"iso3_cnt" => "LSO",
-				"sort_order" => "118"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "120",
-				"name_cnt" => "Liberia",
-				"iso2_cnt" => "LR",
-				"iso3_cnt" => "LBR",
-				"sort_order" => "119"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "122",
-				"name_cnt" => "Liechtenstein",
-				"iso2_cnt" => "LI",
-				"iso3_cnt" => "LIE",
-				"sort_order" => "120"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "123",
-				"name_cnt" => "Lithuania",
-				"iso2_cnt" => "LT",
-				"iso3_cnt" => "LTU",
-				"sort_order" => "121"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "124",
-				"name_cnt" => "Luxembourg",
-				"iso2_cnt" => "LU",
-				"iso3_cnt" => "LUX",
-				"sort_order" => "122"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "125",
-				"name_cnt" => "Macau",
-				"iso2_cnt" => "MO",
-				"iso3_cnt" => "MAC",
-				"sort_order" => "123"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "127",
-				"name_cnt" => "Madagascar",
-				"iso2_cnt" => "MG",
-				"iso3_cnt" => "MDG",
-				"sort_order" => "124"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "128",
-				"name_cnt" => "Malawi",
-				"iso2_cnt" => "MW",
-				"iso3_cnt" => "MWI",
-				"sort_order" => "125"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "129",
-				"name_cnt" => "Malaysia",
-				"iso2_cnt" => "MY",
-				"iso3_cnt" => "MYS",
-				"sort_order" => "126"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "130",
-				"name_cnt" => "Maldives",
-				"iso2_cnt" => "MV",
-				"iso3_cnt" => "MDV",
-				"sort_order" => "127"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "131",
-				"name_cnt" => "Mali",
-				"iso2_cnt" => "ML",
-				"iso3_cnt" => "MLI",
-				"sort_order" => "128"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "132",
-				"name_cnt" => "Malta",
-				"iso2_cnt" => "MT",
-				"iso3_cnt" => "MLT",
-				"sort_order" => "129"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "133",
-				"name_cnt" => "Marshall Islands",
-				"iso2_cnt" => "MH",
-				"iso3_cnt" => "MHL",
-				"sort_order" => "130"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "134",
-				"name_cnt" => "Martinique",
-				"iso2_cnt" => "MQ",
-				"iso3_cnt" => "MTQ",
-				"sort_order" => "131"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "135",
-				"name_cnt" => "Mauritania",
-				"iso2_cnt" => "MR",
-				"iso3_cnt" => "MRT",
-				"sort_order" => "132"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "136",
-				"name_cnt" => "Mauritius",
-				"iso2_cnt" => "MU",
-				"iso3_cnt" => "MUS",
-				"sort_order" => "133"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "137",
-				"name_cnt" => "Mayotte",
-				"iso2_cnt" => "YT",
-				"iso3_cnt" => "MYT",
-				"sort_order" => "134"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "138",
-				"name_cnt" => "Mexico",
-				"iso2_cnt" => "MX",
-				"iso3_cnt" => "MEX",
-				"sort_order" => "135"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "141",
-				"name_cnt" => "Monaco",
-				"iso2_cnt" => "MC",
-				"iso3_cnt" => "MCO",
-				"sort_order" => "136"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "142",
-				"name_cnt" => "Mongolia",
-				"iso2_cnt" => "MN",
-				"iso3_cnt" => "MNG",
-				"sort_order" => "137"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "143",
-				"name_cnt" => "Montserrat",
-				"iso2_cnt" => "MS",
-				"iso3_cnt" => "MSR",
-				"sort_order" => "138"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "144",
-				"name_cnt" => "Morocco",
-				"iso2_cnt" => "MA",
-				"iso3_cnt" => "MAR",
-				"sort_order" => "139"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "145",
-				"name_cnt" => "Mozambique",
-				"iso2_cnt" => "MZ",
-				"iso3_cnt" => "MOZ",
-				"sort_order" => "140"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "146",
-				"name_cnt" => "Myanmar",
-				"iso2_cnt" => "MM",
-				"iso3_cnt" => "MMR",
-				"sort_order" => "141"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "147",
-				"name_cnt" => "Namibia",
-				"iso2_cnt" => "NA",
-				"iso3_cnt" => "NAM",
-				"sort_order" => "142"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "148",
-				"name_cnt" => "Nauru",
-				"iso2_cnt" => "NR",
-				"iso3_cnt" => "NRU",
-				"sort_order" => "143"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "149",
-				"name_cnt" => "Nepal",
-				"iso2_cnt" => "NP",
-				"iso3_cnt" => "NPL",
-				"sort_order" => "144"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "150",
-				"name_cnt" => "Netherlands",
-				"iso2_cnt" => "NL",
-				"iso3_cnt" => "NLD",
-				"sort_order" => "145"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "151",
-				"name_cnt" => "Netherlands Antilles",
-				"iso2_cnt" => "AN",
-				"iso3_cnt" => "ANT",
-				"sort_order" => "146"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "152",
-				"name_cnt" => "New Caledonia",
-				"iso2_cnt" => "NC",
-				"iso3_cnt" => "NCL",
-				"sort_order" => "147"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "153",
-				"name_cnt" => "New Zealand",
-				"iso2_cnt" => "NZ",
-				"iso3_cnt" => "NZL",
-				"sort_order" => "148"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "154",
-				"name_cnt" => "Nicaragua",
-				"iso2_cnt" => "NI",
-				"iso3_cnt" => "NIC",
-				"sort_order" => "149"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "155",
-				"name_cnt" => "Niger",
-				"iso2_cnt" => "NE",
-				"iso3_cnt" => "NER",
-				"sort_order" => "150"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "156",
-				"name_cnt" => "Nigeria",
-				"iso2_cnt" => "NG",
-				"iso3_cnt" => "NGA",
-				"sort_order" => "151"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "157",
-				"name_cnt" => "Niue",
-				"iso2_cnt" => "NU",
-				"iso3_cnt" => "NIU",
-				"sort_order" => "152"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "158",
-				"name_cnt" => "Norfolk Island",
-				"iso2_cnt" => "NF",
-				"iso3_cnt" => "NFK",
-				"sort_order" => "153"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "160",
-				"name_cnt" => "Norway",
-				"iso2_cnt" => "NO",
-				"iso3_cnt" => "NOR",
-				"sort_order" => "154"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "161",
-				"name_cnt" => "Oman",
-				"iso2_cnt" => "OM",
-				"iso3_cnt" => "OMN",
-				"sort_order" => "155"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "162",
-				"name_cnt" => "Pakistan",
-				"iso2_cnt" => "PK",
-				"iso3_cnt" => "PAK",
-				"sort_order" => "156"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "163",
-				"name_cnt" => "Palau",
-				"iso2_cnt" => "PW",
-				"iso3_cnt" => "PLW",
-				"sort_order" => "157"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "164",
-				"name_cnt" => "Panama",
-				"iso2_cnt" => "PA",
-				"iso3_cnt" => "PAN",
-				"sort_order" => "158"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "165",
-				"name_cnt" => "Papua New Guinea",
-				"iso2_cnt" => "PG",
-				"iso3_cnt" => "PNG",
-				"sort_order" => "159"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "166",
-				"name_cnt" => "Paraguay",
-				"iso2_cnt" => "PY",
-				"iso3_cnt" => "PRY",
-				"sort_order" => "160"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "167",
-				"name_cnt" => "Peru",
-				"iso2_cnt" => "PE",
-				"iso3_cnt" => "PER",
-				"sort_order" => "161"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "168",
-				"name_cnt" => "Philippines",
-				"iso2_cnt" => "PH",
-				"iso3_cnt" => "PHL",
-				"sort_order" => "162"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "169",
-				"name_cnt" => "Pitcairn",
-				"iso2_cnt" => "PN",
-				"iso3_cnt" => "PCN",
-				"sort_order" => "163"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "170",
-				"name_cnt" => "Poland",
-				"iso2_cnt" => "PL",
-				"iso3_cnt" => "POL",
-				"sort_order" => "164"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "171",
-				"name_cnt" => "Portugal",
-				"iso2_cnt" => "PT",
-				"iso3_cnt" => "PRT",
-				"sort_order" => "165"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "172",
-				"name_cnt" => "Puerto Rico",
-				"iso2_cnt" => "PR",
-				"iso3_cnt" => "PRI",
-				"sort_order" => "166"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "173",
-				"name_cnt" => "Qatar",
-				"iso2_cnt" => "QA",
-				"iso3_cnt" => "QAT",
-				"sort_order" => "167"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "174",
-				"name_cnt" => "Reunion",
-				"iso2_cnt" => "RE",
-				"iso3_cnt" => "REU",
-				"sort_order" => "168"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "175",
-				"name_cnt" => "Romania",
-				"iso2_cnt" => "RO",
-				"iso3_cnt" => "ROM",
-				"sort_order" => "169"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "176",
-				"name_cnt" => "Russian Federation",
-				"iso2_cnt" => "RU",
-				"iso3_cnt" => "RUS",
-				"sort_order" => "170"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "177",
-				"name_cnt" => "Rwanda",
-				"iso2_cnt" => "RW",
-				"iso3_cnt" => "RWA",
-				"sort_order" => "171"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "178",
-				"name_cnt" => "Saint Kitts and Nevis",
-				"iso2_cnt" => "KN",
-				"iso3_cnt" => "KNA",
-				"sort_order" => "172"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "179",
-				"name_cnt" => "Saint Lucia",
-				"iso2_cnt" => "LC",
-				"iso3_cnt" => "LCA",
-				"sort_order" => "173"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "181",
-				"name_cnt" => "Samoa",
-				"iso2_cnt" => "WS",
-				"iso3_cnt" => "WSM",
-				"sort_order" => "174"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "182",
-				"name_cnt" => "San Marino",
-				"iso2_cnt" => "SM",
-				"iso3_cnt" => "SMR",
-				"sort_order" => "175"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "183",
-				"name_cnt" => "Sao Tome and Principe",
-				"iso2_cnt" => "ST",
-				"iso3_cnt" => "STP",
-				"sort_order" => "176"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "184",
-				"name_cnt" => "Saudi Arabia",
-				"iso2_cnt" => "SA",
-				"iso3_cnt" => "SAU",
-				"sort_order" => "177"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "185",
-				"name_cnt" => "Senegal",
-				"iso2_cnt" => "SN",
-				"iso3_cnt" => "SEN",
-				"sort_order" => "178"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "186",
-				"name_cnt" => "Seychelles",
-				"iso2_cnt" => "SC",
-				"iso3_cnt" => "SYC",
-				"sort_order" => "179"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "187",
-				"name_cnt" => "Sierra Leone",
-				"iso2_cnt" => "SL",
-				"iso3_cnt" => "SLE",
-				"sort_order" => "180"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "188",
-				"name_cnt" => "Singapore",
-				"iso2_cnt" => "SG",
-				"iso3_cnt" => "SGP",
-				"sort_order" => "181"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "240",
-				"name_cnt" => "Slovakia",
-				"iso2_cnt" => "SK",
-				"iso3_cnt" => "SVK",
-				"sort_order" => "182"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "190",
-				"name_cnt" => "Slovenia",
-				"iso2_cnt" => "SI",
-				"iso3_cnt" => "SVN",
-				"sort_order" => "182"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "191",
-				"name_cnt" => "Solomon Islands",
-				"iso2_cnt" => "SB",
-				"iso3_cnt" => "SLB",
-				"sort_order" => "183"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "192",
-				"name_cnt" => "Somalia",
-				"iso2_cnt" => "SO",
-				"iso3_cnt" => "SOM",
-				"sort_order" => "184"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "193",
-				"name_cnt" => "South Africa",
-				"iso2_cnt" => "ZA",
-				"iso3_cnt" => "ZAF",
-				"sort_order" => "185"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "195",
-				"name_cnt" => "Spain",
-				"iso2_cnt" => "ES",
-				"iso3_cnt" => "ESP",
-				"sort_order" => "186"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "196",
-				"name_cnt" => "Sri Lanka",
-				"iso2_cnt" => "LK",
-				"iso3_cnt" => "LKA",
-				"sort_order" => "187"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "197",
-				"name_cnt" => "St. Helena",
-				"iso2_cnt" => "SH",
-				"iso3_cnt" => "SHN",
-				"sort_order" => "188"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "198",
-				"name_cnt" => "St. Pierre and Miquelon",
-				"iso2_cnt" => "PM",
-				"iso3_cnt" => "SPM",
-				"sort_order" => "189"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "199",
-				"name_cnt" => "Sudan",
-				"iso2_cnt" => "SD",
-				"iso3_cnt" => "SDN",
-				"sort_order" => "190"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "200",
-				"name_cnt" => "Suriname",
-				"iso2_cnt" => "SR",
-				"iso3_cnt" => "SUR",
-				"sort_order" => "191"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "202",
-				"name_cnt" => "Swaziland",
-				"iso2_cnt" => "SZ",
-				"iso3_cnt" => "SWZ",
-				"sort_order" => "192"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "203",
-				"name_cnt" => "Sweden",
-				"iso2_cnt" => "SE",
-				"iso3_cnt" => "SWE",
-				"sort_order" => "193"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "204",
-				"name_cnt" => "Switzerland",
-				"iso2_cnt" => "CH",
-				"iso3_cnt" => "CHE",
-				"sort_order" => "194"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "205",
-				"name_cnt" => "Syrian Arab Republic",
-				"iso2_cnt" => "SY",
-				"iso3_cnt" => "SYR",
-				"sort_order" => "195"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "206",
-				"name_cnt" => "Taiwan",
-				"iso2_cnt" => "TW",
-				"iso3_cnt" => "TWN",
-				"sort_order" => "196"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "207",
-				"name_cnt" => "Tajikistan",
-				"iso2_cnt" => "TJ",
-				"iso3_cnt" => "TJK",
-				"sort_order" => "197"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "209",
-				"name_cnt" => "Thailand",
-				"iso2_cnt" => "TH",
-				"iso3_cnt" => "THA",
-				"sort_order" => "198"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "210",
-				"name_cnt" => "Togo",
-				"iso2_cnt" => "TG",
-				"iso3_cnt" => "TGO",
-				"sort_order" => "199"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "211",
-				"name_cnt" => "Tokelau",
-				"iso2_cnt" => "TK",
-				"iso3_cnt" => "TKL",
-				"sort_order" => "200"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "212",
-				"name_cnt" => "Tonga",
-				"iso2_cnt" => "TO",
-				"iso3_cnt" => "TON",
-				"sort_order" => "201"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "213",
-				"name_cnt" => "Trinidad and Tobago",
-				"iso2_cnt" => "TT",
-				"iso3_cnt" => "TTO",
-				"sort_order" => "202"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "214",
-				"name_cnt" => "Tunisia",
-				"iso2_cnt" => "TN",
-				"iso3_cnt" => "TUN",
-				"sort_order" => "203"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "215",
-				"name_cnt" => "Turkey",
-				"iso2_cnt" => "TR",
-				"iso3_cnt" => "TUR",
-				"sort_order" => "204"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "216",
-				"name_cnt" => "Turkmenistan",
-				"iso2_cnt" => "TM",
-				"iso3_cnt" => "TKM",
-				"sort_order" => "205"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "217",
-				"name_cnt" => "Turks and Caicos Islands",
-				"iso2_cnt" => "TC",
-				"iso3_cnt" => "TCA",
-				"sort_order" => "206"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "218",
-				"name_cnt" => "Tuvalu",
-				"iso2_cnt" => "TV",
-				"iso3_cnt" => "TUV",
-				"sort_order" => "207"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "219",
-				"name_cnt" => "Uganda",
-				"iso2_cnt" => "UG",
-				"iso3_cnt" => "UGA",
-				"sort_order" => "208"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "220",
-				"name_cnt" => "Ukraine",
-				"iso2_cnt" => "UA",
-				"iso3_cnt" => "UKR",
-				"sort_order" => "209"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "221",
-				"name_cnt" => "United Arab Emirates",
-				"iso2_cnt" => "AE",
-				"iso3_cnt" => "ARE",
-				"sort_order" => "210"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "222",
-				"name_cnt" => "United Kingdom",
-				"iso2_cnt" => "GB",
-				"iso3_cnt" => "GBR",
-				"sort_order" => "211"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "223",
-				"name_cnt" => "United States",
-				"iso2_cnt" => "US",
-				"iso3_cnt" => "USA",
-				"sort_order" => "1"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "224",
-				"name_cnt" => "US Minor Outlying Islands",
-				"iso2_cnt" => "UM",
-				"iso3_cnt" => "UMI",
-				"sort_order" => "213"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "225",
-				"name_cnt" => "Uruguay",
-				"iso2_cnt" => "UY",
-				"iso3_cnt" => "URY",
-				"sort_order" => "214"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "226",
-				"name_cnt" => "Uzbekistan",
-				"iso2_cnt" => "UZ",
-				"iso3_cnt" => "UZB",
-				"sort_order" => "215"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "227",
-				"name_cnt" => "Vanuatu",
-				"iso2_cnt" => "VU",
-				"iso3_cnt" => "VUT",
-				"sort_order" => "216"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "229",
-				"name_cnt" => "Venezuela",
-				"iso2_cnt" => "VE",
-				"iso3_cnt" => "VEN",
-				"sort_order" => "217"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "230",
-				"name_cnt" => "Viet Nam",
-				"iso2_cnt" => "VN",
-				"iso3_cnt" => "VNM",
-				"sort_order" => "218"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "231",
-				"name_cnt" => "Virgin Islands (British)",
-				"iso2_cnt" => "VG",
-				"iso3_cnt" => "VGB",
-				"sort_order" => "219"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "232",
-				"name_cnt" => "Virgin Islands (U.S.)",
-				"iso2_cnt" => "VI",
-				"iso3_cnt" => "VIR",
-				"sort_order" => "220"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "233",
-				"name_cnt" => "Wallis and Futuna Islands",
-				"iso2_cnt" => "WF",
-				"iso3_cnt" => "WLF",
-				"sort_order" => "221"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "234",
-				"name_cnt" => "Western Sahara",
-				"iso2_cnt" => "EH",
-				"iso3_cnt" => "ESH",
-				"sort_order" => "222"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "235",
-				"name_cnt" => "Yemen",
-				"iso2_cnt" => "YE",
-				"iso3_cnt" => "YEM",
-				"sort_order" => "223"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "236",
-				"name_cnt" => "Yugoslavia",
-				"iso2_cnt" => "YU",
-				"iso3_cnt" => "YUG",
-				"sort_order" => "224"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "237",
-				"name_cnt" => "Zaire",
-				"iso2_cnt" => "ZR",
-				"iso3_cnt" => "ZAR",
-				"sort_order" => "225"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "238",
-				"name_cnt" => "Zambia",
-				"iso2_cnt" => "ZM",
-				"iso3_cnt" => "ZMB",
-				"sort_order" => "226"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_country",
-			array( 
-				"id_cnt" => "239",
-				"name_cnt" => "Zimbabwe",
-				"iso2_cnt" => "ZW",
-				"iso3_cnt" => "ZWE",
-				"sort_order" => "227"
-			)
-		);
-
-		$wpdb->insert( 
+		$wpdb->insert(
 			"ec_orderstatus",
 			array(
 				"status_id" => "1",
@@ -7039,3930 +5675,6 @@ CREATE TABLE ec_zone_to_location (
 		);
 
 		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "1",
-				"idcnt_sta" => "223",
-				"code_sta" => "AL",
-				"name_sta" => "Alabama",
-				"sort_order" => "9",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "2",
-				"idcnt_sta" => "223",
-				"code_sta" => "AK",
-				"name_sta" => "Alaska",
-				"sort_order" => "10",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "4",
-				"idcnt_sta" => "223",
-				"code_sta" => "AZ",
-				"name_sta" => "Arizona",
-				"sort_order" => "11",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "5",
-				"idcnt_sta" => "223",
-				"code_sta" => "AR",
-				"name_sta" => "Arkansas",
-				"sort_order" => "12",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "12",
-				"idcnt_sta" => "223",
-				"code_sta" => "CA",
-				"name_sta" => "California",
-				"sort_order" => "13",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "13",
-				"idcnt_sta" => "223",
-				"code_sta" => "CO",
-				"name_sta" => "Colorado",
-				"sort_order" => "14",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "14",
-				"idcnt_sta" => "223",
-				"code_sta" => "CT",
-				"name_sta" => "Connecticut",
-				"sort_order" => "15",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "15",
-				"idcnt_sta" => "223",
-				"code_sta" => "DE",
-				"name_sta" => "Delaware",
-				"sort_order" => "16",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "16",
-				"idcnt_sta" => "223",
-				"code_sta" => "DC",
-				"name_sta" => "District of Columbia",
-				"sort_order" => "17",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "18",
-				"idcnt_sta" => "223",
-				"code_sta" => "FL",
-				"name_sta" => "Florida",
-				"sort_order" => "18",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "19",
-				"idcnt_sta" => "223",
-				"code_sta" => "GA",
-				"name_sta" => "Georgia",
-				"sort_order" => "19",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "21",
-				"idcnt_sta" => "223",
-				"code_sta" => "HI",
-				"name_sta" => "Hawaii",
-				"sort_order" => "21",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "22",
-				"idcnt_sta" => "223",
-				"code_sta" => "ID",
-				"name_sta" => "Idaho",
-				"sort_order" => "22",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "23",
-				"idcnt_sta" => "223",
-				"code_sta" => "IL",
-				"name_sta" => "Illinois",
-				"sort_order" => "23",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "24",
-				"idcnt_sta" => "223",
-				"code_sta" => "IN",
-				"name_sta" => "Indiana",
-				"sort_order" => "24",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "25",
-				"idcnt_sta" => "223",
-				"code_sta" => "IA",
-				"name_sta" => "Iowa",
-				"sort_order" => "25",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "26",
-				"idcnt_sta" => "223",
-				"code_sta" => "KS",
-				"name_sta" => "Kansas",
-				"sort_order" => "26",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "27",
-				"idcnt_sta" => "223",
-				"code_sta" => "KY",
-				"name_sta" => "Kentucky",
-				"sort_order" => "27",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "28",
-				"idcnt_sta" => "223",
-				"code_sta" => "LA",
-				"name_sta" => "Louisiana",
-				"sort_order" => "28",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "29",
-				"idcnt_sta" => "223",
-				"code_sta" => "ME",
-				"name_sta" => "Maine",
-				"sort_order" => "29",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "31",
-				"idcnt_sta" => "223",
-				"code_sta" => "MD",
-				"name_sta" => "Maryland",
-				"sort_order" => "30",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "32",
-				"idcnt_sta" => "223",
-				"code_sta" => "MA",
-				"name_sta" => "Massachusetts",
-				"sort_order" => "31",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "33",
-				"idcnt_sta" => "223",
-				"code_sta" => "MI",
-				"name_sta" => "Michigan",
-				"sort_order" => "32",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "34",
-				"idcnt_sta" => "223",
-				"code_sta" => "MN",
-				"name_sta" => "Minnesota",
-				"sort_order" => "33",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "35",
-				"idcnt_sta" => "223",
-				"code_sta" => "MS",
-				"name_sta" => "Mississippi",
-				"sort_order" => "34",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "36",
-				"idcnt_sta" => "223",
-				"code_sta" => "MO",
-				"name_sta" => "Missouri",
-				"sort_order" => "35",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "37",
-				"idcnt_sta" => "223",
-				"code_sta" => "MT",
-				"name_sta" => "Montana",
-				"sort_order" => "36",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "38",
-				"idcnt_sta" => "223",
-				"code_sta" => "NE",
-				"name_sta" => "Nebraska",
-				"sort_order" => "37",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "39",
-				"idcnt_sta" => "223",
-				"code_sta" => "NV",
-				"name_sta" => "Nevada",
-				"sort_order" => "38",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "40",
-				"idcnt_sta" => "223",
-				"code_sta" => "NH",
-				"name_sta" => "New Hampshire",
-				"sort_order" => "39",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "41",
-				"idcnt_sta" => "223",
-				"code_sta" => "NJ",
-				"name_sta" => "New Jersey",
-				"sort_order" => "40",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "42",
-				"idcnt_sta" => "223",
-				"code_sta" => "NM",
-				"name_sta" => "New Mexico",
-				"sort_order" => "41",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "43",
-				"idcnt_sta" => "223",
-				"code_sta" => "NY",
-				"name_sta" => "New York",
-				"sort_order" => "42",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "44",
-				"idcnt_sta" => "223",
-				"code_sta" => "NC",
-				"name_sta" => "North Carolina",
-				"sort_order" => "43",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "45",
-				"idcnt_sta" => "223",
-				"code_sta" => "ND",
-				"name_sta" => "North Dakota",
-				"sort_order" => "44",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "47",
-				"idcnt_sta" => "223",
-				"code_sta" => "OH",
-				"name_sta" => "Ohio",
-				"sort_order" => "45",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "48",
-				"idcnt_sta" => "223",
-				"code_sta" => "OK",
-				"name_sta" => "Oklahoma",
-				"sort_order" => "46",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "49",
-				"idcnt_sta" => "223",
-				"code_sta" => "OR",
-				"name_sta" => "Oregon",
-				"sort_order" => "47",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "51",
-				"idcnt_sta" => "223",
-				"code_sta" => "PA",
-				"name_sta" => "Pennsylvania",
-				"sort_order" => "48",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "52",
-				"idcnt_sta" => "223",
-				"code_sta" => "PR",
-				"name_sta" => "Puerto Rico",
-				"sort_order" => "49",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "53",
-				"idcnt_sta" => "223",
-				"code_sta" => "RI",
-				"name_sta" => "Rhode Island",
-				"sort_order" => "50",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "54",
-				"idcnt_sta" => "223",
-				"code_sta" => "SC",
-				"name_sta" => "South Carolina",
-				"sort_order" => "51",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "55",
-				"idcnt_sta" => "223",
-				"code_sta" => "SD",
-				"name_sta" => "South Dakota",
-				"sort_order" => "52",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "56",
-				"idcnt_sta" => "223",
-				"code_sta" => "TN",
-				"name_sta" => "Tennessee",
-				"sort_order" => "53",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "57",
-				"idcnt_sta" => "223",
-				"code_sta" => "TX",
-				"name_sta" => "Texas",
-				"sort_order" => "54",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "58",
-				"idcnt_sta" => "223",
-				"code_sta" => "UT",
-				"name_sta" => "Utah",
-				"sort_order" => "55",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "59",
-				"idcnt_sta" => "223",
-				"code_sta" => "VT",
-				"name_sta" => "Vermont",
-				"sort_order" => "56",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "60",
-				"idcnt_sta" => "223",
-				"code_sta" => "VI",
-				"name_sta" => "Virgin Islands",
-				"sort_order" => "57",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "61",
-				"idcnt_sta" => "223",
-				"code_sta" => "VA",
-				"name_sta" => "Virginia",
-				"sort_order" => "58",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "62",
-				"idcnt_sta" => "223",
-				"code_sta" => "WA",
-				"name_sta" => "Washington",
-				"sort_order" => "59",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "63",
-				"idcnt_sta" => "223",
-				"code_sta" => "WV",
-				"name_sta" => "West Virginia",
-				"sort_order" => "60",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "64",
-				"idcnt_sta" => "223",
-				"code_sta" => "WI",
-				"name_sta" => "Wisconsin",
-				"sort_order" => "61",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "65",
-				"idcnt_sta" => "223",
-				"code_sta" => "WY",
-				"name_sta" => "Wyoming",
-				"sort_order" => "62",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "66",
-				"idcnt_sta" => "38",
-				"code_sta" => "AB",
-				"name_sta" => "Alberta",
-				"sort_order" => "100",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "67",
-				"idcnt_sta" => "38",
-				"code_sta" => "BC",
-				"name_sta" => "British Columbia",
-				"sort_order" => "101",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "68",
-				"idcnt_sta" => "38",
-				"code_sta" => "MB",
-				"name_sta" => "Manitoba",
-				"sort_order" => "102",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "69",
-				"idcnt_sta" => "38",
-				"code_sta" => "NF",
-				"name_sta" => "Newfoundland",
-				"sort_order" => "103",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "70",
-				"idcnt_sta" => "38",
-				"code_sta" => "NB",
-				"name_sta" => "New Brunswick",
-				"sort_order" => "104",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "71",
-				"idcnt_sta" => "38",
-				"code_sta" => "NS",
-				"name_sta" => "Nova Scotia",
-				"sort_order" => "105",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "72",
-				"idcnt_sta" => "38",
-				"code_sta" => "NT",
-				"name_sta" => "Northwest Territories",
-				"sort_order" => "106",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "73",
-				"idcnt_sta" => "38",
-				"code_sta" => "NU",
-				"name_sta" => "Nunavut",
-				"sort_order" => "107",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "74",
-				"idcnt_sta" => "38",
-				"code_sta" => "ON",
-				"name_sta" => "Ontario",
-				"sort_order" => "108",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "75",
-				"idcnt_sta" => "38",
-				"code_sta" => "PE",
-				"name_sta" => "Prince Edward Island",
-				"sort_order" => "109",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "76",
-				"idcnt_sta" => "38",
-				"code_sta" => "QC",
-				"name_sta" => "Quebec",
-				"sort_order" => "110",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "77",
-				"idcnt_sta" => "38",
-				"code_sta" => "SK",
-				"name_sta" => "Saskatchewan",
-				"sort_order" => "111",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "78",
-				"idcnt_sta" => "38",
-				"code_sta" => "YT",
-				"name_sta" => "Yukon Territory",
-				"sort_order" => "112",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "79",
-				"idcnt_sta" => "13",
-				"code_sta" => "ACT",
-				"name_sta" => "Australian Capital Territory",
-				"sort_order" => "113",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "80",
-				"idcnt_sta" => "13",
-				"code_sta" => "CX",
-				"name_sta" => "Christmas Island",
-				"sort_order" => "114",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "81",
-				"idcnt_sta" => "13",
-				"code_sta" => "CC",
-				"name_sta" => "Cocos Islands",
-				"sort_order" => "115",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "82",
-				"idcnt_sta" => "13",
-				"code_sta" => "HM",
-				"name_sta" => "Heard Island and McDonald Islands",
-				"sort_order" => "116",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "83",
-				"idcnt_sta" => "13",
-				"code_sta" => "NSW",
-				"name_sta" => "New South Wales",
-				"sort_order" => "117",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "84",
-				"idcnt_sta" => "13",
-				"code_sta" => "NF",
-				"name_sta" => "Norfolk Island",
-				"sort_order" => "118",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "85",
-				"idcnt_sta" => "13",
-				"code_sta" => "NT",
-				"name_sta" => "Northern Territory",
-				"sort_order" => "119",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "86",
-				"idcnt_sta" => "13",
-				"code_sta" => "QLD",
-				"name_sta" => "Queensland",
-				"sort_order" => "120",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "87",
-				"idcnt_sta" => "13",
-				"code_sta" => "SA",
-				"name_sta" => "South Australia",
-				"sort_order" => "121",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "88",
-				"idcnt_sta" => "13",
-				"code_sta" => "TAS",
-				"name_sta" => "Tasmania",
-				"sort_order" => "122",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "89",
-				"idcnt_sta" => "13",
-				"code_sta" => "VIC",
-				"name_sta" => "Victoria",
-				"sort_order" => "123",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "90",
-				"idcnt_sta" => "13",
-				"code_sta" => "WA",
-				"name_sta" => "Western Australia",
-				"sort_order" => "124",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "91",
-				"idcnt_sta" => "222",
-				"code_sta" => "Avon",
-				"name_sta" => "Avon",
-				"sort_order" => "125",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "92",
-				"idcnt_sta" => "222",
-				"code_sta" => "Bedfordshire",
-				"name_sta" => "Bedfordshire",
-				"sort_order" => "126",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "93",
-				"idcnt_sta" => "222",
-				"code_sta" => "Berkshire",
-				"name_sta" => "Berkshire",
-				"sort_order" => "127",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "94",
-				"idcnt_sta" => "222",
-				"code_sta" => "Buckinghamshire",
-				"name_sta" => "Buckinghamshire",
-				"sort_order" => "128",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "95",
-				"idcnt_sta" => "222",
-				"code_sta" => "Cambridgeshire",
-				"name_sta" => "Cambridgeshire",
-				"sort_order" => "129",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "96",
-				"idcnt_sta" => "222",
-				"code_sta" => "Cheshire",
-				"name_sta" => "Cheshire",
-				"sort_order" => "130",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "97",
-				"idcnt_sta" => "222",
-				"code_sta" => "Cleveland",
-				"name_sta" => "Cleveland",
-				"sort_order" => "131",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "98",
-				"idcnt_sta" => "222",
-				"code_sta" => "Cornwall",
-				"name_sta" => "Cornwall",
-				"sort_order" => "132",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "99",
-				"idcnt_sta" => "222",
-				"code_sta" => "Cumbria",
-				"name_sta" => "Cumbria",
-				"sort_order" => "133",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "100",
-				"idcnt_sta" => "222",
-				"code_sta" => "Derbyshire",
-				"name_sta" => "Derbyshire",
-				"sort_order" => "134",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "101",
-				"idcnt_sta" => "222",
-				"code_sta" => "Devon",
-				"name_sta" => "Devon",
-				"sort_order" => "135",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "102",
-				"idcnt_sta" => "222",
-				"code_sta" => "Dorset",
-				"name_sta" => "Dorset",
-				"sort_order" => "136",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "103",
-				"idcnt_sta" => "222",
-				"code_sta" => "Durham",
-				"name_sta" => "Durham",
-				"sort_order" => "137",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "104",
-				"idcnt_sta" => "222",
-				"code_sta" => "East Sussex",
-				"name_sta" => "East Sussex",
-				"sort_order" => "138",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "105",
-				"idcnt_sta" => "222",
-				"code_sta" => "Essex",
-				"name_sta" => "Essex",
-				"sort_order" => "139",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "106",
-				"idcnt_sta" => "222",
-				"code_sta" => "Gloucestershire",
-				"name_sta" => "Gloucestershire",
-				"sort_order" => "140",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "107",
-				"idcnt_sta" => "222",
-				"code_sta" => "Hampshire",
-				"name_sta" => "Hampshire",
-				"sort_order" => "141",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "108",
-				"idcnt_sta" => "222",
-				"code_sta" => "Herefordshire",
-				"name_sta" => "Herefordshire",
-				"sort_order" => "142",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "109",
-				"idcnt_sta" => "222",
-				"code_sta" => "Hertfordshire",
-				"name_sta" => "Hertfordshire",
-				"sort_order" => "143",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "110",
-				"idcnt_sta" => "222",
-				"code_sta" => "Isle of Wight",
-				"name_sta" => "Isle of Wight",
-				"sort_order" => "144",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "111",
-				"idcnt_sta" => "222",
-				"code_sta" => "Kent",
-				"name_sta" => "Kent",
-				"sort_order" => "145",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "112",
-				"idcnt_sta" => "222",
-				"code_sta" => "Lancashire",
-				"name_sta" => "Lancashire",
-				"sort_order" => "146",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "113",
-				"idcnt_sta" => "222",
-				"code_sta" => "Leicestershire",
-				"name_sta" => "Leicestershire",
-				"sort_order" => "147",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "114",
-				"idcnt_sta" => "222",
-				"code_sta" => "Lincolnshire",
-				"name_sta" => "Lincolnshire",
-				"sort_order" => "148",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "115",
-				"idcnt_sta" => "222",
-				"code_sta" => "London",
-				"name_sta" => "London",
-				"sort_order" => "149",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "116",
-				"idcnt_sta" => "222",
-				"code_sta" => "Merseyside",
-				"name_sta" => "Merseyside",
-				"sort_order" => "150",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "117",
-				"idcnt_sta" => "222",
-				"code_sta" => "Middlesex",
-				"name_sta" => "Middlesex",
-				"sort_order" => "151",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "118",
-				"idcnt_sta" => "222",
-				"code_sta" => "Norfolk",
-				"name_sta" => "Norfolk",
-				"sort_order" => "152",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "119",
-				"idcnt_sta" => "222",
-				"code_sta" => "Northamptonshire",
-				"name_sta" => "Northamptonshire",
-				"sort_order" => "153",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "120",
-				"idcnt_sta" => "222",
-				"code_sta" => "Northumberland",
-				"name_sta" => "Northumberland",
-				"sort_order" => "154",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "121",
-				"idcnt_sta" => "222",
-				"code_sta" => "North Humberside",
-				"name_sta" => "North Humberside",
-				"sort_order" => "155",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "122",
-				"idcnt_sta" => "222",
-				"code_sta" => "North Yorkshire",
-				"name_sta" => "North Yorkshire",
-				"sort_order" => "156",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "123",
-				"idcnt_sta" => "222",
-				"code_sta" => "Nottinghamshire",
-				"name_sta" => "Nottinghamshire",
-				"sort_order" => "157",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "124",
-				"idcnt_sta" => "222",
-				"code_sta" => "Oxfordshire",
-				"name_sta" => "Oxfordshire",
-				"sort_order" => "158",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "125",
-				"idcnt_sta" => "222",
-				"code_sta" => "Rutland",
-				"name_sta" => "Rutland",
-				"sort_order" => "159",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "126",
-				"idcnt_sta" => "222",
-				"code_sta" => "Shropshire",
-				"name_sta" => "Shropshire",
-				"sort_order" => "160",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "127",
-				"idcnt_sta" => "222",
-				"code_sta" => "Somerset",
-				"name_sta" => "Somerset",
-				"sort_order" => "161",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "128",
-				"idcnt_sta" => "222",
-				"code_sta" => "South Humberside",
-				"name_sta" => "South Humberside",
-				"sort_order" => "162",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "129",
-				"idcnt_sta" => "222",
-				"code_sta" => "South Yorkshire",
-				"name_sta" => "South Yorkshire",
-				"sort_order" => "163",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "130",
-				"idcnt_sta" => "222",
-				"code_sta" => "Staffordshire",
-				"name_sta" => "Staffordshire",
-				"sort_order" => "164",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "131",
-				"idcnt_sta" => "222",
-				"code_sta" => "Suffolk",
-				"name_sta" => "Suffolk",
-				"sort_order" => "165",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "132",
-				"idcnt_sta" => "222",
-				"code_sta" => "Surrey",
-				"name_sta" => "Surrey",
-				"sort_order" => "166",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "133",
-				"idcnt_sta" => "222",
-				"code_sta" => "Tyne and Wear",
-				"name_sta" => "Tyne and Wear",
-				"sort_order" => "167",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "134",
-				"idcnt_sta" => "222",
-				"code_sta" => "Warwickshire",
-				"name_sta" => "Warwickshire",
-				"sort_order" => "168",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "135",
-				"idcnt_sta" => "222",
-				"code_sta" => "West Midlands",
-				"name_sta" => "West Midlands",
-				"sort_order" => "169",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "136",
-				"idcnt_sta" => "222",
-				"code_sta" => "West Sussex",
-				"name_sta" => "West Sussex",
-				"sort_order" => "170",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "137",
-				"idcnt_sta" => "222",
-				"code_sta" => "West Yorkshire",
-				"name_sta" => "West Yorkshire",
-				"sort_order" => "171",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "138",
-				"idcnt_sta" => "222",
-				"code_sta" => "Wiltshire",
-				"name_sta" => "Wiltshire",
-				"sort_order" => "172",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "139",
-				"idcnt_sta" => "222",
-				"code_sta" => "Worcestershire",
-				"name_sta" => "Worcestershire",
-				"sort_order" => "173",
-				"group_sta" => "England"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "140",
-				"idcnt_sta" => "222",
-				"code_sta" => "Clwyd",
-				"name_sta" => "Clwyd",
-				"sort_order" => "174",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "141",
-				"idcnt_sta" => "222",
-				"code_sta" => "Dyfed",
-				"name_sta" => "Dyfed",
-				"sort_order" => "175",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "142",
-				"idcnt_sta" => "222",
-				"code_sta" => "Gwent",
-				"name_sta" => "Gwent",
-				"sort_order" => "176",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "143",
-				"idcnt_sta" => "222",
-				"code_sta" => "Gwynedd",
-				"name_sta" => "Gwynedd",
-				"sort_order" => "177",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "144",
-				"idcnt_sta" => "222",
-				"code_sta" => "Mid Glamorgan",
-				"name_sta" => "Mid Glamorgan",
-				"sort_order" => "178",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "145",
-				"idcnt_sta" => "222",
-				"code_sta" => "Powys",
-				"name_sta" => "Powys",
-				"sort_order" => "179",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "146",
-				"idcnt_sta" => "222",
-				"code_sta" => "South Glamorgan",
-				"name_sta" => "South Glamorgan",
-				"sort_order" => "180",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "147",
-				"idcnt_sta" => "222",
-				"code_sta" => "West Glamorgan",
-				"name_sta" => "West Glamorgan",
-				"sort_order" => "181",
-				"group_sta" => "Wales"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "148",
-				"idcnt_sta" => "222",
-				"code_sta" => "Aberdeenshire",
-				"name_sta" => "Aberdeenshire",
-				"sort_order" => "182",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "149",
-				"idcnt_sta" => "222",
-				"code_sta" => "Angus",
-				"name_sta" => "Angus",
-				"sort_order" => "183",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "150",
-				"idcnt_sta" => "222",
-				"code_sta" => "Argyll",
-				"name_sta" => "Argyll",
-				"sort_order" => "184",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "151",
-				"idcnt_sta" => "222",
-				"code_sta" => "Ayrshire",
-				"name_sta" => "Ayrshire",
-				"sort_order" => "185",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "152",
-				"idcnt_sta" => "222",
-				"code_sta" => "Banffshire",
-				"name_sta" => "Banffshire",
-				"sort_order" => "186",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "153",
-				"idcnt_sta" => "222",
-				"code_sta" => "Berwickshire",
-				"name_sta" => "Berwickshire",
-				"sort_order" => "187",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "154",
-				"idcnt_sta" => "222",
-				"code_sta" => "Bute",
-				"name_sta" => "Bute",
-				"sort_order" => "188",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "155",
-				"idcnt_sta" => "222",
-				"code_sta" => "Caithness",
-				"name_sta" => "Caithness",
-				"sort_order" => "189",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "156",
-				"idcnt_sta" => "222",
-				"code_sta" => "Clackmannanshire",
-				"name_sta" => "Clackmannanshire",
-				"sort_order" => "190",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "157",
-				"idcnt_sta" => "222",
-				"code_sta" => "Dumfriesshire",
-				"name_sta" => "Dumfriesshire",
-				"sort_order" => "191",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "158",
-				"idcnt_sta" => "222",
-				"code_sta" => "Dunbartonshire",
-				"name_sta" => "Dunbartonshire",
-				"sort_order" => "192",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "159",
-				"idcnt_sta" => "222",
-				"code_sta" => "East Lothian",
-				"name_sta" => "East Lothian",
-				"sort_order" => "193",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "160",
-				"idcnt_sta" => "222",
-				"code_sta" => "Fife",
-				"name_sta" => "Fife",
-				"sort_order" => "194",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "161",
-				"idcnt_sta" => "222",
-				"code_sta" => "Inverness-shire",
-				"name_sta" => "Inverness-shire",
-				"sort_order" => "195",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "162",
-				"idcnt_sta" => "222",
-				"code_sta" => "Kincardineshire",
-				"name_sta" => "Kincardineshire",
-				"sort_order" => "196",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "163",
-				"idcnt_sta" => "222",
-				"code_sta" => "Kinross-shire",
-				"name_sta" => "Kinross-shire",
-				"sort_order" => "197",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "164",
-				"idcnt_sta" => "222",
-				"code_sta" => "Kirkcudbrightshire",
-				"name_sta" => "Kirkcudbrightshire",
-				"sort_order" => "198",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "165",
-				"idcnt_sta" => "222",
-				"code_sta" => "Lanarkshire",
-				"name_sta" => "Lanarkshire",
-				"sort_order" => "199",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "166",
-				"idcnt_sta" => "222",
-				"code_sta" => "Midlothian",
-				"name_sta" => "Midlothian",
-				"sort_order" => "200",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "167",
-				"idcnt_sta" => "222",
-				"code_sta" => "Moray",
-				"name_sta" => "Moray",
-				"sort_order" => "201",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "168",
-				"idcnt_sta" => "222",
-				"code_sta" => "Nairnshire",
-				"name_sta" => "Nairnshire",
-				"sort_order" => "202",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "169",
-				"idcnt_sta" => "222",
-				"code_sta" => "Orkney",
-				"name_sta" => "Orkney",
-				"sort_order" => "203",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "170",
-				"idcnt_sta" => "222",
-				"code_sta" => "Peeblesshire",
-				"name_sta" => "Peeblesshire",
-				"sort_order" => "204",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "171",
-				"idcnt_sta" => "222",
-				"code_sta" => "Perthshire",
-				"name_sta" => "Perthshire",
-				"sort_order" => "205",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "172",
-				"idcnt_sta" => "222",
-				"code_sta" => "Renfrewshire",
-				"name_sta" => "Renfrewshire",
-				"sort_order" => "206",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "173",
-				"idcnt_sta" => "222",
-				"code_sta" => "Ross-shire",
-				"name_sta" => "Ross-shire",
-				"sort_order" => "207",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "174",
-				"idcnt_sta" => "222",
-				"code_sta" => "Roxburghshire",
-				"name_sta" => "Roxburghshire",
-				"sort_order" => "208",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "175",
-				"idcnt_sta" => "222",
-				"code_sta" => "Selkirkshire",
-				"name_sta" => "Selkirkshire",
-				"sort_order" => "209",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "176",
-				"idcnt_sta" => "222",
-				"code_sta" => "Shetland",
-				"name_sta" => "Shetland",
-				"sort_order" => "210",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "177",
-				"idcnt_sta" => "222",
-				"code_sta" => "Stirlingshire",
-				"name_sta" => "Stirlingshire",
-				"sort_order" => "211",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "178",
-				"idcnt_sta" => "222",
-				"code_sta" => "Sutherland",
-				"name_sta" => "Sutherland",
-				"sort_order" => "212",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "179",
-				"idcnt_sta" => "222",
-				"code_sta" => "West Lothian",
-				"name_sta" => "West Lothian",
-				"sort_order" => "213",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "180",
-				"idcnt_sta" => "222",
-				"code_sta" => "Wigtownshire",
-				"name_sta" => "Wigtownshire",
-				"sort_order" => "214",
-				"group_sta" => "Scotland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "181",
-				"idcnt_sta" => "222",
-				"code_sta" => "Antrim",
-				"name_sta" => "Antrim",
-				"sort_order" => "215",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "182",
-				"idcnt_sta" => "222",
-				"code_sta" => "Down",
-				"name_sta" => "Down",
-				"sort_order" => "217",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "183",
-				"idcnt_sta" => "222",
-				"code_sta" => "Armagh",
-				"name_sta" => "Armagh",
-				"sort_order" => "216",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "184",
-				"idcnt_sta" => "222",
-				"code_sta" => "Fermanagh",
-				"name_sta" => "Fermanagh",
-				"sort_order" => "218",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "185",
-				"idcnt_sta" => "222",
-				"code_sta" => "Londonderry",
-				"name_sta" => "Londonderry",
-				"sort_order" => "219",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "186",
-				"idcnt_sta" => "222",
-				"code_sta" => "Tyrone",
-				"name_sta" => "Tyrone",
-				"sort_order" => "220",
-				"group_sta" => "Northern Ireland"
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "187",
-				"idcnt_sta" => "30",
-				"code_sta" => "AL",
-				"name_sta" => "Alagoas",
-				"sort_order" => "221",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "188",
-				"idcnt_sta" => "30",
-				"code_sta" => "AM",
-				"name_sta" => "Amazonas",
-				"sort_order" => "222",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "189",
-				"idcnt_sta" => "30",
-				"code_sta" => "BA",
-				"name_sta" => "Bahia",
-				"sort_order" => "223",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "190",
-				"idcnt_sta" => "30",
-				"code_sta" => "CE",
-				"name_sta" => "Cearà",
-				"sort_order" => "224",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "191",
-				"idcnt_sta" => "30",
-				"code_sta" => "DF",
-				"name_sta" => "Distrito Federal",
-				"sort_order" => "225",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "192",
-				"idcnt_sta" => "30",
-				"code_sta" => "ES",
-				"name_sta" => "Espìrito Santo",
-				"sort_order" => "226",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "193",
-				"idcnt_sta" => "30",
-				"code_sta" => "GO",
-				"name_sta" => "Goias",
-				"sort_order" => "227",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "194",
-				"idcnt_sta" => "30",
-				"code_sta" => "MA",
-				"name_sta" => "Maranhao",
-				"sort_order" => "228",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "195",
-				"idcnt_sta" => "30",
-				"code_sta" => "MT",
-				"name_sta" => "Mato Grosso",
-				"sort_order" => "229",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "196",
-				"idcnt_sta" => "30",
-				"code_sta" => "MS",
-				"name_sta" => "Mato Grosso Do Sul",
-				"sort_order" => "230",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "197",
-				"idcnt_sta" => "30",
-				"code_sta" => "MG",
-				"name_sta" => "Minas Gerais",
-				"sort_order" => "231",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "198",
-				"idcnt_sta" => "30",
-				"code_sta" => "PA",
-				"name_sta" => "Parà",
-				"sort_order" => "232",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "199",
-				"idcnt_sta" => "30",
-				"code_sta" => "PB",
-				"name_sta" => "Paraìba",
-				"sort_order" => "233",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "200",
-				"idcnt_sta" => "30",
-				"code_sta" => "PR",
-				"name_sta" => "Paranà",
-				"sort_order" => "234",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "201",
-				"idcnt_sta" => "30",
-				"code_sta" => "PE",
-				"name_sta" => "Pernambuco",
-				"sort_order" => "235",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "202",
-				"idcnt_sta" => "30",
-				"code_sta" => "PI",
-				"name_sta" => "Piauì",
-				"sort_order" => "236",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "203",
-				"idcnt_sta" => "30",
-				"code_sta" => "RJ",
-				"name_sta" => "Rio de Janeiro",
-				"sort_order" => "237",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "204",
-				"idcnt_sta" => "30",
-				"code_sta" => "RN",
-				"name_sta" => "Rio Grande do Norte",
-				"sort_order" => "238",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "205",
-				"idcnt_sta" => "30",
-				"code_sta" => "RS",
-				"name_sta" => "Dio Grande do Sul",
-				"sort_order" => "239",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "206",
-				"idcnt_sta" => "30",
-				"code_sta" => "RO",
-				"name_sta" => "Rondônia",
-				"sort_order" => "240",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "207",
-				"idcnt_sta" => "30",
-				"code_sta" => "SC",
-				"name_sta" => "Santa Catarina",
-				"sort_order" => "241",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "208",
-				"idcnt_sta" => "30",
-				"code_sta" => "SP",
-				"name_sta" => "Sao Paulo",
-				"sort_order" => "242",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "209",
-				"idcnt_sta" => "30",
-				"code_sta" => "SE",
-				"name_sta" => "Sergipe",
-				"sort_order" => "243",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "210",
-				"idcnt_sta" => "44",
-				"code_sta" => "ANH",
-				"name_sta" => "Anhui",
-				"sort_order" => "244",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "211",
-				"idcnt_sta" => "44",
-				"code_sta" => "BEI",
-				"name_sta" => "Beijing",
-				"sort_order" => "245",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "212",
-				"idcnt_sta" => "44",
-				"code_sta" => "CHO",
-				"name_sta" => "Chongqing",
-				"sort_order" => "246",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "213",
-				"idcnt_sta" => "44",
-				"code_sta" => "FUJ",
-				"name_sta" => "Fujian",
-				"sort_order" => "247",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "214",
-				"idcnt_sta" => "44",
-				"code_sta" => "GAN",
-				"name_sta" => "Gansu",
-				"sort_order" => "248",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "215",
-				"idcnt_sta" => "44",
-				"code_sta" => "GDG",
-				"name_sta" => "Guangdong",
-				"sort_order" => "249",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "216",
-				"idcnt_sta" => "44",
-				"code_sta" => "GXI",
-				"name_sta" => "Guangxi",
-				"sort_order" => "250",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "217",
-				"idcnt_sta" => "44",
-				"code_sta" => "GUI",
-				"name_sta" => "Guizhou",
-				"sort_order" => "251",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "218",
-				"idcnt_sta" => "44",
-				"code_sta" => "HAI",
-				"name_sta" => "Hainan",
-				"sort_order" => "252",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "219",
-				"idcnt_sta" => "44",
-				"code_sta" => "HEB",
-				"name_sta" => "Hebei",
-				"sort_order" => "253",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "220",
-				"idcnt_sta" => "44",
-				"code_sta" => "HEI",
-				"name_sta" => "Heilongjiang",
-				"sort_order" => "254",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "221",
-				"idcnt_sta" => "44",
-				"code_sta" => "HEN",
-				"name_sta" => "Henan",
-				"sort_order" => "255",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "222",
-				"idcnt_sta" => "44",
-				"code_sta" => "HUB",
-				"name_sta" => "Hubei",
-				"sort_order" => "256",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "223",
-				"idcnt_sta" => "44",
-				"code_sta" => "HUN",
-				"name_sta" => "Hunan",
-				"sort_order" => "257",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "224",
-				"idcnt_sta" => "44",
-				"code_sta" => "JSU",
-				"name_sta" => "Jiangsu",
-				"sort_order" => "258",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "225",
-				"idcnt_sta" => "44",
-				"code_sta" => "JXI",
-				"name_sta" => "Jiangxi",
-				"sort_order" => "259",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "226",
-				"idcnt_sta" => "44",
-				"code_sta" => "JIL",
-				"name_sta" => "Jilin",
-				"sort_order" => "260",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "227",
-				"idcnt_sta" => "44",
-				"code_sta" => "LIA",
-				"name_sta" => "Liaoning",
-				"sort_order" => "261",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "228",
-				"idcnt_sta" => "44",
-				"code_sta" => "MON",
-				"name_sta" => "Nei Mongol",
-				"sort_order" => "262",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "229",
-				"idcnt_sta" => "44",
-				"code_sta" => "NIN",
-				"name_sta" => "Ningxia",
-				"sort_order" => "263",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "230",
-				"idcnt_sta" => "44",
-				"code_sta" => "QIN",
-				"name_sta" => "Qinghai",
-				"sort_order" => "264",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "231",
-				"idcnt_sta" => "44",
-				"code_sta" => "SHA",
-				"name_sta" => "Shaanxi",
-				"sort_order" => "265",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "232",
-				"idcnt_sta" => "44",
-				"code_sta" => "SHD",
-				"name_sta" => "Shandong",
-				"sort_order" => "266",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "233",
-				"idcnt_sta" => "44",
-				"code_sta" => "SHH",
-				"name_sta" => "Shanghai",
-				"sort_order" => "267",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "234",
-				"idcnt_sta" => "44",
-				"code_sta" => "SHX",
-				"name_sta" => "Shanxi",
-				"sort_order" => "268",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "235",
-				"idcnt_sta" => "44",
-				"code_sta" => "SIC",
-				"name_sta" => "Sichuan",
-				"sort_order" => "269",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "236",
-				"idcnt_sta" => "44",
-				"code_sta" => "TIA",
-				"name_sta" => "TIanjin",
-				"sort_order" => "270",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "237",
-				"idcnt_sta" => "44",
-				"code_sta" => "XIN",
-				"name_sta" => "Xinjiang",
-				"sort_order" => "271",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "238",
-				"idcnt_sta" => "44",
-				"code_sta" => "XIZ",
-				"name_sta" => "Xizang",
-				"sort_order" => "272",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "239",
-				"idcnt_sta" => "44",
-				"code_sta" => "YUN",
-				"name_sta" => "Yunnan",
-				"sort_order" => "273",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "240",
-				"idcnt_sta" => "44",
-				"code_sta" => "ZHE",
-				"name_sta" => "Zhejiang",
-				"sort_order" => "274",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "241",
-				"idcnt_sta" => "99",
-				"code_sta" => "AND",
-				"name_sta" => "Andhra Pradesh",
-				"sort_order" => "275",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "242",
-				"idcnt_sta" => "99",
-				"code_sta" => "ASS",
-				"name_sta" => "Assam",
-				"sort_order" => "276",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "243",
-				"idcnt_sta" => "99",
-				"code_sta" => "BIH",
-				"name_sta" => "Bihar",
-				"sort_order" => "277",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "244",
-				"idcnt_sta" => "99",
-				"code_sta" => "CHH",
-				"name_sta" => "Chhattisgarh",
-				"sort_order" => "278",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "245",
-				"idcnt_sta" => "99",
-				"code_sta" => "DEL",
-				"name_sta" => "Delhi",
-				"sort_order" => "279",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "246",
-				"idcnt_sta" => "99",
-				"code_sta" => "GOA",
-				"name_sta" => "Goa",
-				"sort_order" => "280",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "247",
-				"idcnt_sta" => "99",
-				"code_sta" => "GUJ",
-				"name_sta" => "Gujarat",
-				"sort_order" => "281",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "248",
-				"idcnt_sta" => "99",
-				"code_sta" => "HAR",
-				"name_sta" => "Haryana",
-				"sort_order" => "282",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "249",
-				"idcnt_sta" => "99",
-				"code_sta" => "HIM",
-				"name_sta" => "Himachal Pradesh",
-				"sort_order" => "283",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "250",
-				"idcnt_sta" => "99",
-				"code_sta" => "JAM",
-				"name_sta" => "Jammu & Kashmir",
-				"sort_order" => "284",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "251",
-				"idcnt_sta" => "99",
-				"code_sta" => "JHA",
-				"name_sta" => "Jharkhand",
-				"sort_order" => "285",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "252",
-				"idcnt_sta" => "99",
-				"code_sta" => "KAR",
-				"name_sta" => "Karnataka",
-				"sort_order" => "286",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "253",
-				"idcnt_sta" => "99",
-				"code_sta" => "KER",
-				"name_sta" => "Kerala",
-				"sort_order" => "287",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "254",
-				"idcnt_sta" => "99",
-				"code_sta" => "MAD",
-				"name_sta" => "Madhya Pradesh",
-				"sort_order" => "288",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "255",
-				"idcnt_sta" => "99",
-				"code_sta" => "MAH",
-				"name_sta" => "Maharashtra",
-				"sort_order" => "289",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "256",
-				"idcnt_sta" => "99",
-				"code_sta" => "MEG",
-				"name_sta" => "Meghalaya",
-				"sort_order" => "290",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "257",
-				"idcnt_sta" => "99",
-				"code_sta" => "ORI",
-				"name_sta" => "Orissa",
-				"sort_order" => "291",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "258",
-				"idcnt_sta" => "99",
-				"code_sta" => "PON",
-				"name_sta" => "Pondicherry",
-				"sort_order" => "292",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "259",
-				"idcnt_sta" => "99",
-				"code_sta" => "PUN",
-				"name_sta" => "Punjab",
-				"sort_order" => "293",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "260",
-				"idcnt_sta" => "99",
-				"code_sta" => "RAJ",
-				"name_sta" => "Rajasthan",
-				"sort_order" => "294",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "261",
-				"idcnt_sta" => "99",
-				"code_sta" => "TAM",
-				"name_sta" => "Tamil Nadu",
-				"sort_order" => "295",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "262",
-				"idcnt_sta" => "99",
-				"code_sta" => "UTT",
-				"name_sta" => "Uttar Pradesh",
-				"sort_order" => "296",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "263",
-				"idcnt_sta" => "99",
-				"code_sta" => "UTR",
-				"name_sta" => "Uttaranchal",
-				"sort_order" => "297",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "264",
-				"idcnt_sta" => "99",
-				"code_sta" => "WES",
-				"name_sta" => "West Bengal",
-				"sort_order" => "298",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "265",
-				"idcnt_sta" => "107",
-				"code_sta" => "AIC",
-				"name_sta" => "Aichi",
-				"sort_order" => "299",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "266",
-				"idcnt_sta" => "107",
-				"code_sta" => "AKT",
-				"name_sta" => "Akita",
-				"sort_order" => "300",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "267",
-				"idcnt_sta" => "107",
-				"code_sta" => "AMR",
-				"name_sta" => "Aomori",
-				"sort_order" => "301",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "268",
-				"idcnt_sta" => "107",
-				"code_sta" => "CHB",
-				"name_sta" => "Chiba",
-				"sort_order" => "302",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "269",
-				"idcnt_sta" => "107",
-				"code_sta" => "EHM",
-				"name_sta" => "Ehime",
-				"sort_order" => "303",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "270",
-				"idcnt_sta" => "107",
-				"code_sta" => "FKI",
-				"name_sta" => "Fukui",
-				"sort_order" => "304",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "271",
-				"idcnt_sta" => "107",
-				"code_sta" => "FKO",
-				"name_sta" => "Fukuoka",
-				"sort_order" => "305",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "272",
-				"idcnt_sta" => "107",
-				"code_sta" => "FSM",
-				"name_sta" => "Fukushima",
-				"sort_order" => "306",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "273",
-				"idcnt_sta" => "107",
-				"code_sta" => "GFU",
-				"name_sta" => "Gifu",
-				"sort_order" => "307",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "274",
-				"idcnt_sta" => "107",
-				"code_sta" => "GUM",
-				"name_sta" => "Gunma",
-				"sort_order" => "308",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "275",
-				"idcnt_sta" => "107",
-				"code_sta" => "HRS",
-				"name_sta" => "Hiroshima",
-				"sort_order" => "309",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "276",
-				"idcnt_sta" => "107",
-				"code_sta" => "HKD",
-				"name_sta" => "Hokkaido",
-				"sort_order" => "310",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "277",
-				"idcnt_sta" => "107",
-				"code_sta" => "HYG",
-				"name_sta" => "Hyogo",
-				"sort_order" => "311",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "278",
-				"idcnt_sta" => "107",
-				"code_sta" => "IBR",
-				"name_sta" => "Ibaraki",
-				"sort_order" => "312",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "279",
-				"idcnt_sta" => "107",
-				"code_sta" => "IKW",
-				"name_sta" => "Ishikawa",
-				"sort_order" => "313",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "280",
-				"idcnt_sta" => "107",
-				"code_sta" => "IWT",
-				"name_sta" => "Iwate",
-				"sort_order" => "314",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "281",
-				"idcnt_sta" => "107",
-				"code_sta" => "KGW",
-				"name_sta" => "Kagawa",
-				"sort_order" => "315",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "282",
-				"idcnt_sta" => "107",
-				"code_sta" => "KGS",
-				"name_sta" => "Kagoshima",
-				"sort_order" => "316",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "283",
-				"idcnt_sta" => "107",
-				"code_sta" => "KNG",
-				"name_sta" => "Kanagawa",
-				"sort_order" => "317",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "284",
-				"idcnt_sta" => "107",
-				"code_sta" => "KCH",
-				"name_sta" => "Kochi",
-				"sort_order" => "318",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "285",
-				"idcnt_sta" => "107",
-				"code_sta" => "KMM",
-				"name_sta" => "Kumamoto",
-				"sort_order" => "319",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "286",
-				"idcnt_sta" => "107",
-				"code_sta" => "KYT",
-				"name_sta" => "Kyoto",
-				"sort_order" => "320",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "287",
-				"idcnt_sta" => "107",
-				"code_sta" => "MIE",
-				"name_sta" => "Mie",
-				"sort_order" => "321",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "288",
-				"idcnt_sta" => "107",
-				"code_sta" => "MYG",
-				"name_sta" => "Miyagi",
-				"sort_order" => "322",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "289",
-				"idcnt_sta" => "107",
-				"code_sta" => "MYZ",
-				"name_sta" => "Miyazaki",
-				"sort_order" => "323",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "290",
-				"idcnt_sta" => "107",
-				"code_sta" => "NGN",
-				"name_sta" => "Nagano",
-				"sort_order" => "324",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "291",
-				"idcnt_sta" => "107",
-				"code_sta" => "NGS",
-				"name_sta" => "Nagasaki",
-				"sort_order" => "325",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "292",
-				"idcnt_sta" => "107",
-				"code_sta" => "NRA",
-				"name_sta" => "Nara",
-				"sort_order" => "326",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "293",
-				"idcnt_sta" => "107",
-				"code_sta" => "NGT",
-				"name_sta" => "Niigata",
-				"sort_order" => "327",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "294",
-				"idcnt_sta" => "107",
-				"code_sta" => "OTA",
-				"name_sta" => "Oita",
-				"sort_order" => "328",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "295",
-				"idcnt_sta" => "107",
-				"code_sta" => "OKY",
-				"name_sta" => "Okayama",
-				"sort_order" => "329",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "296",
-				"idcnt_sta" => "107",
-				"code_sta" => "OKN",
-				"name_sta" => "Okinawa",
-				"sort_order" => "330",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "297",
-				"idcnt_sta" => "107",
-				"code_sta" => "OSK",
-				"name_sta" => "Osaka",
-				"sort_order" => "331",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "298",
-				"idcnt_sta" => "107",
-				"code_sta" => "SAG",
-				"name_sta" => "Saga",
-				"sort_order" => "332",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "299",
-				"idcnt_sta" => "107",
-				"code_sta" => "STM",
-				"name_sta" => "Saitama",
-				"sort_order" => "333",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "300",
-				"idcnt_sta" => "107",
-				"code_sta" => "SHG",
-				"name_sta" => "Shiga",
-				"sort_order" => "334",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "301",
-				"idcnt_sta" => "107",
-				"code_sta" => "SMN",
-				"name_sta" => "Shimane",
-				"sort_order" => "335",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "302",
-				"idcnt_sta" => "107",
-				"code_sta" => "SZK",
-				"name_sta" => "Shizuoka",
-				"sort_order" => "336",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "303",
-				"idcnt_sta" => "107",
-				"code_sta" => "TOC",
-				"name_sta" => "Tochigi",
-				"sort_order" => "337",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "304",
-				"idcnt_sta" => "107",
-				"code_sta" => "TKS",
-				"name_sta" => "Tokushima",
-				"sort_order" => "338",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "305",
-				"idcnt_sta" => "107",
-				"code_sta" => "TKY",
-				"name_sta" => "Tokyo",
-				"sort_order" => "335",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "306",
-				"idcnt_sta" => "107",
-				"code_sta" => "TTR",
-				"name_sta" => "Tottori",
-				"sort_order" => "336",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "307",
-				"idcnt_sta" => "107",
-				"code_sta" => "TYM",
-				"name_sta" => "Toyama",
-				"sort_order" => "337",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "308",
-				"idcnt_sta" => "107",
-				"code_sta" => "WKY",
-				"name_sta" => "Wakayama",
-				"sort_order" => "338",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "309",
-				"idcnt_sta" => "107",
-				"code_sta" => "YGT",
-				"name_sta" => "Yamagata",
-				"sort_order" => "339",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "310",
-				"idcnt_sta" => "107",
-				"code_sta" => "YGC",
-				"name_sta" => "Yamaguchi",
-				"sort_order" => "340",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "311",
-				"idcnt_sta" => "107",
-				"code_sta" => "YNS",
-				"name_sta" => "Yamanashi",
-				"sort_order" => "341",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "312",
-				"idcnt_sta" => "10",
-				"code_sta" => "C",
-				"name_sta" => "Buenos Aires (Autonomous City)",
-				"sort_order" => "342",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "313",
-				"idcnt_sta" => "10",
-				"code_sta" => "B",
-				"name_sta" => "Buenos Aires Province",
-				"sort_order" => "343",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "314",
-				"idcnt_sta" => "10",
-				"code_sta" => "K",
-				"name_sta" => "Catamarca",
-				"sort_order" => "344",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "315",
-				"idcnt_sta" => "10",
-				"code_sta" => "H",
-				"name_sta" => "Chaco",
-				"sort_order" => "345",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "316",
-				"idcnt_sta" => "10",
-				"code_sta" => "U",
-				"name_sta" => "Chubut",
-				"sort_order" => "346",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "317",
-				"idcnt_sta" => "10",
-				"code_sta" => "X",
-				"name_sta" => "Córdoba",
-				"sort_order" => "347",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "318",
-				"idcnt_sta" => "10",
-				"code_sta" => "W",
-				"name_sta" => "Corrientes",
-				"sort_order" => "348",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "319",
-				"idcnt_sta" => "10",
-				"code_sta" => "E",
-				"name_sta" => "Entre Ríos",
-				"sort_order" => "349",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "320",
-				"idcnt_sta" => "10",
-				"code_sta" => "P",
-				"name_sta" => "Formosa",
-				"sort_order" => "350",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "321",
-				"idcnt_sta" => "10",
-				"code_sta" => "Y",
-				"name_sta" => "Jujuy",
-				"sort_order" => "351",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "322",
-				"idcnt_sta" => "10",
-				"code_sta" => "L",
-				"name_sta" => "La Pampa",
-				"sort_order" => "352",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "323",
-				"idcnt_sta" => "10",
-				"code_sta" => "",
-				"name_sta" => "",
-				"sort_order" => "353",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "324",
-				"idcnt_sta" => "10",
-				"code_sta" => "F",
-				"name_sta" => "La Rioja",
-				"sort_order" => "354",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "325",
-				"idcnt_sta" => "10",
-				"code_sta" => "M",
-				"name_sta" => "Mendoza",
-				"sort_order" => "355",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "326",
-				"idcnt_sta" => "10",
-				"code_sta" => "N",
-				"name_sta" => "Misiones",
-				"sort_order" => "356",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "327",
-				"idcnt_sta" => "10",
-				"code_sta" => "Q",
-				"name_sta" => "Neuquén",
-				"sort_order" => "357",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "328",
-				"idcnt_sta" => "10",
-				"code_sta" => "R",
-				"name_sta" => "Río Negro",
-				"sort_order" => "358",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "329",
-				"idcnt_sta" => "10",
-				"code_sta" => "A",
-				"name_sta" => "Salta",
-				"sort_order" => "359",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "330",
-				"idcnt_sta" => "10",
-				"code_sta" => "J",
-				"name_sta" => "San Juan",
-				"sort_order" => "360",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "331",
-				"idcnt_sta" => "10",
-				"code_sta" => "D",
-				"name_sta" => "San Luis",
-				"sort_order" => "361",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "332",
-				"idcnt_sta" => "10",
-				"code_sta" => "Z",
-				"name_sta" => "Santa Cruz",
-				"sort_order" => "362",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "333",
-				"idcnt_sta" => "10",
-				"code_sta" => "S",
-				"name_sta" => "Santa Fe",
-				"sort_order" => "363",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "334",
-				"idcnt_sta" => "10",
-				"code_sta" => "G",
-				"name_sta" => "Santiago del Estero",
-				"sort_order" => "364",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "335",
-				"idcnt_sta" => "10",
-				"code_sta" => "V",
-				"name_sta" => "Tierra del Fuego",
-				"sort_order" => "365",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "336",
-				"idcnt_sta" => "10",
-				"code_sta" => "T",
-				"name_sta" => "Tucumán",
-				"sort_order" => "366",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "337",
-				"idcnt_sta" => "223",
-				"code_sta" => "AA",
-				"name_sta" => "Armed Forces of the Americas ",
-				"sort_order" => "63",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "338",
-				"idcnt_sta" => "223",
-				"code_sta" => "AE",
-				"name_sta" => "Armed Forces of Europe",
-				"sort_order" => "64",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
-			"ec_state",
-			array(
-				"id_sta" => "339",
-				"idcnt_sta" => "223",
-				"code_sta" => "AP",
-				"name_sta" => "Armed Forces of the Pacific",
-				"sort_order" => "65",
-				"group_sta" => ""
-			)
-		);
-
-		$wpdb->insert( 
 			"ec_zone",
 			array(
 				"zone_id" => "1",
@@ -11762,6 +6474,7 @@ CREATE TABLE ec_zone_to_location (
 				"iso2_cnt" => "AT",
 				"code_sta" => "",
 			)
+
 		);
 
 		$wpdb->insert( 
@@ -13364,6 +8077,7 @@ CREATE TABLE ec_zone_to_location (
 			)
 		);
 
+
 		$wpdb->insert( 
 			"ec_zone_to_location",
 			array(
@@ -13616,25 +8330,55 @@ CREATE TABLE ec_zone_to_location (
 
 	}
 
-	public function restore_default_countries_and_states() {
+	/**
+	 * Insert any default country or region that is missing. Existing rows are never changed or removed:
+	 * countries match on iso2_cnt, regions on country + code_sta. Used by the fresh-install seed
+	 * ( ship-to on ) and by the admin "Restore default countries & regions" action ( ship-to off ).
+	 * Never called from the plugin update path.
+	 *
+	 * @since 6.0.0 $dry_run counts what would be added without writing; the result also carries the size of
+	 *              the default set and any rows the database refused ( previously skipped silently ).
+	 *
+	 * @param int  $ship_to_active ship_to_active value for the rows this call inserts ( 0 or 1 ).
+	 * @param bool $dry_run        Count only; nothing is inserted.
+	 * @return array countries_added, states_added, countries_failed, states_failed, last_error,
+	 *               default_countries, default_states, default_region_countries.
+	 */
+	public function restore_default_countries_and_states( $ship_to_active = 0, $dry_run = false ) {
 		global $wpdb;
+		$ship_to_active = $ship_to_active ? 1 : 0;
+		$result = array(
+			'countries_added'          => 0,
+			'states_added'             => 0,
+			'countries_failed'         => 0,
+			'states_failed'            => 0,
+			'last_error'               => '',
+			'default_countries'        => 0,
+			'default_states'           => 0,
+			'default_region_countries' => 0,
+		);
 
 		$data_file = EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_default_countries_states.php';
 		if ( ! file_exists( $data_file ) ) {
-			return array( 'countries_added' => 0, 'states_added' => 0 );
+			return $result;
 		}
-		$defaults = include( $data_file );
+		$defaults = include $data_file;
 		if ( ! is_array( $defaults ) || empty( $defaults['countries'] ) ) {
-			return array( 'countries_added' => 0, 'states_added' => 0 );
+			return $result;
 		}
-
-		$countries_added = 0;
-		$states_added    = 0;
+		$defaults_states = ( ! empty( $defaults['states'] ) && is_array( $defaults['states'] ) ) ? $defaults['states'] : array();
+		$result['default_countries'] = count( $defaults['countries'] );
+		$result['default_states']    = count( $defaults_states );
+		$region_countries = array();
+		foreach ( $defaults_states as $state ) {
+			$region_countries[ strtoupper( $state['iso2_cnt'] ) ] = true;
+		}
+		$result['default_region_countries'] = count( $region_countries );
 
 		$existing_countries = $wpdb->get_results( 'SELECT id_cnt, iso2_cnt FROM ec_country' );
 		$iso2_to_id = array();
 		foreach ( $existing_countries as $row ) {
-			$iso2_to_id[ strtoupper( $row->iso2_cnt ) ] = (int) $row->id_cnt;
+			$iso2_to_id[ strtoupper( trim( $row->iso2_cnt ) ) ] = (int) $row->id_cnt;
 		}
 
 		foreach ( $defaults['countries'] as $country ) {
@@ -13642,37 +8386,40 @@ CREATE TABLE ec_zone_to_location (
 			if ( isset( $iso2_to_id[ $iso2 ] ) ) {
 				continue;
 			}
-			$inserted = $wpdb->insert(
-				'ec_country',
-				array(
-					'name_cnt'       => $country['name_cnt'],
-					'iso2_cnt'       => $country['iso2_cnt'],
-					'iso3_cnt'       => $country['iso3_cnt'],
-					'sort_order'     => (int) $country['sort_order'],
-					'ship_to_active' => 0,
-				)
+			if ( $dry_run ) {
+				$iso2_to_id[ $iso2 ] = 'new-' . $iso2;
+				++$result['countries_added'];
+				continue;
+			}
+			$row = array(
+				'name_cnt'       => $country['name_cnt'],
+				'iso2_cnt'       => $country['iso2_cnt'],
+				'iso3_cnt'       => $country['iso3_cnt'],
+				'sort_order'     => (int) $country['sort_order'],
+				'ship_to_active' => $ship_to_active,
 			);
+			$inserted = $this->insert_default_location_row( 'ec_country', $row, 'name_cnt' );
 			if ( $inserted ) {
 				$iso2_to_id[ $iso2 ] = (int) $wpdb->insert_id;
-				$countries_added++;
+				++$result['countries_added'];
 				do_action( 'wpeasycart_country_added', (int) $wpdb->insert_id );
+			} else {
+				++$result['countries_failed'];
+				$result['last_error'] = $wpdb->last_error;
 			}
 		}
 
-		if ( empty( $defaults['states'] ) ) {
-			return array(
-				'countries_added' => $countries_added,
-				'states_added'    => $states_added,
-			);
+		if ( empty( $defaults_states ) ) {
+			return $result;
 		}
 
 		$existing_states = $wpdb->get_results( 'SELECT idcnt_sta, code_sta FROM ec_state' );
 		$state_key_set = array();
 		foreach ( $existing_states as $row ) {
-			$state_key_set[ (int) $row->idcnt_sta . '|' . strtoupper( $row->code_sta ) ] = true;
+			$state_key_set[ (int) $row->idcnt_sta . '|' . strtoupper( trim( $row->code_sta ) ) ] = true;
 		}
 
-		foreach ( $defaults['states'] as $state ) {
+		foreach ( $defaults_states as $state ) {
 			$iso2 = strtoupper( $state['iso2_cnt'] );
 			if ( ! isset( $iso2_to_id[ $iso2 ] ) ) {
 				continue;
@@ -13682,28 +8429,53 @@ CREATE TABLE ec_zone_to_location (
 			if ( isset( $state_key_set[ $key ] ) ) {
 				continue;
 			}
-			$inserted = $wpdb->insert(
-				'ec_state',
-				array(
-					'idcnt_sta'      => $idcnt,
-					'code_sta'       => $state['code_sta'],
-					'name_sta'       => $state['name_sta'],
-					'sort_order'     => (int) $state['sort_order'],
-					'group_sta'      => $state['group_sta'],
-					'ship_to_active' => 0,
-				)
+			if ( $dry_run ) {
+				$state_key_set[ $key ] = true;
+				++$result['states_added'];
+				continue;
+			}
+			$row = array(
+				'idcnt_sta'      => $idcnt,
+				'code_sta'       => $state['code_sta'],
+				'name_sta'       => $state['name_sta'],
+				'sort_order'     => (int) $state['sort_order'],
+				'group_sta'      => $state['group_sta'],
+				'ship_to_active' => $ship_to_active,
 			);
+			$inserted = $this->insert_default_location_row( 'ec_state', $row, 'name_sta' );
 			if ( $inserted ) {
 				$state_key_set[ $key ] = true;
-				$states_added++;
+				++$result['states_added'];
 				do_action( 'wpeasycart_state_added', (int) $wpdb->insert_id );
+			} else {
+				++$result['states_failed'];
+				$result['last_error'] = $wpdb->last_error;
 			}
 		}
 
-		return array(
-			'countries_added' => $countries_added,
-			'states_added'    => $states_added,
-		);
+		return $result;
+	}
+
+	/**
+	 * Insert one default country/region row. wpdb refuses a whole row when a value cannot be stored in the
+	 * column's character set ( e.g. "Manawatū-Whanganui" in an older latin1 ec_state table ), so on failure the
+	 * name is retried without accents rather than losing the region.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param string $table      ec_country or ec_state.
+	 * @param array  $row        Column => value.
+	 * @param string $name_field The display-name column that may carry accents.
+	 * @return int|false Rows inserted, or false.
+	 */
+	private function insert_default_location_row( $table, $row, $name_field ) {
+		global $wpdb;
+		$inserted = $wpdb->insert( $table, $row );
+		if ( ! $inserted && function_exists( 'remove_accents' ) && preg_match( '/[^\x20-\x7e]/', $row[ $name_field ] ) ) {
+			$row[ $name_field ] = remove_accents( $row[ $name_field ] );
+			$inserted = $wpdb->insert( $table, $row );
+		}
+		return $inserted;
 	}
 
 }

@@ -1,4 +1,6 @@
 <?php
+/* Plan name for the locked options below: the store's own plan, or Pro/Premium when no license is known. */
+$wpec_plan_name = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' );
 $default_currency = false;
 $account_country = false;
 if ( class_exists( 'ec_stripe_connect' ) ) {
@@ -228,7 +230,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 				</select>
 			</div>
 			<div class="ec_method_deactivated" id="stripe_account_currency_note" data-currency="<?php echo esc_attr( $default_currency ); ?>"<?php if ( get_option( 'ec_option_stripe_currency' ) == $default_currency ) { ?> style="display:none"<?php }?>>
-				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The default currency listed in your account does not match your current selection. This may or may not cause problems with your checkout and typically depends on the payment types you activate below.', 'wp-easycart-pro' ); ?></span>
+				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The default currency listed in your account does not match your current selection. This may or may not cause problems with your checkout and typically depends on the payment types you activate below.', 'wp-easycart' ); ?></span>
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
 				<label style="float:left; width:100%;"><?php esc_attr_e( 'Business Country', 'wp-easycart' ); ?></label>
@@ -280,37 +282,37 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 				</select>
 			</div>
 			<div class="ec_method_deactivated" id="stripe_account_country_note" data-country="<?php echo esc_attr( $account_country ); ?>"<?php if ( get_option( 'ec_option_stripe_company_country' ) == $account_country ) { ?> style="display:none"<?php }?>>
-				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The country listed in your account does not match your current selection. This may or may not cause problems with your checkout.', 'wp-easycart-pro' ); ?></span>
+				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The country listed in your account does not match your current selection. This may or may not cause problems with your checkout.', 'wp-easycart' ); ?></span>
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
 				<label><?php _e( 'Payment Theme', 'wp-easycart' ); ?></label>
 				<select name="ec_option_stripe_payment_theme" id="ec_option_stripe_payment_theme" onchange="ec_admin_save_stripe_connect_options( );">
 					<option value="stripe" selected="selected"><?php esc_attr_e( 'Stripe Theme', 'wp-easycart' ); ?></option>
-					<option value="stripe"><?php esc_attr_e( 'Night Theme (PRO &amp; Premium Only)', 'wp-easycart-pro' ); ?></option>
-					<option value="stripe"><?php esc_attr_e( 'Flat Theme (PRO &amp; Premium Only)', 'wp-easycart' ); ?></option>
-					<option value="stripe"><?php esc_attr_e( 'None (PRO &amp; Premium Only)', 'wp-easycart' ); ?></option>
+					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Night Theme ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
+					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Flat Theme ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
+					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'None ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 				</select>
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
 				<label><?php _e( 'Payment Layout', 'wp-easycart' ); ?></label>
 				<select name="ec_option_stripe_payment_layout" id="ec_option_stripe_payment_layout" onchange="ec_admin_save_stripe_connect_options( );">
-					<option value="tabs" selected="selected"><?php esc_attr_e( 'Tabs', 'wp-easycart-pro' ); ?></option>
-					<option value="tabs"><?php esc_attr_e( 'Accordion (PRO &amp; Premium Only)', 'wp-easycart-pro' ); ?></option>
+					<option value="tabs" selected="selected"><?php esc_attr_e( 'Tabs', 'wp-easycart' ); ?></option>
+					<option value="tabs"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Accordion ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 				</select>
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
 				<label><?php _e( 'Subscription Notices', 'wp-easycart' ); ?></label>
 				<select name="ec_option_stripe_subscription_notices" id="ec_option_stripe_subscription_notices" onchange="ec_admin_save_stripe_connect_options( );">
-					<option value="0" selected="selected"><?php esc_attr_e( 'Disable Upcoming Payment Emails', 'wp-easycart-pro' ); ?></option>
-					<option value="0"><?php esc_attr_e( 'Enable Upcoming Payment Emails (PRO &amp; Premium Only)', 'wp-easycart-pro' ); ?></option>
+					<option value="0" selected="selected"><?php esc_attr_e( 'Disable Upcoming Payment Emails', 'wp-easycart' ); ?></option>
+					<option value="0"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Enable Upcoming Payment Emails ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 				</select>
 			</div>
 			<?php if ( get_option( 'ec_option_onepage_checkout' ) ) { ?>
 				<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
 					<label><?php _e( 'Stripe Address Auto-Complete', 'wp-easycart' ); ?></label>
 					<select name="ec_option_stripe_address_autocomplete" id="ec_option_stripe_address_autocomplete" onchange="ec_admin_save_stripe_connect_options( );">
-						<option value="1"<?php echo ( '1' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Enable (Link Required)', 'wp-easycart-pro' ); ?></option>
-						<option value="0"<?php echo ( '0' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Disabled', 'wp-easycart-pro' ); ?></option>
+						<option value="1"<?php echo ( '1' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Enable (Link Required)', 'wp-easycart' ); ?></option>
+						<option value="0"<?php echo ( '0' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?></option>
 					</select>
 				</div>
 			<?php } else { ?>
@@ -326,7 +328,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Affirm', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_affirm" id="ec_option_stripe_affirm" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -349,7 +351,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable AfterPay', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_afterpay" id="ec_option_stripe_afterpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -380,7 +382,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Klarna', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_klarna" id="ec_option_stripe_klarna" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -400,7 +402,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Apple Pay and Google Pay', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_enable_apple_pay" id="ec_option_stripe_enable_apple_pay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" <?php if ( ! get_option('ec_option_stripe_enable_apple_pay' ) ) echo ' selected'; ?>><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" <?php if ( ! get_option('ec_option_stripe_enable_apple_pay' ) ) echo ' selected'; ?>><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -451,7 +453,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Alipay', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_alipay" id="ec_option_stripe_alipay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -470,7 +472,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable GrabPay (common in Southeast Asia)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_grabpay" id="ec_option_stripe_grabpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -509,7 +511,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable WeChat Pay', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_wechat" id="ec_option_stripe_wechat" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -524,7 +526,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Link Payments', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_link" id="ec_option_stripe_link" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -542,7 +544,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Bancontact (Common in Belgium)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_bancontact" id="ec_option_stripe_bancontact" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -556,7 +558,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable BLIK (Common in Poland)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_blik" id="ec_option_stripe_blik" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -570,7 +572,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable EPS (Common in Austria)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_eps" id="ec_option_stripe_eps" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -584,7 +586,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable FPX (Common in Malaysia)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_fpx" id="ec_option_stripe_fpx" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -598,7 +600,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable giropay (Common in Germany)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_giropay" id="ec_option_stripe_giropay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -612,7 +614,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable iDEAL (the most popular payment method in the Netherlands)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_enable_ideal" id="ec_option_stripe_enable_ideal" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -626,7 +628,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Przelewy24 (Common in Poland)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_p24" id="ec_option_stripe_p24" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -640,7 +642,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Sofort (Common in Europe)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_sofort" id="ec_option_stripe_sofort" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -658,7 +660,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Bacs Direct Debit in the UK', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_bacs" id="ec_option_stripe_bacs" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -672,7 +674,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable BECS Direct Debit in Australia', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_becs" id="ec_option_stripe_becs" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -686,7 +688,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable SEPA Direct Debit (Europe)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_sepa" id="ec_option_stripe_sepa" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -704,7 +706,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Pix (Brazil)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_pix" id="ec_option_stripe_pix" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -718,7 +720,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable PayNow (Singapore)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_paynow" id="ec_option_stripe_paynow" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -732,7 +734,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable PromptPay (Thailand)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_promptpay" id="ec_option_stripe_promptpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -750,7 +752,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Boleto (Brazil)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_boleto" id="ec_option_stripe_boleto" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -764,7 +766,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Konbini (Japan)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_konbini" id="ec_option_stripe_konbini" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">
@@ -778,7 +780,7 @@ if ( class_exists( 'ec_stripe_connect' ) ) {
 					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable OXXO (Mexico)', 'wp-easycart' ); ?></label>
 					<fieldset class="wp-easycart-admin-field-container">
 						<select name="ec_option_stripe_oxxo" id="ec_option_stripe_oxxo" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 						</select>
 						<div class="wp-easycart-admin-icons-container">
 							<div class="wp-easycart-admin-icon-close">

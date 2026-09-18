@@ -17,7 +17,8 @@ $ecre_info    = get_option( 'wp_easycart_license_info' );
 $ecre_key     = ( is_array( $ecre_info ) && isset( $ecre_info['transaction_key'] ) ) ? $ecre_info['transaction_key'] : '';
 $ecre_email   = ( is_array( $ecre_info ) && isset( $ecre_info['customer_email'] ) ) ? $ecre_info['customer_email'] : '';
 $ecre_premium = ( $ecre_license && isset( $ecre_license->model_number ) && 'ec410' === strtolower( trim( (string) $ecre_license->model_number ) ) );
-$ecre_end_ts  = ( $ecre_license && ! empty( $ecre_license->support_end_date ) ) ? strtotime( $ecre_license->support_end_date ) : 0;
+$ecre_plan    = $ecre_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' );
+$ecre_end_ts  =( $ecre_license && ! empty( $ecre_license->support_end_date ) ) ? strtotime( $ecre_license->support_end_date ) : 0;
 $ecre_renew   = '' !== $ecre_key
 	? ( $ecre_premium ? 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecre_key ) : 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . rawurlencode( $ecre_key ) )
 	: 'https://www.wpeasycart.com/my-account/';
@@ -39,7 +40,10 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 
 	<div class="ecreg-notice is-ended">
 		<span class="dashicons dashicons-warning"></span>
-		<span><strong><?php echo $ecre_end_ts ? esc_html( sprintf( __( 'Your license lapsed on %s.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), $ecre_end_ts ) ) ) : esc_html__( 'Your license has lapsed.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'The PRO panels are locked until support & updates are renewed. Orders, products and settings are untouched and your store keeps selling.', 'wp-easycart' ); ?></span>
+		<span><strong><?php echo $ecre_end_ts ? esc_html( sprintf( __( 'Your license lapsed on %s.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), $ecre_end_ts ) ) ) : esc_html__( 'Your license has lapsed.', 'wp-easycart' ); ?></strong> <?php
+			/* translators: %s: plan name, Pro or Premium. */
+			echo esc_html( sprintf( __( 'The %s panels are locked until support & updates are renewed. Orders, products and settings are untouched and your store keeps selling.', 'wp-easycart' ), $ecre_plan ) );
+		?></span>
 	</div>
 
 	<div class="ecreg-paths">
@@ -48,10 +52,16 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 			<span class="ecreg-path-tag"><?php esc_html_e( 'Reopens everything', 'wp-easycart' ); ?></span>
 			<span class="dashicons dashicons-update ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Renew support & updates', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'One renewal reopens every PRO panel on this site within a few minutes, and brings back security fixes, new features and priority support for a year.', 'wp-easycart' ); ?></p>
+			<p><?php
+				/* translators: %s: plan name, Pro or Premium. */
+				echo esc_html( sprintf( __( 'One renewal reopens every %s panel on this site within a few minutes, and brings back security fixes, new features and priority support for a year.', 'wp-easycart' ), $ecre_plan ) );
+			?></p>
 			<ul class="ecreg-path-list">
 				<li><?php esc_html_e( 'Same key, same site — nothing to re-enter', 'wp-easycart' ); ?></li>
-				<li><?php esc_html_e( 'All PRO data you set up is still here', 'wp-easycart' ); ?></li>
+				<li><?php
+					/* translators: %s: plan name, Pro or Premium. */
+					echo esc_html( sprintf( __( 'All %s data you set up is still here', 'wp-easycart' ), $ecre_plan ) );
+				?></li>
 				<li><?php esc_html_e( 'Sign in with the account that bought the license', 'wp-easycart' ); ?></li>
 			</ul>
 			<a class="ecv2-btn ecv2-btn-primary ecreg-path-cta" href="<?php echo esc_url( $ecre_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew now', 'wp-easycart' ); ?></a>
@@ -74,7 +84,7 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 			<span class="dashicons dashicons-info-outline ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'This license', 'wp-easycart' ); ?></h3>
 			<dl class="ecreg-dl">
-				<dt><?php esc_html_e( 'Edition', 'wp-easycart' ); ?></dt><dd><?php echo $ecre_premium ? esc_html__( 'Premium', 'wp-easycart' ) : esc_html__( 'PRO', 'wp-easycart' ); ?></dd>
+				<dt><?php esc_html_e( 'Edition', 'wp-easycart' ); ?></dt><dd><?php echo esc_html( $ecre_plan ); ?></dd>
 				<dt><?php esc_html_e( 'Registered URL', 'wp-easycart' ); ?></dt><dd><?php echo esc_html( ( $ecre_license && isset( $ecre_license->siteurl ) ) ? $ecre_license->siteurl : home_url() ); ?></dd>
 				<dt><?php esc_html_e( 'Support ended', 'wp-easycart' ); ?></dt><dd><?php echo $ecre_end_ts ? esc_html( date_i18n( get_option( 'date_format' ), $ecre_end_ts ) ) : '—'; ?></dd>
 				<?php if ( '' !== $ecre_key ) : ?><dt><?php esc_html_e( 'License key', 'wp-easycart' ); ?></dt><dd class="ecreg-mono"><?php echo esc_html( $ecre_key ); ?></dd><?php endif; ?>
@@ -90,7 +100,10 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 
 	<?php if ( ! empty( $ecre_stats['orders_30d'] ) && $ecre_stats['orders_30d'] >= 3 ) : ?>
 	<p class="ecreg-stat"><span class="dashicons dashicons-chart-line"></span>
-		<?php echo esc_html( sprintf( __( '%s orders in the last 30 days went through the PRO features you set up — offers, subscriptions, live rates. Renewing keeps that in place.', 'wp-easycart' ), number_format_i18n( $ecre_stats['orders_30d'] ) ) ); ?>
+		<?php
+		/* translators: 1: number of orders, 2: plan name, Pro or Premium. */
+		echo esc_html( sprintf( __( '%1$s orders in the last 30 days went through the %2$s features you set up — offers, subscriptions, live rates. Renewing keeps that in place.', 'wp-easycart' ), number_format_i18n( $ecre_stats['orders_30d'] ), $ecre_plan ) );
+		?>
 	</p>
 	<?php endif; ?>
 

@@ -18,7 +18,30 @@ jQuery( document ).ready( function( ){
 		} );
 	}
 } );
-function toggle_direct_deposit( ){	
+/* 6.0.0: the gateway saves ( ec_admin_ajax_save_* ) answer with a JSON error ( HTTP 403 ) when the permission or
+   nonce check fails. The per-gateway save functions only handle success, so report the failure here instead of
+   leaving the spinner running or implying the settings were saved. */
+jQuery( document ).ajaxComplete( function( event, xhr, settings ) {
+	if ( ! settings || typeof settings.data !== 'string' || ! /(^|&)action=ec_admin_ajax_save_/.test( settings.data ) ) {
+		return;
+	}
+	var response = xhr ? xhr.responseJSON : null;
+	if ( ! response && xhr && xhr.responseText && xhr.responseText.charAt( 0 ) === '{' ) {
+		try { response = JSON.parse( xhr.responseText ); } catch ( e ) { response = null; }
+	}
+	if ( ! response || response.success !== false ) {
+		return;
+	}
+	var message = ( response.data && response.data.message ) ? response.data.message : 'The payment settings were not saved. Reload the page and try again.';
+	jQuery( '[id$="_display_loader"]' ).stop( true, true ).hide( );
+	jQuery( '.wp_easycart_toggle_saving' ).hide( );
+	if ( typeof window.ecv2_toast === 'function' ) {
+		window.ecv2_toast( message, 'error' );
+	} else {
+		window.alert( message );
+	}
+} );
+function toggle_direct_deposit( ){
 	ec_admin_save_direct_deposit_options( );
 }
 
@@ -105,6 +128,7 @@ function ec_admin_save_2checkout_thirdparty_options( ){
 	var demo = jQuery( document.getElementById( 'ec_option_2checkout_thirdparty_demo_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_2checkout_thirdparty',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: '2checkout_thirdparty',
 		ec_option_2checkout_thirdparty_sid: sid_id,
 		ec_option_2checkout_thirdparty_secret_word: secret,
@@ -132,6 +156,7 @@ function ec_admin_save_cashfree_options( ){
 
 	var data = {
 		action: 'ec_admin_ajax_save_cashfree',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'cashfree',
 		ec_option_cashfree_app_id: ec_option_cashfree_app_id,
 		ec_option_cashfree_secret: ec_option_cashfree_secret,
@@ -155,6 +180,7 @@ function ec_admin_save_dwolla_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_dwolla_thirdparty_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_dwolla',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'dwolla_thirdparty',
 		ec_option_dwolla_thirdparty_account_id: account_id,
 		ec_option_dwolla_thirdparty_key: key,
@@ -178,6 +204,7 @@ function ec_admin_save_nets_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_nets_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_nets',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'nets',
 		ec_option_nets_merchant_id: merchant_id,
 		ec_option_nets_token: shared_secret,
@@ -202,6 +229,7 @@ function ec_admin_save_payfast_options( ){
 
 	var data = {
 		action: 'ec_admin_ajax_save_payfast',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'payfast_thirdparty',
 		ec_option_payfast_merchant_id: merchant_id,
 		ec_option_payfast_merchant_key: merchant_key,
@@ -229,6 +257,7 @@ function ec_admin_save_payfort_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_payfort_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_payfort',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'payfort',
 		ec_option_payfort_merchant_id: merchant_id,
 		ec_option_payfort_access_code: access_code,
@@ -255,6 +284,7 @@ function ec_admin_save_paymentexpress_thirdparty_options( ){
 	var currency = jQuery( document.getElementById( 'ec_option_payment_express_thirdparty_currency' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_paymentexpress_thirdparty',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'paymentexpress_thirdparty',
 		ec_option_payment_express_thirdparty_username: username,
 		ec_option_payment_express_thirdparty_key: key,
@@ -704,6 +734,7 @@ function ec_admin_save_realex_thirdparty_options( ){
 	var account = jQuery( document.getElementById( 'ec_option_realex_thirdparty_account' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_realex_thirdparty',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'realex_thirdparty',
 		ec_option_realex_thirdparty_merchant_id: merchant_id,
 		ec_option_realex_thirdparty_secret: secret,
@@ -728,6 +759,7 @@ function ec_admin_save_redsys_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_redsys_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_redsys',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'redsys',
 		ec_option_redsys_merchant_code: merchant_code,
 		ec_option_redsys_terminal: terminal,
@@ -749,6 +781,7 @@ function ec_admin_save_sagepay_paynow_za_options( ){
 	var service_key = jQuery( document.getElementById( 'ec_option_sagepay_paynow_za_service_key' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_sagepay_paynow_za',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'sagepay_paynow_za',
 		ec_option_sagepay_paynow_za_service_key: service_key
 	};
@@ -770,6 +803,7 @@ function ec_admin_save_skrill_options( ){
 	var currency_code = jQuery( document.getElementById( 'ec_option_skrill_currency_code' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_skrill',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_third_party: 'skrill',
 		ec_option_skrill_merchant_id: merchant_id,
 		ec_option_skrill_company_name: company_name,
@@ -807,6 +841,7 @@ function ec_admin_save_live_gateway_selection( ){
 	var selected_live_payment = jQuery( document.getElementById( 'ec_option_payment_process_method' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_live_gateway_selection',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: selected_live_payment
 	};
 
@@ -840,6 +875,7 @@ function ec_admin_save_amazonpay_options( ){
 	var hide_early = jQuery( document.getElementById( 'ec_option_amazonpay_hide_early_buttons' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_amazonpay',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_amazonpay_enable: enabled,
 		ec_option_amazonpay_store_id: store_id,
 		ec_option_amazonpay_merchant_id: merchant_id,
@@ -875,10 +911,15 @@ function ec_admin_save_authorize_options( ){
 		ec_option_authorize_trans_key: transaction_key,
 		ec_option_authorize_currency_code: currency_code,
 		ec_option_authorize_test_mode: test_mode,
-		ec_option_authorize_developer_account: developer_account
+		ec_option_authorize_developer_account: developer_account,
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
 	};
+	/* PRO 6.0.0+: Accept.js Public Client Key ( only sent when the field is on the form ). */
+	if ( document.getElementById( 'ec_option_authorize_public_client_key' ) ) {
+		data.ec_option_authorize_public_client_key = jQuery( document.getElementById( 'ec_option_authorize_public_client_key' ) ).val( );
+	}
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_live_gateway_display_loader' );
 	} } );
 
@@ -892,6 +933,7 @@ function ec_admin_save_beanstream_options( ){
 	var passcode = jQuery( document.getElementById( 'ec_option_beanstream_api_passcode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_beanstream',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'beanstream',
 		ec_option_beanstream_merchant_id: merchant_id,
 		ec_option_beanstream_api_passcode: passcode
@@ -914,6 +956,7 @@ function ec_admin_save_braintree_options( ){
 	var environment = jQuery( document.getElementById( 'ec_option_braintree_environment' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_braintree',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'braintree',
 		ec_option_braintree_merchant_id: merchant_id,
 		ec_option_braintree_merchant_account_id: merchant_account_id,
@@ -941,6 +984,7 @@ function ec_admin_save_cardpointe_options( ){
 
 	var data = {
 		action: 'ec_admin_ajax_save_cardpointe',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'cardpointe',
 		ec_option_cardpointe_site: ec_option_cardpointe_site,
 		ec_option_cardpointe_merch: ec_option_cardpointe_merch,
@@ -965,6 +1009,7 @@ function ec_admin_save_chronopay_options( ){
 	var shared_secret = jQuery( document.getElementById( 'ec_option_chronopay_shared_secret' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_chronopay',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'chronopay',
 		ec_option_chronopay_currency: currency,
 		ec_option_chronopay_product_id: product_id,
@@ -987,6 +1032,7 @@ function ec_admin_save_virtualmerchant_options( ){
 	var demo_account = jQuery( document.getElementById( 'ec_option_virtualmerchant_demo_account' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_virtualmerchant',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'virtualmerchant',
 		ec_option_virtualmerchant_ssl_merchant_id: merchant_id,
 		ec_option_virtualmerchant_ssl_user_id: user_id,
@@ -1013,6 +1059,7 @@ function ec_admin_save_eway_options( ){
 	var process_test_mode = jQuery( document.getElementById( 'ec_option_eway_test_mode_success' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_eway',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'eway',
 		ec_option_eway_use_rapid_pay: use_rapid_pay,
 		ec_option_eway_api_key: eway_api_key,
@@ -1042,6 +1089,7 @@ function ec_admin_save_firstdata_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_firstdatae4_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_firstdata',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'firstdata',
 		ec_option_firstdatae4_exact_id: gateway_id,
 		ec_option_firstdatae4_password: password,
@@ -1067,6 +1115,7 @@ function ec_admin_save_goemerchant_options( ){
 	var processor_id = jQuery( document.getElementById( 'ec_option_goemerchant_processor_id' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_goemerchant',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'goemerchant',
 		ec_option_goemerchant_trans_center_id: center_id,
 		ec_option_goemerchant_gateway_id: gateway_id,
@@ -1093,6 +1142,7 @@ function ec_admin_save_intuit_options( ){
 	var sandbox_mode = jQuery( document.getElementById( 'ec_option_intuit_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_intuit',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'intuit',
 		ec_option_intuit_oauth_version: oauth_version,
 		ec_option_intuit_app_token: app_token,
@@ -1121,6 +1171,7 @@ function ec_admin_save_migs_options( ){
 	var merchant_id = jQuery( document.getElementById( 'ec_option_migs_merchant_id' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_migs',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'migs',
 		ec_option_migs_signature: signature,
 		ec_option_migs_access_code: access_code,
@@ -1142,6 +1193,7 @@ function ec_admin_save_moneris_ca_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_moneris_ca_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_moneris_ca',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'moneris_ca',
 		ec_option_moneris_ca_store_id: store_id,
 		ec_option_moneris_ca_api_token: api_token,
@@ -1163,6 +1215,7 @@ function ec_admin_save_moneris_us_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_moneris_us_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_moneris_us',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'moneris_us',
 		ec_option_moneris_us_store_id: store_id,
 		ec_option_moneris_us_api_token: api_token,
@@ -1202,6 +1255,7 @@ function ec_admin_save_nmi_options( ){
 	var cardinal_test_mode = jQuery( document.getElementById( 'ec_option_cardinal_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_nmi',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'nmi',
 		ec_option_nmi_3ds: processing_method,
 		ec_option_nmi_api_key: nmi_api_key,
@@ -1233,6 +1287,7 @@ function ec_admin_save_payline_options( ){
 	var currency = jQuery( document.getElementById( 'ec_option_payline_currency' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_payline',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'payline',
 		ec_option_payline_username: username,
 		ec_option_payline_password: password,
@@ -1255,6 +1310,7 @@ function ec_admin_save_paymentexpress_options( ){
 	var developer_account = jQuery( document.getElementById( 'ec_option_payment_express_developer_account' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_paymentexpress',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'paymentexpress',
 		ec_option_payment_express_username: username,
 		ec_option_payment_express_password: password,
@@ -1280,6 +1336,7 @@ function ec_admin_save_paypal_pro_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_paypal_pro_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_paypal_pro',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'paypal_pro',
 		ec_option_paypal_pro_partner: partner,
 		ec_option_paypal_pro_user: username,
@@ -1306,6 +1363,7 @@ function ec_admin_save_paypal_payments_pro_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_paypal_payments_pro_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_paypal_payments_pro',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'paypal_payments_pro',
 		ec_option_paypal_payments_pro_user: user,
 		ec_option_paypal_payments_pro_password: password,
@@ -1329,6 +1387,7 @@ function ec_admin_save_paypoint_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_paypoint_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_paypoint',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'paypoint',
 		ec_option_paypoint_merchant_id: merchant_id,
 		ec_option_paypoint_vpn_password: vpn_password,
@@ -1352,6 +1411,7 @@ function ec_admin_save_realex_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_realex_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_realex',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'realex',
 		ec_option_realex_merchant_id: merchant_id,
 		ec_option_realex_secret: secret,
@@ -1376,6 +1436,7 @@ function ec_admin_save_sagepay_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_sagepay_testmode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_sagepay',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'sagepay',
 		ec_option_sagepay_vendor: vendor,
 		ec_option_sagepay_currency: currency,
@@ -1398,6 +1459,7 @@ function ec_admin_save_sagepayus_options( ){
 	var application_id = jQuery( document.getElementById( 'ec_option_sagepayus_application_id' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_sagepayus',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'sagepayus',
 		ec_option_sagepayus_mid: user_id,
 		ec_option_sagepayus_mkey: user_key,
@@ -1419,6 +1481,7 @@ function ec_admin_save_securenet_options( ){
 	var sandbox_mode = jQuery( document.getElementById( 'ec_option_securenet_use_sandbox' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_securenet',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'securenet',
 		ec_option_securenet_id: merchant_id,
 		ec_option_securenet_secure_key: secure_key,
@@ -1441,6 +1504,7 @@ function ec_admin_save_securepay_options( ){
 	var test_mode = jQuery( document.getElementById( 'ec_option_securepay_test_mode' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_securepay',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'securepay',
 		ec_option_securepay_merchant_id: merchant_id,
 		ec_option_securepay_password: password,
@@ -1688,6 +1752,7 @@ function ec_admin_save_stripe_options( ){
 		stripe_order_create_customer = 1;
 	var data = {
 		action: 'ec_admin_ajax_save_stripe',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'stripe',
 		ec_option_stripe_public_api_key: public_api_key,
 		ec_option_stripe_api_key: api_key,
@@ -1816,6 +1881,7 @@ function ec_admin_save_square_options_pro( ){
 	var merchant_name = jQuery( document.getElementById( 'ec_option_square_merchant_name' ) ).val( );
 	var data = {
 		action: 'ec_admin_ajax_save_square_pro',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_payment_process_method: 'square',
 		ec_option_square_application_id: app_id,
 		ec_option_square_access_token: access_token,
@@ -1885,6 +1951,7 @@ function ec_admin_save_accepted_cards( ){
 
 	var data = {
 		action: 'ec_admin_ajax_save_accepted_cards',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
 		ec_option_use_visa: visa,
 		ec_option_use_delta: delta,
 		ec_option_use_uke: electron,

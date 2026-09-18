@@ -757,31 +757,9 @@ function save_sort_order( table, nonce ){
 	for( var i=0; i<rows.length; i++ ){
 		ids.push( { id:jQuery( rows[i] ).attr( 'data-id' ), order: Number( start_sort + i ) } );
 	}
-	
-	if( table == 'ec_optionitem_table' ){
-		jQuery( document.getElementById( "ec_admin_table_display_loader" ) ).fadeIn( 'fast' );
-		var data = {
-			option_id: jQuery( document.getElementById( 'option_id' ) ).val( ),
-			sort_order: ids,
-			action: 'ec_admin_ajax_save_optionitem_order',
-			wp_easycart_nonce: nonce
-		};
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-			ec_admin_hide_loader( 'ec_admin_table_display_loader' );
-		} } );
-	
-	}else if( table == 'ec_admin_category_list' ){
-		jQuery( document.getElementById( "ec_admin_table_display_loader" ) ).fadeIn( 'fast' );
-		var data = {
-			parent_id: jQuery( document.getElementById( 'parent_id' ) ).val( ),
-			sort_order: ids,
-			action: 'ec_admin_ajax_save_category_order',
-			wp_easycart_nonce: nonce
-		};
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-			ec_admin_hide_loader( 'ec_admin_table_display_loader' );
-		} } );
-	}
+
+	/* 6.0.0: the legacy category and option item sortable lists were removed; ordering is saved by the V2 editors.
+	   Kept as a no-op because wp_easycart_admin_table.php still prints a Save Sort button for sortable tables. */
 }
 
 /* Slidout Functions */
@@ -800,11 +778,18 @@ function wp_easycart_admin_close_slideout( id ){
 }
 
 /* HELP VIDEOS */
-function wp_easycart_admin_open_video_help( video_id ){
-    jQuery( "#wp_easycart_admin_help_video_player" ).attr( "src", 'https://www.youtube.com/embed/' + video_id + '?enablejsapi=1&widgetid=1' );
+/* 6.0.0: the shell lightbox ( shell-v2.js ) replaces these when it loads; these remain for screens without the V2 shell. */
+function wp_easycart_admin_open_video_help( video_id, title ){
+	if ( 'function' === typeof window.ecsh_video_open ) {
+		return window.ecsh_video_open( video_id, title );
+	}
+	jQuery( "#wp_easycart_admin_help_video_player" ).attr( "src", 'https://www.youtube.com/embed/' + video_id + '?enablejsapi=1&widgetid=1' );
 	jQuery( '.ec_admin_help_video_container' ).show( );
 }
 function wp_easycart_admin_close_video_help( ){
+	if ( 'function' === typeof window.ecsh_video_close ) {
+		return window.ecsh_video_close();
+	}
 	jQuery( '.ec_admin_help_video_container' ).hide( );
 }
 
@@ -1194,21 +1179,25 @@ window.wpec_gate = window.wpec_gate || {
 		gate = gate || {};
 		var state = ( gate.state && gate.state !== 'enabled' ) ? gate.state : 'upsell';
 		var i18n  = window.wpec_gate_i18n || {};
+		// Plan wording: the customer's own plan when the license is known, "Pro/Premium" when not.
+		var ed     = window.wp_easycart_edition || {};
+		var plan   = ed.plan || 'Pro/Premium';
+		var lapsed = !!ed.lapsed;
 
 		var titles = {
-			upsell:   i18n.title_upsell   || 'Unlock with WP EasyCart PRO',
+			upsell:   i18n.title_upsell   || ( 'Unlock with ' + plan ),
 			inactive: i18n.title_inactive || 'Activate WP EasyCart PRO',
 			update:   i18n.title_update   || 'Update WP EasyCart PRO',
-			license:  i18n.title_license  || 'Activate your PRO license'
+			license:  i18n.title_license  || ( 'Activate your ' + plan + ' license' )
 		};
 		var bodies = {
-			upsell:   i18n.body_upsell   || 'This is a WP EasyCart PRO feature. Upgrade to unlock advanced pricing, variant tracking and more.',
+			upsell:   i18n.body_upsell   || ( lapsed ? ( ed.included_pro || ( 'Part of your ' + plan + ' license. Renew to turn it back on.' ) ) : ( ( ed.included_pro || 'Included with Pro and Premium licenses.' ) + ' Upgrade to unlock advanced pricing, variant tracking and more.' ) ),
 			inactive: i18n.body_inactive || 'WP EasyCart PRO is installed but not activated. Activate it to use this feature.',
 			update:   i18n.body_update   || 'Your installed version of WP EasyCart PRO does not include this feature yet. Update to the latest version to unlock it.',
-			license:  i18n.body_license  || 'This feature requires an active WP EasyCart PRO license. You can review your license under Store Status.'
+			license:  i18n.body_license  || ( 'This feature requires an active ' + plan + ' license. You can review your license under Store Status.' )
 		};
 		var ctas = {
-			upsell:   i18n.cta_upsell   || 'Get WP EasyCart PRO',
+			upsell:   i18n.cta_upsell   || ( ( lapsed ? 'Renew ' : 'Get ' ) + plan ),
 			inactive: i18n.cta_inactive || 'Go to Plugins',
 			update:   i18n.cta_update   || 'Update Now',
 			license:  i18n.cta_license  || 'Manage License'
@@ -1231,7 +1220,7 @@ window.wpec_gate = window.wpec_gate || {
 			+   '<div class="ecv2-gate-top">'
 			+     '<div class="ecv2-gate-icon"><span class="dashicons dashicons-lock"></span></div>'
 			+     '<div class="ecv2-gate-heading">'
-			+       '<span class="ecv2-gate-badge">PRO</span>'
+			+       '<span class="ecv2-gate-badge"></span>'
 			+       '<div id="ecv2-gate-title" class="ecv2-gate-title"></div>'
 			+     '</div>'
 			+   '</div>'
@@ -1244,6 +1233,7 @@ window.wpec_gate = window.wpec_gate || {
 		);
 
 		// Text content set via .text()/.attr() — never interpolated into HTML.
+		$overlay.find( '.ecv2-gate-badge' ).text( ed.badge_pro || plan );
 		$overlay.find( '.ecv2-gate-title' ).text( titles[ state ] );
 		$overlay.find( '.ecv2-gate-body' ).text( ( gate.desc ? gate.desc + ' ' : '' ) + bodies[ state ] );
 		$overlay.find( '.ecv2-gate-dismiss' ).text( dismiss ).off( 'click' ).on( 'click', function() { window.wpec_gate.hide_popup(); } );

@@ -25,6 +25,19 @@ ob_start();
 		///////////////////////////////////////////////
 		?>
 		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'Database Status', 'wp-easycart' ); ?></div></div>
+		<?php
+		/* Database upgrade still running ( 6.0.0 ): say so before listing structure errors it has not fixed yet. */
+		$ecds_upgrade_step = method_exists( $status, 'upgrade_in_progress' ) ? $status->upgrade_in_progress() : '';
+		if ( '' !== $ecds_upgrade_step ) {
+			?>
+		<div class="ec_status_subs">
+			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-warning"></div><?php echo esc_html( sprintf( /* translators: %s: upgrade step name or number. */ __( 'Database upgrade in progress (step %s)', 'wp-easycart' ), $ecds_upgrade_step ) ); ?></div>
+			<span class="ec_status_label"><?php esc_html_e( 'WP EasyCart is still updating its tables. Structure checks below may report missing columns until it finishes; reload this page in a minute.', 'wp-easycart' ); ?></span>
+		</div>
+			<?php
+		}
+		$ecds_recheck_url = method_exists( $status, 'recheck_url' ) ? $status->recheck_url() : '';
+		?>
 		<?php if( $errors = $status->database_check( ) ){ ?>
 		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div>
 			<span class="ec_status_label"><?php esc_attr_e( 'We have found problems with your WP EasyCart database structure.', 'wp-easycart' ); ?> <a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=repair-database&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-action-repair-database' ) ); ?>"><?php esc_attr_e( 'Click to Repair!', 'wp-easycart' ); ?></a>
@@ -39,7 +52,7 @@ ob_start();
 		</div>
 
 		<?php }else{ ?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'Your database is currently correctly formatted and not missing any tables or columns.', 'wp-easycart' ); ?></span></div>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'Your database is currently correctly formatted and not missing any tables or columns.', 'wp-easycart' ); ?><?php if ( '' !== $ecds_recheck_url ) { ?> <a href="<?php echo esc_url( $ecds_recheck_url ); ?>"><?php esc_html_e( 'Check again now', 'wp-easycart' ); ?></a><?php } ?></span></div>
 
 		<?php if( $errors = $status->settings_check() ) { ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'Your settings data is setup.', 'wp-easycart' ); ?></span></div>
@@ -297,6 +310,94 @@ ob_start();
 		<?php }else{ ?>
 		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-data-folders&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-data-folders' ) ); ?>"><?php esc_attr_e( 'Fix Errors', 'wp-easycart' ); ?></a> <?php echo esc_attr( $status->ec_get_data_folders_error( ) ); ?></span></div>
 		<?php } ?>
+
+		<?php
+		////////////////////////////
+		// Customer Uploads Privacy Check ( 6.0.0 )
+		////////////////////////////
+		$ecds_uploads_access = $status->uploads_access_check();
+		if ( is_array( $ecds_uploads_access ) ) {
+			$ecds_uploads_fix_url = add_query_arg(
+				array(
+					'page'                 => 'wp-easycart-status',
+					'subpage'              => 'store-status',
+					'ec_admin_form_action' => 'fix-upload-protection',
+					'wp_easycart_nonce'    => wp_create_nonce( 'wp-easycart-fix-upload-protection' ),
+				),
+				admin_url( 'admin.php' )
+			);
+			$ecds_uploads_nginx = wp_easycart_customer_uploads::nginx_rule();
+			if ( 'protected' === $ecds_uploads_access['status'] ) {
+				?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Customer uploads are private (they cannot be downloaded by URL)', 'wp-easycart' ); ?></span></div>
+				<?php
+			} elseif ( 'exposed' === $ecds_uploads_access['status'] ) {
+				?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label">
+			<strong><?php esc_html_e( 'Customer uploads can be downloaded by anyone who knows the file address.', 'wp-easycart' ); ?></strong>
+			<?php esc_html_e( 'Your web server ignored the protection rules in the uploads folder. On Apache or LiteSpeed, allow .htaccess files for the WordPress folder (AllowOverride). On nginx, which never reads .htaccess, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
+			<pre class="ecds-code"><?php echo esc_html( $ecds_uploads_nginx ); ?></pre>
+			<a href="<?php echo esc_url( $ecds_uploads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a>
+		</span></div>
+				<?php
+			} else {
+				?>
+		<div class="ec_status_subs">
+			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-warning"></div><?php esc_html_e( 'Could not check whether customer uploads are private', 'wp-easycart' ); ?><?php echo ( '' !== $ecds_uploads_access['message'] ) ? ': ' . esc_html( $ecds_uploads_access['message'] ) : ''; ?></div>
+			<span class="ec_status_label"><?php esc_html_e( 'Apache, LiteSpeed and IIS are protected by the files WP EasyCart writes into the uploads folder. If this site runs on nginx, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
+			<pre class="ecds-code"><?php echo esc_html( $ecds_uploads_nginx ); ?></pre>
+			<a href="<?php echo esc_url( $ecds_uploads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a></span>
+		</div>
+				<?php
+			}
+		}
+		?>
+
+		<?php
+		////////////////////////////
+		// Paid Downloads Privacy Check ( 6.0.0 )
+		////////////////////////////
+		$ecds_downloads_access = method_exists( $status, 'downloads_access_check' ) ? $status->downloads_access_check() : false;
+		if ( is_array( $ecds_downloads_access ) ) {
+			$ecds_downloads_fix_url = add_query_arg(
+				array(
+					'page'                 => 'wp-easycart-status',
+					'subpage'              => 'store-status',
+					'ec_admin_form_action' => 'fix-upload-protection',
+					'wp_easycart_nonce'    => wp_create_nonce( 'wp-easycart-fix-upload-protection' ),
+				),
+				admin_url( 'admin.php' )
+			);
+			$ecds_downloads_nginx = wp_easycart_customer_uploads::nginx_rule( 'downloads' );
+			if ( 'protected' === $ecds_downloads_access['status'] ) {
+				?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Paid download files are private (they cannot be downloaded by URL)', 'wp-easycart' ); ?></span></div>
+				<?php
+			} elseif ( 'missing' === $ecds_downloads_access['status'] ) {
+				?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'No downloads folder yet, so there are no download files to protect', 'wp-easycart' ); ?></span></div>
+				<?php
+			} elseif ( 'exposed' === $ecds_downloads_access['status'] ) {
+				?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label">
+			<strong><?php esc_html_e( 'Paid download files can be downloaded by anyone who knows the file address, without buying them.', 'wp-easycart' ); ?></strong>
+			<?php esc_html_e( 'Your web server ignored the protection rules in the downloads folder. On Apache or LiteSpeed, allow .htaccess files for the WordPress folder (AllowOverride). On nginx, which never reads .htaccess, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
+			<pre class="ecds-code"><?php echo esc_html( $ecds_downloads_nginx ); ?></pre>
+			<a href="<?php echo esc_url( $ecds_downloads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a>
+		</span></div>
+				<?php
+			} else {
+				?>
+		<div class="ec_status_subs">
+			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-warning"></div><?php esc_html_e( 'Could not check whether paid download files are private', 'wp-easycart' ); ?><?php echo ( '' !== $ecds_downloads_access['message'] ) ? ': ' . esc_html( $ecds_downloads_access['message'] ) : ''; ?></div>
+			<span class="ec_status_label"><?php esc_html_e( 'Apache, LiteSpeed and IIS are protected by the files WP EasyCart writes into the downloads folders. If this site runs on nginx, add this rule to the server block for this site and reload nginx:', 'wp-easycart' ); ?>
+			<pre class="ecds-code"><?php echo esc_html( $ecds_downloads_nginx ); ?></pre>
+			<a href="<?php echo esc_url( $ecds_downloads_fix_url ); ?>"><?php esc_html_e( 'Rewrite protection files and check again', 'wp-easycart' ); ?></a></span>
+		</div>
+				<?php
+			}
+		}
+		?>
 
 		<?php
 		////////////////////////////
@@ -572,31 +673,46 @@ ob_start();
 		<div class="ec_status_success">
 			<div class="dashicons-before dashicons-yes"></div>
 			<span class="ec_status_label"><?php esc_attr_e( 'If you are having problems with store links', 'wp-easycart' ); ?>,
-				<a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=reset-store-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-reset-store-permalinks' ) ); ?>"><?php esc_attr_e( 'reset permalinks', 'wp-easycart' ); ?></a>
+				<?php
+				/* Repair tools run as resumable batch jobs ( store-status-v2.js, ecv2_status_job ). The hrefs
+				   still carry the old nonce-checked actions, which now redirect into the same job. 6.0.0 */
+				?>
+				<a class="ecds-job" data-job="reset-store-permalinks" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=reset-store-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-reset-store-permalinks' ) ); ?>"><?php esc_attr_e( 'reset permalinks', 'wp-easycart' ); ?></a>
 				|
-				<a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=reset-store-permalinks&ec_reset_phase2=true&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-reset-store-permalinks' ) ); ?>"><?php esc_attr_e( 'rebuild permalinks', 'wp-easycart' ); ?></a>
+				<a class="ecds-job" data-job="rebuild-store-permalinks" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=reset-store-permalinks&ec_reset_phase2=true&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-reset-store-permalinks' ) ); ?>"><?php esc_attr_e( 'rebuild permalinks', 'wp-easycart' ); ?></a>
 				|
-				<a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-category-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-category-permalinks' ) ); ?>"><?php esc_attr_e( 'Fix Category Permalink Issues', 'wp-easycart' ); ?></a>
+				<a class="ecds-job" data-job="fix-category-permalinks" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-category-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-category-permalinks' ) ); ?>"><?php esc_attr_e( 'Fix Category Permalink Issues', 'wp-easycart' ); ?></a>
 				|
-				<a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-product-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-product-permalinks' ) ); ?>"><?php esc_attr_e( 'Fix Product Permalink Issues', 'wp-easycart' ); ?></a>
+				<a class="ecds-job" data-job="fix-product-permalinks" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-product-permalinks&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-product-permalinks' ) ); ?>"><?php esc_attr_e( 'Fix Product Permalink Issues', 'wp-easycart' ); ?></a>
 				|
-				<a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-post-tags&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-post-tags' ) ); ?>"><?php esc_attr_e( 'Fix Post Tags', 'wp-easycart' ); ?></a>
+				<a class="ecds-job" data-job="fix-post-tags" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-post-tags&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-fix-post-tags' ) ); ?>"><?php esc_attr_e( 'Fix Post Tags', 'wp-easycart' ); ?></a>
 			</span>
 		</div>
 
-		<?php $response_log_size = $wpdb->get_var( 'SELECT COUNT(*) AS response_count FROM ec_response' ); ?>
-		<?php $webhook_log_size = $wpdb->get_var( 'SELECT COUNT(*) AS webhook_count FROM ec_webhook' ); ?>
-		
+		<div class="ecds-job-progress" id="ecds_job_progress" hidden>
+			<div class="ecds-job-progress-head"><strong id="ecds_job_label"></strong> <span class="ecds-job-step" id="ecds_job_step"></span></div>
+			<div class="ecds-job-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ecds_job_bar"><span id="ecds_job_bar_fill"></span></div>
+			<div class="ecds-job-progress-foot"><span id="ecds_job_count" role="status" aria-live="polite"></span> <span id="ecds_job_actions"></span></div>
+		</div>
+
+		<?php
+		/* Row counts are cached for five minutes ( wp_easycart_admin_store_status::log_sizes() );
+		   COUNT(*) on a million-row log on every page load was the slowest part of this screen. 6.0.0 */
+		$ecds_log_sizes = $status->log_sizes();
+		$response_log_size = (int) $ecds_log_sizes['response'];
+		$webhook_log_size = (int) $ecds_log_sizes['webhook'];
+		?>
+
 		<?php if ( $response_log_size > 100000 ) {
-			echo '<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label" style="line-height:2em;">' . sprintf( esc_attr__( 'Your database storage for your gateway log has %d items and is bigger than it should be, please take a moment to remove the older log items.', 'wp-easycart' ), $response_log_size ) . ' <a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-gateway-log&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-fix-gateway-log' ) ) . '">' . esc_attr__( 'Click here to trim your gateway log to the last 100 items', 'wp-easycart' ) . '</a></span></div>';
+			echo '<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label" style="line-height:2em;">' . sprintf( esc_attr__( 'Your database storage for your gateway log has %d items and is bigger than it should be, please take a moment to remove the older log items.', 'wp-easycart' ), (int) $response_log_size ) . ' <a class="ecds-job" data-job="fix-gateway-log" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-gateway-log&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-fix-gateway-log' ) ) . '">' . esc_attr__( 'Click here to trim your gateway log to the last 100 items', 'wp-easycart' ) . '</a></span></div>';
 		} else {
-			echo '<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label">' . sprintf( esc_attr__( 'Your database storage for your gateway log has %d items, nothing to worry about.', 'wp-easycart' ), $response_log_size ) . '</span></div>';
+			echo '<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label">' . sprintf( esc_attr__( 'Your database storage for your gateway log has %d items, nothing to worry about.', 'wp-easycart' ), (int) $response_log_size ) . '</span></div>';
 		} ?>
 
 		<?php if ( $webhook_log_size > 100000 ) {
-			echo '<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label" style="line-height:2em;">' . sprintf( esc_attr__( 'Your database storage for your webhook log has %d items and is bigger than it should be, please take a moment to remove the older log items.', 'wp-easycart' ), $webhook_log_size ) . ' <a href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-webhook-log&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-fix-webhook-log' ) ) . '">' . esc_attr__( 'Click here to trim your webhook log to the last 1000 items', 'wp-easycart' ) . '</a></span></div>';
+			echo '<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label" style="line-height:2em;">' . sprintf( esc_attr__( 'Your database storage for your webhook log has %d items and is bigger than it should be, please take a moment to remove the older log items.', 'wp-easycart' ), (int) $webhook_log_size ) . ' <a class="ecds-job" data-job="fix-webhook-log" href="admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=fix-webhook-log&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-fix-webhook-log' ) ) . '">' . esc_attr__( 'Click here to trim your webhook log to the last 1000 items', 'wp-easycart' ) . '</a></span></div>';
 		} else {
-			echo '<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label">' . sprintf( esc_attr__( 'Your database storage for your webhook log has %d items, nothing to worry about.', 'wp-easycart' ), $webhook_log_size ) . '</span></div>';
+			echo '<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label">' . sprintf( esc_attr__( 'Your database storage for your webhook log has %d items, nothing to worry about.', 'wp-easycart' ), (int) $webhook_log_size ) . '</span></div>';
 		} ?>
 
 	</div>
@@ -648,6 +764,22 @@ $ecds_ok   = ( 0 === $ecds_fail );
 	<?php endif; ?>
 
 </div>
+<style>
+/* Repair job progress ( 6.0.0 ). Lives here because this is the only screen that uses it. */
+.ecds-job-progress { margin:8px 0 12px; padding:12px 14px; background:#fff; border:1px solid var(--ecv2-g200, #e2e8f0); border-radius:var(--ecv2-rl, 8px); }
+.ecds-job-progress[hidden] { display:none; }
+.ecds-job-progress-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; }
+.ecds-job-step { color:#64748b; font-size:12px; }
+.ecds-job-bar { position:relative; height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+.ecds-job-bar span { display:block; height:100%; width:0; background:var(--ec-brand, #2271b1); transition:width .25s ease; }
+.ecds-job-bar.is-indeterminate span { width:35%; animation:ecds-job-slide 1.2s linear infinite; }
+@keyframes ecds-job-slide { from { transform:translateX(-100%); } to { transform:translateX(300%); } }
+.ecds-job-progress-foot { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px; font-size:12px; color:#475569; }
+.ecds-job-progress.is-error { border-color:#f1b0b0; }
+.ecds-job-progress.is-error .ecds-job-progress-foot { color:#b32d2e; }
+.ecds-job-progress .ecv2-btn { margin-left:6px; }
+.ecds-body.is-busy a.ecds-job { pointer-events:none; opacity:.5; }
+</style>
 <script>
 function ecds_toggle_passed() {
 	var body = document.getElementById( 'ecds_body' ), btn = document.getElementById( 'ecds_toggle_passed' );

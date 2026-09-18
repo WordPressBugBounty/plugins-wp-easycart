@@ -9,18 +9,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 		protected static $_instance = null;
 
-		public $products_setup_file;
-		public $product_list_setup_file;
-		public $product_store_defaults_file;
-		public $product_details_setup_file;
-		public $customer_review_setup_file;
-		public $product_settings_file;
-		public $price_display_options_file;
-		public $inventory_options_file;
 		public $product_list_file;
-		public $product_details_edit_file;
 		public $export_products_csv;
 		public $upgrade_file;
+
+		/** Rows written by the last run_importer() chunk ( @since 6.0.0, reported to the V2 import panel ). */
+		public $import_inserted = 0;
+		public $import_updated = 0;
 
 		private $db;
 		private $error_list;
@@ -54,27 +49,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		}
 
 		public function __construct() {
-			$this->products_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/products-setup.php';
-			$this->product_list_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/product-list.php';
-			$this->product_store_defaults_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/product-store-defaults.php';
-			$this->product_details_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/product-details.php';
-			$this->customer_review_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/customer-review.php';
-			$this->product_settings_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/products-settings.php';
-			$this->price_display_options_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/price-display-options.php';
-			$this->inventory_options_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/products/inventory-options.php';
 			$this->product_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-list.php';
-			$this->product_details_edit_file = EC_PLUGIN_DIRECTORY . '/admin/template/products/products/product-details.php';
 			$this->export_products_csv = EC_PLUGIN_DIRECTORY . '/admin/template/exporters/export-products-csv.php';
 			$this->upgrade_file = EC_PLUGIN_DIRECTORY . '/admin/template/upgrade/upgrade-simple.php';
 
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_product_settings' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_product_list_setup' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_product_store_defaults' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_customer_review_setup' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_product_details_setup' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_price_display_options' ) );
-			add_action( 'wpeasycart_admin_products_setup', array( $this, 'load_inventory_options' ) );
-			add_action( 'wp_easycart_admin_settings_product_inventory_end', array( $this, 'add_inventory_notification_setting' ) );
 			add_action( 'admin_head', array( $this, 'add_menu_js' ) );
 
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
@@ -261,40 +239,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			return $messages;
 		}
 
-		public function load_products_setup() {
-			include( $this->products_setup_file );
-		}
 
-		public function load_product_list_setup() {
-			include( $this->product_list_setup_file );
-		}
-
-		public function load_product_store_defaults() {
-			include( $this->product_store_defaults_file );
-		}
-
-		public function load_product_details_setup() {
-			include( $this->product_details_setup_file );
-		}
-		public function load_product_settings() {
-			include( $this->product_settings_file );
-		}
-
-		public function load_customer_review_setup() {
-			include( $this->customer_review_setup_file );
-		}
-
-		public function load_price_display_options() {
-			include( $this->price_display_options_file );
-		}
-
-		public function load_inventory_options() {
-			include( $this->inventory_options_file );
-		}
-
-		public function add_inventory_notification_setting() {
-			echo '<div style="margin-top:5px;"><input type="checkbox" name="ec_option_enable_inventory_notification" id="ec_option_enable_inventory_notification" value="0" onclick="ecdv2_upsell( { context: \'products\', feature: \'stock_notify\' } ); return false;" readonly="readonly" /><span class="dashicons dashicons-lock" style="color:#FC0; margin-top:10px;"></span> ' . esc_attr__( 'Allow Customers to Subscribe to Stock Notifications', 'wp-easycart' ) . '</div>';
-		}
 
 		public function load_products_list() {
 			if ( isset( $_GET['product_id'] ) && isset( $_GET['ec_admin_form_action'] ) && 'edit' == $_GET['ec_admin_form_action'] ) {
@@ -306,9 +251,14 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			}
 		}
 
+		/**
+		 * Render the product editor. Since 6.0.0 the V2 editor is the only editor: the legacy
+		 * product-details.php template and its switch were removed.
+		 */
 		private function load_product_details_editor( $type ) {
 			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_products.php' );
 			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_products_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_reviews_card.php' );
 			$details = new wp_easycart_admin_details_products_v2();
 			$details->output( $type );
 		}
@@ -732,185 +682,6 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			}
 		}
 
-		public function save_product_settings() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_display_as_catalog = ( isset( $_POST['ec_option_display_as_catalog'] ) && $_POST['ec_option_display_as_catalog'] == '1' ) ? 1 : 0;
-			$ec_option_subscription_one_only = ( isset( $_POST['ec_option_subscription_one_only'] ) && $_POST['ec_option_subscription_one_only'] == '1' ) ? 1 : 0;
-			$ec_option_restrict_store = '';
-			if ( isset( $_POST['ec_option_restrict_store'] ) ) {
-				$valid_roles = array();
-				foreach ( (array) $_POST['ec_option_restrict_store'] as $role ) { // XSS OK. Forced array and each item sanitized.
-					if ( wp_easycart_admin_verification()->valid_user_role( sanitize_text_field( wp_unslash( $role ) ) ) ) {
-						$valid_roles[] = sanitize_text_field( wp_unslash( $role ) );
-					}
-				}
-				$ec_option_restrict_store = implode( '***', $valid_roles );
-			}
-			$ec_option_product_image_default = esc_url_raw( $_POST['ec_option_product_image_default'] );
-
-			update_option( 'ec_option_display_as_catalog', $ec_option_display_as_catalog );
-			update_option( 'ec_option_subscription_one_only', $ec_option_subscription_one_only );
-			update_option( 'ec_option_restrict_store', $ec_option_restrict_store );
-			update_option( 'ec_option_product_image_default', $ec_option_product_image_default );
-		}
-
-		public function save_product_list_display() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_show_sort_box = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_sort_box' );
-			$ec_option_default_store_filter = wp_easycart_admin_verification()->filter_int( sanitize_text_field( wp_unslash( $_POST['ec_option_default_store_filter'] ) ) );
-			$ec_option_product_filter_0 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_0' );
-			$ec_option_product_filter_1 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_1' );
-			$ec_option_product_filter_2 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_2' );
-			$ec_option_product_filter_3 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_3' );
-			$ec_option_product_filter_4 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_4' );	
-			$ec_option_product_filter_5 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_5' );	
-			$ec_option_product_filter_6 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_6' );
-			$ec_option_product_filter_7 = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_product_filter_7' );
-			$ec_option_short_description_on_product = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_short_description_on_product' );
-			$ec_option_show_featured_categories = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_featured_categories' );
-			$ec_option_enable_product_paging = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_enable_product_paging' );
-			$ec_option_hide_out_of_stock = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_hide_out_of_stock' );
-
-			update_option( 'ec_option_show_sort_box', $ec_option_show_sort_box );
-			update_option( 'ec_option_default_store_filter', $ec_option_default_store_filter );
-			update_option( 'ec_option_product_filter_0', $ec_option_product_filter_0 );
-			update_option( 'ec_option_product_filter_1', $ec_option_product_filter_1 );
-			update_option( 'ec_option_product_filter_2', $ec_option_product_filter_2 );
-			update_option( 'ec_option_product_filter_3', $ec_option_product_filter_3 );
-			update_option( 'ec_option_product_filter_4', $ec_option_product_filter_4 );
-			update_option( 'ec_option_product_filter_5', $ec_option_product_filter_5 );
-			update_option( 'ec_option_product_filter_6', $ec_option_product_filter_6 );
-			update_option( 'ec_option_product_filter_7', $ec_option_product_filter_7 );
-			update_option( 'ec_option_short_description_on_product', $ec_option_short_description_on_product );
-			update_option( 'ec_option_show_featured_categories', $ec_option_show_featured_categories );
-			update_option( 'ec_option_enable_product_paging', $ec_option_enable_product_paging );
-			update_option( 'ec_option_hide_out_of_stock', $ec_option_hide_out_of_stock );
-		}
-
-		public function save_product_details_display() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_model_number_extension = wp_easycart_admin_verification()->filter_length( sanitize_text_field( wp_unslash( $_POST['ec_option_model_number_extension'] ) ), 1 );
-			$ec_option_product_details_sizing = (int) sanitize_text_field( wp_unslash( $_POST['ec_option_product_details_sizing'] ) );
-			$ec_option_show_breadcrumbs = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_breadcrumbs' );
-			$ec_option_show_magnification = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_magnification' );
-			$ec_option_show_large_popup = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_large_popup' );
-			$ec_option_show_model_number = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_model_number' );
-
-			$ec_option_show_categories = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_categories' );
-			$ec_option_show_manufacturer = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_manufacturer' );
-			$ec_option_show_stock_quantity = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_stock_quantity' );
-			$ec_option_use_facebook_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_facebook_icon' );
-			$ec_option_use_twitter_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_twitter_icon' );
-			$ec_option_use_delicious_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_delicious_icon' );
-			$ec_option_use_myspace_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_myspace_icon' );
-			$ec_option_use_linkedin_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_linkedin_icon' );
-			$ec_option_use_email_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_email_icon' );
-			$ec_option_use_digg_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_digg_icon' );
-			$ec_option_use_googleplus_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_googleplus_icon' );
-			$ec_option_use_pinterest_icon = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_use_pinterest_icon' );
-
-			update_option( 'ec_option_model_number_extension', $ec_option_model_number_extension );
-			update_option( 'ec_option_product_details_sizing', $ec_option_product_details_sizing );
-			update_option( 'ec_option_show_breadcrumbs', $ec_option_show_breadcrumbs );
-			update_option( 'ec_option_show_magnification', $ec_option_show_magnification );
-			update_option( 'ec_option_show_large_popup', $ec_option_show_large_popup );
-			update_option( 'ec_option_show_model_number', $ec_option_show_model_number );
-			update_option( 'ec_option_show_categories', $ec_option_show_categories );
-			update_option( 'ec_option_show_manufacturer', $ec_option_show_manufacturer );
-			update_option( 'ec_option_show_stock_quantity', $ec_option_show_stock_quantity );
-
-			update_option( 'ec_option_use_facebook_icon', $ec_option_use_facebook_icon );
-			update_option( 'ec_option_use_twitter_icon', $ec_option_use_twitter_icon );
-			update_option( 'ec_option_use_delicious_icon', $ec_option_use_delicious_icon );
-			update_option( 'ec_option_use_myspace_icon', $ec_option_use_myspace_icon );
-			update_option( 'ec_option_use_linkedin_icon', $ec_option_use_linkedin_icon );
-			update_option( 'ec_option_use_email_icon', $ec_option_use_email_icon );
-			update_option( 'ec_option_use_digg_icon', $ec_option_use_digg_icon );
-			update_option( 'ec_option_use_googleplus_icon', $ec_option_use_googleplus_icon );
-			update_option( 'ec_option_use_pinterest_icon', $ec_option_use_pinterest_icon );
-		}
-
-		public function save_customer_review_display() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_customer_review_require_login = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_customer_review_require_login' );
-			$ec_option_customer_review_show_user_name = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_customer_review_show_user_name' );
-			$ec_option_customer_review_notification = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_customer_review_notification' );
-
-			update_option( 'ec_option_customer_review_require_login', $ec_option_customer_review_require_login );
-			update_option( 'ec_option_customer_review_show_user_name', $ec_option_customer_review_show_user_name );
-			update_option( 'ec_option_customer_review_notification', $ec_option_customer_review_notification );
-		}
-
-		public function save_price_display() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_hide_price_seasonal = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_hide_price_seasonal' );
-			$ec_option_hide_price_inquiry = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_hide_price_inquiry' );
-			$ec_option_show_multiple_vat_pricing = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_show_multiple_vat_pricing' );
-			$ec_option_tiered_price_format = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_tiered_price_format' );
-			$ec_option_tiered_price_by_option = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_tiered_price_by_option' );
-
-			update_option( 'ec_option_hide_price_seasonal', $ec_option_hide_price_seasonal );
-			update_option( 'ec_option_hide_price_inquiry', $ec_option_hide_price_inquiry );
-			update_option( 'ec_option_show_multiple_vat_pricing', $ec_option_show_multiple_vat_pricing );
-			update_option( 'ec_option_tiered_price_format', $ec_option_tiered_price_format );
-			update_option( 'ec_option_tiered_price_by_option', $ec_option_tiered_price_by_option );
-		}
-
-		public function save_inventory_options() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-products' ) ) {
-				return false;
-			}
-
-			$ec_option_stock_removed_in_cart = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_stock_removed_in_cart' );
-			$ec_option_tempcart_stock_hours = ( ( round( (int) $_POST['ec_option_tempcart_stock_hours'] ) <= 0 ) ? 1 : round( (int) $_POST['ec_option_tempcart_stock_hours'] ) );
-			$ec_option_tempcart_stock_timeframe = wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_tempcart_stock_timeframe'] ) ), array( 'SECOND', 'MINUTE', 'HOUR' ) );
-			$ec_option_enable_inventory_notification = wp_easycart_admin_verification()->filter_checkbox( 'ec_option_enable_inventory_notification' );
-
-			update_option( 'ec_option_stock_removed_in_cart', $ec_option_stock_removed_in_cart );
-			update_option( 'ec_option_tempcart_stock_hours', $ec_option_tempcart_stock_hours );
-			update_option( 'ec_option_tempcart_stock_timeframe', $ec_option_tempcart_stock_timeframe );
-			update_option( 'ec_option_enable_inventory_notification', $ec_option_enable_inventory_notification );
-		}
-
 		public function add_menu_js() {
 			global $wpdb;
 			$menus = $wpdb->get_results( 'SELECT ec_menulevel1.menulevel1_id as id, ec_menulevel1.name as text FROM ec_menulevel1 ORDER BY ec_menulevel1.name ASC' );
@@ -1248,7 +1019,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$model_number = sanitize_text_field( wp_unslash( $_POST['model_number'] ) );
 				$manufacturer_id = (int) $_POST['manufacturer_id'];
 				$price = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['price'] ) ) );
-				$description = wp_easycart_escape_html( $_POST['description'] ); // XSS OK
+				$description = wp_easycart_escape_html( wp_unslash( $_POST['description'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 
 				if ( $this->verify_model_number() ) {
 					if ( $product_id != '0' ) {
@@ -1291,10 +1062,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						$post_check = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . $wpdb->prefix . 'posts.guid FROM ' . $wpdb->prefix . 'posts WHERE ' . $wpdb->prefix . 'posts.ID = %d', $product_row->post_id ) );
 						if ( $post_check ) {
 							/* Manually Update Post */
-							$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_status = %s, post_title = %s, post_name = %s, guid = %s, post_excerpt = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, $description, $product_row->post_id ) );
+							$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_content = %s, post_status = %s, post_title = %s, post_name = %s, guid = %s, post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = %d', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, $product_row->post_id ) ); /* post_excerpt is the merchant's SEO field ( SEO & Marketing card ) and is never derived from the description */
 							clean_post_cache( $product_row->post_id );
 						} else {
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', $description ) );
+							$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', '' ) ); /* excerpt left blank — many themes print it above the product */
 							$post_id = $wpdb->insert_id;
 							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d WHERE product_id = %d', $post_id, $product_id ) );
 							wp_set_post_tags( $post_id, array( 'product' ), true );
@@ -1384,7 +1155,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							$i++;
 						} 
 
-						$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', $description ) );
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $wpdb->prefix . 'posts( post_content, post_status, post_title, post_name, guid, post_type, post_excerpt, post_date, post_date_gmt, post_modified, post_modified_gmt, comment_status ) VALUES( %s, %s, %s, %s, %s, %s, %s, NOW(), UTC_TIMESTAMP(), NOW(), UTC_TIMESTAMP(), "closed" )', '[ec_store modelnumber="' . $model_number . '"]', $status, wp_easycart_language()->convert_text( $title ), $post_slug, $guid, 'ec_store', '' ) ); /* excerpt left blank — many themes print it above the product */
 						$post_id = $wpdb->insert_id;
 						clean_post_cache( $post_id );
 						wp_set_post_tags( $post_id, array( 'product' ), true );
@@ -1405,141 +1176,6 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				} else {
 					return false;
 				}
-			}
-		}
-
-		public function save_new_optionset() {
-			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
-				global $wpdb;
-				$option_type = sanitize_text_field( wp_unslash( $_POST['ec_new_option_type'] ) );
-				$option_name = sanitize_text_field( wp_unslash( $_POST['ec_new_option_name'] ) );
-				$option_label = sanitize_text_field( wp_unslash( $_POST['ec_new_option_label'] ) );
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option( option_name, option_label, option_type ) VALUES( %s, %s, %s )', $option_name, $option_label, $option_type ) );
-				return $wpdb->insert_id;
-			}
-		}
-
-		public function save_new_optionitem() {
-			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
-				global $wpdb;
-				$option_id = (int) $_POST['ec_new_optionitem_option_id'];
-				$order = (int) $_POST['ec_new_optionitem_sort_order'];
-				$name = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_name'] ) );
-				$model_number = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_model_number_extension'] ) );
-				$price_adjustment = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment'] ) ) );
-				$weight_adjustment = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment'] ) ) );
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitem( option_id, optionitem_order, optionitem_name, optionitem_model_number, optionitem_price, optionitem_weight ) VALUES( %d, %d, %s, %s, %s, %s )', $option_id, $order, $name, $model_number, $price_adjustment, $weight_adjustment ) );
-			}
-		}
-
-		public function save_new_adv_optionset() {
-			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
-				global $wpdb;
-				$option_type = sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_type'] ) );
-				$option_name = sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_name'] ) );
-				$option_label = sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_label'] ) );
-				$option_meta = array(
-					'min' => sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_meta_min'] ) ),
-					'max' => sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_meta_max'] ) ),
-					'step' => sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_meta_step'] ) ),
-				);
-				$option_required = 0;
-				if ( isset( $_POST['ec_new_adv_option_required'] ) && $_POST['ec_new_adv_option_required'] == '1' ) {
-					$option_required = 1;
-				}
-				$option_error_text = sanitize_text_field( wp_unslash( $_POST['ec_new_adv_option_error_text'] ) );
-
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option( option_name, option_label, option_type, option_required, option_error_text, option_meta ) VALUES( %s, %s, %s, %s, %s, %s )', $option_name, $option_label, $option_type, $option_required, $option_error_text, maybe_serialize( $option_meta ) ) );
-				$option_id = $wpdb->insert_id;
-
-				if ( 'file' == $option_type || 'text' == $option_type || 'number' == $option_type || 'textarea' == $option_type || 'date' == $option_type || 'dimensions1' == $option_type || 'dimensions2' == $option_type ) {
-					if ( $option_type == 'file' ) {
-						$option_name = 'File Field';
-					}
-					if ( $option_type == 'text' ) {
-						$option_name = 'Text Box Input';
-					}
-					if ( $option_type == 'number' ) {
-						$option_name = 'Number Box Input';
-					}
-					if ( $option_type == 'textarea' ) {
-						$option_name = 'Text Area Input';
-					}
-					if ( $option_type == 'date' ) {
-						$option_name = 'Date Field';
-					}
-					if ( $option_type == 'dimensions1' ) {
-						$option_name = 'DimensionType1';
-					}
-					if ( $option_type == 'dimensions2' ) {
-						$option_name = 'DimensionType2'; 
-					}
-					$wpdb->query( $wpdb->prepare( "INSERT INTO ec_optionitem( option_id, optionitem_name, optionitem_price, optionitem_price_onetime, optionitem_price_override, optionitem_weight, optionitem_weight_onetime, optionitem_weight_override, optionitem_order, optionitem_icon, optionitem_initial_value ) VALUES( %d, %s, '0.00', '0.00', '-1', '0.00', '0.00', '-1.00', 1, '', '' )", $option_id, $option_name ) );
-				}
-				return $option_id;
-			}
-		}
-
-		public function save_new_adv_optionitem() {
-			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
-				global $wpdb;
-				$option_id = (int) $_POST['ec_new_optionitem_option_id'];
-				$order = (int) $_POST['ec_new_optionitem_sort_order'];
-				$name = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_name'] ) );
-				$model_number = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_model_number_extension'] ) );
-				$initial_value = '';
-				$icon = '';
-				$optionitem_initially_selected = false;
-				if ( isset( $_POST['ec_admin_adv_optionitem_initially_selected'] ) && $_POST['ec_admin_adv_optionitem_initially_selected'] == '1' )
-					$optionitem_initially_selected = 1;
-				$optionitem_disallow_shipping = false;
-				if ( isset( $_POST['ec_admin_adv_optionitem_no_shipping'] ) && $_POST['ec_admin_adv_optionitem_no_shipping'] == '1' )
-					$optionitem_disallow_shipping = 1;
-				$optionitem_allow_download = false;
-				if ( isset( $_POST['ec_admin_adv_optionitem_allows_download'] ) && $_POST['ec_admin_adv_optionitem_allows_download'] == '1' )
-					$optionitem_allow_download = 1;
-
-				$price_adjustment_type = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment_type'] ) );
-				$optionitem_price = 0; $optionitem_price_onetime = 0; $optionitem_price_override = -1; $optionitem_price_multiplier = 0;
-				if ( $price_adjustment_type == 'basic_price' ) {
-					$optionitem_price = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment'] ) ) );
-				} else if ( $price_adjustment_type == 'one_time_price' ) {
-					$optionitem_price_onetime = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment'] ) ) );
-				} else if ( $price_adjustment_type == 'override_price' ) {
-					$optionitem_price_override = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment'] ) ) );
-				} else if ( $price_adjustment_type == 'multiplier_price' ) {
-					$optionitem_price_multiplier = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_price_adjustment'] ) ) );
-				}
-
-				$weight_adjustment_type = sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment_type'] ) );
-				$optionitem_weight = 0; $optionitem_weight_onetime = 0; $optionitem_weight_override = -1; $optionitem_weight_multiplier = 0;
-				if ( $weight_adjustment_type == 'basic_weight' ) {
-					$optionitem_weight = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment'] ) ) );
-				} else if ( $weight_adjustment_type == 'one_time_weight' ) {
-					$optionitem_weight_onetime = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment'] ) ) );
-				} else if ( $weight_adjustment_type == 'override_weight' ) {
-					$optionitem_weight_override = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment'] ) ) );
-				} else if ( $weight_adjustment_type == 'multiplier_weight' ) {
-					$optionitem_weight_multiplier = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_new_optionitem_weight_adjustment'] ) ) );
-				}
-
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitem( 
-					option_id, optionitem_name, optionitem_price, optionitem_price_onetime, optionitem_price_override,
-					optionitem_price_multiplier, optionitem_weight, optionitem_weight_onetime, optionitem_weight_override,
-					optionitem_weight_multiplier, optionitem_order, optionitem_icon, optionitem_initial_value, optionitem_model_number,
-					optionitem_allow_download, optionitem_disallow_shipping, optionitem_initially_selected
-				) VALUES( 
-					%d, %s, %s, %s, %s,
-					%s, %s, %s, %s,
-					%s, %d, %s, %s, %s, 
-					%d, %d, %d
-				)', 
-
-					$option_id, $name, $optionitem_price, $optionitem_price_onetime, $optionitem_price_override,
-					$optionitem_price_multiplier, $optionitem_weight, $optionitem_weight_onetime, $optionitem_weight_override,
-					$optionitem_weight_multiplier, $order, $icon, $initial_value, $model_number, 
-					$optionitem_allow_download, $optionitem_disallow_shipping, $optionitem_initially_selected
-				) );
 			}
 		}
 
@@ -1585,6 +1221,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
 				$option_id = (int) $_POST['option_id'];
+
+				/* Modifiers ( advanced option sets ) are PRO: don't attach one to a product without it. */
+				if ( '' !== apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) ) {
+					return false;
+				}
 
 				$highest_sort = $wpdb->get_var( $wpdb->prepare( 'SELECT option_order FROM ec_option_to_product WHERE product_id = %d ORDER BY option_order DESC', $product_id ) );
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option_to_product( product_id, option_id, option_order ) VALUES( %d, %d, %d )', $product_id, $option_id, $highest_sort + 1 ) );
@@ -1702,6 +1343,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
 				$category_id = (int) $_POST['category_id'];
+				/* Smart categories: a rule-driven membership must be excluded from the rules, or the next sync re-adds it. */
+				if ( class_exists( 'ec_smart_categories_support' ) ) { ec_smart_categories_support::exclude_product( $category_id, $product_id ); }
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_categoryitem WHERE category_id = %d AND product_id = %d', $category_id, $product_id ) );
 				wp_cache_delete( 'wpeasycart-all-categories' );
 
@@ -1735,8 +1378,26 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$min_purchase_quantity = (int) $_POST['min_purchase_quantity'];
 				$max_purchase_quantity = (int) $_POST['max_purchase_quantity'];
 				$model_number = $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
+				$stock_before = $wpdb->get_row( $wpdb->prepare( 'SELECT stock_quantity, show_stock_quantity FROM ec_product WHERE product_id = %d', $product_id ) );
 
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET show_stock_quantity = %d, use_optionitem_quantity_tracking = %d, stock_quantity = %d, min_purchase_quantity = %d, max_purchase_quantity = %d WHERE product_id = %d', $show_stock_quantity, $use_optionitem_quantity_tracking, $stock_quantity, $min_purchase_quantity, $max_purchase_quantity, $product_id ) );
+
+				/* A product-level quantity typed in the product editor is a stock change like any other:
+				 * broadcast it with the same shape as wp_easycart_admin_inventory::apply_stock_change()
+				 * so PRO's stock history records it. Variant tracking rolls up from its rows instead. */
+				if ( $stock_before && $show_stock_quantity && (int) $stock_before->stock_quantity !== $stock_quantity ) {
+					do_action( 'wpeasycart_inventory_stock_changed', array(
+						'product_id'            => $product_id,
+						'optionitemquantity_id' => 0,
+						'old_quantity'          => (int) $stock_before->stock_quantity,
+						'new_quantity'          => $stock_quantity,
+						'delta'                 => $stock_quantity - (int) $stock_before->stock_quantity,
+						'reason'                => ( (int) $stock_before->show_stock_quantity ) ? 'manual-set' : 'tracking-started',
+						'source'                => 'manual-set',
+						'note'                  => __( 'Product editor', 'wp-easycart' ),
+						'user_id'               => get_current_user_id(),
+					) );
+				}
 				do_action( 'wpeasycart_product_updated', $product_id, $model_number );
 				wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
 			}
@@ -1765,8 +1426,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$product_id = (int) $_POST['product_id'];
 				$optionitemquantity_id = (int) $_POST['optionitemquantity_id'];
 				$quantity = (int) $_POST['quantity'];
+				$previous_quantity = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT quantity FROM ec_optionitemquantity WHERE optionitemquantity_id = %d', $optionitemquantity_id ) );
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_optionitemquantity SET quantity = %d WHERE optionitemquantity_id = %d', $quantity, $optionitemquantity_id ) );
 				$this->update_stock_from_optionitem_quantity( $product_id );
+				/* Keep the low stock / out of stock alerts in step with this edit ( 6.0.0 ). */
+				if ( function_exists( 'wp_easycart_notifications' ) ) {
+					wp_easycart_notifications()->check_optionitem_stock( $optionitemquantity_id, $quantity < $previous_quantity );
+				}
 			}
 		}
 
@@ -1921,7 +1587,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
-				$short_description = wp_easycart_escape_html( $_POST['short_description'] ); // XSS OK
+				$short_description = wp_easycart_escape_html( wp_unslash( $_POST['short_description'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET short_description = %s WHERE product_id = %d', $short_description, $product_id ) );
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
@@ -1935,7 +1601,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
-				$specifications = wp_easycart_escape_html( $_POST['specifications'] ); // XSS OK
+				$specifications = wp_easycart_escape_html( wp_unslash( $_POST['specifications'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 				$use_specifications = 0;
 				if ( strlen( trim( $specifications ) ) > 0 )
 					$use_specifications = 1;
@@ -1952,7 +1618,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
-				$order_completed_note = wp_easycart_escape_html( $_POST['order_completed_note'] ); // XSS OK
+				$order_completed_note = wp_easycart_escape_html( wp_unslash( $_POST['order_completed_note'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET order_completed_note = %s WHERE product_id = %d', $order_completed_note, $product_id ) );
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
@@ -1965,7 +1631,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
-				$order_completed_email_note = wp_easycart_escape_html( $_POST['order_completed_email_note'] ); // XSS OK
+				$order_completed_email_note = wp_easycart_escape_html( wp_unslash( $_POST['order_completed_email_note'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET order_completed_email_note = %s WHERE product_id = %d', $order_completed_email_note, $product_id ) );
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
@@ -1978,7 +1644,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_products' ) ) {
 				global $wpdb;
 				$product_id = (int) $_POST['product_id'];
-				$order_completed_details_note = wp_easycart_escape_html( $_POST['order_completed_details_note'] ); // XSS OK
+				$order_completed_details_note = wp_easycart_escape_html( wp_unslash( $_POST['order_completed_details_note'] ) ); // XSS OK — wp_unslash: WP slashes $_POST; without it every save stacked another backslash on quotes
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET order_completed_details_note = %s WHERE product_id = %d', $order_completed_details_note, $product_id ) );
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
@@ -2294,13 +1960,23 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			return true;
 		}
 
-		public function run_importer() {
+		/**
+		 * Import one chunk of a products CSV.
+		 *
+		 * @param string $file_path_override Absolute path of the CSV to read ( @since 6.0.0, used by the V2 import
+		 *                                   panel, admin/inc/wp_easycart_admin_product_import.php, which resolves
+		 *                                   its upload token to a path ). When empty, the legacy Media Library
+		 *                                   attachment in $_POST['import_file_url'] is read instead.
+		 */
+		public function run_importer( $file_path_override = '' ) {
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
 				return false;
 			}
 			global $wpdb;
 			$this->db = $wpdb;
 			$this->error_list = '';
+			$this->import_inserted = 0;
+			$this->import_updated = 0;
 			$this->product_id_index = -1;
 			$this->post_id_index = -1;
 			$this->model_number_index = -1;
@@ -2318,43 +1994,40 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			$this->b2b_prices_index = -1;
 			$this->product_images_index = -1;
 			$this->pickup_locations_index = -1;
-			$this->limit = 20;
+			/* Since 6.0.0 the import is chunked across AJAX calls ( admin/js/products.js loops ): each
+			   request parses the header row, seeks to the byte offset the previous call returned and
+			   processes $this->limit rows. 'line' is the number of data rows already handled, used for
+			   the line numbers in error messages. Responds JSON { done, next, line, processed, errors }. */
+			$this->limit = 100;
 
 			require_once( 'Encoding.php' );
 
-			if ( isset( $_POST['import_file_url'] ) ) {
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- the callers verify the nonce before calling this: ec_admin_ajax_import_products() checks 'wp-easycart-start-import' through wp_easycart_admin_verification()->verify_access(); the V2 panel's ecv2_product_import_run handler checks 'wp-easycart-ecv2-product-import' through ecv2_product_import_guard().
+			if ( '' !== $file_path_override || isset( $_POST['import_file_url'] ) ) {
 
 				set_time_limit( 500 );
 
-				$file_path = get_attached_file( (int) $_POST['import_file_url'] );
+				$resume_offset = isset( $_POST['offset'] ) ? max( 0, (int) $_POST['offset'] ) : 0;
+				$line_base     = isset( $_POST['line'] ) ? max( 0, (int) $_POST['line'] ) : 0;
+
+				if ( '' !== $file_path_override ) {
+					$file_path = $file_path_override;
+				} else {
+					$file_path = get_attached_file( (int) $_POST['import_file_url'] );
+				}
+				// phpcs:enable WordPress.Security.NonceVerification.Missing
 				if ( ! $file_path ) {
-					echo esc_attr__( 'Invalid file path.', 'wp-easycart' );
-					return;
+					$this->importer_respond( true, 0, $line_base, __( 'Invalid file path.', 'wp-easycart' ) );
 				}
 
 				$file_type = wp_check_filetype( $file_path );
 				if ( ! $file_type || ! isset( $file_type['ext'] ) || ! isset( $file_type['type'] ) || 'csv' != $file_type['ext'] || 'text/csv' != $file_type['type'] ) {
-					echo esc_attr__( 'Invalid file type.', 'wp-easycart' );
-					return;
+					$this->importer_respond( true, 0, $line_base, __( 'Invalid file type.', 'wp-easycart' ) );
 				}
 
 				$file =  fopen( esc_url_raw( $file_path ), 'r' );
 				if ( ! $file ) {
-					echo esc_attr__( 'Could not open your import file.', 'wp-easycart' );
-					return;
-				}
-
-				$valid_product_ids = array();
-				$existing_model_numbers = array();
-				$valid_product_ids_result = $this->db->get_results( 'SELECT product_id FROM ec_product', ARRAY_N );
-				$existing_model_numbers_result = $this->db->get_results( 'SELECT model_number FROM ec_product', ARRAY_N );
-
-				foreach ( $valid_product_ids_result as $product_id ) {
-					$valid_product_ids[] = $product_id[0];
-				}
-
-				foreach ( $existing_model_numbers_result as $model_number ) {
-					$existing_model_numbers[] = $model_number[0];
+					$this->importer_respond( true, 0, $line_base, __( 'Could not open your import file.', 'wp-easycart' ) );
 				}
 
 				$valid_headers_result = $this->db->get_results( 'SELECT `COLUMN_NAME` FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_NAME`="ec_product"', ARRAY_N );
@@ -2428,18 +2101,28 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						$this->pickup_locations_index = $i;
 
 					} else if ( ! in_array( $this->headers[ $i ], $valid_headers ) ) { // error, invalid column
-						echo sprintf( esc_attr__( 'You have an invalid column header at column %d (value %s), please remove or correct the label of that column to continue.', 'wp-easycart' ), esc_attr( $i ), esc_attr( $this->headers[ $i ] ) );
+						$this->error_list .= sprintf( __( 'You have an invalid column header at column %d (value %s), please remove or correct the label of that column to continue.', 'wp-easycart' ), $i, $this->headers[ $i ] ) . "\r";
 
 					}
 
 				}
 
 				if ( $this->product_id_index == -1 ) {
-					echo esc_attr__( 'Missing `product_id` Key field! Values for additions should be 0, updates should be the exported product_id value.', 'wp-easycart' );
+					$this->error_list .= __( 'Missing `product_id` Key field! Values for additions should be 0, updates should be the exported product_id value.', 'wp-easycart' ) . "\r";
 				}
 
 				if ( $this->model_number_index == -1 ) {
-					echo esc_attr__( 'Missing `model_number` Key field! Values must be unique from other imported products and those products already in your store.', 'wp-easycart' );
+					$this->error_list .= __( 'Missing `model_number` Key field! Values must be unique from other imported products and those products already in your store.', 'wp-easycart' ) . "\r";
+				}
+
+				if ( $this->product_id_index == -1 || $this->model_number_index == -1 ) {
+					/* Nothing sensible can be imported without the two key columns ( the old code read past the header and stopped on the first row anyway ). */
+					fclose( $file );
+					$this->importer_respond( true, 0, $line_base, '' );
+				}
+
+				if ( $resume_offset > 0 ) {
+					fseek( $file, $resume_offset );
 				}
 
 				$insert_sql = 'INSERT INTO ec_product(';
@@ -2478,11 +2161,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$insert_sql .= ',%d)';
 				$update_sql .= ' WHERE ec_product.product_id = %s';
 
-				/* Start through the rows */
-				$current_iteration = 0;
+				/* Start through the rows: one chunk of $this->limit rows per request. Every request but the
+				   last handles exactly $this->limit rows, so $line_base is a multiple of it and the
+				   existing "( $current_iteration * $this->limit ) + ( $i + 1 )" line numbers stay right. */
+				$current_iteration = (int) ( $line_base / $this->limit );
 				$eof_reached = false;
 
-				while( ! feof( $file ) && ! $eof_reached ) {
+				if ( ! feof( $file ) && ! $eof_reached ) {
 
 					$rows = array();
 
@@ -2500,6 +2185,32 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 					}
 
+					/* Since 6.0.0: look up only this chunk's product ids and model numbers with one IN() query
+					   each ( was: every id and model number in the store loaded into arrays, in_array() per row ).
+					   Keys are the raw CSV values, matched exactly like the old in_array() did. */
+					$valid_product_ids = array();
+					$existing_model_numbers = array();
+					$chunk_ids = array();
+					$chunk_models = array();
+					foreach ( $rows as $chunk_row ) {
+						if ( isset( $chunk_row[ $this->product_id_index ] ) && '' != $chunk_row[ $this->product_id_index ] && 0 != $chunk_row[ $this->product_id_index ] ) {
+							$chunk_ids[] = (int) $chunk_row[ $this->product_id_index ];
+						}
+						$chunk_models[] = (string) $chunk_row[ $this->model_number_index ];
+					}
+					if ( count( $chunk_ids ) > 0 ) {
+						$found_ids = $this->db->get_col( $this->db->prepare( 'SELECT product_id FROM ec_product WHERE product_id IN (' . implode( ',', array_fill( 0, count( $chunk_ids ), '%d' ) ) . ')', $chunk_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholder list built with array_fill(); every id goes through prepare().
+						foreach ( $found_ids as $found_id ) {
+							$valid_product_ids[ (int) $found_id ] = true;
+						}
+					}
+					if ( count( $chunk_models ) > 0 ) {
+						$found_models = $this->db->get_col( $this->db->prepare( 'SELECT model_number FROM ec_product WHERE model_number IN (' . implode( ',', array_fill( 0, count( $chunk_models ), '%s' ) ) . ')', $chunk_models ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholder list built with array_fill(); every value goes through prepare().
+						foreach ( $found_models as $found_model ) {
+							$existing_model_numbers[ $found_model ] = true;
+						}
+					}
+
 					for ( $i = 0; $i < count( $rows ); $i++ ) {
 
 						$product_id = $rows[ $i ][ $this->product_id_index ];
@@ -2508,13 +2219,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 						if ( $rows[ $i ][ $this->product_id_index ] != 0 && $rows[ $i ][ $this->product_id_index ] != '' ) { // product_id is available
 
-							if ( ! in_array( $product_id, $valid_product_ids ) ) {
+							if ( ! isset( $valid_product_ids[ (int) $product_id ] ) ) {
 
 								$this->error_list .= sprintf( __( 'Product %s on line %s failed to update, invalid product_id (if you are trying to add a new product use 0 for the product_id)', 'wp-easycart' ), $product_id, ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
 
 							} else {
 
-								$existing_model_numbers[] = $model_number;
+								$existing_model_numbers[ $model_number ] = true;
 
 								$update_vals = array();
 								for ( $j = 0; $j < count( $rows[ $i ] ); $j++ ) {
@@ -2562,9 +2273,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 								$result = $this->db->query( $this->db->prepare( $update_sql, $update_vals ) );
 								if ( $result === false ) {
-									$this->error_list .= sprintf( __( 'Product on line %s failed to update due to an error.', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . '<br />';
-									echo esc_attr( $this->error_list );
+									$this->error_list .= sprintf( __( 'Product on line %s failed to update due to an error.', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
 									//die();
+								} else {
+									$this->import_updated++;
 								}
 
 								$status = false;
@@ -2680,13 +2392,13 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 						} else {
 
-							if ( in_array( $model_number, $existing_model_numbers ) ) {
+							if ( isset( $existing_model_numbers[ $model_number ] ) ) {
 
 								$this->error_list .= sprintf( __( 'Product on line %s failed to update, duplicate model number listed for this product.', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
 
 							} else {
 
-								$existing_model_numbers[] = $model_number;
+								$existing_model_numbers[ $model_number ] = true;
 								$insert_vals = array();
 								for ( $j = 0; $j < count( $rows[ $i ] ); $j++ ) {
 									if ( $j != $this->product_id_index && $j != $this->post_id_index && $j != $this->advanced_option_ids_index ) {
@@ -2764,6 +2476,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 								if ( ! $product_id ) {
 									wp_delete_post( $post_id, true );
 									$this->error_list .= sprintf( __( 'Product on line %s never inserted', 'wp-easycart' ), ( ( $current_iteration * $this->limit ) + ($i+1) ) ) . "\r";
+								} else {
+									$this->import_inserted++;
 								}
 
 								if ( $this->is_subscription_index != -1 && $product_id && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) && $rows[ $i ][ $this->is_subscription_index ] == '1' ) {
@@ -2879,28 +2593,50 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 					} // Close iteration for loop
 
+					$processed = count( $rows );
 					unset( $rows );
 
 					$current_iteration++;
 
+				} else {
+					$processed = 0;
+					$eof_reached = true;
 				}
 
 				unset( $this->headers );
 
+				$next_offset = (int) ftell( $file );
+				$done = $eof_reached || feof( $file ) || $processed < $this->limit;
 				fclose( $file );
 				wp_cache_flush();
 
-				if ( $this->error_list == '' ) {
-					echo 'success' ;
-				} else {
-					echo esc_attr( $this->error_list );
-				}
-
+				$this->importer_respond( $done, $done ? 0 : $next_offset, $line_base + $processed, '' );
 
 			} else {
-				echo esc_attr__( 'No URL', 'wp-easycart' );
+				$this->importer_respond( true, 0, 0, __( 'No URL', 'wp-easycart' ) );
 			}
 			die();
+		}
+
+		/**
+		 * JSON reply for one product import chunk and stop ( since 6.0.0 ).
+		 *
+		 * @param bool   $done    No more rows to process.
+		 * @param int    $next    Byte offset the next request should fseek() to ( 0 when done ).
+		 * @param int    $line    Data rows handled so far ( passed back as 'line' ).
+		 * @param string $message Extra error text prepended to the accumulated error list.
+		 */
+		private function importer_respond( $done, $next, $line, $message ) {
+			$errors = ( '' != $message ) ? $message . "\r" . $this->error_list : $this->error_list;
+			wp_send_json( array(
+				'done'      => (bool) $done,
+				'next'      => (int) $next,
+				'line'      => (int) $line,
+				'processed' => (int) $line,
+				'inserted'  => (int) $this->import_inserted,
+				'updated'   => (int) $this->import_updated,
+				'errors'    => $errors,
+			) );
 		}
 
 		function get_product_link( $product_id ) {
@@ -3048,6 +2784,25 @@ function wp_easycart_admin_products() {
 }
 wp_easycart_admin_products();
 
+/**
+ * Whether the V2 product editor is in use.
+ *
+ * Always true since 6.0.0: the legacy product editor ( and the
+ * ec_option_admin_enable_product_details_v2 switch ) were removed. Kept
+ * because PRO calls it before attaching its editor scripts.
+ *
+ * @since 6.0.0 Always returns true.
+ *
+ * @return bool
+ */
+function wp_easycart_product_details_v2_enabled() {
+	return true;
+}
+
+/* Product editor V2 Reviews tab: its allow-reviews toggle ( wp_ajax_ecdv2_reviews_toggle ) must be registered on
+ * admin-ajax requests too, not only while the editor page renders. The file guards against double registration. */
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_product_reviews_card.php' );
+
 add_action( 'wp_ajax_ec_admin_ajax_ecdv2_activity', 'ec_admin_ajax_ecdv2_activity' );
 function ec_admin_ajax_ecdv2_activity() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-product-details' ) ) {
@@ -3083,11 +2838,7 @@ function ec_admin_ajax_ecdv2_activity() {
 		 ORDER BY units DESC LIMIT 5', $product_id
 	) );
 
-	$reviews = $wpdb->get_results( $wpdb->prepare(
-		'SELECT review_id, approved, rating, title, reviewer_name, date_submitted FROM ec_review WHERE product_id = %d ORDER BY date_submitted DESC LIMIT 6', $product_id
-	) );
-	$pending_reviews = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_review WHERE product_id = %d AND approved = 0', $product_id ) );
-	$avg_rating = $wpdb->get_var( $wpdb->prepare( 'SELECT AVG( rating ) FROM ec_review WHERE product_id = %d AND approved = 1', $product_id ) );
+	/* Reviews are not part of Activity ( 6.0.0 ): the product editor has its own Reviews tab. */
 
 	$subscribers = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM ec_product_subscriber WHERE product_id = %d AND status = 'subscribed'", $product_id ) );
 	$product = $wpdb->get_row( $wpdb->prepare( 'SELECT views, last_viewed FROM ec_product WHERE product_id = %d', $product_id ) );
@@ -3096,7 +2847,6 @@ function ec_admin_ajax_ecdv2_activity() {
 
 	$recent_orders = stripslashes_deep( $recent_orders );
 	$top_customers = stripslashes_deep( $top_customers );
-	$reviews       = stripslashes_deep( $reviews );
 
 	wp_send_json_success( array(
 		'units'           => (int) $totals->units,
@@ -3104,12 +2854,9 @@ function ec_admin_ajax_ecdv2_activity() {
 		'order_count'     => (int) $totals->order_count,
 		'views'           => $product ? (int) $product->views : 0,
 		'last_viewed'     => ( $product && '0000-00-00 00:00:00' !== $product->last_viewed ) ? $product->last_viewed : '',
-		'avg_rating'      => $avg_rating ? round( (float) $avg_rating, 1 ) : 0,
-		'pending_reviews' => $pending_reviews,
 		'subscribers'     => $subscribers,
 		'recent_orders'   => $recent_orders,
 		'top_customers'   => $top_customers,
-		'reviews'         => $reviews,
 		'status_labels'   => $status_labels,
 	) );
 }
@@ -3130,41 +2877,11 @@ function ec_admin_ajax_ecdv2_review_status() {
 	wp_send_json_success( array( 'approved' => $approved ) );
 }
 
-add_action( 'wp_ajax_ec_admin_ajax_save_product_settings', 'ec_admin_ajax_save_product_settings' );
-function ec_admin_ajax_save_product_settings() {
-	wp_easycart_admin_products()->save_product_settings();
-	die();
-}
 
-add_action( 'wp_ajax_ec_admin_ajax_save_product_list_display', 'ec_admin_ajax_save_product_list_display' );
-function ec_admin_ajax_save_product_list_display() {	
-	wp_easycart_admin_products()->save_product_list_display();
-	die();
-}
 
-add_action( 'wp_ajax_ec_admin_ajax_save_customer_review_display', 'ec_admin_ajax_save_customer_review_display' );
-function ec_admin_ajax_save_customer_review_display() {
-	wp_easycart_admin_products()->save_customer_review_display();
-	die();
-}
 
-add_action( 'wp_ajax_ec_admin_ajax_save_product_details_display', 'ec_admin_ajax_save_product_details_display' );
-function ec_admin_ajax_save_product_details_display() {
-	wp_easycart_admin_products()->save_product_details_display();
-	die();
-}
 
-add_action( 'wp_ajax_ec_admin_ajax_save_price_display', 'ec_admin_ajax_save_price_display' );
-function ec_admin_ajax_save_price_display() {
-	wp_easycart_admin_products()->save_price_display();
-	die();
-}
 
-add_action( 'wp_ajax_ec_admin_ajax_save_inventory_options', 'ec_admin_ajax_save_inventory_options' );
-function ec_admin_ajax_save_inventory_options() {
-	wp_easycart_admin_products()->save_inventory_options();
-	die();
-}
 
 add_action( 'wp_ajax_ec_admin_ajax_save_product_details_basic', 'ec_admin_ajax_save_product_details_basic' );
 function ec_admin_ajax_save_product_details_basic() {
@@ -3569,6 +3286,52 @@ function ec_admin_ajax_save_product_details_seo() {
 	die();
 
 }
+
+add_action( 'wp_ajax_ec_admin_ajax_save_product_details_yoast_seo', 'ec_admin_ajax_save_product_details_yoast_seo' );
+/**
+ * Product editor V2, SEO tab: save the Yoast SEO card to the product post's Yoast meta.
+ * Empty values delete the meta so Yoast falls back to its templates, as Yoast itself does.
+ *
+ * @since 6.0.0
+ */
+function ec_admin_ajax_save_product_details_yoast_seo() {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ), 403 );
+	}
+	if ( ! isset( $_POST['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-product-details' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ), 403 );
+	}
+	if ( ! defined( 'WPSEO_VERSION' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Yoast SEO is not active.', 'wp-easycart' ) ), 400 );
+	}
+	global $wpdb;
+	$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+	$product    = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, model_number FROM ec_product WHERE product_id = %d', $product_id ) );
+	$post_id    = $product ? (int) $product->post_id : 0;
+	if ( ! $post_id || ! get_post( $post_id ) ) {
+		wp_send_json_error( array( 'message' => __( 'This product has no WordPress page to store Yoast data on.', 'wp-easycart' ) ), 400 );
+	}
+
+	$noindex = isset( $_POST['yoast_noindex'] ) ? sanitize_key( wp_unslash( $_POST['yoast_noindex'] ) ) : '0';
+	$values  = array(
+		'_yoast_wpseo_title'               => isset( $_POST['yoast_title'] ) ? sanitize_text_field( wp_unslash( $_POST['yoast_title'] ) ) : '',
+		'_yoast_wpseo_metadesc'            => isset( $_POST['yoast_metadesc'] ) ? sanitize_text_field( wp_unslash( $_POST['yoast_metadesc'] ) ) : '',
+		'_yoast_wpseo_focuskw'             => isset( $_POST['yoast_focuskw'] ) ? sanitize_text_field( wp_unslash( $_POST['yoast_focuskw'] ) ) : '',
+		'_yoast_wpseo_canonical'           => isset( $_POST['yoast_canonical'] ) ? esc_url_raw( trim( wp_unslash( $_POST['yoast_canonical'] ) ) ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized by esc_url_raw().
+		'_yoast_wpseo_meta-robots-noindex' => in_array( $noindex, array( '1', '2' ), true ) ? $noindex : '',
+	);
+	foreach ( $values as $meta_key => $meta_value ) {
+		if ( '' === $meta_value ) {
+			delete_post_meta( $post_id, $meta_key );
+		} else {
+			update_post_meta( $post_id, $meta_key, $meta_value );
+		}
+	}
+	/* Yoast's post meta watcher refreshes the post's indexable from these meta writes. */
+	do_action( 'wp_easycart_product_yoast_seo_saved', $product_id, $post_id, $values );
+	wp_cache_delete( 'wpeasycart-product-seo-' . $product->model_number, 'wpeasycart-product-seo' );
+	wp_send_json_success( array( 'saved' => true ) );
+}
 add_action( 'wp_ajax_ec_admin_ajax_save_product_details_downloads', 'ec_admin_ajax_save_product_details_downloads' );
 function ec_admin_ajax_save_product_details_downloads() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-product-details' ) ) {
@@ -3828,45 +3591,7 @@ function ec_admin_ajax_save_new_quick_product() {
 	die();
 }
 
-add_action( 'wp_ajax_ec_admin_ajax_save_new_optionset', 'ec_admin_ajax_save_new_optionset' );
-function ec_admin_ajax_save_new_optionset() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-optionset-quick-edit' ) ) {
-		return false;
-	}
 
-	$option_id = wp_easycart_admin_products()->save_new_optionset();
-	echo json_encode( array( 'option_id' => $option_id ) );
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_save_new_optionitem', 'ec_admin_ajax_save_new_optionitem' );
-function ec_admin_ajax_save_new_optionitem() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-optionitem-quick-edit' ) ) {
-		return false;
-	}
-
-	wp_easycart_admin_products()->save_new_optionitem();
-	die();
-}
-add_action( 'wp_ajax_ec_admin_ajax_save_new_adv_optionset', 'ec_admin_ajax_save_new_adv_optionset' );
-function ec_admin_ajax_save_new_adv_optionset() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-adv-optionset-quick-edit' ) ) {
-		return false;
-	}
-
-	$option_id = wp_easycart_admin_products()->save_new_adv_optionset();
-	echo json_encode( array( 'option_id' => $option_id ) );
-	die();
-}
-add_action( 'wp_ajax_ec_admin_ajax_save_new_adv_optionitem', 'ec_admin_ajax_save_new_adv_optionitem' );
-function ec_admin_ajax_save_new_adv_optionitem() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-adv-optionitem-quick-edit' ) ) {
-		return false;
-	}
-
-	wp_easycart_admin_products()->save_new_adv_optionitem();
-	die();
-}
 add_action( 'wp_ajax_ec_admin_ajax_save_product_advanced_option_order', 'ec_admin_ajax_save_product_advanced_option_order' );
 function ec_admin_ajax_save_product_advanced_option_order() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-product-details' ) ) {
@@ -4045,7 +3770,7 @@ function ec_admin_ajax_ecv2_save_option_set() {
 		die();
 	}
 	if ( ! $is_pro && ! in_array( $type, $basic, true ) ) {
-		echo json_encode( array( 'error' => __( 'Modifiers require WP EasyCart PRO.', 'wp-easycart' ) ) );
+		echo json_encode( array( 'error' => wp_easycart_admin_edition::requires_text( __( 'Modifier support', 'wp-easycart' ), 'pro' ) ) );
 		die();
 	}
 	if ( '' === $label ) {
@@ -4053,20 +3778,34 @@ function ec_admin_ajax_ecv2_save_option_set() {
 	}
 
 	$items = array();
+	/* Only swatch types store a swatch. Same rules as the full option editor: a color ( "#rrggbb" or
+	 * "#rrggbb,#rrggbb" ) on every store, an image URL with PRO. */
+	$is_swatch = in_array( $type, array( 'basic-swatch', 'swatch' ), true );
 	if ( isset( $_POST['items'] ) ) {
-		$decoded = json_decode( wp_unslash( $_POST['items'] ), true );
+		$decoded = json_decode( wp_unslash( $_POST['items'] ), true ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing -- nonce checked by verify_access() above; JSON payload, every field is sanitized individually below.
 		if ( is_array( $decoded ) ) {
 			foreach ( $decoded as $it ) {
+				if ( ! is_array( $it ) ) {
+					continue;
+				}
 				$it_name = isset( $it['name'] ) ? sanitize_text_field( $it['name'] ) : '';
 				if ( '' === $it_name ) {
 					continue;
+				}
+				$it_icon = '';
+				if ( $is_swatch && isset( $it['icon'] ) && is_string( $it['icon'] ) ) {
+					if ( class_exists( 'wp_easycart_admin_option_editor_v2' ) ) {
+						$it_icon = wp_easycart_admin_option_editor_v2::sanitize_icon( $it['icon'], $is_pro, 0 );
+					} else if ( $is_pro ) {
+						$it_icon = esc_url_raw( $it['icon'] );
+					}
 				}
 				$items[] = array(
 					'name'   => $it_name,
 					'sku'    => isset( $it['sku'] ) ? sanitize_text_field( $it['sku'] ) : '',
 					'price'  => wp_easycart_admin_verification()->filter_float( isset( $it['price'] ) ? sanitize_text_field( $it['price'] ) : '0' ),
 					'weight' => wp_easycart_admin_verification()->filter_float( isset( $it['weight'] ) ? sanitize_text_field( $it['weight'] ) : '0' ),
-					'icon'   => ( $is_pro && isset( $it['icon'] ) ) ? esc_url_raw( $it['icon'] ) : '',
+					'icon'   => $it_icon,
 				);
 			}
 		}
@@ -4126,6 +3865,8 @@ function ec_admin_ajax_ecv2_save_option_set() {
 		'option_name' => $name,
 		'option_type' => $type,
 		'item_count'  => $takes_list ? count( $items ) : 0,
+		/* The panel sends the merchant here after "Create option set" on the Option Sets screens. */
+		'edit_url'    => class_exists( 'wp_easycart_admin_option_table' ) ? wp_easycart_admin_option_table::editor_url( $option_id ) : admin_url( 'admin.php?page=wp-easycart-products&subpage=option&ec_admin_form_action=edit&option_id=' . $option_id ),
 	) );
 	die();
 }
@@ -4252,7 +3993,7 @@ function ec_admin_ajax_save_product_details_is_advanced_options() {
 	}
 
 	global $wpdb;
-	$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_advanced_options = 0 WHERE product_id = %d', $_POST['product_id'] ) );
+	$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_advanced_optionset = 0 WHERE product_id = %d', (int) $_POST['product_id'] ) );
 	$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', (int) $_POST['product_id'] ) );
 	if ( $product ) {
 		wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );

@@ -77,9 +77,13 @@
 .ecudv2-strength span.is-strong { background:#22c55e; }
 
 /* ---- Addresses ---- */
-.ecudv2-address-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+/* margin-bottom matches the standard .ecdv2-card gap so the PRO Address Book card below never touches the columns. */
+.ecudv2-address-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; margin-bottom:14px; }
 .ecudv2-address-cols .ecdv2-card { margin-bottom:0; }
-.ecudv2-copy-btn { float:right; margin:-4px 0 8px 8px; }
+/* Copy to Shipping lives in the Billing card header, right-aligned before Help; negative block margins keep the header height in line with the Shipping card. */
+.ecdv2-card-header .ecudv2-copy-btn { margin:-5px 0 -5px auto; padding:4px 10px; font-size:12px !important; }
+.ecdv2-card-header .ecudv2-copy-btn .dashicons { font-size:13px; width:13px; height:13px; }
+.ecdv2-card-header .ecudv2-copy-btn + .ecdv2-help-link { margin-left:6px; }
 
 /* ---- Danger zone ---- */
 .ecudv2-danger-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }

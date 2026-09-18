@@ -37,6 +37,10 @@ class ec_cartpage {
 	public $permalink_divider;
 	private $analytics;
 	private $is_affirm;
+	/** option_to_product_id values whose text input rules rejected the last submission ( see get_advanced_option_vals() ). @since 6.0.0 */
+	private $option_input_errors = array();
+	/** 6.0.0: why each rejected option failed ( option_to_product_id => 'empty' | 'min_length' | 'file_type' | 'file_size' | 'file_upload' ). */
+	private $option_input_error_reasons = array();
 	public $shipping_address_allowed;
 	public $offer_result;
 
@@ -2611,21 +2615,21 @@ class ec_cartpage {
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->gst_total > 0  ) {
 			$return_arr[] = (object) array(
-				'name'     => 'GST' . ( ( $this->tax->gst_rate > 0 ) ? ' ' .$this->tax->gst_rate . '%' : '' ),
+				'name'     => wp_easycart_canada_tax_label( 'gst', $this->tax->shipping_state ) . ( ( $this->tax->gst_rate > 0 ) ? ' ' .$this->tax->gst_rate . '%' : '' ),
 				'amount'    => (int) esc_attr( number_format( $this->order_totals->gst_total * 100, 0, '.', '' ) ),
 			);
 		}
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->pst_total > 0  ) {
 			$return_arr[] = (object) array(
-				'name'     => 'PST' . ( ( $this->tax->pst_rate > 0 ) ? ' ' .$this->tax->pst_rate . '%' : '' ),
+				'name'     => wp_easycart_canada_tax_label( 'pst', $this->tax->shipping_state ) . ( ( $this->tax->pst_rate > 0 ) ? ' ' .$this->tax->pst_rate . '%' : '' ),
 				'amount'    => (int) esc_attr( number_format( $this->order_totals->pst_total * 100, 0, '.', '' ) ),
 			);
 		}
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->hst_total > 0 ) {
 			$return_arr[] = (object) array(
-				'name'     => 'HST' . ( ( $this->tax->hst_rate > 0 ) ? ' ' .$this->tax->hst_rate . '%' : '' ),
+				'name'     => wp_easycart_canada_tax_label( 'hst', $this->tax->shipping_state ) . ( ( $this->tax->hst_rate > 0 ) ? ' ' .$this->tax->hst_rate . '%' : '' ),
 				'amount'    => (int) esc_attr( number_format( $this->order_totals->hst_total * 100, 0, '.', '' ) ),
 			);
 		}
@@ -3345,21 +3349,21 @@ class ec_cartpage {
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->gst_total > 0  ) {
 			$return_arr[] = (object) array(
-				'label'     => 'GST' . ( ( $this->tax->gst_rate > 0 ) ? ' ' .$this->tax->gst_rate . '%' : '' ),
+				'label'     => wp_easycart_canada_tax_label( 'gst', $this->tax->shipping_state ) . ( ( $this->tax->gst_rate > 0 ) ? ' ' .$this->tax->gst_rate . '%' : '' ),
 				'amount'    => number_format( $this->order_totals->gst_total, 2, '.', '' ),
 			);
 		}
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->pst_total > 0  ) {
 			$return_arr[] = (object) array(
-				'label'     => 'PST' . ( ( $this->tax->pst_rate > 0 ) ? ' ' .$this->tax->pst_rate . '%' : '' ),
+				'label'     => wp_easycart_canada_tax_label( 'pst', $this->tax->shipping_state ) . ( ( $this->tax->pst_rate > 0 ) ? ' ' .$this->tax->pst_rate . '%' : '' ),
 				'amount'    => number_format( $this->order_totals->pst_total, 2, '.', '' ),
 			);
 		}
 
 		if ( get_option( 'ec_option_enable_easy_canada_tax' ) && $this->order_totals->hst_total > 0 ) {
 			$return_arr[] = (object) array(
-				'label'     => 'HST' . ( ( $this->tax->hst_rate > 0 ) ? ' ' .$this->tax->hst_rate . '%' : '' ),
+				'label'     => wp_easycart_canada_tax_label( 'hst', $this->tax->shipping_state ) . ( ( $this->tax->hst_rate > 0 ) ? ' ' .$this->tax->hst_rate . '%' : '' ),
 				'amount'    => number_format( $this->order_totals->hst_total, 2, '.', '' ),
 			);
 		}
@@ -5073,14 +5077,18 @@ class ec_cartpage {
 							}
 						} else {
 							$optionitems = $this->mysqli->get_advanced_optionitems( $optionset->option_id );
+							$legacy_value = isset( $_POST[ 'ec_option_' . (int) $optionset->option_id ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'ec_option_' . (int) $optionset->option_id ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- legacy add_to_cart form has no nonce; value is sanitised here.
+							if ( class_exists( 'wp_easycart_text_input_rules' ) ) {
+								$legacy_value = wp_easycart_text_input_rules::validate( $legacy_value, $optionset )['value']; /* 6.0.0 input rules */
+							}
 							foreach( $optionitems as $optionitem ) {
-								$option_vals[] = array( 
-									"option_id" => $optionset->option_id, 
-									"optionitem_id" => $optionitem->optionitem_id, 
-									"option_name" => $optionitem->option_name, 
-									"optionitem_name" => $optionitem->optionitem_name, 
-									"option_type" => $optionitem->option_type, 
-									"optionitem_value" => stripslashes( sanitize_text_field( $_POST['ec_option_' . $optionset->option_id] ) ), 
+								$option_vals[] = array(
+									"option_id" => $optionset->option_id,
+									"optionitem_id" => $optionitem->optionitem_id,
+									"option_name" => $optionitem->option_name,
+									"optionitem_name" => $optionitem->optionitem_name,
+									"option_type" => $optionitem->option_type,
+									"optionitem_value" => $legacy_value,
 									"optionitem_model_number" => $optionitem->optionitem_model_number 
 								);
 							}
@@ -5088,8 +5096,21 @@ class ec_cartpage {
 
 						if ( $optionset->option_type == "file" ) {
 							// Upload after the cart row exists ( see below ).
-							$file_upload_fields[] = 'ec_option_' . $optionset->option_id;
+							$file_upload_fields[ 'ec_option_' . (int) $optionset->option_id ] = $optionset; /* 6.0.0: the option set carries its allowed file types. */
 						}
+					}
+				}
+
+				/* 6.0.0: a chosen file the store cannot accept stops the add, before the cart row exists. */
+				foreach ( $file_upload_fields as $file_upload_field => $file_upload_optionset ) {
+					$upload_problem = $this->upload_customer_file( $session_id, $file_upload_field, true, $file_upload_optionset );
+					if ( '' !== $upload_problem && 'none' !== $upload_problem ) {
+						/* reject_option_input() and ec-text-input-rules.js identify the option by its option_to_product_id, not the option_id in the field name. */
+						$failed_option_id = (int) $file_upload_optionset->option_to_product_id;
+						$this->option_input_errors[] = $failed_option_id;
+						$this->option_input_error_reasons[ $failed_option_id ] = 'file_' . $upload_problem;
+						$this->reject_option_input( false );
+						return;
 					}
 				}
 
@@ -5098,8 +5119,9 @@ class ec_cartpage {
 
 				// Attach advanced option rows and files to newly created rows only.
 				if ( $tempcart_id && ! $was_merged ) {
-					foreach ( $file_upload_fields as $file_upload_field ) {
-						$this->upload_customer_file( $tempcart_id, $file_upload_field );
+					foreach ( $file_upload_fields as $file_upload_field => $file_upload_optionset ) {
+						/* 6.0.0: the session folder ( not the sequential cart row id ), which is where the order record looks ( ec_db::insert_order_option ). */
+						$this->upload_customer_file( $session_id, $file_upload_field, false, $file_upload_optionset );
 					}
 					for( $i=0; $i<count( $option_vals ); $i++ ) {
 						$this->mysqli->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_vals[$i] );
@@ -5128,10 +5150,22 @@ class ec_cartpage {
 	}
 
 	private function send_inquiry( $product ) {
-		$inquiry_name = ( isset( $_POST['ec_inquiry_name'] ) ) ? stripslashes( sanitize_text_field( $_POST['ec_inquiry_name'] ) ) : "";
-		$inquiry_email = ( isset( $_POST['ec_inquiry_email'] ) ) ? stripslashes( sanitize_email( $_POST['ec_inquiry_email'] ) ) : "";
-		$inquiry_message = ( isset( $_POST['ec_inquiry_message'] ) ) ? stripslashes( sanitize_textarea_field( $_POST['ec_inquiry_message'] ) ) : "";
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- process_add_to_cart_v3() verified the add-to-cart form nonce before calling this method.
+		$inquiry_name = ( isset( $_POST['ec_inquiry_name'] ) ) ? stripslashes( sanitize_text_field( wp_unslash( $_POST['ec_inquiry_name'] ) ) ) : "";
+		$inquiry_email = ( isset( $_POST['ec_inquiry_email'] ) ) ? stripslashes( sanitize_email( wp_unslash( $_POST['ec_inquiry_email'] ) ) ) : "";
+		$inquiry_message = ( isset( $_POST['ec_inquiry_message'] ) ) ? stripslashes( sanitize_textarea_field( wp_unslash( $_POST['ec_inquiry_message'] ) ) ) : "";
 		$send_copy = ( isset( $_POST['ec_inquiry_send_copy'] ) ) ? true : false;
+
+		/* 6.0.0: the add-to-cart entry point into the inquiry form gets the same abuse checks
+		 * as process_send_inquiry(). process_add_to_cart_v3() verified the form nonce first. */
+		if ( class_exists( 'wp_easycart_inquiry_guard' ) ) {
+			$inquiry_block = wp_easycart_inquiry_guard::check( $product, $inquiry_name, $inquiry_email, $inquiry_message );
+			if ( '' !== $inquiry_block ) {
+				wp_easycart_inquiry_guard::reject( $product, $inquiry_block, $inquiry_email );
+				return;
+			}
+		}
+
 		$has_product_options = false;
 
 		$option1 = $option2 = $option3 = $option4 = $option5 = "";
@@ -5158,6 +5192,7 @@ class ec_cartpage {
 				$has_product_options = true;
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		foreach ( $optionitem_list as $optionitem ) {
 			if ( $option1 == $optionitem->optionitem_id ) {
@@ -5182,8 +5217,13 @@ class ec_cartpage {
 		}
 
 		if ( $product->use_advanced_optionset ) {
-			$file_temp_num = rand( 1000000, 999999999 );
+			/* 6.0.0: random, unguessable upload folder ( was rand( 1000000, 999999999 ) ). */
+			$file_temp_num = class_exists( 'wp_easycart_customer_uploads' ) ? wp_easycart_customer_uploads::new_folder_name( 'inquiry' ) : 'inquiry-' . wp_generate_password( 32, false, false );
 			$option_vals = $this->get_advanced_option_vals( $product->product_id, $file_temp_num );
+			if ( ! empty( $this->option_input_errors ) ) {
+				$this->reject_option_input( $product );
+				return;
+			}
 		}
 
 		$email_logo_url = get_option( 'ec_option_email_logo' );
@@ -5236,6 +5276,10 @@ class ec_cartpage {
 			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_inquiry_email.php';
 		}
 		$message = $admin_message = ob_get_clean();
+		/* 6.0.0: the shopper copy never carries upload download links ( file name only ); the admin copy keeps them. */
+		if ( class_exists( 'wp_easycart_admin_order_uploads' ) ) {
+			$message = wp_easycart_admin_order_uploads::strip_links( $message );
+		}
 		$message = apply_filters( 'wpeasycart_inquiry_email_content', $message, $filter_options );
 		$admin_message = apply_filters( 'wpeasycart_inquiry_email_admin_content', $admin_message, $filter_options );
 		$subject = $admin_subject = wp_easycart_language( )->get_text( 'product_details', 'product_details_inquiry_email_title' ); //"New Product Inquiry";
@@ -5246,13 +5290,18 @@ class ec_cartpage {
 			if ( $send_copy ) {
 				wp_mail( $inquiry_email, $subject, $message, implode("\r\n", $headers) );
 			}
-			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $admin_title, $admin_message, implode("\r\n", $headers) );
+			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $admin_subject, $admin_message, implode("\r\n", $headers) );
 		} else {
 			$mailer = new wpeasycart_mailer();
 			if ( $send_copy ) {
 				$mailer->send_order_email( $inquiry_email, $subject, $message );
 			}
-			$mailer->send_order_email( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $admin_title, $admin_message );
+			$mailer->send_order_email( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $admin_subject, $admin_message );
+		}
+
+		/* 6.0.0: only a sent inquiry counts towards the per IP / email / product limits. */
+		if ( class_exists( 'wp_easycart_inquiry_guard' ) ) {
+			wp_easycart_inquiry_guard::record( ( isset( $product->product_id ) ? (int) $product->product_id : 0 ), $inquiry_email );
 		}
 
 		header( "location: " . $this->store_page . $this->permalink_divider . "model_number=" . $product->model_number . "&ec_store_success=inquiry_sent" );
@@ -5442,8 +5491,24 @@ class ec_cartpage {
 				}
 
 			} else {
+				// phpcs:disable WordPress.Security.NonceVerification.Missing -- every caller ( add_to_cart_v3, subscribe_v3, send_inquiry ) verifies its form nonce first.
+				$posted_key = 'ec_option_' . (int) $optionset->option_id;
+				if ( ! isset( $_POST[ $posted_key ] ) || '' === $_POST[ $posted_key ] ) {
+					$posted_key = 'ec_option_adv_' . (int) $optionset->option_to_product_id;
+				}
+				$posted_value = ( isset( $_POST[ $posted_key ] ) && '' !== $_POST[ $posted_key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $posted_key ] ) ) : null;
+				// phpcs:enable WordPress.Security.NonceVerification.Missing
+				/* 6.0.0: text / textarea input rules ( case, allowed characters, max length ) so per-character pricing and the order see the normalised value. */
+				if ( null !== $posted_value && class_exists( 'wp_easycart_text_input_rules' ) && wp_easycart_text_input_rules::supports( $optionset->option_type ) ) {
+					$checked = wp_easycart_text_input_rules::validate( $posted_value, $optionset );
+					if ( $checked['rejected'] ) {
+						$this->option_input_errors[] = (int) $optionset->option_to_product_id;
+						$this->option_input_error_reasons[ (int) $optionset->option_to_product_id ] = isset( $checked['reason'] ) ? $checked['reason'] : 'empty';
+					}
+					$posted_value = ( '' === $checked['value'] ) ? null : $checked['value'];
+				}
 				foreach( $optionitems as $optionitem ) {
-					if ( isset( $_POST['ec_option_' . (int) $optionset->option_id] ) && '' != $_POST['ec_option_' . (int) $optionset->option_id] ) {
+					if ( null !== $posted_value ) {
 						$option_vals[] = array(
 							"option_id" => (int) $optionset->option_id,
 							"option_label" => wp_easycart_escape_html( $optionset->option_label ),
@@ -5451,37 +5516,57 @@ class ec_cartpage {
 							"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
 							"option_type" => sanitize_text_field( $optionset->option_type ),
 							"optionitem_id" => (int) $optionitem->optionitem_id,
-							"optionitem_value" => stripslashes( sanitize_text_field( $_POST['ec_option_' . (int) $optionset->option_id] ) ),
+							"optionitem_value" => $posted_value,
 							"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
 						);
-
-					} else if ( isset( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id] ) && '' != $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id] ) {
-						$option_vals[] = array(
-							"option_id" => (int) $optionset->option_id,
-							"option_label" => wp_easycart_escape_html( $optionset->option_label ),
-							"option_name" => sanitize_text_field( $optionset->option_name ),
-							"optionitem_name" => wp_easycart_escape_html( $optionitem->optionitem_name ),
-							"option_type" => sanitize_text_field( $optionset->option_type ),
-							"optionitem_id" => (int) $optionitem->optionitem_id,
-							"optionitem_value" => stripslashes( sanitize_text_field( $_POST['ec_option_adv_' . (int) $optionset->option_to_product_id] ) ),
-							"optionitem_model_number" => sanitize_text_field( $optionitem->optionitem_model_number )
-						);
-
 					}
 				}
 			}
 
 			if ( $optionset->option_type == "file" ) {
+				$upload_problem = 'none';
 				if ( isset( $_FILES['ec_option_' . (int) $optionset->option_id] ) ) {
-					$this->upload_customer_file( $tempcart_id, 'ec_option_' . (int) $optionset->option_id );
+					$upload_problem = $this->upload_customer_file( $tempcart_id, 'ec_option_' . (int) $optionset->option_id, false, $optionset );
 
 				} else if ( isset( $_FILES['ec_option_adv_' . (int) $optionset->option_to_product_id] ) ) {
-					$this->upload_customer_file( $tempcart_id, 'ec_option_adv_' . (int) $optionset->option_to_product_id );
+					$upload_problem = $this->upload_customer_file( $tempcart_id, 'ec_option_adv_' . (int) $optionset->option_to_product_id, false, $optionset );
+				}
+				/* 6.0.0: the shopper chose a file the store could not keep ( type, size, upload or server problem ): send them back with the reason. */
+				if ( '' !== $upload_problem && 'none' !== $upload_problem ) {
+					$this->option_input_errors[] = (int) $optionset->option_to_product_id;
+					$this->option_input_error_reasons[ (int) $optionset->option_to_product_id ] = 'file_' . ( 'storage' === $upload_problem ? 'upload' : $upload_problem );
 				}
 			}
 		}
 		$option_vals = apply_filters( 'wp_easycart_advanced_options_add_to_cart', $option_vals, $product_id, $tempcart_id );
 		return $option_vals;
+	}
+
+	/**
+	 * Nothing is added: a text / textarea option failed its input rules, or a chosen file
+	 * could not be uploaded. Sends the shopper back to the product with
+	 * ?ec_option_error=<option_to_product_id> ( and ec_option_error_reason ), which
+	 * ec-text-input-rules.js uses to show that option's error text. AJAX adds ( noredirect ) just stop.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param object $product Product row.
+	 */
+	private function reject_option_input( $product ) {
+		$option_ids = array_values( array_unique( array_map( 'intval', $this->option_input_errors ) ) );
+		if ( isset( $_POST['noredirect'] ) && '1' === $_POST['noredirect'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the calling form handler verified its nonce.
+			return;
+		}
+		$fallback   = ( is_object( $product ) && ! empty( $product->post_id ) ) ? get_permalink( (int) $product->post_id ) : $this->store_page;
+		$return_url = wp_get_referer();
+		$return_url = $return_url ? wp_validate_redirect( $return_url, $fallback ) : $fallback;
+		$return_url = remove_query_arg( array( 'ec_option_error', 'ec_option_error_reason', 'ec_store_success', 'model' ), $return_url );
+		$args       = array( 'ec_option_error' => $option_ids[0] );
+		if ( isset( $this->option_input_error_reasons[ $option_ids[0] ] ) && in_array( $this->option_input_error_reasons[ $option_ids[0] ], array( 'min_length', 'file_type', 'file_size', 'file_upload' ), true ) ) {
+			$args['ec_option_error_reason'] = $this->option_input_error_reasons[ $option_ids[0] ];
+		}
+		wp_safe_redirect( add_query_arg( $args, $return_url ) );
+		exit;
 	}
 
 	private function get_grid_quantity( $product_id, $tempcart_id ) {
@@ -5549,6 +5634,10 @@ class ec_cartpage {
 			$option_vals = array();
 			if ( $use_advanced_optionset || $use_both_option_types ) {
 				$option_vals = $this->get_advanced_option_vals( $product_id, $cart_id );
+				if ( ! empty( $this->option_input_errors ) ) {
+					$this->reject_option_input( $product );
+					return;
+				}
 			}
 
 			$was_merged = false;
@@ -6271,7 +6360,21 @@ class ec_cartpage {
 					$product->is_shippable = false;
 				}
 				if ( $optionitem->optionitem_download_override_file ) {
-					$product->download_file_name = $optionitem->optionitem_download_override_file;
+					/* JSON settings object from the option editor, read the same way as ec_cartitem. @since 6.0.0 */
+					if ( '{' == substr( $optionitem->optionitem_download_override_file, 0, 1 ) ) {
+						$override_file_json = json_decode( $optionitem->optionitem_download_override_file );
+						if ( is_object( $override_file_json ) && isset( $override_file_json->is_override_file ) && '1' == $override_file_json->is_override_file ) {
+							if ( isset( $override_file_json->is_override_amazon ) && '1' == $override_file_json->is_override_amazon ) {
+								$product->is_amazon_download = 1;
+								$product->amazon_key = isset( $override_file_json->override_amazon_key ) ? $override_file_json->override_amazon_key : '';
+							} else if ( isset( $override_file_json->override_file_name ) ) {
+								$product->is_amazon_download = 0;
+								$product->download_file_name = $override_file_json->override_file_name;
+							}
+						}
+					} else {
+						$product->download_file_name = $optionitem->optionitem_download_override_file;
+					}
 				}
 				if ( $optionitem && $optionitem->optionitem_price > 0 ) {
 					if ( 'number' == $option['option_type'] ) {
@@ -6998,7 +7101,7 @@ class ec_cartpage {
 					$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 					$headers[] = "X-Mailer: PHP/" . phpversion();
 
-					$message = wp_easycart_language()->get_text( "account_register", "account_register_email_message" ) . " " . $email;
+					$message = wp_easycart_account_register_admin_email_html( $email ); // 6.0.0: shared email design.
 
 					if ( get_option( 'ec_option_use_wp_mail' ) ) {
 						wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language()->get_text( "account_register", "account_register_email_title" ), $message, implode("\r\n", $headers) );
@@ -8554,7 +8657,7 @@ class ec_cartpage {
 								$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 								$headers[] = "X-Mailer: PHP/" . phpversion();
 
-								$message = wp_easycart_language()->get_text( "account_register", "account_register_email_message" ) . " " . $email;
+								$message = wp_easycart_account_register_admin_email_html( $email ); // 6.0.0: shared email design.
 
 								if ( get_option( 'ec_option_use_wp_mail' ) ) {
 									wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language()->get_text( "account_register", "account_register_email_title" ), $message, implode("\r\n", $headers) );
@@ -9323,15 +9426,33 @@ class ec_cartpage {
 	}
 
 	private function process_send_inquiry() {
-		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_cart_form_nonce'] ), 'wp-easycart-send-inquiry' ) ) {
+		if ( ! isset( $_POST['ec_cart_form_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ec_cart_form_nonce'] ) ), 'wp-easycart-send-inquiry' ) ) {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( '', array( 'cart_error' => 'invalid_nonce' ) ) ) );
 			die();
+		}
+
+		/* 6.0.0: every posted field is read and sanitised once here, and the inquiry abuse
+		 * checks ( honeypot, time to submit, rate limits, content rules, sign-in ) run before
+		 * the reCAPTCHA round trip, so obvious spam never reaches Google or the mailer. */
+		$inquiry_email   = isset( $_POST['ec_inquiry_email'] ) ? stripslashes( sanitize_email( wp_unslash( $_POST['ec_inquiry_email'] ) ) ) : '';
+		$inquiry_name    = isset( $_POST['ec_inquiry_name'] ) ? stripslashes( sanitize_text_field( wp_unslash( $_POST['ec_inquiry_name'] ) ) ) : '';
+		$inquiry_message = isset( $_POST['ec_inquiry_message'] ) ? stripslashes( sanitize_textarea_field( wp_unslash( $_POST['ec_inquiry_message'] ) ) ) : '';
+		$model_number    = isset( $_POST['ec_inquiry_model_number'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_inquiry_model_number'] ) ) : '';
+		$send_copy       = isset( $_POST['ec_inquiry_send_copy'] ) ? true : false;
+		$product         = ( '' !== $model_number ) ? $this->mysqli->get_product( $model_number ) : false;
+
+		if ( class_exists( 'wp_easycart_inquiry_guard' ) ) {
+			$inquiry_block = wp_easycart_inquiry_guard::check( $product, $inquiry_name, $inquiry_email, $inquiry_message );
+			if ( '' !== $inquiry_block ) {
+				wp_easycart_inquiry_guard::reject( $product, $inquiry_block, $inquiry_email );
+				return;
+			}
 		}
 
 		$recaptcha_valid = true;
 		if ( get_option( 'ec_option_enable_recaptcha' ) ) {
 			$db = new ec_db_admin();
-			$recaptcha_response = sanitize_text_field( $_POST['ec_grecaptcha_response_inquiry'] );
+			$recaptcha_response = isset( $_POST['ec_grecaptcha_response_inquiry'] ) ? sanitize_text_field( wp_unslash( $_POST['ec_grecaptcha_response_inquiry'] ) ) : '';
 
 			$data = array(
 				"secret"	=> get_option( 'ec_option_recaptcha_secret_key' ),
@@ -9359,20 +9480,23 @@ class ec_cartpage {
 			$recaptcha_valid = ( isset( $response->success ) && $response->success ) ? true : false;
 		}
 
+		/* 6.0.0: a failed reCAPTCHA used to end the request silently, leaving the shopper on a
+		 * page that looked as though nothing had happened. Report it the same way as every
+		 * other refused inquiry. */
+		if ( ! $recaptcha_valid && class_exists( 'wp_easycart_inquiry_guard' ) ) {
+			wp_easycart_inquiry_guard::reject( $product, 'captcha', $inquiry_email );
+			return;
+		}
+
 		if ( $recaptcha_valid ) {
-			$inquiry_email = stripslashes( sanitize_email( $_POST['ec_inquiry_email'] ) );
-			$inquiry_name = stripslashes( sanitize_text_field( $_POST['ec_inquiry_name'] ) );
-			$inquiry_message = stripslashes( sanitize_textarea_field( $_POST['ec_inquiry_message'] ) );
-			$model_number = sanitize_text_field( $_POST['ec_inquiry_model_number'] );
-			if ( isset( $_POST['ec_inquiry_send_copy'] ) ) {
-				$send_copy = true;
-			} else {
-				$send_copy = false;
-			}
-			$product = $this->mysqli->get_product( $model_number );
-			$file_temp_num = rand( 1000000, 999999999 );
+			/* 6.0.0: random, unguessable upload folder ( was rand( 1000000, 999999999 ) ). */
+			$file_temp_num = class_exists( 'wp_easycart_customer_uploads' ) ? wp_easycart_customer_uploads::new_folder_name( 'inquiry' ) : 'inquiry-' . wp_generate_password( 32, false, false );
 			if ( $product->use_both_option_types || $product->use_advanced_optionset ) {
 				$option_vals = $this->get_advanced_option_vals( $product->product_id, $file_temp_num );
+				if ( ! empty( $this->option_input_errors ) ) {
+					$this->reject_option_input( $product );
+					return;
+				}
 			}
 			if ( $product->use_both_option_types || ! $product->use_advanced_optionset ) {
 				$option1 = $option2 = $option3 = $option4 = $option5 = "";
@@ -9471,6 +9595,10 @@ class ec_cartpage {
 					include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_inquiry_email.php';
 				}
 				$message = $admin_message = ob_get_clean();
+				/* 6.0.0: the shopper copy never carries upload download links ( file name only ); the admin copy keeps them. */
+				if ( class_exists( 'wp_easycart_admin_order_uploads' ) ) {
+					$message = wp_easycart_admin_order_uploads::strip_links( $message );
+				}
 				$message = apply_filters( 'wpeasycart_inquiry_email_content', $message, $filter_options );
 				$admin_message = apply_filters( 'wpeasycart_inquiry_email_admin_content', $admin_message, $filter_options );
 				$subject = $admin_subject = wp_easycart_language()->get_text( "product_details", "product_details_inquiry_title" );
@@ -9496,6 +9624,11 @@ class ec_cartpage {
 						do_action( 'wpeasycart_custom_inquiry_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $inquiry_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $subject, $message );
 					}
 					do_action( 'wpeasycart_custom_admin_inquiry_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $inquiry_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), $admin_subject, $admin_message );
+				}
+
+				/* 6.0.0: only a sent inquiry counts towards the per IP / email / product limits. */
+				if ( class_exists( 'wp_easycart_inquiry_guard' ) ) {
+					wp_easycart_inquiry_guard::record( ( isset( $product->product_id ) ? (int) $product->product_id : 0 ), $inquiry_email );
 				}
 
 				if ( get_option( 'ec_option_use_old_linking_style' ) ) {
@@ -9572,6 +9705,10 @@ class ec_cartpage {
 
 		if ( $use_advanced_optionset || $use_both_option_types ) {
 			$option_vals = $this->get_advanced_option_vals( $product_id, $cart_id );
+			if ( ! empty( $this->option_input_errors ) ) {
+				$this->reject_option_input( $product );
+				return;
+			}
 		}
 
 		$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
@@ -9711,68 +9848,38 @@ class ec_cartpage {
 	}
 	/* END PROCESS FORM SUBMISSION FUNCTIONS */
 
-	/* Customer File Upload Function */
-	private function file_upload_max_size() {
-		$max_size = -1;
-		if ( $max_size < 0 ) {
-			$post_max_size = $this->parse_size( ini_get( 'post_max_size' ) );
-			if ( $post_max_size > 0 ) {
-				$max_size = $post_max_size;
-			}
-
-			// If upload_max_size is less, then reduce. Except if upload_max_size is
-			// zero, which indicates no limit.
-			$upload_max = $this->parse_size( ini_get( 'upload_max_filesize' ) );
-			if ( $upload_max > 0 && $upload_max < $max_size ) {
-				$max_size = $upload_max;
-			}
+	/**
+	 * Store one customer file upload in its private folder.
+	 *
+	 * 6.0.0: stored by wp_easycart_customer_uploads, which writes straight into
+	 * products/uploads/<folder>/ ( no copy in the public WordPress uploads folder ) and keeps the
+	 * deny rules in place. The file name stays sanitize_text_field() of the browser's name, the
+	 * value the cart and order record for the option.
+	 *
+	 * @param string $upload_folder     Cart session id, or a random inquiry folder.
+	 * @param string $upload_field_name $_FILES key.
+	 * @param bool   $check_only        Validate type / size / PHP upload status without storing.
+	 * @param object $optionset         6.0.0: the file option set; its allowed file types ( option_meta['file_types'] ) replace the store default when set.
+	 * @return string '' stored ( or valid ) | 'none' nothing chosen | 'type' | 'size' | 'upload' | 'storage'.
+	 */
+	private function upload_customer_file( $upload_folder, $upload_field_name, $check_only = false, $optionset = null ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- every caller verifies its form nonce first; the entry is validated by wp_easycart_customer_uploads::store_file() and wp_handle_upload().
+		if ( ! isset( $_FILES[ $upload_field_name ] ) || ! is_array( $_FILES[ $upload_field_name ] ) ) {
+			return 'none';
 		}
-		return $max_size;
-	}
-
-	private function parse_size( $size ) {
-		$unit = preg_replace( '/[^bkmgtpezy]/i', '', $size ); // Remove the non-unit characters from the size.
-		$size = preg_replace( '/[^0-9\.]/', '', $size ); // Remove the non-numeric characters from the size.
-		if ( $unit ) {
-			// Find the position of the unit in the ordered string which is the power of magnitude to multiply a kilobyte by.
-			return round( $size * pow( 1024, stripos( 'bkmgtpezy', $unit[0] ) ) );
-		} else {
-			return round( $size );
+		if ( ! class_exists( 'wp_easycart_customer_uploads' ) ) {
+			return 'storage';
 		}
-	}
+		$upload_file = $_FILES[ $upload_field_name ]; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- file array; name and type are sanitized in check(), tmp_name is checked by wp_handle_upload().
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
-	private function upload_customer_file( $tempcart_id, $upload_field_name ) {
-		if ( isset( $_FILES[ $upload_field_name ]['name'] ) && sanitize_text_field( $_FILES[ $upload_field_name ]['name'] ) != '' ) {
-			$max_filesize = $this->file_upload_max_size();
-			$max_filesize = apply_filters( 'wp_easycart_max_filesize_upload_limit', $max_filesize );
-
-			$filetypes = array( 'text/plain', 'image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/x-compressed', 'application/x-zip-compressed', 'application/zip', 'multipart/x-zip', 'application/x-bzip2', 'application/x-bzip', 'application/x-bzip2', 'application/x-gzip', 'application/x-gzip', 'multipart/x-gzip' );
-			$filtered_file_types = apply_filters( 'wpeasycart_allowed_file_upload_types', $filetypes );
-			if ( is_array( $filtered_file_types) ) {
-				$filetypes = $filtered_file_types;
-			}
-			if ( is_dir( EC_PLUGIN_DATA_DIRECTORY . '/products/uploads/' ) ) {
-				$upload_path =  EC_PLUGIN_DATA_DIRECTORY . '/products/uploads/';
-			} else {
-				$upload_path =  EC_PLUGIN_DIRECTORY . '/products/uploads/';
-			}
-
-			if ( (int) $_FILES[ $upload_field_name ]['size'] <= $max_filesize && in_array( sanitize_text_field( $_FILES[ $upload_field_name ]['type'] ), $filetypes ) ) {
-				mkdir( $upload_path . $tempcart_id . '/', 0711 );
-				$copy_to = $upload_path . $tempcart_id . '/' . sanitize_text_field( $_FILES[ $upload_field_name ]['name'] );
-				if ( ! function_exists( 'wp_handle_upload' ) ) {
-					require_once( ABSPATH . 'wp-admin/includes/file.php' );
-				}
-				$upload = wp_handle_upload( $_FILES[ $upload_field_name ], array( 'test_form' => false ) );
-				if( isset( $upload['error'] ) || ! isset( $upload['file'] ) ) {
-					return false;
-				}
-				copy( $upload['file'], $copy_to );
-				unlink( $upload['file'] );
-				return true;
-			}
+		$max_filesize = wp_easycart_customer_uploads::max_size();
+		$filetypes    = wp_easycart_customer_uploads::allowed_types();
+		$extensions   = ( null !== $optionset ) ? wp_easycart_customer_uploads::option_extensions( $optionset ) : array();
+		if ( $check_only ) {
+			return wp_easycart_customer_uploads::check( $upload_file, $max_filesize, $filetypes, $extensions );
 		}
-		return false;
+		return wp_easycart_customer_uploads::store_file( $upload_file, (string) $upload_folder, $max_filesize, $filetypes, $extensions );
 	}
 
 	private function sanatize_card_number( $card_number ) {

@@ -73,7 +73,7 @@ class wp_easycart_admin_upsell {
 		$end   = strtotime( $ld->support_end_date );
 		$days  = self::days_until( $end );
 		$model = strtolower( trim( (string) ( isset( $ld->model_number ) ? $ld->model_number : '' ) ) );
-		$prem  = ( 'ec410' === $model );
+		$prem  = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::is_premium() : ( 'ec410' === $model );
 		$info  = get_option( 'wp_easycart_license_info' );
 		$key   = ( is_array( $info ) && isset( $info['transaction_key'] ) ) ? $info['transaction_key'] : '';
 		$url   = $prem ? 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/' : 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/';
@@ -95,7 +95,7 @@ class wp_easycart_admin_upsell {
 			'premium' => $prem,
 			'tone'    => $tone,
 			'url'     => $url,
-			'edition' => $prem ? __( 'Premium', 'wp-easycart' ) : __( 'PRO', 'wp-easycart' ),
+			'edition' => $prem ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ),
 		);
 	}
 
@@ -136,11 +136,14 @@ class wp_easycart_admin_upsell {
 		$s = self::stats();
 		$n = function( $v ) { return number_format_i18n( (int) $v ); };
 		$lapsed = ( $r && 'lapsed' === $r['tone'] );
+		$plan   = ( $r && $r['premium'] ) ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' );
 		$out = array();
 		if ( ! empty( $s['pro_products'] ) ) {
 			$out[] = $lapsed
-				? sprintf( _n( '%s product uses a PRO type ( subscription, download, gift card or donation ) and is not selling', '%s products use PRO types ( subscriptions, downloads, gift cards, donations ) and are not selling', $s['pro_products'], 'wp-easycart' ), $n( $s['pro_products'] ) )
-				: sprintf( _n( '%s product uses a PRO type ( subscription, download, gift card or donation ) and stops selling', '%s products use PRO types ( subscriptions, downloads, gift cards, donations ) and stop selling', $s['pro_products'], 'wp-easycart' ), $n( $s['pro_products'] ) );
+				/* translators: %s: number of products. */
+				? sprintf( _n( '%s subscription, download, gift card or donation product is not selling', '%s subscription, download, gift card and donation products are not selling', $s['pro_products'], 'wp-easycart' ), $n( $s['pro_products'] ) )
+				/* translators: %s: number of products. */
+				: sprintf( _n( '%s subscription, download, gift card or donation product stops selling', '%s subscription, download, gift card and donation products stop selling', $s['pro_products'], 'wp-easycart' ), $n( $s['pro_products'] ) );
 		}
 		if ( ! empty( $s['active_offers'] ) ) {
 			$out[] = $lapsed
@@ -154,7 +157,8 @@ class wp_easycart_admin_upsell {
 		} else {
 			$out[] = $lapsed ? __( 'the 2% gateway fee is being charged on Stripe, Square and PayPal payments', 'wp-easycart' ) : __( 'the 2% gateway fee returns on Stripe, Square and PayPal payments', 'wp-easycart' );
 		}
-		$out[] = $lapsed ? __( 'every PRO admin panel is locked ( data is kept, not editable )', 'wp-easycart' ) : __( 'every PRO admin panel locks ( data is kept, not editable )', 'wp-easycart' );
+		/* translators: %s: plan name, Pro or Premium. */
+		$out[] = $lapsed ? sprintf( __( 'every %s admin panel is locked ( data is kept, not editable )', 'wp-easycart' ), $plan ) : sprintf( __( 'every %s admin panel locks ( data is kept, not editable )', 'wp-easycart' ), $plan );
 		$out[] = $lapsed ? __( 'security fixes, updates and priority support are not being delivered', 'wp-easycart' ) : __( 'security fixes, updates and priority support stop', 'wp-easycart' );
 		if ( $r && $r['premium'] ) {
 			$out[] = $lapsed ? __( 'Premium extensions ( ShipStation, QuickBooks, MailChimp, apps ) are not syncing', 'wp-easycart' ) : __( 'Premium extensions ( ShipStation, QuickBooks, MailChimp, apps ) stop syncing', 'wp-easycart' );
@@ -187,8 +191,21 @@ class wp_easycart_admin_upsell {
 	/* Store stats                                                         */
 	/* ------------------------------------------------------------------ */
 
+	/**
+	 * Store-wide counts behind the upsell copy. Eleven aggregates, so the array is cached 12 hours in the
+	 * wpec_upsell_stats transient ( @since 6.0.0 ), stamped with wp_easycart_admin::order_fingerprint() so a
+	 * new order from any code path recomputes it; flush_order_caches() drops it on admin-side order changes.
+	 * The 30 / 90 day figures are bounded on the indexed order_date / last_changed_date columns.
+	 * Returned keys are unchanged.
+	 */
 	public static function stats() {
 		if ( null !== self::$stats ) {
+			return self::$stats;
+		}
+		$fingerprint = ( class_exists( 'wp_easycart_admin' ) && method_exists( 'wp_easycart_admin', 'order_fingerprint' ) ) ? wp_easycart_admin::order_fingerprint() : '';
+		$cached      = get_transient( 'wpec_upsell_stats' );
+		if ( is_array( $cached ) && isset( $cached['fp'], $cached['stats'] ) && $cached['fp'] === $fingerprint && is_array( $cached['stats'] ) && isset( $cached['stats']['avg_order'] ) ) {
+			self::$stats = apply_filters( 'wp_easycart_upsell_stats', $cached['stats'] );
 			return self::$stats;
 		}
 		global $wpdb;
@@ -201,10 +218,11 @@ class wp_easycart_admin_upsell {
 			'downloads'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE is_download = 1' ),
 			'tracked'       => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1 AND ( show_stock_quantity = 1 OR use_optionitem_quantity_tracking = 1 )' ),
 			'pro_products'  => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1 AND ( is_subscription_item = 1 OR is_download = 1 OR is_giftcard = 1 OR is_donation = 1 )' ),
-			'active_offers' => (int) $wpdb->get_var( "SHOW TABLES LIKE 'ec_offer'" ) ? (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_offer WHERE is_active = 1' ) : 0,
+			'active_offers' => (int) $wpdb->get_var( "SHOW TABLES LIKE 'ec_offer'" ) ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_offer WHERE offer_status = 'active'" ) : 0,
 			'low_stock'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1 AND show_stock_quantity = 1 AND use_optionitem_quantity_tracking = 0 AND stock_quantity <= 10' ),
 			'avg_order'     => (float) $wpdb->get_var( 'SELECT AVG( grand_total ) FROM ec_order WHERE order_date > DATE_SUB( NOW(), INTERVAL 90 DAY )' ),
 		);
+		set_transient( 'wpec_upsell_stats', array( 'fp' => $fingerprint, 'stats' => $s ), 12 * HOUR_IN_SECONDS );
 		self::$stats = apply_filters( 'wp_easycart_upsell_stats', $s );
 		return self::$stats;
 	}
@@ -215,8 +233,9 @@ class wp_easycart_admin_upsell {
 
 	/** Personalized one-liner; '' when the store has no meaningful numbers. */
 	private static function stat_line( $context ) {
-		$s = self::stats();
-		$n = 'number_format_i18n';
+		$s    = self::stats();
+		$n    = 'number_format_i18n';
+		$plan = self::plan_label();
 		switch ( $context ) {
 			case 'offers':
 			case 'coupons':
@@ -246,7 +265,8 @@ class wp_easycart_admin_upsell {
 				break;
 			case 'downloads':
 				if ( $s['downloads'] > 0 ) {
-					return sprintf( __( 'You already sell %s downloadable products. PRO adds download limits, expiry, and per-order delivery tracking.', 'wp-easycart' ), $n( $s['downloads'] ) );
+					/* translators: 1: number of products, 2: plan name, Pro or Premium. */
+					return sprintf( __( 'You already sell %1$s downloadable products. %2$s adds download limits, expiry, and per-order delivery tracking.', 'wp-easycart' ), $n( $s['downloads'] ), $plan );
 				}
 				break;
 			case 'products':
@@ -256,28 +276,34 @@ class wp_easycart_admin_upsell {
 				break;
 			case 'reports':
 				if ( $s['abandoned_30d'] >= 3 ) {
-					return sprintf( __( '%s carts were abandoned in the last 30 days. The free reports count them; PRO recovers them and shows what came back.', 'wp-easycart' ), $n( $s['abandoned_30d'] ) );
+					/* translators: 1: number of carts, 2: plan name, Pro or Premium. */
+					return sprintf( __( '%1$s carts were abandoned in the last 30 days. The free reports count them; %2$s recovers them and shows what came back.', 'wp-easycart' ), $n( $s['abandoned_30d'] ), $plan );
 				}
 				if ( $s['orders_30d'] >= 5 ) {
-					return sprintf( __( '%s orders in the last 30 days. PRO tells you which products, customers and codes drove them.', 'wp-easycart' ), $n( $s['orders_30d'] ) );
+					/* translators: 1: number of orders, 2: plan name, Pro or Premium. */
+					return sprintf( __( '%1$s orders in the last 30 days. %2$s tells you which products, customers and codes drove them.', 'wp-easycart' ), $n( $s['orders_30d'] ), $plan );
 				}
 				break;
 			case 'orders':
 				if ( $s['orders_30d'] >= 5 ) {
-					return sprintf( __( '%s orders in the last 30 days. Every address fix, size swap or partial refund on those is a PRO drawer away instead of a new order.', 'wp-easycart' ), $n( $s['orders_30d'] ) );
+					/* translators: 1: number of orders, 2: plan name, Pro or Premium. */
+					return sprintf( __( '%1$s orders in the last 30 days. With %2$s, every address fix, size swap or partial refund on those is a drawer away instead of a new order.', 'wp-easycart' ), $n( $s['orders_30d'] ), $plan );
 				}
 				break;
 			case 'inventory':
 				if ( $s['low_stock'] >= 1 ) {
-					return sprintf( _n( '%s product is running low right now. PRO emails you before it sells out and records every change so you know where the stock went.', '%s products are running low right now. PRO emails you before they sell out and records every change so you know where the stock went.', $s['low_stock'], 'wp-easycart' ), $n( $s['low_stock'] ) );
+					/* translators: 1: number of products, 2: plan name, Pro or Premium. */
+					return sprintf( _n( '%1$s product is running low right now. %2$s emails you before it sells out and records every change so you know where the stock went.', '%1$s products are running low right now. %2$s emails you before they sell out and records every change so you know where the stock went.', $s['low_stock'], 'wp-easycart' ), $n( $s['low_stock'] ), $plan );
 				}
 				if ( $s['tracked'] >= 1 ) {
-					return sprintf( __( 'You track stock on %s products. PRO adds a reason and a timestamp to every adjustment, reorder alerts, and CSV import.', 'wp-easycart' ), $n( $s['tracked'] ) );
+					/* translators: 1: number of products, 2: plan name, Pro or Premium. */
+					return sprintf( __( 'You track stock on %1$s products. %2$s adds a reason and a timestamp to every adjustment, reorder alerts, and CSV import.', 'wp-easycart' ), $n( $s['tracked'] ), $plan );
 				}
 				break;
 			case 'cart_links':
 				if ( $s['products'] >= 1 ) {
-					return sprintf( __( 'Any of your %s products can become a one-click cart link — PRO lets you attach a discount and a QR code to it.', 'wp-easycart' ), $n( $s['products'] ) );
+					/* translators: 1: number of products, 2: plan name, Pro or Premium. */
+					return sprintf( __( 'Any of your %1$s products can become a one-click cart link — %2$s lets you attach a discount and a QR code to it.', 'wp-easycart' ), $n( $s['products'] ), $plan );
 				}
 				break;
 		}
@@ -291,6 +317,27 @@ class wp_easycart_admin_upsell {
 	/* Catalog                                                             */
 	/* ------------------------------------------------------------------ */
 
+	/**
+	 * The plan name for upsell copy: 'Pro/Premium' on the free edition, else the store's own plan.
+	 *
+	 * @since 6.0.0
+	 */
+	public static function plan_label() {
+		return class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' );
+	}
+
+	/**
+	 * Badge text for a catalog entry's plan ( 'pro' or 'premium' ).
+	 *
+	 * @since 6.0.0
+	 */
+	public static function plan_badge( $plan = 'pro' ) {
+		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+			return wp_easycart_admin_edition::badge( $plan );
+		}
+		return ( 'premium' === $plan ) ? __( 'Premium', 'wp-easycart' ) : __( 'Pro/Premium', 'wp-easycart' );
+	}
+
 	private static function f( $icon, $title, $desc ) {
 		return array( 'icon' => $icon, 'title' => $title, 'desc' => $desc );
 	}
@@ -300,9 +347,10 @@ class wp_easycart_admin_upsell {
 		if ( null !== $catalog ) {
 			return $catalog;
 		}
+		$plan = self::plan_label();
 		$catalog = array(
 			'default' => array(
-				'title'    => __( 'WP EasyCart PRO', 'wp-easycart' ),
+				'title'    => $plan,
 				'headline' => __( 'Unlock the full WP EasyCart', 'wp-easycart' ),
 				'lede'     => __( 'Everything you need to sell more is already built — it just needs a license.', 'wp-easycart' ),
 				'plan'     => 'pro',
@@ -316,7 +364,8 @@ class wp_easycart_admin_upsell {
 			'offers' => array(
 				'title'     => __( 'Offers', 'wp-easycart' ),
 				'headline'  => __( 'Run promotions that actually move product', 'wp-easycart' ),
-				'lede'      => __( 'Offers are the PRO promotions engine: discount rules, codes, and scheduling in one place — with revenue tracked per offer.', 'wp-easycart' ),
+				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+				'lede'      => sprintf( __( 'Offers are the %s promotions engine: discount rules, codes, and scheduling in one place — with revenue tracked per offer.', 'wp-easycart' ), $plan ),
 				'plan'      => 'pro',
 				'icon'      => 'dashicons-megaphone',
 				'new_label' => __( 'New Offer', 'wp-easycart' ),
@@ -392,14 +441,19 @@ class wp_easycart_admin_upsell {
 				),
 			),
 			'fees' => array(
-				'title'    => __( 'Fees', 'wp-easycart' ),
-				'headline' => __( 'Charge the fees your business needs', 'wp-easycart' ),
-				'lede'     => __( 'Handling, rush, deposit, or environmental fees — flat or percentage.', 'wp-easycart' ),
-				'plan'     => 'pro',
-				'icon'     => 'dashicons-money-alt',
-				'features' => array(
-					'apply' => self::f( 'dashicons-cart', __( 'Flexible application', 'wp-easycart' ), __( 'Per order, per item, or by shipping method.', 'wp-easycart' ) ),
-					'tax'   => self::f( 'dashicons-media-spreadsheet', __( 'Taxable or not', 'wp-easycart' ), __( 'Shown as its own checkout line.', 'wp-easycart' ) ),
+				'title'     => __( 'Flex-Fees', 'wp-easycart' ),
+				'headline'  => __( 'Charge the fees your business needs', 'wp-easycart' ),
+				'lede'      => __( 'Handling, card-processing or regional fees, or a discount, added as its own line at checkout.', 'wp-easycart' ),
+				'plan'      => 'pro',
+				'icon'      => 'dashicons-money-alt',
+				'new_label' => __( 'Add fee', 'wp-easycart' ),
+				'docs'      => 'https://docs.wpeasycart.com/docs/administrative-console-guide/flex-fee-settings/',
+				'features'  => array(
+					'amount'   => self::f( 'dashicons-chart-pie', __( 'Percentage or flat amount', 'wp-easycart' ), __( 'Cap a percentage with a minimum and maximum; a negative amount becomes a discount.', 'wp-easycart' ) ),
+					'location' => self::f( 'dashicons-location', __( 'Charge by location', 'wp-easycart' ), __( 'Countries, states, cities, ZIP codes or shipping zones.', 'wp-easycart' ) ),
+					'customer' => self::f( 'dashicons-groups', __( 'Charge by cart or customer', 'wp-easycart' ), __( 'Product categories and customer roles, such as a wholesale surcharge.', 'wp-easycart' ) ),
+					'payment'  => self::f( 'dashicons-money', __( 'Charge by payment method', 'wp-easycart' ), __( 'Pass card, PayPal or pay-later costs on only to shoppers who use them.', 'wp-easycart' ) ),
+					'checkout' => self::f( 'dashicons-cart', __( 'Its own checkout line', 'wp-easycart' ), __( 'Shown by name in the cart, on the order and in sales reports.', 'wp-easycart' ) ),
 				),
 			),
 			'schedules' => array(
@@ -449,6 +503,7 @@ class wp_easycart_admin_upsell {
 				'docs'     => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=products',
 				'features' => array(
 					'variants'     => self::f( 'dashicons-randomize', __( 'Variant inventory & pricing', 'wp-easycart' ), __( 'Track stock and set a price per size, color, or any option combination.', 'wp-easycart' ) ),
+					'modifiers'    => self::f( 'dashicons-admin-settings', __( 'Product modifiers', 'wp-easycart' ), __( 'Text, number, date and file inputs, add-on checkboxes, radios and quantity grids, each with its own price.', 'wp-easycart' ) ),
 					'volume'       => self::f( 'dashicons-chart-bar', __( 'Volume pricing tiers', 'wp-easycart' ), __( 'Buy 10 save 5%, buy 50 save 15% — tiers shown on the product page.', 'wp-easycart' ) ),
 					'b2b'          => self::f( 'dashicons-groups', __( 'B2B role pricing', 'wp-easycart' ), __( 'Wholesale and trade prices by customer role; require login to see them.', 'wp-easycart' ) ),
 					'advanced'     => self::f( 'dashicons-tag', __( 'Advanced pricing display', 'wp-easycart' ), __( 'Price ranges, custom price labels, and login-to-view pricing.', 'wp-easycart' ) ),
@@ -459,7 +514,8 @@ class wp_easycart_admin_upsell {
 			'reports' => array(
 				'title'    => __( 'Reporting', 'wp-easycart' ),
 				'headline' => __( 'See what is selling, to whom, and what you are leaving behind', 'wp-easycart' ),
-				'lede'     => __( 'The free reports show totals. PRO breaks them down by product, customer and coupon, tracks recovered carts, and mails you a summary.', 'wp-easycart' ),
+				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+				'lede'     => sprintf( __( 'The free reports show totals. %s breaks them down by product, customer and coupon, tracks recovered carts, and mails you a summary.', 'wp-easycart' ), $plan ),
 				'plan'     => 'pro',
 				'icon'     => 'dashicons-chart-line',
 				'docs'     => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=reports',
@@ -564,6 +620,7 @@ class wp_easycart_admin_upsell {
 		$catalog = self::catalog();
 		$e = $catalog[ $context ];
 		$e['key']       = $context;
+		$e['badge']     = self::plan_badge( isset( $e['plan'] ) ? $e['plan'] : 'pro' );
 		$e['headline']  = isset( $e['headline'] ) ? $e['headline'] : $e['title'];
 		$e['stat_line'] = self::stat_line( $context );
 		$e['pro_url']   = self::plan_url( 'pro', $context );
@@ -591,7 +648,7 @@ class wp_easycart_admin_upsell {
 				if ( ! empty( $ld->is_trial ) ) {
 					return 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=' . ( 'premium' === $plan ? 'premium' : 'professional' );
 				}
-				$prem = ( 'ec410' === strtolower( trim( (string) ( isset( $ld->model_number ) ? $ld->model_number : '' ) ) ) );
+				$prem = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::is_premium() : ( 'ec410' === strtolower( trim( (string) ( isset( $ld->model_number ) ? $ld->model_number : '' ) ) ) );
 				if ( 'premium' === $plan || $prem ) {
 					return 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $key );
 				}
@@ -624,7 +681,7 @@ class wp_easycart_admin_upsell {
 		$e = self::entry( $context );
 		$headline = isset( $override['headline'] ) ? $override['headline'] : $e['headline'];
 		$lede     = isset( $override['lede'] ) ? $override['lede'] : $e['lede'];
-		$badge    = isset( $override['badge'] ) ? $override['badge'] : 'PRO';
+		$badge    = isset( $override['badge'] ) ? $override['badge'] : $e['badge'];
 		echo '<div class="ecv2-cl-upsell' . ( ! empty( $override['tone'] ) ? ' is-' . esc_attr( $override['tone'] ) : '' ) . '" data-upsell-context="' . esc_attr( $e['key'] ) . '">';
 		if ( $with_header ) {
 			echo '<div class="ecv2-cl-upsell-head">';
@@ -633,13 +690,13 @@ class wp_easycart_admin_upsell {
 			if ( ! empty( $override['cta_url'] ) ) {
 				echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( $override['cta_url'] ) . '" target="_blank">' . esc_html( ! empty( $override['cta_label'] ) ? $override['cta_label'] : __( 'Renew now', 'wp-easycart' ) ) . '</a>';
 			} else {
-				echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="' . self::onclick( $e['key'] ) . '">' . esc_html__( 'See what\'s included', 'wp-easycart' ) . '</button>';
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="' . self::onclick( $e['key'] ) . '">' . esc_html__( 'See what\'s included', 'wp-easycart' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- self::onclick() builds the handler from esc_js() values.
 			}
 			echo '</div>';
 		}
 		echo '<div class="ecv2-cl-upsell-grid">';
 		foreach ( $e['features'] as $key => $f ) {
-			echo '<button type="button" class="ecv2-cl-upsell-feature" data-feature="' . esc_attr( $key ) . '" onclick="' . self::onclick( $e['key'], $key ) . '">';
+			echo '<button type="button" class="ecv2-cl-upsell-feature" data-feature="' . esc_attr( $key ) . '" onclick="' . self::onclick( $e['key'], $key ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- self::onclick() builds the handler from esc_js() values; $key is a catalog() array key.
 			echo '<span class="dashicons ' . esc_attr( $f['icon'] ) . '"></span>';
 			echo '<span class="ecv2-cl-upsell-feature-text"><strong>' . esc_html( $f['title'] ) . '</strong><span>' . esc_html( $f['desc'] ) . '</span></span>';
 			echo '<span class="dashicons dashicons-lock ecv2-cl-upsell-lock"></span>';
@@ -658,13 +715,14 @@ class wp_easycart_admin_upsell {
 		$ctx = $e['key'];
 		echo '<div class="ecv2-wrap ecv2-locked-page" data-upsell-context="' . esc_attr( $ctx ) . '">';
 
-		if ( self::pro_installed_inactive() ) {
-			echo '<div class="ecv2-upsell-notice"><span class="dashicons dashicons-info-outline"></span><span>' . esc_html__( 'WP EasyCart PRO is already installed on this site — it just needs to be switched on.', 'wp-easycart' ) . '</span><a class="ecv2-btn ecv2-btn-sm" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate PRO', 'wp-easycart' ) . '</a></div>';
+		/* Inside the admin shell, wp_easycart_pro_check() has already printed the "installed but not activated" banner above the content. */
+		if ( self::pro_installed_inactive() && ! did_action( 'wp_easycart_admin_messages' ) ) {
+			echo '<div class="ecv2-upsell-notice"><span class="dashicons dashicons-info-outline"></span><span>' . esc_html__( 'WP EasyCart PRO, the plugin that runs Pro and Premium licenses, is already installed on this site. It just needs to be switched on.', 'wp-easycart' ) . '</span><a class="ecv2-btn ecv2-btn-sm" href="' . esc_url( wp_easycart_admin()->get_pro_activation_link() ) . '">' . esc_html__( 'Activate WP EasyCart PRO', 'wp-easycart' ) . '</a></div>';
 		}
 
 		echo '<div class="ecv2-page-header">';
-		echo '<div class="ecv2-page-header-left"><span class="dashicons ' . esc_attr( isset( $e['icon'] ) ? $e['icon'] : 'dashicons-lock' ) . ' ecv2-page-header-icon"></span><h2 class="ecv2-page-title">' . esc_html( $e['title'] ) . '</h2><span class="ecv2-cl-pro-badge">PRO</span></div>';
-		echo '<div class="ecv2-page-header-right"><button type="button" class="ecv2-btn ecv2-btn-primary" onclick="' . self::onclick( $ctx ) . '"><span class="dashicons dashicons-lock"></span> + ' . esc_html( isset( $e['new_label'] ) ? $e['new_label'] : __( 'New', 'wp-easycart' ) ) . '</button></div>';
+		echo '<div class="ecv2-page-header-left"><span class="dashicons ' . esc_attr( isset( $e['icon'] ) ? $e['icon'] : 'dashicons-lock' ) . ' ecv2-page-header-icon"></span><h2 class="ecv2-page-title">' . esc_html( $e['title'] ) . '</h2><span class="ecv2-cl-pro-badge">' . esc_html( $e['badge'] ) . '</span></div>';
+		echo '<div class="ecv2-page-header-right"><button type="button" class="ecv2-btn ecv2-btn-primary" onclick="' . self::onclick( $ctx ) . '"><span class="dashicons dashicons-lock"></span> + ' . esc_html( isset( $e['new_label'] ) ? $e['new_label'] : __( 'New', 'wp-easycart' ) ) . '</button></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- self::onclick() builds the handler from esc_js() values.
 		echo '</div>';
 
 		if ( '' !== $e['stat_line'] ) {
@@ -675,7 +733,7 @@ class wp_easycart_admin_upsell {
 
 		$method = 'preview_' . $ctx;
 		if ( method_exists( __CLASS__, $method ) ) {
-			echo '<div class="ecv2-locked-preview" onclick="' . self::onclick( $ctx ) . '" role="button" tabindex="0">';
+			echo '<div class="ecv2-locked-preview" onclick="' . self::onclick( $ctx ) . '" role="button" tabindex="0">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- self::onclick() builds the handler from esc_js() values.
 			echo '<div class="ecv2-locked-preview-tag"><span class="dashicons dashicons-visibility"></span> ' . esc_html__( 'Preview with sample data', 'wp-easycart' ) . '</div>';
 			call_user_func( array( __CLASS__, $method ), $e );
 			echo '<div class="ecv2-locked-preview-veil"><span class="ecv2-btn ecv2-btn-primary"><span class="dashicons dashicons-lock"></span> ' . esc_html( sprintf( __( 'Unlock %s', 'wp-easycart' ), $e['title'] ) ) . '</span></div>';
@@ -731,6 +789,74 @@ class wp_easycart_admin_upsell {
 		echo '</tbody></table></div>';
 	}
 
+	/**
+	 * Mock of the PRO Flex-Fees list with sample fees. Never reads ec_fee: an unlicensed
+	 * store must not see ( or be able to act on ) its real fee rows here.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param array $e Catalog entry ( unused; every preview_*() shares print_locked_page()'s signature ).
+	 */
+	private static function preview_fees( $e ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- called through call_user_func() with the catalog entry.
+		$pct = function ( $v ) {
+			return number_format_i18n( $v, 2 ) . '%';
+		};
+		$row = function ( $name, $amount, $sub, $applies, $discount, $kind ) {
+			return array(
+				'name'     => $name,
+				'amount'   => $amount,
+				'sub'      => $sub,
+				'applies'  => $applies,
+				'discount' => $discount,
+				'kind'     => $kind,
+			);
+		};
+		/* translators: %s: smallest amount a percentage fee can charge, e.g. $0.30. */
+		$min = sprintf( __( 'min. %s', 'wp-easycart' ), self::money( 0.30 ) );
+		/* translators: %s: largest amount a percentage fee or discount can reach, e.g. $20.00. */
+		$max  = sprintf( __( 'max. %s', 'wp-easycart' ), self::money( 20 ) );
+		$pc   = __( 'percentage', 'wp-easycart' );
+		$flat = __( 'flat', 'wp-easycart' );
+		$rows = array(
+			$row( __( 'Card processing fee', 'wp-easycart' ), $pct( 2.9 ), $min, __( 'Card payments', 'wp-easycart' ), false, $pc ),
+			$row( __( 'PayPal fee', 'wp-easycart' ), $pct( 3.49 ), '', __( 'PayPal / third party', 'wp-easycart' ), false, $pc ),
+			$row( __( 'Remote area delivery', 'wp-easycart' ), self::money( 15 ), '', __( 'Alaska, Hawaii', 'wp-easycart' ), false, $flat ),
+			$row( __( 'Wholesale handling', 'wp-easycart' ), self::money( 5 ), '', __( 'Role: wholesale', 'wp-easycart' ), false, $flat ),
+			$row( __( 'Local pickup discount', 'wp-easycart' ), '-' . $pct( 5 ), $max, __( 'Shipping zone: Local', 'wp-easycart' ), true, $pc ),
+			$row( __( 'Environmental levy', 'wp-easycart' ), $pct( 1 ), '', '', false, $pc ),
+		);
+
+		echo '<div class="ecv2-locked-kpis">';
+		foreach ( array(
+			array( __( 'All fees', 'wp-easycart' ), '6' ),
+			array( __( 'Discounts', 'wp-easycart' ), '1' ),
+			array( __( 'On every order', 'wp-easycart' ), '1' ),
+			array( __( 'Fees collected · 30d', 'wp-easycart' ), self::money( 1284.60 ) ),
+		) as $kpi ) {
+			echo '<div class="ecv2-locked-kpi"><span>' . esc_html( $kpi[0] ) . '</span><strong>' . esc_html( $kpi[1] ) . '</strong></div>';
+		}
+		echo '</div>';
+
+		echo '<div class="ecv2-table-card"><table class="ecv2-locked-table"><thead><tr>';
+		foreach ( array( __( 'Fee', 'wp-easycart' ), __( 'Amount', 'wp-easycart' ), __( 'Applies to', 'wp-easycart' ), __( 'Type', 'wp-easycart' ) ) as $h ) {
+			echo '<th>' . esc_html( $h ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $rows as $r ) {
+			echo '<tr>';
+			echo '<td><strong>' . esc_html( $r['name'] ) . '</strong></td>';
+			echo '<td><strong' . ( $r['discount'] ? ' class="ecv2-locked-discount"' : '' ) . '>' . esc_html( $r['amount'] ) . '</strong>';
+			if ( '' !== $r['sub'] ) {
+				echo ' <span class="ecv2-locked-sub">' . esc_html( $r['sub'] ) . '</span>';
+			}
+			echo '</td>';
+			echo '<td>' . ( '' === $r['applies'] ? '<span class="ecv2-locked-chip is-amber">' . esc_html__( 'All orders', 'wp-easycart' ) . '</span>' : esc_html( $r['applies'] ) ) . '</td>';
+			echo '<td><span class="ecv2-locked-chip' . ( $r['discount'] ? ' is-green' : '' ) . '">' . esc_html( $r['discount'] ? __( 'Discount', 'wp-easycart' ) : __( 'Fee', 'wp-easycart' ) ) . '</span> <span class="ecv2-locked-sub">' . esc_html( $r['kind'] ) . '</span></td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table></div>';
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* Assets                                                              */
 	/* ------------------------------------------------------------------ */
@@ -746,6 +872,9 @@ class wp_easycart_admin_upsell {
 			'entries' => self::entries_for_js(),
 			'lang'    => array( 'learn' => __( 'How it works', 'wp-easycart' ), 'full' => __( 'Full feature list', 'wp-easycart' ) ),
 		) );
+		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+			wp_localize_script( 'wp_easycart_admin_upsell_js', 'wp_easycart_edition', wp_easycart_admin_edition::for_js() );
+		}
 	}
 }
 add_action( 'admin_enqueue_scripts', array( 'wp_easycart_admin_upsell', 'enqueue' ), 19 );

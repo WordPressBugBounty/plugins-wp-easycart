@@ -1,3 +1,7 @@
+<?php
+/* Plan name for the locked options below: the store's own plan, or Pro/Premium when no license is known. */
+$wpec_plan_name = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' );
+?>
 <div class="ec_admin_square_row">
 	<div class="ec_admin_slider_row">
 		<?php wp_easycart_admin()->preloader->print_preloader( 'ec_admin_square_display_loader' ); ?>
@@ -11,8 +15,8 @@
 			<div><?php esc_attr_e( 'Square offers the ability to pay with a credit card directly on your website. Adding Square gives your shopping cart a more professional look and increases conversions.', 'wp-easycart' ); ?></div>
 			<?php if ( 'square' == get_option( 'ec_option_payment_process_method' ) ) { ?>
 				<a href="admin.php?page=wp-easycart-settings&subpage=cart-importer" target="_blank"><?php esc_attr_e( 'Import Products From SquareUp', 'wp-easycart' ); ?></a>
-				<a href="admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-disconnect"><?php esc_attr_e( 'Disconnect', 'wp-easycart' ); ?></a>
-				<a href="admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-renew"><?php esc_attr_e( 'Renew Access', 'wp-easycart' ); ?></a>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-disconnect' ), 'wp-easycart-payment-square-disconnect' ) ); ?>"><?php esc_attr_e( 'Disconnect', 'wp-easycart' ); ?></a>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-renew' ), 'wp-easycart-payment-square-renew' ) ); ?>"><?php esc_attr_e( 'Renew Access', 'wp-easycart' ); ?></a>
 				<a href="#" onclick="return square_show_advanced( );" id="square_advanced_link"><?php esc_attr_e( 'Advanced Options', 'wp-easycart' ); ?> &#9660;</a>
 			<?php }?>
 			<input type="hidden" name="use_square" id="use_square" value="<?php echo ( get_option( 'ec_option_payment_process_method' ) == 'square' ) ? 1 : 0; ?>" />
@@ -70,7 +74,7 @@
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:5px;"></span>' ) ); ?><?php esc_attr_e( 'Digital Wallets', 'wp-easycart' ); ?>
 				<select name="ec_option_square_digital_wallet" id="ec_option_square_digital_wallet" onchange="ec_admin_save_square_options( );">
-					<option value="0" <?php if( ! get_option('ec_option_stripe_enable_apple_pay' ) ) { echo ' selected'; } ?>><?php esc_attr_e( 'Only Available in PRO &amp; Premium', 'wp-easycart' ); ?></option>
+					<option value="0" <?php if( ! get_option('ec_option_stripe_enable_apple_pay' ) ) { echo ' selected'; } ?>><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
 				</select>
 			</div>
 			<div class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show"><?php esc_attr_e( 'Merchant Name (Shown in Digital Wallet Payments)', 'wp-easycart' ); ?>

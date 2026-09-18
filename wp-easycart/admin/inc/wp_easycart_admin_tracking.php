@@ -86,7 +86,7 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			$reasons = array(
 				__( "The plugin didn't work.", 'wp-easycart' ),
 				__( 'I found a better plugin.', 'wp-easycart' ),
-				__( 'I need a PRO feature and the upgrade cost is too high.', 'wp-easycart' ),
+				__( 'I need a Pro or Premium feature and the upgrade cost is too high.', 'wp-easycart' ),
 				__( 'Plugin is missing a feature that my project requires.', 'wp-easycart' ),
 				__( "It's a temporary deactivation. I'm just debugging an issue.", 'wp-easycart' ),
 				__( 'Other.', 'wp-easycart' ),

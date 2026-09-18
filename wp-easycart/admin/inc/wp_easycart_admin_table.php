@@ -100,6 +100,9 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			} else {
 				$this->perpage = 25;
 			}
+			if ( $this->perpage < 1 ) {
+				$this->perpage = 25; // Guard against ?perpage=0 (division by zero in total_pages).
+			}
 			$this->bulk_actions = array(
 				array(
 					'name' => 'delete',
@@ -149,6 +152,9 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 
 			if ( isset( $_GET['perpage'] ) ) {
 				$this->perpage = (int) $_GET['perpage'];
+				if ( $this->perpage < 1 ) {
+					$this->perpage = 25; // Guard against ?perpage=0 (division by zero in total_pages).
+				}
 				if ( $user_id && in_array( $this->perpage, $this->perpage_options, true ) ) {
 					update_user_meta( $user_id, $meta_key, $this->perpage );
 				}
@@ -305,7 +311,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					if ( ! empty( $button['confirm'] ) ) {
 						$onclick = " onclick=\"return confirm('" . esc_js( $button['confirm'] ) . "');\"";
 					}
-					echo '<a href="' . esc_url( $href ) . '" class="' . esc_attr( $css ) . '"' . $onclick . '>' . esc_attr( $button['label'] ) . '</a>';
+					echo '<a href="' . esc_url( $href ) . '" class="' . esc_attr( $css ) . '"' . $onclick . '>' . esc_attr( $button['label'] ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $onclick is empty or built from esc_js() above.
 				}
 			}
 			if ( $this->cancel ) {
@@ -630,7 +636,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			echo '</th>';
 		}
 		private function print_table_column( $result, $list_column ) {
-			echo '<td class="' . ( ( $this->mobile_column ) ? 'wpec-mobile-hide' : '' ) . ( ( isset( $list_column['tablet_hide'] ) && $list_column['tablet_hide'] ) ? ' wpec-tablet-hide' : '' ) . ( ( isset( $list_column['laptop_hide'] ) && $list_column['laptop_hide'] ) ? ' wpec-laptop-hide' : '' ) . '" id="wpec_table_cell_' . $list_column['name'] . '_' . $result->{ $this->key } . '">';
+			echo '<td class="' . ( ( $this->mobile_column ) ? 'wpec-mobile-hide' : '' ) . ( ( isset( $list_column['tablet_hide'] ) && $list_column['tablet_hide'] ) ? ' wpec-tablet-hide' : '' ) . ( ( isset( $list_column['laptop_hide'] ) && $list_column['laptop_hide'] ) ? ' wpec-laptop-hide' : '' ) . '" id="wpec_table_cell_' . esc_attr( $list_column['name'] ) . '_' . esc_attr( $result->{ $this->key } ) . '">';
 			if ( isset( $list_column['linked'] ) && $list_column['linked'] ) {
 				echo '<a href="' . esc_url( $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', 'edit' ) ) . '">';
 			}
@@ -639,7 +645,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 				echo '</a>';
 				if ( isset( $list_column['subactions'] ) ) {
 					if ( isset( $list_column['square_check'] ) && $list_column['square_check'] && isset( $result->square_id ) && '' != $result->square_id ) {
-						echo '<img src="' . plugins_url( 'wp-easycart/admin/images/square-logo.png' ) . '" class="wp-easycart-square-sync-icon" title="' . esc_attr__( 'Content managed in your Square POS', 'wp-easycart' ) . '" />';
+						echo '<img src="' . esc_url( plugins_url( 'wp-easycart/admin/images/square-logo.png' ) ) . '" class="wp-easycart-square-sync-icon" title="' . esc_attr__( 'Content managed in your Square POS', 'wp-easycart' ) . '" />';
 					}
 					echo '<div class="ec_admin_list_subactions">';
 					$first_subaction = true;
@@ -930,7 +936,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 							}
 						} else if ( isset( $customer_element['format'] ) && 'customer_button' == $customer_element['format'] && isset( $result->{ $customer_element['name'] } ) ) {
 							if ( (int) $result->{ $customer_element['name'] } > 0 ) {
-								echo '<a href="admin.php?&page=wp-easycart-users&subpage=accounts&user_id=' . esc_attr( (int) $result->{ $customer_element['name'] } ) . '&ec_admin_form_action=edit&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-' . preg_replace( '/[^A-Za-z0-9\-\_]/', '', 'edit' ) ) . '" target="_blank">' . esc_attr__( 'View Customer', 'wp-easycart' ) . '</a>';
+								echo '<a href="admin.php?&page=wp-easycart-users&subpage=accounts&user_id=' . esc_attr( (int) $result->{ $customer_element['name'] } ) . '&ec_admin_form_action=edit&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-action-' . preg_replace( '/[^A-Za-z0-9\-\_]/', '', 'edit' ) ) ) . '" target="_blank">' . esc_attr__( 'View Customer', 'wp-easycart' ) . '</a>';
 							}
 						} else {
 							echo '<span class="wp-easycart-admin-customer-element">' . ( ( isset( $result->{ $customer_element['name'] } ) ) ? esc_attr( strip_tags( wp_unslash( $result->{ $customer_element['name'] } ) ) ) : '' ) . '</span>';
@@ -965,7 +971,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					} else if ( 'Quick Edit' == $label ) {
 						echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
 					} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
-						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
+						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_escape_html() is a wp_kses() wrapper.
 					}
 					if ( 'Stats' == $label ) {
 						echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
@@ -999,7 +1005,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					} else if ( 'Quick Edit' == $label ) {
 						echo ' onclick="wp_easycart_open_quick_edit( \'' . esc_attr( $this->actions[ $j ]['type'] ) . '\', \'' . esc_attr( $result->{ $this->key } ) . '\' ); return false;"';
 					} else if ( isset( $this->actions[ $j ]['customhtml'] ) ) {
-						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] );
+						echo wp_easycart_escape_html( $this->actions[ $j ]['customhtml'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_escape_html() is a wp_kses() wrapper.
 					}
 					if ( 'Stats' == $label ) {
 						echo ' data-views="' . esc_attr( $result->{'views'} ) . '"';
@@ -1078,9 +1084,9 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 
 		private function get_data() {
 			$sql = $this->get_query();
-			$this->results = $this->wpdb->get_results( $sql );
+			$this->results = $this->wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- get_query() joins developer-defined table/column config; request values pass through is_valid_sort_column(), (int) casts and $wpdb->prepare() in get_filter().
 			$this->showing = count( $this->results );
-			$record_count_row = $this->wpdb->get_row( 'SELECT COUNT( ' . $this->table . '.' . $this->key . ' ) AS total_rows' . $this->get_filter_select() . ' FROM ' . $this->table . ' ' . $this->join . $this->get_filter() );
+			$record_count_row = $this->wpdb->get_row( 'SELECT COUNT( ' . $this->table . '.' . $this->key . ' ) AS total_rows' . $this->get_filter_select() . ' FROM ' . $this->table . ' ' . $this->join . $this->get_filter() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table/key/join/select are developer-defined config; get_filter() prepares all request values.
 			$this->record_count = ( $record_count_row && isset( $record_count_row->total_rows ) ) ? $record_count_row->total_rows : 0;
 			$this->total_pages = ceil( $this->record_count / $this->perpage );
 			if ( $this->current_page > $this->total_pages && $this->record_count == 0 ) {
@@ -1163,6 +1169,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 			$join = '';
 			$where = ' WHERE 1=1' . $this->custom_where;
 			$having = '';
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- the prepare() format strings are developer-defined filter config set via set_filters(); the request value is the prepared argument.
 			for ( $i = 0; $i < count( $this->filters ); $i++ ) {
 				if ( isset( $_GET[ 'filter_' . $i ] ) && '' != sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ) {
 					if ( isset( $this->filters[ $i ]['join'] ) && '' != $this->filters[ $i ]['join'] ) {
@@ -1192,6 +1199,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 					}
 				}
 			}
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 			if ( isset( $_GET['s'] ) && '' != sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) {
 				/* Generate a search string */
 				$search = trim( sanitize_text_field( wp_unslash( $_GET['s'] ) ) );
@@ -1220,7 +1228,7 @@ if ( ! class_exists( 'wp_easycart_admin_table' ) ) :
 		}
 		private function get_filter_options( $filter ) {
 			$sql = 'SELECT ' . $filter['filterkey'] . ' AS option_id, ' . $filter['orderby'] . ' AS option_label FROM ' . $filter['table'] . ' ORDER BY ' . $filter['orderby'] . ' ' . $filter['order'];
-			return $this->wpdb->get_results( $sql );
+			return $this->wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- filterkey/orderby/table/order are developer-defined filter config from set_filters(), not request data.
 		}
 
 		public function display_review_stars( $rating ) {

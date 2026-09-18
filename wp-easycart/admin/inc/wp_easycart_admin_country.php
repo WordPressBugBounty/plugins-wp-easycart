@@ -9,9 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 
 		protected static $_instance = null;
 
-		public $country_list_file;
-		public $country_details_file;
-
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
 				self::$_instance = new self();
@@ -20,8 +17,8 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 		}
 
 		public function __construct() {
-			$this->country_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/country-list.php';
-			$this->country_details_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/country-details.php';
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_country_table.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
 
 			/* Process Admin Messages */
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
@@ -152,14 +149,17 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 		}
 
 		public function load_country_list() {
-			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['id_cnt'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
-				include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_country.php' );
-				$details = new wp_easycart_admin_details_country();
-				$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-			} else {
-				include( $this->country_list_file );
-			}
+			/* V2: Countries & regions is one screen; legacy details URLs open the drawer */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_country_table.php' );
+			if ( isset( $_GET['id_sta'] ) && (int) $_GET['id_sta'] ) { global $wpdb; $cid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT idcnt_sta FROM ec_state WHERE id_sta = %d', (int) $_GET['id_sta'] ) ); if ( $cid ) { $_GET['open_country'] = $cid; $_GET['open_tab'] = 'regions'; $_GET['open_region'] = (int) $_GET['id_sta']; } }
+			if ( isset( $_GET['id_cnt'] ) && (int) $_GET['id_cnt'] ) { $_GET['open_country'] = (int) $_GET['id_cnt']; }
+			if ( 'states' === 'country' ) { echo '<script>( function() { var q = new URLSearchParams( location.search ); if ( q.get( "subpage" ) === "states" ) { q.set( "subpage", "country" ); ' . ( isset( $_GET['open_country'] ) ? 'q.set( "open_country", "' . (int) $_GET['open_country'] . '" ); q.set( "open_tab", "regions" ); q.set( "open_region", "' . (int) ( isset( $_GET['open_region'] ) ? $_GET['open_region'] : 0 ) . '" ); ' : '' ) . 'q.delete( "id_sta" ); q.delete( "ec_admin_form_action" ); location.replace( location.pathname + "?" + q.toString() ); } } )();</script>'; return; }
+			$table = new wp_easycart_admin_country_table();
+			$table->print_table();
 		}
+		public function is_v2_page() { return isset( $_GET['page'] ) && 'wp-easycart-settings' === $_GET['page'] && isset( $_GET['subpage'] ) && 'country' === $_GET['subpage']; }
+		public function enqueue_v2_assets() { if ( $this->is_v2_page() ) { include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' ); wp_easycart_admin_catalog_v2_enqueue( 'countries' ); } }
 
 		public function insert_country() {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-country-details' ) ) {
@@ -286,7 +286,7 @@ if ( ! class_exists( 'wp_easycart_admin_country' ) ) :
 			}
  
 			if ( ! class_exists( 'ec_db_manager' ) ) {
-				require_once( EC_PLUGIN_DIRECTORY . '/ec_db_manager.php' );
+				require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_db_manager.php';
 			}
 			$db_manager = new ec_db_manager();
 			$counts = $db_manager->restore_default_countries_and_states();

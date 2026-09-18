@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+<ruleset name="WP EasyCart" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/PHPCSStandards/PHP_CodeSniffer/master/phpcs.xsd">
+	<description>WP EasyCart (free) coding standard: WordPress + PHP 7.3 compatibility, tuned to this codebase.</description>
+
+	<!-- Run from the repo root with:  phpcs [path]   (do NOT pass -standard=WordPress or this file is ignored). -->
+	<file>.</file>
+
+	<!-- Third-party / non-source. -->
+	<exclude-pattern>*/inc/aws/*</exclude-pattern>
+	<exclude-pattern>*/inc/classes/gateway/cert/*</exclude-pattern>
+	<exclude-pattern>*/products/*</exclude-pattern>
+	<exclude-pattern>*/languages/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/.git/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<!-- Show sniff codes (s) and progress (p). -->
+	<arg value="sp"/>
+	<!-- wpeasycart.php is ~470 KB. -->
+	<ini name="memory_limit" value="2G"/>
+
+	<!-- Plugin header: Requires PHP: 7.3 -->
+	<config name="testVersion" value="7.3-"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress">
+		<!-- Every ec_* table is a custom table; direct $wpdb queries are the architecture, not a smell. -->
+		<exclude name="WordPress.DB.DirectDatabaseQuery"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="wp-easycart"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="wp_easycart"/>
+				<element value="wpeasycart"/>
+				<element value="WP_EASYCART"/>
+				<element value="ec_"/>
+				<element value="EC_"/>
+				<element value="ecv2_"/>
+				<element value="ecdv2_"/>
+				<element value="ecudv2_"/>
+				<element value="ecst_"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		Plain functions that perform the nonce check on behalf of the handler.
+		WPCS only recognises wp_verify_nonce() / check_ajax_referer() / check_admin_referer()
+		by default, so every handler that delegates to one of these wrappers is otherwise
+		reported as "Processing form data without nonce verification".
+
+		Rules for this list:
+		- Only list a function whose body calls one of the core nonce functions.
+		  Capability-only helpers (ecudv2_role_guard, verify_access) are deliberately NOT listed.
+		- Only PLAIN functions work. WPCS ignores anything called as a method
+		  ( self::verify_request(), $this->guard(), wp_easycart_admin_verification()->verify_nonce() ),
+		  so method-based wrappers cannot be registered here. Handlers that verify through a
+		  method must annotate the superglobal reads with a phpcs:ignore (or a tight
+		  phpcs:disable / phpcs:enable pair) for WordPress.Security.NonceVerification.Missing,
+		  followed by two hyphens and the reason, e.g. "verified in self::verify_request() above".
+	-->
+	<rule ref="WordPress.Security.NonceVerification">
+		<properties>
+			<property name="customNonceVerificationFunctions" type="array">
+				<!-- V2 admin AJAX guards ( admin/inc/*_table.php, *_v2.php ) -->
+				<element value="ecv2_category_guard"/>
+				<element value="ecv2_cnt_guard"/>
+				<element value="ecv2_email_guard"/>
+				<element value="ecv2_log_guard"/>
+				<element value="ecv2_menu_guard"/>
+				<element value="ecv2_mf_guard"/>
+				<element value="ecv2_osv2_guard"/>
+				<element value="ecv2_perpage_guard"/>
+				<element value="ecv2_pp_guard"/>
+				<element value="ecv2_role_guard"/>
+				<element value="ecv2_rv_guard"/>
+				<element value="ecv2_rvs_guard"/>
+				<element value="ecv2_sub_guard"/>
+				<element value="ecv2_user_import_guard"/>
+				<!-- V2 settings pages ( admin/inc/wp_easycart_admin_settings_page_v2.php ) -->
+				<element value="ecv2_settings_guard"/>
+				<!-- Payment gateway settings saves ( admin/inc/wp_easycart_admin_payments.php ) -->
+				<element value="ecv2_payment_settings_guard"/>
+				<!-- Payment settings GET links: Square disconnect / renew, PayPal disconnect ( same file ) -->
+				<element value="ecv2_payment_link_guard"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+		List-table classes read $_GET for sort / filter / search / paging / subpage state.
+		Those reads change nothing server-side, so a nonce adds no protection there; the
+		"Recommended" warning is noise for these files. State-changing handlers live in the
+		AJAX functions above and are still checked ( "Missing" is never excluded ).
+	-->
+	<rule ref="WordPress.Security.NonceVerification.Recommended">
+		<exclude-pattern>*/admin/inc/wp_easycart_admin_table.php</exclude-pattern>
+		<exclude-pattern>*/admin/inc/wp_easycart_admin_table_v2.php</exclude-pattern>
+		<exclude-pattern>*/admin/inc/wp_easycart_admin_*_table.php</exclude-pattern>
+	</rule>
+
+	<rule ref="WordPress.Security.EscapeOutput">
+		<properties>
+			<!-- wp_kses() wrapper defined in wpeasycart.php -->
+			<property name="customEscapingFunctions" type="array">
+				<element value="wp_easycart_escape_html"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

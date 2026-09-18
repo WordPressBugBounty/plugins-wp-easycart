@@ -60,7 +60,7 @@ $pro_types = array(
 );
 $type_hints = array(
 	'basic-combo'  => __( 'Dropdowns and swatches create variations — every choice can carry its own SKU suffix, price and weight.', 'wp-easycart' ),
-	'basic-swatch' => __( 'Swatches show as chips; each chip can carry a photo.', 'wp-easycart' ),
+	'basic-swatch' => $is_pro ? __( 'Swatches show as chips; give each chip a color or a photo.', 'wp-easycart' ) : sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Swatches show as chips; give each chip a color. Photo swatches come with %s.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
 	'text'         => __( 'A modifier: shoppers type something. It can add a price but never changes stock.', 'wp-easycart' ),
 	'textarea'     => __( 'Multi-line text for longer messages or instructions.', 'wp-easycart' ),
 	'number'       => __( 'A numeric input with optional minimum, maximum and step.', 'wp-easycart' ),
@@ -76,10 +76,10 @@ $type_hints = array(
 if ( ! function_exists( 'ecosv2_tile' ) ) :
 function ecosv2_tile( $type, $label, $desc, $icon_path, $on = false, $locked = false ) {
 	$cls = 'ecosv2-tile' . ( $on ? ' is-on' : '' ) . ( $locked ? ' is-locked' : '' );
-	$click = $locked ? 'ecdv2_upsell( { context: \'products\', feature: \'variants\' } ); return false;' : 'ecosv2_set_type( this );';
+	$click = $locked ? 'ecdv2_upsell( { context: \'products\', feature: \'modifiers\' } ); return false;' : 'ecosv2_set_type( this );';
 	echo '<button type="button" class="' . esc_attr( $cls ) . '" data-type="' . esc_attr( $type ) . '" onclick="' . $click . '">';
 	if ( $locked ) {
-		echo '<span class="ecosv2-pill">PRO</span>';
+		echo '<span class="ecosv2-pill">' . esc_html( wp_easycart_admin_edition::badge( 'pro' ) ) . '</span>';
 	}
 	echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' . $icon_path . '</svg>';
 	echo '<strong>' . esc_html( $label ) . '</strong><span>' . esc_html( $desc ) . '</span>';
@@ -97,7 +97,7 @@ endif;
 			<button type="button" class="ecosv2-back" data-origin-only="product" onclick="ecosv2_close();">
 				<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7.5 2.5L4 6l3.5 3.5"/></svg><?php esc_html_e( 'Back to product', 'wp-easycart' ); ?>
 			</button>
-			<div class="ecosv2-eyebrow"><span><?php esc_html_e( 'New option set', 'wp-easycart' ); ?></span><?php if ( $is_pro ) : ?><span class="ecosv2-pill ecosv2-pill-active">PRO</span><?php endif; ?></div>
+			<div class="ecosv2-eyebrow"><span><?php esc_html_e( 'New option set', 'wp-easycart' ); ?></span><?php if ( $is_pro ) : ?><span class="ecosv2-pill ecosv2-pill-active"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span><?php endif; ?></div>
 			<h2 class="ecosv2-title" id="ecosv2_title"><?php esc_html_e( 'Create an option set', 'wp-easycart' ); ?></h2>
 			<div class="ecosv2-sub">
 				<span data-origin-only="product" id="ecosv2_sub_product"></span>
@@ -152,7 +152,7 @@ endif;
 			<div class="ecosv2-items">
 				<div class="ecosv2-irow ecosv2-irow-head">
 					<span></span>
-					<span class="ecosv2-col-swatch" data-pro-only><?php esc_html_e( 'Photo', 'wp-easycart' ); ?></span>
+					<span class="ecosv2-col-swatch" data-swatch-only><?php esc_html_e( 'Swatch', 'wp-easycart' ); ?></span>
 					<span><?php esc_html_e( 'Name', 'wp-easycart' ); ?></span>
 					<span><?php esc_html_e( 'SKU suffix', 'wp-easycart' ); ?></span>
 					<span><?php esc_html_e( 'Price ±', 'wp-easycart' ); ?></span>
@@ -185,7 +185,7 @@ endif;
 			<button type="button" class="ecosv2-pro-row" onclick="ecdv2_upsell( { context: 'products', feature: 'images' } ); return false;">
 				<?php echo $lock_svg; ?>
 				<span class="ecosv2-pro-row-text"><strong><?php esc_html_e( 'Swatch photos, default choice, per-choice stock', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Show a photo per chip, preselect the most popular choice, and track inventory per combination.', 'wp-easycart' ); ?></span></span>
-				<span class="ecosv2-pill">PRO</span>
+				<span class="ecosv2-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span>
 			</button>
 			<?php else : ?>
 			<div class="ecosv2-pro-live">
@@ -227,7 +227,7 @@ endif;
 		<?php if ( ! $is_pro ) : ?>
 		<section class="ecosv2-section">
 			<div class="ecosv2-card">
-				<div class="ecosv2-card-head"><span class="ecosv2-pill">PRO</span><strong><?php esc_html_e( 'Options that do more than pick a size', 'wp-easycart' ); ?></strong></div>
+				<div class="ecosv2-card-head"><span class="ecosv2-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span><strong><?php esc_html_e( 'Options that do more than pick a size', 'wp-easycart' ); ?></strong></div>
 				<ul>
 					<li><?php esc_html_e( 'Text, number, date and file-upload fields on any product', 'wp-easycart' ); ?></li>
 					<li><?php esc_html_e( 'Add-on checkboxes and radios with their own prices', 'wp-easycart' ); ?></li>

@@ -400,7 +400,10 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			do_action( 'wpeasycart_order_updated', $order_id );
 		}
 
-		public function send_customer_shipping_email( $order_id, $trackingnumber, $shipcarrier ) {
+		/**
+		 * @since 6.0.0 $recipients: send to these addresses only ( order screen send dialog ), without the store copy.
+		 */
+		public function send_customer_shipping_email( $order_id, $trackingnumber, $shipcarrier, $recipients = null ) {
 			global $wpdb;
 
 			$order = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_order.*, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name FROM ec_order LEFT JOIN ec_country AS billing_country ON billing_country.iso2_cnt = ec_order.billing_country LEFT JOIN ec_country AS shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country WHERE order_id = %d', $order_id ) );
@@ -440,6 +443,12 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$headers[] = 'X-Mailer: PHP/' . phpversion();
 
 			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
+
+			if ( is_array( $recipients ) ) {
+				ec_orderdisplay::send_to_recipients( $recipients, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
+				self::log_email_sent( $order_id, 'order-shipping-email', $recipients );
+				return;
+			}
 
 			if ( get_option( 'ec_option_use_wp_mail' ) ) {
 				wp_mail( $order[0]->user_email, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
@@ -544,15 +553,41 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			return array( 'success' => 'order-not-viewed' );
 		}
 
+		/**
+		 * Resends one gift card email.
+		 *
+		 * @since 6.0.0 Returns the recipient and logs the send to the order timeline so the order
+		 *              details screen can confirm it on screen.
+		 *
+		 * @return array|false array( order_id, orderdetail_id, email ), or false when the line has no gift card email.
+		 */
 		public function resendgiftcardemail() {
 			global $wpdb;
 
-			$order_id = (int) $_POST['order_id'];
-			$orderdetail_id  = (int) $_POST['orderdetail_id'];
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_resend_giftcard_email() checks the wp-easycart-order-details nonce and capability before calling this.
+			$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+			$orderdetail_id = ( isset( $_POST['orderdetail_id'] ) ) ? (int) $_POST['orderdetail_id'] : 0;
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
 			$cart_item = $wpdb->get_row( $wpdb->prepare( 'SELECT giftcard_id, gift_card_message, gift_card_from_name, gift_card_to_name, gift_card_email, title, unit_price, unit_price AS gift_card_value, is_deconetwork, deconetwork_image_link, image1, 0 AS image1_optionitem FROM ec_orderdetail WHERE orderdetail_id = %d', $orderdetail_id ) );
+			if ( ! $cart_item || '' == trim( (string) $cart_item->gift_card_email ) ) {
+				return false;
+			}
 
-			$this->send_gift_card_email( $cart_item, $cart_item->giftcard_id );		
-		 }
+			$this->send_gift_card_email( $cart_item, $cart_item->giftcard_id );
+
+			if ( $order_id ) {
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-giftcard-email" )', $order_id ) );
+				$order_log_id = $wpdb->insert_id;
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "gift_card_email", %s )', $order_log_id, $order_id, $cart_item->gift_card_email ) );
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "giftcard_id", %s )', $order_log_id, $order_id, $cart_item->giftcard_id ) );
+			}
+
+			return array(
+				'order_id'       => $order_id,
+				'orderdetail_id' => $orderdetail_id,
+				'email'          => $cart_item->gift_card_email,
+			);
+		}
 
 		private function send_gift_card_email( $cart_item, $giftcard_id ) {
 			global $wpdb;
@@ -660,12 +695,34 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			}
 		 }
 
-		 public function resend_receipt( $order_id ) {
+		/**
+		 * Order timeline entry for an email sent from the order screen send dialog ( 'email' = To, 'email_other' = Cc and Bcc ).
+		 *
+		 * @since 6.0.0
+		 * @param int    $order_id   Order.
+		 * @param string $log_key    order-receipt-email | order-shipping-email.
+		 * @param array  $recipients array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+		 */
+		public static function log_email_sent( $order_id, $log_key, $recipients ) {
+			global $wpdb;
+			$wpdb->insert( 'ec_order_log', array( 'order_id' => (int) $order_id, 'order_log_key' => $log_key ), array( '%d', '%s' ) );
+			$order_log_id = (int) $wpdb->insert_id;
+			$wpdb->insert( 'ec_order_log_meta', array( 'order_log_id' => $order_log_id, 'order_id' => (int) $order_id, 'order_log_meta_key' => 'email', 'order_log_meta_value' => implode( ', ', (array) $recipients['to'] ) ), array( '%d', '%d', '%s', '%s' ) );
+			$others = array_merge( isset( $recipients['cc'] ) ? (array) $recipients['cc'] : array(), isset( $recipients['bcc'] ) ? (array) $recipients['bcc'] : array() );
+			if ( $others ) {
+				$wpdb->insert( 'ec_order_log_meta', array( 'order_log_id' => $order_log_id, 'order_id' => (int) $order_id, 'order_log_meta_key' => 'email_other', 'order_log_meta_value' => implode( ', ', $others ) ), array( '%d', '%d', '%s', '%s' ) );
+			}
+		}
+
+		/**
+		 * @since 6.0.0 $recipients: resend to these addresses only ( order screen send dialog ).
+		 */
+		 public function resend_receipt( $order_id, $recipients = null ) {
 			$mysqli = new ec_db_admin();
 			$order_row = $mysqli->get_order_row_admin( $order_id );
 			if ( $order_row ) {
 				$order_display = new ec_orderdisplay( $order_row, true, true );
-				$order_display->send_email_receipt();
+				$order_display->send_email_receipt( false, $recipients );
 				return true;
 			} else {
 				return false;
@@ -915,13 +972,26 @@ function ec_admin_ajax_edit_customer_notes() {
 	die();
 }
 add_action( 'wp_ajax_ec_admin_ajax_resend_giftcard_email', 'ec_admin_ajax_resend_giftcard_email' );
+/**
+ * @since 6.0.0 Answers with JSON so the order details screen can confirm the send.
+ */
 function ec_admin_ajax_resend_giftcard_email() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to send this email.', 'wp-easycart' ) ), 403 );
 	}
 
-	wp_easycart_admin_orders()->resendgiftcardemail();
-	die();
+	$result = wp_easycart_admin_orders()->resendgiftcardemail();
+	if ( ! $result ) {
+		wp_send_json_error( array( 'message' => __( 'This gift card has no email address to send to.', 'wp-easycart' ) ) );
+	}
+
+	wp_send_json_success(
+		array(
+			'email'   => $result['email'],
+			/* translators: %s: gift card recipient email address. */
+			'message' => sprintf( __( 'Gift card email sent to %s.', 'wp-easycart' ), $result['email'] ),
+		)
+	);
 }
 add_action( 'wp_ajax_ec_admin_ajax_order_details_send_order_shipped_email', 'ec_admin_ajax_order_details_send_order_shipped_email' );
 function ec_admin_ajax_order_details_send_order_shipped_email() {
@@ -930,102 +1000,61 @@ function ec_admin_ajax_order_details_send_order_shipped_email() {
 	}
 
 	global $wpdb;
-	$order_id = (int) $_POST['order_id'];
-	$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, tracking_number, shipping_carrier FROM ec_order WHERE order_id = %d', $order_id ) );
-	wp_easycart_admin_orders()->send_customer_shipping_email( $order->order_id, $order->tracking_number, $order->shipping_carrier );
-	die();
-}
-add_action( 'wp_ajax_ec_admin_ajax_get_order_quick_edit', 'ec_admin_ajax_get_order_quick_edit' );
-function ec_admin_ajax_get_order_quick_edit() {
-	global $wpdb;
-	$order_id = (int) $_POST['order_id'];
-	$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, orderstatus_id, use_expedited_shipping, shipping_method, shipping_carrier, tracking_number, shipping_first_name, shipping_last_name, shipping_company_name, shipping_address_line_1, shipping_address_line_2, shipping_city, shipping_state, shipping_country, shipping_zip, shipping_phone FROM ec_order WHERE order_id = %d', $order_id ) );
-	$items = $wpdb->get_results( $wpdb->prepare( 'SELECT title, model_number, quantity FROM ec_orderdetail WHERE order_id = %d ORDER BY orderdetail_id ASC', $order_id ) );
-	$order->items = $items;
-	echo json_encode( (object) array( 'order' => $order ) );
-	die();
-}
-add_action( 'wp_ajax_ec_admin_ajax_update_order_quick_edit', 'ec_admin_ajax_update_order_quick_edit' );
-function ec_admin_ajax_update_order_quick_edit() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-quick-edit' ) ) {
-		return false;
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verify_access() above checks the wp-easycart-order-details nonce and capability; WPCS cannot see through the method call.
+	$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+	$order = ( $order_id ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, user_email, email_other, tracking_number, shipping_carrier FROM ec_order WHERE order_id = %d', $order_id ) ) : null;
+	if ( ! $order ) {
+		wp_send_json_error( array( 'message' => __( 'The order could not be found.', 'wp-easycart' ) ) );
+	}
+	$recipients = ecv2_order_email_recipients();
+	if ( null === $recipients && '' == trim( (string) $order->user_email ) ) {
+		wp_send_json_error( array( 'message' => __( 'This order has no email address to send to. Add one in the Edit Order drawer first.', 'wp-easycart' ) ) );
 	}
 
-	global $wpdb;
-	$order_id = (int) $_POST['order_id'];
-	$orderstatus_id = (int) $_POST['orderstatus_id'];
-	$use_expedited_shipping = (int) $_POST['use_expedited_shipping'];
-	$shipping_method = sanitize_text_field( wp_unslash( $_POST['shipping_method'] ) );
-	$shipping_carrier = sanitize_text_field( wp_unslash( $_POST['shipping_carrier'] ) );
-	$tracking_number = sanitize_text_field( wp_unslash( $_POST['tracking_number'] ) );
-	$send_tracking_email = (int) $_POST['send_tracking_email'];
+	wp_easycart_admin_orders()->send_customer_shipping_email( $order->order_id, $order->tracking_number, $order->shipping_carrier, $recipients );
 
-	$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %d, use_expedited_shipping = %d, shipping_method = %s, shipping_carrier = %s, tracking_number = %s WHERE order_id = %d', $orderstatus_id, $use_expedited_shipping, $shipping_method, $shipping_carrier, $tracking_number, $order_id ) );
-
-	do_action( 'wpeasycart_order_status_update', $order_id, $orderstatus_id );
-	do_action( 'wpeasycart_tracking_info_update', $order_id, $use_expedited_shipping, $shipping_method, $shipping_carrier, $tracking_number );
-	
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-quick-edit" )', $order_id ) );
-	$order_log_id = $wpdb->insert_id;
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "use_expedited_shipping", %s )', $order_log_id, $order_id, $use_expedited_shipping ) );
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "shipping_method", %s )', $order_log_id, $order_id, $shipping_method ) );
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "shipping_carrier", %s )', $order_log_id, $order_id, $shipping_carrier ) );
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "tracking_number", %s )', $order_log_id, $order_id, $tracking_number ) );
-
-	if ( $send_tracking_email ) {
-		wp_easycart_admin_orders()->send_customer_shipping_email( $order_id, $tracking_number, $shipping_carrier );
+	if ( null !== $recipients ) {
+		wp_send_json_success(
+			array(
+				'email'           => implode( ', ', $recipients['to'] ),
+				'email_other'     => implode( ', ', array_merge( $recipients['cc'], $recipients['bcc'] ) ),
+				'tracking_number' => (string) $order->tracking_number,
+				/* translators: %s: email addresses the shipped email was sent to. */
+				'message'         => sprintf( __( 'Order shipped email sent to %s.', 'wp-easycart' ), implode( ', ', $recipients['to'] ) ),
+			)
+		);
 	}
 
-	$order_status = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_orderstatus WHERE status_id = %d', $orderstatus_id ) );
-	$response = (object) array(
-		'order_status' => ( is_object( $order_status ) && isset( $order_status->order_status ) ) ? $order_status->order_status : '',
-		'color_code' => ( is_object( $order_status ) && isset( $order_status->color_code ) ) ? wp_easycart_admin()->convert_hex_to_rgba( $order_status->color_code, '0.4' ) : wp_easycart_admin()->convert_hex_to_rgba( '#FFFFFF', '0.4' ),
+	/* 6.0.0: JSON so the order details screen can confirm the send on screen. The
+	   order-shipping-email timeline entry is written by send_customer_shipping_email(). */
+	wp_send_json_success(
+		array(
+			'email'           => $order->user_email,
+			'email_other'     => (string) $order->email_other,
+			'tracking_number' => (string) $order->tracking_number,
+			/* translators: %s: customer email address. */
+			'message'         => sprintf( __( 'Order shipped email sent to %s.', 'wp-easycart' ), $order->user_email ),
+		)
 	);
-	echo json_encode( $response );
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_complete_order_duplicate', 'ec_admin_ajax_complete_order_duplicate' );
-function ec_admin_ajax_complete_order_duplicate() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-duplicate' ) ) {
-		return false;
-	}
-
-	global $wpdb;
-	$order_id = (int) $_POST['order_id'];
-	$orderstatus_id = (int) $_POST['orderstatus_id'];
-
-	$original_order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE order_id = %d', $order_id ), ARRAY_A );
-	$original_order_details = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d', $order_id ), ARRAY_A );
-	unset( $original_order['order_id'] );
-	$original_order['orderstatus_id'] = $orderstatus_id;
-	unset( $original_order['order_date'] );
-	$original_order = apply_filters( 'wp_easycart_admin_duplicate_order_original', $original_order );
-	$wpdb->insert( 'ec_order', $original_order );
-	$new_order_id = $wpdb->insert_id;
-	foreach ( $original_order_details as $original_order_detail ) {
-		unset( $original_order_detail['orderdetail_id'] );
-		$original_order_detail['order_id'] = $new_order_id;
-		$wpdb->insert( 'ec_orderdetail', $original_order_detail );
-	}
-	$response = (object) array(
-		'order_link' => 'admin.php?&page=wp-easycart-orders&subpage=orders&order_id=' . (int) $new_order_id . '&ec_admin_form_action=edit&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-action-edit' ) ),
-	);
-	echo json_encode( $response );
-	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_get_order_users', 'ec_admin_ajax_get_order_users' );
 function ec_admin_ajax_get_order_users() {
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_access() checks the wp-easycart-order-details nonce and capability; WPCS cannot see through the method call.
+	/* 6.0.0: customer lookup now requires the order-details nonce + store capability, and also matches email. */
+	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
+		wp_send_json( (object) array( 'items' => array() ) );
+	}
 	global $wpdb;
-	$guest = array(
+	$guest  = array(
 		(object) array(
 			'text' => esc_attr__( 'Guest', 'wp-easycart' ),
-			'id' => '0',
+			'id'   => '0',
 		),
 	);
-	$users = $wpdb->get_results( $wpdb->prepare( 'SELECT CONCAT( ec_user.last_name, ", ", ec_user.first_name, "(", ec_user.user_id, ")" ) AS text, user_id AS id FROM ec_user WHERE last_name LIKE %s OR first_name LIKE %s ORDER BY last_name ASC, first_name ASC LIMIT 100', '%' . sanitize_text_field( wp_unslash( $_POST['q'] ) ) . '%', '%' . sanitize_text_field( wp_unslash( $_POST['q'] ) ) . '%' ) );
+	$search = '%' . $wpdb->esc_like( ( isset( $_POST['q'] ) ) ? sanitize_text_field( wp_unslash( $_POST['q'] ) ) : '' ) . '%';
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+	$users = $wpdb->get_results( $wpdb->prepare( 'SELECT CONCAT( ec_user.last_name, ", ", ec_user.first_name, " (", ec_user.user_id, ")" ) AS text, user_id AS id FROM ec_user WHERE last_name LIKE %s OR first_name LIKE %s OR email LIKE %s ORDER BY last_name ASC, first_name ASC LIMIT 100', $search, $search, $search ) );
 	if ( $users ) {
 		$results = (object) array(
 			'items' => array_merge( $users, $guest ),
@@ -1035,24 +1064,93 @@ function ec_admin_ajax_get_order_users() {
 			'items' => $guest,
 		);
 	}
-	echo json_encode( $results );
+	echo wp_json_encode( $results );
 	die();
 }
 
+if ( ! function_exists( 'wp_easycart_admin_order_account_badge_html' ) ) {
+	/**
+	 * Account chip for the order details customer card: "#ID" plus a "View account"
+	 * link for an account order, or "Guest" for a guest checkout. Shared by the
+	 * order details template and the ec_admin_ajax_update_order_user response so
+	 * the card repaints with exactly the markup a page load would print.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param int $user_id The order's user_id ( 0 = guest ).
+	 * @return string Escaped HTML.
+	 */
+	function wp_easycart_admin_order_account_badge_html( $user_id ) {
+		$user_id = (int) $user_id;
+		if ( $user_id ) {
+			$account_url = 'admin.php?page=wp-easycart-users&subpage=accounts&user_id=' . $user_id . '&ec_admin_form_action=edit&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-edit' );
+			return '<span class="ecodv2-user-chip ecodv2-user-chip-account">#' . esc_html( $user_id ) . '</span>'
+				. '<a class="ecodv2-user-link" href="' . esc_url( admin_url( $account_url ) ) . '" target="_blank">' . esc_html__( 'View account', 'wp-easycart' ) . ' <span class="dashicons dashicons-external"></span></a>';
+		}
+		return '<span class="ecodv2-user-chip ecodv2-user-chip-guest">' . esc_html__( 'Guest', 'wp-easycart' ) . '</span>';
+	}
+}
+
 add_action( 'wp_ajax_ec_admin_ajax_update_order_user', 'ec_admin_ajax_update_order_user' );
+/**
+ * Assigns an order to a customer account ( or back to guest, user_id 0 ) from the
+ * order details drawer, then returns everything on the page that depends on the
+ * account so the screen repaints without a reload: the customer card chip + link,
+ * the drawer select label, and the server-rendered output of the V2 header chips
+ * and customer card hooks ( PRO insight chips and customer stats hang off them ).
+ *
+ * @since 6.0.0 Returns JSON ( was an empty response ) and rejects unknown users.
+ */
 function ec_admin_ajax_update_order_user() {
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_access() checks the wp-easycart-order-details nonce and capability; WPCS cannot see through the method call.
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to update this order.', 'wp-easycart' ) ), 403 );
 	}
 
 	global $wpdb;
-	$order_id = (int) $_POST['order_id'];
-	$user_id = (int) $_POST['user_id'];
+	$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+	$user_id  = ( isset( $_POST['user_id'] ) ) ? max( 0, (int) $_POST['user_id'] ) : 0;
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+	if ( ! $order_id || ! $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM ec_order WHERE order_id = %d', $order_id ) ) ) {
+		wp_send_json_error( array( 'message' => __( 'The order could not be found.', 'wp-easycart' ) ) );
+	}
+	if ( $user_id && ! $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE user_id = %d', $user_id ) ) ) {
+		wp_send_json_error( array( 'message' => __( 'The selected customer account could not be found.', 'wp-easycart' ) ) );
+	}
+
 	$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE order_id = %d', $user_id, $order_id ) );
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-user-update" )', $order_id ) );
 	$order_log_id = $wpdb->insert_id;
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "user_id", %s )', $order_log_id, $order_id, $user_id ) );
-	die();
+
+	/* Same record the details template renders from ( wp_easycart_admin_details_orders::init_data ). */
+	$order = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, ec_user.first_name, ec_user.last_name, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name, ec_orderstatus.is_approved, ec_orderstatus.order_status FROM ec_order LEFT JOIN ec_orderstatus ON ( ec_orderstatus.status_id = ec_order.orderstatus_id ) LEFT JOIN ec_country AS billing_country ON ( billing_country.iso2_cnt = ec_order.billing_country ) LEFT JOIN ec_country AS shipping_country ON ( shipping_country.iso2_cnt = ec_order.shipping_country ) LEFT JOIN ec_user ON ( ec_user.user_id = ec_order.user_id ) WHERE ec_order.order_id = %d', $order_id ) );
+	foreach ( get_object_vars( $order ) as $key => $value ) {
+		if ( null === $value ) {
+			$order->$key = '';
+		}
+	}
+
+	ob_start();
+	do_action( 'wp_easycart_ecv2_order_details_header_chips', $order );
+	$header_chips_html = ob_get_clean();
+
+	ob_start();
+	do_action( 'wp_easycart_ecv2_order_details_customer_card', $order );
+	$customer_card_html = ob_get_clean();
+
+	wp_send_json_success(
+		array(
+			'user_id'            => (int) $order->user_id,
+			'is_guest'           => ! (int) $order->user_id,
+			'account_html'       => wp_easycart_admin_order_account_badge_html( $order->user_id ),
+			'select_label'       => ( (int) $order->user_id ) ? sprintf( '%s, %s (%d)', $order->last_name, $order->first_name, (int) $order->user_id ) : __( 'Guest', 'wp-easycart' ),
+			'header_chips_html'  => $header_chips_html,
+			'customer_card_html' => $customer_card_html,
+			'message'            => ( (int) $order->user_id ) ? __( 'Order assigned to the customer account.', 'wp-easycart' ) : __( 'Order changed to a guest checkout.', 'wp-easycart' ),
+		)
+	);
 }
 add_action( 'wp_ajax_ec_admin_ajax_get_download_keys', 'ec_admin_ajax_get_download_keys' );
 function ec_admin_ajax_get_download_keys() {
@@ -1092,4 +1190,100 @@ function ec_admin_ajax_enable_download_item() {
 	$orderdetail_id = (int) $_POST['orderdetail_id'];
 	$wpdb->query( $wpdb->prepare( 'UPDATE ec_order_option SET optionitem_allow_download = 1 WHERE orderdetail_id = %d', $orderdetail_id ) );
 	die();
+}
+
+/**
+ * To / Cc / Bcc from the order screen send dialog. Null when the request did not come from the dialog ( no 'to' posted:
+ * the shipping-label flow and older callers keep sending to the order's addresses ). Sends a JSON error when the dialog's
+ * addresses are unusable. Callers verify the nonce first.
+ *
+ * @since 6.0.0
+ * @return array|null array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+ */
+function ecv2_order_email_recipients() {
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- every caller verifies its nonce before calling.
+	if ( ! isset( $_POST['to'] ) ) {
+		return null;
+	}
+	$lists = array();
+	foreach ( array( 'to', 'cc', 'bcc' ) as $field ) {
+		$raw             = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
+		$lists[ $field ] = ec_orderdisplay::clean_email_list( $raw );
+		$typed           = array_filter( preg_split( '/[\s,;]+/', $raw ) );
+		if ( count( $typed ) > count( $lists[ $field ] ) ) {
+			wp_send_json_error( array( 'message' => __( 'One of the email addresses is not valid. Check the To, Cc and Bcc fields.', 'wp-easycart' ), 'field' => $field ) );
+		}
+	}
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+	if ( ! $lists['to'] ) {
+		wp_send_json_error( array( 'message' => __( 'Enter at least one email address to send to.', 'wp-easycart' ), 'field' => 'to' ) );
+	}
+	return $lists;
+}
+
+add_action( 'wp_ajax_ecv2_order_resend_receipt', 'ecv2_order_resend_receipt' );
+/**
+ * Resends the order receipt from the V2 order details screen.
+ *
+ * Reuses wp_easycart_admin_orders()->resend_receipt(), which is the same sender the
+ * Orders list "Resend Receipt" bulk action uses ( ec_orderdisplay::send_email_receipt ),
+ * so the PDF attachment ( PRO, when PDF receipts are on ) and every email filter apply
+ * exactly as they do on the original send. The send is written to the order timeline
+ * the same way the order shipped email is.
+ *
+ * @since 6.0.0
+ */
+function ecv2_order_resend_receipt() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- order_id only builds the nonce action; check_ajax_referer() verifies it on the next line.
+	$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+	check_ajax_referer( 'wp-easycart-ecv2-order-email-' . $order_id, 'wp_easycart_nonce' );
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_orders' ) ) {
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to send order emails.', 'wp-easycart' ) ), 403 );
+	}
+
+	global $wpdb;
+	$order = ( $order_id ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, user_email, email_other FROM ec_order WHERE order_id = %d', $order_id ) ) : null;
+	if ( ! $order ) {
+		wp_send_json_error( array( 'message' => __( 'The order could not be found.', 'wp-easycart' ) ) );
+	}
+	$recipients = ecv2_order_email_recipients();
+	if ( null === $recipients && '' == trim( (string) $order->user_email ) ) {
+		wp_send_json_error( array( 'message' => __( 'This order has no email address to send to. Add one in the Edit Order drawer first.', 'wp-easycart' ) ) );
+	}
+
+	$sent = wp_easycart_admin_orders()->resend_receipt( $order_id, $recipients );
+	if ( ! $sent ) {
+		wp_send_json_error( array( 'message' => __( 'The receipt could not be sent. Check Settings > Logs for the mail error.', 'wp-easycart' ) ) );
+	}
+
+	/* Sent from the send dialog: log and answer with the chosen addresses. */
+	if ( null !== $recipients ) {
+		wp_easycart_admin_orders::log_email_sent( $order_id, 'order-receipt-email', $recipients );
+		do_action( 'wp_easycart_order_receipt_resent', $order_id );
+		wp_send_json_success(
+			array(
+				'email'   => implode( ', ', $recipients['to'] ),
+				/* translators: %s: email addresses the receipt was sent to. */
+				'message' => sprintf( __( 'Order receipt sent to %s.', 'wp-easycart' ), implode( ', ', $recipients['to'] ) ),
+			)
+		);
+	}
+
+	/* Timeline entry ( mirrors the order shipped email log ). */
+	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-receipt-email" )', $order_id ) );
+	$order_log_id = $wpdb->insert_id;
+	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "email", %s )', $order_log_id, $order_id, $order->user_email ) );
+	if ( '' != trim( (string) $order->email_other ) ) {
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "email_other", %s )', $order_log_id, $order_id, $order->email_other ) );
+	}
+
+	do_action( 'wp_easycart_order_receipt_resent', $order_id );
+
+	wp_send_json_success(
+		array(
+			'email'   => $order->user_email,
+			/* translators: %s: customer email address. */
+			'message' => sprintf( __( 'Order receipt sent to %s.', 'wp-easycart' ), $order->user_email ),
+		)
+	);
 }

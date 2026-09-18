@@ -13,7 +13,8 @@ jQuery( document ).ready( function( ){
 			data: function( params ){
 				return {
 					q: params.term, // search term
-					action: 'ec_admin_ajax_get_order_users'
+					action: 'ec_admin_ajax_get_order_users',
+					wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_details_nonce', 'text' )
 				};
 			},
 			processResults: function( data, params ){
@@ -25,7 +26,13 @@ jQuery( document ).ready( function( ){
 		placeholder: 'Search for a User',
 		minimumInputLength: 1
 	}).on( 'change', function( ){
-		jQuery( document.getElementById( "ec_admin_shipping_details" ) ).fadeIn( 'fast' );
+		/* 6.0.0: the V2 details drawer shows its own in-drawer busy state; the V1 full-page loader rendered behind it. */
+		var ec_order_user_v2 = ( document.getElementById( 'ecodv2_edit_drawer' ) && 'function' === typeof window.ecodv2_order_user_busy );
+		if ( ec_order_user_v2 ) {
+			window.ecodv2_order_user_busy( true );
+		} else {
+			jQuery( document.getElementById( "ec_admin_shipping_details" ) ).fadeIn( 'fast' );
+		}
 
 		var data = {
 			action: 'ec_admin_ajax_update_order_user',
@@ -34,10 +41,23 @@ jQuery( document ).ready( function( ){
 			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_details_nonce', 'text' )
 		};
 
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-			ec_admin_hide_loader( 'ec_admin_shipping_details' );
+		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( response ){
+			if ( ! ec_order_user_v2 ) {
+				ec_admin_hide_loader( 'ec_admin_shipping_details' );
+			}
+			/* 6.0.0: the response carries the account-dependent fragments; the V2 details screen repaints them. */
+			if ( 'function' === typeof window.ecodv2_apply_order_user ) {
+				window.ecodv2_apply_order_user( response );
+			}
 			if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
 				ec_order_history_refresh();
+			}
+		}, error: function( xhr ){
+			if ( ! ec_order_user_v2 ) {
+				ec_admin_hide_loader( 'ec_admin_shipping_details' );
+			}
+			if ( 'function' === typeof window.ecodv2_apply_order_user ) {
+				window.ecodv2_apply_order_user( ( xhr && xhr.responseJSON ) ? xhr.responseJSON : { success: false } );
 			}
 		} } );
 
@@ -127,15 +147,24 @@ jQuery( document ).ready( function( ){
 		return false;
 	} );
 	jQuery( '.wpeasycart-timeline-item-info > a' ).on( 'click', function( ){ return false; } );
-	jQuery( '.duplicate-order > a' ).on( 'click', function() {
-		var order_id = jQuery( this ).parent().parent().parent().attr( 'data-id' );
-		wp_easycart_open_order_duplicate( order_id );
-		return false;
-	} );
 } );
 
-function ec_admin_resend_giftcard( script_order_id, script_orderdetail_id ){
-	jQuery( document.getElementById( "ec_admin_order_management" ) ).fadeIn( 'fast' );
+/* 6.0.0: the V2 order details screen confirms first, shows a busy state on the link and reports
+   through the V2 toast; the legacy screen keeps its full-page loader. */
+function ec_admin_resend_giftcard( script_order_id, script_orderdetail_id, link ){
+	var ec_gift_v2 = ( document.getElementById( 'ecodv2_edit_drawer' ) && 'function' === typeof window.ecodv2_save_toast );
+	var email = ( link && link.getAttribute( 'data-email' ) ) ? link.getAttribute( 'data-email' ) : '';
+
+	if ( ec_gift_v2 ) {
+		if ( ! window.confirm( email ? 'Send the gift card email to ' + email + ' again?' : 'Send the gift card email again?' ) ) {
+			return false;
+		}
+		if ( link ) {
+			link.classList.add( 'is-busy' );
+		}
+	} else {
+		jQuery( document.getElementById( "ec_admin_order_management" ) ).fadeIn( 'fast' );
+	}
 
 	var data = {
 		action: 'ec_admin_ajax_resend_giftcard_email',
@@ -144,10 +173,30 @@ function ec_admin_resend_giftcard( script_order_id, script_orderdetail_id ){
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_details_nonce', 'text' )
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_order_management' );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( response ){
+		if ( link ) {
+			link.classList.remove( 'is-busy' );
+		}
+		if ( ec_gift_v2 ) {
+			if ( response && response.success ) {
+				window.ecodv2_save_toast( ( response.data && response.data.message ) ? response.data.message : 'Gift card email sent.' );
+			} else {
+				window.ecodv2_save_toast( ( response && response.data && response.data.message ) ? response.data.message : 'The gift card email could not be sent.', true );
+			}
+		} else {
+			ec_admin_hide_loader( 'ec_admin_order_management' );
+		}
 		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
 			ec_order_history_refresh();
+		}
+	}, error: function(){
+		if ( link ) {
+			link.classList.remove( 'is-busy' );
+		}
+		if ( ec_gift_v2 ) {
+			window.ecodv2_save_toast( 'The gift card email could not be sent.', true );
+		} else {
+			ec_admin_hide_loader( 'ec_admin_order_management' );
 		}
 	} } );
 
@@ -323,133 +372,85 @@ function ec_admin_process_customer_notes( ){
 	}
 }
 
-function ec_admin_send_order_shipped_email( ){
-	jQuery( document.getElementById( "ec_admin_order_management" ) ).fadeIn( 'fast' );
+/* 6.0.0: the V2 order details screen confirms ( this emails the customer ), marks the menu item busy
+   while it sends and reports the address through the V2 toast; the legacy screen is unchanged. */
+/* recipients / on_done: from the V2 send dialog ( ecodv2_send_shipped_dialog ); on_done( ok, message, field ) lets it
+   close or show the error in place. Without them the email goes to the order's addresses ( shipping-label flow ). */
+function ec_admin_send_order_shipped_email( skip_confirm, recipients, on_done ){
+	var ec_ship_v2 = ( document.getElementById( 'ecodv2_edit_drawer' ) && 'function' === typeof window.ecodv2_save_toast );
+	var ec_ship_link = document.getElementById( 'ecodv2_send_shipped_link' );
+	var ec_ship_email = ( ec_ship_link && ec_ship_link.getAttribute( 'data-email' ) ) ? ec_ship_link.getAttribute( 'data-email' ) : '';
+
+	if ( ec_ship_v2 ) {
+		if ( ! recipients && '' === ec_ship_email ) {
+			window.ecodv2_save_toast( 'This order has no email address to send to.', true );
+			return false;
+		}
+		/* The shipping-label flow already asked ( "Email the customer" checkbox ), so it skips the prompt. */
+		if ( ! skip_confirm && ! window.confirm( 'Email the customer at ' + ec_ship_email + ' that this order has shipped?' ) ) {
+			return false;
+		}
+		if ( ec_ship_link ) {
+			ec_ship_link.classList.add( 'is-busy' );
+		}
+	} else {
+		jQuery( document.getElementById( "ec_admin_order_management" ) ).fadeIn( 'fast' );
+	}
 
 	var data = {
 		action: 'ec_admin_ajax_order_details_send_order_shipped_email',
 		order_id: ec_admin_get_value( 'order_id', 'text' ),
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_details_nonce', 'text' )
 	};
+	if ( recipients ) {
+		data.to = recipients.to;
+		data.cc = recipients.cc;
+		data.bcc = recipients.bcc;
+	}
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_order_management' );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( response ){
+		if ( ec_ship_link ) {
+			ec_ship_link.classList.remove( 'is-busy' );
+		}
+		if ( on_done && ! ( response && response.success ) ) {
+			on_done( false, ( response && response.data && response.data.message ) ? response.data.message : '', ( response && response.data && response.data.field ) ? response.data.field : '' );
+			return;
+		}
+		if ( on_done ) {
+			on_done( true );
+		}
+		if ( ec_ship_v2 ) {
+			if ( response && response.success ) {
+				window.ecodv2_save_toast( ( response.data && response.data.message ) ? response.data.message : 'Order shipped email sent.' );
+				if ( 'function' === typeof window.ecodv2_shipped_email_sent ) {
+					window.ecodv2_shipped_email_sent( response.data );
+				}
+			} else {
+				window.ecodv2_save_toast( ( response && response.data && response.data.message ) ? response.data.message : 'The order shipped email could not be sent.', true );
+			}
+		} else {
+			ec_admin_hide_loader( 'ec_admin_order_management' );
+		}
 		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
 			ec_order_history_refresh();
+		}
+	}, error: function(){
+		if ( ec_ship_link ) {
+			ec_ship_link.classList.remove( 'is-busy' );
+		}
+		if ( on_done ) {
+			on_done( false );
+			return;
+		}
+		if ( ec_ship_v2 ) {
+			window.ecodv2_save_toast( 'The order shipped email could not be sent.', true );
+		} else {
+			ec_admin_hide_loader( 'ec_admin_order_management' );
 		}
 	} } );
 
 	ec_admin_order_details_order_info_show = false;
-}
-
-function wp_easycart_open_order_quick_edit( order_id ){
-	wp_easycart_admin_clear_order_quick_edit( );
-	jQuery( document.getElementById( "ec_admin_order_quick_edit_display_loader" ) ).fadeIn( 'fast' );
-	wp_easycart_admin_open_slideout( 'order_quick_edit_box' );
-
-	var data = {
-		action: 'ec_admin_ajax_get_order_quick_edit',
-		order_id: order_id,
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		var json_data = JSON.parse( data );
-		jQuery( document.getElementById( 'ec_qe_order_id' ) ).html( json_data.order.order_id );
-		jQuery( document.getElementById( 'ec_qe_order_name' ) ).html( json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name );
-		var shipping_address = json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name + "<br>";
-		if( json_data.order.shipping_company_name ){
-			shipping_address += json_data.order.shipping_company_name + "<br>";
-		}
-		shipping_address += json_data.order.shipping_address_line_1 + "<br>";
-		if( json_data.order.shipping_address_line_2 ){
-			shipping_address += json_data.order.shipping_address_line_2 + "<br>";
-		}
-		shipping_address += json_data.order.shipping_city + ", " + json_data.order.shipping_state + " " + json_data.order.shipping_zip + "<br>";
-		shipping_address += json_data.order.shipping_country;
-		if( json_data.order.shipping_phone ){
-			shipping_address += "<br>" + json_data.order.shipping_phone;
-		}
-		var items = "";
-		for( var i=0; i<json_data.order.items.length; i++ ){
-			if( json_data.order.items[i].title.length > 20 )
-				items += json_data.order.items[i].title.substring( 0, 20 ) + "...";
-			else
-				items += json_data.order.items[i].title;
-
-			items += " (" + json_data.order.items[i].model_number + ") x " + json_data.order.items[i].quantity + "<br>";
-		}
-		jQuery( document.getElementById( 'ec_qe_order_shipping_address' ) ).html( shipping_address );
-		jQuery( document.getElementById( 'ec_qe_order_items' ) ).html( items );
-		jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( json_data.order.orderstatus_id ).trigger('change');
-		jQuery( document.getElementById( 'ec_qe_order_use_expedited_shipping' ) ).val( json_data.order.use_expedited_shipping ).trigger('change');
-		jQuery( document.getElementById( 'ec_qe_order_shipping_method' ) ).val( json_data.order.shipping_method );
-		jQuery( document.getElementById( 'ec_qe_order_shipping_carrier' ) ).val( json_data.order.shipping_carrier );
-		jQuery( document.getElementById( 'ec_qe_order_tracking_number' ) ).val( json_data.order.tracking_number );
-		jQuery( document.getElementById( "ec_admin_order_quick_edit_display_loader" ) ).fadeOut( 'fast' );
-		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
-			ec_order_history_refresh();
-		}
-	} } );
-
 	return false;
-}
-
-function ec_admin_cancel_order_quick_edit( ){
-	wp_easycart_admin_close_slideout( 'order_quick_edit_box' );
-}
-
-function ec_admin_save_order_quick_edit( ){
-	jQuery( document.getElementById( "ec_admin_order_quick_edit_display_loader" ) ).fadeIn( 'fast' );
-	var order_id = Number( jQuery( document.getElementById( 'ec_qe_order_id' ) ).html() );
-	var data = {
-		action: 'ec_admin_ajax_update_order_quick_edit',
-		order_id: order_id,
-		orderstatus_id: jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( ),
-		use_expedited_shipping: jQuery( document.getElementById( 'ec_qe_order_use_expedited_shipping' ) ).val( ),
-		shipping_method: jQuery( document.getElementById( 'ec_qe_order_shipping_method' ) ).val( ),
-		shipping_carrier: jQuery( document.getElementById( 'ec_qe_order_shipping_carrier' ) ).val( ),
-		tracking_number: jQuery( document.getElementById( 'ec_qe_order_tracking_number' ) ).val( ),
-		send_tracking_email: jQuery( document.getElementById( 'ec_qe_order_send_tracking_email' ) ).val( ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_quick_edit_nonce', 'text' )
-	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){
-		var paid_text = '';
-		var orderstatus_id = jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( );
-		var is_approved = ( jQuery( '#ec_qe_order_status option[value="' + orderstatus_id + '"]' ).attr( 'isapproved' ) ) ? jQuery( '#ec_qe_order_status option[value="' + orderstatus_id + '"]' ).attr( 'isapproved' ) : 0;
-		if ( '17' == orderstatus_id ) {
-			paid_text += ' <span class="payment-neutral">' + jQuery( '#ec_qe_order_status' ).attr( 'data-partial-refund' ) + '</span>';
-		} else if ( '16' == orderstatus_id ) {
-			paid_text += ' <span class="payment-bad">' + jQuery( '#ec_qe_order_status' ).attr( 'data-refunded' ) + '</span>';
-		} else if ( '1' == is_approved ) {
-			paid_text += ' <span class="payment-paid">' + jQuery( '#ec_qe_order_status' ).attr( 'data-paid' ) + '</span>';
-		} else if ( '19' == orderstatus_id ) {
-			paid_text += ' <span class="payment-bad">' + jQuery( '#ec_qe_order_status' ).attr( 'data-cancelled' ) + '</span>';
-		} else if ( '7' == orderstatus_id || '9' == orderstatus_id ) {
-			paid_text += ' <span class="payment-bad">' + jQuery( '#ec_qe_order_status' ).attr( 'data-failed' ) + '</span>';
-		} else {
-			paid_text += ' <span class="payment-processing">' + jQuery( '#ec_qe_order_status' ).attr( 'data-pending' ) + '</span>';
-		}
-		var json_response = JSON.parse( response );
-		jQuery( '#wpec_table_cell_orderstatus_id_' + order_id ).html( paid_text );
-		jQuery( '#wpec_table_cell_order_status_' + order_id + ' > .order_status_chip' ).html( json_response.order_status ).css( 'background-color', json_response.color_code );
-		ec_admin_hide_loader( 'ec_admin_order_quick_edit_display_loader' );
-		wp_easycart_admin_close_slideout( 'order_quick_edit_box' );
-		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
-			ec_order_history_refresh();
-		}
-	} } );
-}
-
-function wp_easycart_admin_clear_order_quick_edit( ){
-	jQuery( document.getElementById( 'ec_qe_order_id' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_qe_order_name' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_qe_order_shipping_address' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_qe_order_status' ) ).val( 0 ).trigger('change');
-	jQuery( document.getElementById( 'ec_qe_order_shipping_type' ) ).val( 0 ).trigger('change');
-	jQuery( document.getElementById( 'ec_qe_order_shipping_method' ) ).val( '' );
-	jQuery( document.getElementById( 'ec_qe_order_shipping_carrier' ) ).val( '' );
-	jQuery( document.getElementById( 'ec_qe_order_tracking_number' ) ).val( '' );
-	jQuery( document.getElementById( 'ec_qe_order_send_tracking_email' ) ).val( 0 ).trigger('change');
 }
 
 function ec_admin_enable_download_item( orderdetail_id ) {
@@ -467,72 +468,3 @@ function ec_admin_enable_download_item( orderdetail_id ) {
 	} } );
 }
 
-function wp_easycart_open_order_duplicate( order_id ){
-	wp_easycart_admin_clear_order_duplicate( );
-	jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeIn( 'fast' );
-	wp_easycart_admin_open_slideout( 'order_duplicate_box' );
-
-	var data = {
-		action: 'ec_admin_ajax_get_order_quick_edit',
-		order_id: order_id,
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		var json_data = JSON.parse( data );
-		jQuery( document.getElementById( 'ec_dup_order_id' ) ).html( json_data.order.order_id );
-		jQuery( document.getElementById( 'ec_dup_order_name' ) ).html( json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name );
-		var shipping_address = json_data.order.shipping_first_name + " " + json_data.order.shipping_last_name + "<br>";
-		if( json_data.order.shipping_company_name ){
-			shipping_address += json_data.order.shipping_company_name + "<br>";
-		}
-		shipping_address += json_data.order.shipping_address_line_1 + "<br>";
-		if( json_data.order.shipping_address_line_2 ){
-			shipping_address += json_data.order.shipping_address_line_2 + "<br>";
-		}
-		shipping_address += json_data.order.shipping_city + ", " + json_data.order.shipping_state + " " + json_data.order.shipping_zip + "<br>";
-		shipping_address += json_data.order.shipping_country;
-		if( json_data.order.shipping_phone ){
-			shipping_address += "<br>" + json_data.order.shipping_phone;
-		}
-		var items = "";
-		for( var i=0; i<json_data.order.items.length; i++ ){
-			if( json_data.order.items[i].title.length > 20 )
-				items += json_data.order.items[i].title.substring( 0, 20 ) + "...";
-			else
-				items += json_data.order.items[i].title;
-
-			items += " (" + json_data.order.items[i].model_number + ") x " + json_data.order.items[i].quantity + "<br>";
-		}
-		jQuery( document.getElementById( 'ec_dup_order_shipping_address' ) ).html( shipping_address );
-		jQuery( document.getElementById( 'ec_dup_order_items' ) ).html( items );
-		jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( json_data.order.orderstatus_id ).trigger('change');
-		jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeOut( 'fast' );
-		if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length ) {
-			ec_order_history_refresh();
-		}
-	} } );
-
-	return false;
-}
-
-function wp_easycart_admin_clear_order_duplicate( ){
-	jQuery( document.getElementById( 'ec_dup_order_id' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_dup_order_name' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_dup_order_shipping_address' ) ).html( '' );
-	jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( 0 ).trigger('change');
-}
-
-function ec_admin_complete_order_duplicate( ){
-	jQuery( document.getElementById( "ec_admin_order_duplicate_display_loader" ) ).fadeIn( 'fast' );
-	var order_id = Number( jQuery( document.getElementById( 'ec_dup_order_id' ) ).html() );
-	var data = {
-		action: 'ec_admin_ajax_complete_order_duplicate',
-		order_id: order_id,
-		orderstatus_id: jQuery( document.getElementById( 'ec_dup_order_status' ) ).val( ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_duplicate_nonce', 'text' )
-	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){
-		var json_data = JSON.parse( response );
-		window.location.href = json_data.order_link;
-	} } );
-}

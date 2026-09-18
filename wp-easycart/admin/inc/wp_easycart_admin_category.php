@@ -9,9 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 
 		protected static $_instance = null;
 
-		public $category_list_file;
-		public $product_list_file;
-		public $product_select_list_file;
 
 		public static function instance( ) {
 
@@ -23,18 +20,12 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 		}
 
 		public function __construct( ){ 
-			$this->category_list_file 			= EC_PLUGIN_DIRECTORY . '/admin/template/products/categories/category-list.php';
-			$this->product_list_file 			= EC_PLUGIN_DIRECTORY . '/admin/template/products/categories/product-list.php';
-			$this->product_select_list_file 	= EC_PLUGIN_DIRECTORY . '/admin/template/products/categories/product-select-list.php';
 
 			/* Process Admin Messages */
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'add_failure_messages' ) );
 
 			/* Process Form Actions */
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_add_category_product' ) );
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_add_category' ) );
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_update_category' ) );
 
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_duplicate_category' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_delete_category' ) );
@@ -47,6 +38,28 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_not_featured_category' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_delete_category_product' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_category_product' ) );
+
+			/* V2 list + editor ( categories ) */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_safe_delete.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_category_table.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_category_editor_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
+		}
+
+		public function is_v2_page() {
+			return isset( $_GET['page'] ) && 'wp-easycart-products' === $_GET['page'] && isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'category', 'category-products', 'category-products-manage' ), true );
+		}
+
+		public function is_v2_editor() {
+			return $this->is_v2_page() && ( 'category' !== $_GET['subpage'] || ( isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['category_id'] ) ) );
+		}
+
+		public function enqueue_v2_assets() {
+			if ( ! $this->is_v2_page() ) {
+				return;
+			}
+			wp_easycart_admin_catalog_v2_enqueue( $this->is_v2_editor() ? 'category-editor' : 'category-list' );
 		}
 
 		public function process_deactivate_category() {
@@ -87,48 +100,6 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 					$result = $this->bulk_activate_category();
 					wp_cache_flush();
 					wp_easycart_admin()->redirect( 'wp-easycart-products', 'category', $result );
-				}
-			}
-		}
-
-		public function process_add_category_product( ){
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if( $_POST['ec_admin_form_action'] == 'add-new-category-product' ){
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-bulk-category-products-manage' ) ) {
-					$result = $this->insert_category_product( );
-					wp_cache_flush();
-					wp_easycart_admin( )->redirect( 'wp-easycart-products', 'category', $result );
-				}
-			}
-		}
-
-		public function process_add_category( ){
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if( $_POST['ec_admin_form_action'] == 'add-new-category' ){
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-category-details' ) ) {
-					$result = $this->insert_category( );
-					wp_cache_flush();
-					wp_easycart_admin( )->redirect( 'wp-easycart-products', 'category', $result );
-				}
-			}
-		}
-
-		public function process_update_category( ){
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return;
-			}
-
-			if( $_POST['ec_admin_form_action'] == 'update-category' ){
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-category-details' ) ) {
-					$result = $this->update_category( );
-					wp_cache_flush();
-					wp_easycart_admin( )->redirect( 'wp-easycart-products', 'category', $result );
 				}
 			}
 		}
@@ -293,25 +264,28 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 			return $messages;
 		}
 
-		public function load_category_list( ){
-			if( ( isset( $_GET['category_id'] ) && isset( $_GET['ec_admin_form_action'] ) && $_GET['ec_admin_form_action'] == 'edit' ) || 
-				( isset( $_GET['ec_admin_form_action'] ) && $_GET['ec_admin_form_action'] == 'add-new-category' ) ){
-					include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_category.php' );
-					$details = new wp_easycart_admin_details_category( );
-					$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-
-			}else{
-				include( $this->category_list_file );
-
+		public function load_category_list() {
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['category_id'] ) ) {
+				$editor = new wp_easycart_admin_category_editor_v2();
+				$editor->output();
+				return;
+			}
+			/* add-new-category lands here: the list renders and the New Category modal opens ( catalog-v2.js ). */
+			$table = new wp_easycart_admin_category_table();
+			$table->print_table();
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'add-new-category' === $_GET['ec_admin_form_action'] ) {
+				echo '<script>jQuery( function() { if ( window.ecv2_catalog ) { ecv2_catalog.new_category( ' . ( isset( $_GET['parent_id'] ) ? (int) $_GET['parent_id'] : 0 ) . ' ); } } );</script>';
 			}
 		}
 
-		public function load_category_product_list( ){
-			include( $this->product_list_file );
+		/** Legacy "category-products" / "category-products-manage" subpages open the V2 editor's Products card. */
+		public function load_category_product_list() {
+			$editor = new wp_easycart_admin_category_editor_v2();
+			$editor->output();
 		}
 
-		public function load_category_product_manage_list( ){
-			include( $this->product_select_list_file );
+		public function load_category_product_manage_list() {
+			$this->load_category_product_list();
 		}
 
 		/*************************************
@@ -577,21 +551,10 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 			}
 
 			$category_id = (int) $_GET['category_id'];
-			do_action( 'wpeasycart_category_deleting', $category_id );
 			$query_vars = array( );
 
-			global $wpdb;
-
-			// Delete WordPress Post
-			$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_category WHERE category_id = %d', $category_id ) );
-			wp_easycart_post_sync()->delete( 'category', $category_id, $post_id );
-
-			// Delete Category
-			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_category WHERE ec_category.category_id = %s', $category_id ) );
-
-			// Delete Category Items
-			$wpdb->query( $wpdb->prepare(  'DELETE FROM ec_categoryitem WHERE ec_categoryitem.category_id = %d', $category_id ) );
-			do_action( 'wpeasycart_category_deleted', $category_id );
+			/* Legacy entry point: route through safe-delete ( lift subcategories, clear promotions, remove menu items, redirect, undoable ). */
+			wp_easycart_admin_safe_delete()->execute( 'category', $category_id, array( 'strategy' => 'lift', 'redirect' => true ) );
 
 			$query_vars['success'] = 'category-deleted';
 			return $query_vars;
@@ -607,17 +570,7 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 
 			global $wpdb;
 			foreach( $bulk_ids as $bulk_id ){
-				do_action( 'wpeasycart_category_deleting', (int) $bulk_id );
-				// Delete WordPress Post
-				$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_category WHERE category_id = %d', (int) $bulk_id ) );
-				wp_easycart_post_sync()->delete( 'category', (int) $bulk_id, $post_id );
-
-				//Delete Category
-				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_category WHERE ec_category.category_id = %s', (int) $bulk_id ) );
-
-				// Delete Category Items
-				$wpdb->query( $wpdb->prepare(  'DELETE FROM ec_categoryitem WHERE ec_categoryitem.category_id = %d', (int) $bulk_id ) );
-				do_action( 'wpeasycart_category_deleted', (int) $bulk_id );
+				wp_easycart_admin_safe_delete()->execute( 'category', (int) $bulk_id, array( 'strategy' => 'lift', 'redirect' => true ) );
 			}
 
 			$query_vars['success'] = 'category-deleted';
@@ -772,16 +725,6 @@ if ( ! class_exists( 'wp_easycart_admin_category' ) ) :
 			);
 		}
 
-		public function save_category_order( ){
-			global $wpdb;
-			$sort_order = (array) $_POST['sort_order']; // XSS OK. Forced array and each item sanitized.
-
-			foreach( $sort_order as $sort_item ){
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_category SET priority = %d WHERE category_id = %d', 99999999 - (int) $sort_item['order'], (int) $sort_item['id'] ) );
-			}
-			do_action( 'wpeasycart_category_sort_save' );
-		}
-
 	}
 endif; // End if class_exists check
 
@@ -789,13 +732,3 @@ function wp_easycart_admin_category() {
 	return wp_easycart_admin_category::instance();
 }
 wp_easycart_admin_category();
-
-add_action( 'wp_ajax_ec_admin_ajax_save_category_order', 'ec_admin_ajax_save_category_order' );
-function ec_admin_ajax_save_category_order() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-table-sort' ) ) {
-		return false;
-	}
-
-	wp_easycart_admin_category( )->save_category_order();
-	die();
-}

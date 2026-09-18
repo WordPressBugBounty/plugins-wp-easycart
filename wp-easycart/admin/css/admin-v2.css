@@ -20,13 +20,24 @@
 .ecv2-wrap { container-type:inline-size; container-name:ecv2; max-width:100%; padding:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; color:var(--ecv2-g800); }
 .ecv2-wrap *, .ecv2-wrap *::before, .ecv2-wrap *::after { box-sizing:border-box; }
 
-/* Page Header */
-.ecv2-page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; padding:10px; border-bottom:1px solid var(--ecv2-g200); background:white; }
-.ecv2-page-header-left { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
-.ecv2-page-title { font-size:22px; font-weight:600; margin:0; padding:0; line-height:1.3; color:var(--ecv2-g900); }
-.ecv2-page-title .dashicons { font-size:22px; width:22px; height:22px; vertical-align:middle; margin-right:4px; }
-.ecv2-record-count { font-size:13px; color:var(--ecv2-g500); background:var(--ecv2-g100); padding:2px 10px; border-radius:12px; }
+/* Page Header — a card that matches the stat tiles and toolbar below it, instead of a flat strip.
+   Left: icon tile, page title, and a muted context line that carries the record count. Right: actions,
+   secondary first and the primary action last. @since 6.0.0 */
+.ecv2-page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 16px; margin-bottom:16px; padding:12px 18px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rl); background:#fff; box-shadow:0 1px 2px rgba(17,24,39,.04); }
+.ecv2-page-header-left { display:flex; align-items:center; gap:12px; min-width:0; }
+.ecv2-page-header-icon { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:var(--ecv2-g100); color:var(--ecv2-g600); flex-shrink:0; }
+.ecv2-page-header-icon:before { font-size:20px; width:20px; height:20px; line-height:20px; }
+.ecv2-page-header-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ecv2-page-title { font-size:20px; font-weight:600; margin:0; padding:0; line-height:1.25; letter-spacing:-.01em; color:var(--ecv2-g900); }
+.ecv2-page-title .dashicons { font-size:20px; width:20px; height:20px; vertical-align:middle; margin-right:4px; }
+.ecv2-page-subline { margin:0; font-size:12.5px; line-height:1.35; color:var(--ecv2-g500); }
+/* The count keeps its element ( products-v2.js and settings-lists-v2.js rewrite its text ) but drops the
+   chip look once it sits in the context line. */
+.ecv2-page-subline .ecv2-record-count { padding:0; background:none; border-radius:0; font-size:inherit; color:inherit; }
+.ecv2-record-count { font-size:12.5px; font-weight:500; color:var(--ecv2-g600); background:var(--ecv2-g100); padding:3px 10px; border-radius:999px; flex-shrink:0; }
 .ecv2-page-header-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ecv2-page-header-right .ecv2-btn { min-height:38px; }
+.ecv2-page-header-right .ecv2-btn-primary { box-shadow:0 1px 2px rgba(17,24,39,.18); }
 .ecv2-keyboard-hint { font-size:12px; color:var(--ecv2-g400); display:flex; align-items:center; gap:4px; }
 .ecv2-keyboard-hint .dashicons { font-size:14px; width:14px; height:14px; }
 
@@ -446,7 +457,7 @@
 #ecv2-sale-status-callout { padding:10px 14px; border-radius:var(--ecv2-rs); margin-bottom:16px; font-size:13px; font-weight:500; }
 
 /* Toasts */
-#ecv2-toast-container { position:fixed; bottom:24px; right:24px; z-index:100001; display:flex; flex-direction:column-reverse; gap:8px; }
+#ecv2-toast-container { position:fixed; bottom:24px; right:24px; z-index:100020; /* above drawers ( 100001 ) and dialogs opened from them ( 100010 ), below the WP media modal */ display:flex; flex-direction:column-reverse; gap:8px; }
 .ecv2-toast { padding:12px 20px; border-radius:var(--ecv2-r); color:#fff; font-size:13px; font-weight:500; box-shadow:var(--ecv2-shlg); animation:ecv2-slide-in 300ms ease; display:flex; align-items:center; gap:8px; max-width:360px; }
 .ecv2-toast-success { background:var(--ecv2-primary); }
 .ecv2-toast-error { background:var(--ecv2-danger); }
@@ -501,7 +512,7 @@
 .ecv2-health-dashboard-grouped .ecv2-stat-label { font-size:12px; text-transform:none; letter-spacing:0; color:var(--ecv2-g600, #4b5563); font-weight:500; white-space:nowrap; }
 .ecv2-health-dashboard-grouped .ecv2-stat-sub { display:flex; align-items:baseline; gap:4px; font-size:11px; color:var(--ecv2-g500, #6b7280); white-space:nowrap; }
 .ecv2-health-dashboard-grouped .ecv2-stat-sub-value { font-weight:600; color:var(--ecv2-g700, #374151); font-variant-numeric:tabular-nums; }
-/* Colour is carried by a small dot next to the label, not by the number. */
+/* Color is carried by a small dot next to the label, not by the number. */
 .ecv2-health-dashboard-grouped .ecv2-stat-card .ecv2-stat-value { color:var(--ecv2-g900, #111827); }
 .ecv2-health-dashboard-grouped .ecv2-stat-card .ecv2-stat-label:before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--ecv2-g300, #d1d5db); }
 .ecv2-health-dashboard-grouped .ecv2-stat-default .ecv2-stat-label:before { display:none; }
@@ -539,7 +550,7 @@
 	@media screen and (max-width:1280px) { .ecv2-hide-laptop { display:none !important; } }
 	@media screen and (max-width:1024px) { .ecv2-hide-tablet { display:none !important; } .ecv2-health-dashboard { flex-wrap:wrap; } .ecv2-stat-card { min-width:80px; } }
 }
-@media screen and (max-width:768px) { .ecv2-page-header { flex-direction:column; align-items:flex-start; } .ecv2-toolbar { flex-direction:column; align-items:stretch; } .ecv2-toolbar-right { justify-content:space-between; } .ecv2-search input { width:100%; } .ecv2-card-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); } .ecv2-pagination { flex-direction:column; align-items:center; } .ecv2-keyboard-hint { display:none; } }
+@media screen and (max-width:768px) { .ecv2-toolbar { flex-direction:column; align-items:stretch; } .ecv2-toolbar-right { justify-content:space-between; } .ecv2-search input { width:100%; } .ecv2-card-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); } .ecv2-pagination { flex-direction:column; align-items:center; } .ecv2-keyboard-hint { display:none; } }
 
 /* Sale tag in price column */
 .ecv2-sale-tag { display:inline-block; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:700; background:#ecfeff; color:#06b6d4; white-space:nowrap; letter-spacing:.02em; vertical-align:middle; }
@@ -990,11 +1001,15 @@ button.ecv2-price-flag:focus-visible { box-shadow:0 0 0 2px var(--ecv2-primary-l
 }
 
 /* ========== Filter Overlay Loader ========== */
-.ecv2-filter-overlay { display:none; position:fixed; inset:0; z-index:100001; background:rgba(255,255,255,0.7); align-items:center; justify-content:center; }
-.ecv2-filter-overlay-visible { display:flex; }
-.ecv2-filter-overlay-inner { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px 40px; background:#fff; border-radius:var(--ecv2-r); box-shadow:0 4px 24px rgba(0,0,0,0.12); }
-.ecv2-filter-overlay-spinner { font-size:28px; width:28px; height:28px; color:var(--ecv2-primary); }
-.ecv2-filter-overlay-text { font-size:14px; font-weight:500; color:var(--ecv2-g600); }
+/* "Applying filters…" overlay: a soft veil over the page and a brand-colored ring ( follows the admin colorizer via --ec-brand ). */
+.ecv2-filter-overlay { display:none; position:fixed; inset:0; z-index:100001; background:rgba(249,250,251,0.55); -webkit-backdrop-filter:blur(1.5px); backdrop-filter:blur(1.5px); align-items:center; justify-content:center; }
+.ecv2-filter-overlay-visible { display:flex; animation:ecv2-overlay-in .15s ease-out; }
+.ecv2-filter-overlay-inner { display:flex; flex-direction:row; align-items:center; gap:12px; padding:14px 20px 14px 16px; background:#fff; border:1px solid var(--ecv2-g200); border-left:3px solid var(--ec-brand, var(--ecv2-primary)); border-radius:var(--ecv2-r); box-shadow:0 10px 30px rgba(17,24,39,0.12); }
+.ecv2-filter-overlay .ecv2-filter-overlay-spinner { display:inline-block; box-sizing:border-box; width:22px; height:22px; font-size:0; line-height:0; border-radius:50%; border:2.5px solid var(--ec-brand-soft, rgba(0,0,0,0.08)); border-top-color:var(--ec-brand, var(--ecv2-primary)); animation:ecv2-spin .75s linear infinite; }
+.ecv2-filter-overlay .ecv2-filter-overlay-spinner:before { content:none; }
+.ecv2-filter-overlay-text { font-size:13.5px; font-weight:600; color:var(--ecv2-g800); }
+@keyframes ecv2-overlay-in { from { opacity:0; } to { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .ecv2-filter-overlay .ecv2-filter-overlay-spinner { animation-duration:2s; } .ecv2-filter-overlay-visible { animation:none; } }
 
 /* ========== Print: Hide drawer ========== */
 @media print {
@@ -1333,6 +1348,8 @@ button.ecv2-price-flag:focus-visible { box-shadow:0 0 0 2px var(--ecv2-primary-l
 /* Manager modals (variant / volume / B2B) need to stack above the slideout. The base
  * .ecv2-modal-overlay rule already sets z:100000 — explicit here for clarity. */
 .ecv2-modal-overlay { z-index: 100000; }
+/* Drawers ( .ecdrawer, z 100001 ) sit above that; a dialog opened from inside one must come in front of it. */
+body.ecdrawer-open .ecv2-modal-overlay { z-index: 100010; }
 
 @media ( max-width: 600px ) {
 	.ecv2-slideout { width: 100vw; }
@@ -1406,7 +1423,7 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecss-tile.is-on .ecss-tile-icon { color:var(--ecv2-primary-hover); }
 .ecss-tile-state { position:absolute; top:12px; right:12px; width:20px; height:20px; border-radius:50%; background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); display:grid; place-items:center; }
 .ecss-tile-state .dashicons { font-size:14px; width:14px; height:14px; }
-.ecss-tile-pill { position:absolute; top:12px; right:12px; padding:1px 6px; border-radius:5px; background:var(--ecv2-amber); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.5px; line-height:1.5; }
+.ecss-tile-pill { position:absolute; top:12px; right:12px; padding:1px 6px; border-radius:5px; background:var(--ecv2-amber); color:#fff; font-size:9.5px; font-weight:800; letter-spacing:.5px; line-height:1.5; text-transform:uppercase; white-space:nowrap; }
 .ecss-tile.is-premium .ecss-tile-pill { background:var(--ecv2-g800); }
 .ecss-tile-pill.is-expired { background:var(--ecv2-danger); }
 .ecss-tile.is-locked { background:var(--ecv2-g50); border-style:dashed; }
@@ -1488,10 +1505,10 @@ body.ecv2-gate-open { overflow:hidden; }
 /* ---------- Diagnostics page ( V2 ) ---------- */
 /* The page renders inside the legacy .ec_admin_settings_panel wrapper, whose h2 rule
    ( float, uppercase, 25px padding, green underline ) outranks .ecv2-page-title. */
-.ec_admin_settings_panel .ecv2-wrap h2.ecv2-page-title { float:none; width:auto; position:static; font-size:22px; font-weight:600; margin:0; padding:0; text-transform:none; color:var(--ecv2-g900); border:0; line-height:1.3; text-align:left; }
+.ec_admin_settings_panel .ecv2-wrap h2.ecv2-page-title { float:none; width:auto; position:static; font-size:20px; font-weight:600; margin:0; padding:0; text-transform:none; color:var(--ecv2-g900); border:0; line-height:1.3; text-align:left; }
 .ec_admin_settings_panel .ecv2-wrap .ecv2-page-header-left { display:flex; align-items:center; gap:10px; }
-.ec_admin_settings_panel .ecv2-wrap .ecv2-page-header-icon { position:static; float:none; width:22px; height:22px; font-size:22px; background:none; border:0; color:var(--ecv2-g500); }
-.ec_admin_settings_panel .ecv2-wrap .ecv2-page-header-icon:before { font-size:22px; color:inherit; margin:0; }
+.ec_admin_settings_panel .ecv2-wrap .ecv2-page-header-icon { position:static; float:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:20px; background:var(--ecv2-g100); border:0; border-radius:10px; color:var(--ecv2-g600); }
+.ec_admin_settings_panel .ecv2-wrap .ecv2-page-header-icon:before { font-size:20px; width:20px; height:20px; line-height:20px; color:inherit; margin:0; }
 .ecds .ecv2-page-header { margin-bottom:14px; }
 .ecds-summary { display:flex; align-items:center; gap:14px; padding:14px 16px; margin:0 0 16px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rl); }
 .ecds-summary-icon { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; }
@@ -1531,6 +1548,7 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecds .ec_status_label a { color:var(--ecv2-primary-hover); font-weight:600; }
 .ecds .ec_status_error .ec_status_label { color:#7f1d1d; }
 .ecds .ec_status_error ul { margin:6px 0 0 16px; }
+.ecds .ecds-code { margin:8px 0; padding:10px 12px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g100); border-radius:6px; font-size:12px; line-height:1.5; white-space:pre; overflow-x:auto; color:var(--ecv2-g900); }
 /* PHP settings block */
 .ecds .ec_status_subs { display:block; }
 .ecds .ec_status_subtitles { float:none; width:auto; display:inline-flex; align-items:center; gap:6px; margin:0 14px 6px 0; font-size:12.5px; color:var(--ecv2-g700); }
@@ -1572,3 +1590,116 @@ body.ecv2-gate-open { overflow:hidden; }
 
 .ecv2-renewal-free { font-size:12px; color:var(--ecv2-g500); text-decoration:underline; text-underline-offset:2px; white-space:nowrap; }
 .ecv2-renewal-free:hover { color:var(--ecv2-g800); }
+
+/* ------------------------------------------------------------------ */
+/* Scope bar — "Using option set … · 20 products ✕ · Open option set ›"  */
+/* Printed by wp_easycart_admin_product_table when the list is scoped   */
+/* to an option set or a category.                                      */
+/* ------------------------------------------------------------------ */
+.ecv2-scope-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 10px; }
+.ecv2-scope-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 10px; border-radius:999px; background:var(--ecv2-primary-light); border:1px solid rgba(34,197,94,.25); color:var(--ecv2-g700); font-size:12.5px; font-weight:600; line-height:1.3; }
+.ecv2-scope-chip > .dashicons { font-size:14px; width:14px; height:14px; color:var(--ecv2-primary-hover); }
+.ecv2-scope-count { font-weight:500; color:var(--ecv2-g500); }
+.ecv2-scope-count::before { content:"\00b7"; margin:0 6px 0 0; color:var(--ecv2-g400); }
+.ecv2-scope-clear { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; color:var(--ecv2-g500); text-decoration:none; margin-left:2px; }
+.ecv2-scope-clear:hover { background:rgba(0,0,0,.08); color:var(--ecv2-g800); }
+.ecv2-scope-clear .dashicons { font-size:16px; width:16px; height:16px; }
+.ecv2-scope-back { display:inline-flex; align-items:center; gap:2px; font-size:12.5px; font-weight:600; color:var(--ecv2-primary-hover); text-decoration:none; }
+.ecv2-scope-back:hover { text-decoration:underline; }
+.ecv2-scope-back .dashicons { font-size:14px; width:14px; height:14px; }
+
+/* ------------------------------------------------------------------ */
+/* Repair banner ( products list: one-time text clean-up )              */
+/* ------------------------------------------------------------------ */
+.ecv2-repair-banner { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; margin:0 0 12px; border:1px solid var(--ecv2-amber-light, #ffd591); background:#fffbf2; border-radius:var(--ecv2-r); font-size:13px; color:var(--ecv2-g700); }
+.ecv2-repair-banner > .dashicons { color:var(--ecv2-amber, #b45309); margin-top:2px; }
+.ecv2-repair-banner-text { flex:1; line-height:1.5; }
+.ecv2-repair-banner-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+@media (max-width:720px) { .ecv2-repair-banner { flex-wrap:wrap; } .ecv2-repair-banner-actions { width:100%; justify-content:flex-end; } }
+
+/* ------------------------------------------------------------------ */
+/* Store Status: abandoned carts card                                   */
+/* ------------------------------------------------------------------ */
+.ecv2-status-abandoned { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); padding:14px 16px; background:#fff; }
+.ecv2-status-abandoned .ecv2-status-card-h { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; } .ecv2-status-abandoned h3 { margin:0; font-size:14px; }
+.ecv2-status-abandoned .ecv2-status-big { font-size:28px; font-weight:700; line-height:1.1; }
+.ecv2-status-abandoned .ecv2-btn { margin-top:10px; } .ecv2-status-upsell { margin-top:10px; font-size:12.5px; color:var(--ecv2-g600); }
+.ecv2-status-section-abandoned { max-width:420px; margin:14px 0; }
+
+/* Plan badges show "Pro/Premium", "Pro" or "Premium" ( wp_easycart_admin_edition ); keep them caps on one line. @since 6.0.0 */
+.ecv2-upsell-banner-pill { text-transform:uppercase; white-space:nowrap; }
+
+/* Page tabs ( also used on pages that do not load catalog-v2.css, e.g. the locked Schedule & Locations preview ). Same rules as catalog-v2.css. @since 6.0.0 */
+.ecv2-tabs { display:flex; gap:2px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); margin:0 0 16px; }
+.ecv2-tabs-wrap { padding-bottom:0; }
+.ecv2-tab { padding:10px 14px; font-weight:600; color:var(--ecv2-g500, #6b7280); text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px; display:inline-flex; align-items:center; gap:6px; }
+.ecv2-tab:hover { color:var(--ecv2-g800, #1f2937); }
+.ecv2-tab.is-active { color:var(--ecv2-primary-hover); border-bottom-color:var(--ecv2-primary); }
+
+/* Locations tab: "Multiple pickup locations" is off ( wp_easycart_admin_location::print_tabs() ). @since 6.0.0 */
+.ecv2-tab-notice { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px 16px; margin:0 0 16px; padding:12px 16px; border:1px solid #fcd34d; border-left-width:4px; border-radius:var(--ecv2-r, 8px); background:#fffbeb; color:#78350f; }
+.ecv2-tab-notice-text { display:flex; flex-direction:column; gap:2px; min-width:0; max-width:80ch; }
+.ecv2-tab-notice-text b { font-size:13.5px; color:#78350f; }
+.ecv2-tab-notice-text span { font-size:12.5px; line-height:1.45; }
+.ecv2-tab-notice .ecv2-btn { white-space:nowrap; text-decoration:none; }
+
+/* ==================================================================
+   Mobile pass ( 6.0.0 ): list page headers, the help link and notice
+   banners. Desktop is untouched.
+================================================================== */
+
+/* The Reviews and list-tool headers use .ecv2-help-link where the tables use a ghost button; it had no styles at all. */
+.ecv2-help-link { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border:1px solid transparent; border-radius:var(--ecv2-r); background:transparent; color:var(--ecv2-g600); font-size:12.5px; font-weight:500; text-decoration:none; line-height:1.4; }
+.ecv2-help-link:hover, .ecv2-help-link:focus { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+.ecv2-help-link .dashicons { font-size:16px; width:16px; height:16px; color:var(--ecv2-g400); }
+.ecv2-help-link:hover .dashicons { color:var(--ecv2-g600); }
+
+@media screen and (max-width:782px) {
+	/* Header: still one row at tablet width, with 44px touch targets. The actions wrap under the title on their
+	   own when a page carries enough of them. */
+	.ecv2-page-header { gap:10px 12px; padding:12px; margin-bottom:14px; }
+	.ecv2-page-title { font-size:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+	.ecv2-page-subline { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+	.ecv2-page-header-right .ecv2-btn { min-height:44px; }
+	.ecv2-page-header .ecv2-keyboard-hint { display:none; }
+
+	/* Notice banners ( new customer fields, cart link created ): icon + text, actions on their own row. */
+	.ecv2-user-backfill-banner, .ecv2-cl-banner { flex-wrap:wrap; align-items:flex-start; }
+	.ecv2-user-backfill-text, .ecv2-cl-banner-text { flex:1 1 100%; min-width:0; order:2; }
+	.ecv2-user-backfill-icon, .ecv2-cl-banner > .dashicons { order:1; }
+	.ecv2-user-backfill-actions, .ecv2-cl-banner-actions { flex:1 1 100%; order:3; justify-content:flex-start; flex-wrap:wrap; gap:8px; }
+	.ecv2-cl-banner-dismiss, .ecv2-user-backfill-dismiss { margin-left:auto; }
+}
+
+/* Tables printed straight into a card ( cart links, and any list that does not use the table renderer ) had no way to
+   scroll, so their last column — usually Actions — was clipped off the right edge on a phone. @since 6.0.0 */
+@container ecv2 (max-width:640px) {
+	.ecv2-table-card { overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
+	.ecv2-table-card > .ecv2-table { min-width:560px; }
+}
+@supports not (container-type:inline-size) {
+	@media screen and (max-width:782px) {
+		.ecv2-table-card { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+		.ecv2-table-card > .ecv2-table { min-width:560px; }
+		.ecv2-table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+		.ecv2-table-scroll > .ecv2-table { min-width:560px; }
+	}
+}
+
+/* Phone header: two rows — the title with its context line, then the actions as one row. The primary action grows
+   into whatever the secondary ones leave, so "Add …" keeps its wording and a 44px target. A secondary action that
+   carries both an icon and a label collapses to a 44px square ( the label stays in the button for screen readers
+   and the title attribute repeats it ). One without both — the inventory low-stock link, which carries its number,
+   or the settings wizard link — keeps its text, and a browser without :has() keeps every label. @since 6.0.0 */
+@media screen and (max-width:600px) {
+	.ecv2-page-header { flex-direction:column; align-items:stretch; gap:10px; padding:10px 12px; }
+	.ecv2-page-header-left { width:100%; align-items:center; gap:10px; }
+	.ecv2-page-header-right { width:100%; gap:8px; justify-content:flex-start; align-items:center; flex-wrap:wrap; }
+	.ecv2-page-header-right .ecv2-btn-primary { flex:1 1 auto; justify-content:center; margin-left:0; }
+	.ecv2-page-title { font-size:17px; }
+	.ecv2-page-header-icon { width:32px; height:32px; border-radius:9px; }
+	.ecv2-page-header-icon:before { font-size:18px; width:18px; height:18px; line-height:18px; }
+	.ecv2-page-header-right .ecv2-btn:not(.ecv2-btn-primary):has(.dashicons):has(.ecv2-btn-label) { position:relative; flex:0 0 auto; width:44px; padding:0; gap:0; justify-content:center; border-color:var(--ecv2-g300); background:#fff; color:var(--ecv2-g600); }
+	.ecv2-page-header-right .ecv2-btn:not(.ecv2-btn-primary):has(.dashicons):has(.ecv2-btn-label) .ecv2-btn-label { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0; }
+	.ecv2-page-header-right .ecv2-btn:not(.ecv2-btn-primary):has(.dashicons):has(.ecv2-btn-label) .dashicons { font-size:19px; width:19px; height:19px; margin:0; }
+}

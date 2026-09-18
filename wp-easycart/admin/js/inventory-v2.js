@@ -1,3 +1,4 @@
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin — Inventory V2
  *
@@ -182,12 +183,27 @@
 	/* Shared shell: stat cards + visibility toggles                        */
 	/* ------------------------------------------------------------------ */
 
-	$( document ).on( 'click', '.ecv2-stat-card', function() {
-		var filter = $( this ).data( 'filter' );
+	/* Stat tiles are the list's quick filters, as on the other V2 lists: clicking one filters
+	 * ( clicking the active one clears it ), drops the search term so the two don't combine,
+	 * and starts again at page one. Keyboard: the tile is a button, so Enter / Space activate it. */
+	function ecv2i_stat_filter( card ) {
+		var $card = $( card );
+		if ( $card.hasClass( 'ecv2-stat-static' ) ) { return; }
+		var filter = $card.data( 'filter' );
 		var current = $( '#ecv2-health-filter-input' ).val();
 		$( '#ecv2-health-filter-input' ).val( ( current === filter ) ? '' : filter );
+		$( '#ecv2-search-input' ).val( '' );
 		ecv2i_reset_pagenum();
 		ecv2i_form().trigger( 'submit' );
+	}
+	$( document ).on( 'click', '.ecv2-stat-card', function() {
+		ecv2i_stat_filter( this );
+	} );
+	$( document ).on( 'keydown', '.ecv2-stat-card[role="button"]', function( e ) {
+		if ( 'Enter' === e.key || ' ' === e.key || 'Spacebar' === e.key ) {
+			e.preventDefault();
+			ecv2i_stat_filter( this );
+		}
 	} );
 
 	$( document ).on( 'click', '#ecv2-stat-toggle-btn', function( e ) {
@@ -259,7 +275,7 @@
 	/* ------------------------------------------------------------------ */
 
 	function ecv2i_refresh_selection() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		$( '#ecv2-selected-count' ).text( count );
 		$( '.ecv2-bulk-count' ).toggle( count > 0 );
 		$( '#ecv2i-bulk-btn' ).toggle( count > 0 );
@@ -271,7 +287,7 @@
 	$( document ).on( 'change', '.ecv2-row-check', ecv2i_refresh_selection );
 
 	window.ecv2i_selected_row_keys = function() {
-		return $( '.ecv2-row-check:checked' ).map( function() { return $( this ).val(); } ).get();
+		return $( '.ecv2-row-check:checked' ).map( function() { return $( this ).val(); } ).get().filter( function( v, i, a ) { return a.indexOf( v ) === i; } );
 	};
 
 	/* ------------------------------------------------------------------ */
@@ -288,10 +304,123 @@
 		var was_open = $pop.hasClass( 'ecv2i-pop-open' );
 		ecv2i_close_qty_pops();
 		if ( ! was_open ) {
-			$pop.addClass( 'ecv2i-pop-open' );
-			$pop.find( '.ecv2i-qty-input' ).trigger( 'focus' ).trigger( 'select' );
+			var tracked = parseInt( $wrap.attr( 'data-tracked' ), 10 ) === 1;
+			$pop.toggleClass( 'is-tracked', tracked ).toggleClass( 'is-untracked', ! tracked ).addClass( 'ecv2i-pop-open' );
+			$pop.find( '.ecv2i-mode-btn' ).removeClass( 'is-on' ).filter( '[data-mode="set"]' ).addClass( 'is-on' );
+			$pop.find( '.ecv2i-qty-input' ).val( $wrap.attr( 'data-qty' ) ).attr( 'data-original', $wrap.attr( 'data-qty' ) );
+			$pop.find( '.ecv2i-pop-preview' ).text( '' );
+			$pop.find( '.ecv2i-pop-extra' ).val( '' );
+			ecv2i_clear_field_error( $pop.find( '.ecv2i-pop-extra' ) );
+			$pop.find( tracked ? '.ecv2i-qty-input' : '.ecv2i-track-input' ).trigger( 'focus' ).trigger( 'select' );
+			/* keep the popover on screen: flip left when it would overflow the table */
+			var r = $pop[0].getBoundingClientRect(); $pop.toggleClass( 'is-flip', r.right > window.innerWidth - 12 );
 		}
 	};
+	window.ecv2i_menu_stop_tracking = function( trigger ) {
+		var $row = $( trigger ).closest( 'tr' ); $( trigger ).closest( '.ecv2-row-menu' ).removeClass( 'ecv2-row-menu-open' );
+		ecv2i_stop_tracking( $row.find( '.ecv2i-qty-wrap' ) );
+	};
+	function ecv2i_stop_tracking( $wrap ) {
+		var go = function() { ecv2i_post_qty( $wrap, { tracked: 0 }, ecv2i_lang.tracking_stopped ); };
+		if ( window.ecv2_show_confirm ) { ecv2_show_confirm( ecv2i_lang.stop_confirm_t, ecv2i_lang.stop_confirm_b ).then( function( ok ) { if ( ok ) { go(); } } ); } else if ( window.confirm( ecv2i_lang.stop_confirm_t ) ) { go(); }
+	}
+	/* Set / Add / Remove → the value actually sent */
+	function ecv2i_target_qty( $wrap ) {
+		var $pop = $wrap.find( '.ecv2i-qty-pop' ), mode = $pop.find( '.ecv2i-mode-btn.is-on' ).data( 'mode' ) || 'set', v = parseInt( $pop.find( '.ecv2i-qty-input' ).val(), 10 ), cur = parseInt( $wrap.attr( 'data-qty' ), 10 ) || 0;
+		if ( isNaN( v ) ) { return NaN; }
+		if ( mode === 'add' ) { return cur + v; } if ( mode === 'remove' ) { return Math.max( 0, cur - v ); } return Math.max( 0, v );
+	}
+	function ecv2i_preview( $wrap ) {
+		var $pop = $wrap.find( '.ecv2i-qty-pop' ), mode = $pop.find( '.ecv2i-mode-btn.is-on' ).data( 'mode' ) || 'set', v = parseInt( $pop.find( '.ecv2i-qty-input' ).val(), 10 ), cur = parseInt( $wrap.attr( 'data-qty' ), 10 ) || 0, t = ecv2i_target_qty( $wrap ), $pv = $pop.find( '.ecv2i-pop-preview' );
+		if ( isNaN( t ) ) { $pv.text( '' ); return; }
+		var f = function( str, a, b, c ) { return str.replace( '%1$s', a ).replace( '%2$s', b ).replace( '%3$s', c ).replace( '%s', a ); };
+		$pv.text( mode === 'set' ? ( t === cur ? '' : f( ecv2i_lang.preview_set, t ) ) : f( mode === 'add' ? ecv2i_lang.preview_add : ecv2i_lang.preview_remove, cur, isNaN( v ) ? 0 : v, t ) ).toggleClass( 'is-out', t <= 0 ).toggleClass( 'is-low', t > 0 && t <= ( window.ecv2i_config ? ecv2i_config.threshold : 0 ) );
+	}
+	$( document ).on( 'click', '.ecv2i-mode-btn', function() { var $pop = $( this ).closest( '.ecv2i-qty-pop' ); $pop.find( '.ecv2i-mode-btn' ).removeClass( 'is-on' ); $( this ).addClass( 'is-on' ); var $in = $pop.find( '.ecv2i-qty-input' ); $in.val( $( this ).data( 'mode' ) === 'set' ? $( this ).closest( '.ecv2i-qty-wrap' ).attr( 'data-qty' ) : 1 ).trigger( 'focus' ).trigger( 'select' ); ecv2i_preview( $( this ).closest( '.ecv2i-qty-wrap' ) ); } );
+	$( document ).on( 'input change', '.ecv2i-qty-input', function() { ecv2i_preview( $( this ).closest( '.ecv2i-qty-wrap' ) ); } );
+	$( document ).on( 'click', '.ecv2i-stop-tracking', function( e ) { e.preventDefault(); ecv2i_stop_tracking( $( this ).closest( '.ecv2i-qty-wrap' ) ); } );
+	$( document ).on( 'click', '.ecv2i-track-start', function() { var $wrap = $( this ).closest( '.ecv2i-qty-wrap' ), v = parseInt( $wrap.find( '.ecv2i-track-input' ).val(), 10 ); if ( isNaN( v ) || v < 0 ) { $wrap.find( '.ecv2i-track-input' ).addClass( 'is-invalid' ).trigger( 'focus' ); return; } ecv2i_post_qty( $wrap, { quantity: v, tracked: 1 }, ecv2i_lang.tracking_started ); } );
+	$( document ).on( 'keydown', '.ecv2i-track-input', function( e ) { if ( 'Enter' === e.key ) { e.preventDefault(); $( this ).closest( '.ecv2i-pop-row' ).find( '.ecv2i-track-start' ).trigger( 'click' ); } if ( 'Escape' === e.key ) { ecv2i_close_qty_pops(); } } );
+	/* Clicking a derived cell ( Available / Committed, added by PRO ) opens the same popover — the number itself is the entry point. */
+	$( document ).on( 'click', 'td.ecv2-cell-available, td.ecv2-cell-committed, .ecv2i-available-link', function( e ) { if ( $( e.target ).is( 'a[href]:not(.ecv2i-available-link)' ) ) { return; } var $btn = $( this ).closest( 'tr' ).find( '.ecv2i-qty-badge-btn' ); if ( $btn.length ) { e.preventDefault(); ecv2i_open_qty( $btn[0] ); } } );
+	/* Generic saver: sends quantity and/or tracked, then re-renders the pill and the row's derived cells.
+	 * ok_msg may be a string or a function( response.data ) returning the toast text. The core keys
+	 * ( action, ids, nonce ) always win over anything passed in extra. */
+	function ecv2i_post_qty( $wrap, extra, ok_msg ) {
+		$.ajax( { url: wpeasycart_admin_ajax_object.ajax_url, type: 'POST', data: $.extend( {}, extra, { action: 'ecv2_inventory_set_qty', product_id: $wrap.data( 'product-id' ), oiq_id: $wrap.data( 'oiq-id' ), wp_easycart_nonce: ecv2i_nonces.set_qty } ),
+			success: function( response ) {
+				if ( response.success ) { window.ecv2i_render_badge( $wrap, parseInt( response.data.quantity, 10 ), parseInt( response.data.threshold, 10 ), response.data.tracked ); ecv2i_close_qty_pops(); ecv2_toast( ( 'function' === typeof ok_msg ? ok_msg( response.data ) : ok_msg ) || ecv2i_lang.saved, 'success' ); $( document ).trigger( 'ecv2i:qty-changed', [ $wrap, response.data ] ); return; }
+				var message = ( response.data && response.data.message ) ? response.data.message : ecv2i_lang.error;
+				/* A refusal naming a field ( PRO: reason required ) is shown on that field, not as a toast. */
+				var $field = ( response.data && response.data.field ) ? $wrap.find( '.ecv2i-pop-tracked .ecv2i-pop-extra[name="' + String( response.data.field ).replace( /[^a-z0-9_-]/gi, '' ) + '"]' ) : $();
+				if ( $field.length && $wrap.find( '.ecv2i-qty-pop' ).hasClass( 'ecv2i-pop-open' ) ) { ecv2i_field_error( $field, message ); } else { ecv2_toast( message, 'error' ); }
+			},
+			error: function() { ecv2_toast( ecv2i_lang.error, 'error' ); } } );
+	}
+
+	function ecv2i_fmt( str, a, b ) {
+		return String( str || '' ).replace( '%1$s', a ).replace( '%2$s', b ).replace( '%s', a );
+	}
+
+	/* Toast for a popover save, worded by what actually happened server-side. */
+	function ecv2i_saved_message( data ) {
+		var qty = parseInt( data.quantity, 10 ), delta = parseInt( data.delta, 10 ) || 0;
+		if ( 'add' === data.mode || 'remove' === data.mode ) {
+			if ( delta > 0 && ecv2i_lang.saved_add ) { return ecv2i_fmt( ecv2i_lang.saved_add, delta, qty ); }
+			if ( delta < 0 && ecv2i_lang.saved_remove ) { return ecv2i_fmt( ecv2i_lang.saved_remove, -delta, qty ); }
+			return ecv2i_lang.saved_none ? ecv2i_fmt( ecv2i_lang.saved_none, qty ) : ecv2i_lang.saved;
+		}
+		return ecv2i_lang.saved_set ? ecv2i_fmt( ecv2i_lang.saved_set, qty ) : ecv2i_lang.saved;
+	}
+
+	/* Fields other code ( PRO: reason ) prints into the popover: any .ecv2i-pop-extra[name] is posted. */
+	function ecv2i_pop_extra( $pop ) {
+		var out = {};
+		$pop.find( '.ecv2i-pop-tracked .ecv2i-pop-extra[name]' ).each( function() {
+			out[ $( this ).attr( 'name' ) ] = $( this ).val();
+		} );
+		return out;
+	}
+
+	/* Inline field error: marks the field, focuses it and prints the message under it. */
+	function ecv2i_field_error( $field, message ) {
+		$field = $field.first();
+		var id = $field.attr( 'id' ) ? $field.attr( 'id' ) + '-error' : '';
+		var $error = $field.siblings( '.ecv2i-pop-error' );
+		if ( ! $error.length ) {
+			$error = $( '<p class="ecv2i-pop-error" role="alert"></p>' );
+			if ( id ) { $error.attr( 'id', id ); }
+			$field.after( $error );
+		}
+		$error.text( message || ecv2i_lang.error ).prop( 'hidden', false );
+		$field.addClass( 'is-invalid' ).attr( 'aria-invalid', 'true' );
+		if ( id ) { $field.attr( 'aria-describedby', id ); }
+		$field.trigger( 'focus' );
+	}
+	function ecv2i_clear_field_error( $fields ) {
+		$fields.removeClass( 'is-invalid' ).removeAttr( 'aria-invalid' ).siblings( '.ecv2i-pop-error' ).prop( 'hidden', true ).text( '' );
+	}
+	window.ecv2i_field_error = ecv2i_field_error;
+	window.ecv2i_clear_field_error = ecv2i_clear_field_error;
+
+	/* A required extra field ( PRO: reason ) without a value blocks the save. Returns true when all are filled. */
+	function ecv2i_pop_required_ok( $pop ) {
+		var $missing = $pop.find( '.ecv2i-pop-tracked .ecv2i-pop-extra[required]' ).filter( function() {
+			return '' === String( $( this ).val() || '' );
+		} );
+		if ( $missing.length ) {
+			ecv2i_field_error( $missing, $missing.first().attr( 'data-required-message' ) );
+			return false;
+		}
+		return true;
+	}
+	$( document ).on( 'change', '.ecv2i-qty-pop .ecv2i-pop-extra', function() {
+		if ( '' !== String( $( this ).val() || '' ) ) { ecv2i_clear_field_error( $( this ) ); }
+	} );
+	$( document ).on( 'keydown', '.ecv2i-qty-pop .ecv2i-pop-extra', function( e ) {
+		if ( 'Enter' === e.key ) { e.preventDefault(); ecv2i_save_qty( $( this ).closest( '.ecv2i-qty-wrap' ) ); }
+		if ( 'Escape' === e.key ) { ecv2i_close_qty_pops(); }
+	} );
 
 	window.ecv2i_menu_set_qty = function( trigger ) {
 		var $row = $( trigger ).closest( 'tr' );
@@ -315,50 +444,35 @@
 		return 'ecv2-stock-ok';
 	}
 
-	window.ecv2i_render_badge = function( $wrap, qty, threshold ) {
-		var suffix = '';
-		if ( qty <= 0 ) {
-			suffix = ' \u00b7 ' + ecv2i_lang.out;
-		} else if ( qty <= threshold ) {
-			suffix = ' \u00b7 ' + ecv2i_lang.low;
-		}
-		$wrap.attr( 'data-qty', qty ).data( 'qty', qty );
-		$wrap.find( '.ecv2-stock-badge' )
-			.attr( 'class', 'ecv2-stock-badge ' + ecv2i_badge_class( qty, threshold ) )
-			.text( qty + suffix );
+	window.ecv2i_render_badge = function( $wrap, qty, threshold, tracked ) {
+		if ( tracked === undefined ) { tracked = parseInt( $wrap.attr( 'data-tracked' ), 10 ) === 1; } else { tracked = parseInt( tracked, 10 ) === 1; }
+		$wrap.attr( 'data-qty', qty ).data( 'qty', qty ).attr( 'data-tracked', tracked ? 1 : 0 );
+		var $b = $wrap.find( '.ecv2-stock-badge' );
+		if ( ! tracked ) { $b.attr( 'class', 'ecv2-stock-badge ecv2-stock-unlimited' ).html( '&infin; ' + ecv2i_lang.unlimited ); }
+		else { var label = qty <= 0 ? ecv2i_lang.out : ecv2i_lang.in_stock.replace( '%s', qty ) + ( qty <= threshold ? ' \u00b7 ' + ecv2i_lang.low : '' ); $b.attr( 'class', 'ecv2-stock-badge ' + ecv2i_badge_class( qty, threshold ) ).text( label ); }
+		$wrap.find( '.ecv2i-qty-badge-btn' ).attr( 'title', tracked ? 'Change the quantity on hand' : 'Stock isn\u2019t tracked for this item \u2014 click to start tracking' );
 		$wrap.find( '.ecv2i-qty-input' ).val( qty ).attr( 'data-original', qty );
+		/* derived cells ( PRO adds them ): available = on hand − committed */
+		var $tr = $wrap.closest( 'tr' ), committed = parseInt( $tr.find( 'td.ecv2-cell-committed' ).text().replace( /[^0-9-]/g, '' ), 10 );
+		var $av = $tr.find( 'td.ecv2-cell-available' ); if ( $av.length ) { $av.html( tracked ? '<span class="ecv2i-available-link">' + Math.max( 0, qty - ( isNaN( committed ) ? 0 : committed ) ) + '</span>' : '<span class="ecv2-stock-badge ecv2-stock-unlimited">&infin;</span>' ); }
+		/* row menu: swap the tracking items */
+		var $menu = $tr.find( '.ecv2-row-menu' ); if ( $menu.length ) { $menu.find( '.ecv2-row-menu-item' ).filter( function() { return /Change quantity|Track stock|Stop tracking/.test( $( this ).text() ); } ).remove(); var $edit = $menu.find( '.ecv2-row-menu-item' ).first(); if ( tracked ) { $edit.after( '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_stop_tracking( this ); return false;"><span class="dashicons dashicons-dismiss"></span> Stop tracking stock</a>' ).after( '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_set_qty( this ); return false;"><span class="dashicons dashicons-edit"></span> Change quantity\u2026</a>' ); } else { $edit.after( '<a href="#" class="ecv2-row-menu-item" onclick="ecv2i_menu_set_qty( this ); return false;"><span class="dashicons dashicons-plus-alt2"></span> Track stock\u2026</a>' ); } }
 	};
 
+	/* Set sends the absolute quantity; Add / Remove send the amount so the server applies ( and logs ) a delta. */
 	function ecv2i_save_qty( $wrap ) {
-		var $input = $wrap.find( '.ecv2i-qty-input' );
-		var qty = parseInt( $input.val(), 10 );
-		if ( isNaN( qty ) ) {
-			ecv2_toast( ecv2i_lang.error, 'error' );
-			return;
+		var $pop = $wrap.find( '.ecv2i-qty-pop' );
+		var mode = $pop.find( '.ecv2i-mode-btn.is-on' ).data( 'mode' ) || 'set';
+		var amount = parseInt( $pop.find( '.ecv2i-qty-input' ).val(), 10 );
+		var qty = ecv2i_target_qty( $wrap );
+		if ( isNaN( qty ) || isNaN( amount ) ) { ecv2_toast( ecv2i_lang.error, 'error' ); return; }
+		if ( ! ecv2i_pop_required_ok( $pop ) ) { return; }
+		if ( 'set' !== mode && amount < 0 ) {
+			/* A negative amount ( the − stepper past zero ) means the opposite direction. */
+			mode = ( 'add' === mode ) ? 'remove' : 'add';
+			amount = -amount;
 		}
-		$.ajax( {
-			url: wpeasycart_admin_ajax_object.ajax_url,
-			type: 'POST',
-			data: {
-				action: 'ecv2_inventory_set_qty',
-				product_id: $wrap.data( 'product-id' ),
-				oiq_id: $wrap.data( 'oiq-id' ),
-				quantity: qty,
-				wp_easycart_nonce: ecv2i_nonces.set_qty
-			},
-			success: function( response ) {
-				if ( response.success ) {
-					window.ecv2i_render_badge( $wrap, parseInt( response.data.quantity, 10 ), parseInt( response.data.threshold, 10 ) );
-					ecv2i_close_qty_pops();
-					ecv2_toast( ecv2i_lang.saved, 'success' );
-				} else {
-					ecv2_toast( ( response.data && response.data.message ) ? response.data.message : ecv2i_lang.error, 'error' );
-				}
-			},
-			error: function() {
-				ecv2_toast( ecv2i_lang.error, 'error' );
-			}
-		} );
+		ecv2i_post_qty( $wrap, $.extend( ecv2i_pop_extra( $pop ), { mode: mode, quantity: qty, amount: amount } ), ecv2i_saved_message );
 	}
 
 	$( document ).on( 'click', '.ecv2i-qty-save', function() {
@@ -374,34 +488,8 @@
 		}
 	} );
 
-	/* ------------------------------------------------------------------ */
-	/* Inventory: low stock threshold                                       */
-	/* ------------------------------------------------------------------ */
-
-	$( document ).on( 'click', '#ecv2i-threshold-btn', function( e ) {
-		e.stopPropagation();
-		$( '#ecv2i-threshold-pop' ).toggle();
-	} );
-	$( document ).on( 'click', '#ecv2i-threshold-save', function() {
-		var threshold = parseInt( $( '#ecv2i-threshold-input' ).val(), 10 );
-		if ( isNaN( threshold ) || threshold < 1 ) {
-			ecv2_toast( ecv2i_lang.error, 'error' );
-			return;
-		}
-		$.post( wpeasycart_admin_ajax_object.ajax_url, {
-			action: 'ecv2_inventory_save_threshold',
-			threshold: threshold,
-			wp_easycart_nonce: ecv2i_nonces.save_threshold
-		}, function( response ) {
-			if ( response.success ) {
-				ecv2_toast( ecv2i_lang.threshold_saved, 'success' );
-				/* Badges + stats are threshold-derived: reload for accuracy. */
-				window.location.reload();
-			} else {
-				ecv2_toast( ( response.data && response.data.message ) ? response.data.message : ecv2i_lang.error, 'error' );
-			}
-		} );
-	} );
+	/* The low stock threshold is one store-wide setting, edited in
+	   Settings > Checkout > Stock alerts. The header shows it and links there. */
 
 	/* ------------------------------------------------------------------ */
 	/* PRO gates ( overridden by inventory-v2-pro.js when live )            */

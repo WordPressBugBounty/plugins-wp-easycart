@@ -20,8 +20,15 @@
 	'use strict';
 
 	var V = window.ecpsv2_vars || {};
-	var L = V.lang || {};
+	/* Strings: the template's JSON block ( #ecpsv2_lang ) first, ecpsv2_vars.lang wins on overlap. */
+	var L = $.extend( {}, tpl_lang(), V.lang || {} );
 	var AJAX = ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) || window.ajaxurl;
+
+	function tpl_lang() {
+		var node = document.getElementById( 'ecpsv2_lang' );
+		if ( ! node ) { return {}; }
+		try { return JSON.parse( node.textContent || node.innerText || '{}' ) || {}; } catch ( err ) { return {}; }
+	}
 
 	var state = {
 		mode: 'create',          // 'create' | 'edit'
@@ -65,7 +72,7 @@
 	function opt_max() { var n = parseInt( $box().attr( 'data-max-opts' ), 10 ); return ( n > 0 ) ? n : 5; }
 	function opt_max_label() {
 		return V.is_pro ? ( L.opt_max || 'Maximum of 5 — use modifiers for more' )
-		                : ( L.opt_max_free || 'Free edition allows %d — PRO allows 5' ).replace( '%d', opt_max() );
+		                : ( L.opt_max_free || 'Free edition allows %d — ' + ( ( window.wp_easycart_edition && window.wp_easycart_edition.plan ) || 'Pro/Premium' ) + ' allows 5' ).replace( '%d', opt_max() );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -114,7 +121,7 @@
 	function refresh_type_hint() {
 		if ( state.mode !== 'create' ) { return; }
 		var t = val( 'ecpsv2_type' ), $h = $f( 'ecpsv2_type_hint' );
-		if ( ! V.is_pro ) { $h.text( L.type_pro_hint || 'Downloads, subscriptions, gift cards and more are PRO types.' ); return; }
+		if ( ! V.is_pro ) { $h.text( L.type_pro_hint || 'Downloads, subscriptions, gift cards and more are ' + ( ( window.wp_easycart_edition && window.wp_easycart_edition.plan ) || 'Pro/Premium' ) + ' types.' ); return; }
 		if ( t === '5' || t === '6' ) { $h.text( L.type_stripe || 'Subscriptions and memberships bill through Stripe, Authorize.net or PayPal.' ); }
 		else if ( DIGITAL_TYPES[ t ] ) { $h.text( L.type_digital || 'This type is delivered without shipping.' ); }
 		else { $h.text( '' ); }
@@ -172,9 +179,11 @@
 			length:            val( 'ecpsv2_length' ),
 			width:             val( 'ecpsv2_width' ),
 			height:            val( 'ecpsv2_height' ),
-			is_taxable:        val( 'ecpsv2_tax' ),
+			/* Tax is a hidden input when the Quick add panel setting is off; it still round-trips the loaded value. */
+			is_taxable:        val( 'ecpsv2_tax' ) || String( V.default_tax || '0' ),
 			product_type:      state.mode === 'create' ? val( 'ecpsv2_type' ) : '',
-			option_type:       state.mode === 'create' ? val( 'ecpsv2_optmode' ) : '',
+			/* Options card absent ( "Variant fields" off ) => no options, all slots 0. */
+			option_type:       state.mode === 'create' ? ( val( 'ecpsv2_optmode' ) || '0' ) : '',
 			options:           state.mode === 'create' ? opt_ids() : []
 		};
 	}
@@ -198,8 +207,10 @@
 		$f( 'ecpsv2_optmode' ).val( '0' );
 		$f( 'ecpsv2_opt_list' ).empty();
 		opt_refresh();
+		opt_results_close();
+		$f( 'ecpsv2_opt_search' ).val( '' );
 		$( '.ecpsv2-err' ).prop( 'hidden', true );
-		$( '.ecv2-input.is-invalid' ).removeClass( 'is-invalid' );
+		$( '.ecv2-input.is-invalid, .ecpsv2-money.is-invalid' ).removeClass( 'is-invalid' );
 		state.sku_touched = false;
 		state.ship_touched = false;
 		state.snapshot = null;
@@ -397,19 +408,35 @@
 	/* Manufacturer combobox: pick an existing brand or type a new one     */
 	/* ------------------------------------------------------------------ */
 
-	function manu_list() {
-		var raw = $f( 'ecpsv2_manu_combo' ).attr( 'data-list' ), list;
-		try { list = JSON.parse( raw || '[]' ); } catch ( e ) { list = []; }
-		return list;
-	}
+	/* Brands are searched on the server as you type ( ecv2_manufacturer_search, 40 per
+	 * request ); manu_cache holds the matches for the last term plus any brand this
+	 * session created or loaded, so exact-name checks and id → name lookups still work. */
+	var manu_cache = [], manu_timer = null, manu_seq = 0;
+	function manu_list() { return manu_cache; }
 	function manu_name_for( id ) {
 		id = parseInt( id, 10 ) || 0;
 		var hit = $.grep( manu_list(), function( m ) { return m.id === id; } );
 		return hit.length ? hit[ 0 ].name : '';
 	}
+	function manu_search( term, cb ) {
+		var my = ++manu_seq;
+		clearTimeout( manu_timer );
+		manu_timer = setTimeout( function() {
+			$.post( AJAX, { action: 'ecv2_manufacturer_search', q: term, page: 1, wp_easycart_nonce: $f( 'ecpsv2_manu_combo' ).data( 'nonce' ) }, function( r ) {
+				if ( my !== manu_seq ) { return; }
+				var out = [];
+				$.each( ( r && r.success && r.data && r.data.results ) ? r.data.results : [], function( i, m ) { if ( parseInt( m.id, 10 ) > 0 ) { out.push( { id: parseInt( m.id, 10 ), name: String( m.text ) } ); } } );
+				/* keep brands learned this session ( created on save ) visible to exact-match checks */
+				$.each( manu_cache, function( i, m ) { if ( m.learned && ! $.grep( out, function( o ) { return o.id === m.id; } ).length ) { out.push( m ); } } );
+				manu_cache = out;
+				cb( out );
+			}, 'json' ).fail( function() { if ( my === manu_seq ) { cb( manu_cache ); } } );
+		}, 250 );
+	}
 	function manu_set( id, name ) {
 		id = parseInt( id, 10 ) || 0;
 		if ( id && ! name ) { name = manu_name_for( id ); }
+		if ( id && name && ! manu_name_for( id ) ) { manu_cache.push( { id: id, name: name, learned: true } ); } /* loaded brand: keep it resolvable for discard / exact checks */
 		$f( 'ecpsv2_manu_id' ).val( id );
 		$f( 'ecpsv2_manu_input' ).val( name || '' );
 		manu_hint();
@@ -425,18 +452,23 @@
 		$h.text( ( L.manu_new || '“%s” will be created as a new brand when you save.' ).replace( '%s', txt ) );
 	}
 	function manu_open() {
-		var txt = val( 'ecpsv2_manu_input' ).toLowerCase(), $ul = $f( 'ecpsv2_manu_list' ).empty();
-		var matches = $.grep( manu_list(), function( m ) { return txt === '' || m.name.toLowerCase().indexOf( txt ) !== -1; } ).slice( 0, 8 );
-		$.each( matches, function( i, m ) {
-			$( '<li role="option">' ).attr( 'data-id', m.id ).text( m.name ).appendTo( $ul );
+		var raw = val( 'ecpsv2_manu_input' ), txt = raw.toLowerCase();
+		manu_search( raw, function( list ) {
+			if ( val( 'ecpsv2_manu_input' ) !== raw ) { return; } /* the field moved on */
+			var $ul = $f( 'ecpsv2_manu_list' ).empty();
+			var matches = $.grep( list, function( m ) { return txt === '' || m.name.toLowerCase().indexOf( txt ) !== -1; } ).slice( 0, 8 );
+			$.each( matches, function( i, m ) {
+				$( '<li role="option">' ).attr( 'data-id', m.id ).text( m.name ).appendTo( $ul );
+			} );
+			var exact = $.grep( list, function( m ) { return m.name.toLowerCase() === txt; } ).length;
+			if ( txt !== '' && ! exact ) {
+				$( '<li role="option" class="ecpsv2-combo-create">' ).attr( 'data-id', 0 ).text( ( L.manu_create || 'Create “%s”' ).replace( '%s', raw ) ).appendTo( $ul );
+			}
+			var open = $ul.children().length > 0;
+			$ul.prop( 'hidden', ! open );
+			$f( 'ecpsv2_manu_input' ).attr( 'aria-expanded', open ? 'true' : 'false' );
+			manu_hint(); /* the exact-name check can only run once matches are in */
 		} );
-		var exact = $.grep( manu_list(), function( m ) { return m.name.toLowerCase() === txt; } ).length;
-		if ( txt !== '' && ! exact ) {
-			$( '<li role="option" class="ecpsv2-combo-create">' ).attr( 'data-id', 0 ).text( ( L.manu_create || 'Create “%s”' ).replace( '%s', val( 'ecpsv2_manu_input' ) ) ).appendTo( $ul );
-		}
-		var open = $ul.children().length > 0;
-		$ul.prop( 'hidden', ! open );
-		$f( 'ecpsv2_manu_input' ).attr( 'aria-expanded', open ? 'true' : 'false' );
 	}
 	function manu_close() {
 		$f( 'ecpsv2_manu_list' ).prop( 'hidden', true );
@@ -445,16 +477,18 @@
 	/* After a save creates a brand, remember it so the next open recognises it. */
 	function manu_learn( id, name ) {
 		id = parseInt( id, 10 ) || 0;
-		if ( ! id || ! name || manu_name_for( id ) ) { return; }
-		var list = manu_list(); list.push( { id: id, name: name } );
-		list.sort( function( a, b ) { return a.name.localeCompare( b.name ); } );
-		$f( 'ecpsv2_manu_combo' ).attr( 'data-list', JSON.stringify( list ) );
+		if ( ! id || ! name ) { return; }
+		if ( ! manu_name_for( id ) ) { manu_cache.push( { id: id, name: name, learned: true } ); }
 		manu_set( id, name );
 	}
 
 	/* ------------------------------------------------------------------ */
-	/* Option sets ( create ): pick one at a time, drag to reorder, remove */
+	/* Option sets ( create ): chips in slot order + search-as-you-type    */
 	/* ------------------------------------------------------------------ */
+	/* Chips keep the .ecpsv2-opt-row class: option-set-slideout-v2.js counts them to
+	 * announce which slot a newly created set will take. The whole card is absent when
+	 * Settings › Admin › Quick add panel › Variant fields is off; every helper below
+	 * tolerates that ( empty jQuery sets, no observer ). */
 
 	function opt_source() {
 		var out = [];
@@ -464,60 +498,138 @@
 		} );
 		return out;
 	}
+	function opt_rows() { return $( '#ecpsv2_opt_list .ecpsv2-opt-row' ); }
 	function opt_ids() {
-		var ids = $( '#ecpsv2_opt_list .ecpsv2-opt-row' ).map( function() { return String( $( this ).data( 'id' ) ); } ).get();
+		var ids = opt_rows().map( function() { return String( $( this ).data( 'id' ) ); } ).get();
 		while ( ids.length < 5 ) { ids.push( '0' ); }
 		return ids.slice( 0, 5 );
 	}
-	function opt_add( id, name ) {
+	function opt_choices_label( count ) {
+		count = parseInt( count, 10 ) || 0;
+		if ( count <= 0 ) { return ''; }
+		return count === 1 ? ( L.opt_choice_one || '1 choice' ) : ( L.opt_choices || '%d choices' ).replace( '%d', count );
+	}
+	function opt_add( id, name, count ) {
 		id = parseInt( id, 10 );
 		if ( ! id || $( '#ecpsv2_opt_list .ecpsv2-opt-row[data-id="' + id + '"]' ).length ) { return; }
-		if ( $( '#ecpsv2_opt_list .ecpsv2-opt-row' ).length >= opt_max() ) {
+		if ( opt_rows().length >= opt_max() ) {
 			if ( ! V.is_pro && typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products', feature: 'variants' } ); }
 			return;
 		}
-		var $row = $( '<div class="ecpsv2-opt-row">' ).attr( 'data-id', id );
-		$row.append( '<span class="ecpsv2-opt-drag" title="' + esc( L.drag || 'Drag to reorder' ) + '" aria-hidden="true"><svg viewBox="0 0 10 16" width="10" height="16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>' );
-		$row.append( '<span class="ecpsv2-opt-n"></span>' );
-		$row.append( $( '<span class="ecpsv2-opt-name">' ).text( name ) );
-		$row.append( '<button type="button" class="ecpsv2-opt-rm" aria-label="' + esc( L.remove || 'Remove' ) + '">×</button>' );
-		$f( 'ecpsv2_opt_list' ).append( $row );
+		count = parseInt( count, 10 ) || 0;
+		var $chip = $( '<span class="ecpsv2-opt-row ecpsv2-opt-chip" role="listitem">' ).attr( { 'data-id': id, 'data-count': count, title: L.drag || 'Drag to reorder' } );
+		$chip.append( '<span class="ecpsv2-opt-n"></span>' );
+		$chip.append( $( '<span class="ecpsv2-opt-name">' ).text( name ) );
+		$chip.append( $( '<span class="ecpsv2-opt-c">' ).text( opt_choices_label( count ) ).prop( 'hidden', count <= 0 ) );
+		$chip.append( '<button type="button" class="ecpsv2-opt-rm" aria-label="' + esc( L.remove || 'Remove' ) + '">×</button>' );
+		$f( 'ecpsv2_opt_list' ).append( $chip );
+		if ( count <= 0 ) { opt_lookup_count( id, name ); }
 		opt_refresh();
 		refresh_dirty();
 	}
+	/* "Size × Colour · 6 combinations" from the chips; the count is skipped while any set's choices are unknown. */
+	function opt_summary() {
+		var names = [], combos = 1, unknown = false;
+		opt_rows().each( function() {
+			names.push( $( this ).find( '.ecpsv2-opt-name' ).text() );
+			var c = parseInt( $( this ).attr( 'data-count' ), 10 ) || 0;
+			if ( c > 0 ) { combos *= c; } else { unknown = true; }
+		} );
+		var $line = $f( 'ecpsv2_opt_summary_line' );
+		if ( ! names.length ) { $line.prop( 'hidden', true ); return; }
+		var txt = ( L.opt_summary || 'Variants: %s' ).replace( '%s', names.join( ' × ' ) );
+		if ( ! unknown ) { txt += ' · ' + ( combos === 1 ? ( L.opt_combo_one || '1 combination' ) : ( L.opt_combos || '%d combinations' ).replace( '%d', combos ) ); }
+		$f( 'ecpsv2_opt_summary_text' ).text( txt );
+		$line.prop( 'hidden', false );
+	}
 	function opt_refresh() {
-		var chosen = {};
-		$( '#ecpsv2_opt_list .ecpsv2-opt-row' ).each( function( i ) {
-			chosen[ $( this ).data( 'id' ) ] = 1;
-			$( this ).find( '.ecpsv2-opt-n' ).text( i + 1 );
-		} );
-		var n = $( '#ecpsv2_opt_list .ecpsv2-opt-row' ).length;
+		opt_rows().each( function( i ) { $( this ).find( '.ecpsv2-opt-n' ).text( i + 1 ); } );
+		var n = opt_rows().length, at_max = n >= opt_max();
 		$f( 'ecpsv2_opt_empty' ).prop( 'hidden', n > 0 );
-		// Picker lists only the sets not yet chosen; disabled once five are in.
-		var $p = $f( 'ecpsv2_opt_picker' ), first = $p.find( 'option' ).first();
-		$p.empty().append( first );
-		$.each( opt_source(), function( i, o ) {
-			if ( ! chosen[ o.id ] ) { $( '<option>' ).val( o.id ).text( o.name ).appendTo( $p ); }
-		} );
-		var at_max = n >= opt_max();
-		$p.val( '0' ).prop( 'disabled', at_max || $p.find( 'option' ).length <= 1 );
-		first.text( at_max ? opt_max_label() : ( $p.find( 'option' ).length <= 1 ? ( L.opt_none_left || 'All option sets added' ) : ( L.opt_pick || '+ Add an option set…' ) ) );
+		$f( 'ecpsv2_opt_search' ).prop( 'disabled', at_max ).attr( 'placeholder', at_max ? opt_max_label() : ( L.opt_search || 'Search option sets…' ) );
+		if ( at_max ) { opt_results_close(); }
 		$f( 'ecpsv2_opt_more' ).prop( 'hidden', ! ( at_max && ! V.is_pro ) );
+		opt_summary();
 		refresh_opt_count();
+	}
+
+	/* Search ( ecv2_option_set_search, 30 per request ): results list under the input, click or Enter to add. */
+	var opt_timer = null, opt_seq = 0;
+	function opt_search( term, cb ) {
+		var my = ++opt_seq, nonce = $f( 'ecpsv2_opt_search_wrap' ).data( 'nonce' );
+		clearTimeout( opt_timer );
+		opt_timer = setTimeout( function() {
+			$.post( AJAX, { action: 'ecv2_option_set_search', q: term, page: 1, wp_easycart_nonce: nonce }, function( r ) {
+				if ( my !== opt_seq ) { return; }
+				var out = [];
+				$.each( ( r && r.success && r.data && r.data.results ) ? r.data.results : [], function( i, o ) {
+					if ( parseInt( o.id, 10 ) > 0 ) { out.push( { id: parseInt( o.id, 10 ), name: String( o.option_name || o.text ), count: parseInt( o.item_count, 10 ) || 0 } ); }
+				} );
+				cb( out );
+			}, 'json' ).fail( function() { if ( my === opt_seq ) { cb( [] ); } } );
+		}, 250 );
+	}
+	function opt_results_open() {
+		var $in = $f( 'ecpsv2_opt_search' );
+		if ( ! $in.length || $in.prop( 'disabled' ) ) { return; }
+		var raw = val( 'ecpsv2_opt_search' ), $ul = $f( 'ecpsv2_opt_results' );
+		$ul.empty().append( $( '<li class="ecpsv2-combo-note" aria-disabled="true">' ).text( L.searching || 'Searching…' ) ).prop( 'hidden', false );
+		$in.attr( 'aria-expanded', 'true' );
+		opt_search( raw, function( list ) {
+			if ( val( 'ecpsv2_opt_search' ) !== raw || $ul.is( '[hidden]' ) ) { return; }
+			var chosen = {};
+			opt_rows().each( function() { chosen[ $( this ).data( 'id' ) ] = 1; } );
+			$ul.empty();
+			$.each( list, function( i, o ) {
+				if ( chosen[ o.id ] ) { return; }
+				var $li = $( '<li role="option">' ).attr( { 'data-id': o.id, 'data-count': o.count } );
+				$li.append( $( '<span class="ecpsv2-opt-res-name">' ).text( o.name ) );
+				if ( o.count > 0 ) { $li.append( $( '<span class="ecpsv2-opt-res-count">' ).text( opt_choices_label( o.count ) ) ); }
+				$ul.append( $li );
+			} );
+			if ( ! $ul.children().length ) {
+				$ul.append( $( '<li class="ecpsv2-combo-note" aria-disabled="true">' ).text( L.opt_no_match || 'No option sets match' ) );
+			}
+		} );
+	}
+	function opt_results_close() {
+		$f( 'ecpsv2_opt_results' ).prop( 'hidden', true ).empty();
+		$f( 'ecpsv2_opt_search' ).attr( 'aria-expanded', 'false' );
+	}
+	function opt_pick_result( $li ) {
+		var id = parseInt( $li.data( 'id' ), 10 ) || 0;
+		if ( ! id ) { return; }
+		opt_add( id, $li.find( '.ecpsv2-opt-res-name' ).text(), $li.data( 'count' ) );
+		$f( 'ecpsv2_opt_search' ).val( '' );
+		opt_results_close();
+		if ( opt_rows().length < opt_max() ) { $f( 'ecpsv2_opt_search' ).trigger( 'focus' ); }
+	}
+	/* A set adopted from the new-option-set slideout arrives without its choice count; look it up by name. */
+	function opt_lookup_count( id, name ) {
+		var my_id = parseInt( id, 10 ), nonce = $f( 'ecpsv2_opt_search_wrap' ).data( 'nonce' );
+		if ( ! my_id || ! nonce ) { return; }
+		$.post( AJAX, { action: 'ecv2_option_set_search', q: name, page: 1, wp_easycart_nonce: nonce }, function( r ) {
+			var hit = $.grep( ( r && r.success && r.data && r.data.results ) ? r.data.results : [], function( o ) { return parseInt( o.id, 10 ) === my_id; } );
+			if ( ! hit.length ) { return; }
+			var c = parseInt( hit[ 0 ].item_count, 10 ) || 0, $chip = $( '#ecpsv2_opt_list .ecpsv2-opt-row[data-id="' + my_id + '"]' );
+			if ( ! $chip.length || c <= 0 ) { return; }
+			$chip.attr( 'data-count', c ).find( '.ecpsv2-opt-c' ).text( opt_choices_label( c ) ).prop( 'hidden', false );
+			opt_summary();
+		}, 'json' );
 	}
 	function opt_init_sortable() {
 		var $l = $f( 'ecpsv2_opt_list' );
 		if ( ! $l.length || ! $.fn.sortable ) { return; }
 		$l.sortable( {
-			handle: '.ecpsv2-opt-drag',
-			axis: 'y',
-			containment: 'parent',
+			items: '.ecpsv2-opt-chip',
+			cancel: '.ecpsv2-opt-rm',
 			tolerance: 'pointer',
-			placeholder: 'ecpsv2-opt-row ecpsv2-opt-placeholder',
+			placeholder: 'ecpsv2-opt-chip ecpsv2-opt-placeholder',
+			forcePlaceholderSize: true,
 			update: function() { opt_refresh(); refresh_dirty(); }
 		} );
 	}
-	/* The new-option-set slideout inserts its option into #ec_new_product_option1; adopt it as a row. */
+	/* The new-option-set slideout inserts its option into #ec_new_product_option1; adopt it as a chip. */
 	function opt_watch_source() {
 		var node = document.getElementById( 'ec_new_product_option1' );
 		if ( ! node || ! window.MutationObserver ) { return; }
@@ -525,7 +637,7 @@
 		$.each( opt_source(), function( i, o ) { known[ o.id ] = 1; } );
 		new MutationObserver( function() {
 			$.each( opt_source(), function( i, o ) {
-				if ( ! known[ o.id ] ) { known[ o.id ] = 1; if ( val( 'ecpsv2_optmode' ) === '1' ) { opt_add( o.id, o.name ); } }
+				if ( ! known[ o.id ] ) { known[ o.id ] = 1; if ( val( 'ecpsv2_optmode' ) === '1' ) { opt_add( o.id, o.name, 0 ); } }
 			} );
 			opt_refresh();
 		} ).observe( node, { childList: true } );
@@ -578,7 +690,7 @@
 	/* ------------------------------------------------------------------ */
 
 	function mark( id, err_id, bad, msg ) {
-		$f( id ).toggleClass( 'is-invalid', bad );
+		$f( id ).toggleClass( 'is-invalid', bad ).closest( '.ecpsv2-money' ).toggleClass( 'is-invalid', bad );
 		var $e = $f( err_id ).prop( 'hidden', ! bad );
 		if ( bad && msg ) { $e.text( msg ); }
 	}
@@ -695,6 +807,7 @@
 
 	$( function() {
 		if ( ! $box().length ) { return; }
+		L = $.extend( {}, tpl_lang(), V.lang || {} ); /* the template's JSON block is certainly parsed by now */
 
 		// The panel must be a direct child of <body>; if the inline mover ran before jQuery
 		// was ready ( or the shell re-parented it ), it ends up in the page flow and squeezes
@@ -748,11 +861,28 @@
 			refresh_type_hint(); refresh_shipping();
 		} );
 		$b.on( 'change', '#ecpsv2_optmode', function() { opt_refresh(); } );
-		$b.on( 'change', '#ecpsv2_opt_picker', function() {
-			var id = this.value, name = $( this ).find( 'option:selected' ).text();
-			if ( id !== '0' ) { opt_add( id, name ); }
-		} );
 		$b.on( 'click', '#ecpsv2_opt_list .ecpsv2-opt-rm', function() { $( this ).closest( '.ecpsv2-opt-row' ).remove(); opt_refresh(); refresh_dirty(); } );
+
+		// Option-set search: same combobox contract as the brand picker.
+		$b.on( 'focus input', '#ecpsv2_opt_search', function() { opt_results_open(); } );
+		$b.on( 'mousedown', '#ecpsv2_opt_results li[data-id]', function( e ) { e.preventDefault(); opt_pick_result( $( this ) ); } );
+		$b.on( 'keydown', '#ecpsv2_opt_search', function( e ) {
+			var $ul = $f( 'ecpsv2_opt_results' ), $items = $ul.find( 'li[data-id]' ), $act = $items.filter( '.is-active' );
+			if ( e.key === 'ArrowDown' || e.key === 'ArrowUp' ) {
+				e.preventDefault();
+				if ( $ul.is( '[hidden]' ) ) { opt_results_open(); return; }
+				var i = $items.index( $act );
+				i = e.key === 'ArrowDown' ? Math.min( i + 1, $items.length - 1 ) : Math.max( i - 1, 0 );
+				$items.removeClass( 'is-active' ).eq( i ).addClass( 'is-active' );
+			} else if ( e.key === 'Enter' ) {
+				e.preventDefault();
+				if ( $act.length ) { opt_pick_result( $act ); }
+				else if ( $items.length === 1 ) { opt_pick_result( $items.first() ); }
+			} else if ( e.key === 'Escape' && ! $ul.is( '[hidden]' ) ) {
+				e.stopPropagation(); opt_results_close();
+			}
+		} );
+		$b.on( 'blur', '#ecpsv2_opt_search', function() { setTimeout( opt_results_close, 120 ); } );
 
 		// Manufacturer combobox.
 		$b.on( 'focus input', '#ecpsv2_manu_input', function() { $f( 'ecpsv2_manu_id' ).val( '0' ); manu_hint(); manu_open(); refresh_dirty(); } );

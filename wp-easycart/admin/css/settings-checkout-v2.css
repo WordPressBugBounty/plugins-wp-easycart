@@ -1,0 +1,72 @@
+/* WP EasyCart Admin — Settings › Checkout ( V2 ): order status editor.
+   Lives inside .ecst-custom of the "Order numbers and statuses" card; tokens come from admin-v2.css / settings-page-v2.css.
+   Selectors are scoped under .ecos so WordPress core input styles ( input[type=color|text|checkbox] ) cannot win. */
+.ecos { --ecos-line: var(--ecv2-g100); }
+.ecos-intro { margin: 0 0 14px; font-size: 12.5px; color: var(--ecv2-g500); line-height: 1.45; max-width: 80ch; }
+
+/* groups */
+.ecos-group + .ecos-group { margin-top: 18px; }
+.ecos-group-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; padding-bottom: 6px; border-bottom: 1px solid var(--ecv2-g200); }
+.ecos-group-title { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ecv2-g700); }
+.ecos-group-n { font: 600 11px ui-monospace, Menlo, monospace; color: var(--ecv2-g400); font-variant-numeric: tabular-nums; }
+.ecos-group-hint { font-size: 12px; color: var(--ecv2-g500); }
+.ecos-empty { margin: 0; padding: 10px 2px; font-size: 12.5px; color: var(--ecv2-g500); }
+.ecos-empty[hidden] { display: none; }
+
+/* condensed grid: one column on phones, two on laptops, three or more on wide screens */
+.ecos .ecos-grid { display: grid; grid-template-columns: repeat( auto-fill, minmax( 290px, 1fr ) ); column-gap: 28px; margin: 0; padding: 0; list-style: none; }
+.ecos .ecos-grid:empty { display: none; }
+.ecos-item, .ecos-add { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ecos .ecos-item { margin: 0; padding: 5px 0; border-bottom: 1px solid var(--ecos-line); }
+.ecos-item.is-removing { opacity: .4; transition: opacity var(--ecv2-tr); }
+
+/* color: a round button; the native picker sits invisibly on top of it */
+.ecos-swatch { position: relative; flex-shrink: 0; width: 22px; height: 22px; margin: 0 2px; border-radius: 50%; background: var(--ecos-c, #e5e7eb); box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, .14 ); cursor: pointer; transition: transform var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecos-swatch:hover { transform: scale( 1.12 ); }
+.ecos-swatch:focus-within { box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, .14 ), 0 0 0 2px #fff, 0 0 0 4px var(--ecst-accent); }
+.ecos .ecos-swatch input.ecos-color { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+
+/* name: reads as text, becomes a field on hover / focus */
+.ecos-name-wrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.ecos .ecos-name-wrap input.ecos-name { flex: 1; width: 100%; min-width: 0; min-height: 0; height: 30px; margin: 0; padding: 0 8px; border: 1px solid transparent; border-radius: var(--ecv2-rs); background: transparent; box-shadow: none; font-size: 13px; color: var(--ecv2-g900); line-height: 28px; }
+.ecos .ecos-name-wrap input.ecos-name:hover { border-color: var(--ecv2-g200); background: #fff; }
+.ecos .ecos-name-wrap input.ecos-name:focus { outline: none; border-color: var(--ecst-accent); background: #fff; box-shadow: 0 0 0 3px var(--ecst-accent-soft); }
+.ecos-state { position: absolute; right: 8px; top: 50%; transform: translateY( -50% ); min-width: 0; pointer-events: none; padding-left: 8px; background: linear-gradient( 90deg, transparent, #fff 8px ); font-size: 11px; }
+.ecos-state:empty { display: none; }
+
+/* counts as paid: chip. Built-ins show a fixed label; custom statuses toggle it. */
+.ecos-paid-chip { position: relative; flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; height: 22px; min-width: 64px; box-sizing: border-box; padding: 0 8px; border-radius: 999px; border: 1px solid var(--ecv2-g200); background: #fff; color: var(--ecv2-g500); font-size: 11px; font-weight: 600; white-space: nowrap; justify-content: center; }
+.ecos-paid-chip:before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ecv2-g300); flex-shrink: 0; }
+.ecos-paid-chip.is-on { border-color: transparent; background: var(--ecst-accent-soft); color: var(--ecv2-g900); }
+.ecos-paid-chip.is-on:before { background: var(--ecst-accent); }
+.ecos-paid-chip.is-fixed { border-color: transparent; background: transparent; cursor: help; }
+.ecos-paid-chip.is-fixed.is-on { background: var(--ecv2-g100); }
+label.ecos-paid-chip { cursor: pointer; }
+label.ecos-paid-chip:hover { border-color: var(--ecst-accent); }
+.ecos label.ecos-paid-chip input.ecos-paid { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+label.ecos-paid-chip:focus-within { box-shadow: 0 0 0 3px var(--ecst-accent-soft); border-color: var(--ecst-accent); }
+
+/* delete */
+.ecos .ecos-del { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 0; padding: 0; border: 0; border-radius: var(--ecv2-rs); background: transparent; color: var(--ecv2-g400); cursor: pointer; }
+.ecos .ecos-del .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 16px; }
+.ecos .ecos-del:hover, .ecos .ecos-del:focus-visible { background: var(--ecv2-danger-light, #fee2e2); color: var(--ecv2-danger); outline: none; }
+
+/* add bar */
+.ecos-add { margin-top: 10px; padding: 8px 10px; border: 1px dashed var(--ecv2-g300); border-radius: var(--ecv2-r); background: var(--ecv2-g50); max-width: 560px; }
+.ecos .ecos-add .ecos-name-wrap input.ecos-name { border-color: var(--ecv2-g200); background: #fff; }
+.ecos-add .ecv2-btn { flex-shrink: 0; }
+
+@media ( max-width: 600px ) {
+	.ecos-add { flex-wrap: wrap; max-width: none; }
+	.ecos-add .ecos-name-wrap { flex-basis: calc( 100% - 40px ); }
+	.ecos-add .ecv2-btn { margin-left: auto; }
+}
+
+/* Editable paid chips read as a switch ( a mini track + knob instead of the status dot ), so it is obvious they can be
+   clicked; the fixed chips on built-in statuses keep the plain dot. */
+label.ecos-paid-chip { gap: 6px; padding-left: 5px; }
+label.ecos-paid-chip:before { width: 20px; height: 12px; border-radius: 999px; background: var(--ecv2-g300); transition: background var(--ecv2-tr); }
+label.ecos-paid-chip:after { content: ""; position: absolute; left: 8px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: #fff; box-shadow: 0 1px 1px rgba( 0, 0, 0, .2 ); transition: transform var(--ecv2-tr); pointer-events: none; }
+label.ecos-paid-chip.is-on:before { background: var(--ecst-accent); }
+label.ecos-paid-chip.is-on:after { transform: translateX( 8px ); }
+@media ( prefers-reduced-motion: reduce ) { label.ecos-paid-chip:before, label.ecos-paid-chip:after { transition: none; } }

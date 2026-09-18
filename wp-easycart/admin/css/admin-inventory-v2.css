@@ -72,3 +72,42 @@
 	.ecv2-wrap .ecv2-table-scroll > .ecv2-table { min-width: 640px; }
 	.ecv2i-item-title, .ecv2i-variant-label { max-width: 220px; }
 }
+/* ---- On-hand pill is the edit affordance ---- */
+.ecv2i-qty-badge-btn { display:inline-flex; align-items:center; gap:6px; border-radius:12px; }
+.ecv2i-qty-badge-btn .ecv2i-edit-hint { font-size:14px; width:14px; height:14px; color:var(--ecv2-g400,#9ca3af); opacity:0; transition:opacity .12s; }
+.ecv2i-qty-badge-btn:hover .ecv2i-edit-hint, .ecv2i-qty-badge-btn:focus-visible .ecv2i-edit-hint, tr:hover .ecv2i-qty-badge-btn .ecv2i-edit-hint { opacity:1; }
+.ecv2i-qty-badge-btn:hover .ecv2-stock-badge { box-shadow:0 0 0 2px rgba(0,0,0,.06); }
+td.ecv2-cell-available, td.ecv2-cell-committed { cursor:pointer; }
+td.ecv2-cell-available:hover .ecv2i-available-link, td.ecv2-cell-available:hover { text-decoration:underline dotted var(--ecv2-g400,#9ca3af); }
+.ecv2-row-menu-item.is-disabled { color:var(--ecv2-g400,#9ca3af); cursor:default; }
+/* popover */
+.ecv2i-qty-pop { min-width:300px; padding:12px; box-shadow:0 12px 32px rgba(0,0,0,.14); }
+.ecv2i-qty-pop.is-flip { left:auto; right:0; }
+.ecv2i-pop-title { font-weight:600; font-size:13px; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
+.ecv2i-qty-pop .ecv2i-pop-tracked, .ecv2i-qty-pop .ecv2i-pop-untracked { display:none; }
+.ecv2i-qty-pop.is-tracked .ecv2i-pop-tracked, .ecv2i-qty-pop.is-untracked .ecv2i-pop-untracked { display:block; }
+.ecv2i-mode { display:inline-flex; border:1px solid var(--ecv2-g300,#d1d5db); border-radius:var(--ecv2-rs,6px); overflow:hidden; margin-bottom:8px; }
+.ecv2i-mode-btn { border:0; background:#fff; height:26px; padding:0 10px; font:inherit; font-size:12px; color:var(--ecv2-g600,#4b5563); cursor:pointer; }
+.ecv2i-mode-btn + .ecv2i-mode-btn { border-left:1px solid var(--ecv2-g300,#d1d5db); }
+.ecv2i-mode-btn.is-on { background:var(--ecv2-primary-light,#e8f5e9); color:var(--ecv2-primary-hover,#2e7d32); font-weight:600; }
+.ecv2i-pop-preview { min-height:16px; font-size:12px; color:var(--ecv2-g500,#6b7280); margin-top:6px; }
+.ecv2i-pop-preview.is-low { color:var(--ecv2-amber,#b45309); } .ecv2i-pop-preview.is-out { color:var(--ecv2-danger,#b91c1c); }
+.ecv2i-pop-foot { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; }
+.ecv2i-pop-kbd { color:var(--ecv2-g400,#9ca3af); } .ecv2i-stop-tracking { color:var(--ecv2-g500,#6b7280); text-decoration:none; } .ecv2i-stop-tracking:hover { color:var(--ecv2-danger,#b91c1c); }
+.ecv2i-pop-note { margin:0 0 8px; font-size:12px; color:var(--ecv2-g600,#4b5563); line-height:1.45; }
+.ecv2i-pop-untracked .ecv2i-track-input { width:90px; text-align:center; }
+.ecv2i-track-input.is-invalid { border-color:var(--ecv2-danger,#b91c1c); }
+/* legacy type-tag classes no longer emitted; shared .ecv2-chip is used instead */
+/* On hand popover: reason row ( PRO field, required; or the locked upsell link in the free edition ) */
+.ecv2i-pop-reason-locked { display:flex; align-items:center; gap:4px; margin-top:8px; font-size:12px; color:var(--ecv2-g500,#6b7280); text-decoration:none; }
+.ecv2i-pop-reason-locked:hover, .ecv2i-pop-reason-locked:focus { color:var(--ecv2-g800,#1f2937); }
+.ecv2i-pop-reason-locked .dashicons { font-size:14px; width:14px; height:14px; color:#fc0; }
+.ecv2i-pop-reason-locked .ecv2i-menu-pro { margin-left:6px; }
+/* Save sits under the fields ( like Apply in the Bulk Update modal ); inline field errors ( popover + bulk modal ) */
+.ecv2i-pop-actions { display:flex; justify-content:flex-end; margin-top:10px; }
+.ecv2i-pop-error { margin:4px 0 0; font-size:12px; line-height:1.4; color:var(--ecv2-danger,#b91c1c); }
+.ecv2i-pop-error[hidden] { display:none; }
+.ecv2i-qty-pop .ecv2-select.is-invalid, .ecv2-modal .ecv2-select.is-invalid { border-color:var(--ecv2-danger,#b91c1c); box-shadow:0 0 0 2px var(--ecv2-danger-light,#fee2e2); }
+
+/* Plan badges show "Pro/Premium", "Pro" or "Premium" ( wp_easycart_admin_edition ); keep them caps on one line. @since 6.0.0 */
+.ecv2i-menu-pro { text-transform:uppercase; white-space:nowrap; }

@@ -3,7 +3,7 @@
 /* Depends on admin-v2.css tokens ( fallbacks inline ).                    */
 /* ====================================================================== */
 
-.ecv2-cl-pro-badge { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:.08em; line-height:1; padding:3px 6px; border-radius:4px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; vertical-align:middle; flex-shrink:0; }
+.ecv2-cl-pro-badge { display:inline-flex; align-items:center; font-size:9.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; line-height:1; padding:3px 6px; border-radius:4px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; vertical-align:middle; flex-shrink:0; }
 .ecv2-cl-pro-badge-lg { font-size:11px; padding:5px 9px; }
 
 /* ---------- Feature strip ( shared by Cart Links + locked pages ) ------ */
@@ -43,6 +43,13 @@
 .ecv2-locked-table th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ecv2-g500, #6b7280); padding:10px 14px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); }
 .ecv2-locked-table td { padding:12px 14px; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); font-size:13px; color:var(--ecv2-g700, #374151); vertical-align:middle; }
 .ecv2-locked-table tr:last-child td { border-bottom:none; }
+/* Locked pages outside Cart Links do not load admin-cart-links.css, so the preview card and chips are styled here. */
+.ecv2-locked-preview > .ecv2-table-card { background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); overflow:hidden; }
+.ecv2-locked-sub { font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecv2-locked-discount { color:var(--ecv2-primary-dark, #15803d); }
+.ecv2-locked-chip { display:inline-block; font-size:11px; font-weight:600; line-height:1.5; padding:1px 8px; border-radius:999px; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g700, #374151); }
+.ecv2-locked-chip.is-green { background:var(--ecv2-primary-light, #ecfdf5); color:var(--ecv2-primary-dark, #15803d); }
+.ecv2-locked-chip.is-amber { background:#fef3c7; color:#92400e; }
 
 /* ---------- Popup ---------------------------------------------------- */
 #ec_admin_upsell_popup { display:none; position:fixed; inset:0; z-index:100000; background:rgba(17,24,39,.55); padding:24px 16px; align-items:center; justify-content:center; overflow:auto; }

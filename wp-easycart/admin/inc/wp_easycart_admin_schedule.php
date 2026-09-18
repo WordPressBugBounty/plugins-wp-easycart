@@ -22,6 +22,9 @@ if ( ! class_exists( 'wp_easycart_admin_schedule' ) ) :
 			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['schedule_id'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
 				do_action( 'wp_easycart_admin_schedule_details' );
 			} else {
+				if ( class_exists( 'wp_easycart_admin_location' ) ) {
+					wp_easycart_admin_location::print_tabs( 'schedule' );
+				}
 				do_action( 'wp_easycart_admin_schedule_list' );
 			}
 		}

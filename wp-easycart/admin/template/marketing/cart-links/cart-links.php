@@ -7,7 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$cart_links = $this->get_links();
+/* 25 links per page; summaries for the page come from one batched query. @since 6.0.0 */
+$cart_links = $this->get_links( isset( $_GET['pagenum'] ) ? (int) $_GET['pagenum'] : 1 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page number for a list view.
 
 /* Post-save confirmation ( set by cart-links.js after a save reload ). */
 $ecv2_cl_saved_link = false;
@@ -46,7 +47,7 @@ if ( isset( $_GET['cl_saved'] ) || isset( $_GET['cl_updated'] ) ) {
 			<span class="ecv2-count-chip"><?php echo esc_html( count( $cart_links ) ); ?></span>
 		</div>
 		<div class="ecv2-page-header-right">
-			<button type="button" class="ecv2-btn ecv2-btn-primary" onclick="ecv2_cart_link_new();">+ <?php esc_html_e( 'New Cart Link', 'wp-easycart' ); ?></button>
+			<button type="button" class="ecv2-btn ecv2-btn-primary" onclick="ecv2_cart_link_new();" title="<?php esc_attr_e( 'New Cart Link', 'wp-easycart' ); ?>"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'New Cart Link', 'wp-easycart' ); ?></span></button>
 		</div>
 	</div>
 
@@ -83,6 +84,7 @@ if ( isset( $_GET['cl_saved'] ) || isset( $_GET['cl_updated'] ) ) {
 				<?php endforeach; ?>
 			</tbody>
 		</table>
+		<?php $this->print_pagination(); ?>
 	</div>
 
 	<?php do_action( 'wp_easycart_ecv2_cart_link_page_end' ); ?>

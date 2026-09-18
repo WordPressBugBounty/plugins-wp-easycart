@@ -15,7 +15,22 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 	class wp_easycart_admin_product_table extends wp_easycart_admin_table_v2 {
 
+		/**
+		 * Deprecated in 6.0.0: the Low stock stat, filters and badge now use the one
+		 * store-wide setting ( wp_easycart_low_stock_threshold(), inc/classes/core/ec_stock.php ).
+		 * Kept so any third-party reference keeps resolving.
+		 *
+		 * @deprecated 6.0.0 Use wp_easycart_low_stock_threshold().
+		 */
 		const LOW_STOCK_THRESHOLD = 10;
+
+		/** The store-wide low stock number. @since 6.0.0 */
+		private static function low_stock_threshold() {
+			if ( function_exists( 'wp_easycart_store_low_stock_threshold' ) ) {
+				return wp_easycart_store_low_stock_threshold();
+			}
+			return self::LOW_STOCK_THRESHOLD;
+		}
 
 		const SCORE_FIELDS = array(
 			'title'             => array( 'label' => 'Product Title',      'check' => 'not_empty' ),
@@ -64,6 +79,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
 			$this->set_label( __( 'Product', 'wp-easycart' ), __( 'Products', 'wp-easycart' ) );
 			$this->set_view_modes( array( 'table', 'card', 'spreadsheet' ) );
+			$this->apply_catalog_scope();
 			$this->set_inline_editable_columns( array( 'title', 'model_number' ) );
 
 			$this->set_list_columns( array(
@@ -138,7 +154,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					array( 'value' => '1', 'label' => __( 'Active', 'wp-easycart' ) ),
 					array( 'value' => '0', 'label' => __( 'Inactive', 'wp-easycart' ) ),
 				) ),
-				array( 'name' => 'manufacturer_id', 'label' => __( 'Manufacturer', 'wp-easycart' ), 'type' => 'select', 'options' => $this->get_manufacturer_options() ),
+				array( 'name' => 'manufacturer_id', 'label' => __( 'Manufacturer', 'wp-easycart' ), 'type' => 'select', 'options' => $this->get_manufacturer_options(), 'hint' => ( $this->manufacturers_truncated ? __( 'Showing the first 500 manufacturers by name. Use the Manufacturers page to assign products to one that is not listed.', 'wp-easycart' ) : '' ) ),
 			) );
 
 			$this->set_spreadsheet_columns( array(
@@ -156,8 +172,21 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 			// Filters.
 			global $wpdb;
-			$manufacturer_list = $wpdb->get_results( "SELECT ec_manufacturer.manufacturer_id AS value, ec_manufacturer.name AS label FROM ec_manufacturer ORDER BY ec_manufacturer.name ASC" );
-			$category_list = $wpdb->get_results( "SELECT ec_category.category_id AS value, ec_category.category_name AS label FROM ec_category ORDER BY ec_category.category_name ASC" );
+			/*
+			 * 6.0.0: the category filter is a typeahead ( ecv2_category_search, 20 rows per lookup ) and only the
+			 * currently selected category is printed; manufacturers are capped at the first 500 by name. Neither
+			 * list is loaded in full on a product list page any more.
+			 */
+			$category_list = array();
+			$selected_category = (int) $this->filter_value( 2 );
+			if ( $selected_category > 0 ) {
+				$category_name = $wpdb->get_var( $wpdb->prepare( 'SELECT category_name FROM ec_category WHERE category_id = %d', $selected_category ) );
+				$category_list[] = (object) array( 'value' => (string) $selected_category, 'label' => ( null !== $category_name ) ? (string) $category_name : '#' . $selected_category );
+			}
+			$manufacturer_list = array();
+			foreach ( $this->get_manufacturer_options( (int) $this->filter_value( 3 ) ) as $manufacturer_option ) {
+				$manufacturer_list[] = (object) $manufacturer_option;
+			}
 
 			$filters = array(
 				array(
@@ -183,6 +212,12 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'data' => $category_list,
 					'label' => __( 'Category', 'wp-easycart' ),
 					'type'  => 'select',
+					'ajax'  => array(
+						'action'   => 'ecv2_category_search',
+						'nonce'    => wp_create_nonce( 'wp-easycart-ecv2-category-search' ),
+						'term_key' => 'search',
+						'min'      => 1,
+					),
 					'select' => 'ec_categoryitem.category_id',
 					'join' => 'LEFT JOIN ec_categoryitem ON (ec_categoryitem.product_id = ec_product.product_id)',
 					'where' => 'ec_categoryitem.category_id = %d',
@@ -191,6 +226,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					'data' => $manufacturer_list,
 					'label' => __( 'Manufacturer', 'wp-easycart' ),
 					'type'  => 'select',
+					'hint'  => ( $this->manufacturers_truncated ? __( 'Showing the first 500 manufacturers by name. Type to search within them.', 'wp-easycart' ) : '' ),
 					'where' => 'ec_product.manufacturer_id = %d',
 				),
 				array(
@@ -239,19 +275,44 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			return "( (ec_product.image1 IS NOT NULL AND ec_product.image1 != '') OR (ec_product.product_images IS NOT NULL AND ec_product.product_images != '') OR ( ec_product.use_optionitem_images = 1 AND EXISTS( SELECT 1 FROM ec_optionitemimage WHERE ec_optionitemimage.product_id = ec_product.product_id AND ( (ec_optionitemimage.product_images IS NOT NULL AND ec_optionitemimage.product_images != '') OR ec_optionitemimage.image1 != '' OR ec_optionitemimage.image2 != '' OR ec_optionitemimage.image3 != '' OR ec_optionitemimage.image4 != '' OR ec_optionitemimage.image5 != '' ) ) ) )";
 		}
 
+		/**
+		 * Transient holding the health tile counts ( three full-table aggregates over ec_product ).
+		 * Refreshed at most every 5 minutes; cleared by ecv2_product_health_cache_clear() whenever a
+		 * product changes ( see the hooks at the end of this file ).
+		 *
+		 * @since 6.0.0
+		 */
+		const HEALTH_TRANSIENT = 'ecv2_product_health_data';
+
+		/** Drop the cached health counts. @since 6.0.0 */
+		public static function clear_health_cache() {
+			delete_transient( self::HEALTH_TRANSIENT );
+		}
+
 		private function compute_health_data() {
 			global $wpdb;
 			$has_image_sql = self::get_has_image_sql();
+			$low_stock_at  = (int) self::low_stock_threshold();
+			$square_sync   = ( 'square' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_square_auto_product_sync' ) ) ? 1 : 0;
+
+			/* Serve the cached counts unless the inputs that shape them ( low stock number, Square sync ) changed. */
+			$cached = get_transient( self::HEALTH_TRANSIENT );
+			if ( is_array( $cached ) && isset( $cached['total'], $cached['_threshold'], $cached['_square'] ) && (int) $cached['_threshold'] === $low_stock_at && (int) $cached['_square'] === $square_sync ) {
+				$this->health_data = $cached;
+				return;
+			}
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- $low_stock_at is an int cast from a store setting and $has_image_sql is a static SQL fragment; no variable data.
 			$row = $wpdb->get_row( "SELECT 
 				COUNT(*) AS total,
 				SUM(CASE WHEN activate_in_store = 1 THEN 1 ELSE 0 END) AS active,
 				SUM(CASE WHEN activate_in_store = 0 THEN 1 ELSE 0 END) AS inactive,
 				SUM(CASE WHEN show_stock_quantity = 1 AND stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock,
-				SUM(CASE WHEN show_stock_quantity = 1 AND stock_quantity > 0 AND stock_quantity <= " . self::LOW_STOCK_THRESHOLD . " THEN 1 ELSE 0 END) AS low_stock,
+				SUM(CASE WHEN show_stock_quantity = 1 AND stock_quantity > 0 AND stock_quantity <= " . $low_stock_at . " THEN 1 ELSE 0 END) AS low_stock,
 				SUM(CASE WHEN NOT " . $has_image_sql . " THEN 1 ELSE 0 END) AS no_image,
 				SUM(CASE WHEN price <= 0 THEN 1 ELSE 0 END) AS zero_price,
 				SUM(CASE WHEN square_id IS NOT NULL AND square_id != '' THEN 1 ELSE 0 END) AS square_synced
 			FROM ec_product" );
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
 			$incomplete_sql = "SELECT COUNT(*) FROM ec_product WHERE 
 				(title = '' OR title IS NULL OR price <= 0 OR NOT " . $has_image_sql . " OR 
@@ -260,11 +321,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				(SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) = 0)";
  
 			
-			if ( 'square' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_square_auto_product_sync' ) ) {
+			if ( $square_sync ) {
 				$incomplete_sql .= ' AND (ec_product.square_id IS NULL OR ec_product.square_id = "")';
 			}
- 
-			$incomplete = $wpdb->get_var( $incomplete_sql );
+
+			$incomplete = $wpdb->get_var( $incomplete_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $incomplete_sql is built only from literal SQL and the static get_has_image_sql() fragment.
 
 			$this->health_data = array(
 				'total'        => $row ? (int) $row->total : 0,
@@ -277,6 +338,76 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				'incomplete'   => (int) $incomplete,
 				'on_sale'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE list_price > 0 AND list_price > price" ),
 				'square_synced' => $row ? (int) $row->square_synced : 0,
+				'_threshold'   => $low_stock_at,
+				'_square'      => $square_sync,
+			);
+			set_transient( self::HEALTH_TRANSIENT, $this->health_data, 5 * MINUTE_IN_SECONDS );
+		}
+
+		/* ------------------------------------------------------------------ */
+		/* Per-page variant aggregates ( @since 6.0.0 )                         */
+		/* ------------------------------------------------------------------ */
+
+		/**
+		 * ec_optionitemquantity aggregates for the products on this page, keyed by product id.
+		 * Filled once per page by prime_variant_data(); null means "primed, no enabled rows".
+		 *
+		 * @var array
+		 */
+		private $variant_cache = array();
+
+		/** Aggregate columns shared by the per-page and the single-product lookups. */
+		private static function variant_aggregate_select() {
+			return 'MIN( CASE WHEN price >= 0 THEN price END ) AS min_price, MAX( CASE WHEN price >= 0 THEN price END ) AS max_price, SUM( CASE WHEN price >= 0 THEN 1 ELSE 0 END ) AS price_count, COALESCE( SUM( CASE WHEN is_stock_tracking_enabled = 1 THEN quantity ELSE 0 END ), 0 ) AS stock_total';
+		}
+
+		/**
+		 * Fetch the page, then load the variant price range / stock total for every option-tracked
+		 * product on it in one grouped query instead of two queries per rendered row.
+		 */
+		protected function get_data() {
+			parent::get_data();
+			$this->prime_variant_data();
+		}
+
+		private function prime_variant_data() {
+			$ids = array();
+			foreach ( (array) $this->results as $row ) {
+				if ( ! empty( $row->use_optionitem_quantity_tracking ) && ! empty( $row->product_id ) ) {
+					$ids[] = (int) $row->product_id;
+				}
+			}
+			$ids = array_values( array_unique( array_filter( $ids ) ) );
+			if ( empty( $ids ) ) {
+				return;
+			}
+			foreach ( $ids as $id ) {
+				$this->variant_cache[ $id ] = null;
+			}
+			$rows = $this->wpdb->get_results( 'SELECT product_id, ' . self::variant_aggregate_select() . ' FROM ec_optionitemquantity WHERE is_enabled = 1 AND product_id IN ( ' . implode( ',', $ids ) . ' ) GROUP BY product_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static aggregate SQL plus an implode of (int)-cast product ids.
+			foreach ( (array) $rows as $r ) {
+				$this->variant_cache[ (int) $r->product_id ] = $r;
+			}
+		}
+
+		/**
+		 * Variant price range and tracked stock for one product: from the per-page cache when the
+		 * row came through get_data(), otherwise ( get_row_html() after a quick edit ) one lookup.
+		 *
+		 * @param int $product_id Product.
+		 * @return array min_price, max_price ( float ), price_count, stock_total ( int ).
+		 */
+		private function variant_data( $product_id ) {
+			$product_id = (int) $product_id;
+			if ( ! array_key_exists( $product_id, $this->variant_cache ) ) {
+				$this->variant_cache[ $product_id ] = $this->wpdb->get_row( $this->wpdb->prepare( 'SELECT ' . self::variant_aggregate_select() . ' FROM ec_optionitemquantity WHERE product_id = %d AND is_enabled = 1', $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- variant_aggregate_select() is a static column list; the id goes through prepare().
+			}
+			$row = $this->variant_cache[ $product_id ];
+			return array(
+				'min_price'   => ( $row && null !== $row->min_price ) ? (float) $row->min_price : 0.0,
+				'max_price'   => ( $row && null !== $row->max_price ) ? (float) $row->max_price : 0.0,
+				'price_count' => $row ? (int) $row->price_count : 0,
+				'stock_total' => $row ? (int) $row->stock_total : 0,
 			);
 		}
 
@@ -289,7 +420,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				case 'out_of_stock':
 					return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity <= 0';
 				case 'low_stock':
-					return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0 AND ec_product.stock_quantity <= ' . self::LOW_STOCK_THRESHOLD;
+					return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0 AND ec_product.stock_quantity <= ' . (int) self::low_stock_threshold();
 				case 'no_image':
 					return 'NOT ' . self::get_has_image_sql();
 				case 'zero_price':
@@ -309,6 +440,71 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 		}
 
+		/**
+		 * Catalog cross-links: `option_set={id}` ( from Option Sets ) and `menu={level}:{id}`
+		 * ( from Menus ) narrow the list and show a removable scope chip above the toolbar.
+		 * The params ride along through search / sort / paging via get_vars + query_params.
+		 */
+		protected $catalog_scope = null;
+
+		protected function apply_catalog_scope() {
+			global $wpdb;
+			$this->set_get_vars( array( 'option_set', 'menu' ) );
+			if ( isset( $_GET['option_set'] ) && (int) $_GET['option_set'] > 0 ) {
+				$id = (int) $_GET['option_set'];
+				$name = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ec_option WHERE option_id = %d', $id ) );
+				$this->set_custom_where( $wpdb->prepare( ' AND ( ec_product.option_id_1 = %d OR ec_product.option_id_2 = %d OR ec_product.option_id_3 = %d OR ec_product.option_id_4 = %d OR ec_product.option_id_5 = %d OR EXISTS ( SELECT 1 FROM ec_option_to_product otp WHERE otp.product_id = ec_product.product_id AND otp.option_id = %d ) )', $id, $id, $id, $id, $id, $id ) );
+				$this->catalog_scope = array(
+					'param' => 'option_set',
+					/* translators: %s: option set name */
+					'label' => sprintf( __( 'Using option set “%s”', 'wp-easycart' ), $name ? wp_unslash( $name ) : '#' . $id ),
+					'back'  => admin_url( 'admin.php?page=wp-easycart-products&subpage=option&ec_admin_form_action=edit&option_id=' . $id ),
+					'back_label' => __( 'Open option set', 'wp-easycart' ),
+				);
+			} else if ( isset( $_GET['menu'] ) && preg_match( '/^([123]):(\d+)$/', (string) $_GET['menu'], $m ) ) {
+				$level = (int) $m[1]; $id = (int) $m[2]; $k = 'menulevel' . $level . '_id';
+				$name = $wpdb->get_var( $wpdb->prepare( "SELECT name FROM ec_menulevel{$level} WHERE {$k} = %d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $level is an int restricted to 1-3 by the preg_match above; $k is derived from it.
+				/* Product columns are menulevel{PATH}_id_{LEVEL}: match this level's segment in any of the three paths */
+				$this->set_custom_where( $wpdb->prepare( " AND ( ec_product.menulevel1_id_{$level} = %d OR ec_product.menulevel2_id_{$level} = %d OR ec_product.menulevel3_id_{$level} = %d )", $id, $id, $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $level is an int restricted to 1-3 by the preg_match above.
+				$this->catalog_scope = array(
+					'param' => 'menu',
+					/* translators: %s: menu name */
+					'label' => sprintf( __( 'In menu “%s”', 'wp-easycart' ), $name ? wp_unslash( $name ) : '#' . $id ),
+					'back'  => admin_url( 'admin.php?page=wp-easycart-products&subpage=menus&ec_admin_form_action=edit&level=' . $level . '&menu_id=' . $id ),
+					'back_label' => __( 'Open menu', 'wp-easycart' ),
+				);
+			}
+		}
+
+		/**
+		 * Text repair banner: older saves stacked backslashes on quotes ( no wp_unslash ) and copied the description into
+		 * the post excerpt on every save. Shows once per admin until dismissed; the fix is a single AJAX call.
+		 */
+		protected function print_repair_banner() {
+			global $wpdb;
+			if ( get_user_meta( get_current_user_id(), 'ecv2_product_text_repair_dismissed', true ) ) { return; }
+			$n = get_transient( 'ecv2_product_text_repair_count' );
+			if ( false === $n ) {
+				$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product p LEFT JOIN {$wpdb->posts} po ON po.ID = p.post_id WHERE LOCATE( CHAR(92,34), p.description ) > 0 OR LOCATE( CHAR(92,39), p.description ) > 0 OR LOCATE( CHAR(92,34), p.short_description ) > 0 OR LOCATE( CHAR(92,39), p.short_description ) > 0 OR LOCATE( CHAR(92,34), p.specifications ) > 0 OR LOCATE( CHAR(92,39), p.specifications ) > 0 OR LOCATE( CHAR(92,34), COALESCE( po.post_excerpt, '' ) ) > 0 OR LOCATE( CHAR(92,39), COALESCE( po.post_excerpt, '' ) ) > 0 OR ( po.post_excerpt IS NOT NULL AND po.post_excerpt != '' AND CAST( po.post_excerpt AS BINARY ) = CAST( p.description AS BINARY ) )" ); /* CHAR(92,34) / CHAR(92,39) = a backslash followed by " or ' ( what the old save bug left ), avoids LIKE-escaping games. CAST AS BINARY: wp_posts and ec_product often use different collations ( "Illegal mix of collations" ), and an auto-copied excerpt is a byte-for-byte copy anyway. */
+				set_transient( 'ecv2_product_text_repair_count', $n, 6 * HOUR_IN_SECONDS ); // Full-table scan: once every few hours, not on every list load.
+			}
+			$n = (int) $n;
+			if ( ! $n ) { return; }
+			echo '<div class="ecv2-repair-banner" id="ecv2-product-text-repair" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-product-text-repair' ) ) . '"><span class="dashicons dashicons-tool"></span><div class="ecv2-repair-banner-text"><b>' . esc_html( sprintf( _n( '%d product has text that needs a one-time clean-up.', '%d products have text that needs a one-time clean-up.', $n, 'wp-easycart' ), $n ) ) . '</b> ' . esc_html__( 'An older version added a backslash to quotes on every save and copied the description into the post excerpt, which some themes print above the product. The fix removes the extra backslashes and clears excerpts that are just a copy of the description; excerpts you wrote yourself are kept.', 'wp-easycart' ) . '</div><div class="ecv2-repair-banner-actions"><button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" onclick="ecv2_product_text_repair( this );">' . esc_html__( 'Fix now', 'wp-easycart' ) . '</button><button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" onclick="ecv2_product_text_repair_dismiss( this );">' . esc_html__( 'Dismiss', 'wp-easycart' ) . '</button></div></div>';
+		}
+
+		protected function print_toolbar() {
+			$this->print_repair_banner();
+			if ( $this->catalog_scope ) {
+				$clear = remove_query_arg( array( $this->catalog_scope['param'], 'pagenum' ) );
+				echo '<div class="ecv2-scope-bar"><span class="ecv2-scope-chip"><span class="dashicons dashicons-filter"></span>' . esc_html( $this->catalog_scope['label'] )
+					. '<span class="ecv2-scope-count">' . esc_html( sprintf( _n( '%d product', '%d products', (int) $this->record_count, 'wp-easycart' ), (int) $this->record_count ) ) . '</span>'
+					. '<a class="ecv2-scope-clear" href="' . esc_url( $clear ) . '" title="' . esc_attr__( 'Show all products', 'wp-easycart' ) . '"><span class="dashicons dashicons-no-alt"></span></a></span>'
+					. '<a class="ecv2-scope-back" href="' . esc_url( $this->catalog_scope['back'] ) . '">' . esc_html( $this->catalog_scope['back_label'] ) . ' <span class="dashicons dashicons-arrow-right-alt2"></span></a></div>';
+			}
+			parent::print_toolbar();
+		}
+
 		protected function get_filter_callback_where( $filter_index, $value ) {
 			$filter = isset( $this->filters[ $filter_index ] ) ? $this->filters[ $filter_index ] : null;
 			if ( ! $filter ) {
@@ -324,7 +520,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					case 'instock':
 						return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0';
 					case 'low':
-						return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0 AND ec_product.stock_quantity <= ' . self::LOW_STOCK_THRESHOLD;
+						return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity > 0 AND ec_product.stock_quantity <= ' . (int) self::low_stock_threshold();
 					case 'oos':
 						return 'ec_product.show_stock_quantity = 1 AND ec_product.stock_quantity <= 0';
 				}
@@ -384,12 +580,51 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			return '0 AS completeness_score';
 		}
 
-		private function get_manufacturer_options() {
+		/** Largest manufacturer list printed into a select. @since 6.0.0 */
+		const MANUFACTURER_OPTION_CAP = 500;
+
+		/** True once get_manufacturer_options() found more manufacturers than the cap. @since 6.0.0 */
+		private $manufacturers_truncated = false;
+
+		/** One fetch per page: the first MANUFACTURER_OPTION_CAP manufacturers by name. */
+		private $manufacturer_options = null;
+
+		/**
+		 * Manufacturer choices for the filter drawer and the bulk-edit modal, capped at
+		 * MANUFACTURER_OPTION_CAP rows so a large brand list never prints in full. The
+		 * selected manufacturer is always included so an active filter keeps its label.
+		 *
+		 * @param int $selected_id Manufacturer to keep even when it falls outside the cap.
+		 * @return array[] { value, label }
+		 */
+		private function get_manufacturer_options( $selected_id = 0 ) {
 			global $wpdb;
-			$manufacturers = $wpdb->get_results( "SELECT manufacturer_id AS value, name AS label FROM ec_manufacturer ORDER BY name ASC" );
-			$options = array();
-			foreach ( $manufacturers as $m ) {
-				$options[] = array( 'value' => $m->value, 'label' => $m->label );
+			if ( null === $this->manufacturer_options ) {
+				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT manufacturer_id AS value, name AS label FROM ec_manufacturer ORDER BY name ASC LIMIT %d', self::MANUFACTURER_OPTION_CAP + 1 ) );
+				$rows = is_array( $rows ) ? $rows : array();
+				$this->manufacturers_truncated = ( count( $rows ) > self::MANUFACTURER_OPTION_CAP );
+				if ( $this->manufacturers_truncated ) {
+					array_pop( $rows );
+				}
+				$this->manufacturer_options = array();
+				foreach ( $rows as $m ) {
+					$this->manufacturer_options[] = array( 'value' => (string) $m->value, 'label' => (string) $m->label );
+				}
+			}
+			$options = $this->manufacturer_options;
+			$selected_id = (int) $selected_id;
+			if ( $selected_id > 0 ) {
+				$found = false;
+				foreach ( $options as $option ) {
+					if ( (int) $option['value'] === $selected_id ) {
+						$found = true;
+						break;
+					}
+				}
+				if ( ! $found ) {
+					$name = $wpdb->get_var( $wpdb->prepare( 'SELECT name FROM ec_manufacturer WHERE manufacturer_id = %d', $selected_id ) );
+					array_unshift( $options, array( 'value' => (string) $selected_id, 'label' => ( null !== $name ) ? (string) $name : '#' . $selected_id ) );
+				}
 			}
 			return $options;
 		}
@@ -414,6 +649,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				? esc_attr__( 'Active status is managed by Square — change it in your Square dashboard.', 'wp-easycart' )
 				: esc_attr( self::square_inactive_reason_text() );
 
+			// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $lock_title is built from esc_attr__() / esc_attr() above.
 			echo '<span class="ecv2-toggle-locked-wrap" title="' . $lock_title . '" style="display:inline-flex;align-items:center;gap:6px;cursor:not-allowed !important;">';
 			echo '<label class="ecv2-toggle ecv2-toggle-locked' . ( $extra_cls ? ' ' . esc_attr( $extra_cls ) : '' ) . '" title="' . $lock_title . '" style="opacity:.7;cursor:not-allowed !important;">';
 			echo '<input type="checkbox"' . checked( $checked, true, false ) . ' disabled="disabled" tabindex="-1" title="' . $lock_title . '" style="cursor:not-allowed !important;pointer-events:none;" />';
@@ -421,6 +657,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			echo '</label>';
 			if ( ! $checked ) {
 				echo '<span class="ecv2-status-reason" title="' . $lock_title . '" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;line-height:1;color:#b32d2e;white-space:nowrap;cursor:not-allowed !important;">';
+				// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo '<span class="dashicons dashicons-hidden" style="font-size:14px;width:14px;height:14px;"></span>';
 				echo esc_html__( 'Hidden in Square', 'wp-easycart' );
 				echo '</span>';
@@ -457,7 +694,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$this->set_custom_where( ' AND ec_product.product_id = ' . $product_id );
 			$this->current_page = 1;
 			$this->perpage      = 1;
-			$result = $this->wpdb->get_row( $this->get_query() );
+			$result = $this->wpdb->get_row( $this->get_query() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- query is built by the base table builder from static columns, a whitelisted sort column and the int-cast product_id WHERE set above.
 			if ( ! $result ) {
 				return '';
 			}
@@ -479,7 +716,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 			$square_attr = $is_square ? ' data-square-synced="1"' : '';
 
-			echo '<tr class="ecv2-row' . esc_attr( $extra_class ) . '" data-id="' . esc_attr( $row_id ) . '"' . $square_attr . '>';
+			echo '<tr class="ecv2-row' . esc_attr( $extra_class ) . '" data-id="' . esc_attr( $row_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_attr is a static literal attribute or ''.
 
 			// Checkbox — always available for bulk actions (delete, activate, deactivate, export).
 			echo '<td class="ecv2-col-check"><input type="checkbox" name="bulk[]" value="' . esc_attr( $row_id ) . '" class="ecv2-row-check" /></td>';
@@ -501,7 +738,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				if ( ! $is_square && in_array( $col['name'], $this->inline_editable_columns ) ) {
 					$editable_attr = ' data-editable="true" data-field="' . esc_attr( $col['name'] ) . '"';
 				}
-				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '"' . $editable_attr . '>';
+				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '"' . $editable_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $extra_classes is only static literal class names.
 				$this->print_cell_content( $result, $col );
 				echo '</td>';
 			}
@@ -749,22 +986,14 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$variant_price_max = 0;
 			$variant_price_count = 0;
 
-			// Check for variant-level pricing when option item tracking is enabled.
+			// Check for variant-level pricing when option item tracking is enabled ( one grouped query per page, see variant_data() ).
 			if ( $result->use_optionitem_quantity_tracking ) {
-				global $wpdb;
-				$variant_prices = $wpdb->get_row( $wpdb->prepare(
-					"SELECT MIN( CASE WHEN price >= 0 THEN price END ) AS min_price,
-							MAX( CASE WHEN price >= 0 THEN price END ) AS max_price,
-							SUM( CASE WHEN price >= 0 THEN 1 ELSE 0 END ) AS price_count
-					 FROM ec_optionitemquantity
-					 WHERE product_id = %d AND is_enabled = 1 AND price != -1",
-					$product_id
-				) );
-				if ( $variant_prices && (int) $variant_prices->price_count > 0 ) {
+				$variant_prices = $this->variant_data( $product_id );
+				if ( $variant_prices['price_count'] > 0 ) {
 					$has_variant_pricing = true;
-					$variant_price_min = (float) $variant_prices->min_price;
-					$variant_price_max = (float) $variant_prices->max_price;
-					$variant_price_count = (int) $variant_prices->price_count;
+					$variant_price_min = $variant_prices['min_price'];
+					$variant_price_max = $variant_prices['max_price'];
+					$variant_price_count = $variant_prices['price_count'];
 				}
 			}
 
@@ -1016,7 +1245,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			echo '<button type="button" class="ecv2-price-menu-advanced-link" onclick="' . esc_attr( $advanced_onclick ) . '">';
 			echo '<span class="ecv2-price-menu-advanced-label">' . esc_html__( 'Advanced pricing', 'wp-easycart' ) . '</span>';
 			if ( ! $advanced_pricing_enabled ) {
-				echo '<span class="ecv2-price-menu-pro-tag" title="' . esc_attr__( 'Requires PRO', 'wp-easycart' ) . '">' . esc_html__( 'PRO', 'wp-easycart' ) . '</span>';
+				echo '<span class="ecv2-price-menu-pro-tag" title="' . esc_attr( wp_easycart_admin_edition::included_text( 'pro' ) ) . '">' . esc_html( wp_easycart_admin_edition::badge( 'pro' ) ) . '</span>';
 			}
 			if ( $has_advanced_active ) {
 				echo '<span class="ecv2-price-menu-advanced-pip" aria-label="' . esc_attr__( 'Advanced pricing options are configured for this product', 'wp-easycart' ) . '" title="' . esc_attr__( 'Advanced pricing configured', 'wp-easycart' ) . '"></span>';
@@ -1091,11 +1320,8 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			if ( $is_square ) {
 				echo '<div class="ecv2-stock-wrap ecv2-stock-wrap-locked" title="' . esc_attr__( 'Stock managed by Square', 'wp-easycart' ) . '">';
 				if ( $result->use_optionitem_quantity_tracking ) {
-					global $wpdb;
-					$option_total = (int) $wpdb->get_var( $wpdb->prepare(
-						"SELECT COALESCE( SUM( quantity ), 0 ) FROM ec_optionitemquantity WHERE product_id = %d AND is_enabled = 1 AND is_stock_tracking_enabled = 1",
-						$product_id
-					) );
+					$variant = $this->variant_data( $product_id );
+					$option_total = (int) $variant['stock_total'];
 					echo '<span class="ecv2-stock-badge ecv2-stock-option">' . esc_html( $option_total ) . ' ' . esc_html__( 'in stock', 'wp-easycart' ) . '</span>';
 				} else if ( ! $result->show_stock_quantity ) {
 					echo '<span class="ecv2-stock-badge ecv2-stock-unlimited">&infin; ' . esc_html__( 'Unlimited', 'wp-easycart' ) . '</span>';
@@ -1119,14 +1345,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				$tracking_type = 'basic';
 			}
 
-			// For option tracking, compute total variant stock.
+			// For option tracking, total variant stock comes from the per-page aggregate ( see variant_data() ).
 			$option_total = 0;
 			if ( $tracking_type === 'option' ) {
-				global $wpdb;
-				$option_total = (int) $wpdb->get_var( $wpdb->prepare(
-					"SELECT COALESCE( SUM( quantity ), 0 ) FROM ec_optionitemquantity WHERE product_id = %d AND is_enabled = 1 AND is_stock_tracking_enabled = 1",
-					$product_id
-				) );
+				$variant = $this->variant_data( $product_id );
+				$option_total = (int) $variant['stock_total'];
 			}
 
 			echo '<div class="ecv2-stock-wrap" data-product-id="' . esc_attr( $product_id ) . '" data-nonce="' . esc_attr( $nonce ) . '" data-tracking="' . esc_attr( $tracking_type ) . '" data-stock-qty="' . esc_attr( (int) $result->stock_quantity ) . '" data-option-total="' . esc_attr( $option_total ) . '">';
@@ -1138,7 +1361,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				echo '<span class="ecv2-stock-badge ecv2-stock-unlimited">&infin; ' . esc_html__( 'Unlimited', 'wp-easycart' ) . '</span>';
 			} else if ( $result->stock_quantity <= 0 ) {
 				echo '<span class="ecv2-stock-badge ecv2-stock-out">' . esc_html__( 'Out of Stock', 'wp-easycart' ) . '</span>';
-			} else if ( $result->stock_quantity <= self::LOW_STOCK_THRESHOLD ) {
+			} else if ( $result->stock_quantity <= self::low_stock_threshold() ) {
 				echo '<span class="ecv2-stock-badge ecv2-stock-low">' . esc_html( $result->stock_quantity ) . ' ' . esc_html__( 'left', 'wp-easycart' ) . '</span>';
 			} else {
 				echo '<span class="ecv2-stock-badge ecv2-stock-ok">' . esc_html( $result->stock_quantity ) . ' ' . esc_html__( 'in stock', 'wp-easycart' ) . '</span>';
@@ -1262,19 +1485,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$variant_price_max = 0;
 
 			if ( $result->use_optionitem_quantity_tracking ) {
-				global $wpdb;
-				$variant_prices = $wpdb->get_row( $wpdb->prepare(
-					"SELECT MIN( CASE WHEN price >= 0 THEN price END ) AS min_price,
-							MAX( CASE WHEN price >= 0 THEN price END ) AS max_price,
-							SUM( CASE WHEN price >= 0 THEN 1 ELSE 0 END ) AS price_count
-					 FROM ec_optionitemquantity
-					 WHERE product_id = %d AND is_enabled = 1 AND price != -1",
-					$product_id
-				) );
-				if ( $variant_prices && (int) $variant_prices->price_count > 0 ) {
+				$variant_prices = $this->variant_data( $product_id );
+				if ( $variant_prices['price_count'] > 0 ) {
 					$has_variant_pricing = true;
-					$variant_price_min = (float) $variant_prices->min_price;
-					$variant_price_max = (float) $variant_prices->max_price;
+					$variant_price_min = $variant_prices['min_price'];
+					$variant_price_max = $variant_prices['max_price'];
 				}
 			}
 
@@ -1340,10 +1555,10 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$circumference = 2 * 3.14159 * $radius;
 			$dash_offset = $circumference * ( 1 - $pct / 100 );
 
-			echo '<div class="ecv2-score-ring" title="' . $tooltip_text . '">';
+			echo '<div class="ecv2-score-ring" title="' . $tooltip_text . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $tooltip_text is built with esc_attr() above.
 			echo '<svg width="36" height="36" viewBox="0 0 36 36">';
-			echo '<circle cx="18" cy="18" r="' . $radius . '" fill="none" stroke="#e5e7eb" stroke-width="3" />';
-			echo '<circle cx="18" cy="18" r="' . $radius . '" fill="none" stroke="' . esc_attr( $color ) . '" stroke-width="3" stroke-dasharray="' . $circumference . '" stroke-dashoffset="' . $dash_offset . '" stroke-linecap="round" transform="rotate(-90 18 18)" />';
+			echo '<circle cx="18" cy="18" r="' . $radius . '" fill="none" stroke="#e5e7eb" stroke-width="3" />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $radius is an integer literal.
+			echo '<circle cx="18" cy="18" r="' . $radius . '" fill="none" stroke="' . esc_attr( $color ) . '" stroke-width="3" stroke-dasharray="' . $circumference . '" stroke-dashoffset="' . $dash_offset . '" stroke-linecap="round" transform="rotate(-90 18 18)" />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $radius is an integer literal; the other values are numeric.
 			echo '<text x="18" y="18" text-anchor="middle" dominant-baseline="central" class="ecv2-score-text" fill="' . esc_attr( $color ) . '">' . esc_html( $pct ) . '</text>';
 			echo '</svg>';
 			echo '</div>';
@@ -1411,7 +1626,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$square_class = $is_square ? ' ecv2-card-square-locked' : '';
 			$square_attr = $is_square ? ' data-square-synced="1"' : '';
 
-			echo '<div class="ecv2-card' . ( ! $checked ? ' ecv2-card-inactive' : '' ) . $square_class . '" data-id="' . esc_attr( $result->product_id ) . '"' . $square_attr . '>';
+			echo '<div class="ecv2-card' . ( ! $checked ? ' ecv2-card-inactive' : '' ) . $square_class . '" data-id="' . esc_attr( $result->product_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_class and $square_attr are static literals or ''.
 
 			// Image area.
 			echo '<div class="ecv2-card-image" data-product-id="' . esc_attr( $result->product_id ) . '">';
@@ -1440,9 +1655,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				$lock_title = $checked
 					? esc_attr__( 'Active status is managed by Square — change it in your Square dashboard.', 'wp-easycart' )
 					: esc_attr( self::square_inactive_reason_text() );
+				// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- $lock_title is built from esc_attr__() / esc_attr() above.
 				echo '<label class="ecv2-toggle ecv2-card-toggle ecv2-toggle-locked" title="' . $lock_title . '" style="opacity:.7;cursor:not-allowed !important;">';
 				echo '<input type="checkbox"' . checked( $checked, true, false ) . ' disabled="disabled" tabindex="-1" title="' . $lock_title . '" style="cursor:not-allowed !important;pointer-events:none;" />';
 				echo '<span class="ecv2-toggle-slider" title="' . $lock_title . '" style="cursor:not-allowed !important;"></span>';
+				// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo '</label>';
 			} else {
 				echo '<label class="ecv2-toggle ecv2-card-toggle">';
@@ -1542,6 +1759,48 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				}
 			}
 			parent::print_row_menu_item( $result, $action );
+		}
+
+		/**
+		 * Page header with the Import / Export buttons of the V2 panel ( @since 6.0.0 ).
+		 *
+		 * The base class prints the legacy importer bar ( "Need Help? / Browse / Import File" ) when
+		 * set_importer() is on; that bar is no longer shown here. CSV import, export and help live in the panel
+		 * rendered by wp_easycart_admin_product_import ( admin/inc/wp_easycart_admin_product_import.php ). The
+		 * legacy ec_admin_ajax_import_products route stays registered for anything still calling it.
+		 */
+		protected function print_page_header() {
+			$this->importer = false;
+			if ( ! class_exists( 'wp_easycart_admin_product_import' ) ) {
+				parent::print_page_header();
+				return;
+			}
+
+			echo '<div class="ecv2-page-header">';
+			echo '<div class="ecv2-page-header-left">';
+			if ( isset( $this->icon ) ) {
+				echo '<span class="dashicons dashicons-' . esc_attr( $this->icon ) . ' ecv2-page-header-icon"></span>';
+			}
+			echo '<div class="ecv2-page-header-text">';
+			echo '<h1 class="ecv2-page-title">' . esc_html( isset( $this->custom_header ) ? $this->custom_header : $this->item_label_plural ) . '</h1>';
+			echo '<p class="ecv2-page-subline"><span class="ecv2-record-count">' . esc_html( $this->record_count ) . ' ' . esc_html( 1 == $this->record_count ? $this->item_label : $this->item_label_plural ) . '</span></p>';
+			echo '</div>'; // .ecv2-page-header-text
+			echo '</div>';
+
+			echo '<div class="ecv2-page-header-right">';
+			if ( ! empty( $this->inline_editable_columns ) ) {
+				echo '<span class="ecv2-keyboard-hint"><span class="dashicons dashicons-info-outline"></span> ' . esc_html__( 'Double-click any cell to edit inline', 'wp-easycart' ) . '</span>';
+			}
+			if ( isset( $this->docs_guide ) ) {
+				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label">' . esc_html__( 'Help', 'wp-easycart' ) . '</span></a>';
+			}
+			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-ecv2pi-open="import" title="' . esc_attr__( 'Import products from a CSV file', 'wp-easycart' ) . '"><span class="dashicons dashicons-upload"></span> <span class="ecv2-btn-label">' . esc_html__( 'Import', 'wp-easycart' ) . '</span></button>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-ecv2pi-open="export" title="' . esc_attr__( 'Export products to a CSV file', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> <span class="ecv2-btn-label">' . esc_html__( 'Export', 'wp-easycart' ) . '</span></button>';
+			if ( $this->add_new ) {
+				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
+			}
+			echo '</div>';
+			echo '</div>';
 		}
 
 		protected function print_custom_modals() {
@@ -1712,7 +1971,7 @@ function ecv2_product_inline_update() {
 	}
 
 	global $wpdb;
-	$old_value = $wpdb->get_var( $wpdb->prepare( "SELECT `$field` FROM ec_product WHERE product_id = %d", $product_id ) );
+	$old_value = $wpdb->get_var( $wpdb->prepare( "SELECT `$field` FROM ec_product WHERE product_id = %d", $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $field is strictly whitelisted against $allowed_fields above.
 
 	$format = '%s';
 	if ( $field === 'stock_quantity' ) {
@@ -2057,7 +2316,7 @@ function ecv2_product_bulk_set_status( $new_status ) {
 	$id_list_sql = implode( ',', array_map( 'intval', $product_ids ) );
 
 	$rows = $wpdb->get_results(
-		"SELECT product_id, post_id, model_number FROM ec_product WHERE product_id IN ( {$id_list_sql} )"
+		"SELECT product_id, post_id, model_number FROM ec_product WHERE product_id IN ( {$id_list_sql} )" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list_sql is an implode of intval-cast ids.
 	);
 
 	if ( empty( $rows ) ) {
@@ -2077,7 +2336,7 @@ function ecv2_product_bulk_set_status( $new_status ) {
 
 	$wpdb->query(
 		$wpdb->prepare(
-			"UPDATE ec_product SET activate_in_store = %d WHERE product_id IN ( {$resolved_id_list_sql} )",
+			"UPDATE ec_product SET activate_in_store = %d WHERE product_id IN ( {$resolved_id_list_sql} )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $resolved_id_list_sql is an implode of intval-cast ids.
 			$new_status
 		)
 	);
@@ -2087,7 +2346,7 @@ function ecv2_product_bulk_set_status( $new_status ) {
 		$post_status      = $new_status ? 'publish' : 'private';
 		$wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$wpdb->prefix}posts SET post_status = %s WHERE ID IN ( {$post_id_list_sql} )",
+				"UPDATE {$wpdb->prefix}posts SET post_status = %s WHERE ID IN ( {$post_id_list_sql} )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $post_id_list_sql is an implode of intval-cast ids.
 				$post_status
 			)
 		);
@@ -3148,7 +3407,7 @@ function ecv2_save_product_images() {
 			$placeholders = implode( ',', array_fill( 0, count( $keep_ids ), '%d' ) );
 			$args = array_merge( array( $product_id ), $keep_ids );
 			$wpdb->query( $wpdb->prepare(
-				'DELETE FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id NOT IN (' . $placeholders . ')',
+				'DELETE FROM ec_optionitemimage WHERE product_id = %d AND optionitem_id NOT IN (' . $placeholders . ')', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $placeholders is a comma list of literal %d placeholders built with array_fill().
 				$args
 			) );
 		} else if ( $switched_to_basic && $is_licensed ) {
@@ -3332,4 +3591,82 @@ function ecv2_get_variant_tracking_gate() {
 			'enabled' => __( 'Track per variation', 'wp-easycart' ),
 		),
 	) );
+}
+/* ---- one-time text repair: doubled backslashes + auto-copied excerpts ---- */
+function ecv2_product_text_unslash( $text ) {
+	/* Saves without wp_unslash() added one more backslash in front of each quote every time: remove any run of backslashes directly before a quote, and nothing else. */
+	$clean = preg_replace( '/\\\\+(["\'])/', '$1', (string) $text );
+	return ( null === $clean ) ? (string) $text : $clean;
+}
+/**
+ * Runs in batches of 200 products per request ( keyset: product_id > after ), so a catalog of any size is
+ * repaired without loading every long-text column into memory. The JS loops on { done, next, processed }
+ * and carries the running fixed / excerpts totals back so the final message stays server-translated.
+ *
+ * @since 6.0.0 Batched.
+ */
+add_action( 'wp_ajax_ecv2_product_text_repair', function() {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
+	check_ajax_referer( 'wp-easycart-ecv2-product-text-repair', 'nonce' );
+	global $wpdb;
+	$batch    = 200;
+	$after    = isset( $_POST['after'] ) ? max( 0, (int) $_POST['after'] ) : 0;
+	$fixed    = isset( $_POST['fixed'] ) ? max( 0, (int) $_POST['fixed'] ) : 0;
+	$excerpts = isset( $_POST['excerpts'] ) ? max( 0, (int) $_POST['excerpts'] ) : 0;
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT p.product_id, p.post_id, p.description, p.short_description, p.specifications, po.post_excerpt FROM ec_product p LEFT JOIN {$wpdb->posts} po ON po.ID = p.post_id WHERE p.product_id > %d ORDER BY p.product_id ASC LIMIT %d", $after, $batch ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$wpdb->posts} is the core posts table name; the cursor and limit go through prepare().
+	$rows = is_array( $rows ) ? $rows : array();
+	$last = $after;
+	foreach ( $rows as $r ) {
+		$last = (int) $r->product_id;
+		$upd = array();
+		foreach ( array( 'description', 'short_description', 'specifications' ) as $f ) { $clean = ecv2_product_text_unslash( $r->$f ); if ( $clean !== (string) $r->$f ) { $upd[ $f ] = $clean; } }
+		if ( $upd ) { $wpdb->update( 'ec_product', $upd, array( 'product_id' => (int) $r->product_id ) ); $fixed++; }
+		if ( $r->post_id && null !== $r->post_excerpt && '' !== $r->post_excerpt ) {
+			$desc = isset( $upd['description'] ) ? $upd['description'] : (string) $r->description; $ex = ecv2_product_text_unslash( $r->post_excerpt );
+			$norm = function( $t ) { return trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( html_entity_decode( (string) $t ) ) ) ); };
+			if ( $norm( $ex ) === $norm( $desc ) ) { $wpdb->update( $wpdb->posts, array( 'post_excerpt' => '' ), array( 'ID' => (int) $r->post_id ) ); $excerpts++; clean_post_cache( (int) $r->post_id ); }
+			else if ( $ex !== (string) $r->post_excerpt ) { $wpdb->update( $wpdb->posts, array( 'post_excerpt' => $ex ), array( 'ID' => (int) $r->post_id ) ); clean_post_cache( (int) $r->post_id ); }
+		}
+	}
+	$done = ( count( $rows ) < $batch );
+	if ( $done ) {
+		update_user_meta( get_current_user_id(), 'ecv2_product_text_repair_dismissed', 1 ); delete_transient( 'ecv2_product_text_repair_count' ); wp_cache_flush();
+	}
+	wp_send_json_success( array(
+		'done'      => $done,
+		'next'      => $last,
+		'processed' => count( $rows ),
+		'fixed'     => $fixed,
+		'excerpts'  => $excerpts,
+		'message'   => $done ? sprintf( __( 'Cleaned %1$d products and cleared %2$d auto-copied excerpts.', 'wp-easycart' ), $fixed, $excerpts ) : '',
+	) );
+} );
+add_action( 'wp_ajax_ecv2_product_text_repair_dismiss', function() {
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) { wp_send_json_error(); }
+	check_ajax_referer( 'wp-easycart-ecv2-product-text-repair', 'nonce' );
+	update_user_meta( get_current_user_id(), 'ecv2_product_text_repair_dismissed', 1 ); wp_send_json_success();
+} );
+
+/* ---- health tile cache ( @since 6.0.0 ) ---- */
+if ( ! function_exists( 'ecv2_product_health_cache_clear' ) ) {
+	/** Drops the cached product health counts ( wp_easycart_admin_product_table::HEALTH_TRANSIENT ). Accepts any hook arguments. */
+	function ecv2_product_health_cache_clear() {
+		delete_transient( 'ecv2_product_health_data' );
+	}
+	/**
+	 * Every path that changes a product clears the cache: the product-change actions fired by the editors,
+	 * importer and PRO tools, plus ( at priority 1, before the handler runs ) the V2 list's own AJAX actions
+	 * that write prices, stock, status, sale dates or text without firing one of those actions.
+	 */
+	function ecv2_product_health_cache_hooks() {
+		$actions = array( 'wp_easycart_product_updated', 'wpeasycart_product_updated', 'wpeasycart_product_added', 'wpeasycart_product_deleting', 'wpeasycart_product_deleted', 'wpeasycart_product_activated', 'wpeasycart_product_deactivated', 'wpeasycart_product_to_category_added', 'wpeasycart_product_to_category_deleted' );
+		foreach ( $actions as $action ) {
+			add_action( $action, 'ecv2_product_health_cache_clear' );
+		}
+		$ajax = array( 'ecv2_product_inline_update', 'ecv2_product_toggle_status', 'ecv2_product_bulk_edit', 'ecv2_product_bulk_delete', 'ecv2_product_bulk_activate', 'ecv2_product_bulk_deactivate', 'ecv2_product_schedule_sale', 'ecv2_product_remove_sale', 'ecv2_product_change_tracking_type', 'ecv2_product_save_prices', 'ecv2_product_text_repair', 'ecv2_category_add', 'ecv2_category_remove' );
+		foreach ( $ajax as $action ) {
+			add_action( 'wp_ajax_' . $action, 'ecv2_product_health_cache_clear', 1 );
+		}
+	}
+	ecv2_product_health_cache_hooks();
 }

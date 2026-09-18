@@ -15,7 +15,7 @@
 				} else if( 'image5' == $product->images->product_images[0] ) {
 					echo esc_attr( $product->get_fifth_image_url( ) );
 				} else if( 'image:' == substr( $product->images->product_images[0], 0, 6 ) ) {
-					esc_attr( substr( $product->images->product_images[0], 6, strlen( $product->images->product_images[0] ) - 6 ) );
+					echo esc_attr( substr( $product->images->product_images[0], 6, strlen( $product->images->product_images[0] ) - 6 ) );
 				} else if( 'video:' == substr( $product->images->product_images[0], 0, 6 ) ) {
 					$video_str = substr( $product->images->product_images[0], 6, strlen( $product->images->product_images[0] ) - 6 );
 					$video_arr = explode( ':::', $video_str );

@@ -585,7 +585,74 @@ class ec_orderdisplay {
 		echo "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $this->order_id ) ) ) . "\">" . esc_attr( $link_text ) . "</a>";
 	}
 
-	public function send_email_receipt( $admin_only = false ){
+	/**
+	 * Clean a list of email addresses typed into the admin send dialog ( comma, semicolon or space separated ).
+	 *
+	 * @since 6.0.0
+	 * @param string|array $raw Addresses.
+	 * @return array Valid, unique addresses ( at most 10 ).
+	 */
+	public static function clean_email_list( $raw ) {
+		$parts = is_array( $raw ) ? $raw : preg_split( '/[\s,;]+/', (string) $raw );
+		$out   = array();
+		foreach ( (array) $parts as $part ) {
+			$email = sanitize_email( trim( (string) $part ) );
+			if ( '' !== $email && is_email( $email ) && ! in_array( strtolower( $email ), array_map( 'strtolower', $out ), true ) ) {
+				$out[] = $email;
+			}
+		}
+		return array_slice( $out, 0, 10 );
+	}
+
+	/**
+	 * Send one customer email to the addresses chosen in the admin send dialog, with the store's send method.
+	 * wp_mail gets real Cc / Bcc headers; the built-in mailer and custom senders get one copy per address.
+	 *
+	 * @since 6.0.0
+	 * @param array  $recipients  array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+	 * @param string $subject     Subject.
+	 * @param string $message     HTML body.
+	 * @param array  $headers     Header lines ( From, Reply-To, content type ).
+	 * @param array  $attachments Attachments.
+	 * @return bool
+	 */
+	public static function send_to_recipients( $recipients, $subject, $message, $headers, $attachments = array() ) {
+		$to  = isset( $recipients['to'] ) ? (array) $recipients['to'] : array();
+		$cc  = isset( $recipients['cc'] ) ? (array) $recipients['cc'] : array();
+		$bcc = isset( $recipients['bcc'] ) ? (array) $recipients['bcc'] : array();
+		if ( ! $to ) {
+			return false;
+		}
+		$method = apply_filters( 'wpeasycart_email_method', get_option( 'ec_option_use_wp_mail' ) );
+		if ( '1' == $method ) {
+			foreach ( $cc as $address ) {
+				$headers[] = 'Cc: ' . $address;
+			}
+			foreach ( $bcc as $address ) {
+				$headers[] = 'Bcc: ' . $address;
+			}
+			return (bool) wp_mail( implode( ',', $to ), $subject, $message, implode( "\r\n", $headers ), $attachments );
+		}
+		$all = array_values( array_unique( array_merge( $to, $cc, $bcc ) ) );
+		if ( '0' == $method ) {
+			$mailer = new wpeasycart_mailer();
+			foreach ( $all as $address ) {
+				$mailer->send_order_email( $address, $subject, $message, $attachments );
+			}
+		} else {
+			foreach ( $all as $address ) {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $address, '', $subject, $message, $attachments );
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @since 6.0.0 $recipients: send the customer receipt only, to these addresses ( admin resend dialog ).
+	 * @param bool       $admin_only Only the store copy.
+	 * @param array|null $recipients array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+	 */
+	public function send_email_receipt( $admin_only = false, $recipients = null ){
 		$tax_struct = new ec_tax( 0,0,0, "", "");
 		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
 		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
@@ -673,15 +740,23 @@ class ec_orderdisplay {
 
 		$attachments = array( );
 		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
+		/* 6.0.0: per-recipient attachments ( PRO PDF receipt ); identical to $attachments when nothing hooks in. */
+		$customer_attachments = ( $admin_only ) ? $attachments : $this->get_email_attachments( $attachments, 'customer', 'receipt' );
+		$admin_attachments    = $this->get_email_attachments( $attachments, 'admin', 'receipt' );
+
+		/* 6.0.0: a resend from the order screen goes to the addresses the admin chose, without the store copy. */
+		if ( is_array( $recipients ) && ! $admin_only ) {
+			return self::send_to_recipients( $recipients, $customer_title, $message, $headers, $customer_attachments );
+		}
 
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 
 		if( $email_send_method == "1" ){
 			if( ! $admin_only ){
-				wp_mail( $this->user_email, $customer_title, $message, implode("\r\n", $headers), $attachments );
+				wp_mail( $this->user_email, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
 				if ( '' != $this->email_other ) {
-					wp_mail( $this->email_other, $customer_title, $message, implode("\r\n", $headers), $attachments );
+					wp_mail( $this->email_other, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
 				}
 			}
 			$headers   = array();
@@ -690,21 +765,21 @@ class ec_orderdisplay {
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
-			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $attachments );
+			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $admin_attachments );
 		}else if( $email_send_method == "0" ){
 			$to = $this->user_email;
 			$mailer = new wpeasycart_mailer( );
 			if( ! $admin_only ) {
-				$mailer->send_order_email( $to, $customer_title, $message );
+				$mailer->send_order_email( $to, $customer_title, $message, $customer_attachments );
 				if ( '' != $this->email_other ) {
-					$mailer->send_order_email( $this->email_other, $customer_title, $message );
+					$mailer->send_order_email( $this->email_other, $customer_title, $message, $customer_attachments );
 				}
 			}
-			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message );
+			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message, $admin_attachments );
 		}else{
-			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message );
+			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message, $customer_attachments );
 			if ( '' != $this->email_other ) {
-				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( $admin_email ), $customer_title, $message );
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( $admin_email ), $customer_title, $message, $customer_attachments );
 			}
 		}
 
@@ -779,15 +854,18 @@ class ec_orderdisplay {
 
 		$attachments = array( );
 		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
+		/* 6.0.0: per-recipient attachments ( PRO PDF invoice ); identical to $attachments when nothing hooks in. */
+		$customer_attachments = ( $admin_only ) ? $attachments : $this->get_email_attachments( $attachments, 'customer', 'invoice' );
+		$admin_attachments    = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
 
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 
 		if( $email_send_method == "1" ){
 			if( ! $admin_only ){
-				wp_mail( $this->user_email, "New Invoice Available", $message, implode("\r\n", $headers), $attachments );
+				wp_mail( $this->user_email, "New Invoice Available", $message, implode("\r\n", $headers), $customer_attachments );
 				if ( '' != $this->email_other ) {
-					wp_mail( $this->email_other, "New Invoice Available", $message, implode("\r\n", $headers), $attachments );
+					wp_mail( $this->email_other, "New Invoice Available", $message, implode("\r\n", $headers), $customer_attachments );
 				}
 			}
 			$headers = array();
@@ -796,25 +874,57 @@ class ec_orderdisplay {
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
-			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $admin_message, implode("\r\n", $headers), $attachments );
+			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $admin_message, implode("\r\n", $headers), $admin_attachments );
 		}else if( $email_send_method == "0" ){
 			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
 			$to = $this->user_email;
 			$subject = "New Invoice Available";
 			$mailer = new wpeasycart_mailer( );
 			if( ! $admin_only ) {
-				$mailer->send_order_email( $to, $subject, $message );
+				$mailer->send_order_email( $to, $subject, $message, $customer_attachments );
 				if ( '' != $this->email_other ) {
-					$mailer->send_order_email( $this->email_other, $subject, $message );
+					$mailer->send_order_email( $this->email_other, $subject, $message, $customer_attachments );
 				}
 			}
-			$mailer->send_order_email( $admin_email, $subject, $admin_message );
+			$mailer->send_order_email( $admin_email, $subject, $admin_message, $admin_attachments );
 		}else{
-			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message );
+			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message, $customer_attachments );
 			if ( '' != $this->email_other ) {
-				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message );
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message, $customer_attachments );
 			}
 		}
+	}
+
+	/**
+	 * Files attached to one recipient's copy of an order receipt or invoice email.
+	 *
+	 * The free plugin never creates attachments itself; WP EasyCart PRO hooks
+	 * 'wp_easycart_order_email_attachments' to add a PDF copy of the order.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param array  $attachments Files from the older 'wpeasycart_order_email_attachments' filter ( every recipient ).
+	 * @param string $recipient   'customer' | 'admin'.
+	 * @param string $email       'receipt' | 'invoice'.
+	 * @return array
+	 */
+	private function get_email_attachments( $attachments, $recipient, $email ) {
+		$attachments = is_array( $attachments ) ? $attachments : array();
+		/**
+		 * Filters the files attached to one recipient's copy of an order email.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param array  $files     Absolute file paths to attach.
+		 * @param int    $order_id  Order ID.
+		 * @param string $recipient 'customer' ( shopper and the order's second address ) | 'admin' ( store notification addresses ).
+		 * @param array  $context   array( 'email' => 'receipt' | 'invoice', 'order' => ec_orderdisplay ).
+		 */
+		$extra = apply_filters( 'wp_easycart_order_email_attachments', array(), (int) $this->order_id, $recipient, array( 'email' => $email, 'order' => $this ) );
+		if ( ! is_array( $extra ) || empty( $extra ) ) {
+			return $attachments;
+		}
+		return array_merge( $attachments, $extra );
 	}
 
 	public function send_refund_email( $admin_only = false ) {

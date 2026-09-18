@@ -3,7 +3,7 @@ Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 5.9.4
+Stable tag: 6.0.0
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -218,6 +218,112 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 6.0.0 =
+* New Feature - Settings redesigned: a Settings home with search across every setting, pages organized into sections with a jump list and clearer wording throughout.
+* New Feature - Flex-Fees: a percentage fee can now be calculated on the order total (subtotal + shipping + tax - discounts) instead of the subtotal only, so a card-processing fee such as 2.9% covers the whole charged amount.
+* New Feature - Customer file uploads (file upload option) can now be downloaded by staff from the admin order email and the order details screen through a secure link that requires a logged-in administrator or order manager.
+* New Feature - Per Page Options: one page size can be starred as the default; the storefront starts shoppers on it.
+* New Feature - Customer file upload links in the admin order email can optionally work without signing in, using an expiring private link (Settings › Email › Order emails), with a one-click option to revoke all links already sent.
+* New Feature - Text and text area options can now force UPPERCASE, lowercase or Title Case, limit input to letters, letters and spaces, numbers, or letters and numbers, and show placeholder text; rules apply while typing and again when the item is added to the cart.
+* New Feature - Email deliverability: send a test email from the Deliverability panel; the result is shown on screen and recorded in the email log.
+* New Feature - PDF invoice or receipt to customer and admin order emails (Settings > Email > PDF receipts), with your business details, a file name pattern and A4 or Letter paper, to help meet EU invoicing requirements. Includes an "Email me a sample PDF" button.
+* New Feature - Manage offers, coupons and promotions that apply to the product, with status, uses, orders and revenue from the product details.
+* New Feature - Stock history on Inventory & Shipping, with the change, reason, resulting quantity and who made it; managed from the product details.
+* New Feature - Edit the Yoast SEO title, meta description, focus keyphrase, canonical URL and search visibility from the SEO tab when Yoast SEO is active, directly from the product details.
+* New Feature - Price filter in the store sidebar: turn on Settings > Products > Store sidebar > Price filter (or "Enable Sidebar Price Filter" on the Elementor Store element) to list your price ranges with product counts.
+* New Feature - File upload options can now limit which file types shoppers may upload (images, documents, design files such as PSD/AI/EPS, archives), with the accepted types shown next to the upload field.
+* New Feature - Download the order's PDF receipt from the order actions menu when PDF receipts are enabled.
+* New Feature - Product Details: Quick filters on the Offers tab (All, Live, Targets, Used) with counts.
+* New Feature - Product Details: Orders using an offer list with search, offer and date filters, and paging.
+* New Feature - Inventory: "Send now" in the Alerts box sends the low stock digest immediately as a test, without changing the schedule.
+* New Feature - Settings > Email can now send you each subscription email (trial started, trial ending, renewal coming up, subscription ended, payment failed) as a test, built from a real subscription when you have one.
+* New Feature - Settings > Email now shows the retry queue: what is waiting, how many attempts it has had, when the next attempt is, with "Send queue now" and per-email retry, plus a "Simulate a failed send" test that never touches customer mail.
+* New Feature - Inquiry forms can now require the shopper to be signed in to a store account.
+* New Feature - Refused inquiries are recorded under Settings > Log entries with the reason, a masked email address and no stored IP address.
+* New Feature - Authorize.net now allows you to upgrade to the Accept.js version, which offers PCI compliance.
+* Improvement - Inventory: import and export rebuilt. The export now carries Product ID and Variant ID, so variants that share a SKU can be updated; the import panel previews every row before applying in the background, logs each change to stock history, and explains rows it cannot match.
+* Improvement - Add product panel: pricing, media, inventory & shipping and options are cards in the current admin design; option sets are chosen with search and shown as chips with a variant count.
+* Improvement - Orders with nothing to ship (downloads, gift cards, subscriptions and services, or products with shipping disabled) removes the fulfill features.
+* Improvement - Order details: the Fulfillment card was redesigned. The status strip no longer wraps a boxed Shipping Info panel with duplicate Edit links; shipping method, carrier and tracking number show as one summary with a single Edit, and new orders get a clear "No shipping details yet" prompt with an Add shipping details button.
+* Improvement - Product editor: the Pricing & Tax tab now shows the product's current price (and crossed-out Previous Price), updating as you type, with an Edit price button that jumps to the Price field on the General tab.
+* Improvement - Countries & Regions: the country list now covers the full ISO 3166-1 set (250 countries) and default regions were added for Mexico, Spain, Germany, New Zealand and Ireland, with Brazil and India completed. Applies to new installs and to "Restore default countries & regions" only; existing stores are never changed.
+* Improvement - Countries & Regions: saving a country or adding a region updates the list in place; the drawer closes on save.
+* Improvement - Settings menu: "Countries" and "States/Territories" merged into one "Countries & Regions" link; old States bookmarks still open the combined screen.
+* Improvement - Store details › Currency: a live price preview, one-click separator and decimal-place choices, currency code suggestions with a one-click "usual format" for common currencies, and exchange rates edited as a list instead of a comma-separated string.
+* Improvement - Settings › Shipping rates: switch the shipping method right from the rates page, and the rate tables stay readable and editable on small screens.
+* Improvement - Order statuses editor redesigned: compact color, name and paid controls in a grid, built-in and custom statuses grouped.
+* Improvement - New stores that use Square or WooCommerce now see an "Import your products" item in the launch checklist, linking to the cart importer; Settings search also finds sections such as Cart importer.
+* Improvement - Shipping zones collapse large place lists with expand/collapse controls.
+* Improvement - Manage Downloads explains folder and permission problems and adds Create folder, Replace file, Choose existing file, Switch to Amazon S3 and Repair actions.
+* Improvement - Email deliverability: step-by-step "How to fix" help for SPF, DKIM, DMARC and sender address checks, with ready-to-copy DNS records and where to add them; a new "Improve delivery in 3 steps" guide when no mail plugin is installed; a mail plugin that takes over WordPress mail is now shown as a passed check with a link to its test screen; the health card explains its state in one sentence.
+* Improvement - Abandoned Carts shows the next automatic run, the last run result, WP-Cron warnings and a Run now button; reminder emails include one-click List-Unsubscribe headers and test emails no longer touch real customers' carts.
+* Improvement - Stock quantities changed in the product editor are now recorded in inventory history.
+* Improvement - Customer file uploads: when an order's file is not on the server, the order screen shows "File not received" instead of a Download link, the admin order email says "file not received", and the download link opens a clear page with Open order and Email the customer buttons for staff instead of a bare error.
+* Improvement - Canada taxes: for Quebec addresses the provincial tax is shown as QST instead of PST in the cart, checkout, wallets (Apple Pay / Google Pay), emails, receipts, packing slips and admin order totals. GST, PST, QST and HST names are now editable in the language editor (Cart › Cart Totals), with French defaults TPS, TVP, TVQ and TVH. The Canada tax settings explain that Quebec's QST rate goes in the PST column.
+* Improvement - Logs: "View order" is only offered on entries linked to an order.
+* Improvement - Live shipping: cart updates only request quotes from carriers that are set up (Australia Post, FedEx, etc. without credentials are skipped), make no carrier requests until the shopper has entered a destination, and reuse the saved quote for up to 30 minutes when the cart, destination and carrier settings have not changed.
+* Improvement - Live shipping: Canada Post, FedEx, UPS and USPS are now quoted at the same time instead of one after another, so a cart update waits for the slowest carrier rather than all of them added together.
+* Improvement - Live shipping: every carrier request now has a 5 second connection and 10 second overall time limit (Canada Post and USPS had none), and a carrier that cannot be reached, rejects the account or has a server error is skipped for 5 minutes so the cart doesn't wait on the same failure with every change. Saving that carrier's settings, reconnecting UPS or a passing connection test lifts the pause, and each pause is recorded in the logs.
+* Improvement - The saved live rate quotes table is indexed by cart and cleaned daily (quotes for carts that no longer exist, or older than 18 days).
+* Improvement - Every store email now shares one modern design: 600px layout that stacks on phones, store logo and accent color, address cards, clear item table and totals, and a footer.
+* Improvement - Addresses in emails now follow each country's format (postcode before the city in most of Europe, on its own line in the UK) and no longer leave blank lines when a company, second line, state or postcode is missing.
+* Improvement - Printable gift card redesigned: the amount and code stand out, the product image no longer fills the page, and it prints cleanly.
+* Improvement - User details: saved addresses with no details are labelled "Blank address" with a short explanation instead of "(empty address)".
+* Improvement - Inventory: Bulk Update "Adjust quantity by" now asks you to choose a reason instead of defaulting to "Stock received".
+* Improvement - Redesigned the customer subscription details page with a status badge, product image, price and billing dates, card on file, purchased options, billing history and grouped actions.
+* Improvement - Customer file uploads now check the file's real contents against the option's allowed types, and always refuse scripts, web pages, SVG and names that hide a script extension.
+* Improvement - Product inquiry forms are now protected by an invisible honeypot field and a minimum time-to-submit check, so scripted spam is refused before it reaches your inbox.
+* Improvement - Inquiries are rate limited per visitor, per email address and per product, with merchant-set hourly limits under Settings > Products > Inquiry form protection.
+* Improvement - Inquiry messages are now checked for length, excessive links and a merchant-editable list of blocked words and domains, and forged or mismatched form fields are rejected.
+* Improvement - Hardened the inquiry submit handler: the form nonce is checked before any field is read, and every posted field is sanitized once.
+* Bug Fix - Settings > Admin > Quick add panel: the four toggles had no effect on the Add product panel since the settings redesign.
+* Bug Fix - Order details: an order with nothing to ship showed as unfulfilled on the order screen while the list showed "No shipping".
+* Bug Fix - Log entries search now matches each word across the response and source, finds order numbers and transaction ids reliably, returns to page 1 on a new search, and keeps special characters when paging and exporting.
+* Bug Fix - Subscription checkout saved an option's download settings as a file name, creating download records that could not be downloaded; option override files on subscriptions are now read correctly too.
+* Bug Fix - Store Status "Fix data folders" created folders with broken permissions and could not create nested folders.
+* Bug Fix - Unsubscribing from cart reminders now asks the shopper to confirm (so email link scanners cannot unsubscribe anyone), supports one-click unsubscribe from Gmail and Yahoo, stops all future reminders to that address and marks the carts Unsubscribed in the admin.
+* Bug Fix - Color swatches now show as colored chips on the storefront (product page, add-to-cart shortcode, Elementor add-to-cart, color widget) instead of broken images.
+* Bug Fix - Customer file uploads (file upload option): a file the store cannot accept (file type, size, or an upload that failed) no longer adds the item to the cart with a missing file. Shoppers see why straight away ("This file type cannot be uploaded. Accepted file types: JPG, PNG, …" or the size limit, editable in the language editor), the file picker only offers accepted types, and the server rejects it too. Failed uploads are recorded in the store log when logging is on.
+* Bug Fix - Text and text area options now enforce their minimum length: shoppers see "Please enter at least N characters." (editable in the language editor) instead of adding a shorter value to the cart, and the server rejects it too.
+* Bug Fix - Elementor Cart Icon widget: removed a duplicate "alignment" control that triggered a "doing it wrong" notice (it never applied), and the icon hover color now takes effect.
+* Bug Fix - Authorize.net: decline reasons were not shown to shoppers, and the legacy URL option stopped charges from going through.
+* Bug Fix - Offers: legacy coupons and promotions could disappear from the admin when the conversion check failed (for example on databases with mixed collations), and a failed conversion could switch a legacy coupon off without creating its offer. The Legacy tab now always lists every legacy item, shows why a conversion did not finish, keeps converted items with a link to their offer, and can restore the legacy version with its original dates.
+* Bug Fix - DB Compatibility Upgrades.
+* Bug Fix - Stripe: when a saved Stripe customer no longer exists on the connected account (account reconnected or test/live switch), checkout now re-creates the customer and continues instead of showing an error.
+* Bug Fix - Stripe subscriptions: recurring payment and failed payment webhooks now work with newer Stripe API versions, failed payments are marked correctly, and subscription status is kept in sync with Stripe (including reactivation after a card update).
+* Bug Fix - Canada taxes: Quebec QST is calculated on the price before GST (GST 5% and QST 9.975% on the same amount), as Revenu Québec has required since 2013, in the cart, subscriptions, and the Square and Stripe tax rates. A store that needs the old compounded calculation can add the filter wp_easycart_quebec_compound_qst returning true.
+* Bug Fix - Canada taxes: New Brunswick and Newfoundland tax settings were applied to each other's addresses; Newfoundland addresses using NL are now recognized too.
+* Bug Fix - Fixed a fatal error on the Dwolla checkout return page.
+* Bug Fix - Admin lists no longer error when a page size of 0 is requested.
+* Bug Fix - Removing an item from the cart ran the cart update listeners (live shipping, tax, payment intent) twice, making deletes roughly twice as slow as quantity changes.
+* Bug Fix - UPS live rates: a shipping estimate with only a postcode sent an empty state and address lines, which UPS rejected, and every rejected request was sent a second time unchanged. Empty address parts are no longer sent, and only an expired login is retried (after refreshing it); other UPS errors are logged with their code and message.0
+* Bug Fix - USPS live rates: a login token rejected before its expiry is now replaced and the request sent again, instead of returning no rates until the token expired. Single-rate USPS lookups passed their arguments in the wrong order.
+* Bug Fix - Logs: carrier rate errors (FedEx, UPS, USPS, Australia Post, DHL) were recorded as OK and successful Canada Post quotes as errors; each now carries the right status, and failed quotes include the HTTP status and carrier message.
+* Bug Fix - Australia Post domestic live rates sent the store and customer postcodes reversed.
+* Bug Fix - FedEx: the residential address check called the address lookup with the wrong arguments.
+* Bug Fix - Shipped email: billing and shipping addresses could break into misaligned columns (for example Canadian addresses in Gmail or Apple Mail), and gift card / download links pointed to the wrong order.
+* Bug Fix - Printable gift card showed each label twice ("To: to: name").
+* Bug Fix - Order receipt email showed the Tax row when easy Canada tax was on and no tax was charged, and could leave out the billing address.
+* Bug Fix - Tax row now shows in refund emails when Easy Canada Tax is on, and the invoice's "print online" gift card link points to the right gift card.
+* Bug Fix - Gift cards resent from an order had an empty redeem link.
+* Bug Fix - Product inquiry emails showed a literal html characters in the message and could leave out basic option names.
+* Bug Fix - Abandoned cart emails no longer switch product images from https to http, and back in stock emails no longer show double-escaped product titles or a missing product image.
+* Bug Fix - Refunds: order fees such as a card-processing fee are now refundable - percentage fees are prorated to the amount refunded, fixed fees are all-or-nothing, and the refund modal shows the items/shipping/fees/tax breakdown.
+* Bug Fix - Refunds: refunded tax is calculated from the taxed base, so stores that charge tax on shipping no longer over- or under-refund tax on partial refunds.
+* Bug Fix - Subscription details in the customer account no longer offer "Change payment method" or "Change my plan" once a subscription is canceled, ended or otherwise not active, and the store now refuses those changes server-side.
+* Bug Fix - Subscription details now show the variants, modifiers and sign-up fee chosen at purchase, in the account page and in the admin subscription screen.
+* Bug Fix - Subscription past payments now show on the account subscription details page.
+* Bug Fix - Subscription next and last bill dates no longer cause a fatal error on PHP 8 when stored as a date string.
+* Bug Fix - Changing a subscription plan from the account page no longer sends a quantity of 0 when quantity changes are turned off.
+* Bug Fix - Payment settings: CashFree UAE Dirham, PayPal Payflow Danish Krone and SecurePay JPY now save and display the currency shown.
+* Bug Fix - Low stock and out of stock admin emails now send for products that track stock by option combination, including two-level variants such as Color and Size.
+* Bug Fix - Product page: a default option item now sets the price, stock count, option item image and the hidden option field on load, so add to cart no longer reports a missing option, and a default swatch on a single option no longer loses its highlight when the page loads.
+* Bug Fix - A failed Google reCAPTCHA on the inquiry form ended the request silently; the shopper now sees a message explaining what happened.
+* Bug Fix - The admin copy of a product inquiry was sent with an empty subject line.
+* Bug Fix - Page lock (Restrict Access meta box): the product ids stored on a post are now bound as prepared integers before the purchase check runs, the six wpeasycart_restrict_* keys are protected meta so they cannot be written through the Custom Fields box, XML-RPC or the REST API, and the meta box save requires its own nonce and the right to edit that post.
+* Bug Fix - Customer file uploads (file upload option) can no longer be downloaded by guessing their address.
+* Bug Fix - Paid digital download files can no longer be downloaded by direct address without buying them. 
+* Bug Fix - Built-in order statuses (1-19) can no longer be deleted or have their paid setting changed by a direct admin request; previously only the settings screen prevented it.
 = 5.9.4 =
 * New Feature - Updated admin design, modernized shell.
 * New Feature - Inventory management screen upgraded.

@@ -1606,7 +1606,7 @@ class ec_accountpage {
 					$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_password_from_email' ) );
 					$headers[] = "X-Mailer: PHP/" . phpversion();
 
-					$message = wp_easycart_language()->get_text( "account_register", "account_register_email_message" ) . " " . $email;
+					$message = wp_easycart_account_register_admin_email_html( $email ); // 6.0.0: shared email design.
 
 					if ( get_option( 'ec_option_use_wp_mail' ) ) {
 						wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language()->get_text( "account_register", "account_register_email_title" ), $message, implode("\r\n", $headers) );
@@ -2074,6 +2074,14 @@ class ec_accountpage {
 			die();
 		}
 
+		/* 6.0.0: only the owner, only while the subscription can still change plan ( not canceled / ended / past due ), only to a plan the details page offers. */
+		$subscription_post_id = ( isset( $_POST['subscription_id'] ) ) ? (int) $_POST['subscription_id'] : 0;
+		$subscription_check = $this->get_customer_subscription( $subscription_post_id );
+		if ( ! $subscription_check || ! $subscription_check->can_change_plan() || ! isset( $_POST['ec_selected_plan'] ) || ! $subscription_check->is_allowed_plan( (int) $_POST['ec_selected_plan'] ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => $subscription_post_id, 'account_error' => 'subscription_update_failed', 'errcode' => '05' ) ) ) );
+			die();
+		}
+
 		global $wpdb;
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['ec_selected_plan'] ), "", "", "" );
 		if ( count( $products ) > 0 ) {
@@ -2134,7 +2142,11 @@ class ec_accountpage {
 				}
 			}
 
-			$success = $stripe->update_subscription( $product, $this->user, NULL, sanitize_text_field( $_POST['stripe_subscription_id'] ), NULL, $product->subscription_prorate, NULL, $quantity, $subscription_item_id );
+			if ( get_option( 'ec_option_subscription_one_only' ) || $quantity < 1 ) {
+				$quantity = max( 1, (int) $subscription_check->quantity );
+			}
+			/* 6.0.0: the Stripe id comes from the verified subscription row, not the posted form. */
+			$success = $stripe->update_subscription( $product, $this->user, NULL, $subscription_check->stripe_subscription_id, NULL, $product->subscription_prorate, NULL, $quantity, $subscription_item_id );
 			if ( $success ) {
 				$this->mysqli->upgrade_subscription( (int) $_POST['subscription_id'], $product, $quantity );
 			}
@@ -2161,6 +2173,12 @@ class ec_accountpage {
 
 		$subscription_id = (int) $_POST['ec_account_subscription_id'];
 		$subscription_row = $this->mysqli->get_subscription_row( $subscription_id );
+		/* 6.0.0: only the owner, and only while the subscription is still running. */
+		$subscription_check = $this->get_customer_subscription( $subscription_id );
+		if ( ! $subscription_check || ! $subscription_check->can_cancel() ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription_id, 'account_error' => 'subscription_cancel_failed' ) ) ) );
+			die();
+		}
 		if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' )
 			$stripe = new ec_stripe();
 		else
@@ -2363,6 +2381,25 @@ class ec_accountpage {
 
 	public function ec_display_card_security_code_input() {
 		echo "<input type=\"text\" name=\"ec_security_code\" id=\"ec_security_code\" class=\"ec_cart_payment_information_input_select\" value=\"\" />";
+	}
+
+	/**
+	 * The subscription when it belongs to the signed-in customer.
+	 *
+	 * @since 6.0.0
+	 * @param int $subscription_id Subscription.
+	 * @return ec_subscription|false
+	 */
+	private function get_customer_subscription( $subscription_id ) {
+		$user_id = ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0;
+		if ( $user_id <= 0 || (int) $subscription_id <= 0 ) {
+			return false;
+		}
+		$subscription_row = $this->mysqli->get_subscription_row( (int) $subscription_id );
+		if ( ! $subscription_row || (int) $subscription_row->user_id != $user_id ) {
+			return false;
+		}
+		return new ec_subscription( $subscription_row, true );
 	}
 
 	public function display_subscription_update_form_start() {

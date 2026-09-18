@@ -395,6 +395,26 @@
 					"title":"Store Missing Option",
 					"value":"λείπει η επιλογή:"
 				},
+				"product_details_min_length":{
+					"title":"Text Option Minimum Length (%d is the number of characters)",
+					"value":"\u0395\u03b9\u03c3\u03b1\u03b3\u03ac\u03b3\u03b5\u03c4\u03b5 \u03c4\u03bf\u03c5\u03bb\u03ac\u03c7\u03b9\u03c3\u03c4\u03bf\u03bd %d \u03c7\u03b1\u03c1\u03b1\u03ba\u03c4\u03ae\u03c1\u03b5\u03c2."
+				},
+				"product_details_file_type_error":{
+					"title":"File Upload Type Not Accepted (%s is the list of accepted types)",
+					"value":"\u0391\u03c5\u03c4\u03cc\u03c2 \u03bf \u03c4\u03cd\u03c0\u03bf\u03c2 \u03b1\u03c1\u03c7\u03b5\u03af\u03bf\u03c5 \u03b4\u03b5\u03bd \u03bc\u03c0\u03bf\u03c1\u03b5\u03af \u03bd\u03b1 \u03bc\u03b5\u03c4\u03b1\u03c6\u03bf\u03c1\u03c4\u03c9\u03b8\u03b5\u03af. \u0391\u03c0\u03bf\u03b4\u03b5\u03ba\u03c4\u03bf\u03af \u03c4\u03cd\u03c0\u03bf\u03b9 \u03b1\u03c1\u03c7\u03b5\u03af\u03c9\u03bd: %s"
+				},
+				"product_details_file_size_error":{
+					"title":"File Upload Too Large (%s is the size limit)",
+					"value":"\u03a4\u03bf \u03b1\u03c1\u03c7\u03b5\u03af\u03bf \u03b5\u03af\u03bd\u03b1\u03b9 \u03c0\u03bf\u03bb\u03cd \u03bc\u03b5\u03b3\u03ac\u03bb\u03bf. \u03a4\u03bf \u03bc\u03ad\u03b3\u03b9\u03c3\u03c4\u03bf \u03bc\u03ad\u03b3\u03b5\u03b8\u03bf\u03c2 \u03b1\u03c1\u03c7\u03b5\u03af\u03bf\u03c5 \u03b5\u03af\u03bd\u03b1\u03b9 %s."
+				},
+				"product_details_file_upload_error":{
+					"title":"File Upload Could Not Be Saved",
+					"value":"\u0394\u03b5\u03bd \u03ae\u03c4\u03b1\u03bd \u03b4\u03c5\u03bd\u03b1\u03c4\u03ae \u03b7 \u03bc\u03b5\u03c4\u03b1\u03c6\u03cc\u03c1\u03c4\u03c9\u03c3\u03b7 \u03c4\u03bf\u03c5 \u03b1\u03c1\u03c7\u03b5\u03af\u03bf\u03c5 \u03c3\u03b1\u03c2. \u0394\u03bf\u03ba\u03b9\u03bc\u03ac\u03c3\u03c4\u03b5 \u03be\u03b1\u03bd\u03ac \u03ae \u03b5\u03c0\u03b9\u03ba\u03bf\u03b9\u03bd\u03c9\u03bd\u03ae\u03c3\u03c4\u03b5 \u03bc\u03b1\u03b6\u03af \u03bc\u03b1\u03c2 \u03b1\u03bd \u03c4\u03bf \u03c0\u03c1\u03cc\u03b2\u03bb\u03b7\u03bc\u03b1 \u03c3\u03c5\u03bd\u03b5\u03c7\u03af\u03b6\u03b5\u03c4\u03b1\u03b9."
+				},
+				"product_details_file_types_hint":{
+					"title":"File Upload Accepted Types (%s is the list of accepted types)",
+					"value":"\u0391\u03c0\u03bf\u03b4\u03b5\u03ba\u03c4\u03bf\u03af \u03c4\u03cd\u03c0\u03bf\u03b9 \u03b1\u03c1\u03c7\u03b5\u03af\u03c9\u03bd: %s"
+				},
 				"product_details_maximum_quantity":{
 					"title":"Store Maximum Quantity Exceeded",
 					"value":"Μέγιστη ποσότητα υπέρβαση"
@@ -1298,6 +1318,22 @@
 				"cart_totals_duty":{
 					"title":"Cart, Cart Totals, Duty",
 					"value":"\u03a4\u03b5\u03bb\u03b9\u03ba\u03cc \u03c0\u03bf\u03c3\u03cc"
+				},
+				"cart_totals_gst":{
+					"title":"Cart, Cart Totals, Canada GST",
+					"value":"GST"
+				},
+				"cart_totals_pst":{
+					"title":"Cart, Cart Totals, Canada PST",
+					"value":"PST"
+				},
+				"cart_totals_qst":{
+					"title":"Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)",
+					"value":"QST"
+				},
+				"cart_totals_hst":{
+					"title":"Cart, Cart Totals, Canada HST",
+					"value":"HST"
 				},
 				"cart_totals_grand_total":{
 					"title":"Cart, Cart Totals, Grand Total",
@@ -3200,6 +3236,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"Αλλάξτε το σχέδιό σας"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"Ενεργή"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"Δοκιμαστική περίοδος"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"Εκπρόθεσμη πληρωμή"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"Ημιτελής"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"Σε παύση"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"Σε αναστολή"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"Λήγει στο τέλος της περιόδου"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"Ακυρώθηκε"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"Έληξε"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"Επιστροφή στις συνδρομές"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"Έναρξη"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"Λήγει"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"Έληξε στις"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"Ποσότητα"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"Διαχείριση συνδρομής"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"Οι επιλογές σας"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"Εφάπαξ τέλος εγγραφής"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"Αυτές είναι οι επιλογές από την αρχική σας αγορά του %s. Το πρόγραμμά σας έχει αλλάξει από τότε."
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"Προβολή αρχικής παραγγελίας"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"Δεν υπάρχει αποθηκευμένη κάρτα"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"Αυτή η συνδρομή έχει λήξει. Ο τρόπος πληρωμής και το πρόγραμμα δεν μπορούν πλέον να αλλάξουν."
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"Αυτή η συνδρομή δεν θα ανανεωθεί. Παραμένει ενεργή έως το τέλος της τρέχουσας περιόδου χρέωσης."
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"Η τελευταία σας πληρωμή δεν ολοκληρώθηκε. Ενημερώστε τον τρόπο πληρωμής σας για να παραμείνει ενεργή η συνδρομή."
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"Κλείσιμο"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"Τρέχον πρόγραμμα"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"Μείωση ποσότητας"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"Αύξηση ποσότητας"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"Εισαγάγετε ποσότητα 1 ή περισσότερο."
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"Στοιχεία κάρτας"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"Δεν έχετε ενεργές συνδρομές."
 				}
 			}
 		},
@@ -3618,6 +3774,10 @@
 				"greater_than":{
 					"title":"Greater Than Text",
 					"value":"μεγαλύτερη από"
+				},
+				"sidebar_title":{
+					"title":"Store Sidebar Price Filter Title",
+					"value":"\u03a4\u03b9\u03bc\u03ae"
 				}
 			}
 		},

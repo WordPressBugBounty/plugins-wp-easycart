@@ -9,9 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_states' ) ) :
 
 		protected static $_instance = null;
 
-		public $states_list_file;
-		public $states_details_file;
-
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
 				self::$_instance = new self();
@@ -20,8 +17,9 @@ if ( ! class_exists( 'wp_easycart_admin_states' ) ) :
 		}
 
 		public function __construct() {
-			$this->states_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/states-list.php';
-			$this->states_details_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/country-state/states-details.php';
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_country_table.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
+			add_action( 'admin_init', array( $this, 'redirect_states_alias' ), 99 );
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_add_new_state' ) );
 			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_update_state' ) );
@@ -113,14 +111,43 @@ if ( ! class_exists( 'wp_easycart_admin_states' ) ) :
 		}
 
 		public function load_states_list() {
-			if ( isset( $_GET['ec_admin_form_action'] ) && ( ( isset( $_GET['id_sta'] ) && 'edit' == $_GET['ec_admin_form_action'] ) || 'add-new' == $_GET['ec_admin_form_action'] ) ) {
-				include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_states.php' );
-				$details = new wp_easycart_admin_details_states();
-				$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-			} else {
-				include( $this->states_list_file );
-			}
+			/* V2: Countries & regions is one screen; legacy details URLs open the drawer */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_country_table.php' );
+			if ( isset( $_GET['id_sta'] ) && (int) $_GET['id_sta'] ) { global $wpdb; $cid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT idcnt_sta FROM ec_state WHERE id_sta = %d', (int) $_GET['id_sta'] ) ); if ( $cid ) { $_GET['open_country'] = $cid; $_GET['open_tab'] = 'regions'; $_GET['open_region'] = (int) $_GET['id_sta']; } }
+			if ( isset( $_GET['id_cnt'] ) && (int) $_GET['id_cnt'] ) { $_GET['open_country'] = (int) $_GET['id_cnt']; }
+			if ( 'states' === 'states' ) { echo '<script>( function() { var q = new URLSearchParams( location.search ); if ( q.get( "subpage" ) === "states" ) { q.set( "subpage", "country" ); ' . ( isset( $_GET['open_country'] ) ? 'q.set( "open_country", "' . (int) $_GET['open_country'] . '" ); q.set( "open_tab", "regions" ); q.set( "open_region", "' . (int) ( isset( $_GET['open_region'] ) ? $_GET['open_region'] : 0 ) . '" ); ' : '' ) . 'q.delete( "id_sta" ); q.delete( "ec_admin_form_action" ); location.replace( location.pathname + "?" + q.toString() ); } } )();</script>'; return; }
+			$table = new wp_easycart_admin_country_table();
+			$table->print_table();
 		}
+		public function is_v2_page() { return isset( $_GET['page'] ) && 'wp-easycart-settings' === $_GET['page'] && isset( $_GET['subpage'] ) && 'states' === $_GET['subpage']; }
+
+		/**
+		 * subpage=states is an alias of the combined Countries & Regions screen ( subpage=country ). Old bookmarks
+		 * are redirected server-side so the page never renders under the alias; ...&id_sta=N opens that region.
+		 * Legacy GET form actions ( delete / bulk ) still run first because they redirect themselves afterwards.
+		 * The JS redirect in load_states_list() stays as a fallback if headers were already sent.
+		 */
+		public function redirect_states_alias() {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only routing of a bookmarked URL; nothing is changed.
+			if ( ! $this->is_v2_page() || isset( $_GET['ec_admin_form_action'] ) || ( isset( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== $_SERVER['REQUEST_METHOD'] ) ) {
+				return;
+			}
+			$args = array( 'page' => 'wp-easycart-settings', 'subpage' => 'country' );
+			if ( isset( $_GET['id_sta'] ) && (int) $_GET['id_sta'] ) {
+				global $wpdb;
+				$cid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT idcnt_sta FROM ec_state WHERE id_sta = %d', (int) $_GET['id_sta'] ) );
+				if ( $cid ) {
+					$args['open_country'] = $cid;
+					$args['open_tab'] = 'regions';
+					$args['open_region'] = (int) $_GET['id_sta'];
+				}
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
+			wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+			exit;
+		}
+		public function enqueue_v2_assets() { if ( $this->is_v2_page() ) { include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' ); wp_easycart_admin_catalog_v2_enqueue( 'countries' ); } }
 
 		public function insert_states() {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-states-details' ) ) {

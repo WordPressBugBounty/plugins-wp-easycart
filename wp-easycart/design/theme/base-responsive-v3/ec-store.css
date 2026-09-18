@@ -3040,3 +3040,135 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 .wp-easycart-orders-pagination .wp-easycart-orders-pagination-page-nav.disabled { color: #6c757d; background-color: #f8f9fa; pointer-events: none; opacity: 0.7; }
 .wp-easycart-orders-pagination .wp-easycart-orders-pagination-page-num { display: none; }
 .wp-easycart-orders-pagination .wp-easycart-orders-pagination-ellipsis { border: 0; background: transparent; color: #6c757d; padding: 8px 0; }
+/* 6.0.0 Account > Subscription details ( card layout, ec_account_subscription_details.php ) */
+.ec_account_subscription_v2, .ec_account_subscriptions_v2{ --ec-sub-accent:#222222; --ec-sub-border:#e5e7eb; --ec-sub-muted:#6b7280; --ec-sub-bg:#ffffff; --ec-sub-soft:#f5f5f6; --ec-sub-danger:#b91c1c; }
+.ec_account_subscription_v2{ width:100%; float:left; margin:0 0 30px; color:#222222; font-size:15px; line-height:1.5; }
+.ec_account_subscription_v2 [hidden], .ec_account_subscriptions_v2 [hidden]{ display:none !important; }
+.ec_account_subscription_v2_sr{ position:absolute !important; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.ec_account_subscription_v2_back{ margin:0 0 14px; }
+.ec_account_subscription_v2_back a{ color:var(--ec-sub-muted) !important; text-decoration:none !important; font-size:14px; }
+.ec_account_subscription_v2_back a:hover{ color:var(--ec-sub-accent) !important; }
+.ec_account_subscription_v2_notice{ padding:12px 16px; margin:0 0 16px; border-radius:10px; border:1px solid var(--ec-sub-border); background:var(--ec-sub-soft); font-size:14px; }
+.ec_account_subscription_v2_notice.is-past-due{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.ec_account_subscription_v2_notice.is-canceling{ background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.ec_account_subscription_v2_grid{ display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto auto 1fr; grid-template-areas:"summary side" "panels side" "selections side" "history side"; column-gap:20px; align-items:start; }
+.ec_account_subscription_v2_summary{ grid-area:summary; }
+.ec_account_subscription_v2_side{ grid-area:side; min-width:0; }
+.ec_account_subscription_v2_panels{ grid-area:panels; }
+.ec_account_subscription_v2_selections{ grid-area:selections; }
+.ec_account_subscription_v2_history{ grid-area:history; }
+.ec_account_subscription_v2_card{ min-width:0; margin:0 0 20px; padding:20px; background:var(--ec-sub-bg); border:1px solid var(--ec-sub-border); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_card_title{ margin:0 0 12px; padding:0; font-size:12px; font-weight:600; line-height:1.4; letter-spacing:0.05em; text-transform:uppercase; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_product{ display:flex; gap:16px; align-items:flex-start; }
+.ec_account_subscription_v2_media, .ec_account_subscription_card_media{ flex:0 0 88px; width:88px; height:88px; border-radius:10px; overflow:hidden; background:var(--ec-sub-soft); display:flex; align-items:center; justify-content:center; text-decoration:none !important; }
+.ec_account_subscription_v2_media img, .ec_account_subscription_card_media img{ display:block; width:100%; height:100%; margin:0; object-fit:cover; }
+.ec_account_subscription_v2_media_placeholder{ font-size:32px; font-weight:700; line-height:1; color:var(--ec-sub-muted); text-transform:uppercase; }
+.ec_account_subscription_v2_heading{ flex:1 1 auto; min-width:0; }
+.ec_account_subscription_v2 .ec_account_subscription_title{ margin:6px 0 4px; font-size:20px; line-height:1.3; font-weight:700; color:#111111; word-wrap:break-word; }
+.ec_account_subscription_v2_badge{ display:inline-block; padding:1px 10px; border-radius:999px; font-size:12px; font-weight:600; line-height:20px; white-space:nowrap; background:#f3f4f6; color:#4b5563; }
+.ec_account_subscription_v2_badge.is-active{ background:#dcfce7; color:#166534; }
+.ec_account_subscription_v2_badge.is-trialing{ background:#ede9fe; color:#5b21b6; }
+.ec_account_subscription_v2_badge.is-past_due{ background:#fee2e2; color:#991b1b; }
+.ec_account_subscription_v2_badge.is-incomplete, .ec_account_subscription_v2_badge.is-canceling{ background:#fef3c7; color:#92400e; }
+.ec_account_subscription_v2_badge.is-paused, .ec_account_subscription_v2_badge.is-suspended{ background:#dbeafe; color:#1e40af; }
+.ec_account_subscription_v2_amount{ font-size:22px; font-weight:700; color:#111111; }
+.ec_account_subscription_v2_period{ margin-left:2px; font-weight:400; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_quantity{ margin-top:2px; font-size:13px; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_facts{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px 20px; margin:18px 0 0; padding:16px 0 0; border-top:1px solid var(--ec-sub-border); }
+.ec_account_subscription_v2_facts:empty{ display:none; }
+.ec_account_subscription_v2_fact dt{ margin:0; font-size:12px; font-weight:400; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_fact dd{ margin:2px 0 0; font-size:15px; font-weight:600; color:#111111; }
+.ec_account_subscription_v2_membership{ margin-top:14px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_pm{ display:flex; align-items:center; gap:10px; margin:0 0 14px; font-size:15px; }
+.ec_account_subscription_v2_brand{ display:inline-flex; align-items:center; justify-content:center; min-width:44px; height:28px; padding:0 6px; border-radius:5px; background:#1f2937; color:#ffffff; font-size:11px; font-weight:700; letter-spacing:0.03em; }
+.ec_account_subscription_v2_last4{ font-weight:600; letter-spacing:0.05em; }
+.ec_account_subscription_v2_muted{ color:var(--ec-sub-muted); }
+.ec_account_subscription_v2 a.ec_account_subscription_v2_button{ display:block; float:none; width:100%; margin:0 0 8px; padding:10px 14px; border:1px solid var(--ec-sub-accent); border-radius:8px; background:var(--ec-sub-accent); color:#ffffff !important; font-size:14px; font-weight:600; line-height:1.3; text-align:center; text-decoration:none !important; }
+.ec_account_subscription_v2 a.ec_account_subscription_v2_button:hover{ opacity:0.88; }
+.ec_account_subscription_v2 a.ec_account_subscription_v2_button.is-open{ opacity:0.7; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_manage a.ec_account_subscription_v2_button{ background:transparent; color:var(--ec-sub-accent) !important; }
+.ec_account_subscription_v2 .ec_account_subscription_details_cancel{ float:none; width:100%; margin:0; }
+.ec_account_subscription_v2 .ec_account_subscription_details_cancel form{ margin:0; }
+.ec_account_subscription_v2 .ec_account_subscription_details_cancel input[type="submit"]{ display:block; width:100%; margin:0; padding:10px 14px; border:1px solid #fca5a5 !important; border-radius:8px; background:#ffffff !important; color:var(--ec-sub-danger) !important; font-size:14px; font-weight:600; line-height:1.3; text-transform:none; cursor:pointer; }
+.ec_account_subscription_v2 .ec_account_subscription_details_cancel input[type="submit"]:hover{ background:#fef2f2 !important; }
+.ec_account_subscription_v2 .ec_account_subscription_details_form_container{ float:none; width:100%; min-width:0; max-width:100%; }
+.ec_account_subscription_v2 .ec_account_subscription_details_form_container > form{ float:none; width:100%; min-width:0; margin:0; }
+.ec_account_subscription_v2 .ec_account_subscription_upgrade_row, .ec_account_subscription_v2 .ec_account_subscription_details_payment_form{ float:none; width:auto; min-width:0; max-width:100%; margin:0 0 20px; padding:20px; background:var(--ec-sub-bg); border:1px solid var(--ec-sub-border); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04), 0 0 0 3px rgba(0,0,0,0.03); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_panel_title{ margin:0 0 16px; font-size:16px; font-weight:700; letter-spacing:0; text-transform:none; color:#111111; outline:none; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_panel_title:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:4px; border-radius:2px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plans{ display:grid; gap:10px; margin:0 0 18px; padding:0; border:0; min-width:0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan{ position:relative; display:flex; align-items:center; gap:12px; margin:0; padding:14px 16px; border:1px solid var(--ec-sub-border); border-radius:10px; background:#ffffff; cursor:pointer; font-weight:400; line-height:1.4; transition:border-color 0.15s ease, box-shadow 0.15s ease; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan:hover{ border-color:#c7cbd1; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan.is-selected{ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan input[type="radio"]{ flex:0 0 auto; width:18px; height:18px; margin:0; accent-color:var(--ec-sub-accent); -webkit-appearance:radio; appearance:auto; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan input[type="radio"]:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+.ec_account_subscription_v2_plan_text{ display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 12px; min-width:0; }
+.ec_account_subscription_v2_plan_name{ font-weight:600; color:#111111; word-break:break-word; }
+.ec_account_subscription_v2_plan_price{ font-weight:600; color:#111111; white-space:nowrap; }
+.ec_account_subscription_v2_plan_tag{ flex:0 0 auto; padding:1px 8px; border-radius:999px; background:var(--ec-sub-soft); color:var(--ec-sub-muted); font-size:11px; font-weight:600; line-height:18px; white-space:nowrap; }
+.ec_account_subscription_v2_field{ margin:0 0 16px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_label{ display:block; margin:0 0 6px; font-size:13px; font-weight:600; color:#374151; }
+.ec_account_subscription_v2_stepper{ display:inline-flex; align-items:stretch; height:40px; border:1px solid #e1e1e1; border-radius:8px; overflow:hidden; background:#ffffff; }
+.ec_account_subscription_v2_stepper:focus-within{ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_step{ display:inline-flex; align-items:center; justify-content:center; width:40px; min-width:40px; height:100%; margin:0; padding:0; border:0 !important; border-radius:0; background:var(--ec-sub-soft) !important; background-image:none; color:#111111 !important; font-size:18px; font-weight:500; line-height:1; box-shadow:none; text-shadow:none; cursor:pointer; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_step:hover{ background:#e9eaec !important; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_step:disabled{ color:#b8bcc2 !important; cursor:not-allowed; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stepper input.ec_account_subscription_v2_qty{ width:64px !important; height:100% !important; margin:0 !important; padding:0 6px; border:0 !important; border-left:1px solid #e1e1e1 !important; border-right:1px solid #e1e1e1 !important; border-radius:0; background:#ffffff; color:#111111; font-size:15px; text-align:center; box-shadow:none; outline:none; -moz-appearance:textfield; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stepper input.ec_account_subscription_v2_qty::-webkit-outer-spin-button, .ec_account_subscription_v2 .ec_account_subscription_v2_stepper input.ec_account_subscription_v2_qty::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stepper input.ec_account_subscription_v2_qty[aria-invalid="true"]{ background:#fef2f2; color:var(--ec-sub-danger); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_field_error{ float:none; width:auto; margin:6px 0 0; padding:0; border:0 !important; background:transparent; color:var(--ec-sub-danger); font-size:13px; line-height:1.4; }
+.ec_account_subscription_v2 #ec_card_errors:empty{ display:none; }
+.ec_account_subscription_v2 #ec_terms_error{ margin:0 0 12px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stripe{ padding:11px 12px; border:1px solid #e1e1e1; border-radius:8px; background:#ffffff; transition:border-color 0.15s ease, box-shadow 0.15s ease; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stripe.StripeElement--focus{ border-color:var(--ec-sub-accent); box-shadow:0 0 0 1px var(--ec-sub-accent); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_stripe.is-invalid{ border-color:#fca5a5; box-shadow:0 0 0 1px #fca5a5; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_terms{ float:none; width:auto; margin:0 0 12px; padding:0; font-size:14px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_terms label{ display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_terms input[type="checkbox"]{ margin:3px 0 0; }
+.ec_account_subscription_v2 .ec_account_subscription_details_notice.ec_account_subscription_v2_info{ float:none; width:auto; display:flex; gap:10px; margin:0 0 18px; padding:10px 12px; border-radius:8px; background:var(--ec-sub-soft); color:var(--ec-sub-muted); font-size:13px; line-height:1.5; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_info:before{ content:"i"; flex:0 0 18px; width:18px; height:18px; margin-top:1px; border-radius:50%; border:1px solid currentColor; font-size:11px; font-weight:700; font-style:normal; line-height:16px; text-align:center; }
+.ec_account_subscription_v2_actions{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.ec_account_subscription_v2 input.ec_account_subscription_v2_primary, .ec_account_subscription_v2 button.ec_account_subscription_v2_secondary{ display:inline-flex; align-items:center; justify-content:center; width:auto; min-width:120px; height:42px; margin:0; padding:0 20px; border-radius:8px; font-size:14px; font-weight:600; line-height:1; text-shadow:none; box-shadow:none; background-image:none; cursor:pointer; -webkit-appearance:none; appearance:none; }
+.ec_account_subscription_v2 input.ec_account_subscription_v2_primary{ border:1px solid var(--ec-sub-accent) !important; background:var(--ec-sub-accent) !important; color:#ffffff !important; }
+.ec_account_subscription_v2 input.ec_account_subscription_v2_primary:hover{ opacity:0.9; }
+.ec_account_subscription_v2 input.ec_account_subscription_v2_primary:disabled{ opacity:0.4; cursor:not-allowed; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_secondary{ border:1px solid var(--ec-sub-border) !important; background:#ffffff !important; color:#374151 !important; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_secondary:hover{ background:var(--ec-sub-soft) !important; }
+.ec_account_subscription_v2 input.ec_account_subscription_v2_primary:focus-visible, .ec_account_subscription_v2 button.ec_account_subscription_v2_secondary:focus-visible, .ec_account_subscription_v2 button.ec_account_subscription_v2_step:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+.ec_account_subscription_v2_card_row{ margin:0 0 16px; }
+.ec_account_subscription_v2_note{ margin:0 0 12px; padding:10px 12px; border-radius:8px; border:1px solid #fde68a; background:#fffbeb; color:#92400e; font-size:13px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_options, .ec_account_subscription_v2 .ec_account_subscription_v2_payments{ list-style:none; margin:0; padding:0; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_option{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 16px; margin:0; padding:9px 0; border-bottom:1px solid var(--ec-sub-border); font-size:14px; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_option:last-child, .ec_account_subscription_v2 .ec_account_subscription_v2_payments li:last-child{ border-bottom:0; }
+.ec_account_subscription_v2_option_label{ color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_option_value{ font-weight:600; color:#111111; text-align:right; word-break:break-word; }
+.ec_account_subscription_v2_option_value .ec_account_line_optionitem_pricing{ font-weight:400; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2 .ec_account_subscription_v2_link{ display:inline-block; margin-top:12px; font-size:14px; color:var(--ec-sub-accent) !important; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_payments li{ display:flex; align-items:center; gap:12px; margin:0; padding:10px 0; border-bottom:1px solid var(--ec-sub-border); font-size:14px; }
+.ec_account_subscription_v2_payment_date{ flex:1 1 auto; }
+.ec_account_subscription_v2_payment_total{ font-weight:600; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_payments a{ padding:4px 10px; border:1px solid var(--ec-sub-border); border-radius:6px; font-size:12px; font-weight:600; white-space:nowrap; text-decoration:none !important; color:var(--ec-sub-accent) !important; }
+/* 6.0.0 Account > Subscriptions list ( ec_account_subscriptions.php, ec_account_subscription_line.php ) */
+.ec_account_subscriptions_v2 .ec_account_subscriptions_v2_list{ display:flex; flex-direction:column; gap:12px; float:left; clear:both; width:100%; margin:16px 0 8px; padding:0; }
+.ec_account_subscription_card{ display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px; width:100%; margin:0; padding:16px; background:var(--ec-sub-bg, #ffffff); border:1px solid var(--ec-sub-border, #e5e7eb); border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04); box-sizing:border-box; color:#222222; font-size:14px; line-height:1.45; text-align:left; }
+.ec_account_subscription_card .ec_account_subscription_card_media{ flex-basis:64px; width:64px; height:64px; }
+.ec_account_subscription_card .ec_account_subscription_v2_media_placeholder{ font-size:24px; }
+.ec_account_subscription_card_body{ flex:1 1 200px; min-width:0; }
+.ec_account_subscription_card_head{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:0 0 2px; }
+.ec_account_subscriptions_v2 a.ec_account_subscription_card_title, .ec_account_subscription_card a.ec_account_subscription_card_title{ font-size:16px; font-weight:700; line-height:1.3; color:#111111 !important; text-decoration:none !important; word-break:break-word; }
+.ec_account_subscription_card a.ec_account_subscription_card_title:hover{ text-decoration:underline !important; }
+.ec_account_subscription_card_price{ margin:0 0 4px; }
+.ec_account_subscription_card_amount{ font-weight:700; color:#111111; }
+.ec_account_subscription_card_dates{ display:flex; flex-wrap:wrap; gap:2px 16px; color:var(--ec-sub-muted, #6b7280); font-size:13px; }
+.ec_account_subscription_card_date b{ font-weight:600; color:#374151; }
+.ec_account_subscription_card_action{ flex:0 0 auto; margin-left:auto; }
+.ec_account_subscriptions_v2 .ec_account_subscription_card_action a, .ec_account_subscription_card .ec_account_subscription_card_action a{ display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:0 16px; border:1px solid var(--ec-sub-accent, #222222); border-radius:8px; background:var(--ec-sub-accent, #222222); color:#ffffff !important; font-size:13px; font-weight:600; text-decoration:none !important; white-space:nowrap; }
+.ec_account_subscription_card_action a:hover{ opacity:0.88; }
+.ec_account_subscription_card.is-ended .ec_account_subscription_card_action a{ background:transparent; color:var(--ec-sub-accent, #222222) !important; }
+.ec_account_subscription_card.is-ended .ec_account_subscription_card_media{ opacity:0.6; }
+.ec_account_subscriptions_v2 .ec_account_subscriptions_v2_empty{ float:left; clear:both; width:100%; margin:16px 0 8px; padding:24px 20px; border:1px dashed var(--ec-sub-border); border-radius:12px; background:var(--ec-sub-soft); text-align:center; box-sizing:border-box; }
+.ec_account_subscriptions_v2 .ec_account_subscriptions_v2_empty .ec_subscription_none_found{ float:none; width:auto; padding:0; text-align:center; color:var(--ec-sub-muted); }
+.ec_account_subscriptions_v2 .ec_account_subscriptions_v2_list .ec_subscription_none_found{ padding:0; color:var(--ec-sub-muted); }
+@media only screen and ( max-width:820px ){ .ec_account_subscription_v2_grid{ grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-template-areas:"summary" "side" "panels" "selections" "history"; } }
+@media only screen and ( max-width:480px ){ .ec_account_subscription_v2_card, .ec_account_subscription_v2 .ec_account_subscription_upgrade_row, .ec_account_subscription_v2 .ec_account_subscription_details_payment_form{ padding:16px; } .ec_account_subscription_v2_product{ gap:12px; } .ec_account_subscription_v2_media{ flex-basis:64px; width:64px; height:64px; } .ec_account_subscription_v2 .ec_account_subscription_title{ font-size:18px; } .ec_account_subscription_v2_amount{ font-size:19px; } .ec_account_subscription_v2_facts{ grid-template-columns:1fr 1fr; } .ec_account_subscription_v2 .ec_account_subscription_v2_payments li{ flex-wrap:wrap; } .ec_account_subscription_v2_actions > *{ flex:1 1 auto; } .ec_account_subscription_card{ padding:14px; } .ec_account_subscription_card .ec_account_subscription_card_media{ flex-basis:52px; width:52px; height:52px; } .ec_account_subscription_card_action{ flex:1 1 100%; margin-left:0; } .ec_account_subscriptions_v2 .ec_account_subscription_card_action a, .ec_account_subscription_card .ec_account_subscription_card_action a{ display:flex; width:100%; } }
+@media ( prefers-reduced-motion:reduce ){ .ec_account_subscription_v2 .ec_account_subscription_v2_plan, .ec_account_subscription_v2 .ec_account_subscription_v2_stripe{ transition:none; } }

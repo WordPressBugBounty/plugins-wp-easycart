@@ -4446,7 +4446,20 @@ class ec_db{
 
 				$option_additional_download_id = null;
 				if ( isset( $optionitem->optionitem_download_addition_file ) && '' != $optionitem->optionitem_download_addition_file ) {
-					$option_additional_download_id = self::insert_new_download( $order_id, $optionitem->optionitem_download_addition_file, $product->product_id, 0, '' );
+					/* The option editor stores a JSON settings object here ( ec_order::insert_details() reads it the same way ).
+					 * Inserting the raw JSON as a file name created download rows nobody could download. @since 6.0.0 */
+					if ( '{' == substr( $optionitem->optionitem_download_addition_file, 0, 1 ) ) {
+						$additional_file_json = json_decode( $optionitem->optionitem_download_addition_file );
+						if ( is_object( $additional_file_json ) && isset( $additional_file_json->is_additional_file ) && '1' == $additional_file_json->is_additional_file ) {
+							if ( isset( $additional_file_json->is_additional_amazon ) && '1' == $additional_file_json->is_additional_amazon ) {
+								$option_additional_download_id = self::insert_new_download( $order_id, '', $product->product_id, 1, isset( $additional_file_json->additional_amazon_key ) ? $additional_file_json->additional_amazon_key : '' );
+							} else if ( isset( $additional_file_json->additional_file_name ) && '' != $additional_file_json->additional_file_name ) {
+								$option_additional_download_id = self::insert_new_download( $order_id, $additional_file_json->additional_file_name, $product->product_id, 0, '' );
+							}
+						}
+					} else {
+						$option_additional_download_id = self::insert_new_download( $order_id, $optionitem->optionitem_download_addition_file, $product->product_id, 0, '' );
+					}
 				}
 
 				self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_option( 
@@ -4935,7 +4948,7 @@ class ec_db{
 								'product_id'	=> $subscription->product_id,
 								'title'			=> $subscription->title,
 								'model_number'	=> $subscription->model_number,
-								'order_date'	=> 'NOW( )',
+								'order_date'	=> date( 'Y-m-d H:i:s' ),
 								'unit_price'	=> $subscription->price,
 								'total_price'	=> $subscription->price,
 								'quantity'		=> 1,
@@ -4951,11 +4964,42 @@ class ec_db{
 		
 		$subscription = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT * FROM ec_subscription WHERE stripe_subscription_id = %s", $subscription_id ) );
 		if( $subscription ){
-		
-			$title = ( isset( $webhook_data->lines->data[0]->plan->name ) && $webhook_data->lines->data[0]->plan->name ) ? $webhook_data->lines->data[0]->plan->name : $subscription->title;
 
-			self::$mysqli->query( self::$mysqli->prepare( $sql, $title, ( $webhook_data->lines->data[0]->plan->amount /100 ), $webhook_data->lines->data[0]->plan->interval_count, self::get_stripe_subscription_period( $webhook_data->lines->data[0]->plan->interval ), $webhook_data->lines->data[0]->period->start, $webhook_data->lines->data[0]->period->end, $subscription_id ) );
-			
+			/*
+			 * Invoice line items have changed shape across Stripe API versions:
+			 * legacy lines carry ->plan, later ones ->price ( with ->recurring ),
+			 * and 2025-03-31+ lines carry ->pricing. Read whichever is present and
+			 * keep the stored value when none of them is.
+			 */
+			$line = ( isset( $webhook_data->lines->data[0] ) && is_object( $webhook_data->lines->data[0] ) ) ? $webhook_data->lines->data[0] : null;
+			$plan = null;
+			if ( $line && isset( $line->plan ) && is_object( $line->plan ) ) {
+				$plan = $line->plan;
+			} else if ( $line && isset( $line->price ) && is_object( $line->price ) ) {
+				$plan = $line->price;
+			}
+			$recurring = ( $plan && isset( $plan->recurring ) && is_object( $plan->recurring ) ) ? $plan->recurring : $plan;
+
+			$title = ( $plan && isset( $plan->name ) && $plan->name ) ? $plan->name : $subscription->title;
+
+			$price = $subscription->price;
+			if ( $plan && isset( $plan->amount ) && '' !== $plan->amount ) {
+				$price = $plan->amount / 100;
+			} else if ( $plan && isset( $plan->unit_amount ) && '' !== $plan->unit_amount ) {
+				$price = $plan->unit_amount / 100;
+			} else if ( $line && isset( $line->pricing->unit_amount_decimal ) && '' !== $line->pricing->unit_amount_decimal ) {
+				$price = (float) $line->pricing->unit_amount_decimal / 100;
+			} else if ( $line && isset( $line->amount ) && isset( $line->quantity ) && $line->quantity > 0 ) {
+				$price = $line->amount / 100 / $line->quantity;
+			}
+
+			$interval_count = ( $recurring && isset( $recurring->interval_count ) ) ? (int) $recurring->interval_count : (int) $subscription->payment_length;
+			$period = ( $recurring && isset( $recurring->interval ) ) ? self::get_stripe_subscription_period( $recurring->interval ) : $subscription->payment_period;
+			$period_start = ( $line && isset( $line->period->start ) ) ? $line->period->start : ( isset( $webhook_data->created ) ? $webhook_data->created : time() );
+			$period_end = ( $line && isset( $line->period->end ) ) ? $line->period->end : $subscription->next_payment_date;
+
+			self::$mysqli->query( self::$mysqli->prepare( $sql, $title, $price, $interval_count, $period, $period_start, $period_end, $subscription_id ) );
+
 		}
 	}
 	

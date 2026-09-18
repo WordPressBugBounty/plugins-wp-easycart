@@ -9,7 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 
 		protected static $_instance = null;
 
-		public $reviews_list_file;
 
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
@@ -19,34 +18,30 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 		}
 
 		public function __construct() { 
-			$this->reviews_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/products/reviews/review-list.php';
 
 			/* Process Admin Messages */
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'add_failure_messages' ) );
 
 			/* Process Form Actions */
-			add_action( 'wp_easycart_process_post_form_action', array( $this, 'process_update_review' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_approve_review' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_approve_reviews' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_unapprove_review' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_unapprove_reviews' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_delete_review' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'process_bulk_delete_reviews' ) );
+
+			/* V2 list + editor */
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_safe_delete.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_catalog_v2.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_review_table.php' );
+			include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_review_settings_v2.php' );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_v2_assets' ), 20 );
 		}
 
-		public function process_update_review() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
-				return false;
-			}
-			if ( $_POST['ec_admin_form_action'] == "update-review" ) {
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-review-details' ) ) {
-					$result = $this->update_review();
-					wp_cache_delete( 'wpeasycart-reviews' );
-					wp_easycart_admin()->redirect( 'wp-easycart-products', 'reviews', $result );
-				}
-			}
-		}
+		public function is_v2_page() { return isset( $_GET['page'] ) && 'wp-easycart-products' === $_GET['page'] && isset( $_GET['subpage'] ) && 'reviews' === $_GET['subpage']; }
+		public function is_v2_editor() { return $this->is_v2_page() && isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['review_id'] ); }
+		public function enqueue_v2_assets() { if ( $this->is_v2_page() ) { wp_easycart_admin_catalog_v2_enqueue( $this->is_v2_editor() ? 'review-editor' : ( $this->is_v2_settings() ? 'review-requests' : 'review-list' ) ); } }
 
 		public function process_approve_review() {
 			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
@@ -155,34 +150,20 @@ if ( ! class_exists( 'wp_easycart_admin_reviews' ) ) :
 		}
 
 		public function load_reviews_list() {
-			if ( ( isset( $_GET['review_id'] ) && isset( $_GET['ec_admin_form_action'] ) && $_GET['ec_admin_form_action'] == 'edit' ) || 
-				( isset( $_GET['ec_admin_form_action'] ) && $_GET['ec_admin_form_action'] == 'add-new' ) ) {
-					include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_details_review.php' );
-					$details = new wp_easycart_admin_details_review();
-					$details->output( sanitize_key( $_GET['ec_admin_form_action'] ) );
-			} else {
-				include( $this->reviews_list_file );
+			if ( isset( $_GET['ec_admin_form_action'] ) && 'edit' === $_GET['ec_admin_form_action'] && isset( $_GET['review_id'] ) ) {
+				$editor = new wp_easycart_admin_review_editor_v2();
+				$editor->output();
+				return;
 			}
-		}
-
-		public function update_review() {
-			global $wpdb;
-			$review_id = (int) $_POST['review_id'];
-			$product_id = (int) $_POST['product_id'];
-			$user_id = (int) $_POST['user_id'];
-			$rating = (int) $_POST['rating'];
-			$title = wp_easycart_escape_html( $_POST['title'] ); // XSS OK.
-			$description = wp_easycart_escape_html( $_POST['description'] ); // XSS OK.
-			$date_submitted = date( "Y-m-d h:i:s", strtotime( sanitize_text_field( $_POST['date_submitted'] ) ) );
-			$reviewer_name = sanitize_text_field( $_POST['reviewer_name'] );
-			$approved = 0;
-			if ( isset( $_POST['approved'] ) ) {
-				$approved = 1;
+			if ( isset( $_GET['tab'] ) && 'requests' === $_GET['tab'] ) {
+				$settings = new wp_easycart_admin_review_settings_v2();
+				$settings->output();
+				return;
 			}
-			$wpdb->query( $wpdb->prepare( "UPDATE ec_review SET review_id = %s, product_id = %s, user_id = %s, approved = %s, rating = %s , title = %s , description = %s , date_submitted = %s, reviewer_name = %s  WHERE review_id = %s", $review_id, $product_id, $user_id, $approved, $rating, $title, $description, $date_submitted, $reviewer_name, $review_id ) );
-			do_action( 'wpeasycart_review_updated', $review_id );
-			return array( 'success' => 'review-updated' );	
+			$table = new wp_easycart_admin_review_table();
+			$table->print_table();
 		}
+		public function is_v2_settings() { return $this->is_v2_page() && isset( $_GET['tab'] ) && 'requests' === $_GET['tab']; }
 
 
 		public function delete_review() {

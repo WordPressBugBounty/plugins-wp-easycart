@@ -1,64 +1,106 @@
 <?php
-$option_list = '';
-if ( $product->optionitem_name_1 != '' ) {
-	$option_list .= $product->optionitem_name_1;
+/**
+ * Low stock notification for an option combination ( admin ).
+ *
+ * Included by ec_notifications::send_optionitem_low_stock_email_admin() ( inc/classes/core/ec_notifications.php ) with:
+ *   $product ( product_id, title, stock fields, optionitem_name_1..5 ), $option_item_stock_quantity,
+ *   $email_logo_url, $store_page, $permalink_divider. Sets $option_list ( comma-separated option names ).
+ *
+ * 6.0.0: on the shared email design ( wp_easycart_email_design, inc/classes/core/class-wp-easycart-email-design.php ).
+ * Admin copy with a warning banner, a product card ( options + quantity ) and a button to edit the product. No hooks.
+ *
+ * @package wp-easycart
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
-if ( $product->optionitem_name_2 != '' ) {
-	$option_list .= ', ' . $product->optionitem_name_2;
+if ( ! class_exists( 'wp_easycart_email_design' ) ) {
+	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php';
 }
-if ( $product->optionitem_name_3 != '' ) {
-	$option_list .= ', ' .$product->optionitem_name_3;
+
+$ec_stock_options = array();
+for ( $ec_stock_n = 1; $ec_stock_n <= 5; $ec_stock_n++ ) {
+	if ( isset( $product->{'optionitem_name_' . $ec_stock_n} ) && '' !== (string) $product->{'optionitem_name_' . $ec_stock_n} ) {
+		$ec_stock_options[] = (string) $product->{'optionitem_name_' . $ec_stock_n};
+	}
 }
-if ( $product->optionitem_name_4 != '' ) {
-	$option_list .= ', ' . $product->optionitem_name_4;
+$option_list = implode( ', ', $ec_stock_options );
+
+$ed               = 'wp_easycart_email_design';
+$ec_stock_title   = (string) $product->title;
+$ec_stock_qty     = (int) $option_item_stock_quantity;
+$ec_stock_pid     = isset( $product->product_id ) ? (int) $product->product_id : 0;
+/* 6.0.0: the number this combination was actually judged against ( its reorder point, else the store-wide setting ). */
+$ec_stock_trigger = function_exists( 'wp_easycart_low_stock_threshold' ) ? wp_easycart_low_stock_threshold( $product ) : get_option( 'ec_option_low_stock_trigger_total' );
+/* translators: 1: product title, 2: option names, 3: stock quantity */
+$ec_stock_line = sprintf( __( '%1$s with the options %2$s stock level is currently at %3$d.', 'wp-easycart' ), $ec_stock_title, $option_list, $ec_stock_qty );
+
+$ed::open(
+	array(
+		/* translators: %s: product title */
+		'title'     => sprintf( __( 'Stock for %s is Low', 'wp-easycart' ), $ec_stock_title ),
+		'preheader' => $ec_stock_line,
+		'logo_url'  => (string) $email_logo_url,
+		'store_url' => (string) $store_page,
+		'eyebrow'   => __( 'Store notification', 'wp-easycart' ),
+	)
+);
+
+/* translators: %s: product title */
+$ed::notice( esc_html( sprintf( __( 'Stock for %s is Low', 'wp-easycart' ), $ec_stock_title ) ), 'warning' );
+
+$ed::section_start( array( 'top' => 16 ) );
+$ed::paragraph( esc_html( $ec_stock_line ) );
+$ed::card_start();
+$ed::paragraph(
+	esc_html( $ec_stock_title ),
+	array(
+		'tone'   => 'strong',
+		'margin' => '0 0 8px 0',
+	)
+);
+$ed::key_values(
+	array(
+		array(
+			'label' => esc_html__( 'Options', 'wp-easycart' ),
+			'value' => esc_html( $option_list ),
+		),
+		array(
+			'label' => esc_html__( 'In stock', 'wp-easycart' ),
+			'value' => $ed::ltr( $ec_stock_qty ),
+		),
+		array(
+			'label' => esc_html__( 'Low stock alert at', 'wp-easycart' ),
+			'value' => ( '' !== (string) $ec_stock_trigger ) ? $ed::ltr( (int) $ec_stock_trigger ) : '',
+		),
+	)
+);
+if ( $ec_stock_pid > 0 ) {
+	$ed::button(
+		admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=edit&product_id=' . $ec_stock_pid ),
+		__( 'Edit product', 'wp-easycart' ),
+		array(
+			'margin' => '14px 0 0 0',
+			'arrow'  => true,
+		)
+	);
 }
-if ( $product->optionitem_name_5 != '' ) {
-	$option_list .= ', ' . $product->optionitem_name_5;
-}
-?>
-<html>
-	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		<style type='text/css'>
-		<!--
-			.style20 {font-family: Arial, Helvetica, sans-serif; font-weight: bold; font-size: 12px; }
-			.style22 {font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
-			.ec_option_label{font-family: Arial, Helvetica, sans-serif; font-size:11px; font-weight:bold; }
-			.ec_option_name{font-family: Arial, Helvetica, sans-serif; font-size:11px; }
-		-->
-		</style>
-	</head>
-	<body>
-		<table width='539' border='0' align='center'>
-			<tr>
-				<td colspan='4' align='left' class='style22'>
-					<a href="<?php echo esc_url_raw( $store_page ); ?>" target="_blank"><img src="<?php echo esc_attr( $email_logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-height:250px; max-width:100%; height:auto;" /></a>
-				</td>
-			</tr>
-			<tr>
-				<td colspan='4' align='left' class='style22'>	
-					<h1><?php echo sprintf( esc_attr__( 'Stock for %s is Low', 'wp-easycart' ), esc_attr( $product->title ) ); ?></h1>
-					<p><?php echo sprintf( esc_attr__( '%1$s with the options %2$s stock level is currently at %3$d.', 'wp-easycart' ), esc_attr( $product->title ), wp_easycart_escape_html( $option_list ), esc_attr( $option_item_stock_quantity ) ); ?></p>
-					<p><i><?php esc_attr_e( 'To turn off these notifications, go to your EasyCart Admin -> Store Setup -> Basic Settings.', 'wp-easycart' ); ?></i></p>
-				</td>
-			</tr>
-			<tr height="10"><td colspan='4'></td></tr>
-			<?php if ( get_option( 'ec_option_email_signature_text' ) ) { ?>
-			<tr>
-				<td class="style22" colspan='4'>
-					<?php echo nl2br( esc_html( get_option( 'ec_option_email_signature_text' ) ) ); ?>
-				</td>
-			</tr>
-			<tr height="10"><td colspan='4'></td></tr>
-			<?php }?>
-			<?php if ( get_option( 'ec_option_email_signature_image' ) ) { ?>
-			<tr>
-				<td class="style22" colspan='4'>
-					<img src="<?php echo esc_url( get_option( 'ec_option_email_signature_image' ) ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-width:100%; height:auto;" />
-				</td>
-			</tr>
-			<tr height="10"><td colspan='4'></td></tr>
-			<?php }?>
-		</table>
-	</body>
-</html>
+$ed::card_end();
+$ed::section_end();
+
+$ed::section_start(
+	array(
+		'top'    => 16,
+		'bottom' => 8,
+	)
+);
+$ed::paragraph(
+	'<a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=checkout' ) ) . '" target="_blank" style="color:#6b7280;text-decoration:underline;">' . esc_html__( 'To turn off these notifications, go to WP EasyCart -> Settings -> Checkout.', 'wp-easycart' ) . '</a>',
+	array(
+		'tone'   => 'small',
+		'margin' => '0',
+	)
+);
+$ed::section_end();
+$ed::close();

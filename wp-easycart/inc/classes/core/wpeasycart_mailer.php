@@ -4,7 +4,16 @@ use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 class wpeasycart_mailer {
-	public function send_order_email( $to, $subject, $message ) {
+	/**
+	 * Send an order email through the built-in PHPMailer transport.
+	 *
+	 * @param string $to          Comma-separated recipients.
+	 * @param string $subject     Subject.
+	 * @param string $message     HTML body.
+	 * @param array  $attachments Absolute file paths to attach ( @since 6.0.0; string keys name the attachment ).
+	 * @return string|false Error text, or false on success.
+	 */
+	public function send_order_email( $to, $subject, $message, $attachments = array() ) {
 		$mail = null;
 		$phpmailer_class_loaded = false;
 		if ( class_exists( 'PHPMailer\\PHPMailer\\PHPMailer' ) ) {
@@ -107,19 +116,30 @@ class wpeasycart_mailer {
 				$mail->Subject = $subject;
 				$mail->MsgHTML( $message );
 
+				if ( is_array( $attachments ) ) {
+					foreach ( $attachments as $attachment_name => $attachment_path ) {
+						if ( is_string( $attachment_path ) && '' !== $attachment_path && is_file( $attachment_path ) ) {
+							$mail->AddAttachment( $attachment_path, ( is_string( $attachment_name ) ? $attachment_name : '' ) );
+						}
+					}
+				}
+
 				/* Send mail and return result */
 				if ( ! $mail->Send() ) {
 					$errors = $mail->ErrorInfo;
 				}
 				$mail->ClearAddresses();
 				$mail->ClearAllRecipients();
+				$mail->ClearAttachments();
 			} catch (phpmailerException $e) {
 				$errors = $e->errorMessage();
 			} catch (Exception $e) {
 				$errors = $e->getMessage();
 			}
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, $errors ); }
 			return $errors;
 		} else {
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, 'PHP Mailer Failed to Load.' ); }
 			return false;
 		}
 	}
@@ -236,8 +256,10 @@ class wpeasycart_mailer {
 			} catch (Exception $e) {
 				$errors = $e->getMessage();
 			}
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'account', $to, $subject, $message, $errors ); }
 			return $errors;
 		} else {
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'account', $to, $subject, $message, 'PHP Mailer Failed to Load.' ); }
 			return 'PHP Mailer Failed to Load.';
 		}
 	}

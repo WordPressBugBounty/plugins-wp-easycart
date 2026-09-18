@@ -1,4 +1,4 @@
-{"label":"Latvian","options":{"sort_bar":{"label":"Product Page Sort Menu","options":{"sort_by_price_low":{"title":"Product Page Sort Box Item 1","value":"Cena - uz Aug\u0161u"},"sort_by_price_high":{"title":"Product Page Sort Box Item 2","value":"Cena - uz Leju"},"sort_by_title_a":{"title":"Product Page Sort Box Item 3","value":"Nosaukums A-Z"},"sort_by_title_z":{"title":"Product Page Sort Box Item 4","value":"Nosaukums Z-A"},"sort_by_newest":{"title":"Product Page Sort Box Item 5","value":"Jaun\u0101kie"},"sort_by_rating":{"title":"Product Page Sort Box Item 6","value":"Reitinga"},"sort_by_most_viewed":{"title":"Product Page Sort Box Item 7","value":"Vair\u0101k apskat\u0101mie"},"sort_default":{"title":"Product Page Sort Box Default","value":"B\u0101zes \u0161\u0137iro\u0161ana"}}},"product_page":{"label":"Product Page","options":{"product_quick_view":{"title":"Product Quick View Label","value":"Apskat\u012bt"},"product_design_now":{"title":"Product Design Now Label","value":"DESIGN NOW"},"product_no_results":{"title":"Product Page No Results","value":"Nekas nav atrasts"},"product_items_per_page":{"title":"Product Page Items per Page","value":"Preces uz lapas:"},"product_paging_page":{"title":"Product Page Page in Page a of b","value":"Lapa"},"product_paging_of":{"title":"Product Page of in Page a of b","value":"of"},"product_showing":{"title":"Product Page Num Results Showing","value":"R\u0101da"},"product_all":{"title":"Product Page Num Results all","value":"Visi"},"product_results":{"title":"Product Page Num Results","value":"Rezult\u0101ti"},"product_view_cart":{"title":"Product Page View Cart","value":"Apskat\u012bt grozu"},"product_product_added_note":{"title":"Product Page Added to Cart Note","value":"Produkts sekm\u012bgi pievienots grozam."},"product_product_view_per_page":{"title":"Product Page View in Per Page","value":"Apskat\u012bt"},"product_page_restricted_line_1":{"title":"Restricted Product Line 1","value":"Atv\u0113rt\u0101 pieeja nav pieejama veikal\u0101"},"product_page_restricted_line_2":{"title":"Restricted Product Line 2 Prior to Link","value":"L\u016bdzu, ieejiet sav\u0101kont\u0101 vai izveidojiet jaunu"},"product_page_restricted_link_text":{"title":"Restricted Product Link Text","value":"nospiest \u0161eit"},"product_page_restricted_line_3":{"title":"Restricted Product Line 2 Post Link","value":"J\u016bsu konts var b\u016bt nepiecie\u0161ams p\u0101rbaud\u012bt, pirms j\u016bs var\u0113siet piek\u013c\u016bt veikalam."},"product_page_start_trial_1":{"title":"Start Your Trial Text Part 1","value":"Start Your"},
+{"label":"Latvian","options":{"sort_bar":{"label":"Product Page Sort Menu","options":{"sort_by_price_low":{"title":"Product Page Sort Box Item 1","value":"Cena - uz Aug\u0161u"},"sort_by_price_high":{"title":"Product Page Sort Box Item 2","value":"Cena - uz Leju"},"sort_by_title_a":{"title":"Product Page Sort Box Item 3","value":"Nosaukums A-Z"},"sort_by_title_z":{"title":"Product Page Sort Box Item 4","value":"Nosaukums Z-A"},"sort_by_newest":{"title":"Product Page Sort Box Item 5","value":"Jaun\u0101kie"},"sort_by_rating":{"title":"Product Page Sort Box Item 6","value":"Reitinga"},"sort_by_most_viewed":{"title":"Product Page Sort Box Item 7","value":"Vair\u0101k apskat\u0101mie"},"sort_default":{"title":"Product Page Sort Box Default","value":"B\u0101zes \u0161\u0137iro\u0161ana"},"sort_by_oldest":{"title":"Product Page Sort Box Item 8","value":"Oldest"}}},"product_page":{"label":"Product Page","options":{"product_quick_view":{"title":"Product Quick View Label","value":"Apskat\u012bt"},"product_design_now":{"title":"Product Design Now Label","value":"DESIGN NOW"},"product_no_results":{"title":"Product Page No Results","value":"Nekas nav atrasts"},"product_items_per_page":{"title":"Product Page Items per Page","value":"Preces uz lapas:"},"product_paging_page":{"title":"Product Page Page in Page a of b","value":"Lapa"},"product_paging_of":{"title":"Product Page of in Page a of b","value":"of"},"product_showing":{"title":"Product Page Num Results Showing","value":"R\u0101da"},"product_all":{"title":"Product Page Num Results all","value":"Visi"},"product_results":{"title":"Product Page Num Results","value":"Rezult\u0101ti"},"product_view_cart":{"title":"Product Page View Cart","value":"Apskat\u012bt grozu"},"product_product_added_note":{"title":"Product Page Added to Cart Note","value":"Produkts sekm\u012bgi pievienots grozam."},"product_product_view_per_page":{"title":"Product Page View in Per Page","value":"Apskat\u012bt"},"product_page_restricted_line_1":{"title":"Restricted Product Line 1","value":"Atv\u0113rt\u0101 pieeja nav pieejama veikal\u0101"},"product_page_restricted_line_2":{"title":"Restricted Product Line 2 Prior to Link","value":"L\u016bdzu, ieejiet sav\u0101kont\u0101 vai izveidojiet jaunu"},"product_page_restricted_link_text":{"title":"Restricted Product Link Text","value":"nospiest \u0161eit"},"product_page_restricted_line_3":{"title":"Restricted Product Line 2 Post Link","value":"J\u016bsu konts var b\u016bt nepiecie\u0161ams p\u0101rbaud\u012bt, pirms j\u016bs var\u0113siet piek\u013c\u016bt veikalam."},"product_page_start_trial_1":{"title":"Start Your Trial Text Part 1","value":"Start Your"},
 				"product_page_start_trial_2":{
 					"title":"Start Your Trial Text Part 2",
 					"value":"Day Free Trial Today!"
@@ -70,7 +70,7 @@
 				"product_details_select_options":{
 					"title":"Select Options Button",
 					"value":"Iesp\u0113jas"
-				},"product_details_out_of_stock":{"title":"Out of Stock Text","value":"NAV NOLIKTAV\u0100"},"product_details_sign_up_now":{"title":"Sign Up Now Text","value":"RE\u0122ISTR\u0112TIES"},"product_details_inquiry_title":{"title":"Inquiry Title","value":"Iesniegt jaut\u0101jumu par produktu"},"product_details_inquiry_error":{"title":"Inquiry Error Text","value":"L\u016bdzu, aizpildiet visus nepiecie\u0161amos laukus"},"product_details_inquiry_name":{"title":"Inquiry Name","value":"*V\u0101rds:"},"product_details_inquiry_email":{"title":"Inquiry Email","value":"*Email:"},"product_details_inquiry_message":{"title":"Inquire Button Text","value":"*Zi\u0146ojums:"},"product_details_inquire":{"title":"Inquire Button Text","value":"NOS\u016aT\u012aT"},"product_details_inquiry_send_copy":{"title":"Inquiry - Send Copy","value":"L\u016bdzu, ats\u016btiet man kopiju"},"product_details_inquiry_thank_you":{"title":"Inquiry Thank You Note","value":"Paldies, ka iesniedz\u0101t produkta piepras\u012bjumu. M\u0113s sazin\u0101simies ar jums, cik \u0101tri vien iesp\u0113jams."},"product_details_minimum_quantity_text1":{"title":"Min Purchase Amount Text Part 1","value":"Minim\u0101l\u0101 pirkuma summa"},"product_details_minimum_quantity_text2":{"title":"Min Purchase Amount Text Part 2","value":"vien\u012bbas ir nepiecie\u0161amas"},"product_details_maximum_quantity_text1":{"title":"Max Purchase Amount Text Part 1","value":"Maksim\u0101lais pirkuma summa"},"product_details_maximum_quantity_text2":{"title":"Max Purchase Amount Text Part 2","value":"ir at\u013cauts"},"product_details_handling_fee_notice1":{"title":"One Time Handling Fee Part 1","value":"*Vienreiz\u0113ja apstr\u0101des maksa"},"product_details_handling_fee_notice2":{"title":"One Time Handling Fee Part 2","value":"tiks pievienota j\u016bsu pieg\u0101dei kop\u0101 pie r\u0113\u0137ina."},"product_details_handling_fee_each_notice1":{"title":"Handling Fee Each Part 1","value":"*Apstr\u0101des maksa"},"product_details_handling_fee_each_notice2":{"title":"Handling Fee Each Part 2","value":"tiks pievienota j\u016bsu pieg\u0101dei kop\u0101 pie r\u0113\u0137ina."},"product_details_signup_fee_notice1":{"title":"One Time Sign-up Fee Part 1","value":"*Vienreiz\u0113ja re\u0123istr\u0113\u0161anas maksa"},"product_details_signup_fee_notice2":{"title":"One Time Sign-up Fee Part 2","value":"tiks pievienota j\u016bsu pirm\u0101 maks\u0101juma kopsummai."},"product_details_home_link":{"title":"Home Breadcrumbs Link","value":"Galven\u0101"},"product_details_store_link":{"title":"Store Breadcrumbs Link","value":"Veikals"},"product_details_reviews_text":{"title":"Store Reviews Count","value":"Atsauksmes"},"product_details_gift_card_recipient_name":{"title":"Store Gift Card To Name","value":"Sa\u0146\u0113m\u0113ja V\u0101rds"},"product_details_gift_card_recipient_email":{"title":"Store Gift Card To Email","value":"Sa\u0146\u0113m\u0113ja Email"},"product_details_gift_card_sender_name":{"title":"Store Gift Card Sender's Name","value":"S\u016bt\u012bt\u0101ja v\u0101rds"},"product_details_donation_amount":{"title":"Store Donation Amount","value":"ziedojumu summa"},"product_details_loading_options":{"title":"Store Loading Options","value":"Pieejam\u0101s iesp\u0113jas"},"product_details_missing_option":{"title":"Store Missing Option","value":""},"product_details_maximum_quantity":{"title":"Store Maximum Quantity Exceeded","value":"P\u0101rsniegts maksim\u0101lais daudzums"},"product_details_one_time_addition1":{"title":"Store One Time Addition 1","value":"Vienreiz\u0113ja cena"},"product_details_one_time_addition2":{"title":"Store One Time Addition 2","value":"tiks pievienota j\u016bsu pas\u016bt\u012bjumam."},
+				},"product_details_out_of_stock":{"title":"Out of Stock Text","value":"NAV NOLIKTAV\u0100"},"product_details_sign_up_now":{"title":"Sign Up Now Text","value":"RE\u0122ISTR\u0112TIES"},"product_details_inquiry_title":{"title":"Inquiry Title","value":"Iesniegt jaut\u0101jumu par produktu"},"product_details_inquiry_error":{"title":"Inquiry Error Text","value":"L\u016bdzu, aizpildiet visus nepiecie\u0161amos laukus"},"product_details_inquiry_name":{"title":"Inquiry Name","value":"*V\u0101rds:"},"product_details_inquiry_email":{"title":"Inquiry Email","value":"*Email:"},"product_details_inquiry_message":{"title":"Inquire Button Text","value":"*Zi\u0146ojums:"},"product_details_inquire":{"title":"Inquire Button Text","value":"NOS\u016aT\u012aT"},"product_details_inquiry_send_copy":{"title":"Inquiry - Send Copy","value":"L\u016bdzu, ats\u016btiet man kopiju"},"product_details_inquiry_thank_you":{"title":"Inquiry Thank You Note","value":"Paldies, ka iesniedz\u0101t produkta piepras\u012bjumu. M\u0113s sazin\u0101simies ar jums, cik \u0101tri vien iesp\u0113jams."},"product_details_minimum_quantity_text1":{"title":"Min Purchase Amount Text Part 1","value":"Minim\u0101l\u0101 pirkuma summa"},"product_details_minimum_quantity_text2":{"title":"Min Purchase Amount Text Part 2","value":"vien\u012bbas ir nepiecie\u0161amas"},"product_details_maximum_quantity_text1":{"title":"Max Purchase Amount Text Part 1","value":"Maksim\u0101lais pirkuma summa"},"product_details_maximum_quantity_text2":{"title":"Max Purchase Amount Text Part 2","value":"ir at\u013cauts"},"product_details_handling_fee_notice1":{"title":"One Time Handling Fee Part 1","value":"*Vienreiz\u0113ja apstr\u0101des maksa"},"product_details_handling_fee_notice2":{"title":"One Time Handling Fee Part 2","value":"tiks pievienota j\u016bsu pieg\u0101dei kop\u0101 pie r\u0113\u0137ina."},"product_details_handling_fee_each_notice1":{"title":"Handling Fee Each Part 1","value":"*Apstr\u0101des maksa"},"product_details_handling_fee_each_notice2":{"title":"Handling Fee Each Part 2","value":"tiks pievienota j\u016bsu pieg\u0101dei kop\u0101 pie r\u0113\u0137ina."},"product_details_signup_fee_notice1":{"title":"One Time Sign-up Fee Part 1","value":"*Vienreiz\u0113ja re\u0123istr\u0113\u0161anas maksa"},"product_details_signup_fee_notice2":{"title":"One Time Sign-up Fee Part 2","value":"tiks pievienota j\u016bsu pirm\u0101 maks\u0101juma kopsummai."},"product_details_home_link":{"title":"Home Breadcrumbs Link","value":"Galven\u0101"},"product_details_store_link":{"title":"Store Breadcrumbs Link","value":"Veikals"},"product_details_reviews_text":{"title":"Store Reviews Count","value":"Atsauksmes"},"product_details_gift_card_recipient_name":{"title":"Store Gift Card To Name","value":"Sa\u0146\u0113m\u0113ja V\u0101rds"},"product_details_gift_card_recipient_email":{"title":"Store Gift Card To Email","value":"Sa\u0146\u0113m\u0113ja Email"},"product_details_gift_card_sender_name":{"title":"Store Gift Card Sender's Name","value":"S\u016bt\u012bt\u0101ja v\u0101rds"},"product_details_donation_amount":{"title":"Store Donation Amount","value":"ziedojumu summa"},"product_details_loading_options":{"title":"Store Loading Options","value":"Pieejam\u0101s iesp\u0113jas"},"product_details_missing_option":{"title":"Store Missing Option","value":""},"product_details_min_length":{"title":"Text Option Minimum Length (%d is the number of characters)","value":"Ievadiet vismaz %d rakstz\u012bmes."},"product_details_file_type_error":{"title":"File Upload Type Not Accepted (%s is the list of accepted types)","value":"\u0160o faila veidu nevar aug\u0161upiel\u0101d\u0113t. At\u013cautie failu veidi: %s"},"product_details_file_size_error":{"title":"File Upload Too Large (%s is the size limit)","value":"Fails ir p\u0101r\u0101k liels. Liel\u0101kais aug\u0161upiel\u0101d\u0113jamais faila izm\u0113rs ir %s."},"product_details_file_upload_error":{"title":"File Upload Could Not Be Saved","value":"J\u016bsu failu neizdev\u0101s aug\u0161upiel\u0101d\u0113t. L\u016bdzu, m\u0113\u0123iniet v\u0113lreiz vai sazinieties ar mums, ja probl\u0113ma atk\u0101rtojas."},"product_details_file_types_hint":{"title":"File Upload Accepted Types (%s is the list of accepted types)","value":"At\u013cautie failu veidi: %s"},"product_details_maximum_quantity":{"title":"Store Maximum Quantity Exceeded","value":"P\u0101rsniegts maksim\u0101lais daudzums"},"product_details_one_time_addition1":{"title":"Store One Time Addition 1","value":"Vienreiz\u0113ja cena"},"product_details_one_time_addition2":{"title":"Store One Time Addition 2","value":"tiks pievienota j\u016bsu pas\u016bt\u012bjumam."},
 				"product_details_left_in_stock":{"title":"Store Left in Stock","value":"Noliktav\u0101:"},
 				"product_details_search":{
 					"title":"Store Search",
@@ -220,6 +220,18 @@
 				"product_unavailable_all_locations":{
 					"title":"Unavailable at all locations",
 					"value":"Šis produkts pašlaik nav pieejams visās vietās."
+				},
+				"product_details_donation_error":{
+					"title":"Donation Amount Error Text",
+					"value":"Invalid donation amount entered. Please enter a minimum value of"
+				},
+				"product_details_backorder_button":{
+					"title":"Backorder Button",
+					"value":"BACKORDER NOW"
+				},
+				"product_details_reviews_for_text":{
+					"title":"Reviews for",
+					"value":"Reviews for"
 				}
 			}
 		},
@@ -438,6 +450,10 @@
 				},
 				"cart_totals_shipping":{"title":"Cart, Cart Totals, Shipping","value":"Pieg\u0101de"},"cart_totals_tax":{"title":"Cart, Cart Totals, Tax","value":"Nodok\u013ci"},"cart_totals_discounts":{"title":"Cart, Cart Totals, Discounts","value":"Atlaides"},"cart_totals_vat":{"title":"Cart, Cart Totals, VAT","value":"PVN"},"cart_totals_duty":{"title":"Cart, Cart Totals, Duty","value":"Par\u0101ds"},"cart_totals_grand_total":{"title":"Cart, Cart Totals, Grand Total","value":"Kopsumma"},
 				"cart_totals_label":{"title":"Cart Totals Label","value":"Groza kopsummas"},
+				"cart_totals_gst":{"title":"Cart, Cart Totals, Canada GST","value":"GST"},
+				"cart_totals_pst":{"title":"Cart, Cart Totals, Canada PST","value":"PST"},
+				"cart_totals_qst":{"title":"Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)","value":"QST"},
+				"cart_totals_hst":{"title":"Cart, Cart Totals, Canada HST","value":"HST"},
 				"cart_totals_min_buy_now":{
 					"title":"Minimum Buy Now, Pay Later",
 					"value":"Piedāvājam pirkt tagad, maksāt vēlāk ikmēneša maksājuma iespējas sākot no plkst"
@@ -983,7 +999,7 @@
 					"title":"Account, Register Button",
 					"value":"RE\u0122ISTR\u0112TIES"
 				},
-				"account_billing_information_user_notes":{"title":"Account, Billing, User Notes","value":"Papildus inform\u0101cija par j\u016bsu re\u0123istr\u0101ciju"},"account_register_email_title":{"title":"Account, Register Email Title","value":"Jauna EasyCart re\u0123istr\u0101cija"},"account_register_email_message":{"title":"Account, Register Email Message","value":"Jauna re\u0123istr\u0101cija ar citu E-pasta adresi:"}}},"account_navigation":{"label":"Account - Navigation","options":{"account_navigation_title":{"title":"Account, Navigation Title","value":"Konta p\u0101rl\u016bko\u0161ana"},"account_navigation_basic_inforamtion":{"title":"Account, Navigation, Basic Information Link","value":"pamatinform\u0101cija"},"account_navigation_orders":{"title":"Account, Navigation, View Orders Link","value":"Apl\u016bkot pas\u016bt\u012bjumus"},"account_navigation_password":{"title":"Account, Navigation, Change Password Link","value":"Main\u012bt paroli"},"account_navigation_subscriptions":{"title":"Account, Navigation, Subscriptions Link","value":"p\u0101rvald\u012bt abonementus"},"account_navigation_payment_methods":{"title":"Account, Navigation, Payments Link","value":"p\u0101rvald\u012bt maks\u0101jumu veidus"},"account_navigation_sign_out":{"title":"Account, Navigation, Sign Out Link","value":"iziet"},"account_navigation_dashboard":{"title":"Account, Navigation, Dashboard Link","value":"konta panelis"},"account_navigation_billing_information":{"title":"Account, Navigation, Billing Link","value":"Nor\u0113\u0137inu inform\u0101cija"},"account_navigation_shipping_information":{"title":"Account, Navigation, Shipping Link","value":"Pieg\u0101des inform\u0101cija"}}},"account_dashboard":{"label":"Account - Dashboard","options":{"account_dashboard_recent_orders_title":{"title":"Account, Dashboard, Recent Orders Title","value":"P\u0113d\u0113jie Pas\u016bt\u012bjumi"},"account_dashboard_recent_orders_none":{"title":"Account, Dashboard, Recent Order, No Orders","value":"Nav neviena pas\u016bt\u012bjuma"},"account_dashboard_all_orders_linke":{"title":"Account, Dashboard, All Orders Link","value":"Apskat\u012bt visus"},"account_dashboard_preference_title":{"title":"Account, Dashboard, Preference Title","value":"konta iestat\u012bjumi"},"account_dashboard_email_title":{"title":"Account, Dashboard, Email Title","value":"J\u016bsu Prim\u0101r\u0101 E-pasta adrese"},"account_dashboard_email_edit_link":{"title":"Account, Dashboard, Email Edit Link","value":"redi\u0123\u0113t"},"account_dashboard_email_note":{"title":"Account, Dashboard, Email Note","value":"(Tas tiek izmantots, lai ieietu)"},"account_dashboard_billing_title":{"title":"Account, Dashboard, Billing Title","value":"nor\u0113\u0137inu adrese"},"account_dashboard_billing_link":{"title":"Account, Dashboard, Billing Edit Link","value":"redi\u0123\u0113t nor\u0113\u0137inu adresi"},"account_dashboard_shipping_title":{"title":"Account, Dashboard, Shipping Title","value":"pieg\u0101des adrese"},"account_dashboard_shipping_link":{"title":"Account, Dashboard, Shipping Edit Link","value":"redi\u0123\u0113t pieg\u0101des adresi"}}},"account_personal_information":{"label":"Account - Edit Personal Information","options":{"account_personal_information_title":{"title":"Account, Personal Information Title","value":"Person\u012bg\u0101 inform\u0101cija"},"account_personal_information_sub_title":{"title":"Account, Personal Information Sub Title","value":"L\u016bdzu, \u0146emiet v\u0113r\u0101: konta inform\u0101cijas izmai\u0146as, tostarp pieg\u0101des adreses izmai\u0146as, ietekm\u0113s tikai jaunus pas\u016bt\u012bjumus. Visi iepriek\u0161 novietoti pas\u016bt\u012bjumi tiks nos\u016bt\u012bti uz adresi atbilsto\u0161i ieg\u0101des dien\u0101m."},"account_personal_information_first_name":{"title":"Account, Personal Information, First Name Label","value":"V\u0101rds"},"account_personal_information_last_name":{"title":"Account, Personal Information, Last Name Label","value":"Uzv\u0101rds"},
+				"account_billing_information_user_notes":{"title":"Account, Billing, User Notes","value":"Papildus inform\u0101cija par j\u016bsu re\u0123istr\u0101ciju"},"account_register_email_title":{"title":"Account, Register Email Title","value":"Jauna EasyCart re\u0123istr\u0101cija"},"account_register_email_message":{"title":"Account, Register Email Message","value":"Jauna re\u0123istr\u0101cija ar citu E-pasta adresi:"}}},"account_navigation":{"label":"Account - Navigation","options":{"account_navigation_title":{"title":"Account, Navigation Title","value":"Konta p\u0101rl\u016bko\u0161ana"},"account_navigation_basic_inforamtion":{"title":"Account, Navigation, Basic Information Link","value":"pamatinform\u0101cija"},"account_navigation_orders":{"title":"Account, Navigation, View Orders Link","value":"Apl\u016bkot pas\u016bt\u012bjumus"},"account_navigation_password":{"title":"Account, Navigation, Change Password Link","value":"Main\u012bt paroli"},"account_navigation_subscriptions":{"title":"Account, Navigation, Subscriptions Link","value":"p\u0101rvald\u012bt abonementus"},"account_navigation_payment_methods":{"title":"Account, Navigation, Payments Link","value":"p\u0101rvald\u012bt maks\u0101jumu veidus"},"account_navigation_sign_out":{"title":"Account, Navigation, Sign Out Link","value":"iziet"},"account_navigation_dashboard":{"title":"Account, Navigation, Dashboard Link","value":"konta panelis"},"account_navigation_billing_information":{"title":"Account, Navigation, Billing Link","value":"Nor\u0113\u0137inu inform\u0101cija"},"account_navigation_shipping_information":{"title":"Account, Navigation, Shipping Link","value":"Pieg\u0101des inform\u0101cija"}}},"account_dashboard":{"label":"Account - Dashboard","options":{"account_dashboard_recent_orders_title":{"title":"Account, Dashboard, Recent Orders Title","value":"P\u0113d\u0113jie Pas\u016bt\u012bjumi"},"account_dashboard_recent_orders_none":{"title":"Account, Dashboard, Recent Order, No Orders","value":"Nav neviena pas\u016bt\u012bjuma"},"account_dashboard_all_orders_linke":{"title":"Account, Dashboard, All Orders Link","value":"Apskat\u012bt visus"},"account_dashboard_preference_title":{"title":"Account, Dashboard, Preference Title","value":"konta iestat\u012bjumi"},"account_dashboard_email_title":{"title":"Account, Dashboard, Email Title","value":"J\u016bsu Prim\u0101r\u0101 E-pasta adrese"},"account_dashboard_email_edit_link":{"title":"Account, Dashboard, Email Edit Link","value":"redi\u0123\u0113t"},"account_dashboard_email_note":{"title":"Account, Dashboard, Email Note","value":"(Tas tiek izmantots, lai ieietu)"},"account_dashboard_billing_title":{"title":"Account, Dashboard, Billing Title","value":"nor\u0113\u0137inu adrese"},"account_dashboard_billing_link":{"title":"Account, Dashboard, Billing Edit Link","value":"redi\u0123\u0113t nor\u0113\u0137inu adresi"},"account_dashboard_shipping_title":{"title":"Account, Dashboard, Shipping Title","value":"pieg\u0101des adrese"},"account_dashboard_shipping_link":{"title":"Account, Dashboard, Shipping Edit Link","value":"redi\u0123\u0113t pieg\u0101des adresi"},"account_dashboard_order_placed":{"title":"Account, Dashboard, Order Placed Label","value":"ORDER PLACED"},"account_dashboard_order_total":{"title":"Account, Dashboard, Total Label","value":"TOTAL"},"account_dashboard_order_ship_to":{"title":"Account, Dashboard, Ship To Label","value":"SHIP TO"},"account_dashboard_order_order_label":{"title":"Account, Dashboard, Order Label","value":"ORDER"},"account_dashboard_order_view_details":{"title":"Account, Dashboard, View Details Link","value":"View Details"},"account_dashboard_order_buy_item_again":{"title":"Account, Dashboard, Buy Item Again","value":"Buy Item Again"}}},"account_personal_information":{"label":"Account - Edit Personal Information","options":{"account_personal_information_title":{"title":"Account, Personal Information Title","value":"Person\u012bg\u0101 inform\u0101cija"},"account_personal_information_sub_title":{"title":"Account, Personal Information Sub Title","value":"L\u016bdzu, \u0146emiet v\u0113r\u0101: konta inform\u0101cijas izmai\u0146as, tostarp pieg\u0101des adreses izmai\u0146as, ietekm\u0113s tikai jaunus pas\u016bt\u012bjumus. Visi iepriek\u0161 novietoti pas\u016bt\u012bjumi tiks nos\u016bt\u012bti uz adresi atbilsto\u0161i ieg\u0101des dien\u0101m."},"account_personal_information_first_name":{"title":"Account, Personal Information, First Name Label","value":"V\u0101rds"},"account_personal_information_last_name":{"title":"Account, Personal Information, Last Name Label","value":"Uzv\u0101rds"},
 				"account_personal_information_email":{"title":"Account, Personal Information, Email Label","value":"E-pasta adrese"},
 				"account_personal_information_subscribe":{"title":"Account, Personal Information, Subscribe Label","value":"Vai v\u0113laties parakst\u012bties uz m\u016bsu bi\u013cetenu?"},
 				"account_personal_information_update_button":{"title":"Account, Personal Information, Update Button","value":"SAGLAB\u0100T"},
@@ -1103,6 +1119,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"Mainiet savu plānu"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"Aktīvs"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"Izmēģinājums"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"Maksājums nokavēts"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"Nepabeigts"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"Apturēts uz laiku"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"Apturēts"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"Beidzas perioda beigās"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"Atcelts"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"Beidzies"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"Atpakaļ uz abonementiem"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"Sākts"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"Beidzas"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"Beidzās"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"Daudzums"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"Pārvaldīt abonementu"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"Jūsu izvēles"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"Vienreizēja reģistrācijas maksa"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"Šīs ir izvēles no jūsu sākotnējā pirkuma %s. Kopš tā laika jūsu plāns ir mainīts."
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"Skatīt sākotnējo pasūtījumu"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"Nav saglabātas kartes"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"Šis abonements ir beidzies. Maksājuma veidu un plānu vairs nevar mainīt."
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"Šis abonements netiks atjaunots. Tas paliek aktīvs līdz pašreizējā norēķinu perioda beigām."
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"Jūsu pēdējais maksājums neizdevās. Atjauniniet maksājuma veidu, lai abonements paliktu aktīvs."
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"Aizvērt"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"Pašreizējais plāns"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"Samazināt daudzumu"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"Palielināt daudzumu"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"Ievadiet daudzumu 1 vai vairāk."
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"Kartes dati"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"Jums nav aktīvu abonementu."
 				}
 			}
 		},
@@ -1236,7 +1372,7 @@
 				}
 			}
 		},
-		"ec_shipping_email":{"label":"Shipping Emailer","options":{"shipping_email_title":{"title":"Shipping Email Title","value":"Pieg\u0101des Apstiprin\u0101jums - Pas\u016bt\u012bjuma numurs"},"shipping_dear":{"title":"Shipping Dear Customer","value":"D\u0101rgais\/\u0101"},"shipping_subtitle1":{"title":"Order Shipped First Half","value":"J\u016bsu nesenais pas\u016bt\u012bjums ar numuru"},"shipping_subtitle2":{"title":"Order Shipped Second Half","value":"tika nos\u016bt\u012bts! Jums vajadz\u0113tu sa\u0146emt to \u012bs\u0101 laika period\u0101."},"shipping_description":{"title":"Order Shipped Description","value":"J\u016bs varat p\u0101rbaud\u012bt sava pas\u016bt\u012bjuma statusu, apmekl\u0113jot j\u016bsu p\u0101rvad\u0101t\u0101ja m\u0101jas lapu un izmantojot izseko\u0161anas numuru."},"shipping_carrier":{"title":"Order Shipped Carrier","value":"Pas\u016bt\u012bjuma p\u0101rvad\u0101t\u0101js:"},"shipping_tracking":{"title":"Order Shipped Tracking Number","value":"Pas\u016bt\u012bjuma izseko\u0161anas numursr:"},"shipping_billing_label":{"title":"Billing Label","value":"nor\u0113\u0137inu adrese"},"shipping_shipping_label":{"title":"Shipping Label","value":"Pieg\u0101des adrese"},"shipping_product":{"title":"Product Label","value":"Prece"},"shipping_quantity":{"title":"Quantity Label","value":"Daudzums"},"shipping_unit_price":{"title":"Unit Price Label","value":"Vien\u012bbas cena"},"shipping_total_price":{"title":"Total Price Label","value":"Cena kop\u0101"},"shipping_final_note1":{"title":"Shipping Emailer Final Note Line 1","value":"L\u016bdzu, v\u0113lreiz p\u0101rbaudiet savu pas\u016bt\u012bjumu, kad sa\u0146emsiet to un dodiet mums zi\u0146u, ja ir k\u0101das probl\u0113mas vai jaut\u0101jumi. M\u0113s vienm\u0113r nov\u0113rt\u0113jam j\u016bsu komfortu."},"shipping_final_note2":{"title":"Shipping Emailer Final Note Line 2","value":"Liels paldies!"}}},"ec_minicart_widget":{"label":"Minicart Widget","options":{"subtotal_text":{"title":"Minicart Widget, Subtotal Text","value":"Starpsumma"},"checkout_button_text":{"title":"Minicart Widget, Checkout Button Text","value":"MAKS\u0100T"}}},"ec_pricepoint_widget":{"label":"Price Point Widget","options":{"less_than":{"title":"Less Than Text","value":"Maz\u0101k par"},"greater_than":{"title":"Greater Than Text","value":"Vair\u0101k par"}}},
+		"ec_shipping_email":{"label":"Shipping Emailer","options":{"shipping_email_title":{"title":"Shipping Email Title","value":"Pieg\u0101des Apstiprin\u0101jums - Pas\u016bt\u012bjuma numurs"},"shipping_dear":{"title":"Shipping Dear Customer","value":"D\u0101rgais\/\u0101"},"shipping_subtitle1":{"title":"Order Shipped First Half","value":"J\u016bsu nesenais pas\u016bt\u012bjums ar numuru"},"shipping_subtitle2":{"title":"Order Shipped Second Half","value":"tika nos\u016bt\u012bts! Jums vajadz\u0113tu sa\u0146emt to \u012bs\u0101 laika period\u0101."},"shipping_description":{"title":"Order Shipped Description","value":"J\u016bs varat p\u0101rbaud\u012bt sava pas\u016bt\u012bjuma statusu, apmekl\u0113jot j\u016bsu p\u0101rvad\u0101t\u0101ja m\u0101jas lapu un izmantojot izseko\u0161anas numuru."},"shipping_carrier":{"title":"Order Shipped Carrier","value":"Pas\u016bt\u012bjuma p\u0101rvad\u0101t\u0101js:"},"shipping_tracking":{"title":"Order Shipped Tracking Number","value":"Pas\u016bt\u012bjuma izseko\u0161anas numursr:"},"shipping_billing_label":{"title":"Billing Label","value":"nor\u0113\u0137inu adrese"},"shipping_shipping_label":{"title":"Shipping Label","value":"Pieg\u0101des adrese"},"shipping_product":{"title":"Product Label","value":"Prece"},"shipping_quantity":{"title":"Quantity Label","value":"Daudzums"},"shipping_unit_price":{"title":"Unit Price Label","value":"Vien\u012bbas cena"},"shipping_total_price":{"title":"Total Price Label","value":"Cena kop\u0101"},"shipping_final_note1":{"title":"Shipping Emailer Final Note Line 1","value":"L\u016bdzu, v\u0113lreiz p\u0101rbaudiet savu pas\u016bt\u012bjumu, kad sa\u0146emsiet to un dodiet mums zi\u0146u, ja ir k\u0101das probl\u0113mas vai jaut\u0101jumi. M\u0113s vienm\u0113r nov\u0113rt\u0113jam j\u016bsu komfortu."},"shipping_final_note2":{"title":"Shipping Emailer Final Note Line 2","value":"Liels paldies!"}}},"ec_minicart_widget":{"label":"Minicart Widget","options":{"subtotal_text":{"title":"Minicart Widget, Subtotal Text","value":"Starpsumma"},"checkout_button_text":{"title":"Minicart Widget, Checkout Button Text","value":"MAKS\u0100T"}}},"ec_pricepoint_widget":{"label":"Price Point Widget","options":{"less_than":{"title":"Less Than Text","value":"Maz\u0101k par"},"greater_than":{"title":"Greater Than Text","value":"Vair\u0101k par"},"sidebar_title":{"title":"Store Sidebar Price Filter Title","value":"Cena"}}},
 		"ec_newsletter_popup":{
 			"label":"Newsletter Popup",
 			"options":{
@@ -1339,6 +1475,39 @@
 				"code":{
 					"title":"Do Not Change",
 					"value":"lv"
+				}
+			}
+		},
+		"ec_login_widget":{
+			"label":"Login Widget",
+			"options":{
+				"hello_text":{
+					"title":"Hello",
+					"value":"Hello"
+				},
+				"dashboard_text":{
+					"title":"Dashboard",
+					"value":"Dashboard"
+				},
+				"order_history_text":{
+					"title":"Order History",
+					"value":"Order History"
+				},
+				"billing_info_text":{
+					"title":"Billing Information",
+					"value":"Billing Information"
+				},
+				"shipping_info_text":{
+					"title":"Shipping Information",
+					"value":"Shipping Information"
+				},
+				"change_password_text":{
+					"title":"Change Password",
+					"value":"Change Password"
+				},
+				"sign_out_text":{
+					"title":"Sign Out",
+					"value":"Sign Out"
 				}
 			}
 		}

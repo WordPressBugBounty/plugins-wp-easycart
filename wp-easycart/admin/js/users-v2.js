@@ -1,3 +1,4 @@
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin — Customers List V2 (FREE).
  *
@@ -397,7 +398,7 @@ jQuery( function( $ ) {
 	$( document ).on( 'change', '.ecv2-row-check', ecv2_update_bulk_count );
 
 	function ecv2_update_bulk_count() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		if ( count > 0 ) {
 			$( '#ecv2-selected-count' ).text( count );
 			$( '.ecv2-bulk-count' ).show();
@@ -495,7 +496,7 @@ jQuery( function( $ ) {
 		if ( e.key !== 'Escape' ) { return; }
 		if ( $( '.ecv2-modal-overlay:visible, .ecv2-slideout-overlay:visible' ).length ) { return; }
 		if ( $( e.target ).is( 'input, textarea, select, [contenteditable="true"]' ) ) { return; }
-		if ( $( '.ecv2-row-check:checked' ).length > 0 ) { ecv2_bulk_reset_selection(); }
+		if ( ecv2_row_check_count() > 0 ) { ecv2_bulk_reset_selection(); }
 	} );
 
 	/* ================================================================== */
@@ -504,7 +505,7 @@ jQuery( function( $ ) {
 
 	function ecv2_bulk_collect_ids() {
 		var ids = [];
-		$( '.ecv2-row-check:checked' ).each( function() { ids.push( $( this ).val() ); } );
+		$( '.ecv2-row-check:checked' ).each( function() { var v = $( this ).val(); if ( ids.indexOf( v ) === -1 ) { ids.push( v ); } } );
 		return ids;
 	}
 
@@ -586,7 +587,7 @@ jQuery( function( $ ) {
 	/* ================================================================== */
 
 	window.ecv2_open_bulk_edit = function() {
-		var count = $( '.ecv2-row-check:checked' ).length;
+		var count = ecv2_row_check_count();
 		$( '#ecv2-bulk-edit-count' ).text( '(' + count + ' ' + _t( 'customers', 'customers' ) + ')' );
 		$( '#ecv2-bulk-edit-modal' ).fadeIn( 200 );
 	};
@@ -954,3 +955,99 @@ jQuery( function( $ ) {
 	} );
 
 } );
+
+/* ====================================================================== */
+/* Customers CSV import ( V2 ) — parse in the browser, preview, run in chunks */
+/* ====================================================================== */
+( function( $ ) {
+	'use strict';
+	var AJAX_URL = ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) || window.ajaxurl;
+	var state = { headers: [], rows: [], nonce: '', match_email: false, preview: null };
+	function esc( s ) { return $( '<span>' ).text( s == null ? '' : s ).html(); }
+	function post( action, data, ok, fail ) { $.post( AJAX_URL, $.extend( { action: action, nonce: state.nonce }, data || {} ), function( r ) { if ( ! r || ! r.success ) { ( fail || function( m ) { ecv2_toast( m, 'error' ); } )( ( r && r.data && r.data.message ) || 'Something went wrong.' ); return; } ok && ok( r.data ); }, 'json' ).fail( function() { ( fail || function( m ) { ecv2_toast( m, 'error' ); } )( 'Something went wrong.' ); } ); }
+	/* RFC-4180-ish CSV parser: quotes, escaped quotes, newlines inside quotes, CRLF, BOM. */
+	function parse_csv( text ) {
+		text = text.replace( /^\uFEFF/, '' ); var rows = [], row = [], cell = '', q = false, i, ch;
+		for ( i = 0; i < text.length; i++ ) { ch = text[ i ];
+			if ( q ) { if ( ch === '"' ) { if ( text[ i + 1 ] === '"' ) { cell += '"'; i++; } else { q = false; } } else { cell += ch; } }
+			else if ( ch === '"' ) { q = true; }
+			else if ( ch === ',' ) { row.push( cell ); cell = ''; }
+			else if ( ch === '\n' || ch === '\r' ) { if ( ch === '\r' && text[ i + 1 ] === '\n' ) { i++; } row.push( cell ); cell = ''; if ( row.length > 1 || row[0] !== '' ) { rows.push( row ); } row = []; }
+			else { cell += ch; }
+		}
+		if ( cell !== '' || row.length ) { row.push( cell ); rows.push( row ); }
+		return rows;
+	}
+	function payload() { return JSON.stringify( { headers: state.headers, rows: state.rows, match_email: state.match_email ? 1 : 0 } ); }
+	function modal( body, foot ) {
+		close();
+		var $m = $( '<div class="ecv2-modal-overlay ecv2u-import" id="ecv2u_import" role="dialog" aria-modal="true" aria-labelledby="ecv2u_import_title"><div class="ecv2-modal ecv2u-import-modal"><div class="ecv2-modal-header"><h2 id="ecv2u_import_title">Import customers</h2><button type="button" class="ecv2-modal-close" data-close aria-label="Close">&times;</button></div><div class="ecv2-modal-body">' + body + '</div><div class="ecv2-modal-footer"><div class="ecv2-modal-footer-right">' + foot + '</div></div></div></div>' );
+		$( 'body' ).append( $m );
+		$m.on( 'click', function( e ) { if ( $( e.target ).is( $m ) || $( e.target ).is( '[data-close]' ) ) { close(); } } );
+		$( document ).on( 'keydown.ecv2uimport', function( e ) { if ( e.key === 'Escape' ) { close(); } } );
+		return $m;
+	}
+	function close() { $( document ).off( 'keydown.ecv2uimport' ); $( '#ecv2u_import' ).remove(); }
+	function step_pick() {
+		modal(
+			'<div class="ecv2u-drop" id="ecv2u_drop"><span class="dashicons dashicons-upload"></span><b>Drop a CSV here or choose a file</b><span class="ecv2-sub">First row must be column names. Rows with a <code>user_id</code> update that customer; rows without one create a customer from their email.</span><input type="file" accept=".csv,text/csv" id="ecv2u_file"></div>' +
+			'<div class="ecv2u-cols"><b>Columns you can include</b><div>user_id · email · first_name · last_name · user_level · is_subscriber · exclude_tax · exclude_shipping · allow_shipping_bypass · vat_registration_number · user_notes · email_other</div><div>billing_&lt;field&gt; / shipping_&lt;field&gt; — first_name, last_name, company_name, address_line_1, address_line_2, city, state, zip, country, phone</div><div class="ecv2-sub">Passwords are never imported; new customers use “Forgot password”. Only columns present in the file are changed on updates.</div></div>',
+			'<a href="#" class="ecv2-btn ecv2-btn-ghost" id="ecv2u_tpl">Download template</a><span class="ecos-grow"></span><button type="button" class="ecv2-btn" data-close>Cancel</button>'
+		);
+		var $drop = $( '#ecv2u_drop' );
+		$drop.on( 'click', function( e ) { if ( ! $( e.target ).is( 'input' ) ) { $( '#ecv2u_file' ).trigger( 'click' ); } } );
+		$drop.on( 'dragover', function( e ) { e.preventDefault(); $drop.addClass( 'is-over' ); } ).on( 'dragleave drop', function() { $drop.removeClass( 'is-over' ); } ).on( 'drop', function( e ) { e.preventDefault(); var f = e.originalEvent.dataTransfer.files[0]; if ( f ) { read( f ); } } );
+		$( '#ecv2u_file' ).on( 'change', function() { if ( this.files[0] ) { read( this.files[0] ); } } );
+		$( '#ecv2u_tpl' ).on( 'click', function( e ) { e.preventDefault(); post( 'ecv2_user_import_template', {}, function( d ) { var a = document.createElement( 'a' ); a.href = URL.createObjectURL( new Blob( [ d.csv ], { type: 'text/csv' } ) ); a.download = d.filename; document.body.appendChild( a ); a.click(); document.body.removeChild( a ); } ); } );
+	}
+	function read( file ) {
+		if ( file.size > 8 * 1024 * 1024 ) { ecv2_toast( 'That file is over 8 MB — split it into smaller files.', 'error' ); return; }
+		var fr = new FileReader();
+		fr.onload = function() { var rows = parse_csv( String( fr.result ) ); if ( rows.length < 2 ) { ecv2_toast( 'The file needs a header row and at least one customer row.', 'error' ); return; } state.headers = rows[0]; state.rows = rows.slice( 1 ); state.file = file.name; preview(); };
+		fr.readAsText( file );
+	}
+	function preview() {
+		$( '#ecv2u_import .ecv2-modal-body' ).html( '<div class="ecos-hint">Checking ' + state.rows.length + ' rows…</div>' );
+		post( 'ecv2_user_import_preview', { payload: payload() }, function( d ) {
+			state.preview = d; var t = d.totals, can = t.create + t.update > 0;
+			var body = '<div class="ecv2u-file"><span class="dashicons dashicons-media-spreadsheet" aria-hidden="true"></span><span class="ecv2u-file-meta"><b title="' + esc( state.file ).replace( /"/g, '&quot;' ) + '">' + esc( state.file ) + '</b><span class="ecv2-sub">' + d.total + ' rows · ' + d.used_headers.length + ' recognised columns</span></span><a href="#" id="ecv2u_change">Change file</a></div>';
+			body += '<div class="ecv2u-totals"><div class="is-create"><b>' + t.create + '</b><span>new customers</span></div><div class="is-update"><b>' + t.update + '</b><span>updates</span></div><div class="' + ( t.skip ? 'is-skip' : '' ) + '"><b>' + t.skip + '</b><span>skipped</span></div></div>';
+			if ( d.unknown_headers.length ) { body += '<div class="ecos-note"><span class="dashicons dashicons-warning"></span><div><b>Ignored columns:</b> ' + esc( d.unknown_headers.join( ', ' ) ) + '. They don’t match any customer field, so they’re left out.</div></div>'; }
+			if ( ! d.has_id && ! d.has_email ) { body += '<div class="ecos-note"><span class="dashicons dashicons-warning"></span><div>No <code>user_id</code> or <code>email</code> column — nothing can be matched or created.</div></div>'; }
+			var reasons = Object.keys( d.reasons || {} );
+			if ( reasons.length ) { body += '<div class="ecv2u-reasons"><b>Why rows are skipped</b>'; $.each( reasons, function( i, r ) { body += '<div><span class="ecv2-chip ecv2-chip-gray">' + d.reasons[ r ] + '</span> ' + esc( r ) + '</div>'; } ); body += '</div>'; }
+			body += '<label class="ecos-toggle-row ecv2u-opt"><span class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" id="ecv2u_match"' + ( state.match_email ? ' checked' : '' ) + '><span class="ecv2-toggle-slider"></span></span><span class="ecv2u-opt-text"><span class="ecos-toggle-t">Update existing customers by email</span><small>Rows without a <code>user_id</code> whose email already exists update that customer instead of being skipped.</small></span></label>';
+			body += '<div class="ecv2u-sample-wrap"><table class="ecv2u-sample"><thead><tr><th class="ecv2u-col-row">Row</th><th>Customer</th><th class="ecv2u-col-action">Action</th></tr></thead><tbody>';
+			$.each( d.sample, function( i, r ) {
+				var tone = r.action === 'create' ? 'green' : ( r.action === 'update' ? 'blue' : 'gray' );
+				var name = String( r.name || '' ).trim(), email = String( r.email || '' ).trim(), who;
+				if ( name && email ) { who = '<span class="ecv2u-cust-name">' + esc( name ) + '</span><span class="ecv2u-cust-email">' + esc( email ) + '</span>'; }
+				else if ( name || email ) { who = '<span class="ecv2u-cust-name">' + esc( name || email ) + '</span>'; }
+				else { who = '<span class="ecv2u-cust-none">No name or email</span>'; }
+				body += '<tr><td class="ecv2u-col-row">' + esc( r.row ) + '</td><td class="ecv2u-col-cust">' + who + '</td><td class="ecv2u-col-action"><span class="ecv2-chip ecv2-chip-' + tone + '">' + ( r.action === 'update' ? 'Update #' + esc( r.target ) : r.action === 'create' ? 'Create' : 'Skip' ) + '</span>' + ( r.reason ? '<span class="ecv2-sub">' + esc( r.reason ) + '</span>' : '' ) + '</td></tr>';
+			} );
+			body += '</tbody></table></div>' + ( d.total > d.sample.length ? '<div class="ecv2-sub ecv2u-sample-more">Showing the first ' + d.sample.length + ' of ' + d.total + ' rows.</div>' : '' );
+			$( '#ecv2u_import .ecv2-modal-body' ).html( body );
+			$( '#ecv2u_import .ecv2-modal-footer-right' ).html( '<button type="button" class="ecv2-btn" data-close>Cancel</button><button type="button" class="ecv2-btn ecv2-btn-primary" id="ecv2u_go"' + ( can ? '' : ' disabled' ) + '>' + ( can ? 'Import ' + ( t.create ? t.create + ' new' : '' ) + ( t.create && t.update ? ' + ' : '' ) + ( t.update ? t.update + ' update' + ( t.update === 1 ? '' : 's' ) : '' ) : 'Nothing to import' ) + '</button>' );
+			$( '#ecv2u_change' ).on( 'click', function( e ) { e.preventDefault(); step_pick(); } );
+			$( '#ecv2u_match' ).on( 'change', function() { state.match_email = this.checked; preview(); } );
+			$( '#ecv2u_go' ).on( 'click', run );
+		} );
+	}
+	function run() {
+		var done = { create: 0, update: 0, skip: 0 }, total = state.rows.length;
+		$( '#ecv2u_import .ecv2-modal-footer-right' ).html( '<span class="ecv2-sub">Importing… don’t close this window.</span>' );
+		$( '#ecv2u_import .ecv2-modal-body' ).html( '<div class="ecv2u-progress"><div class="ecv2u-bar"><span id="ecv2u_bar"></span></div><div class="ecv2-sub" id="ecv2u_prog">0 of ' + total + '</div></div>' );
+		( function chunk( offset ) {
+			post( 'ecv2_user_import_run', { payload: payload(), offset: offset }, function( d ) {
+				done.create += d.done.create; done.update += d.done.update; done.skip += d.done.skip;
+				$( '#ecv2u_bar' ).css( 'width', Math.round( d.next / d.total * 100 ) + '%' ); $( '#ecv2u_prog' ).text( d.next + ' of ' + d.total );
+				if ( ! d.finished ) { chunk( d.next ); return; }
+				$( '#ecv2u_import .ecv2-modal-body' ).html( '<div class="ecv2u-totals"><div class="is-create"><b>' + done.create + '</b><span>created</span></div><div class="is-update"><b>' + done.update + '</b><span>updated</span></div><div class="' + ( done.skip ? 'is-skip' : '' ) + '"><b>' + done.skip + '</b><span>skipped</span></div></div><div class="ecos-note info"><span class="dashicons dashicons-info-outline"></span><div>New customers have no password yet — they sign in with “Forgot password”. Lifecycle and spend stats fill in as orders arrive.</div></div>' );
+				$( '#ecv2u_import .ecv2-modal-footer-right' ).html( '<button type="button" class="ecv2-btn ecv2-btn-primary" id="ecv2u_done">Done — refresh list</button>' );
+				$( '#ecv2u_done' ).on( 'click', function() { window.location.reload(); } );
+			}, function( m ) { ecv2_toast( m, 'error' ); $( '#ecv2u_import .ecv2-modal-footer-right' ).html( '<button type="button" class="ecv2-btn" data-close>Close</button>' ); } );
+		} )( 0 );
+	}
+	window.ecv2u_import = { open: function( btn ) { state.nonce = $( btn ).data( 'nonce' ) || state.nonce; state.match_email = false; step_pick(); return false; } };
+} )( jQuery );

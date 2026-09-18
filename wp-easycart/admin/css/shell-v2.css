@@ -655,3 +655,53 @@ body.ecsh-renewal-open { overflow:hidden; }
 .ecsh-renewal-keep .dashicons { color:var(--ecsh-green); flex-shrink:0; font-size:16px; width:16px; height:16px; margin-top:2px; }
 .ecsh-renewal-later { margin-left:auto; color:var(--ecsh-g600); }
 .ecsh-renewal-free { white-space:nowrap; flex-shrink:0; }
+/* ------------------------------------------------------------------ */
+/* Admin notices ( success / warning / error / info ) — replaces the classic .ec_admin_message_* boxes.
+   Printed by wp_easycart_admin::notice_html() at the top of the shell content; dismissed by shell-v2.js. */
+.ecv2-flash { --ecv2-flash-c:#15803d; --ecv2-flash-bg:#f0fdf4; --ecv2-flash-bd:#bbf7d0; display:flex; align-items:flex-start; gap:12px; margin:0 0 14px; padding:12px 12px 12px 14px; border:1px solid var(--ecv2-flash-bd); border-left:4px solid var(--ecv2-flash-c); border-radius:10px; background:var(--ecv2-flash-bg); color:#111827; font-size:13px; line-height:1.45; box-shadow:0 1px 2px rgba(17,24,39,.04); }
+.ecv2-flash.is-warning { --ecv2-flash-c:#b45309; --ecv2-flash-bg:#fffbeb; --ecv2-flash-bd:#fde68a; }
+.ecv2-flash.is-error { --ecv2-flash-c:#b91c1c; --ecv2-flash-bg:#fef2f2; --ecv2-flash-bd:#fecaca; }
+.ecv2-flash.is-info { --ecv2-flash-c:var(--ec-brand, #0f766e); --ecv2-flash-bg:#fff; --ecv2-flash-bd:#e5e7eb; }
+.ecv2-flash-icon { flex-shrink:0; display:flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:#fff; color:var(--ecv2-flash-c); box-shadow:inset 0 0 0 1px var(--ecv2-flash-bd); }
+.ecv2-flash.is-info .ecv2-flash-icon { background:var(--ec-brand-soft, #f0fdfa); box-shadow:none; }
+.ecv2-flash-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; padding-top:4px; }
+.ecv2-flash-text { font-weight:600; }
+.ecv2-flash-detail { color:#4b5563; }
+.ecv2-flash-actions { flex-shrink:0; display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding-top:1px; }
+.ecv2-flash-actions .ecv2-btn { white-space:nowrap; text-decoration:none; }
+.ecv2-flash-link { font-size:12.5px; font-weight:600; color:var(--ec-brand, #0f766e); text-decoration:none; white-space:nowrap; }
+.ecv2-flash-link:hover { text-decoration:underline; }
+.ecv2-flash-x { flex-shrink:0; display:flex; align-items:center; justify-content:center; width:28px; height:28px; margin:0; padding:0; border:0; border-radius:6px; background:transparent; color:#6b7280; cursor:pointer; }
+.ecv2-flash-x:hover, .ecv2-flash-x:focus-visible { background:rgba(17,24,39,.06); color:#111827; outline:none; }
+.ecv2-flash.is-leaving { opacity:0; transform:translateY(-4px); transition:opacity .18s ease, transform .18s ease; }
+@media (max-width:782px) { .ecv2-flash { flex-wrap:wrap; } .ecv2-flash-actions { order:3; flex-basis:100%; padding-left:40px; } }
+@media (prefers-reduced-motion:reduce) { .ecv2-flash.is-leaving { transition:none; } }
+
+/* ---------- Video lightbox ( shell.php .ecsh-video, shell-v2.js ecsh_video_open ). @since 6.0.0 ----------
+   Replaces the v1 box ( admin.css .ec_admin_help_video_container ): a 16:9 player as large as the window allows,
+   under a title bar, centered on the dark overlay. */
+.ec_admin_help_video_container.ecsh-video { display:none; position:fixed; inset:0; z-index:999999; background:rgba(8,10,14,.86); padding:24px; box-sizing:border-box; align-items:center; justify-content:center; }
+.ec_admin_help_video_container.ecsh-video.is-open { display:flex; animation:ecsh-video-in .18s ease-out; }
+.ecsh-video-dialog { width:min(1200px, 100%, calc((100vh - 48px - 52px) * 16 / 9)); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; background:#000; box-shadow:0 24px 80px rgba(0,0,0,.55); }
+.ecsh-video-bar { display:flex; align-items:center; gap:10px; min-height:52px; padding:0 8px 0 16px; background:#111418; color:#e5e7eb; box-sizing:border-box; }
+.ecsh-video-bar .dashicons { color:#9ca3af; font-size:18px; width:18px; height:18px; }
+.ecsh-video-title { flex:1; min-width:0; font-size:14px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecsh-video-yt { flex-shrink:0; font-size:12.5px; color:#cbd5e1; text-decoration:none; padding:6px 10px; border-radius:6px; }
+.ecsh-video-yt:hover, .ecsh-video-yt:focus { color:#fff; background:rgba(255,255,255,.08); }
+.ecsh-video-close { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border:0; border-radius:8px; background:transparent; color:#cbd5e1; cursor:pointer; }
+.ecsh-video-close:hover, .ecsh-video-close:focus-visible { background:rgba(255,255,255,.1); color:#fff; outline:none; }
+.ecsh-video-frame { position:relative; width:100%; aspect-ratio:16 / 9; background:#000; }
+.ecsh-video-frame iframe, .ecsh-video-frame #wp_easycart_admin_help_video_player { position:absolute; inset:0; width:100% !important; height:100% !important; border:0; display:block; }
+body.ecsh-video-open { overflow:hidden; }
+@keyframes ecsh-video-in { from { opacity:0; } to { opacity:1; } }
+@media (max-width:600px) {
+	.ec_admin_help_video_container.ecsh-video { padding:12px; }
+	.ecsh-video-dialog { width:100%; border-radius:10px; }
+	.ecsh-video-yt { display:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+	.ec_admin_help_video_container.ecsh-video.is-open { animation:none; }
+}
+@supports not (aspect-ratio: 16 / 9) {
+	.ecsh-video-frame { height:0; padding-top:56.25%; }
+}

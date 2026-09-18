@@ -54,6 +54,10 @@ function wp_easycart_maybe_change_currency() {
 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_api_routes.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-cart-link.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-text-input-rules.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-customer-uploads.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-inquiry-guard.php' ); /* 6.0.0: product inquiry form abuse protection */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php' ); /* 6.0.0: shared email design used by every email template */
 
 add_action( 'plugins_loaded', 'wp_easycart_maybe_load_elementor' );
 function wp_easycart_maybe_load_elementor( ){
@@ -365,6 +369,7 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_manufacturer.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_manufacturers.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_menu.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_menuitem.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_stock.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_notifications.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_optionimage.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_optionitem.php' );
@@ -399,6 +404,12 @@ if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/tax/ec_taxjar.php' ) ){
 }
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user_activity.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_url_redirects.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_smart_categories_support.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_reviews.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_email.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_abandoned_carts.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_logs.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_validation.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoption.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_wpoptionset.php' );
@@ -513,6 +524,13 @@ if( get_option( 'ec_option_is_installed' ) ){
 
 	$GLOBALS['currency'] = new ec_currency( );
 
+}
+
+/* Gated download endpoint + URL helper for customer file uploads ( admin order email and order details ). Loaded on every request: the
+   email helper runs on the frontend and the admin-post.php endpoint must exist for staff who are not yet logged in. */
+require_once EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_order_uploads.php';
+if ( class_exists( 'wp_easycart_admin_order_uploads' ) ) {
+	wp_easycart_admin_order_uploads::init();
 }
 
 add_action( 'init', 'wpeasycart_load_admin', 10 );

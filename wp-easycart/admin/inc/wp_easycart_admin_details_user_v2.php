@@ -36,6 +36,12 @@ if ( ! class_exists( 'wp_easycart_admin_details_user_v2' ) ) :
 			$this->is_new = ( 'edit' !== $type );
 			if ( 'edit' == $type ) {
 				$this->init_data();
+			} else {
+				/* Pre-fill from the query ( Subscribers → "Create account…", or any link that knows the person ). */
+				foreach ( array( 'email' => 'sanitize_email', 'first_name' => 'sanitize_text_field', 'last_name' => 'sanitize_text_field' ) as $k => $fn ) {
+					if ( isset( $_GET[ $k ] ) && '' !== $_GET[ $k ] ) { $this->user->{ $k } = call_user_func( $fn, wp_unslash( $_GET[ $k ] ) ); }
+				}
+				if ( ! empty( $this->user->email ) && property_exists( $this->user, 'is_subscriber' ) ) { $this->user->is_subscriber = 1; }
 			}
 			if ( 'edit' == $type && ( $this->record_not_found || ! $this->user->user_id ) ) {
 				$this->print_record_not_found_notice();
@@ -50,13 +56,26 @@ if ( ! class_exists( 'wp_easycart_admin_details_user_v2' ) ) :
 		/* Card helpers ( ecdv2 markup, same classes as product details )       */
 		/* ------------------------------------------------------------------ */
 
-		public function section_open( $section, $title, $hint = '' ) {
+		/**
+		 * Opens a details card.
+		 *
+		 * @since 6.0.0 Added $header_actions.
+		 *
+		 * @param string        $section        Section key ( data-ecdv2-section ).
+		 * @param string        $title          Card title.
+		 * @param string        $hint           Optional hint beside the title.
+		 * @param callable|null $header_actions Optional callback that prints ( escaped ) header buttons before the Help link.
+		 */
+		public function section_open( $section, $title, $hint = '', $header_actions = null ) {
 			echo '<div class="ecdv2-card" data-ecdv2-section="' . esc_attr( $section ) . '">';
 			echo '<div class="ecdv2-card-saving"></div>';
 			echo '<div class="ecdv2-card-header">';
 			echo '<h3 class="ecdv2-card-title">' . esc_html( $title ) . '</h3>';
 			if ( '' !== $hint ) {
 				echo '<span class="ecdv2-card-hint">' . esc_html( $hint ) . '</span>';
+			}
+			if ( is_callable( $header_actions ) ) {
+				call_user_func( $header_actions );
 			}
 			echo '<a href="' . esc_url_raw( $this->docs_link ) . '" target="_blank" class="ecdv2-help-link"><span class="dashicons dashicons-editor-help" style="font-size:14px;width:14px;height:14px;"></span>' . esc_html__( 'Help', 'wp-easycart' ) . '</a>';
 			echo '</div><div class="ecdv2-card-body">';
@@ -227,16 +246,65 @@ function ecudv2_user_save() {
 	if ( ! ecudv2_can_manage() ) {
 		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
 	}
+	/* Same nonce insert_user() / update_user() verify later; check it before reading any form data. */
+	if ( ! isset( $_POST['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-user-details' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Security check failed. Please reload and try again.', 'wp-easycart' ) ) );
+	}
+
+	/* The V2 form posts the mode as ecudv2_form_action ( see users-details-v2.js ); accept the legacy key too. */
+	$mode = isset( $_POST['ecudv2_form_action'] ) ? sanitize_key( wp_unslash( $_POST['ecudv2_form_action'] ) ) : ( isset( $_POST['ec_admin_form_action'] ) ? sanitize_key( wp_unslash( $_POST['ec_admin_form_action'] ) ) : '' );
+	$is_new = ( 'add-new-user' === $mode );
 
 	$user_id = isset( $_POST['user_id'] ) ? (int) $_POST['user_id'] : 0;
 	$posted_role = isset( $_POST['user_level'] ) ? sanitize_text_field( wp_unslash( $_POST['user_level'] ) ) : '';
+	$password_generated = false;
+
+	if ( $is_new ) {
+		global $wpdb;
+		$first_name = isset( $_POST['first_name'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['first_name'] ) ) ) : '';
+		$last_name = isset( $_POST['last_name'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['last_name'] ) ) ) : '';
+		$raw_email = isset( $_POST['email'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['email'] ) ) ) : '';
+		if ( '' === $first_name ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter a first name.', 'wp-easycart' ), 'field' => 'first_name' ) );
+		}
+		if ( '' === $last_name ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter a last name.', 'wp-easycart' ), 'field' => 'last_name' ) );
+		}
+		if ( '' === $raw_email || ! is_email( $raw_email ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter a valid email address.', 'wp-easycart' ), 'field' => 'email' ) );
+		}
+		if ( (int) $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s LIMIT 1', $raw_email ) ) ) {
+			wp_send_json_error( array( 'message' => __( 'Another account already uses this email address.', 'wp-easycart' ), 'field' => 'email' ) );
+		}
+
+		/* New customers default to the shopper role. */
+		if ( '' === $posted_role ) {
+			$posted_role = 'shopper';
+			$_POST['user_level'] = 'shopper';
+		}
+		if ( 'shopper' !== $posted_role && ! $wpdb->get_var( $wpdb->prepare( 'SELECT role_label FROM ec_role WHERE role_label = %s', $posted_role ) ) ) {
+			wp_send_json_error( array( 'message' => __( 'Please select a user access level.', 'wp-easycart' ), 'field' => 'user_level' ) );
+		}
+
+		/* The password is optional on create ( its panel unlocks after saving ): never store a hash of an empty string. */
+		$raw_password = isset( $_POST['password'] ) ? wp_unslash( $_POST['password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Passwords are hashed, never sanitized.
+		if ( '' === $raw_password ) {
+			/* No slashes or quotes in the generated set, so the legacy handler's wp_unslash() leaves it intact. */
+			$generated = wp_generate_password( 24, true, false );
+			$_POST['password'] = $generated;
+			$_POST['retype_password'] = $generated;
+			$password_generated = true;
+		} elseif ( strlen( $raw_password ) < 8 ) {
+			wp_send_json_error( array( 'message' => __( 'Please enter a password 8 characters or greater.', 'wp-easycart' ), 'field' => 'password' ) );
+		}
+	}
+
 	$guard = ecudv2_role_guard( $user_id, $posted_role );
 	if ( '' !== $guard ) {
 		wp_send_json_error( array( 'message' => $guard, 'field' => 'user_level' ) );
 	}
 
 	$users = wp_easycart_admin_users();
-	$is_new = ( isset( $_POST['ec_admin_form_action'] ) && 'add-new-user' === $_POST['ec_admin_form_action'] );
 
 	if ( $is_new ) {
 		$result = $users->insert_user();
@@ -245,6 +313,10 @@ function ecudv2_user_save() {
 	}
 
 	if ( false === $result ) {
+		/* insert_user() / update_user() return false for a missing capability as well as a bad nonce. */
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Your account does not have permission to create or edit customers.', 'wp-easycart' ) ) );
+		}
 		wp_send_json_error( array( 'message' => __( 'Security check failed. Please reload and try again.', 'wp-easycart' ) ) );
 	}
 	if ( isset( $result['error'] ) ) {
@@ -258,10 +330,8 @@ function ecudv2_user_save() {
 		global $wpdb;
 		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 		$new_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s ORDER BY user_id DESC LIMIT 1', $email ) );
-		if ( $new_id && function_exists( 'wp_easycart_log_user_activity' ) ) {
-			wp_easycart_log_user_activity( $new_id, 'account_created', array( 'actor_type' => 'admin' ) );
-		}
-		wp_send_json_success( array( 'user_id' => $new_id, 'created' => true ) );
+		/* 'account_created' is logged by ec_user_activity on the wpeasycart_account_added action insert_user() fires. */
+		wp_send_json_success( array( 'user_id' => $new_id, 'created' => true, 'password_generated' => $password_generated ) );
 	}
 
 	wp_send_json_success( array(

@@ -67,7 +67,25 @@ if( $advanced_options ){
 <div class="ec_admin_order_details_line_item ecodv2-line" id="ec_admin_order_details_line_item_<?php echo esc_attr( $line_item->orderdetail_id ); ?>">
 
 	<div class="ec_admin_order_details_item_details">
-		<span id="ec_admin_order_details_item_title_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" class="ecodv2-line-title"><?php echo wp_easycart_escape_html( $line_item->title );?></span>
+		<?php
+		/* 6.0.0: link the title to the product editor while the product still exists. The order details
+		   screen passes $ecodv2_live_product_ids ( one batched query ); the PRO add-line AJAX response
+		   includes this file on its own, so fall back to a single lookup there. Custom lines ( product_id 0 )
+		   and deleted products stay plain text. The title span keeps its ID for the PRO line edit repaint. */
+		$ecodv2_item_product_id = ( isset( $line_item->product_id ) ) ? (int) $line_item->product_id : 0;
+		$ecodv2_item_product_exists = false;
+		if ( $ecodv2_item_product_id > 0 ) {
+			if ( isset( $ecodv2_live_product_ids ) && is_array( $ecodv2_live_product_ids ) ) {
+				$ecodv2_item_product_exists = in_array( $ecodv2_item_product_id, $ecodv2_live_product_ids, true );
+			} else {
+				$ecodv2_item_product_exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE product_id = %d', $ecodv2_item_product_id ) );
+			}
+		}
+		if ( $ecodv2_item_product_exists ) { ?>
+		<a class="ecodv2-line-title-link" href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=edit&product_id=' . $ecodv2_item_product_id ) ); ?>" target="_blank" rel="noopener"><span id="ec_admin_order_details_item_title_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" class="ecodv2-line-title"><?php echo wp_easycart_escape_html( $line_item->title ); ?></span><span class="dashicons dashicons-external ecodv2-line-title-ext" aria-hidden="true"></span><span class="screen-reader-text"><?php esc_html_e( 'Open product in a new tab', 'wp-easycart' ); ?></span></a>
+		<?php } else { ?>
+		<span id="ec_admin_order_details_item_title_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" class="ecodv2-line-title"><?php echo wp_easycart_escape_html( $line_item->title ); ?></span>
+		<?php } ?>
 		<?php
 		if ( isset( $line_item->refunded_quantity ) && (int) $line_item->refunded_quantity > 0 ) {
 			if ( (int) $line_item->refunded_quantity >= (int) $line_item->quantity ) {
@@ -156,7 +174,19 @@ if( $advanced_options ){
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ':</div> ';
 			}
 			if ( $advanced_option->option_type == 'file' ) {
-				echo '<div class="ec_details_option_value"> <a href="' . esc_url( plugins_url( '/wp-easycart-data/products/uploads/' . esc_attr( $advanced_option->option_value ), EC_PLUGIN_DATA_DIRECTORY ) ) . '" target="_blank">' . esc_attr__( 'Download File', 'wp-easycart' ) . '</a>';
+				/* Gated download ( login + manage_options / wpec_orders ); the direct data-directory URL is only a fallback if the class is unavailable. */
+				if ( class_exists( 'wp_easycart_admin_order_uploads' ) ) {
+					$ec_upload_url = wp_easycart_admin_order_uploads::url( $line_item->orderdetail_id, $advanced_option->option_value );
+				} else {
+					$ec_upload_url = plugins_url( '/wp-easycart-data/products/uploads/' . $advanced_option->option_value, EC_PLUGIN_DATA_DIRECTORY );
+				}
+				$ec_upload_parts = explode( '/', (string) $advanced_option->option_value );
+				$ec_upload_name = ( count( $ec_upload_parts ) > 1 ) ? $ec_upload_parts[ count( $ec_upload_parts ) - 1 ] : (string) $advanced_option->option_value;
+				if ( class_exists( 'wp_easycart_admin_order_uploads' ) && ! wp_easycart_admin_order_uploads::file_available( $advanced_option->option_value ) ) {
+					echo '<div class="ec_details_option_value"> <span class="ecodv2-file-missing" title="' . esc_attr__( 'The store did not keep this file when the item was added to the cart ( usually a file type or size uploads do not accept ), or it was deleted later. Ask the customer to send it again.', 'wp-easycart' ) . '"><span class="dashicons dashicons-warning"></span>' . esc_html__( 'File not received', 'wp-easycart' ) . '</span> <span class="ec_details_option_filename">(' . esc_html( $ec_upload_name ) . ')</span>';
+				} else {
+					echo '<div class="ec_details_option_value"> <a href="' . esc_url( $ec_upload_url ) . '" target="_blank" title="' . esc_attr( $ec_upload_name ) . '">' . esc_html__( 'Download File', 'wp-easycart' ) . '</a> <span class="ec_details_option_filename">(' . esc_html( $ec_upload_name ) . ')</span>';
+				}
 			} else if( $advanced_option->option_type == "grid" ) {
 				echo '<div class="ec_details_option_value"> ' . esc_attr( $advanced_option->optionitem_name ) . ' (' . esc_attr( $advanced_option->option_value ) . ')';
 			} else {
@@ -207,7 +237,8 @@ if( $advanced_options ){
 			}
 			if($line_item->gift_card_email) {
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Manage', 'wp-easycart' ) . ':</div> ';
-				echo '<div class="ec_details_option_value"><a href="#" onclick="return ec_admin_resend_giftcard(' . esc_attr( $line_item->order_id ) . ', ' . esc_attr( $line_item->orderdetail_id ) . ');">Resend Gift Card Email</a></div>';
+				/* 6.0.0: the address travels with the link so the confirmation can name it, and the label is translatable. */
+				echo '<div class="ec_details_option_value"><a href="#" class="ecodv2-giftcard-resend" data-email="' . esc_attr( $line_item->gift_card_email ) . '" onclick="return ec_admin_resend_giftcard(' . esc_attr( $line_item->order_id ) . ', ' . esc_attr( $line_item->orderdetail_id ) . ', this );">' . esc_html__( 'Resend Gift Card Email', 'wp-easycart' ) . '</a></div>';
 			}
 		}
 

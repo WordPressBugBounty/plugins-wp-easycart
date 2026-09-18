@@ -36,6 +36,7 @@ $args = shortcode_atts(
 		'sidebar_category_filter_open' => 1,
 		'sidebar_include_manufacturers' => false,
 		'sidebar_manufacturers'  => '',
+		'sidebar_include_pricepoints' => false,
 		'sidebar_include_option_filters' => true,
 		'sidebar_option_filters' => '',
 
@@ -117,6 +118,7 @@ $sidebar_category_filter_method = $args['sidebar_category_filter_method'];
 $sidebar_category_filter_open = $args['sidebar_category_filter_open'];
 $sidebar_include_manufacturers = $args['sidebar_include_manufacturers'];
 $sidebar_manufacturers = $args['sidebar_manufacturers'];
+$sidebar_include_pricepoints = $args['sidebar_include_pricepoints'];
 $sidebar_include_option_filters = $args['sidebar_include_option_filters'];
 $sidebar_option_filters = $args['sidebar_option_filters'];
 $layout_mode = $args['layout_mode'];
@@ -385,6 +387,7 @@ $more_atts['sidebar_category_filter_id'] = $sidebar_category_filter_id;
 $more_atts['sidebar_category_filter_method'] = ( 'AND' == $sidebar_category_filter_method ) ? 'AND' : 'OR';
 $more_atts['sidebar_category_filter_open'] = (int) $sidebar_category_filter_open;
 $more_atts['sidebar_include_manufacturers']  = ( 'yes' == $sidebar_include_manufacturers ) ? 1 : 0;
+$more_atts['sidebar_include_pricepoints'] = ( 'yes' == $sidebar_include_pricepoints ) ? 1 : 0;
 $more_atts['sidebar_include_option_filters'] = ( 'yes' == $sidebar_include_option_filters ) ? 1 : 0;
 
 if ( $spacing ) {

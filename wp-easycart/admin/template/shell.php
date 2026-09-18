@@ -68,7 +68,7 @@ if ( $ecsh_renewal_m && 'ok' !== $ecsh_renewal_m['tone'] ) :
 			<span class="ecsh-renewal-fine"><?php esc_html_e( 'Sign in with the account that bought this license so the renewal applies to it.', 'wp-easycart' ); ?></span>
 			<?php $ecsh_deact = $ecsh_lapsed ? wp_easycart_admin_upsell::pro_deactivate_url() : ''; ?>
 			<?php if ( '' !== $ecsh_deact ) : ?>
-			<a class="ecsh-renewal-free" href="<?php echo esc_url( $ecsh_deact ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the PRO plugin. Your products, orders and settings are kept; PRO-only features stop until PRO is activated again.', 'wp-easycart' ) ) ); ?> );"><?php esc_html_e( 'Switch to the free edition instead', 'wp-easycart' ); ?></a>
+			<a class="ecsh-renewal-free" href="<?php echo esc_url( $ecsh_deact ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( ( ! empty( $ecsh_renewal_m['premium'] ) ? __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin, which runs your Premium license. Your products, orders and settings are kept; Premium features stop until you renew and activate it again.', 'wp-easycart' ) : __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin, which runs your Pro license. Your products, orders and settings are kept; Pro features stop until you renew and activate it again.', 'wp-easycart' ) ) ) ); ?> );"><?php esc_html_e( 'Switch to the free edition instead', 'wp-easycart' ); ?></a>
 			<?php endif; ?>
 		</div>
 	</div>
@@ -90,11 +90,18 @@ document.addEventListener( 'DOMContentLoaded', function() {
 } );
 </script>
 <?php endif; ?>
-<div class="ec_admin_help_video_container">
-	<div class="ec_admin_upsell_popup_close">
-		<a href="#" onclick="wp_easycart_admin_close_video_help( ); return false;"><div class="dashicons-before dashicons-dismiss"></div></a>
+<?php /* 6.0.0: video lightbox ( shell-v2.js ). A centered 16:9 player sized to the window, with the video title, a YouTube link and a
+   close button. The player keeps its id and the container its class, so wp_easycart_admin_open_video_help() callers still work. */ ?>
+<div class="ec_admin_help_video_container ecsh-video" role="dialog" aria-modal="true" aria-labelledby="ecsh_video_title" aria-hidden="true">
+	<div class="ecsh-video-dialog">
+		<div class="ecsh-video-bar">
+			<span class="dashicons dashicons-format-video" aria-hidden="true"></span>
+			<span class="ecsh-video-title" id="ecsh_video_title"><?php esc_html_e( 'Video tutorial', 'wp-easycart' ); ?></span>
+			<a class="ecsh-video-yt" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Watch on YouTube', 'wp-easycart' ); ?> &#8599;</a>
+			<button type="button" class="ecsh-video-close" onclick="wp_easycart_admin_close_video_help(); return false;" aria-label="<?php esc_attr_e( 'Close video', 'wp-easycart' ); ?>"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+		</div>
+		<div class="ecsh-video-frame"><div id="wp_easycart_admin_help_video_player"></div></div>
 	</div>
-	<div class="ec_admin_help_video_container_inner"><div id="wp_easycart_admin_help_video_player"></div></div>
 </div>
 <script>jQuery( '.ec_admin_help_video_container' ).prependTo( document.body );</script>
 
@@ -148,7 +155,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 		<div class="ecsh-sb-foot">
 			<?php if ( $ecsh_status['has_license'] && $ecsh_status['is_trial'] ) { ?>
 			<div class="ecsh-sb-trial">
-				<strong><?php esc_attr_e( 'PRO trial', 'wp-easycart' ); ?> &middot; <?php echo esc_attr( $ecsh_status['days_left'] ); ?> <?php esc_attr_e( 'days left', 'wp-easycart' ); ?></strong>
+				<strong><?php esc_attr_e( 'Pro trial', 'wp-easycart' ); ?> &middot; <?php echo esc_attr( $ecsh_status['days_left'] ); ?> <?php esc_attr_e( 'days left', 'wp-easycart' ); ?></strong>
 				<a href="admin.php?page=wp-easycart-license-status"><?php esc_attr_e( 'Upgrade now', 'wp-easycart' ); ?></a>
 			</div>
 			<?php } else if ( isset( $ecsh_renewal ) && $ecsh_renewal && 'ok' !== $ecsh_renewal['tone'] ) { ?>
@@ -158,7 +165,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				if ( 'lapsed' === $ecsh_renewal['tone'] ) { esc_html_e( 'lapsed', 'wp-easycart' ); }
 				else { echo esc_html( sprintf( _n( '%d day left', '%d days left', $ecsh_renewal['days'], 'wp-easycart' ), $ecsh_renewal['days'] ) ); }
 				?></strong>
-				<span><?php echo 'lapsed' === $ecsh_renewal['tone'] ? esc_html__( 'PRO panels are locked — renew to reopen', 'wp-easycart' ) : esc_html__( 'Renew before fees and locks return', 'wp-easycart' ); ?></span>
+				<span><?php echo 'lapsed' === $ecsh_renewal['tone'] ? ( ! empty( $ecsh_renewal['premium'] ) ? esc_html__( 'Premium features and extensions are paused — renew to reopen', 'wp-easycart' ) : esc_html__( 'Pro features are locked — renew to reopen', 'wp-easycart' ) ) : esc_html__( 'Renew before fees and locks return', 'wp-easycart' ); ?></span>
 			</button>
 			<?php } ?>
 			<a class="ecsh-sb-powered" href="http://www.wpeasycart.com" target="_blank" rel="noopener"><?php esc_attr_e( 'Powered by WP EasyCart', 'wp-easycart' ); ?></a>

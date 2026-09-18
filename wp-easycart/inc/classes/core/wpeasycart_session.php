@@ -202,6 +202,16 @@ class wpeasycart_session {
 			}
 		}
 
+		/**
+		 * Fires after a cart session id is rotated ( restore link, login, logout ). Tables keyed by the session id
+		 * outside the core cart tables ( e.g. ec_abandoned_cart ) follow the cart through this hook.
+		 *
+		 * @since 6.0.0
+		 * @param string $old_id Previous session id.
+		 * @param string $new_id New session id.
+		 */
+		do_action( 'wpeasycart_session_rotated', $old_id, $new_id );
+
 		return $new_id;
 	}
 }

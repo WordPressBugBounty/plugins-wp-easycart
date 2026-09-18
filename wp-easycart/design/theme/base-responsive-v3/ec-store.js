@@ -2004,6 +2004,10 @@ function wpeasycart_subscription_cart_update_totals( data_arr ) {
 		jQuery( document.getElementById( 'ec_cart_pst_mobile' ) ).html( data_arr['pst_total'] );
 		jQuery( document.getElementById( 'ec_cart_pst_rate' ) ).html( data_arr['pst_rate'] );
 		jQuery( document.getElementById( 'ec_cart_pst_rate_mobile' ) ).html( data_arr['pst_rate'] );
+		if ( data_arr['pst_label'] ) { // QST for Quebec addresses
+			jQuery( document.getElementById( 'ec_cart_pst_label' ) ).text( data_arr['pst_label'] );
+			jQuery( document.getElementById( 'ec_cart_pst_label_mobile' ) ).text( data_arr['pst_label'] );
+		}
 		if( data_arr['pst_rate'] > 0 ){
 			jQuery( document.getElementById( 'ec_cart_pst_row' ) ).show( );
 			jQuery( document.getElementById( 'ec_cart_pst_row_mobile' ) ).show( );
@@ -6592,16 +6596,47 @@ function ec_details_add_to_cart( product_id, rand_id ) {
 			}
 		}
 	} );
-	// File Upload Check
-	var advanced_file_rows = jQuery( '.ec_details_option_row.ec_option_type_file:visible' );
-	advanced_file_rows.each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-option-required' ) == '1' ){ // Option is Required	
-			if( jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).val( ) ){
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).show( );
-				errors++;
+	// File Upload Check ( required, and whether the chosen file's type and size can be accepted )
+	jQuery( '.ec_details_option_row.ec_option_type_file:visible' ).each( function( ){
+		if ( jQuery( this ).attr( 'data-product-id' ) != product_id ) {
+			return;
+		}
+		var option_key = jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id;
+		var input = document.getElementById( 'ec_option_adv_' + option_key );
+		var error_row = document.getElementById( 'ec_details_adv_option_row_error_' + option_key );
+		if ( ! input ) {
+			return;
+		}
+		if ( error_row && undefined === jQuery( error_row ).data( 'ec-default-error' ) ) {
+			jQuery( error_row ).data( 'ec-default-error', jQuery( error_row ).html( ) );
+		}
+		var problem = '';
+		var file = ( input.files && input.files.length ) ? input.files[0] : null;
+		if ( ! jQuery( input ).val( ) ) {
+			problem = ( jQuery( this ).attr( 'data-option-required' ) == '1' ) ? 'missing' : '';
+		} else if ( file ) {
+			var extensions = ( input.getAttribute( 'data-ec-file-ext' ) || '' ).toLowerCase( ).split( ',' );
+			var dot = file.name.lastIndexOf( '.' );
+			var extension = ( dot > -1 ) ? file.name.slice( dot + 1 ).toLowerCase( ) : '';
+			var max_size = parseInt( input.getAttribute( 'data-ec-max-size' ), 10 );
+			if ( input.getAttribute( 'data-ec-file-ext' ) && ( '' === extension || -1 === jQuery.inArray( extension, extensions ) ) ) {
+				problem = 'file-type';
+			} else if ( max_size > 0 && file.size > max_size ) {
+				problem = 'file-size';
 			}
+		}
+		if ( problem ) {
+			if ( error_row ) {
+				if ( 'missing' !== problem && input.getAttribute( 'data-ec-error-' + problem ) ) {
+					jQuery( error_row ).text( input.getAttribute( 'data-ec-error-' + problem ) );
+				} else {
+					jQuery( error_row ).html( jQuery( error_row ).data( 'ec-default-error' ) );
+				}
+				jQuery( error_row ).show( );
+			}
+			errors++;
+		} else if ( error_row ) {
+			jQuery( error_row ).hide( );
 		}
 	} );
 	// Swatch Check
@@ -6630,28 +6665,36 @@ function ec_details_add_to_cart( product_id, rand_id ) {
 			}
 		}
 	} );
-	// Text Box Check
-	var advanced_text_rows = jQuery( '.ec_details_option_row.ec_option_type_text:visible' );
-	advanced_text_rows.each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-option-required' ) == '1' ){ // Option is Required	
-			if( jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).val( ) != "" ){
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).show( );
-				errors++;
-			}
+	// Text Box + Text Area Check ( required, and the minimum length whenever something was typed )
+	jQuery( '.ec_details_option_row.ec_option_type_text:visible, .ec_details_option_row.ec_option_type_textarea:visible' ).each( function( ){
+		if ( jQuery( this ).attr( 'data-product-id' ) != product_id ) {
+			return;
 		}
-	} );
-	// Text Area Check
-	var advanced_textarea_rows = jQuery( '.ec_details_option_row.ec_option_type_textarea:visible' );
-	advanced_textarea_rows.each( function( ){
-		if( jQuery( this ).attr( 'data-product-id' ) == product_id && jQuery( this ).attr( 'data-option-required' ) == '1' ){ // Option is Required	
-			if( jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).val( ) != "" && jQuery( document.getElementById( 'ec_option_adv_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).val( ) != 0 ){
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_details_adv_option_row_error_' + jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id ) ).show( );
-				errors++;
+		var option_key = jQuery( this ).attr( 'data-product-option-id' ) + '_' + product_id + '_' + rand_id;
+		var input = document.getElementById( 'ec_option_adv_' + option_key );
+		var error_row = document.getElementById( 'ec_details_adv_option_row_error_' + option_key );
+		if ( ! input ) {
+			return;
+		}
+		if ( error_row && undefined === jQuery( error_row ).data( 'ec-default-error' ) ) {
+			jQuery( error_row ).data( 'ec-default-error', jQuery( error_row ).html( ) );
+		}
+		var value = jQuery( input ).val( );
+		var is_textarea = jQuery( this ).hasClass( 'ec_option_type_textarea' );
+		var missing = jQuery( this ).attr( 'data-option-required' ) == '1' && ( value == '' || ( is_textarea && value == 0 ) );
+		var short_by = ( ! missing && window.wpeasycart_text_input_rules && window.wpeasycart_text_input_rules.too_short ) ? window.wpeasycart_text_input_rules.too_short( input ) : 0;
+		if ( missing || short_by ) {
+			if ( error_row ) {
+				if ( short_by && input.getAttribute( 'data-ec-min-length-error' ) ) {
+					jQuery( error_row ).text( input.getAttribute( 'data-ec-min-length-error' ) );
+				} else {
+					jQuery( error_row ).html( jQuery( error_row ).data( 'ec-default-error' ) );
+				}
+				jQuery( error_row ).show( );
 			}
+			errors++;
+		} else if ( error_row ) {
+			jQuery( error_row ).hide( );
 		}
 	} );
 	// Number Box Check

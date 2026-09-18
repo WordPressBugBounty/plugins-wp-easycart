@@ -59,14 +59,16 @@ $has_pro_media_legacy = has_action( 'wp_easycart_admin_product_details_after_ima
 $tabs = apply_filters( 'wp_easycart_admin_product_details_v2_tabs', array(
 	'general'   => array( 'label' => __( 'General', 'wp-easycart' ), 'icon' => 'dashicons-tag', 'group' => 'essentials', 'desc' => __( 'The core details every product needs: title, description, and price.', 'wp-easycart' ) ),
 	'media'     => array( 'label' => __( 'Media', 'wp-easycart' ), 'icon' => 'dashicons-format-gallery', 'group' => 'essentials', 'desc' => __( 'Photos and videos. The first image is your main listing image.', 'wp-easycart' ) ),
-	'pricing'   => array( 'label' => __( 'Pricing & Tax', 'wp-easycart' ), 'icon' => 'dashicons-money-alt', 'group' => 'essentials', 'desc' => __( 'Set the price, sale pricing, and how tax applies to this product.', 'wp-easycart' ) ),
-	'inventory' => array( 'label' => __( 'Inventory & Shipping', 'wp-easycart' ), 'icon' => 'dashicons-archive', 'group' => 'essentials', 'desc' => __( 'Stock tracking, shipping options, and package dimensions.', 'wp-easycart' ) ),
+	'pricing'   => array( 'label' => __( 'Pricing & Tax', 'wp-easycart' ), 'icon' => 'dashicons-money-alt', 'group' => 'essentials', 'desc' => __( 'How the price is displayed, volume and B2B pricing, and how tax applies. The price itself is set on General.', 'wp-easycart' ) ),
+	'inventory' => array( 'label' => __( 'Inventory & Shipping', 'wp-easycart' ), 'icon' => 'dashicons-archive', 'group' => 'essentials', 'desc' => __( 'Stock tracking, stock history, shipping options, and package dimensions.', 'wp-easycart' ) ),
 	'options'   => array( 'label' => __( 'Options & Variants', 'wp-easycart' ), 'icon' => 'dashicons-admin-settings', 'group' => 'catalog', 'desc' => __( 'Sizes, colors, and add-ons that create purchasable variations.', 'wp-easycart' ) ),
 	'organize'  => array( 'label' => __( 'Organization', 'wp-easycart' ), 'icon' => 'dashicons-category', 'group' => 'catalog', 'desc' => __( 'Place this product in menus and categories, and feature related items.', 'wp-easycart' ) ),
 	'behavior'  => array( 'label' => __( 'Type & Behavior', 'wp-easycart' ), 'icon' => 'dashicons-admin-generic', 'group' => 'advanced', 'desc' => __( 'Special product types: subscriptions, downloads, donations, and more.', 'wp-easycart' ) ),
 	'seo'       => array( 'label' => __( 'SEO & Marketing', 'wp-easycart' ), 'icon' => 'dashicons-search', 'group' => 'advanced', 'desc' => __( 'Search engine titles, descriptions, and marketing integrations.', 'wp-easycart' ) ),
 	'notes'     => array( 'label' => __( 'Order Messaging', 'wp-easycart' ), 'icon' => 'dashicons-email-alt', 'group' => 'advanced', 'desc' => __( 'Custom messages shown on receipts and order emails for this product.', 'wp-easycart' ) ),
-	'activity'  => array( 'label' => __( 'Activity', 'wp-easycart' ), 'icon' => 'dashicons-chart-bar', 'group' => 'insights', 'new' => true, 'desc' => __( 'Sales, customers, and reviews tied to this product.', 'wp-easycart' ) ),
+	'activity'  => array( 'label' => __( 'Activity', 'wp-easycart' ), 'icon' => 'dashicons-chart-bar', 'group' => 'insights', 'new' => true, 'desc' => __( 'Sales and customers tied to this product.', 'wp-easycart' ) ),
+	'offers'    => array( 'label' => __( 'Offers', 'wp-easycart' ), 'icon' => 'dashicons-megaphone', 'group' => 'insights', 'new' => true, 'desc' => __( 'Offers, coupons, and promotions that discount this product, and how each one is performing.', 'wp-easycart' ) ),
+	'reviews'   => array( 'label' => __( 'Reviews', 'wp-easycart' ), 'icon' => 'dashicons-star-filled', 'group' => 'insights', 'new' => true, 'desc' => __( 'Whether shoppers can review this product, and the reviews they have left.', 'wp-easycart' ) ),
 ), $product );
 
 $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', array(
@@ -285,6 +287,24 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 			<!-- ===== PRICING & TAX ===== -->
 			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="pricing" role="tabpanel">
 				<?php $ecdv2_intro( 'pricing' ); ?>
+				<?php if ( ! $is_new ) {
+					/* The price itself lives on General ( next to the title, where every product needs it ).
+					 * Mirror it here, read-only and live, with a jump back to the field. */
+					$ecdv2_list_price = (float) $product->list_price;
+					$ecdv2_show_was   = $ecdv2_list_price > 0 && $ecdv2_list_price > (float) $product->price;
+					?>
+					<div class="ecdv2-base-price" id="ecdv2_base_price">
+						<div class="ecdv2-base-price-text">
+							<span class="ecdv2-base-price-label"><?php esc_html_e( 'Base price', 'wp-easycart' ); ?></span>
+							<span class="ecdv2-base-price-values" aria-live="polite">
+								<span class="ecdv2-base-price-was" id="ecdv2_base_price_was"<?php echo $ecdv2_show_was ? '' : ' hidden'; ?>><?php echo esc_html( $this->format_price( $ecdv2_list_price ) ); ?></span>
+								<span class="ecdv2-base-price-now" id="ecdv2_base_price_now"><?php echo esc_html( $this->format_price( $product->price ) ); ?></span>
+							</span>
+							<span class="ecdv2-base-price-note"><?php esc_html_e( 'Price and Previous Price are set on the General tab. This tab controls how that price is displayed, discounted, and taxed.', 'wp-easycart' ); ?></span>
+						</div>
+						<button type="button" class="ecv2-btn ecv2-btn-sm ecdv2-base-price-edit" onclick="ecdv2.edit_base_price();"><span class="dashicons dashicons-edit"></span><?php esc_html_e( 'Edit price', 'wp-easycart' ); ?></button>
+					</div>
+				<?php } ?>
 				<?php do_action( 'wp_easycart_admin_product_details_pricing_start', $product ); ?>
 				<?php $this->section_open( 'pricing', __( 'Pricing', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_pricing_fields', $product ); ?>
@@ -297,6 +317,14 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php $this->section_open( 'tax', __( 'Tax', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_tax_fields' ); ?>
 				<?php $this->section_close(); ?>
+			</div>
+
+			<!-- ===== OFFERS ===== -->
+			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="offers" role="tabpanel">
+				<?php $ecdv2_intro( 'offers' ); ?>
+				<?php /* Offers engine is PRO: PRO prints the live list, free prints a locked preview. */ ?>
+				<?php $this->print_offers_v2(); ?>
+				<?php do_action( 'wp_easycart_admin_product_details_v2_offers_end', $product ); ?>
 			</div>
 
 			<!-- ===== INVENTORY & SHIPPING ===== -->
@@ -325,6 +353,9 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 						<div class="ecdv2-card-body ecdv2-legacy-pro"><?php echo $ecdv2_optionitem_quantity; /* phpcs:ignore WordPress.Security.EscapeOutput */ ?></div>
 					</div>
 				<?php } ?>
+
+				<?php /* Stock change history: live from PRO ( ec_inventory_log ), a locked preview otherwise. */ ?>
+				<?php $this->print_stock_history_v2(); ?>
 
 				<?php $this->section_open( 'shipping', __( 'Shipping', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_shipping_fields' ); ?>
@@ -357,7 +388,7 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 					<?php do_action( 'wp_easycart_admin_product_details_categories_fields' ); ?>
 				<?php $this->section_close(); ?>
 
-				<?php $this->section_open( 'general_options_visibility', __( 'Visibility & Sorting', 'wp-easycart' ), '', array( 'only' => array( 'show_on_startup', 'is_special', 'use_customer_reviews', 'role_id', 'sort_position' ) ) ); ?>
+				<?php $this->section_open( 'general_options_visibility', __( 'Visibility & Sorting', 'wp-easycart' ), '', array( 'only' => array( 'show_on_startup', 'is_special', 'role_id', 'sort_position' ) ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 				<?php $this->section_close(); ?>
 
@@ -413,19 +444,18 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				?>
 
 				<?php
-				$has_yoast = false;
+				/* Yoast SEO loaded: its title, description, keyphrase, canonical and indexing
+				 * fields are edited here ( saved to the product post's Yoast meta ). */
+				$has_yoast = defined( 'WPSEO_VERSION' );
 				$yoast_setup = false;
-				if ( is_plugin_active( 'wordpress-seo/wp-seo.php' ) || is_plugin_active( 'wordpress-seo-premium/wp-seo-premium.php' ) ) {
-					$has_yoast = true;
+				if ( $has_yoast ) {
 					$post_meta = $is_new ? false : get_post_meta( $product->post_id );
 					if ( $post_meta && isset( $post_meta['_yoast_wpseo_metadesc'] ) ) {
 						$yoast_setup = true;
 					}
+					$this->print_yoast_seo_v2();
 				}
 				?>
-				<?php if ( $has_yoast ) { ?>
-					<div class="ecdv2-newproduct-note"><span class="dashicons dashicons-yes-alt" style="color:var(--ecv2-primary);"></span><span><?php echo sprintf( esc_attr__( 'Yoast SEO is active. %1$sEdit the product post%2$s to manage Yoast settings. Keep the shortcode in the post content intact.', 'wp-easycart' ), '<a target="_blank" href="post.php?post=' . esc_attr( $is_new ? 0 : $product->post_id ) . '&action=edit">', '</a>' ); ?></span></div>
-				<?php } ?>
 				<?php if ( ! $has_yoast || ! $yoast_setup ) { ?>
 					<?php $this->section_open( 'seo', __( 'Search Engine Listing', 'wp-easycart' ) ); ?>
 						<?php do_action( 'wp_easycart_admin_product_details_seo_fields' ); ?>
@@ -478,6 +508,13 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php $this->section_open( 'order_completed_details_note', __( 'Order Details Note', 'wp-easycart' ), __( 'Shown in the customer account order details view', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_order_completed_details_note_fields' ); ?>
 				<?php $this->section_close(); ?>
+			</div>
+
+			<!-- ===== REVIEWS ===== -->
+			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="reviews" role="tabpanel">
+				<?php $ecdv2_intro( 'reviews' ); ?>
+				<?php $this->print_reviews_v2(); ?>
+				<?php do_action( 'wp_easycart_admin_product_details_v2_reviews_end', $product ); ?>
 			</div>
 
 			<!-- ===== ACTIVITY ===== -->

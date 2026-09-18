@@ -3,21 +3,85 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! function_exists( 'ecv2_payment_settings_guard' ) ) {
+	/**
+	 * Permission + nonce guard for the payment gateway settings saves ( wp_ajax_ec_admin_ajax_save_* ).
+	 *
+	 * Allows administrators, and store managers who can reach Settings ( wpec_settings + wpec_manager, the same
+	 * pair these handlers required before ). The nonce is the Payment settings nonce printed by the classic
+	 * Payment page and the V2 gateway drawer ( field wp_easycart_payment_settings_nonce, action
+	 * wp-easycart-settings-payment ), posted by admin/js/payment.js as wp_easycart_nonce. On failure it answers
+	 * with a JSON error ( HTTP 403 ) and stops the request, so nothing is saved.
+	 *
+	 * @since 6.0.0
+	 * @return bool True once the request has passed ( repeat calls in the same request are free ).
+	 */
+	function ecv2_payment_settings_guard() {
+		static $passed = false;
+		if ( $passed ) {
+			return true;
+		}
+		if ( ! current_user_can( 'manage_options' ) && ! ( current_user_can( 'wpec_settings' ) && current_user_can( 'wpec_manager' ) ) ) {
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to change the payment settings.', 'wp-easycart' ) ), 403 );
+		}
+		if ( ! isset( $_POST['wp_easycart_nonce'] ) || false === wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-settings-payment' ) ) {
+			wp_send_json_error( array( 'message' => __( 'The payment settings were not saved because this page is out of date or your session expired. Reload the page and save again.', 'wp-easycart' ) ), 403 );
+		}
+		$passed = true;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'ecv2_payment_link_guard' ) ) {
+	/**
+	 * Permission + nonce guard for the Payment settings GET links that change gateway state ( Square disconnect
+	 * and renew, PayPal disconnect ). Same capability pair as ecv2_payment_settings_guard(). The link must carry
+	 * the _wpnonce that wp_nonce_url( $url, $action ) adds; check_admin_referer() stops the request with the
+	 * standard "The link you followed has expired" screen when it does not, so nothing changes.
+	 *
+	 * @since 6.0.0
+	 * @param string $action Nonce action, e.g. wp-easycart-payment-square-disconnect.
+	 * @return bool True once the request has passed.
+	 */
+	function ecv2_payment_link_guard( $action ) {
+		if ( ! current_user_can( 'manage_options' ) && ! ( current_user_can( 'wpec_settings' ) && current_user_can( 'wpec_manager' ) ) ) {
+			wp_die( esc_html__( 'You do not have permission to change the payment settings.', 'wp-easycart' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( $action );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'ecv2_payment_settings_guard_pro_saves' ) ) {
+	/**
+	 * Runs ecv2_payment_settings_guard() ahead of the PRO gateway save handlers ( priority 0 on their
+	 * wp_ajax_ hooks ). PRO 6.0.0 checks inside every handler as well; this covers sites that update the
+	 * free plugin before PRO, whose older handlers saved gateway credentials without any check.
+	 *
+	 * @since 6.0.0
+	 */
+	function ecv2_payment_settings_guard_pro_saves() {
+		$actions = array(
+			'2checkout_thirdparty', 'cashfree', 'dwolla', 'nets', 'payfast', 'payfort', 'paymentexpress_thirdparty',
+			'realex_thirdparty', 'redsys', 'sagepay_paynow_za', 'skrill', 'live_gateway_selection', 'amazonpay',
+			'authorize', 'beanstream', 'braintree', 'chronopay', 'virtualmerchant', 'eway', 'firstdata', 'goemerchant',
+			'intuit', 'migs', 'moneris_ca', 'moneris_us', 'nmi', 'payline', 'paymentexpress', 'paypal_pro',
+			'paypal_payments_pro', 'paypoint', 'realex', 'sagepay', 'sagepayus', 'securenet', 'securepay', 'stripe',
+			'square_pro', 'square_sync', 'square_product_sync', 'square_webhooks', 'cardpointe',
+		);
+		foreach ( $actions as $action ) {
+			add_action( 'wp_ajax_ec_admin_ajax_save_' . $action, 'ecv2_payment_settings_guard', 0, 0 );
+		}
+	}
+	ecv2_payment_settings_guard_pro_saves();
+}
+
 if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 
 	final class wp_easycart_admin_payments {
 
 		protected static $_instance = null;
 
-		public $payments_file;
-		public $payment_free_header_file;
-		public $payment_free_foooter_file;
-		public $manual_bill_file;
-		public $amazonpay_file;
-		public $paypal_file;
-		public $stripe_file;
-		public $square_file;
-		public $upgrade_file;
 		public $payments_dir;
 
 		public $third_party_gateways;
@@ -34,16 +98,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		}
 
 		public function __construct() {
-			// Setup File Names 
-			$this->payments_file 				= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/payment.php';
-			$this->payment_free_header_file 	= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/payment-free-header.php';
-			$this->payment_free_foooter_file 	= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/payment-free-footer.php';
-			$this->manual_bill_file 			= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/manual-bill.php';
-			$this->amazonpay_file 				= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/amazonpay.php';
-			$this->paypal_file 					= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/paypal.php';
-			$this->stripe_file 					= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/stripe_connect.php';
-			$this->square_file 					= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/square.php';
-			$this->upgrade_file 				= EC_PLUGIN_DIRECTORY . '/admin/template/upgrade/upgrade-simple.php';
+			// Setup File Names ( the gateway partials live in payments_dir; the V2 Payment page resolves them itself )
 			$this->payments_dir					= EC_PLUGIN_DIRECTORY . '/admin/template/settings/payments/';
 
 			// Link Information
@@ -106,20 +161,6 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'add_failure_messages' ) );
 
-			// Actions
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_header' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_bill_later' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_paypal' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_square' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_stripe' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_amazonpay' ) );
-			add_action( 'wp_easycart_admin_payment_options_top', array( $this, 'load_free_footer' ) );
-
-			add_action( 'wpeasycart_admin_load_third_party_select_options', array( $this, 'load_third_party_combo' ) );
-			add_action( 'wpeasycart_admin_load_third_party_settings', array( $this, 'load_third_party_settings' ) );
-			add_action( 'wpeasycart_admin_load_live_gateway_select_options', array( $this, 'load_live_gateway_combo' ) );
-			add_action( 'wpeasycart_admin_load_live_gateway_settings', array( $this, 'load_live_gateway_settings' ) );
-
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'disconnect_paypal' ) );
 			add_action( 'wp_easycart_process_get_form_action', array( $this, 'onboard_stripe' ) );
 
@@ -150,152 +191,27 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			return $messages;
 		}
 
-		public function load_payments() {
-			include( $this->payments_file );
-		}
 
-		public function load_free_header() {
-			include( $this->payment_free_header_file );
-		}
 
-		public function load_free_bill_later() {
-			include( $this->manual_bill_file );
-		}
-
-		public function load_free_amazonpay() {
-			include( $this->amazonpay_file );
-		}
-
-		public function load_free_paypal() {
-			include( $this->paypal_file );
-		}
-
-		public function load_free_stripe() {
-			include( $this->stripe_file );
-		}
-
-		public function load_free_square() {
-			include( $this->square_file );
-		}
-
-		public function load_free_footer() {
-			include( $this->payment_free_foooter_file );
-		}
-
-		public function load_third_party_combo() {
-			$third_party_gateways = apply_filters( 'wp_easycart_admin_third_party_gateways', $this->third_party_gateways );
-			foreach ( $third_party_gateways as $gateway => $gateway_name ) { 
-				echo '<option value="' . esc_attr( $gateway ) . '" ';
-				if ( get_option( 'ec_option_payment_third_party' ) == $gateway ) { 
-					echo ' selected'; 
-				}
-				echo '>' . esc_attr( $gateway_name ) . '</option>';
+		/**
+		 * Include a gateway settings partial from this instance, so the partial can read $this->cart_page and
+		 * $this->permalink_divider the way it does on the classic Payment page ( the PRO dwolla_thirdparty.php and
+		 * realex_thirdparty.php partials print a callback URL from them ). The V2 gateway drawer
+		 * ( wp_easycart_admin_payment_v2::ajax_gateway_form(), a static handler ) uses this instead of a bare
+		 * include, which fatals on "Using $this when not in object context" with those partials.
+		 *
+		 * @since 6.0.0
+		 * @param string $file Absolute path of the partial; the caller has already checked it exists.
+		 */
+		public function include_gateway_partial( $file ) {
+			if ( ! is_string( $file ) || '' === $file || ! file_exists( $file ) ) {
+				return;
 			}
-		}
-
-		public function load_third_party_settings() {
-			$third_party_gateways = apply_filters( 'wp_easycart_admin_third_party_gateways', $this->third_party_gateways );
-			foreach ( $this->third_party_gateways as $gateway => $gateway_name ) {
-				$this->load_third_party_payment_form( $gateway );
-			}
-		}
-
-		public function load_free_paypal_credit_field() {
-			echo '<div style="font-weight:bold; margin:15px 0 0;">' . esc_attr__( 'Add PayPal Express', 'wp-easycart' ) . '</div>';
-			echo '<div>' . esc_attr__( 'Enable PayPal Express', 'wp-easycart' ) . ' <span class="dashicons dashicons-lock" style="color:#FC0; float:left; margin-top:5px;"></span><select onchange="show_pro_required(); return false;">';
-			echo '<option value="0"';
-			if ( get_option( 'ec_option_paypal_enable_pay_now' ) == '0' ) 
-				echo ' selected';
-			echo '>' . esc_attr__( 'Keep PayPal Standard, Redirect Users to PayPal for Payment', 'wp-easycart' ) . '</option>';
-			echo '<option value="1"';
-			if ( get_option( 'ec_option_paypal_enable_pay_now' ) == '1' )
-				echo ' selected';
-			echo '>' . esc_attr__( 'YES! Enable PayPal Express and Keep Customers on My Site', 'wp-easycart' ) . '</option>';
-			echo '</select></div>';
-
-			echo '<div>' . esc_attr__( 'Advertise PayPal Credit', 'wp-easycart' ) . ' <span class="dashicons dashicons-lock" style="color:#FC0; float:left; margin-top:5px;"></span><select onchange="show_pro_required(); return false;">';
-			echo '<option value="0"';
-			if ( get_option( 'ec_option_paypal_enable_credit' ) == '0' ) 
-				echo ' selected';
-			echo '>' . esc_attr__( 'Do Not Advertise PayPal Credit', 'wp-easycart' ) . '</option>';
-			echo '<option value="1"';
-			if ( get_option( 'ec_option_paypal_enable_credit' ) == '1' )
-				echo ' selected';
-			echo '>' . esc_attr__( 'Advertise PayPal Credit', 'wp-easycart' ) . '</option>';
-			echo '</select></div>';
-		}
-
-		public function load_live_gateway_combo() {
-			$live_gateways = apply_filters( 'wp_easycart_admin_live_gateways', $this->live_gateways );
-			foreach ( $this->live_gateways as $gateway => $gateway_name ) { 
-				echo '<option value="' . esc_attr( $gateway ) . '" ';
-				if ( get_option( 'ec_option_payment_process_method' ) == $gateway ) { 
-					echo ' selected'; 
-				}
-				echo '>' . esc_attr( $gateway_name ) . '</option>';
-			}
-		}
-
-		public function load_live_gateway_settings() {
-			$live_gateways = apply_filters( 'wp_easycart_admin_live_gateways', $this->live_gateways );
-			foreach ( $live_gateways as $gateway => $gateway_name ) {
-				$this->load_live_payment_form( $gateway );
-			}
-
-		}
-
-		public function load_third_party_payment_form( $payment_type ) {
-			$file = apply_filters( 'wp_easycart_admin_payment_file', $this->payments_dir . $payment_type . '.php', $payment_type );
-			if ( file_exists( $file ) ) {
-				include( $file );
-			} else {
-				echo '<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_';
-				if ( get_option( 'ec_option_payment_third_party' ) == $payment_type ) {
-					echo 'show';
-				} else {
-					echo 'hide';
-				}
-				echo '" id="' . esc_attr( $payment_type ) . '">';
-				$upgrade_icon = "dashicons-lock";
-				$upgrade_title = __( 'Enable ', 'wp-easycart' ) . $this->third_party_gateways[$payment_type];
-				$upgrade_subtitle = '';
-				$upgrade_checkbox_label = apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:5px;"></span>' ) . __( ' Select Box to Enable ', 'wp-easycart' ) . $this->third_party_gateways[$payment_type];
-				$upgrade_button_label = __( 'Save Setup', 'wp-easycart' );
-				include( $this->upgrade_file );
-				echo '</div>';
-			}
-		}
-
-		public function load_live_payment_form( $payment_type ) {
-			$file = apply_filters( 'wp_easycart_admin_payment_file', $this->payments_dir . $payment_type . '.php', $payment_type );
-			if ( file_exists( $file ) ) {
-				include( $file );
-			} else {
-				echo '<div class="ec_admin_settings_input ec_admin_settings_live_payment_section ec_admin_settings_';
-				if ( get_option( 'ec_option_payment_process_method' ) == $payment_type ) {
-					echo 'show';
-				} else {
-					echo 'hide';
-				}
-				echo '" id="' . esc_attr( $payment_type ) . '">';
-				$upgrade_icon = "dashicons-lock";
-				$upgrade_title = __( 'Enable ', 'wp-easycart' ) . $this->live_gateways[$payment_type];
-				$upgrade_subtitle = '';
-				$upgrade_checkbox_label = apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:5px;"></span>' ) . __( ' Select Box to Enable ', 'wp-easycart' ) . $this->live_gateways[$payment_type];
-				$upgrade_button_label = __( 'Save Setup', 'wp-easycart' );
-				include( $this->upgrade_file );
-				echo '</div>';
-			}
+			include $file;
 		}
 
 		public function update_manual_billing_settings() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-				return false;
-			}
+			ecv2_payment_settings_guard();
 
 			update_option( 'ec_option_use_direct_deposit', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_use_direct_deposit'] ) );
 			update_option( 'ec_option_direct_deposit_message', sanitize_textarea_field( wp_unslash( $_POST['ec_option_direct_deposit_message'] ) ) );
@@ -309,22 +225,45 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		}
 
 		public function update_third_party_selection() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
+			ecv2_payment_settings_guard();
 
-			update_option( 'ec_option_payment_third_party', sanitize_text_field( wp_unslash( $_POST['ec_option_payment_third_party'] ) ) );
-			do_action( 'wpeasycart_third_party_payment_updated', sanitize_text_field( wp_unslash( $_POST['ec_option_payment_third_party'] ) ) );
+			if ( ! isset( $_POST['ec_option_payment_third_party'] ) ) {
+				return false;
+			}
+			$third_party = sanitize_text_field( wp_unslash( $_POST['ec_option_payment_third_party'] ) );
+			if ( ! in_array( $third_party, $this->known_third_party_keys(), true ) ) {
+				return false;
+			}
+			update_option( 'ec_option_payment_third_party', $third_party );
+			do_action( 'wpeasycart_third_party_payment_updated', $third_party );
+			return true;
+		}
+
+		/**
+		 * Third-party gateway keys the settings may store, plus '0' ( none ): the V2 gateway catalog, the legacy
+		 * list and its 'wp_easycart_admin_third_party_gateways' filter.
+		 *
+		 * @since 6.0.0
+		 * @return string[]
+		 */
+		public function known_third_party_keys() {
+			$keys = array( '0', 'paypal' );
+			if ( class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'catalog' ) ) {
+				foreach ( (array) wp_easycart_admin_payment_v2::catalog() as $key => $gw ) {
+					if ( is_array( $gw ) && isset( $gw['role'] ) && 'third_party' === $gw['role'] ) {
+						$keys[] = (string) $key;
+					}
+				}
+			}
+			$legacy = apply_filters( 'wp_easycart_admin_third_party_gateways', (array) $this->third_party_gateways );
+			foreach ( array_keys( (array) $legacy ) as $key ) {
+				$keys[] = (string) $key;
+			}
+			return array_values( array_unique( $keys ) );
 		}
 
 		public function update_paypal() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
-
-			if ( !wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-				return false;
-			}
+			ecv2_payment_settings_guard();
 
 			$paypal_email = ( isset( $_POST['ec_option_paypal_email'] ) ) ? sanitize_email( wp_unslash( $_POST['ec_option_paypal_email'] ) ) : '';
 			update_option( 'ec_option_paypal_email', $paypal_email );
@@ -360,9 +299,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		}
 
 		public function update_pro_paypal() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
+			ecv2_payment_settings_guard();
 
 			update_option( 'ec_option_paypal_email', sanitize_email( wp_unslash( $_POST['ec_option_paypal_email'] ) ) );
 
@@ -400,35 +337,28 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				return;
 			}
 
-			if ( $_GET['ec_admin_form_action'] == 'paypal-express-sandbox-disconnect' ) {
-				update_option( 'ec_option_paypal_sandbox_webhook_id', '' );
-				update_option( 'ec_option_paypal_sandbox_merchant_id', '' );
-				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', $result );
-
-			} else if ( $_GET['ec_admin_form_action'] == 'paypal-express-production-disconnect' ) {
-				update_option( 'ec_option_paypal_production_webhook_id', '' );
-				update_option( 'ec_option_paypal_production_merchant_id', '' );
-				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', $result );
-
-			} else if ( $_GET['ec_admin_form_action'] == 'paypal-marketing-sandbox-disconnect' ) {
-				update_option( 'ec_option_paypal_marketing_solution_cid_sandbox', '' );
-				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', $result );
-
-			} else if ( $_GET['ec_admin_form_action'] == 'paypal-marketing-production-disconnect' ) {
-				update_option( 'ec_option_paypal_marketing_solution_cid_production', '' );
-				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', $result );
-
+			if ( ! isset( $_GET['ec_admin_form_action'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- dispatch only; the matching action is verified by ecv2_payment_link_guard() below.
+				return;
 			}
+			$form_action = sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- dispatch only; verified below before anything changes.
+			$cleared     = array(
+				'paypal-express-sandbox-disconnect'      => array( 'ec_option_paypal_sandbox_webhook_id', 'ec_option_paypal_sandbox_merchant_id' ),
+				'paypal-express-production-disconnect'   => array( 'ec_option_paypal_production_webhook_id', 'ec_option_paypal_production_merchant_id' ),
+				'paypal-marketing-sandbox-disconnect'    => array( 'ec_option_paypal_marketing_solution_cid_sandbox' ),
+				'paypal-marketing-production-disconnect' => array( 'ec_option_paypal_marketing_solution_cid_production' ),
+			);
+			if ( ! isset( $cleared[ $form_action ] ) ) {
+				return;
+			}
+			ecv2_payment_link_guard( 'wp-easycart-payment-paypal-disconnect' );
+			foreach ( $cleared[ $form_action ] as $option_name ) {
+				update_option( $option_name, '' );
+			}
+			wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array() );
 		}
 
 		public function save_stripe_connect() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-				return false;
-			}
+			ecv2_payment_settings_guard();
 
 			update_option( 'ec_option_stripe_connect_use_sandbox', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_connect_use_sandbox'] ) );
 			update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_payment_process_method'] ) ), array( 'stripe_connect' ) ) );
@@ -475,13 +405,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		}
 
 		public function save_stripe_connect_option() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-				return false;
-			}
+			ecv2_payment_settings_guard();
 
 			$options = array( 'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_disable_wallet_first', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay', 'ec_option_stripe_wechat', 'ec_option_stripe_link', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps', 'ec_option_stripe_fpx', 'ec_option_stripe_giropay', 'ec_option_stripe_enable_ideal', 'ec_option_stripe_p24', 'ec_option_stripe_sofort', 'ec_option_stripe_bacs', 'ec_option_stripe_becs', 'ec_option_stripe_sepa', 'ec_option_stripe_pix', 'ec_option_stripe_paynow', 'ec_option_stripe_promptpay', 'ec_option_stripe_boleto', 'ec_option_stripe_konbini', 'ec_option_stripe_oxxo' );
 			
@@ -514,35 +438,37 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 
 			}
 
-			if ( $_GET['ec_admin_form_action'] == 'stripe_onboard' && $_GET['env'] == 'sandbox' ) {
-				update_option( 'ec_option_stripe_connect_use_sandbox', 1 );
-				update_option( 'ec_option_stripe_connect_sandbox_access_token', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_sandbox_refresh_token', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_sandbox_publishable_key', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_publishable_key'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_sandbox_user_id', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_user_id'] ) ) ) );
-				update_option( 'ec_option_payment_process_method', 'stripe_connect' );
-				update_option( 'ec_option_default_payment_type', 'credit_card' );
-				do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
-				if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
-					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&success=stripe-sandbox-connected' );
-				} else {
-					wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array( 'success' => 'stripe-sandbox-connected' ) );
-				}
-				die();
+			if ( $_GET['ec_admin_form_action'] == 'stripe_onboard' && isset( $_GET['env'] ) && in_array( $_GET['env'], array( 'sandbox', 'production' ), true ) ) {
 
-			} else if ( $_GET['ec_admin_form_action'] == 'stripe_onboard' && $_GET['env'] == 'production' ) {
-				update_option( 'ec_option_stripe_connect_use_sandbox', 0 );
-				update_option( 'ec_option_stripe_connect_production_access_token', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_production_refresh_token', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_production_publishable_key', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_publishable_key'] ) ) ) );
-				update_option( 'ec_option_stripe_connect_production_user_id', wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_user_id'] ) ) ) );
+				$stripe_access_token    = isset( $_GET['access_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['access_token'] ) ) ) : '';
+				$stripe_refresh_token   = isset( $_GET['refresh_token'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
+				$stripe_publishable_key = isset( $_GET['stripe_publishable_key'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_publishable_key'] ) ) ) : '';
+				$stripe_user_id         = isset( $_GET['stripe_user_id'] ) ? wp_easycart_admin_verification()->min_filter( sanitize_text_field( wp_unslash( $_GET['stripe_user_id'] ) ) ) : '';
+
+				// Reject the return if any required credential is missing or blank. Do NOT save or enable the gateway.
+				if ( '' == $stripe_access_token || '' == $stripe_publishable_key || '' == $stripe_user_id ) {
+					if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
+						wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&error=stripe-onboarding-error' );
+					} else {
+						wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array( 'error' => 'stripe-onboarding-error' ) );
+					}
+					die();
+				}
+
+				$stripe_option_prefix = ( 'sandbox' == $_GET['env'] ) ? 'ec_option_stripe_connect_sandbox_' : 'ec_option_stripe_connect_production_';
+				update_option( 'ec_option_stripe_connect_use_sandbox', ( 'sandbox' == $_GET['env'] ) ? 1 : 0 );
+				update_option( $stripe_option_prefix . 'access_token', $stripe_access_token );
+				update_option( $stripe_option_prefix . 'refresh_token', $stripe_refresh_token );
+				update_option( $stripe_option_prefix . 'publishable_key', $stripe_publishable_key );
+				update_option( $stripe_option_prefix . 'user_id', $stripe_user_id );
 				update_option( 'ec_option_payment_process_method', 'stripe_connect' );
 				update_option( 'ec_option_default_payment_type', 'credit_card' );
 				do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
+				$stripe_success_message = ( 'sandbox' == $_GET['env'] ) ? 'stripe-sandbox-connected' : 'stripe-live-connected';
 				if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
-					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&success=stripe-live-connected' );
+					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&success=' . $stripe_success_message );
 				} else {
-					wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array( 'success' => 'stripe-live-connected' ) );
+					wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array( 'success' => $stripe_success_message ) );
 				}
 				die();
 
@@ -652,6 +578,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				die();
 
 			} else if ( $_GET['ec_admin_form_action'] == 'square-disconnect' ) {
+				ecv2_payment_link_guard( 'wp-easycart-payment-square-disconnect' );
 				if ( isset( $_GET['sandbox'] ) ) {
 					$access_token = get_option( 'ec_option_square_sandbox_access_token' );
 					$request = new WP_Http;
@@ -688,6 +615,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array() );
 
 			} else if ( $_GET['ec_admin_form_action'] == 'square-renew' ) {
+				ecv2_payment_link_guard( 'wp-easycart-payment-square-renew' );
 				$square = new ec_square();
 				$square->renew_token();
 				wp_clear_scheduled_hook( 'wp_easycart_square_renew_token' );
@@ -699,13 +627,7 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		}
 
 		public function update_square() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) {
-				return;
-			}
-
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-				return false;
-			}
+			ecv2_payment_settings_guard();
 
 			update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ), array( 'square' ) ) );
 			if ( get_option( 'ec_option_square_is_sandbox' ) ) {
@@ -737,30 +659,21 @@ wp_easycart_admin_payments();
 
 add_action( 'wp_ajax_ec_admin_ajax_save_third_party_selection', 'ec_admin_ajax_save_third_party_selection' );
 function ec_admin_ajax_save_third_party_selection() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->update_third_party_selection();
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_direct_deposit', 'ec_admin_ajax_save_direct_deposit' );
 function ec_admin_ajax_save_direct_deposit() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->update_manual_billing_settings();
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_paypal', 'ec_admin_ajax_save_paypal' );
 function ec_admin_ajax_save_paypal() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->update_third_party_selection();
 	wp_easycart_admin_payments()->update_paypal();
 	die();
@@ -768,10 +681,7 @@ function ec_admin_ajax_save_paypal() {
 
 add_action( 'wp_ajax_ec_admin_ajax_save_pro_paypal', 'ec_admin_ajax_save_pro_paypal' );
 function ec_admin_ajax_save_pro_paypal() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->update_third_party_selection();
 	wp_easycart_admin_payments()->update_pro_paypal();
 	die();
@@ -779,30 +689,21 @@ function ec_admin_ajax_save_pro_paypal() {
 
 add_action( 'wp_ajax_ec_admin_ajax_save_stripe_connect', 'ec_admin_ajax_save_stripe_connect' );
 function ec_admin_ajax_save_stripe_connect() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->save_stripe_connect();
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_stripe_connect_option', 'ec_admin_ajax_save_stripe_connect_option' );
 function ec_admin_ajax_save_stripe_connect_option() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->save_stripe_connect_option();
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_square_free', 'ec_admin_ajax_save_square_free' );
 function ec_admin_ajax_save_square_free() {
-	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-settings-payment' ) ) {
-		return false;
-	}
-
+	ecv2_payment_settings_guard();
 	wp_easycart_admin_payments()->update_square();
 	die();
 }

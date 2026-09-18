@@ -506,8 +506,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					'done'         => $has_product,
 					'featured'     => true,
 					'action_label' => __( 'Create product', 'wp-easycart' ),
-					'action_url'   => admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=add-new' ),
-					'action_js'    => "wp_easycart_admin_open_slideout( 'new_product_box' ); return false;",
+					'action_url'   => admin_url( 'admin.php?page=wp-easycart-products&subpage=products' ),
 				),
 				'order' => array(
 					'label'        => __( 'Place a test order', 'wp-easycart' ),
@@ -547,21 +546,136 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					'action_label' => __( 'Review', 'wp-easycart' ),
 					'action_url'   => $this->step_url( self::STEP_FINISH ) . '#ecwz-recommended',
 				),
-				'ga' => array(
-					'label'        => __( 'Connect Google Analytics', 'wp-easycart' ),
-					'sub'          => __( 'Optional. Track visits and conversions', 'wp-easycart' ),
-					'done'         => ( '' != self::real_option( 'ec_option_googleanalyticsid' ) ),
-					'optional'     => true,
-					'action_label' => __( 'Set up', 'wp-easycart' ),
-					'action_url'   => admin_url( 'admin.php?page=wp-easycart-settings&subpage=third-party' ),
-				),
+				/* 6.0.0: "Connect Google Analytics" was dropped from the launch checklist. It is not needed to open a store,
+				   and it lives in Settings > Integrations for the stores that want it. */
 			);
+
+			// Moving from Square or WooCommerce: suggest the cart importer right after "Create your first product".
+			$importer = $this->get_cart_importer_suggestion();
+			if ( $importer ) {
+				$ordered = array();
+				foreach ( $items as $k => $item ) {
+					$ordered[ $k ] = $item;
+					if ( 'product' === $k ) {
+						$ordered['importer'] = $importer;
+					}
+				}
+				$items = $ordered;
+			}
 
 			foreach ( $items as $k => $item ) {
 				$items[ $k ]['key']       = $k;
 				$items[ $k ]['dismissed'] = ! empty( $state[ 'dismissed_' . $k ] );
 			}
 			return apply_filters( 'wp_easycart_setup_checklist', $items );
+		}
+
+		/**
+		 * Launch checklist item pointing a new store at the cart importer ( Settings › Integrations ›
+		 * Cart importer ) when there is something to import from.
+		 *
+		 * Shown only while all of these hold:
+		 * - the store is new: no real ( non-demo ) orders and at most
+		 *   `wp_easycart_cart_importer_suggest_max_products` ( default 3 ) real products. An import
+		 *   pushes the product count past that, so the item disappears once it has run;
+		 * - there is a source: Square is the live gateway or has an access token ( live or sandbox ),
+		 *   and / or WooCommerce is active or its data is still in the database ( the importer reads
+		 *   the tables directly, so a deactivated WooCommerce still counts ).
+		 * It is optional, so the merchant can dismiss it. It is done once a product carries a Square
+		 * id or the WooCommerce importer has run.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @return array|null Checklist item ( without key / dismissed ), or null when it does not apply.
+		 */
+		public function get_cart_importer_suggestion() {
+			global $wpdb;
+			if ( ! apply_filters( 'wp_easycart_cart_importer_suggest', true ) ) {
+				return null;
+			}
+			if ( $wpdb->get_var( 'SELECT order_id FROM ec_order WHERE is_demo_item = 0 LIMIT 1' ) ) {
+				return null;
+			}
+			$max_products = max( 0, (int) apply_filters( 'wp_easycart_cart_importer_suggest_max_products', 3 ) );
+			$products     = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ( SELECT product_id FROM ec_product WHERE is_demo_item = 0 LIMIT %d ) AS ec_recent_products', $max_products + 1 ) );
+			if ( $products > $max_products ) {
+				return null;
+			}
+
+			$has_square = self::has_square_source();
+			$has_woo    = self::has_woocommerce_source();
+			if ( ! $has_square && ! $has_woo ) {
+				return null;
+			}
+
+			$done = false;
+			if ( $has_square && $products > 0 && $wpdb->get_var( "SELECT product_id FROM ec_product WHERE square_id != '' LIMIT 1" ) ) {
+				$done = true;
+			}
+			if ( $has_woo && get_option( 'ec_option_cart_importer_woo_imported' ) ) {
+				$done = true;
+			}
+
+			if ( $has_square && $has_woo ) {
+				$label = __( 'Import your products from Square or WooCommerce', 'wp-easycart' );
+				$sub   = __( 'Optional. Bring in products, categories and options instead of re-entering them', 'wp-easycart' );
+			} elseif ( $has_square ) {
+				$label = __( 'Import your products from Square', 'wp-easycart' );
+				$sub   = __( 'Optional. Bring in your Square catalogue, modifiers and stock', 'wp-easycart' );
+			} else {
+				$label = __( 'Import your products from WooCommerce', 'wp-easycart' );
+				$sub   = class_exists( 'WooCommerce' ) ? __( 'Optional. Bring in products, categories and attributes from this site', 'wp-easycart' ) : __( 'Optional. Reactivate WooCommerce so the importer can read your products', 'wp-easycart' );
+			}
+
+			return array(
+				'label'        => $label,
+				'sub'          => $sub,
+				'done'         => $done,
+				'optional'     => true,
+				'action_label' => __( 'Open importer', 'wp-easycart' ),
+				'action_url'   => admin_url( 'admin.php?page=wp-easycart-settings&subpage=integrations#ecst-sec-cart-importer' ),
+				'sources'      => array_keys(
+					array_filter(
+						array(
+							'square'      => $has_square,
+							'woocommerce' => $has_woo,
+						)
+					)
+				),
+			);
+		}
+
+		/**
+		 * Square is the live gateway, or an access token ( live or sandbox ) is stored.
+		 *
+		 * @since 6.0.0
+		 */
+		public static function has_square_source() {
+			return 'square' === get_option( 'ec_option_payment_process_method' )
+				|| '' !== (string) get_option( 'ec_option_square_access_token', '' )
+				|| '' !== (string) get_option( 'ec_option_square_sandbox_access_token', '' );
+		}
+
+		/**
+		 * WooCommerce is active, or its attribute table and at least one `product` post are still in the
+		 * database ( the importer reads both ). The table lookup is cached for six hours.
+		 *
+		 * @since 6.0.0
+		 */
+		public static function has_woocommerce_source() {
+			if ( class_exists( 'WooCommerce' ) ) {
+				return true;
+			}
+			$cached = get_transient( 'wp_easycart_woo_source_detected' );
+			if ( 'yes' === $cached || 'no' === $cached ) {
+				return 'yes' === $cached;
+			}
+			global $wpdb;
+			$table = $wpdb->prefix . 'woocommerce_attribute_taxonomies';
+			$found = ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) )
+				&& (bool) $wpdb->get_var( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status IN ( 'publish', 'private', 'draft', 'pending' ) LIMIT 1" );
+			set_transient( 'wp_easycart_woo_source_detected', $found ? 'yes' : 'no', 6 * HOUR_IN_SECONDS );
+			return $found;
 		}
 
 		/** Items neither done nor dismissed. Use for the Store Status sidebar badge. */
@@ -2387,19 +2501,19 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					);
 					$states = array();
 					$states['CA'] = array(
-						'AB' => __( 'Alberta', 'woocommerce' ),
-						'BC' => __( 'British Columbia', 'woocommerce' ),
-						'MB' => __( 'Manitoba', 'woocommerce' ),
-						'NB' => __( 'New Brunswick', 'woocommerce' ),
-						'NL' => __( 'Newfoundland', 'woocommerce' ),
-						'NT' => __( 'Northwest Territories', 'woocommerce' ),
-						'NS' => __( 'Nova Scotia', 'woocommerce' ),
-						'NU' => __( 'Nunavut', 'woocommerce' ),
-						'ON' => __( 'Ontario', 'woocommerce' ),
-						'PE' => __( 'Prince Edward Island', 'woocommerce' ),
-						'QC' => __( 'Quebec', 'woocommerce' ),
-						'SK' => __( 'Saskatchewan', 'woocommerce' ),
-						'YT' => __( 'Yukon', 'woocommerce' ),
+						'AB' => __( 'Alberta', 'wp-easycart' ),
+						'BC' => __( 'British Columbia', 'wp-easycart' ),
+						'MB' => __( 'Manitoba', 'wp-easycart' ),
+						'NB' => __( 'New Brunswick', 'wp-easycart' ),
+						'NL' => __( 'Newfoundland', 'wp-easycart' ),
+						'NT' => __( 'Northwest Territories', 'wp-easycart' ),
+						'NS' => __( 'Nova Scotia', 'wp-easycart' ),
+						'NU' => __( 'Nunavut', 'wp-easycart' ),
+						'ON' => __( 'Ontario', 'wp-easycart' ),
+						'PE' => __( 'Prince Edward Island', 'wp-easycart' ),
+						'QC' => __( 'Quebec', 'wp-easycart' ),
+						'SK' => __( 'Saskatchewan', 'wp-easycart' ),
+						'YT' => __( 'Yukon', 'wp-easycart' ),
 					);
 
 					/* Posted as "CC" or "CC_ST". Split first, then validate the country part —
@@ -2803,6 +2917,20 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 			$body    = '<p>' . esc_html__( 'If you are reading this, order emails from your store can reach this inbox.', 'wp-easycart' ) . '</p>'
 				. '<p>' . esc_html__( 'Sent by WP EasyCart via wp_mail() from', 'wp-easycart' ) . ' <strong>' . esc_html( $from ) . '</strong> ' . esc_html__( 'at', 'wp-easycart' ) . ' ' . esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ) . '.</p>'
 				. '<p style="color:#6b7280;font-size:12px">' . esc_html__( 'If this landed in spam, consider an SMTP plugin or a transactional email service. See Settings › Email.', 'wp-easycart' ) . '</p>';
+			if ( class_exists( 'wp_easycart_email_design' ) ) { /* 6.0.0: shared email design. */
+				$ed   = 'wp_easycart_email_design';
+				$body = $ed::wrap(
+					$ed::get_paragraph( esc_html__( 'If you are reading this, order emails from your store can reach this inbox.', 'wp-easycart' ) )
+					. $ed::get_paragraph( esc_html__( 'Sent by WP EasyCart via wp_mail() from', 'wp-easycart' ) . ' <strong>' . esc_html( $from ) . '</strong> ' . esc_html__( 'at', 'wp-easycart' ) . ' ' . esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ) . '.', array( 'nolink' => true ) )
+					. $ed::get_paragraph( esc_html__( 'If this landed in spam, consider an SMTP plugin or a transactional email service. See Settings › Email.', 'wp-easycart' ), array( 'tone' => 'small', 'margin' => '0' ) ),
+					array(
+						'title'     => $subject,
+						'heading'   => __( 'Test email from WP EasyCart', 'wp-easycart' ),
+						'preheader' => __( 'If you are reading this, order emails from your store can reach this inbox.', 'wp-easycart' ),
+						'eyebrow'   => __( 'Test email', 'wp-easycart' ),
+					)
+				);
+			}
 
 			$sent = wp_mail( $to, $subject, $body, $headers );
 			if ( ! $sent ) {
@@ -2835,7 +2963,8 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 		   ===================================================================== */
 
 		public function enqueue_assets() {
-			if ( ! $this->is_wizard_screen() && ! $this->is_store_status_screen() ) {
+			// The Settings home embeds the launch checklist and opts in through this filter.
+			if ( ! $this->is_wizard_screen() && ! $this->is_store_status_screen() && ! apply_filters( 'wp_easycart_setup_wizard_assets_needed', false ) ) {
 				return;
 			}
 			wp_register_style( 'wp_easycart_setup_wizard_v2_css', plugins_url( 'wp-easycart/admin/css/setup-wizard-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_css' ), EC_CURRENT_VERSION );

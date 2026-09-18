@@ -100,7 +100,7 @@ $delete_warning = apply_filters( 'wp_easycart_admin_user_details_v2_delete_warni
 
 		<div class="ecdv2-header-actions">
 			<?php if ( ! $is_new ) { ?>
-				<a href="admin.php?page=wp-easycart-orders&subpage=orders&filter_2=<?php echo (int) $user->user_id; ?>" class="ecv2-btn"><span class="dashicons dashicons-cart" style="font-size:14px;width:14px;height:14px;margin-top:3px;"></span> <?php esc_attr_e( 'View Orders', 'wp-easycart' ); ?></a>
+				<a href="admin.php?page=wp-easycart-orders&subpage=orders&filter_5=<?php echo (int) $user->user_id; ?>" class="ecv2-btn"><span class="dashicons dashicons-cart" style="font-size:14px;width:14px;height:14px;margin-top:3px;"></span> <?php esc_attr_e( 'View Orders', 'wp-easycart' ); ?></a>
 				<a href="<?php echo esc_url( $this->single_action_url( 'user-login-override', 'wp-easycart-action-login-as-user' ) ); ?>" class="ecv2-btn"><span class="dashicons dashicons-migrate" style="font-size:14px;width:14px;height:14px;margin-top:3px;"></span> <?php esc_attr_e( 'Login as Customer', 'wp-easycart' ); ?></a>
 
 				<div class="ecdv2-header-menu-wrap">
@@ -173,11 +173,17 @@ $delete_warning = apply_filters( 'wp_easycart_admin_user_details_v2_delete_warni
 				<?php $this->section_open( 'access', __( 'Account Access', 'wp-easycart' ), __( 'Role and account linkage', 'wp-easycart' ) ); ?>
 					<div class="ecudv2-field">
 						<label for="ecudv2_user_level"><?php esc_html_e( 'User Access Level', 'wp-easycart' ); ?> <span class="ecudv2-req">*</span></label>
+						<?php
+						/* New customers always start as shoppers; the placeholder only exists for legacy rows whose role is missing. */
+						$ecudv2_level = ( $is_new && '' === (string) $user->user_level ) ? 'shopper' : (string) $user->user_level;
+						?>
 						<select name="user_level" id="ecudv2_user_level" data-ecdv2-sec="access">
-							<option value=""><?php esc_html_e( 'Select a User Access Level', 'wp-easycart' ); ?></option>
+							<?php if ( ! $is_new ) { ?>
+								<option value=""><?php esc_html_e( 'Select a User Access Level', 'wp-easycart' ); ?></option>
+							<?php } ?>
 							<?php foreach ( $roles as $role ) { ?>
-								<?php if ( (int) $role->admin_access && ! $is_site_admin && $user->user_level !== $role->role_label ) { continue; } ?>
-								<option value="<?php echo esc_attr( $role->role_label ); ?>"<?php selected( $user->user_level, $role->role_label ); ?>><?php echo esc_html( $role->role_label ); ?><?php echo (int) $role->admin_access ? esc_html( ' — ' . __( 'admin access', 'wp-easycart' ) ) : ''; ?></option>
+								<?php if ( (int) $role->admin_access && ! $is_site_admin && $ecudv2_level !== $role->role_label ) { continue; } ?>
+								<option value="<?php echo esc_attr( $role->role_label ); ?>"<?php selected( $ecudv2_level, $role->role_label ); ?>><?php echo esc_html( $role->role_label ); ?><?php echo (int) $role->admin_access ? esc_html( ' — ' . __( 'admin access', 'wp-easycart' ) ) : ''; ?></option>
 							<?php } ?>
 						</select>
 						<span class="ecudv2-field-error" data-ecudv2-error="user_level"></span>
@@ -275,8 +281,19 @@ $delete_warning = apply_filters( 'wp_easycart_admin_user_details_v2_delete_warni
 			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="addresses" role="tabpanel">
 				<?php $ecudv2_intro( 'addresses' ); ?>
 				<div class="ecudv2-address-cols">
-					<?php $this->section_open( 'billing', __( 'Billing Address', 'wp-easycart' ), '' ); ?>
-						<button type="button" class="ecv2-btn ecv2-btn-sm ecudv2-copy-btn" onclick="ecudv2.copy_to_shipping();"><span class="dashicons dashicons-arrow-right-alt" style="font-size:13px;width:13px;height:13px;margin-top:4px;"></span> <?php esc_html_e( 'Copy to Shipping', 'wp-easycart' ); ?></button>
+					<?php
+					/* 6.0.0: Copy to Shipping sits in the card header instead of floating beside the name fields. */
+					$this->section_open(
+						'billing',
+						__( 'Billing Address', 'wp-easycart' ),
+						'',
+						function () {
+							?>
+							<button type="button" class="ecv2-btn ecv2-btn-sm ecudv2-copy-btn" onclick="ecudv2.copy_to_shipping();"><span class="dashicons dashicons-arrow-right-alt"></span> <?php esc_html_e( 'Copy to Shipping', 'wp-easycart' ); ?></button>
+							<?php
+						}
+					);
+					?>
 						<?php $this->address_fields( 'billing', $this->billing_info, 'billing' ); ?>
 					<?php $this->section_close(); ?>
 					<?php $this->section_open( 'shipping', __( 'Shipping Address', 'wp-easycart' ), '' ); ?>
@@ -293,7 +310,7 @@ $delete_warning = apply_filters( 'wp_easycart_admin_user_details_v2_delete_warni
 				<?php $this->section_open( 'prefs', __( 'Tax & Shipping Preferences', 'wp-easycart' ), __( 'Per-account overrides applied at checkout', 'wp-easycart' ) ); ?>
 					<?php $this->toggle_field( 'exclude_tax', __( 'Exclude from tax', 'wp-easycart' ), (int) $user->exclude_tax, 'prefs', __( 'No tax is charged on this customer\'s orders.', 'wp-easycart' ) ); ?>
 					<?php $this->toggle_field( 'exclude_shipping', __( 'Exclude from shipping charges', 'wp-easycart' ), (int) $user->exclude_shipping, 'prefs', __( 'Shipping is free for this customer.', 'wp-easycart' ) ); ?>
-					<?php $this->toggle_field( 'allow_shipping_bypass', __( 'Allow shipping bypass', 'wp-easycart' ), isset( $user->allow_shipping_bypass ) ? (int) $user->allow_shipping_bypass : 0, 'prefs', __( 'Lets this customer check out without a shipping method when your store normally requires one.', 'wp-easycart' ) ); ?>
+					<?php $this->toggle_field( 'allow_shipping_bypass', __( 'Bypass Disabled Shipping Address', 'wp-easycart' ), isset( $user->allow_shipping_bypass ) ? (int) $user->allow_shipping_bypass : 0, 'prefs', __( 'Lets this customer check out with a shipping address, even if your store is setup to not allow it to differ from the billing address.', 'wp-easycart' ) ); ?>
 					<?php $this->toggle_field( 'is_stripe_test_user', __( 'Stripe test-mode customer', 'wp-easycart' ), isset( $user->is_stripe_test_user ) ? (int) $user->is_stripe_test_user : 0, 'prefs', __( 'This customer\'s saved payment data belongs to Stripe test mode.', 'wp-easycart' ) ); ?>
 					<div class="ecudv2-field" style="margin-top:12px;">
 						<label for="ecudv2_vat_registration_number"><?php esc_html_e( 'VAT Registration Number', 'wp-easycart' ); ?></label>

@@ -29,8 +29,9 @@ $priv_id  = get_option( 'ec_option_privacy_link' ) ? url_to_postid( get_option( 
 if ( ! $priv_id ) {
 	$priv_id = (int) get_option( 'wp_page_for_privacy_policy' );
 }
-$from_email = get_option( 'ec_option_order_from_email' ) ? get_option( 'ec_option_order_from_email' ) : get_option( 'admin_email' );
-$bcc        = get_option( 'ec_option_bcc_email_addresses' ) ? get_option( 'ec_option_bcc_email_addresses' ) : get_option( 'admin_email' );
+/* The option set seeds youremail@url.com: offer the site admin address instead of that placeholder. */
+$from_email = $wizard::real_option( 'ec_option_order_from_email' ) ? $wizard::real_option( 'ec_option_order_from_email' ) : get_option( 'admin_email' );
+$bcc        = $wizard::real_option( 'ec_option_bcc_email_addresses' ) ? $wizard::real_option( 'ec_option_bcc_email_addresses' ) : get_option( 'admin_email' );
 $tracking   = get_option( 'ec_option_allow_tracking' );
 $tracking_on = ( '-1' != $tracking ); /* unset or pending counts as on-by-default here; the merchant confirms */
 $state      = $wizard->get_checklist_state();

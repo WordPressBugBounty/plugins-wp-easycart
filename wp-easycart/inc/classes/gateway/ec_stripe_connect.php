@@ -950,15 +950,68 @@ class ec_stripe_connect extends ec_gateway {
 			return false;
 	}
 
+
 	////////////////////////////////////////////////
 	// PUBLIC PAYMENT INTENT FUNCTIONS
 	////////////////////////////////////////////////
+	/**
+	 * True when Stripe rejected the request because the customer id we sent
+	 * does not exist on the connected account ( "No such customer: cus_..." ).
+	 * Happens after a merchant reconnects to a different Stripe account or
+	 * flips test <-> live while ec_user still holds the old customer id.
+	 */
+	private function is_missing_customer_error( $json ) {
+		return is_object( $json ) && isset( $json->error ) && isset( $json->error->code ) && 'resource_missing' == $json->error->code && isset( $json->error->param ) && 'customer' == $json->error->param;
+	}
+
+	/**
+	 * Re-create the Stripe customer for the current shopper and store the new
+	 * id on ec_user ( mirrors what process_subscriptions() does ). Returns the
+	 * new customer id, or '' when the shopper is a guest or Stripe refused, in
+	 * which case the caller should retry without the customer param.
+	 */
+	private function recover_missing_customer() {
+		$user = isset( $GLOBALS['ec_user'] ) ? $GLOBALS['ec_user'] : false;
+		if ( ! $user || ! isset( $user->user_id ) || 0 == $user->user_id ) {
+			return '';
+		}
+		$db = new ec_db();
+		$db->insert_response( 0, 1, 'STRIPE Customer', 'Stored Stripe customer ' . $user->stripe_customer_id . ' does not exist on the connected Stripe account. Re-creating the customer for user ' . $user->user_id . '.' );
+		$new_customer_id = $this->insert_customer( $user );
+		$new_customer_id = $new_customer_id ? $new_customer_id : '';
+		$user->stripe_customer_id = $new_customer_id;
+		$db->update_user_stripe_id( $user->user_id, $new_customer_id );
+		return $new_customer_id;
+	}
+
+	/**
+	 * Retry a payment-intent request once after a missing-customer error:
+	 * with a freshly created customer when possible, otherwise without one.
+	 * Returns the decoded retry response, or false when Stripe returned nothing.
+	 */
+	private function retry_without_missing_customer( $url, $data ) {
+		$new_customer_id = $this->recover_missing_customer();
+		if ( '' != $new_customer_id ) {
+			$data['customer'] = $new_customer_id;
+		} else {
+			unset( $data['customer'] );
+		}
+		$response = $this->call_stripe( $url, $data );
+		return ( '' != $response ) ? json_decode( $response ) : false;
+	}
+
 	public function create_payment_intent( $order_totals ){
 		$data = $this->get_create_payment_intent_data( $order_totals );
 		$data['capture_method'] = apply_filters( 'wp_easycart_stripe_capture_method', "automatic" );
 		$response = $this->call_stripe( "https://api.stripe.com/v1/payment_intents", $data );
 		if( '' != $response ) {
 			$json = json_decode( $response );
+			if ( isset( $data['customer'] ) && $this->is_missing_customer_error( $json ) ) {
+				$json = $this->retry_without_missing_customer( "https://api.stripe.com/v1/payment_intents", $data );
+				if ( ! $json ) {
+					return false;
+				}
+			}
 			if ( isset( $json->error ) && ( isset( $json->error->code ) && 'payment_intent_invalid_parameter' == $json->error->code ) || ( isset( $json->error->type ) && 'invalid_request_error' == $json->error->type ) ) {
 				if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
 					$data['payment_method_types'] = array( 'card' );
@@ -985,6 +1038,12 @@ class ec_stripe_connect extends ec_gateway {
 		$response = $this->call_stripe( "https://api.stripe.com/v1/payment_intents/" . $id, $data );
 		if( '' != $response ) {
 			$json = json_decode( $response );
+			if ( isset( $data['customer'] ) && $this->is_missing_customer_error( $json ) ) {
+				$json = $this->retry_without_missing_customer( "https://api.stripe.com/v1/payment_intents/" . $id, $data );
+				if ( ! $json ) {
+					return false;
+				}
+			}
 			if ( isset( $json->error ) && ( isset( $json->error->code ) && 'payment_intent_invalid_parameter' == $json->error->code ) || ( isset( $json->error->type ) && 'invalid_request_error' == $json->error->type ) ) {
 				if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
 					$data['payment_method_types'] = array( 'card' );
@@ -1155,20 +1214,25 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$request = new WP_Http;
-		$response = $request->request( 
-			$gateway_url, 
-			array( 
-				'method' => 'POST',
-				'headers' => $headr,
-				'body' => http_build_query( $gateway_data ),
-				'timeout' => 30
-			)
+		$request_args = array( 
+			'method' => 'POST',
+			'headers' => $headr,
+			'body' => http_build_query( $gateway_data ),
+			'timeout' => 30
 		);
+		$response = $request->request( $gateway_url, $request_args );
+		if( is_wp_error( $response ) && $this->is_stripe_ssl_failure_message( $response->get_error_message( ) ) && $this->get_stripe_fallback_ca_bundle( ) ){
+			$this->mysqli->insert_response( $this->order_id, 0, "Stripe SSL Retry", "Primary CA bundle failed (" . $response->get_error_message( ) . "), retrying with plugin fallback CA bundle." );
+			$request_args['sslcertificates'] = $this->get_stripe_fallback_ca_bundle( );
+			$response = $request->request( $gateway_url, $request_args );
+		}
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( $this->order_id, 1, "STRIPE CURL ERROR", $response->get_error_message( ) );
+			$this->log_stripe_connection_error( $response->get_error_code( ) . ': ' . $response->get_error_message( ) );
 			$response = array( 'body' => '', "error" => $response->get_error_message( ) );
 		}else{
 			$this->mysqli->insert_response( $this->order_id, 0, "Stripe Response", print_r( $response, true ) );
+			$this->clear_stripe_connection_error( );
 		}
 
 		return $response['body'];
@@ -1195,19 +1259,24 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$request = new WP_Http;
-		$response = $request->request( 
-			$gateway_url . "?" . http_build_query( $gateway_data ), 
-			array( 
-				'method' => 'GET',
-				'headers' => $headr,
-				'timeout' => 30
-			)
+		$request_args = array( 
+			'method' => 'GET',
+			'headers' => $headr,
+			'timeout' => 30
 		);
+		$response = $request->request( $gateway_url . "?" . http_build_query( $gateway_data ), $request_args );
+		if( is_wp_error( $response ) && $this->is_stripe_ssl_failure_message( $response->get_error_message( ) ) && $this->get_stripe_fallback_ca_bundle( ) ){
+			$this->mysqli->insert_response( $this->order_id, 0, "Stripe SSL Retry", "Primary CA bundle failed (" . $response->get_error_message( ) . "), retrying with plugin fallback CA bundle." );
+			$request_args['sslcertificates'] = $this->get_stripe_fallback_ca_bundle( );
+			$response = $request->request( $gateway_url . "?" . http_build_query( $gateway_data ), $request_args );
+		}
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( $this->order_id, 1, "STRIPE GET CURL ERROR", $response->get_error_message( ) );
+			$this->log_stripe_connection_error( $response->get_error_code( ) . ': ' . $response->get_error_message( ) );
 			$response = array( 'body' => '', "error" => $response->get_error_message( ) );
 		}else{
 			$this->mysqli->insert_response( $this->order_id, 0, "Stripe Get Response", print_r( $response, true ) );
+			$this->clear_stripe_connection_error( );
 		}
 
 		return $response['body'];
@@ -1234,23 +1303,51 @@ class ec_stripe_connect extends ec_gateway {
 		);
 
 		$request = new WP_Http;
-		$response = $request->request( 
-			$gateway_url, 
-			array( 
-				'method' => 'DELETE',
-				'headers' => $headr,
-				'timeout' => 30
-			)
+		$request_args = array( 
+			'method' => 'DELETE',
+			'headers' => $headr,
+			'timeout' => 30
 		);
+		$response = $request->request( $gateway_url, $request_args );
+		if( is_wp_error( $response ) && $this->is_stripe_ssl_failure_message( $response->get_error_message( ) ) && $this->get_stripe_fallback_ca_bundle( ) ){
+			$this->mysqli->insert_response( $this->order_id, 0, "Stripe SSL Retry", "Primary CA bundle failed (" . $response->get_error_message( ) . "), retrying with plugin fallback CA bundle." );
+			$request_args['sslcertificates'] = $this->get_stripe_fallback_ca_bundle( );
+			$response = $request->request( $gateway_url, $request_args );
+		}
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( $this->order_id, 1, "STRIPE DELETE CURL ERROR", $response->get_error_message( ) );
+			$this->log_stripe_connection_error( $response->get_error_code( ) . ': ' . $response->get_error_message( ) );
 			$response = array( 'body' => '', "error" => $response->get_error_message( ) );
 		}else{
 			$this->mysqli->insert_response( $this->order_id, 0, "Stripe Delete Response", print_r( $response, true ) );
+			$this->clear_stripe_connection_error( );
 		}
 
 		return $response['body'];
 
+	}
+
+	private function get_stripe_fallback_ca_bundle( ){
+		$fallback = apply_filters( 'wp_easycart_stripe_fallback_ca_bundle', dirname( __FILE__ ) . '/cert/cacert.pem' );
+		if( $fallback && file_exists( $fallback ) ){
+			return $fallback;
+		}
+		return false;
+	}
+
+	private function is_stripe_ssl_failure_message( $error_message ){
+		return ( stripos( $error_message, 'ssl' ) !== false || stripos( $error_message, 'certificate' ) !== false );
+	}
+
+	private function log_stripe_connection_error( $error_message ){
+		update_option( 'ec_option_stripe_last_connection_error', $error_message );
+		update_option( 'ec_option_stripe_last_connection_error_time', time( ) );
+	}
+
+	private function clear_stripe_connection_error( ){
+		if( '' != get_option( 'ec_option_stripe_last_connection_error', '' ) ){
+			update_option( 'ec_option_stripe_last_connection_error', '' );
+		}
 	}
 
 	private function _formatAppInfo( $appInfo ){

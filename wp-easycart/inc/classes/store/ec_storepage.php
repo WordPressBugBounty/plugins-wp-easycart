@@ -254,6 +254,7 @@ class ec_storepage{
 			'sidebar_category_filter_method' => 'AND',
 			'sidebar_category_filter_open' => true,
 			'sidebar_include_manufacturers' => false,
+			'sidebar_include_pricepoints' => false,
 			'sidebar_manufacturers' => '',
 			'sidebar_include_option_filters' => true,
 			'sidebar_option_filters' => '',
@@ -558,6 +559,77 @@ class ec_storepage{
 		echo wp_easycart_escape_html( apply_filters( 'wpeasycart_forgot_password_link', "<a href=\"" . esc_url( wpeasycart_links()->get_account_page( 'forgot_password' ) ) . "\" class=\"ec_account_login_link\">" . esc_attr( $link_text ) . "</a>" ) );
 	}
 
+	/**
+	 * Price ranges for the store sidebar ( Settings › Price points ), with product counts for the
+	 * menu, manufacturer and category being viewed. Ranges with no products are left out, as in the
+	 * Price Point widget.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @return array Objects { pricepoint_id, label, count, selected, url }.
+	 */
+	public function get_sidebar_pricepoints() {
+		$filter   = ( isset( $this->product_list ) && isset( $this->product_list->filter ) ) ? $this->product_list->filter : null;
+		$level    = $filter ? (int) $filter->get_menu_level() : 0;
+		$menu_id  = 0;
+		if ( $filter && $level >= 1 && $level <= 3 ) {
+			$menu    = $filter->{ 'menulevel' . $level };
+			$menu_id = ( is_object( $menu ) && isset( $menu->menu_id ) ) ? (int) $menu->menu_id : 0;
+			if ( ! $menu_id ) {
+				$level = 0;
+			}
+		}
+		$man_id   = ( $filter && is_object( $filter->manufacturer ) ) ? (int) $filter->manufacturer->manufacturer_id : 0;
+		$group    = $filter ? explode( ',', (string) $filter->group_id ) : array( 0 );
+		$group_id = (int) $group[0];
+		$selected = isset( $_GET['pricepoint'] ) ? (int) $_GET['pricepoint'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only storefront filter.
+
+		$db     = new ec_db();
+		$ranges = $db->get_pricepoints( $level, $menu_id, $man_id, $group_id );
+		$items  = array();
+		foreach ( (array) $ranges as $range ) {
+			if ( $range->is_less_than ) {
+				$count = (int) $range->product_count_below;
+				$label = wp_easycart_language()->get_text( 'ec_pricepoint_widget', 'less_than' ) . ' ' . $GLOBALS['currency']->get_currency_display( $range->high_point );
+			} else if ( $range->is_greater_than ) {
+				$count = (int) $range->product_count_above;
+				$label = wp_easycart_language()->get_text( 'ec_pricepoint_widget', 'greater_than' ) . ' ' . $GLOBALS['currency']->get_currency_display( $range->low_point );
+			} else {
+				$count = (int) $range->product_count_between;
+				$label = $GLOBALS['currency']->get_currency_display( $range->low_point ) . ' - ' . $GLOBALS['currency']->get_currency_display( $range->high_point );
+			}
+			if ( $count <= 0 ) {
+				continue;
+			}
+			$is_selected = ( $selected === (int) $range->pricepoint_id );
+			$items[]     = (object) array(
+				'pricepoint_id' => (int) $range->pricepoint_id,
+				'label'         => $label,
+				'count'         => $count,
+				'selected'      => $is_selected,
+				'url'           => $this->get_pricepoint_filter_url( $is_selected ? 0 : (int) $range->pricepoint_id ),
+			);
+		}
+		return $items;
+	}
+
+	/**
+	 * The current store URL with the price range set ( 0 removes it ). Every other filter, the search
+	 * and the sort stay; paging restarts.
+	 *
+	 * @since 6.0.0
+	 *
+	 * @param int $pricepoint_id Price point id, 0 for none.
+	 * @return string URL ( not escaped ).
+	 */
+	public function get_pricepoint_filter_url( $pricepoint_id ) {
+		$url = remove_query_arg( array( 'pricepoint', 'pagenum' ) );
+		if ( (int) $pricepoint_id > 0 ) {
+			$url = add_query_arg( 'pricepoint', (int) $pricepoint_id, $url );
+		}
+		return $url;
+	}
+
 	public function get_manufacturer_link( $manufacturer ) {
 		if ( ! get_option( 'ec_option_use_old_linking_style' ) && isset( $manufacturer ) && isset( $manufacturer->post_id ) && '0' != $manufacturer->post_id ) {
 			return get_permalink( $manufacturer->post_id );
@@ -580,7 +652,7 @@ class ec_storepage{
 			$amp_status = '&';
 		}
 
-		if( isset( $_GET['pricepoint'] ) ){
+		if( isset( $_GET['pricepoint'] ) && 'clear' !== $optionitem_id ){ /* 6.0.0: "Clear filters" also clears the sidebar price range. */
 			$url .= $amp_status . "pricepoint=" . htmlentities( (int) $_GET['pricepoint'], ENT_QUOTES );
 			$amp_status = '&';
 		}

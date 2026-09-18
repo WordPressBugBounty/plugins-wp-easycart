@@ -147,23 +147,44 @@ function wp_easycart_admin_update_cart_stock_view( ){
 function ec_admin_start_importer( file, status_field, nonce ){
 	jQuery( document.getElementById( status_field ) ).text( wp_easycart_products_language['processing'] );
 	jQuery( document.getElementById( status_field ) ).fadeIn( 'fast' );
+	ec_admin_continue_importer( file, status_field, nonce, 0, 0, '' );
+	return false;
+}
+
+/* Since 6.0.0 the product CSV import runs 100 rows per request ( ec_admin_ajax_import_products replies
+   JSON { done, next, line, errors } ); this loops on the byte offset the server returns and shows the
+   accumulated errors, or the completed message, at the end. */
+function ec_admin_continue_importer( file, status_field, nonce, offset, line, errors ){
+	var $status = jQuery( document.getElementById( status_field ) );
 	var data = {
 		action: 'ec_admin_ajax_import_products',
 		import_file_url: ec_admin_get_value( file, 'text' ),
+		offset: offset,
+		line: line,
 		wp_easycart_nonce: nonce
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		if( data != 'success' ){
-			jQuery( document.getElementById( status_field ) ).text(data);
-		} else {
-			jQuery( document.getElementById( status_field ) ).text( wp_easycart_products_language['completed'] );
+	jQuery.ajax( { url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( d ){
+		if ( ! d || typeof d.done === 'undefined' ) {
+			$status.text( ( errors ? errors + '\r' : '' ) + 'The import stopped early: the server sent an unexpected reply after ' + line + ' rows. Run it again; rows already imported are kept.' );
+			return;
 		}
+		if ( d.errors ) {
+			errors += d.errors;
+		}
+		if ( ! d.done ) {
+			$status.text( wp_easycart_products_language['processing'] + ' ' + d.line );
+			ec_admin_continue_importer( file, status_field, nonce, d.next, d.line, errors );
+			return;
+		}
+		if ( errors != '' ) {
+			$status.text( errors );
+		} else {
+			$status.text( wp_easycart_products_language['completed'] );
+		}
+	}, error: function(){
+		$status.text( ( errors ? errors + '\r' : '' ) + 'The import stopped early: the server did not answer after ' + line + ' rows. Run it again; rows already imported are kept.' );
 	} } );
-
-	return false;
-
-
 }
 
 var has_valid_model_number = true;
@@ -368,126 +389,6 @@ function ec_admin_product_details_remove_logic( ele ){
 	}
 }
 
-function ec_admin_disable_cart_check( ){
-	if( jQuery( document.getElementById( 'ec_option_display_as_catalog' ) ).is( ':checked' ) )
-		return confirm( wp_easycart_products_language['catalog-note'] );
-	else
-		return true;
-}
-
-/* Quick Edit Functions */
-function ec_admin_save_new_quick_product( next_move ){
-
-	var errors = false;
-
-	if( jQuery( document.getElementById( 'ec_new_product_title' ) ).val( ) == '' ){
-		jQuery( document.getElementById( 'ec_new_product_title' ) ).removeClass( 'ec_admin_slideout_error' ).addClass( 'ec_admin_slideout_error' );
-		jQuery( document.getElementById( 'title_required' ) ).show( );
-		errors = true;
-	}else{
-		jQuery( document.getElementById( 'ec_new_product_title' ) ).removeClass( 'ec_admin_slideout_error' )
-		jQuery( document.getElementById( 'title_required' ) ).hide( );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_product_sku' ) ).val( ) == '' ){
-		jQuery( document.getElementById( 'ec_new_product_sku' ) ).removeClass( 'ec_admin_slideout_error' ).addClass( 'ec_admin_slideout_error' );
-		jQuery( document.getElementById( 'sku_required' ) ).show( );
-		errors = true;
-	}else{
-		jQuery( document.getElementById( 'ec_new_product_sku' ) ).removeClass( 'ec_admin_slideout_error' )
-		jQuery( document.getElementById( 'sku_required' ) ).hide( );
-	}
-
-	if( errors ){
-		return;
-	}
-
-	jQuery( document.getElementById( "ec_admin_new_product_display_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_new_quick_product',
-		ec_new_product_status: ec_admin_get_value( 'ec_new_product_status', 'select' ),
-		ec_new_product_featured: ec_admin_get_value( 'ec_new_product_featured', 'select' ),
-		ec_new_product_type: ec_admin_get_value( 'ec_new_product_type', 'select' ),
-		ec_new_product_title: ec_admin_get_value( 'ec_new_product_title', 'text' ),
-		ec_new_product_sku: ec_admin_get_value( 'ec_new_product_sku', 'text' ),
-		ec_new_product_manufacturer: ec_admin_get_value( 'ec_new_product_manufacturer', 'select' ),
-		ec_new_product_price: ec_admin_get_value( 'ec_new_product_price', 'text' ),
-		ec_new_product_image: ec_admin_get_value( 'ec_new_product_image', 'text' ),
-		ec_new_product_option_type: ec_admin_get_value( 'ec_new_product_options_needed', 'select' ),
-		option1: ec_admin_get_value( 'ec_new_product_option1', 'select' ),
-		option2: ec_admin_get_value( 'ec_new_product_option2', 'select' ),
-		option3: ec_admin_get_value( 'ec_new_product_option3', 'select' ),
-		option4: ec_admin_get_value( 'ec_new_product_option4', 'select' ),
-		option5: ec_admin_get_value( 'ec_new_product_option5', 'select' ),
-		ec_new_product_is_shippable: ec_admin_get_value( 'ec_new_product_is_shippable', 'select' ),
-		ec_new_product_weight: ec_admin_get_value( 'ec_new_product_weight', 'text' ),
-		ec_new_product_length: ec_admin_get_value( 'ec_new_product_length', 'text' ),
-		ec_new_product_width: ec_admin_get_value( 'ec_new_product_width', 'text' ),
-		ec_new_product_height: ec_admin_get_value( 'ec_new_product_height', 'text' ),
-		ec_new_product_is_taxable: ec_admin_get_value( 'ec_new_product_is_taxable', 'select' ),
-		ec_new_product_stock_option: ec_admin_get_value( 'ec_new_product_stock_option', 'select' ),
-		ec_new_product_stock_quantity: ec_admin_get_value( 'ec_new_product_stock_quantity', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_quick_edit_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_new_product_display_loader' );
-
-		var result = JSON.parse( data );
-		if( result.error ){
-			jQuery( document.getElementById( 'ec_new_product_sku' ) ).removeClass( 'ec_admin_slideout_error' ).addClass( 'ec_admin_slideout_error' );
-			jQuery( document.getElementById( 'duplicate_sku' ) ).show( );
-		}else{
-			var product_id = result.product_id;
-			jQuery( document.getElementById( 'ec_new_product_sku' ) ).removeClass( 'ec_admin_slideout_error' )
-			jQuery( document.getElementById( 'duplicate_sku' ) ).hide( );
-			jQuery( document.getElementById( 'ec_new_product_status' ) ).val( '1' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_featured' ) ).val( '1' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_type' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_title' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_sku' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_manufacturer' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_price' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_image' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_options_needed' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_option1' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_option2' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_option3' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_option4' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_option5' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_is_shippable' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_weight' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_length' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_width' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_height' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_product_is_taxable' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_stock_option' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_product_stock_quantity' ) ).val( '' );
-			jQuery( '.ec_admin_new_product_option_row' ).hide( );
-
-			if( next_move == 1 ){ // Create and Edit
-				wp_easycart_admin_close_slideout( 'new_product_box' );
-				window.location.href = "admin.php?page=wp-easycart-products&subpage=products&product_id=" + product_id + "&ec_admin_form_action=edit";
-			}else if( next_move == 2 ){ // Create and Another
-				// Do nothing, let user create another.
-			}else{ // Create and close
-				wp_easycart_admin_close_slideout( 'new_product_box' );
-				location.reload( );
-			}
-		}
-	} } );
-
-	return false;
-}
-
-function wp_easycart_admin_new_product_type_change( ){
-	if( ec_admin_get_value( 'ec_new_product_type', 'select' ) == 1 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 2 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 3 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 4 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 5 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 6 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 7 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 8 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 9 || ec_admin_get_value( 'ec_new_product_type', 'select' ) == 10 ){
-		show_pro_required( );
-		jQuery( document.getElementById( 'ec_new_product_type' ) ).val( '0' ).trigger( 'change' );
-	}
-}
-
 function ec_admin_save_new_manufacturer( ){
 	jQuery( document.getElementById( "ec_admin_new_manufacturer_display_loader" ) ).fadeIn( 'fast' );
 
@@ -507,76 +408,6 @@ function ec_admin_save_new_manufacturer( ){
 	return false;
 }
 
-function ec_admin_new_product_update_option_type( ){
-	if( jQuery( document.getElementById( 'ec_new_product_options_needed' ) ).val( ) == '0' || jQuery( document.getElementById( 'ec_new_product_options_needed' ) ).val( ) == '2' ){
-		jQuery( '.ec_admin_new_product_option_row' ).hide( );
-	}else{
-		jQuery( '.ec_admin_new_product_option_row' ).show( );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_product_options_needed' ) ).val( ) == '2' ){
-		jQuery( document.getElementById( 'ec_new_product_advanced_options' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_new_product_advanced_options' ) ).hide( );
-	}
-}
-
-function ec_admin_new_product_update_shipping_type( ){
-	if( jQuery( document.getElementById( 'ec_new_product_is_shippable' ) ).val( ) == '0' ){
-		jQuery( '.ec_admin_new_product_shipping_row' ).hide( );
-	}else{
-		jQuery( '.ec_admin_new_product_shipping_row' ).show( );
-	}
-}
-
-function ec_admin_new_product_update_stock_option( ){
-	if( jQuery( document.getElementById( 'ec_new_product_stock_option' ) ).val( ) == '0' ){
-		jQuery( '.ec_admin_new_product_basic_stock' ).hide( );
-		jQuery( '.ec_admin_new_product_optionitem_stock' ).hide( );
-	}else if( jQuery( document.getElementById( 'ec_new_product_stock_option' ) ).val( ) == '1' ){
-		jQuery( '.ec_admin_new_product_basic_stock' ).show( );
-		jQuery( '.ec_admin_new_product_optionitem_stock' ).hide( );
-	}else{
-		jQuery( '.ec_admin_new_product_basic_stock' ).hide( );
-		jQuery( '.ec_admin_new_product_optionitem_stock' ).show( );
-	}
-}
-
-/* PRODUCT SETTINGS FUNCTIONS */
-function ec_admin_sort_box_change( ){
-	if( jQuery( document.getElementById( 'ec_option_show_sort_box' ) ).val( ) == "1" ){
-		jQuery( document.getElementById( 'ec_admin_settings_sort_box_options' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_admin_settings_sort_box_options' ) ).hide( );
-	}
-}
-function ec_admin_save_product_settings( ){
-	jQuery( document.getElementById( "ec_admin_product_settings_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_settings',
-		ec_option_display_as_catalog: ec_admin_get_value( 'ec_option_display_as_catalog', 'checkbox' ),
-		ec_option_subscription_one_only: ec_admin_get_value( 'ec_option_subscription_one_only', 'checkbox' ),
-		ec_option_restrict_store: ec_admin_get_value( 'ec_option_restrict_store', 'select' ),
-		ec_option_product_image_default: ec_admin_get_value( 'ec_option_product_image_default', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_product_settings_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_open_new_option( ){
-	if( jQuery( document.getElementById( 'use_advanced_optionset' ) ).is( ':checked' ) ){ 
-		ec_admin_open_new_advanced_option();
-	}else{ 
-		ec_admin_open_new_basic_option();
-	}
-}
-
 function ec_admin_open_new_basic_option() {
 	wp_easycart_admin_open_slideout( 'new_option_box' );
 	return false;
@@ -585,496 +416,6 @@ function ec_admin_open_new_basic_option() {
 function ec_admin_open_new_advanced_option() {
 	wp_easycart_admin_open_slideout( 'new_adv_option_box' );
 	return false;
-}
-
-function ec_admin_update_advanced_option_fields( ){
-	if( jQuery( document.getElementById( 'ec_new_adv_option_type' ) ).val( ) == 'number' ){
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_min_row' ) ).show( );
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_max_row' ) ).show( );
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_step_row' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_min_row' ) ).hide( );
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_max_row' ) ).hide( );
-		jQuery( document.getElementById( 'ec_new_adv_option_meta_step_row' ) ).hide( );
-	}
-}
-
-function ec_admin_update_advanced_option_required_field( ){
-	if( jQuery( document.getElementById( 'ec_new_adv_option_required' ) ).is( ':checked' ) ){
-		jQuery( document.getElementById( 'ec_new_adv_option_error_text_row' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_option_error_text_row' ) ).hide( );
-	}
-}
-
-function ec_admin_update_advanced_optionitem_price_fields( ){
-	if( jQuery( document.getElementById( 'ec_new_adv_optionitem_price' ) ).val( ) != "0" ){
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_price_adjustment_row' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_price_adjustment_row' ) ).hide( );
-	}
-}
-
-function ec_admin_update_advanced_optionitem_weight_fields( ){
-	if( jQuery( document.getElementById( 'ec_new_adv_optionitem_weight' ) ).val( ) != "0" ){
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_weight_adjustment_row' ) ).show( );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_weight_adjustment_row' ) ).hide( );
-	}
-}
-
-function ec_admin_save_new_adv_optionset( ){
-
-	var errors = false;
-	if( jQuery( document.getElementById( 'ec_new_adv_option_type' ) ).val( ) == '0' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_adv_option_type' ) ).parent( ).find( '.select2-container' ) .removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_option_type' ) ).parent( ).find( '.select2-container' ) .removeClass( 'ec_admin_field_error' );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_adv_option_name' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_adv_option_name' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_option_name' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_adv_option_label' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_adv_option_label' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_option_label' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( !errors ){
-
-		jQuery( document.getElementById( "ec_admin_new_adv_optionset_display_loader" ) ).fadeIn( 'fast' );
-
-		var data = {
-			action: 'ec_admin_ajax_save_new_adv_optionset',
-			ec_new_adv_option_type: ec_admin_get_value( 'ec_new_adv_option_type', 'select' ),
-			ec_new_adv_option_name: ec_admin_get_value( 'ec_new_adv_option_name', 'text' ),
-			ec_new_adv_option_label: ec_admin_get_value( 'ec_new_adv_option_label', 'text' ),
-			ec_new_adv_option_meta_min: ec_admin_get_value( 'ec_new_adv_option_meta_min', 'text' ),
-			ec_new_adv_option_meta_max: ec_admin_get_value( 'ec_new_adv_option_meta_max', 'text' ),
-			ec_new_adv_option_meta_step: ec_admin_get_value( 'ec_new_adv_option_meta_step', 'text' ),
-			ec_new_adv_option_required: ec_admin_get_value( 'ec_new_adv_option_required', 'checkbox' ),
-			ec_new_adv_option_error_text: ec_admin_get_value( 'ec_new_adv_option_error_text', 'text' ),
-			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_adv_optionset_quick_edit_nonce', 'text' )
-		};
-
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-			var result = JSON.parse( data );
-			var type = ec_admin_get_value( 'ec_new_adv_option_type', 'select' );
-			// Update Option Sets Combos
-			jQuery( '#add_new_advanced_option option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_adv_option_name', 'text' ) } ) );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_option_id' ) ).val( result.option_id );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_option_type' ) ).val( type );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_sort_order' ) ).val( '0' );
-
-			// Reset Option Display
-			jQuery( document.getElementById( 'ec_new_adv_option_type' ) ).val( 0 ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_adv_option_name' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_option_label' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_option_meta_min' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_option_meta_max' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_option_meta_step' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_option_required' ) ).prop( 'checked', false );
-			jQuery( document.getElementById( 'ec_new_adv_option_error_text_row' ) ).hide( );
-			jQuery( document.getElementById( 'ec_new_adv_option_error_text' ) ).val( '' );
-
-			if( type == 'combo' || type == 'swatch' || type == 'radio' || type == 'checkbox' ){
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_initially_selected_row' ) ).show( );
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_allows_download_row' ) ).show( );
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_no_shipping_row' ) ).show( );
-			}else{
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_initially_selected_row' ) ).hide( );
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_allows_download_row' ) ).hide( );
-				jQuery( document.getElementById( 'ec_admin_adv_optionitem_no_shipping_row' ) ).hide( );
-			}
-
-			if ( typeof wp_easycart_pro_add_new_advanced_option_insert == 'function' ) {
-				wp_easycart_pro_add_new_advanced_option_insert( result.option_id );
-			}
-
-			ec_admin_hide_loader( 'ec_admin_new_adv_optionset_display_loader' );
-			wp_easycart_admin_close_slideout( 'new_adv_option_box' );
-			if( type == 'combo' || type == 'swatch' || type == 'radio' || type == 'checkbox' || type == 'grid' ){
-				wp_easycart_admin_open_slideout( 'new_adv_optionitem_box' );
-			}
-		} } );
-
-	}
-
-	return false;
-}
-
-function ec_admin_save_new_adv_optionitem( add_another ){
-
-	var errors = 0;
-	if( jQuery( document.getElementById( 'ec_new_adv_optionitem_name' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_name' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_adv_optionitem_name' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( !errors ){
-
-		jQuery( document.getElementById( "ec_admin_new_adv_optionitem_display_loader" ) ).fadeIn( 'fast' );
-
-		var data = {
-			action: 'ec_admin_ajax_save_new_adv_optionitem',
-			ec_new_optionitem_option_id: ec_admin_get_value( 'ec_new_adv_optionitem_option_id', 'text' ),
-			ec_new_optionitem_sort_order: ec_admin_get_value( 'ec_new_adv_optionitem_sort_order', 'text' ),
-			ec_new_optionitem_name: ec_admin_get_value( 'ec_new_adv_optionitem_name', 'text' ),
-			ec_new_optionitem_model_number_extension: ec_admin_get_value( 'ec_new_adv_optionitem_model_number_extension', 'text' ),
-			ec_admin_adv_optionitem_initially_selected: ec_admin_get_value( 'ec_admin_adv_optionitem_initially_selected', 'checkbox' ),
-			ec_admin_adv_optionitem_allows_download: ec_admin_get_value( 'ec_admin_adv_optionitem_allows_download', 'checkbox' ),
-			ec_admin_adv_optionitem_no_shipping: ec_admin_get_value( 'ec_admin_adv_optionitem_no_shipping', 'checkbox' ),
-			ec_new_optionitem_price_adjustment_type: ec_admin_get_value( 'ec_new_adv_optionitem_price', 'select' ),
-			ec_new_optionitem_price_adjustment: ec_admin_get_value( 'ec_new_adv_optionitem_price_adjustment', 'text' ),
-			ec_new_optionitem_weight_adjustment_type: ec_admin_get_value( 'ec_new_adv_optionitem_weight', 'select' ),
-			ec_new_optionitem_weight_adjustment: ec_admin_get_value( 'ec_new_adv_optionitem_weight_adjustment', 'text' ),
-			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_adv_optionitem_quick_edit_nonce', 'text' )
-		};
-
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_sort_order' ) ).val( Number( jQuery( document.getElementById( 'ec_new_adv_optionitem_sort_order' ) ).val( ) ) + 1 );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_name' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_model_number_extension' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_admin_adv_optionitem_initially_selected' ) ).prop( 'checked', false );
-			jQuery( document.getElementById( 'ec_admin_adv_optionitem_allows_download' ) ).prop( 'checked', true );
-			jQuery( document.getElementById( 'ec_admin_adv_optionitem_no_shipping' ) ).prop( 'checked', false );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_price' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_price_adjustment' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_price_adjustment_row' ) ).hide( );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_weight' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_weight_adjustment' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_adv_optionitem_weight_adjustment_row' ) ).hide( );
-
-			ec_admin_hide_loader( 'ec_admin_new_adv_optionitem_display_loader' );
-			if( !add_another ){
-				jQuery( document.getElementById( 'ec_new_adv_optionitem_option_id' ) ).val( '' );
-				jQuery( document.getElementById( 'ec_new_adv_optionitem_option_type' ) ).val( '' );
-				jQuery( document.getElementById( 'ec_new_adv_optionitem_sort_order' ) ).val( '0' );
-				wp_easycart_admin_close_slideout( 'new_adv_optionitem_box' );
-			}
-		} } );
-
-	}
-
-	return false;
-}
-
-function ec_admin_save_new_optionset( ){
-
-	var errors = false;
-	if( jQuery( document.getElementById( 'ec_new_option_type' ) ).val( ) == '0' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_option_type' ) ).parent( ).find( '.select2-container' ) .removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_option_type' ) ).parent( ).find( '.select2-container' ) .removeClass( 'ec_admin_field_error' );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_option_name' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_option_name' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_option_name' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( jQuery( document.getElementById( 'ec_new_option_label' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_option_label' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_option_label' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( !errors ){
-
-		jQuery( document.getElementById( "ec_admin_new_optionset_display_loader" ) ).fadeIn( 'fast' );
-
-		var data = {
-			action: 'ec_admin_ajax_save_new_optionset',
-			ec_new_option_type: ec_admin_get_value( 'ec_new_option_type', 'select' ),
-			ec_new_option_name: ec_admin_get_value( 'ec_new_option_name', 'text' ),
-			ec_new_option_label: ec_admin_get_value( 'ec_new_option_label', 'text' ),
-			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_optionset_quick_edit_nonce', 'text' )
-		};
-
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-			var result = JSON.parse( data );
-			// Update Option Sets Combos
-			if( jQuery( '#option1 option:first' ).length ){
-				jQuery( '#option1 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#option2 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#option3 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#option4 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#option5 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-			}
-			if( jQuery( '#ec_new_product_option1 option:first' ).length ){
-				jQuery( '#ec_new_product_option1 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#ec_new_product_option2 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#ec_new_product_option3 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#ec_new_product_option4 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-				jQuery( '#ec_new_product_option5 option:first' ).after( jQuery( '<option />', { 'value': result.option_id, 'text': ec_admin_get_value( 'ec_new_option_name', 'text' ) } ) );
-			}
-			jQuery( document.getElementById( 'ec_new_optionitem_option_id' ) ).val( result.option_id );
-			jQuery( document.getElementById( 'ec_new_optionitem_option_type' ) ).val( ec_admin_get_value( 'ec_new_option_type', 'select' ) );
-			jQuery( document.getElementById( 'ec_new_optionitem_sort_order' ) ).val( '0' );
-			jQuery( document.getElementById( 'ec_new_option_type' ) ).val( '0' ).trigger( 'change' );
-			jQuery( document.getElementById( 'ec_new_option_name' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_option_label' ) ).val( '' );
-
-			if ( typeof wp_easycart_pro_add_new_basic_option_insert == 'function' ) {
-				wp_easycart_pro_add_new_basic_option_insert( result.option_id );
-			}
-
-			ec_admin_hide_loader( 'ec_admin_new_optionset_display_loader' );
-			wp_easycart_admin_close_slideout( 'new_option_box' );
-			wp_easycart_admin_open_slideout( 'new_optionitem_box' );
-		} } );
-
-	}
-
-	return false;
-
-}
-
-function ec_admin_save_new_optionitem( add_another ){
-
-	var errors = 0;
-	if( jQuery( document.getElementById( 'ec_new_optionitem_name' ) ).val( ) == '' ){
-		errors = true;
-		jQuery( document.getElementById( 'ec_new_optionitem_name' ) ).removeClass( 'ec_admin_field_error' ).addClass( 'ec_admin_field_error' );
-	}else{
-		jQuery( document.getElementById( 'ec_new_optionitem_name' ) ).removeClass( 'ec_admin_field_error' );
-	}
-
-	if( !errors ){
-
-		jQuery( document.getElementById( "ec_admin_new_optionitem_display_loader" ) ).fadeIn( 'fast' );
-
-		var data = {
-			action: 'ec_admin_ajax_save_new_optionitem',
-			ec_new_optionitem_option_id: ec_admin_get_value( 'ec_new_optionitem_option_id', 'text' ),
-			ec_new_optionitem_sort_order: ec_admin_get_value( 'ec_new_optionitem_sort_order', 'text' ),
-			ec_new_optionitem_name: ec_admin_get_value( 'ec_new_optionitem_name', 'text' ),
-			ec_new_optionitem_model_number_extension: ec_admin_get_value( 'ec_new_optionitem_model_number_extension', 'text' ),
-			ec_new_optionitem_price_adjustment: ec_admin_get_value( 'ec_new_optionitem_price_adjustment', 'text' ),
-			ec_new_optionitem_weight_adjustment: ec_admin_get_value( 'ec_new_optionitem_weight_adjustment', 'text' ),
-			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_optionitem_quick_edit_nonce', 'text' )
-		};
-
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-
-			jQuery( document.getElementById( 'ec_new_optionitem_sort_order' ) ).val( Number( jQuery( document.getElementById( 'ec_new_optionitem_sort_order' ) ).val( ) ) + 1 );
-			jQuery( document.getElementById( 'ec_new_optionitem_name' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_optionitem_model_number_extension' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_optionitem_price_adjustment' ) ).val( '' );
-			jQuery( document.getElementById( 'ec_new_optionitem_weight_adjustment' ) ).val( '' );
-
-			ec_admin_hide_loader( 'ec_admin_new_optionitem_display_loader' );
-			if( !add_another ){
-				jQuery( document.getElementById( 'ec_new_optionitem_option_id' ) ).val( '' );
-				jQuery( document.getElementById( 'ec_new_optionitem_option_type' ) ).val( '' );
-				jQuery( document.getElementById( 'ec_new_optionitem_sort_order' ) ).val( '0' );
-				wp_easycart_admin_close_slideout( 'new_optionitem_box' );
-			}
-
-			if ( typeof wp_easycart_pro_refresh_options == 'function' ) {
-				wp_easycart_pro_refresh_options();
-			}
-		} } );
-
-	}
-
-	return false;
-}
-
-function ec_admin_save_product_list_display_options( ){
-
-	jQuery( document.getElementById( "ec_admin_product_list_display_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_list_display',
-		ec_option_show_sort_box: ec_admin_get_value( 'ec_option_show_sort_box', 'checkbox' ),
-		ec_option_default_store_filter: ec_admin_get_value( 'ec_option_default_store_filter', 'select' ),
-		ec_option_product_filter_0: ec_admin_get_value( 'ec_option_product_filter_0', 'checkbox' ),
-		ec_option_product_filter_1: ec_admin_get_value( 'ec_option_product_filter_1', 'checkbox' ),
-		ec_option_product_filter_2: ec_admin_get_value( 'ec_option_product_filter_2', 'checkbox' ),
-		ec_option_product_filter_3: ec_admin_get_value( 'ec_option_product_filter_3', 'checkbox' ),
-		ec_option_product_filter_4: ec_admin_get_value( 'ec_option_product_filter_4', 'checkbox' ),
-		ec_option_product_filter_5: ec_admin_get_value( 'ec_option_product_filter_5', 'checkbox' ),
-		ec_option_product_filter_6: ec_admin_get_value( 'ec_option_product_filter_6', 'checkbox' ),
-		ec_option_product_filter_7: ec_admin_get_value( 'ec_option_product_filter_7', 'checkbox' ),
-		ec_option_short_description_on_product: ec_admin_get_value( 'ec_option_short_description_on_product', 'checkbox' ),
-		ec_option_show_featured_categories: ec_admin_get_value( 'ec_option_show_featured_categories', 'checkbox' ),
-		ec_option_enable_product_paging: ec_admin_get_value( 'ec_option_enable_product_paging', 'checkbox' ),
-		ec_option_hide_out_of_stock: ec_admin_get_value( 'ec_option_hide_out_of_stock', 'checkbox' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_product_list_display_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_customer_review_display_options( ){
-	jQuery( document.getElementById( "ec_admin_customer_review_display_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_customer_review_display',
-		ec_option_customer_review_require_login: ec_admin_get_value( 'ec_option_customer_review_require_login', 'checkbox' ),
-		ec_option_customer_review_show_user_name: ec_admin_get_value( 'ec_option_customer_review_show_user_name', 'checkbox' ),
-		ec_option_customer_review_notification: ec_admin_get_value( 'ec_option_customer_review_notification', 'checkbox' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_customer_review_display_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_display_options( ){
-	jQuery( document.getElementById( "ec_admin_product_details_display_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_display',
-		ec_option_model_number_extension: ec_admin_get_value( 'ec_option_model_number_extension', 'text' ),
-		ec_option_product_details_sizing: ec_admin_get_value( 'ec_option_product_details_sizing', 'select' ),
-		ec_option_show_breadcrumbs: ec_admin_get_value( 'ec_option_show_breadcrumbs', 'checkbox' ),
-		ec_option_show_magnification: ec_admin_get_value( 'ec_option_show_magnification', 'checkbox' ),
-		ec_option_show_large_popup: ec_admin_get_value( 'ec_option_show_large_popup', 'checkbox' ),
-		ec_option_show_model_number: ec_admin_get_value( 'ec_option_show_model_number', 'checkbox' ),
-		ec_option_show_categories: ec_admin_get_value( 'ec_option_show_categories', 'checkbox' ),
-		ec_option_show_manufacturer: ec_admin_get_value( 'ec_option_show_manufacturer', 'checkbox' ),
-		ec_option_show_stock_quantity: ec_admin_get_value( 'ec_option_show_stock_quantity', 'checkbox' ),
-		ec_option_use_facebook_icon: ec_admin_get_value( 'ec_option_use_facebook_icon', 'checkbox' ),
-		ec_option_use_twitter_icon: ec_admin_get_value( 'ec_option_use_twitter_icon', 'checkbox' ),
-		ec_option_use_delicious_icon: ec_admin_get_value( 'ec_option_use_delicious_icon', 'checkbox' ),
-		ec_option_use_myspace_icon: ec_admin_get_value( 'ec_option_use_myspace_icon', 'checkbox' ),
-		ec_option_use_linkedin_icon: ec_admin_get_value( 'ec_option_use_linkedin_icon', 'checkbox' ),
-		ec_option_use_email_icon: ec_admin_get_value( 'ec_option_use_email_icon', 'checkbox' ),
-		ec_option_use_digg_icon: ec_admin_get_value( 'ec_option_use_digg_icon', 'checkbox' ),
-		ec_option_use_googleplus_icon: ec_admin_get_value( 'ec_option_use_googleplus_icon', 'checkbox' ),
-		ec_option_use_pinterest_icon: ec_admin_get_value( 'ec_option_use_pinterest_icon', 'checkbox' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_product_details_display_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_price_display_options( ){
-	jQuery( document.getElementById( "ec_admin_price_display_options_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_price_display',
-		ec_option_hide_price_seasonal: ec_admin_get_value( 'ec_option_hide_price_seasonal', 'checkbox' ),
-		ec_option_hide_price_inquiry: ec_admin_get_value( 'ec_option_hide_price_inquiry', 'checkbox' ),
-		ec_option_show_multiple_vat_pricing: ec_admin_get_value( 'ec_option_show_multiple_vat_pricing', 'checkbox' ),
-		ec_option_tiered_price_format: ec_admin_get_value( 'ec_option_tiered_price_format', 'checkbox' ),
-		ec_option_tiered_price_by_option: ec_admin_get_value( 'ec_option_tiered_price_by_option', 'checkbox' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_price_display_options_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_inventory_options( ){
-	jQuery( document.getElementById( "ec_admin_inventory_options_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_inventory_options',
-		ec_option_stock_removed_in_cart: ec_admin_get_value( 'ec_option_stock_removed_in_cart', 'checkbox' ),
-		ec_option_tempcart_stock_hours: ec_admin_get_value( 'ec_option_tempcart_stock_hours', 'text' ),
-		ec_option_tempcart_stock_timeframe: ec_admin_get_value( 'ec_option_tempcart_stock_timeframe', 'select' ),
-		ec_option_enable_inventory_notification: ec_admin_get_value( 'ec_option_enable_inventory_notification', 'checkbox' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_settings_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_inventory_options_loader' );
-	} } );
-
-	return false;
-}
-
-/* PRODUCT DETAILS FUNCTIONS */
-function ec_admin_save_product_details_basic( ){
-	if( ec_admin_save_product_details_basic_validate( ) ){
-		jQuery( document.getElementById( "ec_admin_product_details_basic_loader" ) ).fadeIn( 'fast' );
-		if( typeof tinymce !== 'undefined' && tinymce.editors.description && !jQuery( document.getElementById( 'description' ) ).is( ':visible' ) ){
-			description = tinymce.editors.description.getContent( );
-		}else{
-			description = jQuery( document.getElementById( 'description' ) ).val( );
-		}
-
-		var data = {
-			action: 'ec_admin_ajax_save_product_details_basic',
-			product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-			activate_in_store: ec_admin_get_value( 'activate_in_store', 'checkbox' ),
-			title: ec_admin_get_value( 'title', 'text' ),
-			post_slug: ec_admin_get_value( 'post_slug', 'text' ),
-			model_number: ec_admin_get_value( 'model_number', 'text' ),
-			manufacturer_id: ec_admin_get_value( 'manufacturer_id', 'text' ),
-			price: ec_admin_get_value( 'price', 'text' ),
-			description: description,
-			wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-		};
-
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-			var result = JSON.parse( data );
-			if( jQuery( document.getElementById( 'product_id' ) ).val( ) == '0' && data != '' && data != '0' ){
-				jQuery( document.getElementById( 'product_title' ) ).html( wp_easycart_products_language['edit-product'] );
-				jQuery( document.getElementById( 'product_create_button' ) ).val( 'Update Product' );
-				jQuery( document.getElementById( 'ec_admin_product_details_view_product_link' ) ).show( );
-				jQuery( document.getElementById( 'ec_admin_product_details_add_new_button' ) ).show( );
-				jQuery( document.getElementById( 'ec_admin_row_post_slug' ) ).show( );
-				jQuery( document.getElementById( 'product_id' ) ).val( result.product_id );
-				jQuery( '.ec_admin_flex_row' ).each( function( ){
-					jQuery( this ).removeClass( 'ec_admin_hidden' );
-				} );
-			}
-			var new_link = result.link;
-			jQuery( document.getElementById( 'ec_admin_product_details_view_product_link' ) ).attr( 'href', new_link );
-			jQuery( document.getElementById( 'post_slug' ) ).val( result.post_slug );
-			if( ec_admin_get_value( 'activate_in_store', 'checkbox' ) == '1' ){
-				jQuery( document.getElementById( 'ec_admin_product_activate_error' ) ).hide( );
-			}else{
-				jQuery( document.getElementById( 'ec_admin_product_activate_error' ) ).show( );
-			}
-			ec_admin_hide_loader( 'ec_admin_product_details_basic_loader' );
-		} } );
-	}
-	return false;
-}
-function ec_admin_save_product_details_basic_validate( ){
-	var errors = false;
-	if( !wpeasycart_admin_validate_text_field( jQuery( document.getElementById( 'title' ) ) ) )
-		errors = true;
-	if( !wpeasycart_admin_validate_model_number_field( jQuery( document.getElementById( 'model_number' ) ) ) || !has_valid_model_number )
-		errors = true;
-	if( !wpeasycart_admin_validate_select2_field( jQuery( document.getElementById( 'manufacturer_id' ) ) ) )
-		errors = true;
-	if( !wpeasycart_admin_validate_number_field( jQuery( document.getElementById( 'price' ) ) ) )
-		errors = true;
-	return !errors;
 }
 
 function advanced_options_change( field_id ){
@@ -1554,31 +895,6 @@ function product_details_update_menus( field ){
 	}
 }
 
-function ec_admin_save_product_details_menus( ){
-	jQuery( document.getElementById( "ec_admin_product_details_menus_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_menus',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		menulevel1_id_1: ec_admin_get_value( 'menulevel1_id_1', 'select' ),
-		menulevel1_id_2: ec_admin_get_value( 'menulevel1_id_2', 'select' ),
-		menulevel1_id_3: ec_admin_get_value( 'menulevel1_id_3', 'select' ),
-		menulevel2_id_1: ec_admin_get_value( 'menulevel2_id_1', 'select' ),
-		menulevel2_id_2: ec_admin_get_value( 'menulevel2_id_2', 'select' ),
-		menulevel2_id_3: ec_admin_get_value( 'menulevel2_id_3', 'select' ),
-		menulevel3_id_1: ec_admin_get_value( 'menulevel3_id_1', 'select' ),
-		menulevel3_id_2: ec_admin_get_value( 'menulevel3_id_2', 'select' ),
-		menulevel3_id_3: ec_admin_get_value( 'menulevel3_id_3', 'select' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
-		ec_admin_hide_loader( 'ec_admin_product_details_menus_loader' );
-	} } );
-
-	return false;
-}
-
 function ec_admin_product_details_add_category( ){
 	if ( '0' == ec_admin_get_value( 'add_new_category', 'select' ) ) {
 		return false;
@@ -1778,32 +1094,6 @@ function ec_admin_product_details_delete_optionitem_quantity( optionitemquantity
 	return false;
 }
 
-function ec_admin_save_product_details_pricing( ){
-	jQuery( document.getElementById( "ec_admin_product_details_pricing_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_pricing',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		list_price: ec_admin_get_value( 'list_price', 'number' ),
-		login_for_pricing: ec_admin_get_value( 'login_for_pricing', 'checkbox' ),
-		login_for_pricing_user_level: ec_admin_get_value( 'login_for_pricing_user_level', 'select' ),
-		login_for_pricing_label: ec_admin_get_value( 'login_for_pricing_label', 'text' ),
-		show_custom_price_range: ec_admin_get_value( 'show_custom_price_range', 'checkbox' ),
-		price_range_low: ec_admin_get_value( 'price_range_low', 'number' ),
-		price_range_high: ec_admin_get_value( 'price_range_high', 'number' ),
-		enable_price_label: ec_admin_get_value( 'enable_price_label', 'select' ),
-		replace_price_label: ec_admin_get_value( 'replace_price_label', 'checkbox' ),
-		custom_price_label: ec_admin_get_value( 'custom_price_label', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_pricing_loader' );
-	} } );
-
-	return false;
-}
-
 function ec_admin_product_details_add_price_tier( ){
 	jQuery( document.getElementById( "ec_admin_product_details_pricing_loader" ) ).fadeIn( 'fast' );
 
@@ -1907,197 +1197,6 @@ function ec_admin_product_details_delete_role_price( roleprice_id ){
 	return false;
 }
 
-function ec_admin_save_product_details_packaging( ){
-	jQuery( document.getElementById( "ec_admin_product_details_packaging_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_packaging',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		weight: ec_admin_get_value( 'weight', 'number' ),
-		width: ec_admin_get_value( 'width', 'number' ),
-		height: ec_admin_get_value( 'height', 'number' ),
-		length: ec_admin_get_value( 'length', 'number' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_packaging_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_shipping( ){
-	jQuery( document.getElementById( "ec_admin_product_details_shipping_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_shipping',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		is_shippable: ec_admin_get_value( 'is_shippable', 'checkbox' ),
-		exclude_shippable_calculation: ec_admin_get_value( 'exclude_shippable_calculation', 'checkbox' ),
-		ship_to_billing: ec_admin_get_value( 'ship_to_billing', 'checkbox' ),
-		allow_backorders: ec_admin_get_value( 'allow_backorders', 'checkbox' ),
-		backorder_fill_date: ec_admin_get_value( 'backorder_fill_date', 'text' ),
-		handling_price: ec_admin_get_value( 'handling_price', 'number' ),
-		handling_price_each: ec_admin_get_value( 'handling_price_each', 'number' ),
-		shipping_restriction: ( jQuery( '#shipping_restriction[type="checkbox"]' ).length ) ? 0 : ec_admin_get_value( 'shipping_restriction', 'select' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_shipping_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_short_description( ){
-	jQuery( document.getElementById( "ec_admin_product_details_short_description_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_short_description',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		short_description: ec_admin_get_value( 'short_description', 'textarea' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_short_description_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_specifications( ){
-	jQuery( document.getElementById( "ec_admin_product_details_specifications_loader" ) ).fadeIn( 'fast' );
-	if( typeof tinymce !== 'undefined' && tinymce.editors.specifications && !jQuery( document.getElementById( 'specifications' ) ).is( ':visible' ) ){
-		specifications = tinymce.editors.specifications.getContent( );
-	}else{
-		specifications = jQuery( document.getElementById( 'specifications' ) ).val( );
-	}
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_specifications',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		specifications: specifications,
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_specifications_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_order_completed_note( ){
-	jQuery( document.getElementById( "ec_admin_product_details_ordercompleted_loader" ) ).fadeIn( 'fast' );
-	if( typeof tinymce !== 'undefined' && tinymce.editors.order_completed_note && !jQuery( document.getElementById( 'order_completed_note' ) ).is( ':visible' ) ){
-		order_completed_note = tinymce.editors.order_completed_note.getContent( );
-	}else{
-		order_completed_note = jQuery( document.getElementById( 'order_completed_note' ) ).val( );
-	}
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_order_completed_note',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		order_completed_note: order_completed_note,
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_ordercompleted_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_order_completed_email_note( ){
-	jQuery( document.getElementById( "ec_admin_product_details_ordercompleted_email_loader" ) ).fadeIn( 'fast' );
-	if( typeof tinymce !== 'undefined' && tinymce.editors.order_completed_email_note && !jQuery( document.getElementById( 'order_completed_email_note' ) ).is( ':visible' ) ){
-		order_completed_email_note = tinymce.editors.order_completed_email_note.getContent( );
-	}else{
-		order_completed_email_note = jQuery( document.getElementById( 'order_completed_email_note' ) ).val( );
-	}
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_order_completed_email_note',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		order_completed_email_note: order_completed_email_note,
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_ordercompleted_email_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_order_completed_details_note( ){
-	jQuery( document.getElementById( "ec_admin_product_details_ordercompleted_details_loader" ) ).fadeIn( 'fast' );
-	if( typeof tinymce !== 'undefined' && tinymce.editors.order_completed_details_note && !jQuery( document.getElementById( 'order_completed_details_note' ) ).is( ':visible' ) ){
-		order_completed_details_note = tinymce.editors.order_completed_details_note.getContent( );
-	}else{
-		order_completed_details_note = jQuery( document.getElementById( 'order_completed_details_note' ) ).val( );
-	}
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_order_completed_details_note',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		order_completed_details_note: order_completed_details_note,
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_ordercompleted_details_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_tags( ){
-	jQuery( document.getElementById( "ec_admin_product_details_tags_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_tags',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		hover_effect: ec_admin_get_value( 'image_hover_type', 'select' ),
-		image_effect: ec_admin_get_value( 'image_effect_type', 'select' ),
-		tag_type: ec_admin_get_value( 'tag_type', 'select' ),
-		tag_text: ec_admin_get_value( 'tag_text', 'text' ),
-		tag_bg_color: ec_admin_get_value( 'tag_bg_color', 'text' ),
-		tag_text_color: ec_admin_get_value( 'tag_text_color', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_tags_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_featured_products( ){
-	jQuery( document.getElementById( "ec_admin_product_details_featured_products_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_featured_products',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		featured_product_id_1: ec_admin_get_value( 'featured_product_id_1', 'select' ),
-		featured_product_id_2: ec_admin_get_value( 'featured_product_id_2', 'select' ),
-		featured_product_id_3: ec_admin_get_value( 'featured_product_id_3', 'select' ),
-		featured_product_id_4: ec_admin_get_value( 'featured_product_id_4', 'select' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_featured_products_loader' );
-	} } );
-
-	return false;
-}
-
 function ec_admin_product_details_inquiry_change( field ){
 	if( jQuery( document.getElementById( field ) ).is( ':checked' ) ){
 		jQuery( document.getElementById( 'ec_admin_row_inquiry_url' ) ).show( );
@@ -2105,61 +1204,6 @@ function ec_admin_product_details_inquiry_change( field ){
 		jQuery( document.getElementById( 'ec_admin_row_inquiry_url' ) ).hide( );
 		jQuery( document.getElementById( 'inquiry_url' ) ).val( '' );
 	}
-}
-
-function ec_admin_save_product_details_general_options( ){
-	jQuery( document.getElementById( "ec_admin_product_details_general_options_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_general_options',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		show_on_startup: ec_admin_get_value( 'show_on_startup', 'checkbox' ),
-		is_special: ec_admin_get_value( 'is_special', 'checkbox' ),
-		use_customer_reviews: ec_admin_get_value( 'use_customer_reviews', 'checkbox' ),
-		is_donation: ec_admin_get_value( 'is_donation', 'checkbox' ),
-		is_giftcard: ec_admin_get_value( 'is_giftcard', 'checkbox' ),
-		inquiry_mode: ec_admin_get_value( 'inquiry_mode', 'checkbox' ),
-		inquiry_url: ec_admin_get_value( 'inquiry_url', 'text' ),
-		catalog_mode: ec_admin_get_value( 'catalog_mode', 'checkbox' ),
-		catalog_mode_phrase: ec_admin_get_value( 'catalog_mode_phrase', 'text' ),
-		is_preorder_type: ec_admin_get_value( 'is_preorder_type', 'checkbox' ),
-		is_restaurant_type: ec_admin_get_value( 'is_restaurant_type', 'checkbox' ),
-		role_id: ec_admin_get_value( 'role_id', 'select' ),
-		sort_position: ec_admin_get_value( 'sort_position', 'text' ),
-		mailerlite_group_name: ( jQuery( document.getElementById( 'mailerlite_group_name' ) ).length ) ? jQuery( document.getElementById( 'mailerlite_group_name' ) ).val() : '',
-		activecampaign_group_name: ( jQuery( document.getElementById( 'activecampaign_group_name' ) ).length ) ? jQuery( document.getElementById( 'activecampaign_group_name' ) ).val() : '',
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_general_options_loader' );
-		if( ec_admin_get_value( 'show_on_startup', 'checkbox' ) == '1' ){
-			jQuery( document.getElementById( 'ec_admin_product_store_startup_error' ) ).hide( );
-		}else{
-			jQuery( document.getElementById( 'ec_admin_product_store_startup_error' ) ).show( );
-		}
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_tax( ){
-	jQuery( document.getElementById( "ec_admin_product_details_tax_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_tax',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		is_taxable: ec_admin_get_value( 'is_taxable', 'checkbox' ),
-		vat_rate: ec_admin_get_value( 'vat_rate', 'checkbox' ),
-		TIC: ec_admin_get_value( 'TIC', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_tax_loader' );
-	} } );
-
-	return false;
 }
 
 function ec_admin_product_details_deconetwork_toggle( field ){
@@ -2176,28 +1220,6 @@ function ec_admin_product_details_deconetwork_toggle( field ){
 		jQuery( document.getElementById( 'ec_admin_row_deconetwork_color_id' ) ).hide( );
 		jQuery( document.getElementById( 'ec_admin_row_deconetwork_design_id' ) ).hide( );
 	}
-}
-
-function ec_admin_save_product_details_deconetwork( ){
-	jQuery( document.getElementById( "ec_admin_product_details_deconetwork_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_deconetwork',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		is_deconetwork: ec_admin_get_value( 'is_deconetwork', 'checkbox' ),
-		deconetwork_mode: ec_admin_get_value( 'deconetwork_mode', 'select' ),
-		deconetwork_product_id: ec_admin_get_value( 'deconetwork_product_id', 'text' ),
-		deconetwork_size_id: ec_admin_get_value( 'deconetwork_size_id', 'text' ),
-		deconetwork_color_id: ec_admin_get_value( 'deconetwork_color_id', 'text' ),
-		deconetwork_design_id: ec_admin_get_value( 'deconetwork_design_id', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_deconetwork_loader' );
-	} } );
-
-	return false;
 }
 
 function ec_admin_product_details_subscription_change( field ){
@@ -2237,54 +1259,6 @@ function ec_admin_product_details_billing_duration_toggle( field ) {
 	}
 }
 
-function ec_admin_save_product_details_subscription( ){
-	jQuery( document.getElementById( "ec_admin_product_details_subscription_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_subscription',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		is_subscription_item: ec_admin_get_value( 'is_subscription_item', 'checkbox' ),
-		subscription_bill_length: ec_admin_get_value( 'subscription_bill_length', 'select' ),
-		subscription_bill_period: ec_admin_get_value( 'subscription_bill_period', 'select' ),
-		subscription_bill_duration: ec_admin_get_value( 'subscription_bill_duration', 'text' ),
-		subscription_shipping_recurring: ec_admin_get_value( 'subscription_shipping_recurring', 'text' ),
-		subscription_recurring_email: ec_admin_get_value( 'subscription_recurring_email', 'text' ),
-		trial_period_days: ec_admin_get_value( 'trial_period_days', 'text' ),
-		subscription_signup_fee: ec_admin_get_value( 'subscription_signup_fee', 'text' ),
-		allow_multiple_subscription_purchases: ec_admin_get_value( 'allow_multiple_subscription_purchases', 'checkbox' ),
-		subscription_prorate: ec_admin_get_value( 'subscription_prorate', 'checkbox' ),
-		subscription_plan_id: ec_admin_get_value( 'subscription_plan_id', 'select' ),
-		membership_page: ec_admin_get_value( 'membership_page', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_subscription_loader' );
-	} } );
-
-	return false;
-}
-
-function ec_admin_save_product_details_seo( ){
-	jQuery( document.getElementById( "ec_admin_product_details_seo_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_seo',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		seo_description: ec_admin_get_value( 'seo_description', 'textarea' ),
-		seo_keywords: ec_admin_get_value( 'seo_keywords', 'textarea' ),
-		post_excerpt: ec_admin_get_value( 'post_excerpt', 'text' ),
-		featured_image: ec_admin_get_value( 'featured_image', 'text' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_seo_loader' );
-	} } );
-
-	return false;
-}
-
 function ec_admin_product_details_download_toggle( field ){
 	if( jQuery( document.getElementById( field ) ).is( ':checked' ) ){
 		jQuery( document.getElementById( 'ec_admin_row_is_amazon_download' ) ).show( );
@@ -2321,28 +1295,6 @@ function ec_admin_product_details_download_location_toggle( field ){
 	}
 }
 
-function ec_admin_save_product_details_downloads( ){
-	jQuery( document.getElementById( "ec_admin_product_details_downloads_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_save_product_details_downloads',
-		product_id: ec_admin_get_value( 'product_id', 'hidden' ),
-		is_download: ec_admin_get_value( 'is_download', 'checkbox' ),
-		is_amazon_download: ec_admin_get_value( 'is_amazon_download', 'select' ),
-		amazon_key: ec_admin_get_value( 'amazon_key', 'select' ),
-		download_file_name: ec_admin_get_value( 'download_file_name', 'select' ),
-		maximum_downloads_allowed: ec_admin_get_value( 'maximum_downloads_allowed', 'select' ),
-		download_timelimit_seconds: ec_admin_get_value( 'download_timelimit_seconds', 'select' ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		ec_admin_hide_loader( 'ec_admin_product_details_downloads_loader' );
-	} } );
-
-	return false;
-}
-
 function ec_admin_product_details_add_new_manufacturer( ){
 	jQuery( document.getElementById( "ec_admin_product_details_basic_loader" ) ).fadeIn( 'fast' );
 
@@ -2361,17 +1313,6 @@ function ec_admin_product_details_add_new_manufacturer( ){
 	} } );
 
 	return false;
-}
-
-function wp_easycart_show_product_stats( element ){
-	var product_id = element.parent( ).parent( ).parent( ).attr( 'data-id' );
-	var views = element.attr( 'data-views' );
-	var stats_html = '<div class="ec_admin_stats_container" id="ec_admin_stats_container_' + product_id + '"><div class="ec_admin_stats_inner"><div class="ec_admin_product_stat1"><strong>' + wp_easycart_products_language['total-views'] + ': </strong>' + views + '</div></div></div>';
-	element.append( stats_html );
-}
-
-function wp_easycart_hide_product_stats( element ){
-	element.find( '.ec_admin_stats_container' ).remove( );
 }
 
 function show_custom_price_range( ){
@@ -2405,36 +1346,6 @@ function ec_admin_add_notify_subscriber( product_id ){
 function ec_admin_delete_notify_subscriber( product_subscriber_id, product_id ){
 	var data = {
 		action: 'ec_ajax_admin_delete_stock_notification_item',
-		product_subscriber_id: product_subscriber_id,
-		product_id: product_id
-	};
-	jQuery( '.ec_out_of_stock_notify_loader_cover' ).show( );
-	jQuery( '.ec_out_of_stock_notify_loader' ).show( );
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-		jQuery( '.ec_admin_stock_notification_view > table' ).replaceWith( data );
-		jQuery( '.ec_out_of_stock_notify_loader_cover' ).hide( );
-		jQuery( '.ec_out_of_stock_notify_loader' ).hide( );
-	} } );
-}
-
-function ec_admin_subscribe_notify_subscriber( product_subscriber_id, product_id ){
-	var data = {
-		action: 'ec_ajax_admin_subscribe_stock_notification_item',
-		product_subscriber_id: product_subscriber_id,
-		product_id: product_id
-	};
-	jQuery( '.ec_out_of_stock_notify_loader_cover' ).show( );
-	jQuery( '.ec_out_of_stock_notify_loader' ).show( );
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( data ){ 
-		jQuery( '.ec_admin_stock_notification_view > table' ).replaceWith( data );
-		jQuery( '.ec_out_of_stock_notify_loader_cover' ).hide( );
-		jQuery( '.ec_out_of_stock_notify_loader' ).hide( );
-	} } );
-}
-
-function ec_admin_unsubscribe_notify_subscriber( product_subscriber_id, product_id ){
-	var data = {
-		action: 'ec_ajax_admin_unsubscribe_stock_notification_item',
 		product_subscriber_id: product_subscriber_id,
 		product_id: product_id
 	};
@@ -2574,87 +1485,4 @@ function wp_easycart_open_product_quick_edit( product_id ){
 
 	return false;
 }
-
-function ec_admin_update_quick_product( goto_edit ){
-	jQuery( document.getElementById( "ec_admin_product_quick_edit_display_loader" ) ).fadeIn( 'fast' );
-
-	var data = {
-		action: 'ec_admin_ajax_product_quick_update',
-		product_id: jQuery( document.getElementById( 'ec_qe_product_id' ) ).val( ),
-		activate_in_store: jQuery( document.getElementById( 'ec_quick_editproduct_status' ) ).val( ),
-		show_on_startup: jQuery( document.getElementById( 'ec_quick_editproduct_featured' ) ).val( ),
-		title: jQuery( document.getElementById( 'ec_quick_editproduct_title' ) ).val( ),
-		model_number: jQuery( document.getElementById( 'ec_quick_editproduct_sku' ) ).val( ),
-		manufacturer_id: jQuery( document.getElementById( 'ec_quick_editproduct_manufacturer' ) ).val( ),
-		price: jQuery( document.getElementById( 'ec_quick_editproduct_price' ) ).val( ),
-		list_price: jQuery( document.getElementById( 'ec_quick_editproduct_list_price' ) ).val( ),
-		image1: jQuery( document.getElementById( 'ec_quick_editproduct_image' ) ).val( ),
-		sort_position: jQuery( document.getElementById( 'ec_quick_editproduct_sort_position' ) ).val( ),
-		stock_option: jQuery( document.getElementById( 'ec_quick_editproduct_stock_option' ) ).val( ),
-		stock_quantity: jQuery( document.getElementById( 'ec_quick_editproduct_stock_quantity' ) ).val( ),
-		is_shippable: jQuery( document.getElementById( 'ec_quick_editproduct_is_shippable' ) ).val( ),
-		weight: jQuery( document.getElementById( 'ec_quick_editproduct_weight' ) ).val( ),
-		length: jQuery( document.getElementById( 'ec_quick_editproduct_length' ) ).val( ),
-		width: jQuery( document.getElementById( 'ec_quick_editproduct_width' ) ).val( ),
-		height: jQuery( document.getElementById( 'ec_quick_editproduct_height' ) ).val( ),
-		is_taxable: jQuery( document.getElementById( 'ec_quick_editproduct_is_taxable' ) ).val( ),
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_quick_edit_nonce', 'text' )
-	};
-
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
-		var json_data = JSON.parse( data );
-		var prod_columns = jQuery( 'tr[data-id="' + json_data.product_id + '"] > td' );
-		jQuery( 'tr[data-id="' + json_data.product_id + '"] > td > a' ).html( json_data.title );
-		for( var i=0; i<prod_columns.length; i++ ){
-			if( json_data.show_stock_quantity == '1' ){
-				jQuery( prod_columns[1] ).html( json_data.stock_quantity );
-			}else{
-				jQuery( prod_columns[1] ).html( '∞' );
-			}
-			jQuery( prod_columns[2] ).html( json_data.unit_price_formatted );
-			jQuery( prod_columns[3] ).html( json_data.model_number );
-			if( json_data.activate_in_store == '1' ){
-				jQuery( prod_columns[4] ).html( 'Yes' );
-				jQuery( prod_columns[6] ).find( '.deactivate-product' ).html( '<a href="admin.php?&page=wp-easycart-products&subpage=products&product_id=' + json_data.product_id + '&ec_admin_form_action=deactivate-product" aria-label="' + wp_easycart_products_language['deactivate'] + '" title="' + wp_easycart_products_language['deactivate'] + '"><div class="dashicons-before dashicons-hidden"></div></a>' );
-			}else{
-				jQuery( prod_columns[4] ).html( 'No' );
-				jQuery( prod_columns[6] ).find( '.deactivate-product' ).html( '<a href="admin.php?&page=wp-easycart-products&subpage=products&product_id=' + json_data.product_id + '&ec_admin_form_action=deactivate-product" aria-label="' + wp_easycart_products_language['activate'] + '" title="' + wp_easycart_products_language['activate'] + '"><div class="dashicons-before dashicons-visibility"></div></a>' );
-			}
-		}
-		if( goto_edit ){
-			window.location.href = 'admin.php?page=wp-easycart-products&subpage=products&product_id=' + json_data.product_id + '&ec_admin_form_action=edit';
-		}else{
-			jQuery( document.getElementById( "ec_admin_product_quick_edit_display_loader" ) ).fadeOut( 'fast' );
-			wp_easycart_admin_close_slideout( 'product_quick_edit_box' );
-		}
-	} } );
-}
-
-function ec_admin_quick_edit_product_update_shipping_type( ){
-	if( jQuery( document.getElementById( 'ec_quick_editproduct_is_shippable' ) ).val( ) == '0' ){
-		jQuery( '.ec_admin_quick_edit_product_shipping_row' ).hide( );
-	}else{
-		jQuery( '.ec_admin_quick_edit_product_shipping_row' ).show( );
-	}
-}
-
-function ec_admin_quick_edit_product_update_stock_option( ){
-	if( jQuery( document.getElementById( 'ec_quick_editproduct_stock_option' ) ).val( ) == '0' ){
-		jQuery( '.ec_admin_quick_edit_product_basic_stock' ).hide( );
-		jQuery( '.ec_admin_quick_edit_product_optionitem_stock' ).hide( );
-	}else if( jQuery( document.getElementById( 'ec_quick_editproduct_stock_option' ) ).val( ) == '1' ){
-		jQuery( '.ec_admin_quick_edit_product_basic_stock' ).show( );
-		jQuery( '.ec_admin_quick_edit_product_optionitem_stock' ).hide( );
-	}else{
-		jQuery( '.ec_admin_quick_edit_product_basic_stock' ).hide( );
-		jQuery( '.ec_admin_quick_edit_product_optionitem_stock' ).show( );
-	}
-}
-
-function ec_admin_product_image_menu_open_free() {
-	jQuery( '#wpeasycart_admin_product_image_add_basic_free' ).show();
-}
-
-function ec_admin_product_image_menu_close_free() {
-	jQuery( '#wpeasycart_admin_product_image_add_basic_free' ).hide();
-}
+

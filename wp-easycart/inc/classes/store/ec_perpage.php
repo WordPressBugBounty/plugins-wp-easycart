@@ -21,6 +21,15 @@ class ec_perpage {
 	}
 
 	private function get_default() {
+		/* Admin-chosen default ( Settings > Per Page Options ), as long as it is still one of the values. */
+		$chosen = (int) get_option( 'ec_option_perpage_default' );
+		if ( $chosen > 0 && is_array( $this->values ) ) {
+			foreach ( $this->values as $value ) {
+				if ( (int) $value === $chosen ) {
+					return $value;
+				}
+			}
+		}
 		$sel_item = ( ceil( count( $this->values ) / 2 ) );
 		if ( $sel_item > 0 ) {
 			return $this->values[$sel_item-1];

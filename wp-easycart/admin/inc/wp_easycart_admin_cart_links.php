@@ -74,7 +74,7 @@ class wp_easycart_admin_cart_links {
 		if ( self::is_pro() ) {
 			return;
 		}
-		echo '<button type="button" class="ecv2-cl-locked-add" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'multi_product' ) . '"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Add another product', 'wp-easycart' ) . ' <span class="ecv2-cl-pro-badge">PRO</span></button>';
+		echo '<button type="button" class="ecv2-cl-locked-add" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'multi_product' ) . '"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'Add another product', 'wp-easycart' ) . ' <span class="ecv2-cl-pro-badge">' . esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ) . '</span></button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_admin_upsell::onclick() builds the handler from esc_js() values.
 	}
 
 	public function print_drawer_upsell_fields() {
@@ -87,8 +87,8 @@ class wp_easycart_admin_cart_links {
 			'limits' => array( 'label' => __( 'Limits', 'wp-easycart' ), 'placeholder' => '' ),
 		);
 		foreach ( $locked as $key => $meta ) {
-			echo '<section class="ecv2-qe-section ecv2-qe-section-edit ecv2-cl-locked" data-feature="' . esc_attr( $key ) . '" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', $key ) . '" role="button" tabindex="0">';
-			echo '<div class="ecv2-qe-section-label"><span>' . esc_html( $meta['label'] ) . '</span> <span class="ecv2-cl-pro-badge">PRO</span></div>';
+			echo '<section class="ecv2-qe-section ecv2-qe-section-edit ecv2-cl-locked" data-feature="' . esc_attr( $key ) . '" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', $key ) . '" role="button" tabindex="0">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_admin_upsell::onclick() builds the handler from esc_js() values; $key is a local $locked array key.
+			echo '<div class="ecv2-qe-section-label"><span>' . esc_html( $meta['label'] ) . '</span> <span class="ecv2-cl-pro-badge">' . esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ) . '</span></div>';
 			echo '<div class="ecv2-cl-locked-body">';
 			if ( 'codes' === $key ) {
 				echo '<input type="text" class="ecv2-input" placeholder="' . esc_attr( $meta['placeholder'] ) . '" disabled />';
@@ -108,14 +108,14 @@ class wp_easycart_admin_cart_links {
 		if ( self::is_pro() ) {
 			return;
 		}
-		echo '<a href="#" class="ecv2-row-menu-item ecv2-row-menu-item-locked" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'qr' ) . '"><span class="dashicons dashicons-smartphone"></span>' . esc_html__( 'Download QR code', 'wp-easycart' ) . ' <span class="ecv2-cl-pro-badge">PRO</span></a>';
+		echo '<a href="#" class="ecv2-row-menu-item ecv2-row-menu-item-locked" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'qr' ) . '"><span class="dashicons dashicons-smartphone"></span>' . esc_html__( 'Download QR code', 'wp-easycart' ) . ' <span class="ecv2-cl-pro-badge">' . esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ) . '</span></a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_admin_upsell::onclick() builds the handler from esc_js() values.
 	}
 
 	public function print_banner_upsell( $link ) {
 		if ( self::is_pro() ) {
 			return;
 		}
-		echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-cl-btn-locked" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'qr' ) . '"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'QR code', 'wp-easycart' ) . '</button>';
+		echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-cl-btn-locked" onclick="' . wp_easycart_admin_upsell::onclick( 'cart_links', 'qr' ) . '"><span class="dashicons dashicons-lock"></span> ' . esc_html__( 'QR code', 'wp-easycart' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_admin_upsell::onclick() builds the handler from esc_js() values.
 	}
 
 	public static function enqueue_assets() {
@@ -159,30 +159,85 @@ class wp_easycart_admin_cart_links {
 		include( EC_PLUGIN_DIRECTORY . '/admin/template/marketing/cart-links/cart-links.php' );
 	}
 
-	public function get_links() {
+	/** Paging state for the last get_links() call ( read by print_pagination() ). @since 6.0.0 */
+	public $links_total = 0;
+	public $links_page  = 1;
+	public $links_pages = 1;
+	const PER_PAGE      = 25;
+
+	/**
+	 * One page of cart links ( newest first ) with their content summaries.
+	 * Summaries for the whole page come from a single IN ( … ) query.
+	 *
+	 * @since 6.0.0 paged; previously loaded every link with one summary query each.
+	 */
+	public function get_links( $page = 1, $per_page = self::PER_PAGE ) {
 		global $wpdb;
-		$links = $wpdb->get_results(
+		$per_page = max( 1, (int) $per_page );
+		$this->links_total = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_cart_link' );
+		$this->links_pages = max( 1, (int) ceil( $this->links_total / $per_page ) );
+		$this->links_page  = min( $this->links_pages, max( 1, (int) $page ) );
+		$offset = ( $this->links_page - 1 ) * $per_page;
+		$links = $wpdb->get_results( $wpdb->prepare(
 			'SELECT l.*, ( SELECT COUNT(*) FROM ec_cart_link_item i WHERE i.cart_link_id = l.cart_link_id ) AS item_count
-			 FROM ec_cart_link l ORDER BY l.created_at DESC, l.cart_link_id DESC'
-		);
+			 FROM ec_cart_link l ORDER BY l.created_at DESC, l.cart_link_id DESC LIMIT %d OFFSET %d',
+			$per_page,
+			$offset
+		) );
+		$ids = array();
+		foreach ( $links as $link ) {
+			$ids[] = (int) $link->cart_link_id;
+		}
+		$summaries = $this->link_summaries( $ids );
 		foreach ( $links as $link ) {
 			$link->url = wp_easycart_cart_link::get_url( $link->link_token );
-			$link->summary = $this->link_summary( $link->cart_link_id );
+			$link->summary = isset( $summaries[ (int) $link->cart_link_id ] ) ? $summaries[ (int) $link->cart_link_id ] : array();
 		}
 		return $links;
 	}
 
-	private function link_summary( $cart_link_id ) {
+	/** Up to four "qty × title" parts per link, for a set of link ids, from one query. */
+	private function link_summaries( $ids ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT i.quantity, p.title FROM ec_cart_link_item i LEFT JOIN ec_product p ON p.product_id = i.product_id WHERE i.cart_link_id = %d ORDER BY i.sort_order ASC LIMIT 4',
-			$cart_link_id
-		) );
-		$parts = array();
-		foreach ( $rows as $row ) {
-			$parts[] = ( $row->quantity > 1 ? (int) $row->quantity . ' × ' : '' ) . wp_unslash( (string) $row->title );
+		$out = array();
+		$ids = array_values( array_filter( array_map( 'intval', (array) $ids ) ) );
+		if ( empty( $ids ) ) {
+			return $out;
 		}
-		return $parts;
+		$rows = $wpdb->get_results(
+			'SELECT i.cart_link_id, i.quantity, p.title FROM ec_cart_link_item i LEFT JOIN ec_product p ON p.product_id = i.product_id WHERE i.cart_link_id IN ( ' . implode( ',', $ids ) . ' ) ORDER BY i.cart_link_id ASC, i.sort_order ASC, i.cart_link_item_id ASC' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- IN list is built from array_map( 'intval', $ids ).
+		);
+		foreach ( $rows as $row ) {
+			$lid = (int) $row->cart_link_id;
+			if ( ! isset( $out[ $lid ] ) ) {
+				$out[ $lid ] = array();
+			}
+			if ( count( $out[ $lid ] ) >= 4 ) {
+				continue;
+			}
+			$out[ $lid ][] = ( $row->quantity > 1 ? (int) $row->quantity . ' × ' : '' ) . wp_unslash( (string) $row->title );
+		}
+		return $out;
+	}
+
+	/** Page links under the list ( 25 per page ). @since 6.0.0 */
+	public function print_pagination() {
+		if ( $this->links_pages <= 1 ) {
+			return;
+		}
+		$base = admin_url( 'admin.php?page=wp-easycart-rates&subpage=cart-links' );
+		$page = $this->links_page;
+		$start = ( $page - 1 ) * self::PER_PAGE + 1;
+		$end   = min( $this->links_total, $page * self::PER_PAGE );
+		echo '<div class="ecv2-pagination ecv2-cl-pagination">';
+		echo '<div class="ecv2-pagination-center">' . esc_html( sprintf( __( 'Showing %1$d–%2$d of %3$d', 'wp-easycart' ), $start, $end, $this->links_total ) ) . '</div>';
+		echo '<div class="ecv2-pagination-right">';
+		echo '<a href="' . esc_url( add_query_arg( 'pagenum', 1, $base ) ) . '" class="ecv2-page-btn' . ( $page <= 1 ? ' disabled' : '' ) . '" title="' . esc_attr__( 'First', 'wp-easycart' ) . '">&laquo;</a>';
+		echo '<a href="' . esc_url( add_query_arg( 'pagenum', max( 1, $page - 1 ), $base ) ) . '" class="ecv2-page-btn' . ( $page <= 1 ? ' disabled' : '' ) . '" title="' . esc_attr__( 'Previous', 'wp-easycart' ) . '">&lsaquo;</a>';
+		echo '<span class="ecv2-page-info">' . esc_html( $page ) . ' / ' . esc_html( $this->links_pages ) . '</span>';
+		echo '<a href="' . esc_url( add_query_arg( 'pagenum', min( $this->links_pages, $page + 1 ), $base ) ) . '" class="ecv2-page-btn' . ( $page >= $this->links_pages ? ' disabled' : '' ) . '" title="' . esc_attr__( 'Next', 'wp-easycart' ) . '">&rsaquo;</a>';
+		echo '<a href="' . esc_url( add_query_arg( 'pagenum', $this->links_pages, $base ) ) . '" class="ecv2-page-btn' . ( $page >= $this->links_pages ? ' disabled' : '' ) . '" title="' . esc_attr__( 'Last', 'wp-easycart' ) . '">&raquo;</a>';
+		echo '</div></div>';
 	}
 
 	/** One list row ( server-rendered; the page reloads after drawer close ). */
@@ -251,6 +306,8 @@ class wp_easycart_admin_cart_links {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
 		}
 	}
+
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- every ajax_* handler below calls self::verify_request() first; WPCS cannot see nonce checks made through a method call.
 
 	/** Product picker: active products a cart link can preload. */
 	public static function ajax_product_search() {
@@ -401,6 +458,8 @@ class wp_easycart_admin_cart_links {
 		wp_easycart_cart_link::set_active( isset( $_POST['cart_link_id'] ) ? (int) $_POST['cart_link_id'] : 0, ! empty( $_POST['is_active'] ) );
 		wp_send_json_success();
 	}
+
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 }
 
 /*

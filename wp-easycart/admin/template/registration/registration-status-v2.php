@@ -29,7 +29,8 @@ $ecrs_docs     = wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'r
 $ecrs_flash = null;
 $ecrs_codes = array(
 	'success' => array(
-		'activate-complete'   => __( 'License activated. The PRO sections are now open.', 'wp-easycart' ),
+		/* translators: %s: plan name, Pro or Premium. */
+		'activate-complete'   => sprintf( __( 'License activated. The %s sections are now open.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
 		'deactivate-complete' => __( 'License deactivated. You can use the key on another site now.', 'wp-easycart' ),
 	),
 	'error' => array(
@@ -79,13 +80,13 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 
 	<?php elseif ( 'deactivated' === $ecrs_status ) : ?>
 	<!-- ================= NO LICENSE ON THIS SITE ================= -->
-	<p class="ecv2-page-intro"><?php esc_html_e( 'PRO is installed but no license is attached to this site. Start a trial, or enter a key you already own.', 'wp-easycart' ); ?></p>
+	<p class="ecv2-page-intro"><?php esc_html_e( 'WP EasyCart PRO is installed but no license is attached to this site. Start a trial, or enter a key you already own.', 'wp-easycart' ); ?></p>
 	<div class="ecreg-paths">
 		<div class="ecreg-path is-featured">
 			<span class="ecreg-path-tag"><?php esc_html_e( 'Most people start here', 'wp-easycart' ); ?></span>
 			<span class="dashicons dashicons-clock ecreg-path-icon"></span>
-			<h3><?php esc_html_e( 'Try PRO free for 14 days', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'One click activates a trial on this site. No credit card. When it ends the PRO panels lock again and nothing is lost.', 'wp-easycart' ); ?></p>
+			<h3><?php esc_html_e( 'Try Pro free for 14 days', 'wp-easycart' ); ?></h3>
+			<p><?php esc_html_e( 'One click activates a trial on this site. No credit card. When it ends the Pro panels lock again and nothing is lost.', 'wp-easycart' ); ?></p>
 			<a class="ecv2-btn ecv2-btn-primary ecreg-path-cta" href="<?php echo esc_url( $ecrs_trial ); ?>"><?php esc_html_e( 'Start free trial', 'wp-easycart' ); ?></a>
 			<span class="ecreg-path-fine"><?php esc_html_e( 'One trial per site.', 'wp-easycart' ); ?></span>
 		</div>
@@ -132,7 +133,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 		<span class="dashicons dashicons-warning"></span>
 		<span><strong><?php esc_html_e( 'Support and updates have lapsed.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'The license is still registered here, but you are no longer receiving security fixes or new features.', 'wp-easycart' ); ?>
 			<?php $ecrs_deact = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::pro_deactivate_url() : ''; ?>
-			<?php if ( '' !== $ecrs_deact ) : ?><a class="ecreg-quiet-link" href="<?php echo esc_url( $ecrs_deact ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the PRO plugin. Your data is kept.', 'wp-easycart' ) ) ); ?> );"><?php esc_html_e( 'Not renewing? Switch to the free edition.', 'wp-easycart' ); ?></a><?php endif; ?>
+			<?php if ( '' !== $ecrs_deact ) : ?><a class="ecreg-quiet-link" href="<?php echo esc_url( $ecrs_deact ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin. Your data is kept.', 'wp-easycart' ) ) ); ?> );"><?php esc_html_e( 'Not renewing? Switch to the free edition.', 'wp-easycart' ); ?></a><?php endif; ?>
 		</span>
 		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecrs_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew now', 'wp-easycart' ); ?></a>
 	</div>
@@ -151,10 +152,10 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 	<div class="ecreg-license-card ecss-license ecss-tone-<?php echo $ecrs_lapsed ? 'expired' : 'active'; ?>">
 		<div class="ecss-ring" aria-hidden="true">
 			<svg viewBox="0 0 64 64"><circle class="ecss-ring-bg" cx="32" cy="32" r="<?php echo (int) $ecrs_ring_r; ?>"/><circle class="ecss-ring-fg" cx="32" cy="32" r="<?php echo (int) $ecrs_ring_r; ?>" style="stroke-dasharray:<?php echo esc_attr( round( $ecrs_ring_c, 2 ) ); ?>;stroke-dashoffset:<?php echo esc_attr( round( $ecrs_ring_c * ( 1 - $ecrs_ring_pct ), 2 ) ); ?>;"/></svg>
-			<span class="ecss-ring-label"><?php echo $ecrs_premium ? esc_html__( 'Premium', 'wp-easycart' ) : esc_html__( 'PRO', 'wp-easycart' ); ?></span>
+			<span class="ecss-ring-label"><?php echo $ecrs_premium ? esc_html__( 'Premium', 'wp-easycart' ) : esc_html__( 'Pro', 'wp-easycart' ); ?></span>
 		</div>
 		<div class="ecss-license-copy">
-			<h3><?php echo $ecrs_premium ? esc_html__( 'Premium license active on this site', 'wp-easycart' ) : esc_html__( 'PRO license active on this site', 'wp-easycart' ); ?></h3>
+			<h3><?php echo $ecrs_premium ? esc_html__( 'Premium license active on this site', 'wp-easycart' ) : esc_html__( 'Pro license active on this site', 'wp-easycart' ); ?></h3>
 			<dl class="ecreg-dl ecreg-dl-wide">
 				<dt><?php esc_html_e( 'Registered URL', 'wp-easycart' ); ?></dt><dd><?php echo esc_html( isset( $ecrs_license->siteurl ) ? $ecrs_license->siteurl : home_url() ); ?></dd>
 				<?php if ( $ecrs_v3 ) : ?>
@@ -190,7 +191,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 		<div class="ecreg-path">
 			<span class="dashicons dashicons-star-filled ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Upgrade to Premium', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Everything in PRO plus every extension — ShipStation, QuickBooks, MailChimp, Facebook & Instagram, the mobile apps. Your key stays the same.', 'wp-easycart' ); ?></p>
+			<p><?php esc_html_e( 'Everything in Pro plus every extension — ShipStation, QuickBooks, MailChimp, Facebook & Instagram, the mobile apps. Your key stays the same.', 'wp-easycart' ); ?></p>
 			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_upgrade ); ?>" target="_blank"><?php esc_html_e( 'See Premium', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
 		</div>
 		<?php else : ?>
@@ -205,7 +206,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<span class="dashicons dashicons-migrate ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Move this license', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Deactivate here to use the key on another site. Or skip this step: entering the key on the new site moves it automatically.', 'wp-easycart' ); ?></p>
-			<form action="<?php echo esc_url( $ecrs_deact ); ?>" method="POST" id="wpeasycart_admin_form2" class="ecreg-form" novalidate="novalidate" onsubmit="return window.confirm( <?php echo wp_json_encode( __( 'Deactivate the PRO license on this site? The PRO panels will lock until a key is entered again.', 'wp-easycart' ) ); ?> );">
+			<form action="<?php echo esc_url( $ecrs_deact ); ?>" method="POST" id="wpeasycart_admin_form2" class="ecreg-form" novalidate="novalidate" onsubmit="return window.confirm( <?php echo wp_json_encode( $ecrs_premium ? __( 'Deactivate the Premium license on this site? The Premium panels will lock until a key is entered again.', 'wp-easycart' ) : __( 'Deactivate the Pro license on this site? The Pro panels will lock until a key is entered again.', 'wp-easycart' ) ); ?> );">
 				<div class="ecreg-f"><label for="transactionkey_deact"><?php esc_html_e( 'Confirm the license key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey_deact" required="required" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" /></div>
 				<button type="submit" class="ecv2-btn ecreg-path-cta ecreg-danger"><?php esc_html_e( 'Deactivate on this site', 'wp-easycart' ); ?></button>
 			</form>

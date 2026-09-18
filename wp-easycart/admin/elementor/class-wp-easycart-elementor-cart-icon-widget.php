@@ -171,32 +171,6 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 			)
 		);
 
-		$this->add_responsive_control(
-			'alignment',
-			array(
-				'label' => esc_html__( 'Alignment', 'wp-easycart' ),
-				'type' => Controls_Manager::CHOOSE,
-				'options' => array(
-					'flex-start' => array(
-						'title' => esc_html__( 'Left', 'wp-easycart' ),
-						'icon' => 'eicon-text-align-left',
-					),
-					'center' => array(
-						'title' => esc_html__( 'Center', 'wp-easycart' ),
-						'icon' => 'eicon-text-align-center',
-					),
-					'flex-end' => array(
-						'title' => esc_html__( 'Right', 'wp-easycart' ),
-						'icon' => 'eicon-text-align-right',
-					),
-				),
-				'default' => 'flex-end',
-				'selectors' => array(
-					'{{WRAPPER}} .wp-easycart-widget-cart-wrapper' => 'justify-content: {{VALUE}};',
-				),
-			)
-		);
-
 		$this->start_controls_tabs( 'icon_colors' );
 		$this->start_controls_tab(
 			'icon_color_normal',
@@ -231,8 +205,8 @@ class Wp_Easycart_Elementor_Cart_Icon_Widget extends \Elementor\Widget_Base {
 				'label' => esc_html__( 'Icon Color', 'wp-easycart' ),
 				'type' => Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}} .wp-easycart-widget-cart-wrapper a:hover .wp-easycart-widget-cart-icon i' => 'color: {{VALUE}};',
-					'{{WRAPPER}} .wp-easycart-widget-cart-wrapper a:hover .wp-easycart-widget-cart-icon svg' => 'fill: {{VALUE}};',
+					'{{WRAPPER}} .wp-easycart-cart-icon-shortcode-wrapper a:hover .wp-easycart-widget-cart-icon i' => 'color: {{VALUE}};',
+					'{{WRAPPER}} .wp-easycart-cart-icon-shortcode-wrapper a:hover .wp-easycart-widget-cart-icon svg' => 'fill: {{VALUE}};',
 				),
 			)
 		);

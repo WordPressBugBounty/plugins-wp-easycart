@@ -35,6 +35,10 @@ class ec_order_totals {
 		} else {
 			$this->tax_total = number_format( $tax->tax_total, $GLOBALS['currency']->get_decimal_length(), '.', '' );
 		}
+		// Percentage flex-fees calculated on the order total subtract the full discount ( coupon + gift card ).
+		if ( is_object( $discount ) && isset( $discount->discount_total ) && method_exists( $tax, 'set_fee_discount_total' ) ) {
+			$tax->set_fee_discount_total( $discount->discount_total );
+		}
 		$this->fee_total = 0;
 		for ( $i = 0; $i < count( $tax->fees ); $i++ ) {
 			$this->fee_total += $tax->fees[ $i ]->amount;

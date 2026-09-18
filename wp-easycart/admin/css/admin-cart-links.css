@@ -149,3 +149,9 @@ body.ecv2-cl-drawer-lock { overflow:hidden; }
 .ecv2-cl-btn-locked .dashicons { color:#d97706; }
 
 @media screen and (max-width:600px) { .ecv2-cl-locked-limits { grid-template-columns:1fr; } }
+/* The fixed column widths add up to more than a phone screen, and the card above sets overflow:visible, so the table
+   could not scroll and Actions sat off the edge. @since 6.0.0 */
+@media screen and (max-width:900px) {
+	.ecv2-cart-links .ecv2-table-card { overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
+	.ecv2-cart-links .ecv2-cart-link-table { min-width:760px; }
+}

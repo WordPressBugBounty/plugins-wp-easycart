@@ -528,10 +528,10 @@ a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
 	.ecdv2-legacy-pro #wp_easycart_gallery_optionset { flex-direction:column; align-items:stretch; }
 }
 
-/* --- Normalize legacy onoffswitch toggles to the v2 brand colour ---
+/* --- Normalize legacy onoffswitch toggles to the v2 brand color ---
    ( applies to both the compat path and the v2 PRO panels, which both
    render via load_toggle_group; the main form tabs use .ecdv2-toggle and
-   are unaffected ). Overrides any admin colour-scheme tint. */
+   are unaffected ). Overrides any admin color-scheme tint. */
 .ecdv2-wrap .wp-easycart-admin-onoffswitch-inner:before { background-color:var(--ecv2-primary) !important; color:#fff !important; }
 .ecdv2-wrap .wp-easycart-admin-toggle-group input[type=checkbox]:checked ~ .wp-easycart-admin-onoffswitch .wp-easycart-admin-onoffswitch-label { background:var(--ecv2-primary) !important; border-color:var(--ecv2-primary) !important; }
 .ecdv2-wrap .wp-easycart-admin-onoffswitch-switch > .dashicons-before { color:var(--ecv2-primary) !important; }
@@ -828,6 +828,19 @@ a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-sale-preview-now { font-weight:700; color:var(--ecv2-g900); }
 .ecdv2-sale-preview.is-warning { background:#fffbeb; border-color:#fde68a; }
 .ecdv2-sale-preview-warn { color:#92400e; }
+/* Pricing & Tax: read-only mirror of the General-tab price with a jump back. */
+.ecdv2-base-price { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; padding:12px 16px; margin-bottom:14px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecdv2-base-price-text { flex:1 1 260px; min-width:0; display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:2px 12px; }
+.ecdv2-base-price-label { font-size:11.5px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecdv2-base-price-values { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:0 8px; }
+.ecdv2-base-price-was { font-size:13px; text-decoration:line-through; color:var(--ecv2-g400); }
+.ecdv2-base-price-now { font-size:18px; font-weight:700; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; }
+.ecdv2-base-price-note { grid-column:1 / -1; font-size:12px; line-height:1.45; color:var(--ecv2-g500); }
+.ecdv2-base-price-edit { flex-shrink:0; display:inline-flex; align-items:center; gap:5px; }
+.ecdv2-base-price-edit .dashicons { font-size:14px; width:14px; height:14px; }
+@media screen and (max-width:782px) {
+	.ecdv2-base-price-edit { width:100%; justify-content:center; }
+}
 
 /* ==================================================================
    v2.0.5 — Google Merchant panel reskin ( SEO & Marketing tab )
@@ -1108,4 +1121,131 @@ a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
 	.ecdv2-header-actions > .ecv2-btn:not(.ecdv2-save-btn), .ecdv2-header-actions .ecdv2-menu-wrap { display:none; }
 	.ecdv2-save-btn { min-width:0; padding-left:12px; padding-right:12px; }
 	.ecdv2-rail-search { display:none; } /* the search box is what pushed the rail into the header */
+}
+/* ---- Product editor: Customer reviews card ---- */
+.ecdv2-reviews-card.is-off .ecdv2-reviews-list, .ecdv2-reviews-card.is-off .ecdv2-reviews-summary { opacity:.55; }
+.ecdv2-reviews-toggle-row { margin-bottom:10px; }
+.ecdv2-reviews-off-note { margin:0 0 12px; }
+.ecdv2-reviews-summary { display:flex; align-items:center; gap:10px; margin:4px 0 12px; }
+.ecdv2-reviews-avg { font-size:26px; font-weight:700; line-height:1; }
+.ecdv2-reviews-list .ecdv2-activity-row { align-items:flex-start; }
+.ecdv2-reviews-excerpt { display:block; font-size:12.5px; color:var(--ecv2-g600); margin-top:3px; }
+.ecdv2-reviews-foot { margin-top:12px; display:flex; justify-content:flex-end; }
+.ecdv2-reviews-foot .ecv2-btn .dashicons { font-size:14px; width:14px; height:14px; }
+
+/* ---- Product editor: lazy PRO feeds ( stock history, offers ) @since 6.0.0 ---- */
+.ecdv2-feed.is-loading .ecdv2-feed-body { opacity:.6; transition:opacity var(--ecv2-tr); }
+.ecdv2-feed-more { display:flex; margin:12px auto 0; }
+.ecdv2-feed-more[hidden] { display:none; }
+.ecdv2-feed-summary { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:0 0 12px; font-size:12.5px; color:var(--ecv2-g600); }
+.ecdv2-feed-summary strong { color:var(--ecv2-g900); font-variant-numeric:tabular-nums; }
+.ecdv2-feed-summary a { margin-left:auto; font-weight:600; text-decoration:none; }
+.ecdv2-pro-preview { margin-top:0; }
+.ecdv2-pro-mock { padding-bottom:6px; }
+
+/* Stock history table ( PRO rows and the free preview share it ) */
+.ecdv2-hist-scroll { overflow-x:auto; }
+.ecdv2-hist-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.ecdv2-hist-table th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--ecv2-g500); font-weight:600; padding:7px 10px; border-bottom:1px solid var(--ecv2-g200); background:var(--ecv2-g50); white-space:nowrap; }
+.ecdv2-hist-table td { padding:9px 10px; border-bottom:1px solid var(--ecv2-g100); color:var(--ecv2-g700); vertical-align:top; }
+.ecdv2-hist-table tr:last-child td { border-bottom:0; }
+.ecdv2-hist-date { white-space:nowrap; color:var(--ecv2-g500); font-variant-numeric:tabular-nums; }
+.ecdv2-hist-qty { font-weight:700; color:var(--ecv2-g900); font-variant-numeric:tabular-nums; }
+.ecdv2-hist-delta { display:inline-flex; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; white-space:nowrap; background:var(--ecv2-g100); color:var(--ecv2-g700); }
+.ecdv2-hist-delta.is-add { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); }
+.ecdv2-hist-delta.is-remove { background:var(--ecv2-danger-light); color:var(--ecv2-danger); }
+.ecdv2-hist-delta.is-set { background:var(--ecv2-blue-light); color:#1d4ed8; }
+.ecdv2-hist-variant { display:block; font-size:11.5px; color:var(--ecv2-g500); margin-top:2px; }
+.ecdv2-hist-note { display:block; font-size:11.5px; color:var(--ecv2-g500); margin-top:2px; }
+.ecdv2-hist-by { white-space:nowrap; }
+.ecdv2-hist-by a { text-decoration:none; font-weight:600; }
+
+/* Offers tab */
+.ecdv2-offers-stats.ecv2-health-dashboard-grouped { margin-bottom:14px; } /* stat tiles: shared V2 list strip ( admin-v2.css ) */
+.ecdv2-offers-group { margin:14px 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.5px; font-weight:700; color:var(--ecv2-g500); }
+.ecdv2-offers-group:first-child { margin-top:0; }
+.ecdv2-offers-list { display:flex; flex-direction:column; }
+.ecdv2-offer-row { display:flex; align-items:center; gap:12px; padding:11px 10px; border-bottom:1px solid var(--ecv2-g100); border-radius:var(--ecv2-rs); }
+.ecdv2-offer-row:last-child { border-bottom:0; }
+.ecdv2-offer-row:hover { background:var(--ecv2-g50); }
+.ecdv2-offer-icon { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); flex-shrink:0; }
+.ecdv2-offer-row.is-legacy .ecdv2-offer-icon { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecdv2-offer-icon .dashicons { font-size:16px; width:16px; height:16px; }
+.ecdv2-offer-main { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 1 auto; }
+.ecdv2-offer-name { font-weight:600; color:var(--ecv2-g900); text-decoration:none; overflow:hidden; text-overflow:ellipsis; }
+a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
+.ecdv2-offer-what { font-size:12px; color:var(--ecv2-g500); }
+.ecdv2-offer-code { font-size:11px; background:var(--ecv2-g100); padding:1px 6px; border-radius:4px; color:var(--ecv2-g700); font-weight:600; }
+.ecdv2-offer-tag { display:inline-flex; margin-left:4px; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; background:var(--ecv2-g100); color:var(--ecv2-g600); vertical-align:1px; }
+.ecdv2-offer-stats { display:flex; gap:14px; flex-shrink:0; font-size:12px; color:var(--ecv2-g500); white-space:nowrap; }
+.ecdv2-offer-stat strong { color:var(--ecv2-g900); font-variant-numeric:tabular-nums; }
+.ecdv2-offer-status { flex-shrink:0; font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; background:var(--ecv2-g100); color:var(--ecv2-g600); }
+.ecdv2-offer-status.is-live, .ecdv2-offer-status.is-ending_soon { background:var(--ecv2-primary-light); color:var(--ecv2-primary-hover); }
+.ecdv2-offer-status.is-ending_soon { background:var(--ecv2-amber-light); color:#b45309; }
+.ecdv2-offer-status.is-scheduled { background:var(--ecv2-blue-light); color:#1d4ed8; }
+.ecdv2-offer-status.is-paused, .ecdv2-offer-status.is-draft { background:var(--ecv2-amber-light); color:#b45309; }
+.ecdv2-offer-status.is-expired, .ecdv2-offer-status.is-exhausted, .ecdv2-offer-status.is-archived { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecdv2-offers-foot { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:12px; }
+.ecdv2-offers-note { font-size:11.5px; color:var(--ecv2-g500); margin-top:10px; line-height:1.45; }
+@media screen and (max-width:782px) {
+	.ecdv2-offer-row { flex-wrap:wrap; }
+	.ecdv2-offer-main { flex-basis:calc(100% - 42px); }
+	.ecdv2-offer-stats { margin-left:42px; }
+}
+
+/* Yoast SEO card ( SEO tab ) */
+.ecdv2-yoast-preview { display:flex; flex-direction:column; gap:2px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; font-family:arial, sans-serif; }
+.ecdv2-yoast-preview-label { font-family:inherit; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; font-weight:600; color:var(--ecv2-g400); margin-bottom:4px; }
+.ecdv2-yoast-preview-url { font-size:12px; color:#202124; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecdv2-yoast-preview-title { font-size:18px; line-height:1.3; color:#1a0dab; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecdv2-yoast-preview-desc { font-size:13px; line-height:1.5; color:#4d5156; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ecdv2-yoast-foot { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--ecv2-g600); line-height:1.45; }
+.ecdv2-yoast-foot .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; flex-shrink:0; }
+
+/* ==================================================================
+   Mobile: the editor rail as a slide-out ( shell-v2.js adds the burger,
+   the panel head and the scrim ). Desktop keeps the sticky column, so
+   everything here lives inside the phone media query. @since 6.0.0
+================================================================== */
+.ecdv2-rail-toggle { display:none; }
+.ecdv2-rail-head { display:none; }
+.ecdv2-rail-scrim { display:none; }
+
+@media screen and (max-width: 782px) {
+	.ecdv2-rail-toggle { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; flex-shrink:0; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g700); cursor:pointer; padding:0; }
+	.ecdv2-rail-toggle:hover, .ecdv2-rail-toggle[aria-expanded="true"] { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+	.ecdv2-rail-toggle:focus-visible { outline:2px solid var(--ecv2-primary); outline-offset:1px; }
+
+	/* Off-canvas panel. This is the default state so the rail is already off screen on the first paint ( it used to
+	   render as a column and slide away once the script ran ). The transition is added after the script has wired the
+	   burger up, so nothing animates on load, and a page where no burger could be added gets the column back below. */
+	.ecdv2-rail { position:fixed; top:0; left:0; bottom:0; z-index:100001; width:min(300px, 86vw); max-width:none; padding:0 12px 16px; margin:0; background:#fff; box-shadow:0 0 40px rgba(0,0,0,.28); overflow-y:auto; -webkit-overflow-scrolling:touch; transform:translateX(-102%); transition:none; visibility:hidden; }
+	body.ecdv2-rail-ready .ecdv2-rail { transition:transform .22s ease, visibility 0s linear .22s; }
+	body.ecdv2-rail-open .ecdv2-rail { transform:none; visibility:visible; transition:transform .22s ease; }
+	/* No editor header on this page: keep the pre-6.0.0 column. */
+	body.ecdv2-rail-static .ecdv2-rail { position:sticky; top:104px; left:auto; bottom:auto; z-index:40; width:100%; padding:0 0 8px; background:#f0f0f1; box-shadow:none; overflow:visible; transform:none; visibility:visible; transition:none; }
+	.ecdv2-rail-head { display:flex; align-items:center; justify-content:space-between; gap:8px; position:sticky; top:0; z-index:1; margin:0 -12px 8px; padding:12px; background:#fff; border-bottom:1px solid var(--ecv2-g200); }
+	.ecdv2-rail-head b { font-size:13px; color:var(--ecv2-g900); }
+	.ecdv2-rail-close { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:0; border-radius:var(--ecv2-r); background:transparent; color:var(--ecv2-g500); cursor:pointer; }
+	.ecdv2-rail-close:hover { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+
+	/* inside the panel the links and tabs are a list again, and the health card has room */
+	.ecdv2-tabs { flex-direction:column; overflow:visible; padding:6px; gap:2px; }
+	.ecdv2-tab { width:auto; white-space:normal; }
+	.ecdv2-rail-group { padding:12px 10px 4px; align-self:auto; }
+	.ecdv2-rail .ecdv2-health { margin-top:10px; }
+
+	.ecdv2-rail-scrim { display:block; position:fixed; inset:0; z-index:100000; background:rgba(8,10,14,.45); }
+	.ecdv2-rail-scrim[hidden] { display:none; }
+	body.ecdv2-rail-open { overflow:hidden; }
+}
+@media screen and (max-width: 782px) {
+	/* A page with the column ( no burger ) keeps the old horizontal pill rail. */
+	body.ecdv2-rail-static .ecdv2-rail-head { display:none; }
+	body.ecdv2-rail-static .ecdv2-tabs { flex-direction:row; overflow-x:auto; padding:5px; gap:4px; }
+	body.ecdv2-rail-static .ecdv2-tab { flex:0 0 auto; width:auto; white-space:nowrap; }
+	body.ecdv2-rail-static .ecdv2-rail-group { padding:6px 4px; align-self:center; white-space:nowrap; }
+}
+@media screen and (max-width: 782px) and (prefers-reduced-motion: reduce) {
+	body.ecdv2-rail-ready .ecdv2-rail, body.ecdv2-rail-open .ecdv2-rail { transition:none; }
 }

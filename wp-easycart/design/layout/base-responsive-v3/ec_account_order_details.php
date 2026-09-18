@@ -254,13 +254,13 @@
 			<div class="ec_cart_input_row"><strong><?php echo wp_easycart_language( )->get_text( 'account_order_details', 'account_orders_details_vat_total' )?></strong> <?php $this->order->display_vat_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->gst_total > 0 ) {?>
-			<div class="ec_cart_input_row"><strong>GST (<?php echo esc_attr( $this->order->gst_rate ); ?>%)</strong> <?php $this->order->display_gst_total( ); ?></div>
+			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->gst_rate ); ?>%)</strong> <?php $this->order->display_gst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->pst_total > 0 ) { ?>
-			<div class="ec_cart_input_row"><strong>PST (<?php echo esc_attr( $this->order->pst_rate ); ?>%)</strong> <?php $this->order->display_pst_total( ); ?></div>
+			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->pst_rate ); ?>%)</strong> <?php $this->order->display_pst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( $this->order->hst_total > 0 ) { ?>
-			<div class="ec_cart_input_row"><strong>HST (<?php echo esc_attr( $this->order->hst_rate ); ?>%)</strong> <?php $this->order->display_hst_total( ); ?></div>
+			<div class="ec_cart_input_row"><strong><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $this->order->shipping_state ) ); ?> (<?php echo esc_attr( $this->order->hst_rate ); ?>%)</strong> <?php $this->order->display_hst_total( ); ?></div>
 			<?php } ?>
 			<?php if ( count( $this->order->order_fees ) > 0 ) { ?>
 				<?php foreach ( $this->order->order_fees as $order_fee ) { ?>

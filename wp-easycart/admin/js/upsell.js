@@ -33,7 +33,7 @@
 		var e = V.entries[ key ];
 		if ( ! e ) { return; }
 		$panel.attr( 'data-upsell-context', key );
-		$panel.find( '[data-upsell-plan]' ).text( e.plan === 'premium' ? 'PREMIUM' : 'PRO' );
+		$panel.find( '[data-upsell-plan]' ).text( e.badge || ( e.plan === 'premium' ? 'Premium' : 'Pro/Premium' ) );
 		$panel.find( '[data-upsell-title]' ).text( e.headline || e.title );
 		$panel.find( '[data-upsell-lede]' ).text( e.lede );
 		$panel.find( '[data-upsell-stat]' ).toggle( !! e.stat_line ).find( '.ecv2-upsell-stat-text' ).text( e.stat_line || '' );

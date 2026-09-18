@@ -22,6 +22,164 @@ function ecodv2_menu_close() {
 	}
 }
 
+/* 6.0.0 — send dialog for the order receipt and the order shipped email.
+   To starts as the order's current email ( read from the Edit Order form when it is on the page, so an address changed
+   there is used without a reload ), Cc as its second email; Bcc starts empty. The server sends to exactly these. */
+function ecodv2_email_i18n() {
+	if ( ! window.ecodv2_email_strings ) {
+		var el = document.getElementById( 'ecodv2_email_i18n' ), parsed = {};
+		try { parsed = el ? JSON.parse( el.textContent ) : {}; } catch ( e ) { parsed = {}; }
+		window.ecodv2_email_strings = parsed;
+	}
+	return window.ecodv2_email_strings;
+}
+
+function ecodv2_order_current_email( link, attr, input_id ) {
+	var input = document.getElementById( input_id );
+	if ( input ) {
+		return String( input.value || '' ).trim();
+	}
+	return ( link && link.getAttribute( attr ) ) ? String( link.getAttribute( attr ) ).trim() : '';
+}
+
+/* opts: title, button, to, cc, send( recipients, done( ok, message, field ) ) */
+function ecodv2_email_dialog( opts ) {
+	var T = ecodv2_email_i18n(), $ = jQuery;
+	var text = function( k, fallback ) { return T[ k ] || fallback; };
+	$( '#ecodv2_email_dialog' ).remove();
+	var field = function( key, label, value, optional ) {
+		return '<div class="ecodv2-send-field"><label for="ecodv2_send_' + key + '">' + ecodv2_esc( label ) + ( optional ? ' <span class="ecodv2-send-opt">' + ecodv2_esc( text( 'optional', 'optional' ) ) + '</span>' : '' ) + '</label>' +
+			'<input type="text" class="ecv2-input" id="ecodv2_send_' + key + '" value="' + ecodv2_esc( value || '' ) + '" autocomplete="off" spellcheck="false" inputmode="email"></div>';
+	};
+	var $m = $(
+		'<div class="ecv2-modal-overlay ecodv2-send-overlay" id="ecodv2_email_dialog" role="dialog" aria-modal="true" aria-labelledby="ecodv2_send_title">' +
+			'<div class="ecv2-modal ecodv2-send-modal">' +
+				'<div class="ecv2-modal-header"><h2 id="ecodv2_send_title">' + ecodv2_esc( opts.title ) + '</h2><button type="button" class="ecv2-modal-close" data-close aria-label="' + ecodv2_esc( text( 'close', 'Close' ) ) + '">&times;</button></div>' +
+				'<div class="ecv2-modal-body">' +
+					field( 'to', text( 'to', 'To' ), opts.to, false ) +
+					field( 'cc', text( 'cc', 'Cc' ), opts.cc, true ) +
+					field( 'bcc', text( 'bcc', 'Bcc' ), '', true ) +
+					'<p class="ecodv2-send-hint">' + ecodv2_esc( text( 'hint', 'Separate several addresses with commas.' ) ) + '</p>' +
+					'<p class="ecodv2-send-error" role="alert" hidden></p>' +
+				'</div>' +
+				'<div class="ecv2-modal-footer"><div class="ecv2-modal-footer-right">' +
+					'<button type="button" class="ecv2-btn ecv2-btn-ghost" data-close>' + ecodv2_esc( text( 'cancel', 'Cancel' ) ) + '</button>' +
+					'<button type="button" class="ecv2-btn ecv2-btn-primary" id="ecodv2_send_go">' + ecodv2_esc( opts.button ) + '</button>' +
+				'</div></div>' +
+			'</div>' +
+		'</div>'
+	);
+	var close = function() { $( document ).off( 'keydown.ecodv2send' ); $m.remove(); };
+	var $go = $m.find( '#ecodv2_send_go' ), $err = $m.find( '.ecodv2-send-error' );
+	var show_error = function( message, key ) {
+		$err.text( message ).prop( 'hidden', false );
+		$m.find( '.ecv2-input' ).removeClass( 'is-invalid' );
+		if ( key ) { $m.find( '#ecodv2_send_' + key ).addClass( 'is-invalid' ).trigger( 'focus' ); }
+	};
+	var go = function() {
+		var recipients = { to: $.trim( $m.find( '#ecodv2_send_to' ).val() ), cc: $.trim( $m.find( '#ecodv2_send_cc' ).val() ), bcc: $.trim( $m.find( '#ecodv2_send_bcc' ).val() ) };
+		if ( '' === recipients.to ) { show_error( text( 'need_to', 'Enter at least one email address to send to.' ), 'to' ); return; }
+		$err.prop( 'hidden', true );
+		$go.prop( 'disabled', true ).text( text( 'sending', 'Sending…' ) );
+		opts.send( recipients, function( ok, message, key ) {
+			if ( ok ) { close(); return; }
+			$go.prop( 'disabled', false ).text( opts.button );
+			show_error( message || text( 'failed', 'The email could not be sent.' ), key );
+		} );
+	};
+	$m.on( 'click', function( e ) { if ( $( e.target ).is( $m ) || $( e.target ).is( '[data-close]' ) ) { close(); } } );
+	$m.on( 'keydown', '.ecv2-input', function( e ) { if ( 'Enter' === e.key ) { e.preventDefault(); go(); } } );
+	$go.on( 'click', go );
+	$( document ).on( 'keydown.ecodv2send', function( e ) { if ( 'Escape' === e.key ) { close(); } } );
+	$( 'body' ).append( $m );
+	setTimeout( function() { $m.find( '#ecodv2_send_to' ).trigger( 'focus' ).select(); }, 30 );
+}
+
+function ecodv2_esc( s ) {
+	return String( s == null ? '' : s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&#39;' );
+}
+
+/* Resend the order receipt ( ecv2_order_resend_receipt, wp_easycart_admin_orders.php ); reports through the V2 toast and
+   refreshes the order history so the new timeline entry shows without a page reload. */
+function ecodv2_resend_receipt( link ) {
+	var T = ecodv2_email_i18n();
+	var nonce = ( link && link.getAttribute( 'data-nonce' ) ) ? link.getAttribute( 'data-nonce' ) : '';
+	ecodv2_menu_close();
+	ecodv2_email_dialog( {
+		title: T.receipt_title || 'Resend order receipt',
+		button: T.receipt_button || 'Send receipt',
+		to: ecodv2_order_current_email( link, 'data-email', 'user_email' ),
+		cc: ecodv2_order_current_email( link, 'data-email-other', 'email_other' ),
+		send: function( recipients, done ) {
+			jQuery.post(
+				wpeasycart_admin_ajax_object.ajax_url,
+				{
+					action: 'ecv2_order_resend_receipt',
+					order_id: jQuery( document.getElementById( 'order_id' ) ).val(),
+					wp_easycart_nonce: nonce,
+					to: recipients.to,
+					cc: recipients.cc,
+					bcc: recipients.bcc
+				},
+				function( response ) {
+					if ( response && response.success ) {
+						done( true );
+						ecodv2_save_toast( ( response.data && response.data.message ) ? response.data.message : 'Order receipt sent.' );
+						if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length && 'function' === typeof window.ec_order_history_refresh ) {
+							window.ec_order_history_refresh();
+						}
+					} else {
+						done( false, ( response && response.data && response.data.message ) ? response.data.message : '', ( response && response.data && response.data.field ) ? response.data.field : '' );
+					}
+				}
+			).fail( function() { done( false ); } );
+		}
+	} );
+	return false;
+}
+
+/* Send the order shipped email through the same dialog; the request itself stays in orders.js. */
+function ecodv2_send_shipped_dialog( link ) {
+	var T = ecodv2_email_i18n();
+	ecodv2_email_dialog( {
+		title: T.shipped_title || 'Send order shipped email',
+		button: T.shipped_button || 'Send email',
+		to: ecodv2_order_current_email( link, 'data-email', 'user_email' ),
+		cc: ecodv2_order_current_email( link, 'data-email-other', 'email_other' ),
+		send: function( recipients, done ) {
+			ec_admin_send_order_shipped_email( true, recipients, done );
+		}
+	} );
+	return false;
+}
+
+/* 6.0.0 — after the order shipped email goes out, leave a line on the fulfillment card so the
+   screen shows what happened without a reload ( the toast is transient ). */
+function ecodv2_shipped_email_sent( data ) {
+	var host = document.getElementById( 'ecodv2_fulfill_banner' );
+	if ( ! host ) {
+		return;
+	}
+	var note = document.getElementById( 'ecodv2_shipped_email_note' );
+	if ( ! note ) {
+		note = document.createElement( 'div' );
+		note.id = 'ecodv2_shipped_email_note';
+		note.className = 'ecodv2-shipped-note';
+		host.appendChild( note );
+	}
+	var email = ( data && data.email ) ? String( data.email ) : '';
+	var other = ( data && data.email_other ) ? String( data.email_other ) : '';
+	var text = 'Shipped email sent' + ( email ? ' to ' + email : '' ) + ( other ? ' and ' + other : '' );
+	note.innerHTML = '';
+	var icon = document.createElement( 'span' );
+	icon.className = 'dashicons dashicons-yes-alt';
+	var msg = document.createElement( 'span' );
+	msg.textContent = text;
+	note.appendChild( icon );
+	note.appendChild( msg );
+	note.style.display = '';
+}
+
 /* ---------- Items toolbar: More menu ---------- */
 function ecodv2_toolbar_more_toggle() {
 	var menu = document.getElementById( 'ecodv2_toolbar_menu' );
@@ -253,6 +411,268 @@ function ecodv2_locked( feature ) {
 }
 var ECODV2_SECTION_FEATURE = { customer: 'edit_details', billing: 'edit_details', shipping: 'edit_details', details: 'edit_details', fulfillment: '' };
 
+/* --------------------------------------------------------------------
+   V2.10 fix — the drawer saves through the legacy PRO handlers bound to
+   the hidden .ecodv2-visually-hidden controls ( orders-pro.js /
+   orders.js ). Those handlers are TWO-STATE TOGGLES: with their *_show
+   flag false, a click enters "edit mode" ( hides the on-page view block,
+   saves NOTHING ) and only a second click saves. The drawer never called
+   the toggles on open, so every section's flag was still false when
+   ecodv2_drawer_save() fired its single click — nothing persisted and
+   the view blocks vanished. The fulfillment section already had a
+   one-off arm wrapper; this arms every section, by flag assignment, so
+   no view block is ever hidden as a side effect.
+   -------------------------------------------------------------------- */
+var ECODV2_LEGACY_TOGGLE_FLAGS = [
+	'ec_admin_order_details_save_show',            /* customer / payment info  ( #ec_admin_order_details_save ) */
+	'ec_admin_order_details_billing_show',         /* billing address          ( #ec_admin_order_details_billing_info_save ) */
+	'ec_admin_order_details_shipping_show',        /* shipping address         ( #ec_admin_order_details_shipping_info_save ) */
+	'ec_admin_order_details_save_bottom_show',     /* additional details       ( #ec_admin_order_details_save_bottom ) */
+	'ec_admin_order_details_shipping_method_show'  /* fulfillment ( free )     ( #ec_admin_order_details_shipping_method_save ) */
+];
+
+function ecodv2_arm_legacy_toggles() {
+	for ( var i = 0; i < ECODV2_LEGACY_TOGGLE_FLAGS.length; i++ ) {
+		if ( 'undefined' !== typeof window[ ECODV2_LEGACY_TOGGLE_FLAGS[ i ] ] ) {
+			window[ ECODV2_LEGACY_TOGGLE_FLAGS[ i ] ] = true;
+		}
+	}
+	/* orders-pro.js reads this localized object in the details-bottom save;
+	   if a build ships without it the handler throws mid-loop and aborts
+	   the remaining sections' saves. Provide safe defaults. */
+	if ( 'undefined' === typeof window.wp_easycart_pro_admin_orders_language ) {
+		window.wp_easycart_pro_admin_orders_language = {};
+	}
+	if ( ! window.wp_easycart_pro_admin_orders_language[ 'agree-terms-yes' ] ) {
+		window.wp_easycart_pro_admin_orders_language[ 'agree-terms-yes' ] = 'Agreed to Terms: Yes';
+	}
+	if ( ! window.wp_easycart_pro_admin_orders_language[ 'agree-terms-no' ] ) {
+		window.wp_easycart_pro_admin_orders_language[ 'agree-terms-no' ] = 'Agreed to Terms: No';
+	}
+}
+
+/* Re-show every V2 view block a stray legacy "edit mode" pass may have
+   hidden ( repairs pages already broken by the pre-fix behavior too ). */
+function ecodv2_drawer_restore_views() {
+	jQuery( '#ec_admin_view_order_information, #ec_admin_view_order_information_bottom, #ec_admin_order_details_billing_content, #ec_admin_order_details_shipping_content, #ec_admin_view_shipping_method' ).show();
+}
+
+/* --------------------------------------------------------------------
+   V2.11 — drawer-native saving indicator.
+   The legacy section handlers fade in the V1 full-page preloaders
+   ( #ec_admin_shipping_details / #ec_admin_order_management ), which
+   look wrong behind the V2 drawer. While a drawer save is in flight we
+   suppress those overlays ( body.ecodv2-drawer-saving, see the CSS ),
+   show the progress on the drawer's own Save button, keep the drawer
+   open until every section's request lands, then flash "Saved" and
+   close with a toast. Failures keep the drawer open, keep the dirty
+   state, and surface an error toast instead of silently closing.
+   -------------------------------------------------------------------- */
+var ecodv2_drawer_saving = false;
+var ecodv2_drawer_pending = 0;
+var ecodv2_drawer_seen = 0;
+var ecodv2_drawer_failed = false;
+var ecodv2_drawer_watchdog = null;
+var ecodv2_drawer_save_label = null;
+
+/* Every ajax action a drawer section can post through the legacy handlers.
+   The "_bottom" action sits first so the shorter management-details name
+   never shadows it during matching. */
+var ECODV2_DRAWER_SAVE_ACTIONS = [
+	'ec_admin_ajax_save_order_management_details_bottom',
+	'ec_admin_ajax_save_order_management_details',
+	'ec_admin_ajax_save_order_billing_address',
+	'ec_admin_ajax_save_order_shipping_address',
+	'ec_admin_ajax_edit_shipping_method_info'
+];
+
+function ecodv2_is_drawer_save_request( settings ) {
+	var data = ( settings && 'string' === typeof settings.data ) ? settings.data : '';
+	if ( '' === data ) {
+		return false;
+	}
+	for ( var i = 0; i < ECODV2_DRAWER_SAVE_ACTIONS.length; i++ ) {
+		if ( -1 !== data.indexOf( 'action=' + ECODV2_DRAWER_SAVE_ACTIONS[ i ] ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function ecodv2_suppress_legacy_loaders() {
+	/* The handlers call fadeIn synchronously inside the triggered clicks;
+	   stop the animation and hide. The body class keeps them hidden via
+	   CSS for the whole in-flight window. */
+	jQuery( '#ec_admin_shipping_details, #ec_admin_order_management' ).stop( true, true ).hide();
+}
+
+function ecodv2_save_toast( message, is_error ) {
+	var toast = document.getElementById( 'ecodv2_save_toast' );
+	if ( ! toast ) {
+		toast = document.createElement( 'div' );
+		toast.id = 'ecodv2_save_toast';
+		toast.className = 'ecodv2-save-toast';
+		toast.innerHTML = '<span class="dashicons"></span><span class="ecodv2-save-toast-msg"></span>';
+		document.body.appendChild( toast );
+	}
+	toast.classList.toggle( 'is-error', !! is_error );
+	toast.querySelector( '.dashicons' ).className = 'dashicons ' + ( is_error ? 'dashicons-warning' : 'dashicons-yes-alt' );
+	toast.querySelector( '.ecodv2-save-toast-msg' ).textContent = message;
+	toast.classList.add( 'is-visible' );
+	clearTimeout( toast._ecodv2_hide );
+	toast._ecodv2_hide = setTimeout( function() {
+		toast.classList.remove( 'is-visible' );
+	}, is_error ? 4200 : 2400 );
+}
+
+function ecodv2_drawer_set_button( state ) {
+	var save = document.getElementById( 'ecodv2_drawer_save' );
+	if ( ! save ) {
+		return;
+	}
+	if ( null === ecodv2_drawer_save_label ) {
+		ecodv2_drawer_save_label = save.innerHTML;
+	}
+	save.classList.remove( 'is-saving', 'is-saved' );
+	if ( 'saving' === state ) {
+		save.disabled = true;
+		save.classList.add( 'is-saving' );
+		save.innerHTML = '<span class="ecodv2-save-spin"></span>Saving\u2026';
+	} else if ( 'saved' === state ) {
+		save.disabled = true;
+		save.classList.add( 'is-saved' );
+		save.innerHTML = '\u2713 Saved';
+	} else {
+		save.innerHTML = ecodv2_drawer_save_label;
+		save.disabled = ( 'idle-disabled' === state );
+	}
+}
+
+function ecodv2_drawer_saving_begin() {
+	ecodv2_drawer_saving = true;
+	ecodv2_drawer_pending = 0;
+	ecodv2_drawer_seen = 0;
+	ecodv2_drawer_failed = false;
+	document.body.classList.add( 'ecodv2-drawer-saving' );
+	ecodv2_drawer_set_button( 'saving' );
+	ecodv2_suppress_legacy_loaders();
+}
+
+function ecodv2_drawer_saving_finish() {
+	if ( ! ecodv2_drawer_saving ) {
+		return;
+	}
+	ecodv2_drawer_saving = false;
+	clearTimeout( ecodv2_drawer_watchdog );
+	ecodv2_drawer_watchdog = null;
+	ecodv2_suppress_legacy_loaders();
+	ecodv2_drawer_restore_views();
+	ecodv2_drawer_after_save_repaint();
+
+	if ( ecodv2_drawer_failed ) {
+		/* Keep the drawer open with the dirty state intact so nothing the
+		   merchant typed is lost; they can retry immediately. */
+		document.body.classList.remove( 'ecodv2-drawer-saving' );
+		ecodv2_drawer_set_button( 'idle' );
+		ecodv2_save_toast( 'Some changes could not be saved. Please try again.', true );
+		return;
+	}
+
+	ecodv2_drawer_set_button( 'saved' );
+	setTimeout( function() {
+		ecodv2_drawer_reset_dirty();
+		ecodv2_close_edit_drawer( true );
+		ecodv2_drawer_set_button( 'idle-disabled' );
+		ecodv2_save_toast( 'Order changes saved.' );
+		/* Trailing legacy callbacks ( history refresh etc. ) may still call
+		   the old loaders; lift the suppression once they have settled. */
+		setTimeout( function() {
+			document.body.classList.remove( 'ecodv2-drawer-saving' );
+			ecodv2_suppress_legacy_loaders();
+		}, 800 );
+	}, 550 );
+}
+
+/* After the legacy handlers repaint the V1 spans ( they run synchronously
+   inside the triggered clicks ), reconcile the V2-only presentation the
+   legacy code doesn't know about: customer-card name / initials / phone,
+   the V2-styled card line, and the payment-name fallback. */
+function ecodv2_drawer_after_save_repaint() {
+	var $ = jQuery;
+	function val( id ) {
+		var el = document.getElementById( id );
+		return el ? String( el.value || '' ).trim() : '';
+	}
+
+	/* Customer card: name + avatar initials follow the billing name. */
+	var first = val( 'billing_first_name' );
+	var last = val( 'billing_last_name' );
+	var name = $.trim( first + ' ' + last );
+	if ( '' !== name && $( '.ecodv2-user-card-name' ).length ) {
+		$( '.ecodv2-user-card-name' ).first().text( name );
+	}
+	var initials = ( first ? first.charAt( 0 ).toUpperCase() : '' ) + ( last ? last.charAt( 0 ).toUpperCase() : '' );
+	var avatar = document.querySelector( '.ecodv2-user-card .ecodv2-avatar' );
+	if ( avatar && '' !== initials ) {
+		avatar.textContent = initials;
+	}
+
+	/* Customer card: phone follows the billing phone ( shown as entered;
+	   the server-side pretty formatting applies on the next page load ). */
+	var phone = val( 'billing_phone' );
+	var phone_span = document.getElementById( 'ec_admin_order_details_user_phone' );
+	if ( phone_span ) {
+		if ( '' !== phone ) {
+			var tel = document.createElement( 'a' );
+			tel.href = 'tel:' + phone.replace( /[^0-9+]/g, '' );
+			tel.textContent = phone;
+			phone_span.innerHTML = '';
+			phone_span.appendChild( tel );
+		} else {
+			phone_span.textContent = '';
+		}
+	}
+
+	/* Payment info: legacy writes a plain "**** **** **** 1234" string;
+	   restore the V2 dots + bold digits + "· MM / YYYY" treatment. */
+	var digits = val( 'creditcard_digits' );
+	var cc_span = document.getElementById( 'ec_admin_order_details_creditcard_digits' );
+	if ( cc_span ) {
+		cc_span.innerHTML = '';
+		if ( '' !== digits ) {
+			var dots = document.createElement( 'span' );
+			dots.className = 'ecodv2-cc-dots';
+			dots.innerHTML = '&bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull; &bull;&bull;&bull;&bull;';
+			var b = document.createElement( 'b' );
+			b.textContent = digits;
+			cc_span.appendChild( dots );
+			cc_span.appendChild( document.createTextNode( ' ' ) );
+			cc_span.appendChild( b );
+		}
+	}
+	var exp_m = val( 'cc_exp_month' );
+	var exp_y = val( 'cc_exp_year' );
+	var exp_span = document.getElementById( 'ec_admin_order_details_cc_exp' );
+	if ( exp_span ) {
+		exp_span.innerHTML = '';
+		if ( '' !== exp_m ) {
+			var exp = document.createElement( 'span' );
+			exp.className = 'ecodv2-cc-exp';
+			exp.textContent = '\u00b7 ' + exp_m + ' / ' + exp_y;
+			exp_span.appendChild( exp );
+		}
+	}
+
+	/* Payment info: keep the V2 fallback ( shipping name ) when the
+	   cardholder field is empty — legacy blanks it instead. */
+	if ( '' === val( 'card_holder_name' ) ) {
+		var fallback = $.trim( val( 'shipping_first_name' ) + ' ' + val( 'shipping_last_name' ) );
+		if ( '' !== fallback ) {
+			$( '#ec_admin_order_details_card_holder_name' ).text( fallback );
+		}
+	}
+}
+
 function ecodv2_drawer_available( section ) {
 	/* Fulfillment is a free feature: its form is inlined in the drawer, not hosted. */
 	if ( 'fulfillment' === section && document.querySelector( '#ecodv2_sec_fulfillment .ecodv2-form' ) ) {
@@ -280,11 +700,21 @@ function ecodv2_open_edit_drawer( section, fallback ) {
 	}
 	document.body.classList.add( 'ecodv2-drawer-open' );
 	jQuery( '.ecodv2-drawer .ecodv2-form' ).show(); /* clear post-save inline hides */
+	/* V2.10: arm the legacy two-state toggles by flag so the drawer's Save
+	   click always takes their SAVE branch, and repair any view block a
+	   previous unarmed click may have hidden. Runs in the base function so
+	   the PRO wrappers ( which call this first ) see the armed state and
+	   skip their own arm pass. */
+	ecodv2_arm_legacy_toggles();
+	ecodv2_drawer_restore_views();
 	setTimeout( function() { ecodv2_drawer_jump( section ); }, 240 );
 	return false;
 }
 
 function ecodv2_close_edit_drawer( force ) {
+	if ( ecodv2_drawer_saving && ! force ) {
+		return false; /* Esc / backdrop must not interrupt an in-flight save */
+	}
 	if ( ! force && ! ecodv2_drawer_pristine ) {
 		if ( ! window.confirm( 'Discard unsaved changes?' ) ) {
 			return false;
@@ -330,19 +760,64 @@ function ecodv2_drawer_jump( section ) {
 }
 
 function ecodv2_drawer_save() {
+	if ( ecodv2_drawer_saving ) {
+		return false; /* double-click guard */
+	}
+	if ( 'undefined' !== typeof ecodv2_order_user_busy_on && ecodv2_order_user_busy_on ) {
+		return false; /* account change in flight; the Save button is locked until it lands */
+	}
+	/* V2.10: the hidden controls are bound to legacy two-state toggles.
+	   Re-arm every flag immediately before triggering so each click is
+	   guaranteed to take the toggle's SAVE branch ( belt-and-suspenders on
+	   top of the arming done at drawer open — covers a drawer left open
+	   across a prior save, when the legacy handlers reset their flags ). */
+	ecodv2_arm_legacy_toggles();
+	ecodv2_drawer_saving_begin();
 	var fired = 0;
 	jQuery( '.ecodv2-drawer-sec.is-dirty .ecodv2-visually-hidden' ).each( function() {
-		jQuery( this ).trigger( 'click' );
+		/* One failing section must not abort the sections after it. */
+		try {
+			jQuery( this ).trigger( 'click' );
+		} catch ( e ) {
+			if ( window.console && console.error ) {
+				console.error( 'EasyCart drawer save: section handler failed', this.id, e );
+			}
+		}
 		fired++;
 	} );
 	if ( ! fired ) {
 		/* Nothing marked dirty — save everything present as a safety net. */
 		jQuery( '.ecodv2-drawer .ecodv2-visually-hidden' ).each( function() {
-			jQuery( this ).trigger( 'click' );
+			try {
+				jQuery( this ).trigger( 'click' );
+			} catch ( e ) {
+				if ( window.console && console.error ) {
+					console.error( 'EasyCart drawer save: section handler failed', this.id, e );
+				}
+			}
 		} );
 	}
-	ecodv2_drawer_reset_dirty();
-	ecodv2_close_edit_drawer( true );
+	/* The legacy handlers hide their old loaders' targets and repaint the
+	   V1 spans synchronously; keep the V2 view blocks visible with no gap. */
+	ecodv2_suppress_legacy_loaders();
+	ecodv2_drawer_restore_views();
+	setTimeout( function() {
+		ecodv2_drawer_restore_views();
+		ecodv2_drawer_after_save_repaint();
+	}, 0 );
+
+	/* ajaxSend runs synchronously inside each triggered handler, so by this
+	   point ecodv2_drawer_seen reflects every request the sections opened.
+	   Completion is driven by ajaxComplete; the watchdog covers a request
+	   that never returns. */
+	if ( 0 === ecodv2_drawer_seen ) {
+		setTimeout( ecodv2_drawer_saving_finish, 350 );
+	} else {
+		ecodv2_drawer_watchdog = setTimeout( function() {
+			ecodv2_drawer_failed = true;
+			ecodv2_drawer_saving_finish();
+		}, 10000 );
+	}
 	return false;
 }
 
@@ -409,6 +884,154 @@ function ecodv2_drawer_mark_dirty( el ) {
 	}
 }
 
+/* --------------------------------------------------------------------
+   6.0.0 — order account ( guest <-> customer account ).
+   #ec_order_user_id saves on change through ec_admin_ajax_update_order_user
+   ( orders.js ), outside the drawer's Save. The handler returns the
+   account-dependent fragments rendered server-side ( customer card chip +
+   link, header chip hook, customer card hook ); repaint them so the page
+   matches a fresh load. On failure the picker goes back to the saved account.
+   -------------------------------------------------------------------- */
+var ecodv2_order_user_saved = null;
+
+function ecodv2_order_user_remember() {
+	var select = document.getElementById( 'ec_order_user_id' );
+	if ( ! select || select.selectedIndex < 0 ) {
+		return;
+	}
+	var opt = select.options[ select.selectedIndex ];
+	ecodv2_order_user_saved = { id: String( opt.value ), text: opt.text };
+}
+
+function ecodv2_order_user_set_select( id, text ) {
+	var select = document.getElementById( 'ec_order_user_id' );
+	if ( ! select ) {
+		return;
+	}
+	var match = null;
+	for ( var i = 0; i < select.options.length; i++ ) {
+		if ( String( select.options[ i ].value ) === String( id ) ) {
+			match = select.options[ i ];
+		}
+	}
+	if ( ! match ) {
+		match = document.createElement( 'option' );
+		match.value = String( id );
+		select.appendChild( match );
+	}
+	if ( 'string' === typeof text && '' !== text ) {
+		match.text = text;
+	}
+	match.selected = true;
+	/* Namespaced: refresh select2's display without re-firing the save handler. */
+	jQuery( select ).trigger( 'change.select2' );
+}
+
+/* In-drawer status line under the account picker ( #ecodv2_account_status ).
+   state: 'busy' | 'ok' | 'error' | '' ( clear ). Replaces the V1 full-page
+   preloader, which rendered behind the drawer for this flow. */
+var ecodv2_order_user_busy_on = false;
+
+function ecodv2_order_user_status( state, message ) {
+	var box = document.getElementById( 'ecodv2_account_status' );
+	if ( ! box ) {
+		return;
+	}
+	clearTimeout( box._ecodv2_hide );
+	box.className = 'ecodv2-account-status' + ( state ? ' is-' + state : '' );
+	box.innerHTML = '';
+	if ( ! state ) {
+		box.hidden = true;
+		return;
+	}
+	var icon = document.createElement( 'span' );
+	if ( 'busy' === state ) {
+		icon.className = 'ecodv2-save-spin';
+	} else {
+		icon.className = 'dashicons ' + ( 'error' === state ? 'dashicons-warning' : 'dashicons-yes-alt' );
+	}
+	var text = document.createElement( 'span' );
+	text.className = 'ecodv2-account-status-msg';
+	text.textContent = message;
+	box.appendChild( icon );
+	box.appendChild( text );
+	box.hidden = false;
+	if ( 'ok' === state ) {
+		box._ecodv2_hide = setTimeout( function() {
+			ecodv2_order_user_status( '' );
+		}, 6000 );
+	}
+}
+
+/* Busy state for the account change: lock the picker and the drawer Save
+   ( so a drawer save cannot race the account request ) and show the inline
+   spinner. Unsaved billing / shipping edits are untouched either way. */
+function ecodv2_order_user_busy( on ) {
+	ecodv2_order_user_busy_on = !! on;
+	var select = document.getElementById( 'ec_order_user_id' );
+	if ( select ) {
+		/* select2 4.0.x mirrors the disabled attribute onto its container. */
+		select.disabled = !! on;
+	}
+	var drawer = document.getElementById( 'ecodv2_edit_drawer' );
+	if ( drawer ) {
+		drawer.classList.toggle( 'is-account-busy', !! on );
+	}
+	if ( on ) {
+		var box = document.getElementById( 'ecodv2_account_status' );
+		var busy_text = ( box && box.getAttribute( 'data-busy-text' ) ) ? box.getAttribute( 'data-busy-text' ) : 'Updating the customer account…';
+		ecodv2_order_user_status( 'busy', busy_text );
+	}
+}
+
+function ecodv2_apply_order_user( response ) {
+	var data = ( response && response.data ) ? response.data : {};
+	ecodv2_order_user_busy( false );
+	if ( ! response || ! response.success ) {
+		if ( ecodv2_order_user_saved ) {
+			ecodv2_order_user_set_select( ecodv2_order_user_saved.id, ecodv2_order_user_saved.text );
+		}
+		var status_box = document.getElementById( 'ecodv2_account_status' );
+		var error_text = data.message ? String( data.message ) : ( ( status_box && status_box.getAttribute( 'data-error-text' ) ) ? status_box.getAttribute( 'data-error-text' ) : 'The customer account could not be updated. Please try again.' );
+		ecodv2_order_user_status( 'error', error_text );
+		ecodv2_save_toast( error_text, true );
+		return;
+	}
+
+	var user_id = parseInt( data.user_id, 10 ) || 0;
+
+	/* Hidden field the legacy / PRO forms read. */
+	jQuery( 'input[type="hidden"][name="user_id"]' ).val( user_id );
+
+	/* Customer card: account chip + "View account" link, avatar tint. */
+	var account = document.getElementById( 'ecodv2_user_account' );
+	if ( account && 'string' === typeof data.account_html ) {
+		account.innerHTML = data.account_html;
+	}
+	var avatar = document.querySelector( '.ecodv2-user-card .ecodv2-avatar' );
+	if ( avatar ) {
+		avatar.classList.toggle( 'ecodv2-avatar-guest', ! user_id );
+	}
+
+	/* Header chips ( PRO tags + insight chips such as "Guest checkout" / "First order" ). */
+	var chips = document.getElementById( 'ecodv2_header_chips' );
+	if ( chips && 'string' === typeof data.header_chips_html ) {
+		chips.innerHTML = data.header_chips_html;
+	}
+
+	/* Customer card hook output ( PRO customer stats + "all orders" links ). */
+	var extra = document.getElementById( 'ecodv2_customer_card_extra' );
+	if ( extra && 'string' === typeof data.customer_card_html ) {
+		extra.innerHTML = data.customer_card_html;
+	}
+
+	ecodv2_order_user_set_select( user_id, 'string' === typeof data.select_label ? data.select_label : '' );
+	ecodv2_order_user_remember();
+	var ok_text = data.message ? String( data.message ) : 'Customer account updated.';
+	ecodv2_order_user_status( 'ok', ok_text );
+	ecodv2_save_toast( ok_text );
+}
+
 jQuery( function( $ ) {
 	if ( ! document.getElementById( 'ecodv2_edit_drawer' ) ) {
 		return;
@@ -429,8 +1052,13 @@ jQuery( function( $ ) {
 
 	/* Dirty tracking + expiration auto-advance. */
 	$( '#ecodv2_drawer_body' ).on( 'input change', 'input, select, textarea', function() {
+		/* The account picker saves on its own ( ecodv2_apply_order_user ); it never makes the drawer dirty. */
+		if ( 'ec_order_user_id' === this.id || $( this ).closest( '.ecodv2-drawer-account' ).length ) {
+			return;
+		}
 		ecodv2_drawer_mark_dirty( this );
 	} );
+	ecodv2_order_user_remember();
 	$( '#ecodv2_drawer_body' ).on( 'input', '#cc_exp_month', function() {
 		if ( 2 === this.value.length ) {
 			var y = document.getElementById( 'cc_exp_year' );
@@ -444,6 +1072,39 @@ jQuery( function( $ ) {
 	$( document ).on( 'keydown', function( e ) {
 		if ( 'Escape' === e.key && document.body.classList.contains( 'ecodv2-drawer-open' ) ) {
 			ecodv2_close_edit_drawer();
+		}
+	} );
+
+	/* V2.11: drive the drawer saving indicator off the real requests.
+	   ajaxSend fires synchronously inside each legacy handler's $.ajax
+	   call, so by the time ecodv2_drawer_save() finishes triggering,
+	   ecodv2_drawer_seen holds the exact number of requests to wait for.
+	   Local success/error callbacks run before the global ajaxComplete,
+	   so the legacy DOM repaints are done when the counter hits zero. */
+	$( document ).ajaxSend( function( e, xhr, settings ) {
+		if ( ! ecodv2_drawer_saving ) {
+			return;
+		}
+		if ( ecodv2_is_drawer_save_request( settings ) ) {
+			ecodv2_drawer_pending++;
+			ecodv2_drawer_seen++;
+		}
+		/* Anything fired during the window ( including the history refresh
+		   the sections trigger ) may fade a legacy overlay back in. */
+		ecodv2_suppress_legacy_loaders();
+		setTimeout( ecodv2_suppress_legacy_loaders, 30 );
+	} );
+	$( document ).ajaxError( function( e, xhr, settings ) {
+		if ( ecodv2_drawer_saving && ecodv2_is_drawer_save_request( settings ) ) {
+			ecodv2_drawer_failed = true;
+		}
+	} );
+	$( document ).ajaxComplete( function( e, xhr, settings ) {
+		if ( ecodv2_drawer_saving && ecodv2_is_drawer_save_request( settings ) ) {
+			ecodv2_drawer_pending--;
+			if ( ecodv2_drawer_pending <= 0 ) {
+				setTimeout( ecodv2_drawer_saving_finish, 120 );
+			}
 		}
 	} );
 } );
@@ -554,6 +1215,7 @@ function ecodv2_save_cnotes() {
 				btn.disabled = false;
 			}
 			ecodv2_close_cnotes_popover();
+			ecodv2_save_toast( 'Customer note saved.' );
 			if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length && 'function' === typeof window.ec_order_history_refresh ) {
 				ec_order_history_refresh();
 			}
@@ -562,6 +1224,7 @@ function ecodv2_save_cnotes() {
 			if ( btn ) {
 				btn.disabled = false;
 			}
+			ecodv2_save_toast( 'The customer note could not be saved.', true );
 		}
 	} );
 	return false;
@@ -831,6 +1494,24 @@ function ecodv2_format_date_view() {
 	input.setAttribute( 'data-original', input.value );
 }
 
+/* Shipment details: show the empty state only while method, carrier, tracking and expedite are all blank
+   ( orders.js rewrites those spans when the fulfillment drawer saves ). */
+function ecodv2_sync_shipment() {
+	var box = document.getElementById( 'ec_admin_view_shipping_method' );
+	if ( ! box || ! box.classList ) {
+		return;
+	}
+	var ids = [ 'ec_admin_order_details_shipping_method', 'ec_admin_order_details_shipping_carrier', 'ec_admin_order_details_tracking_number', 'ec_admin_order_details_shipping_type' ];
+	var has = false;
+	for ( var i = 0; i < ids.length; i++ ) {
+		var el = document.getElementById( ids[ i ] );
+		if ( el && '' !== jQuery.trim( el.textContent ) ) {
+			has = true;
+		}
+	}
+	box.classList.toggle( 'is-empty', ! has );
+}
+
 /* Item 4: reflect status changes in the fulfillment badge + panel immediately. */
 function ecodv2_sync_fulfillment( status_id ) {
 	var banner = document.getElementById( 'ecodv2_fulfill_banner' );
@@ -840,8 +1521,8 @@ function ecodv2_sync_fulfillment( status_id ) {
 	}
 	var current = banner.className.match( /ecodv2-fulfill-banner-(\w+)/ );
 	current = current ? current[ 1 ] : 'none';
-	if ( 'pickup' === current ) {
-		return; /* pickup orders stay pickup regardless of status */
+	if ( 'pickup' === current || 'digital' === current ) {
+		return; /* pickup orders stay pickup, and orders with nothing to ship stay "No shipping", regardless of status */
 	}
 	var fulfill_ids = ( banner.getAttribute( 'data-fulfill-status-ids' ) || '' ).split( ',' );
 	var tracking = jQuery.trim( jQuery( '#ec_admin_order_details_tracking_number' ).text() );
@@ -898,9 +1579,7 @@ jQuery( function( $ ) {
 		var out = ecodv2_orig_open2( section, fallback );
 		setTimeout( function() {
 			$( '#ec_admin_view_shipping_method' ).show();
-			if ( '' === $.trim( $( '#ec_admin_order_details_tracking_number' ).text() ) ) {
-				$( '#ec_admin_order_details_shipping_empty_message' ).show();
-			}
+			ecodv2_sync_shipment();
 		}, 50 );
 		return out;
 	};
@@ -914,10 +1593,11 @@ jQuery( function( $ ) {
 		}
 	} );
 
-	/* Keep the tracking copy button in sync after a fulfillment save. */
+	/* Keep the tracking copy button and the shipment empty state in sync after a fulfillment save. */
 	$( document ).ajaxComplete( function() {
 		var has = '' !== $.trim( $( '#ec_admin_order_details_tracking_number' ).text() );
 		$( '.ecodv2-tracking-copy' ).toggle( has );
+		ecodv2_sync_shipment();
 	} );
 } );
 
@@ -940,9 +1620,10 @@ function ecodv2_save_order_date() {
 		order_time: time.value
 	}, function( response ) {
 		if ( ! response || ! response.success ) {
-			window.alert( 'Could not save the order date.' );
+			ecodv2_save_toast( ( response && response.data && response.data.message ) ? response.data.message : 'The order date could not be saved.', true );
 			return;
 		}
+		ecodv2_save_toast( 'Order date updated.' );
 		var span = document.getElementById( 'ec_admin_order_details_order_date' );
 		if ( span ) {
 			span.textContent = response.data.display;
@@ -1024,8 +1705,11 @@ function ecodv2_label_save_tracking() {
 	if ( c_input && '' !== carrier.value ) {
 		c_input.value = carrier.value;
 	}
-	if ( 'undefined' !== typeof window.ec_admin_order_details_shipping_method_show && ! window.ec_admin_order_details_shipping_method_show && 'function' === typeof window.ec_admin_process_shipping_method ) {
-		window.ec_admin_process_shipping_method(); /* arm */
+	/* V2.10: arm by flag ( no hide/show side effects ), then one save call.
+	   The old arm-by-call double pass could save-then-re-arm when the Edit
+	   drawer had already armed the toggle. */
+	if ( 'undefined' !== typeof window.ec_admin_order_details_shipping_method_show ) {
+		window.ec_admin_order_details_shipping_method_show = true;
 	}
 	if ( 'function' === typeof window.ec_admin_process_shipping_method ) {
 		window.ec_admin_process_shipping_method(); /* save */
@@ -1043,7 +1727,12 @@ function ecodv2_label_save_tracking() {
 	}
 	if ( document.getElementById( 'ecodv2_label_send_email' ) && document.getElementById( 'ecodv2_label_send_email' ).checked ) {
 		setTimeout( function() {
-			jQuery( '#ecodv2_send_shipped_btn' ).trigger( 'click' );
+			/* Skip the confirmation: the label popup's own checkbox is the confirmation. */
+			if ( 'function' === typeof window.ec_admin_send_order_shipped_email ) {
+				window.ec_admin_send_order_shipped_email( true );
+			} else {
+				jQuery( '#ecodv2_send_shipped_btn' ).trigger( 'click' );
+			}
 		}, 900 );
 	}
 	setTimeout( ecodv2_label_popup_close, 1600 );
@@ -1540,7 +2229,11 @@ jQuery( function( $ ) {
 				setTimeout( function() { window.location.reload(); }, 700 );
 			} else {
 				btn.disabled = false;
+				ecodv2_save_toast( ( response && response.data && response.data.message ) ? response.data.message : 'The line could not be added.', true );
 			}
+		} ).fail( function() {
+			btn.disabled = false;
+			ecodv2_save_toast( 'The line could not be added.', true );
 		} );
 		return false;
 	} );

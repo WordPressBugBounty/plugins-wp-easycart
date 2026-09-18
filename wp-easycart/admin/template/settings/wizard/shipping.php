@@ -65,7 +65,7 @@ $fmt = function( $n ) use ( $symbol ) {
 				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub">UPS · USPS · FedEx · DHL · Canada Post · Australia Post</span></div></div>
 				<p><?php esc_html_e( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ); ?></p>
 				<div class="ecwz-ccard-act">
-					<span class="ecwz-badge ecwz-badge-amber">PRO</span>
+					<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_html_e( 'Try free for 14 days', 'wp-easycart' ); ?></a>
 				</div>
 			</div>

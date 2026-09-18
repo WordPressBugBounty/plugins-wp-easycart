@@ -122,7 +122,7 @@ $ssl_badge = $env['https']
 
 		<?php if ( $upsell ) { ?>
 		<div class="ecwz-hint ecwz-upsell-row">
-			<span class="ecwz-badge ecwz-badge-amber">PRO</span>
+			<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
 			<?php esc_html_e( 'Authorize.net, Braintree, Mollie, Klarna and 30+ more.', 'wp-easycart' ); ?>
 			<a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment" target="_blank" rel="noopener noreferrer" class="ecwz-lnk"><?php esc_html_e( 'See the list', 'wp-easycart' ); ?></a> ·
 			<a href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank" class="ecwz-lnk"><?php esc_html_e( 'Start 14-day trial', 'wp-easycart' ); ?></a>

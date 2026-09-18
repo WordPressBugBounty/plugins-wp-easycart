@@ -2,7 +2,10 @@
  * WP EasyCart — Create Option Set slideout ( V2 ).
  *
  * Entry points:
- *   ecosv2_open( { origin: 'product'|'standalone', type: 'basic-combo' } )
+ *   ecosv2_open( { origin: 'product'|'standalone', type: 'basic-combo', after: 'edit'|'close' } )
+ *     after: 'edit' sends the merchant to the full option editor for the new set once it is
+ *     created ( default on the Option Sets screens ); 'close' just closes ( product editors,
+ *     which pick the new set up from the ecosv2:created event ).
  *   ecosv2_close()
  *
  * Legacy routes that land here:
@@ -31,7 +34,9 @@
 	var NUMERIC   = { 'number': 1, 'dimensions1': 1, 'dimensions2': 1 };
 	var TEXTUAL   = { 'text': 1, 'textarea': 1 };
 
-	var state = { origin: 'standalone', type: 'basic-combo', label_touched: false, saving: false, hints: {} };
+	var SWATCH    = { 'basic-swatch': 1, 'swatch': 1 };                  // types whose choices carry a color / image
+
+	var state = { origin: 'standalone', type: 'basic-combo', after: 'close', label_touched: false, saving: false, hints: {} };
 
 	function $box() { return $( '#ecosv2_box' ); }
 	function $f( id ) { return $( '#' + id ); }
@@ -46,6 +51,31 @@
 	function loader( on ) { $f( 'ecosv2_loader' ).toggleClass( 'is-on', !! on ); }
 	function takes_list( t ) { return !! ( VARIATION[ t ] || LISTED[ t ] ); }
 	function has_pro() { return $box().attr( 'data-pro' ) === '1'; }
+	function is_swatch_type( t ) { return !! SWATCH[ t ]; }
+
+	/* Swatch value: "#rrggbb" or "#rrggbb,#rrggbb" ( color, every store ) or an image URL ( PRO ).
+	 * Same format and rules as the full option editor ( option-editor-v2.js / sanitize_icon() ). */
+	function swatch_colors( icon ) {
+		icon = $.trim( String( icon || '' ) );
+		if ( ! icon || icon.charAt( 0 ) !== '#' ) { return null; }
+		var parts = $.map( icon.split( ',' ), function( x ) { return $.trim( x ); } );
+		if ( parts.length > 2 ) { return null; }
+		for ( var k = 0; k < parts.length; k++ ) { if ( ! /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test( parts[ k ] ) ) { return null; } }
+		return parts;
+	}
+	function swatch_css( icon ) {
+		var cols = swatch_colors( icon );
+		if ( cols ) { return { 'background-image': cols.length === 2 ? 'linear-gradient(135deg,' + cols[0] + ' 50%,' + cols[1] + ' 50%)' : 'none', 'background-color': cols[0] }; }
+		return icon ? { 'background-image': 'url("' + String( icon ).replace( /["\\]/g, '' ) + '")', 'background-color': '' } : { 'background-image': '', 'background-color': '' };
+	}
+	function set_swatch( btn, icon ) {
+		var cols = swatch_colors( icon );
+		$( btn ).attr( 'data-icon', icon || '' )
+			.toggleClass( 'has-color', !! cols )
+			.toggleClass( 'has-image', !! icon && ! cols )
+			.css( swatch_css( icon ) );
+		render();
+	}
 
 	/* ------------------------------------------------------------------ */
 	/* Type                                                                */
@@ -55,7 +85,7 @@
 		var t = $( el ).attr( 'data-type' );
 		if ( ! t ) { return; }
 		if ( ! VARIATION[ t ] && ! has_pro() ) {
-			if ( typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products', feature: 'variants' } ); }
+			if ( typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products', feature: 'modifiers' } ); }
 			return;
 		}
 		state.type = t;
@@ -83,7 +113,7 @@
 	window.ecosv2_add_row = function( name, price, focus ) {
 		var $r = $( '<div class="ecosv2-irow">' );
 		$r.append( '<span class="ecosv2-drag" title="' + esc( L.drag || 'Drag to reorder' ) + '" aria-hidden="true"><svg viewBox="0 0 10 16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>' );
-		$r.append( '<button type="button" class="ecosv2-swatch ecosv2-col-swatch" data-pro-only data-url="" title="' + esc( L.pick_photo || 'Choose a photo' ) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></button>' );
+		$r.append( '<button type="button" class="ecosv2-swatch ecosv2-col-swatch" data-swatch-only data-icon="" title="' + esc( L.swatch_title || 'Set a color or image' ) + '" aria-label="' + esc( L.swatch_title || 'Set a color or image' ) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></button>' );
 		$r.append( $( '<input type="text" class="ecv2-input ecosv2-nm">' ).attr( 'placeholder', L.choice_name || 'Choice name' ).val( name || '' ) );
 		$r.append( $( '<input type="text" class="ecv2-input ecosv2-sku">' ).attr( 'placeholder', '-sm' ) );
 		$r.append( '<div class="ecosv2-prefix"><span>' + esc( V.currency || '$' ) + '</span><input type="number" step=".01" class="ecv2-input ecosv2-pr" placeholder="0.00" value="' + esc( price || '' ) + '"></div>' );
@@ -123,21 +153,96 @@
 				sku:    $.trim( $r.find( '.ecosv2-sku' ).val() ),
 				price:  $.trim( $r.find( '.ecosv2-pr' ).val() ),
 				weight: $.trim( $r.find( '.ecosv2-wt' ).val() ),
-				icon:   $r.find( '.ecosv2-swatch' ).attr( 'data-url' ) || ''
+				icon:   is_swatch_type( state.type ) ? ( $r.find( '.ecosv2-swatch' ).attr( 'data-icon' ) || '' ) : ''
 			};
 		} ).get();
 	}
 
-	function pick_swatch( btn ) {
-		if ( ! window.wp || ! wp.media ) { return; }
+	function pick_image( btn ) {
+		if ( ! window.wp || ! wp.media ) { toast( L.no_media || 'The media library is not available on this page.', 'error' ); return; }
 		var frame = wp.media( { title: L.pick_photo || 'Choose a photo', button: { text: L.use_photo || 'Use this photo' }, multiple: false, library: { type: 'image' } } );
 		frame.on( 'select', function() {
 			var a = frame.state().get( 'selection' ).first().toJSON();
-			var url = ( a.sizes && a.sizes.thumbnail ) ? a.sizes.thumbnail.url : a.url;
-			$( btn ).attr( 'data-url', url ).addClass( 'has-image' ).css( 'background-image', 'url(' + url + ')' );
-			render();
+			set_swatch( btn, ( a.sizes && a.sizes.thumbnail ) ? a.sizes.thumbnail.url : a.url );
 		} );
 		frame.open();
+	}
+
+	function close_swatch_popover() {
+		$( '.ecosv2-swpop' ).remove();
+		$( document ).off( 'mousedown.ecosv2swpop' );
+	}
+
+	/* Color ( every store ) or image ( PRO ) picker, anchored to the row's swatch button. */
+	function open_swatch_popover( btn ) {
+		close_swatch_popover();
+		var $btn = $( btn ), icon = $btn.attr( 'data-icon' ) || '', cols = swatch_colors( icon ) || [];
+		var c1 = cols[0] || '#3b82f6', c2 = cols[1] || '#ffffff', two = cols.length === 2, pro = has_pro();
+		var lock = '<svg class="ecosv2-lock-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>';
+		var $p = $( '<div class="ecosv2-swpop" role="dialog">' +
+			'<div class="ecosv2-swpop-tabs"><button type="button" class="is-on" data-tab="color">' + esc( L.color || 'Color' ) + '</button><button type="button" data-tab="image">' + esc( L.image || 'Image' ) + ( pro ? '' : ' ' + lock ) + '</button></div>' +
+			'<div class="ecosv2-swpop-body" data-tab="color">' +
+				'<div class="ecosv2-swpop-row"><input type="color" class="ecosv2-swpop-c1"><input type="text" class="ecv2-input ecosv2-swpop-h1" maxlength="7" spellcheck="false"></div>' +
+				'<label class="ecosv2-swpop-two"><input type="checkbox" class="ecosv2-swpop-toggle2"> ' + esc( L.two_tone || 'Two-tone' ) + '</label>' +
+				'<div class="ecosv2-swpop-row ecosv2-swpop-row2"><input type="color" class="ecosv2-swpop-c2"><input type="text" class="ecv2-input ecosv2-swpop-h2" maxlength="7" spellcheck="false"></div>' +
+				'<div class="ecosv2-swpop-presets"></div>' +
+			'</div>' +
+			'<div class="ecosv2-swpop-body" data-tab="image" hidden>' +
+				( pro
+					? '<p>' + esc( L.image_hint || 'Use a photo or pattern instead of a flat color.' ) + '</p><button type="button" class="ecv2-btn ecv2-btn-sm ecosv2-swpop-pick">' + esc( L.choose_image || 'Choose image…' ) + '</button>'
+					: '<p><span class="ecosv2-pill">' + esc( ( window.wp_easycart_edition && window.wp_easycart_edition.badge_pro ) || 'Pro/Premium' ) + '</span> ' + esc( L.image_pro || 'Photo swatches are included with Pro and Premium licenses. Color swatches are included with every store.' ) + '</p><button type="button" class="ecv2-btn ecv2-btn-sm ecosv2-swpop-upsell">' + esc( L.unlock || 'Unlock' ) + '</button>' ) +
+			'</div>' +
+			'<div class="ecosv2-swpop-foot"><span class="ecosv2-swpop-prev"></span><span class="ecosv2-spacer"></span>' +
+				( icon ? '<button type="button" class="ecosv2-link ecosv2-swpop-clear">' + esc( L.remove_swatch || 'Remove' ) + '</button>' : '' ) +
+				'<button type="button" class="ecv2-btn ecv2-btn-sm ecosv2-swpop-cancel">' + esc( L.cancel || 'Cancel' ) + '</button><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ecosv2-swpop-ok">' + esc( L.apply || 'Apply' ) + '</button></div>' +
+		'</div>' );
+		$p.find( '.ecosv2-swpop-c1, .ecosv2-swpop-h1' ).val( c1 );
+		$p.find( '.ecosv2-swpop-c2, .ecosv2-swpop-h2' ).val( c2 );
+		$p.find( '.ecosv2-swpop-toggle2' ).prop( 'checked', two );
+		$p.find( '.ecosv2-swpop-row2' ).toggle( two );
+		$.each( [ '#000000', '#ffffff', '#6b7280', '#ef4444', '#f97316', '#eab308', '#22c55e', '#0ea5e9', '#3b82f6', '#8b5cf6', '#ec4899', '#78350f' ], function( k, hex ) {
+			$p.find( '.ecosv2-swpop-presets' ).append( $( '<button type="button" class="ecosv2-swpop-preset">' ).attr( { 'data-hex': hex, title: hex } ).css( 'background', hex ) );
+		} );
+		$( 'body' ).append( $p );
+		var off = $btn.offset();
+		$p.css( { top: off.top + $btn.outerHeight() + 6, left: Math.max( 8, Math.min( off.left, $( window ).width() - $p.outerWidth() - 8 ) ) } );
+
+		function cur() {
+			var a = $.trim( $p.find( '.ecosv2-swpop-h1' ).val() ), b = $p.find( '.ecosv2-swpop-toggle2' ).is( ':checked' ) ? $.trim( $p.find( '.ecosv2-swpop-h2' ).val() ) : '';
+			return b ? a + ',' + b : a;
+		}
+		function refresh() {
+			var v = cur(), ok = !! swatch_colors( v );
+			$p.find( '.ecosv2-swpop-prev' ).css( ok ? swatch_css( v ) : { 'background-image': '', 'background-color': '' } ).toggleClass( 'is-bad', ! ok );
+			$p.find( '.ecosv2-swpop-ok' ).prop( 'disabled', ! ok );
+		}
+		$p.on( 'input', '.ecosv2-swpop-c1', function() { $p.find( '.ecosv2-swpop-h1' ).val( this.value ); refresh(); } );
+		$p.on( 'input', '.ecosv2-swpop-c2', function() { $p.find( '.ecosv2-swpop-h2' ).val( this.value ); refresh(); } );
+		$p.on( 'input', '.ecosv2-swpop-h1', function() { if ( /^#[0-9a-f]{6}$/i.test( this.value ) ) { $p.find( '.ecosv2-swpop-c1' ).val( this.value ); } refresh(); } );
+		$p.on( 'input', '.ecosv2-swpop-h2', function() { if ( /^#[0-9a-f]{6}$/i.test( this.value ) ) { $p.find( '.ecosv2-swpop-c2' ).val( this.value ); } refresh(); } );
+		$p.on( 'change', '.ecosv2-swpop-toggle2', function() { $p.find( '.ecosv2-swpop-row2' ).toggle( this.checked ); refresh(); } );
+		$p.on( 'click', '.ecosv2-swpop-preset', function() { var hex = $( this ).attr( 'data-hex' ); $p.find( '.ecosv2-swpop-c1, .ecosv2-swpop-h1' ).val( hex ); refresh(); } );
+		$p.on( 'click', '.ecosv2-swpop-tabs button', function() {
+			var t = $( this ).attr( 'data-tab' );
+			$p.find( '.ecosv2-swpop-tabs button' ).removeClass( 'is-on' ); $( this ).addClass( 'is-on' );
+			$p.find( '.ecosv2-swpop-body' ).prop( 'hidden', true ).filter( '[data-tab="' + t + '"]' ).prop( 'hidden', false );
+			$p.find( '.ecosv2-swpop-ok' ).toggle( t === 'color' );
+		} );
+		$p.on( 'click', '.ecosv2-swpop-pick', function() { close_swatch_popover(); pick_image( btn ); } );
+		$p.on( 'click', '.ecosv2-swpop-upsell', function() { close_swatch_popover(); if ( typeof window.ecdv2_upsell === 'function' ) { window.ecdv2_upsell( { context: 'products', feature: 'images' } ); } } );
+		$p.on( 'click', '.ecosv2-swpop-clear', function() { close_swatch_popover(); set_swatch( btn, '' ); } );
+		$p.on( 'click', '.ecosv2-swpop-cancel', close_swatch_popover );
+		$p.on( 'click', '.ecosv2-swpop-ok', function() {
+			var c = swatch_colors( cur() );
+			if ( ! c ) { return; }
+			close_swatch_popover();
+			set_swatch( btn, c.join( ',' ).toLowerCase() );
+		} );
+		$( document ).on( 'mousedown.ecosv2swpop', function( e ) {
+			if ( ! $( e.target ).closest( '.ecosv2-swpop, .media-modal' ).length ) { close_swatch_popover(); }
+		} );
+		refresh();
+		$p.find( '.ecosv2-swpop-h1' ).trigger( 'focus' );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -177,7 +282,7 @@
 			var $chips = $( '<div class="ecosv2-preview-chips">' );
 			$.each( named, function( i, r ) {
 				var $c = $( '<span class="ecosv2-preview-chip">' ).toggleClass( 'is-sel', i === 0 );
-				if ( r.icon ) { $c.append( $( '<span class="ecosv2-preview-sw">' ).css( 'background-image', 'url(' + r.icon + ')' ) ); }
+				if ( r.icon ) { $c.append( $( '<span class="ecosv2-preview-sw">' ).css( swatch_css( r.icon ) ) ); }
 				$c.append( document.createTextNode( r.name + ( parseFloat( r.price ) ? ' +' + fmt( r.price ) : '' ) ) );
 				$chips.append( $c );
 			} );
@@ -215,6 +320,8 @@
 		opts = opts || {};
 		var ctx = product_context();
 		state.origin = opts.origin || ( ctx ? 'product' : 'standalone' );
+		/* After "Create": open the full editor on the Option Sets screens; elsewhere ( product editors ) just close. */
+		state.after = opts.after || ( ( state.origin === 'standalone' && V.edit_after_create ) ? 'edit' : 'close' );
 		$box().attr( 'data-origin', state.origin );
 
 		reset();
@@ -247,6 +354,7 @@
 	};
 
 	window.ecosv2_close = function() {
+		close_swatch_popover();
 		$box().stop( true, true ).fadeOut( 120 );
 		$( 'body' ).removeClass( 'ecosv2-open' );
 		$( '#ecpsv2_box' ).removeClass( 'is-receded' );
@@ -294,6 +402,12 @@
 			toast( ( L.created || '“%s” created.' ).replace( '%s', r.option_name ) );
 			if ( state.origin === 'standalone' ) {
 				if ( next === 'another' ) { reset(); if ( takes_list( state.type ) ) { ecosv2_add_row( '', '', false ); ecosv2_add_row( '', '', false ); } render(); $f( 'ecosv2_name' ).trigger( 'focus' ); return; }
+				if ( state.after === 'edit' && r.edit_url ) {
+					/* Keep the panel busy while the editor loads, so nothing can be double-submitted. */
+					state.saving = true; loader( true );
+					window.location.href = r.edit_url;
+					return;
+				}
 				ecosv2_close();
 				if ( V.reload_after_create ) { window.location.reload(); }
 				return;
@@ -343,7 +457,8 @@
 		$b.on( 'input', '#ecosv2_label', function() { state.label_touched = ( this.value !== '' ); render(); } );
 		$b.on( 'input change', '#ecosv2_rows input, #ecosv2_required', function() { render(); } );
 		$b.on( 'click', '#ecosv2_rows .ecosv2-rm', function() { $( this ).closest( '.ecosv2-irow' ).remove(); render(); } );
-		$b.on( 'click', '#ecosv2_rows .ecosv2-swatch', function() { pick_swatch( this ); } );
+		$b.on( 'click', '#ecosv2_rows .ecosv2-swatch', function() { open_swatch_popover( this ); } );
+		$b.find( '.ecosv2-body' ).on( 'scroll', close_swatch_popover );
 		$b.on( 'keydown', '#ecosv2_rows .ecosv2-nm', function( e ) {
 			if ( e.key === 'Enter' ) {
 				e.preventDefault();
@@ -356,6 +471,7 @@
 		}
 		$b.on( 'mousedown', function( e ) { if ( e.target === this ) { ecosv2_close(); } } );
 		$( document ).on( 'keydown', function( e ) {
+			if ( e.key === 'Escape' && $( '.ecosv2-swpop' ).length ) { e.stopImmediatePropagation(); close_swatch_popover(); return; }
 			if ( e.key === 'Escape' && $b.is( ':visible' ) && ! $( '#ec_admin_upsell_popup' ).is( ':visible' ) ) { e.stopImmediatePropagation(); ecosv2_close(); }
 		} );
 		$b.on( 'keydown', function( e ) { if ( ( e.ctrlKey || e.metaKey ) && e.key === 'Enter' ) { e.preventDefault(); ecosv2_save( 'close' ); } } );

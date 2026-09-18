@@ -1,0 +1,95 @@
+/* WP EasyCart Admin — Settings › Shipping settings ( V2 ): zone editor, ship-to note, carrier sub-headers. */
+
+/* zone editor */
+.ecsh-zones { display:flex; flex-direction:column; gap:14px; }
+.ecsh-zone-add { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ecsh-zone-add .ecv2-input { max-width:320px; }
+.ecsh-zone-add-msg, .ecsh-zone-state, .ecsh-picker-msg { font-size:11.5px; font-weight:600; }
+.ecsh-zone-add-msg.is-saved, .ecsh-zone-state.is-saved, .ecsh-picker-msg.is-saved { color:#15803d; }
+.ecsh-zone-add-msg.is-error, .ecsh-zone-state.is-error, .ecsh-picker-msg.is-error { color:var(--ecv2-danger); }
+.ecsh-zone-list { display:flex; flex-direction:column; gap:10px; }
+.ecsh-zone-tools { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin:-4px 0 -6px; }
+.ecsh-zone-tools[hidden] { display:none; }
+.ecsh-zone-tools .ecst-link { font-size:12px; }
+.ecsh-zone-tools-sep { color:var(--ecv2-g300); font-size:12px; }
+.ecsh-zone { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; }
+.ecsh-zone-head { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:8px 12px 8px 8px; border-bottom:1px solid var(--ecv2-g100); cursor:pointer; }
+.ecsh-zone.is-collapsed .ecsh-zone-head { border-bottom:0; }
+.ecsh-zone.is-collapsed:hover { border-color:var(--ecv2-g300); }
+.ecsh-zone-head .ecsh-zone-name { cursor:text; }
+.ecsh-zone-toggle { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:26px; height:26px; margin:0; padding:0; border:0; border-radius:var(--ecv2-rs, 4px); background:transparent; color:var(--ecv2-g500); cursor:pointer; }
+.ecsh-zone-toggle svg { transition:transform .15s ease; }
+.ecsh-zone.is-open .ecsh-zone-toggle svg { transform:rotate(90deg); }
+.ecsh-zone-toggle:hover { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+.ecsh-zone-toggle:focus { outline:none; }
+.ecsh-zone-toggle:focus-visible { box-shadow:0 0 0 2px var(--ecst-accent, var(--ecv2-primary)); color:var(--ecv2-g900); }
+.ecsh-zone-summary { flex:1 1 100%; min-width:0; margin:0 0 0 36px; font-size:12px; color:var(--ecv2-g500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ecsh-zone-summary[hidden], .ecsh-zone-body[hidden] { display:none; }
+.ecsh-zone-name { flex:0 1 320px; min-width:120px; font-size:13.5px; font-weight:600; color:var(--ecv2-g900); border:1px solid transparent; border-radius:var(--ecv2-rs, 4px); background:transparent; padding:4px 6px; margin:0 0 0 -6px; box-shadow:none; }
+.ecsh-zone-name:hover { border-color:var(--ecv2-g200); }
+.ecsh-zone-name:focus { border-color:var(--ecst-accent, var(--ecv2-primary)); box-shadow:0 0 0 3px var(--ecst-accent-soft, var(--ecv2-primary-light)); outline:none; background:#fff; }
+.ecsh-zone-count { font-size:11.5px; color:var(--ecv2-g500); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.ecsh-zone-del { color:var(--ecv2-danger) !important; }
+.ecsh-chips { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px; }
+.ecsh-chips-empty { font-size:12px; color:var(--ecv2-g500); }
+.ecsh-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 4px 3px 10px; border-radius:999px; border:1px solid var(--ecv2-g200); background:var(--ecv2-g50); font-size:12px; color:var(--ecv2-g800); line-height:1.4; }
+.ecsh-chip.is-busy { opacity:.5; pointer-events:none; }
+.ecsh-chip-rm { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:0; border-radius:50%; background:var(--ecv2-g200); color:var(--ecv2-g700); cursor:pointer; font-size:13px; line-height:1; padding:0; }
+.ecsh-chip-rm:hover { background:var(--ecv2-danger); color:#fff; }
+.ecsh-picker { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px 10px; border-top:1px dashed var(--ecv2-g100); background:var(--ecv2-g50); border-radius:0 0 var(--ecv2-r) var(--ecv2-r); }
+.ecsh-picker-label { font-size:11.5px; color:var(--ecv2-g500); white-space:nowrap; }
+.ecsh-picker .ecv2-select { min-width:160px; max-width:240px; }
+.ecsh-empty { font-size:12.5px; color:var(--ecv2-g500); padding:6px 0; max-width:70ch; }
+@media (prefers-reduced-motion:reduce) {
+	.ecsh-zone-toggle svg { transition:none; }
+}
+
+/* ship-to note row */
+.ecsh-note { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.ecsh-note-text { display:flex; flex-direction:column; gap:2px; min-width:0; max-width:70ch; }
+.ecsh-note-text b { font-size:13px; color:var(--ecv2-g900); }
+.ecsh-note-text span { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecsh-note .ecv2-btn { white-space:nowrap; text-decoration:none; }
+
+/* carrier sub-headers ( html rows inside the Carrier accounts section ) */
+.ecst-row.ecst-type-html:has(> .ecst-row-html > .ecsh-carrier-head) { background:var(--ecv2-g50); padding-top:9px; padding-bottom:9px; }
+.ecsh-carrier-head { display:flex; align-items:center; gap:10px; }
+.ecsh-carrier-name { font-size:13px; font-weight:700; color:var(--ecv2-g900); letter-spacing:.01em; }
+.ecsh-mark { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; font-size:10px; font-weight:800; letter-spacing:.03em; color:#fff; background:var(--ecv2-g700); flex-shrink:0; }
+.ecsh-mark-auspost { background:#dc1928; }
+.ecsh-mark-canadapost { background:#c8102e; }
+.ecsh-mark-dhl { background:#ffcc00; color:#d40511; }
+.ecsh-mark-fedex { background:#4d148c; }
+.ecsh-mark-ups { background:#351c15; color:#ffb500; }
+.ecsh-mark-usps { background:#333366; }
+.ecsh-status { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--ecv2-g100); color:var(--ecv2-g600); white-space:nowrap; }
+.ecsh-status:before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+.ecsh-status.is-connected { background:#dcfce7; color:#15803d; }
+.ecsh-status.is-error { background:var(--ecv2-danger-light); color:#991b1b; }
+.ecsh-status.is-disabled { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+.ecsh-status.is-incomplete { background:#fef3c7; color:#92400e; }
+.ecsh-status[hidden], .ecsh-carrier-note[hidden] { display:none; }
+.ecsh-carrier-note { margin:6px 0 0 38px; font-size:12px; line-height:1.45; color:var(--ecv2-g600); }
+.ecsh-carrier-note.is-error { color:#991b1b; }
+.ecsh-carrier-note.is-incomplete { color:#92400e; }
+
+/* Carrier tabs ( built by settings-shipping-v2.js ) */
+.ecsh-tabs { display:flex; flex-wrap:wrap; gap:6px; padding:12px 16px; border-bottom:1px solid var(--ecv2-g100); }
+.ecsh-tab { display:inline-flex; align-items:center; gap:7px; padding:5px 10px 5px 5px; border:1px solid var(--ecv2-g200); border-radius:8px; background:#fff; color:var(--ecv2-g700); font-size:12.5px; font-weight:600; cursor:pointer; line-height:1.2; }
+.ecsh-tab:hover { border-color:var(--ecv2-g300); color:var(--ecv2-g900); }
+.ecsh-tab:focus-visible { outline:2px solid var(--ecst-accent, var(--ecv2-primary)); outline-offset:1px; }
+.ecsh-tab.is-on { border-color:var(--ecst-accent, var(--ecv2-primary)); box-shadow:inset 0 0 0 1px var(--ecst-accent, var(--ecv2-primary)); color:var(--ecv2-g900); }
+.ecsh-tab .ecsh-tab-mark { width:22px; height:22px; border-radius:5px; font-size:8.5px; }
+.ecsh-tab-dot { width:7px; height:7px; border-radius:50%; background:transparent; flex-shrink:0; }
+.ecsh-tab-dot.is-connected { background:#16a34a; }
+.ecsh-tab-dot.is-error { background:#dc2626; }
+.ecsh-tab-dot.is-incomplete { background:#d97706; }
+.ecsh-tab-dot.is-disabled { background:var(--ecv2-g300); }
+.ecst-row.ecsh-tab-off { display:none !important; }
+
+/* UPS connect row ( PRO ) */
+.ecsh-connect { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ecsh-connect-text { font-size:12.5px; color:var(--ecv2-g700); }
+.ecsh-connect-text b { color:var(--ecv2-g900); }
+.ecsh-connect .ecv2-btn { text-decoration:none; }
+.ecsh-connect .ecst-link { text-decoration:none; }

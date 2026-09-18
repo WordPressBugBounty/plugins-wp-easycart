@@ -35,13 +35,16 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 		</div>
 	</div>
 
-	<p class="ecv2-page-intro"><?php esc_html_e( 'You are running the free edition. Everything below unlocks the PRO features shown throughout the admin; your products, orders and settings stay exactly as they are.', 'wp-easycart' ); ?></p>
+	<p class="ecv2-page-intro"><?php
+		/* translators: %s: plan name, "Pro/Premium". */
+		echo esc_html( sprintf( __( 'You are running the free edition. Everything below unlocks the %s features shown throughout the admin; your products, orders and settings stay exactly as they are.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ) );
+	?></p>
 
 	<?php if ( $ecreg_installed && ! $ecreg_active ) : ?>
 	<div class="ecreg-notice">
 		<span class="dashicons dashicons-info-outline"></span>
-		<span><strong><?php esc_html_e( 'PRO is already installed on this site.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'Activate the plugin, then enter your license key ( or start a trial ) on this page.', 'wp-easycart' ); ?></span>
-		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate PRO', 'wp-easycart' ); ?></a>
+		<span><strong><?php esc_html_e( 'WP EasyCart PRO is already installed on this site.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'Activate the plugin, then enter your license key ( or start a trial ) on this page.', 'wp-easycart' ); ?></span>
+		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate WP EasyCart PRO', 'wp-easycart' ); ?></a>
 	</div>
 	<?php endif; ?>
 
@@ -51,10 +54,10 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 		<div class="ecreg-path is-featured">
 			<span class="ecreg-path-tag"><?php esc_html_e( 'Most people start here', 'wp-easycart' ); ?></span>
 			<span class="dashicons dashicons-clock ecreg-path-icon"></span>
-			<h3><?php esc_html_e( 'Try PRO free for 14 days', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'One click installs and activates PRO on this site. No credit card. When the trial ends the PRO panels lock again and nothing is lost.', 'wp-easycart' ); ?></p>
+			<h3><?php esc_html_e( 'Try Pro free for 14 days', 'wp-easycart' ); ?></h3>
+			<p><?php esc_html_e( 'One click installs and activates WP EasyCart PRO on this site. No credit card. When the trial ends the Pro panels lock again and nothing is lost.', 'wp-easycart' ); ?></p>
 			<ul class="ecreg-path-list">
-				<li><?php esc_html_e( 'Every PRO feature, unlimited', 'wp-easycart' ); ?></li>
+				<li><?php esc_html_e( 'Every Pro feature, unlimited', 'wp-easycart' ); ?></li>
 				<li><?php esc_html_e( 'Keep all data if you go back to free', 'wp-easycart' ); ?></li>
 				<li><?php esc_html_e( 'Upgrade during the trial without reinstalling', 'wp-easycart' ); ?></li>
 			</ul>
@@ -67,11 +70,11 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 			<span class="dashicons dashicons-admin-network ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Already have a license key?', 'wp-easycart' ); ?></h3>
 			<?php if ( $ecreg_installed && ! $ecreg_active ) : ?>
-				<p><?php esc_html_e( 'PRO is installed. Activate it and this page will show the license form where you paste your key.', 'wp-easycart' ); ?></p>
-				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate PRO plugin', 'wp-easycart' ); ?></a>
+				<p><?php esc_html_e( 'WP EasyCart PRO is installed. Activate it and this page will show the license form where you paste your key.', 'wp-easycart' ); ?></p>
+				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate WP EasyCart PRO', 'wp-easycart' ); ?></a>
 			<?php elseif ( ! $ecreg_installed ) : ?>
-				<p><?php esc_html_e( 'Install the PRO plugin first — it is a one-click download from here — then paste your key on this page.', 'wp-easycart' ); ?></p>
-				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_install ); ?>"><?php esc_html_e( 'Install PRO plugin', 'wp-easycart' ); ?></a>
+				<p><?php esc_html_e( 'Install the WP EasyCart PRO plugin first — it is a one-click download from here — then paste your key on this page.', 'wp-easycart' ); ?></p>
+				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_install ); ?>"><?php esc_html_e( 'Install WP EasyCart PRO', 'wp-easycart' ); ?></a>
 			<?php else : ?>
 				<p><?php esc_html_e( 'Paste your key in the license form on this page.', 'wp-easycart' ); ?></p>
 			<?php endif; ?>
@@ -82,7 +85,7 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 		<div class="ecreg-path">
 			<span class="dashicons dashicons-cart ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Buy a license', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Professional includes every PRO feature plus a year of priority support and updates. Premium adds every extension.', 'wp-easycart' ); ?></p>
+			<p><?php esc_html_e( 'Pro includes every paid feature plus a year of priority support and updates. Premium adds every extension.', 'wp-easycart' ); ?></p>
 			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_pricing ); ?>" target="_blank"><?php esc_html_e( 'See plans & pricing', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
 			<span class="ecreg-path-fine"><?php esc_html_e( 'Your key arrives by email; come back here to enter it.', 'wp-easycart' ); ?></span>
 		</div>
@@ -93,10 +96,11 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 	<p class="ecreg-stat"><span class="dashicons dashicons-chart-line"></span>
 		<?php
 		echo esc_html( sprintf(
-			/* translators: %1$s = product count, %2$s = order count. */
-			__( 'This store already has %1$s products and %2$s orders — PRO features apply to all of them the moment it is activated.', 'wp-easycart' ),
+			/* translators: %1$s = product count, %2$s = order count, %3$s = plan name, "Pro/Premium". */
+			__( 'This store already has %1$s products and %2$s orders — %3$s features apply to all of them the moment it is activated.', 'wp-easycart' ),
 			number_format_i18n( (int) $ecreg_stats['products'] ),
-			number_format_i18n( (int) $ecreg_stats['orders'] )
+			number_format_i18n( (int) $ecreg_stats['orders'] ),
+			wp_easycart_admin_edition::plan_name()
 		) );
 		?>
 	</p>

@@ -436,7 +436,7 @@ if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active
 				<tr>
 					<td width='269'>&nbsp;</td>
 					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'>GST (<?php echo esc_attr( $gst_rate ); ?>%)</td>
+					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $gst_rate ); ?>%)</td>
 					<td align='center' class='style22'><?php echo esc_attr( $gst_total ); ?></td>
 				</tr>
 				<?php }?>
@@ -444,7 +444,7 @@ if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active
 				<tr>
 					<td width='269'>&nbsp;</td>
 					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'>PST (<?php echo esc_attr( $pst_rate ); ?>%)</td>
+					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $pst_rate ); ?>%)</td>
 					<td align='center' class='style22'><?php echo esc_attr( $pst_total ); ?></td>
 				</tr>
 				<?php }?>
@@ -452,7 +452,7 @@ if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active
 				<tr>
 					<td width='269'>&nbsp;</td>
 					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'>HST (<?php echo esc_attr( $hst_rate ); ?>%)</td>
+					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $hst_rate ); ?>%)</td>
 					<td align='center' class='style22'><?php echo esc_attr( $hst_total ); ?></td>
 				</tr>
 				<?php }?>

@@ -102,8 +102,9 @@
 			var $input = $( '#ecudv2_' + name );
 			$input.addClass( 'ecudv2-input-error' );
 			var panel = $input.closest( '.ecdv2-panel' ).attr( 'data-ecdv2-panel' );
-			if ( panel ) { ecudv2.go_tab( panel ); }
-			$input.focus();
+			/* A new customer only has the General panel; switching to a locked one would just show the "save first" toast. */
+			if ( panel && ( ! is_new() || 'general' === panel ) ) { go_tab( panel ); }
+			$input.trigger( 'focus' );
 		}
 	}
 
@@ -131,9 +132,11 @@
 			field_error( 'user_level', _t( 'role_required', 'Please select a user access level.' ) );
 			return false;
 		}
-		var pass_needed = is_new() || $( '#ecudv2_update_password' ).is( ':checked' );
+		/* New customers may be created without a password ( the server generates a secure one;
+		 * send a reset email from Password & Security afterwards ). Validate only what was typed. */
+		var pass = $( '#ecudv2_password' ).val() || '';
+		var pass_needed = is_new() ? '' !== pass : $( '#ecudv2_update_password' ).is( ':checked' );
 		if ( pass_needed ) {
-			var pass = $( '#ecudv2_password' ).val();
 			if ( pass.length < 8 ) {
 				field_error( 'password', _t( 'password_length', 'Please enter a password 8 characters or greater.' ) );
 				return false;
@@ -168,7 +171,10 @@
 			$( '#ecudv2_password, #ecudv2_retype_password' ).val( '' );
 		}
 
-		var payload = $( '#wpeasycart_admin_form' ).serialize() + '&action=ecudv2_user_save';
+		/* The legacy admin runs its form processors on admin_init — which also fires for admin-ajax.php. If this
+		 * payload carried ec_admin_form_action=update-user, wp_easycart_admin_users::process_update_user() would save
+		 * and wp_redirect() ( a 302 ) before our AJAX handler ever ran. Rename the field so only ecudv2_user_save sees it. */
+		var payload = $( '#wpeasycart_admin_form' ).serialize().replace( /(^|&)ec_admin_form_action=/, '$1ecudv2_form_action=' ) + '&action=ecudv2_user_save';
 
 		$.ajax( {
 			url: wpeasycart_admin_ajax_object.ajax_url,
@@ -189,7 +195,7 @@
 				if ( response.data && response.data.created ) {
 					clear_dirty();
 					saving = true; /* suppress beforeunload */
-					window.location.href = 'admin.php?page=wp-easycart-users&subpage=accounts&user_id=' + response.data.user_id + '&ec_admin_form_action=edit&ecudv2_created=1';
+					window.location.href = 'admin.php?page=wp-easycart-users&subpage=accounts&user_id=' + parseInt( response.data.user_id, 10 ) + '&ec_admin_form_action=edit&ecudv2_created=' + ( response.data.password_generated ? '2' : '1' );
 					return;
 				}
 				clear_dirty();
@@ -382,9 +388,13 @@
 	/* ------------------------------------------------------------------ */
 
 	$( function() {
-		if ( /[?&]ecudv2_created=1/.test( location.search ) ) {
+		if ( /[?&]ecudv2_created=2/.test( location.search ) ) {
+			toast( _t( 'created_no_password', 'Customer created. No password was set, so send a password reset from Password & Security when they need to sign in.' ), 'success' );
+		} else if ( /[?&]ecudv2_created=1/.test( location.search ) ) {
 			toast( _t( 'created', 'Customer created. All sections are now unlocked.' ), 'success' );
 		}
+		/* Drop the flag so a reload doesn't repeat the toast. */
+		try { if ( /[?&]ecudv2_created=/.test( location.search ) ) { window.history.replaceState( null, '', location.href.replace( /&ecudv2_created=\d/, '' ) ); } } catch ( e ) {}
 		var hash = location.hash.replace( '#', '' );
 		if ( hash && $( '.ecdv2-panel[data-ecdv2-panel="' + hash + '"]' ).length && ! is_new() ) {
 			go_tab( hash );

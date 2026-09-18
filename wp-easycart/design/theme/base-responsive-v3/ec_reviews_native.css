@@ -1,0 +1,56 @@
+/* Native reviews — storefront styles. Fold into the store CSS bundle. Colors inherit from the theme where possible. */
+
+/* Summary block */
+.ec_review_summary{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin:0 0 22px;padding:16px 18px;border:1px solid rgba(0,0,0,.08);border-radius:8px}
+.ec_review_summary_avg{display:flex;flex-direction:column;align-items:flex-start;min-width:150px}
+.ec_review_summary_num{font-size:40px;font-weight:700;line-height:1}
+/*
+ * 6.0.0: summary + distribution stars.
+ * The theme ( ec-store.css ) draws .ec_product_details_star_on / _off with CSS borders plus :before / :after
+ * triangles on a 0x0 box, so giving those spans a width, height or background-size breaks the shape. Inside the
+ * summary we draw one clean SVG star instead ( mask + currentColor ) in the theme's star colors, so full, half
+ * and empty read the same. Existing review rows and the review form keep the theme's border stars untouched.
+ */
+.ec_review_summary{--ec-rv-star:16px;--ec-rv-star-on:#222222;--ec-rv-star-off:#cccccc;--ec-rv-star-svg:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2l3.1 6.6 7.1.9-5.2 4.9 1.3 7.1L12 18l-6.3 3.5 1.3-7.1L1.8 9.5l7.1-.9z'/></svg>")}
+.ec_review_summary_stars{display:inline-flex;align-items:center;gap:3px;margin:6px 0 4px;line-height:0}
+.ec_review_summary .ec_product_details_star_on,
+.ec_review_summary .ec_product_details_star_half,
+.ec_review_summary .ec_product_details_star_off{display:inline-block;position:relative;box-sizing:border-box;width:var(--ec-rv-star);height:var(--ec-rv-star);margin:0;padding:0;overflow:hidden;border:0 !important;-webkit-transform:none;-moz-transform:none;-ms-transform:none;-o-transform:none;transform:none;color:var(--ec-rv-star-off);background:currentColor;-webkit-mask:var(--ec-rv-star-svg) center / 100% 100% no-repeat;mask:var(--ec-rv-star-svg) center / 100% 100% no-repeat}
+.ec_review_summary .ec_product_details_star_on{color:var(--ec-rv-star-on)}
+/* Neutralise the theme's triangle pseudo-elements; the half star re-uses :before as its left-half overlay. */
+.ec_review_summary .ec_product_details_star_on:before,
+.ec_review_summary .ec_product_details_star_on:after,
+.ec_review_summary .ec_product_details_star_half:after,
+.ec_review_summary .ec_product_details_star_off:before,
+.ec_review_summary .ec_product_details_star_off:after{display:none;content:none}
+.ec_review_summary .ec_product_details_star_half:before{content:'';display:block;position:absolute;top:0;left:0;bottom:0;width:50%;margin:0;border:0;-webkit-transform:none;transform:none;background:var(--ec-rv-star-on)}
+.ec_review_summary_count{font-size:13px;opacity:.75}
+.ec_review_summary_dist{flex:1;min-width:220px;max-width:360px;display:grid;grid-template-columns:auto 1fr 32px;gap:6px 10px;align-items:center}
+.ec_review_dist_row{display:contents;text-decoration:none;color:inherit}
+.ec_review_dist_label{font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+.ec_review_summary .ec_review_dist_star{--ec-rv-star:12px}
+.ec_review_dist_bar{height:9px;border-radius:5px;background:rgba(0,0,0,.08);overflow:hidden}
+.ec_review_dist_bar span{display:block;height:100%;background:#f5b301;border-radius:5px;transition:width .2s}
+.ec_review_dist_row:hover .ec_review_dist_bar span,.ec_review_dist_row.is-active .ec_review_dist_bar span{background:#e09b00}
+.ec_review_dist_row.is-active .ec_review_dist_label{font-weight:700}
+.ec_review_dist_n{font-size:12px;opacity:.7;text-align:right}
+
+/* Verified badge */
+.ec_review_verified{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:#1b5e20;background:#e8f5e9;border-radius:999px;padding:2px 8px;margin:0 6px;vertical-align:middle;white-space:nowrap}
+
+/* Store reply */
+.ec_review_reply{clear:both;margin:10px 0 0 6px;padding:8px 0 4px 14px;border-left:3px solid rgba(0,0,0,.12)}
+.ec_review_reply_meta{font-size:12px;opacity:.7;margin-bottom:3px}
+.ec_review_reply_who{font-weight:700}
+.ec_review_reply_text{font-size:14px;line-height:1.5}
+
+/* Request landing banner above the form */
+.ec_review_request_banner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;padding:10px 12px;margin:0 0 12px;border-radius:6px;background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20}
+.ec_review_request_banner .ec_review_verified{margin:0}
+
+/* Legacy single-review template */
+.ec_customer_review_meta{display:flex;align-items:center;gap:4px;font-size:12px;opacity:.85}
+
+@media (max-width:600px){.ec_review_summary{gap:16px}.ec_review_summary_dist{max-width:none}}
+/* 6.0.0: a review-request link that could not be used ( already reviewed, expired, sample token ), or a completed unsubscribe. */
+.ec_review_request_notice{font-size:13px;padding:10px 12px;margin:0 0 12px;border-radius:6px;background:#fff8e1;border:1px solid #ffe082;color:#7a5900}

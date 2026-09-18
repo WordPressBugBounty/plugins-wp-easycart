@@ -9,15 +9,6 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 
 		protected static $_instance = null;
 
-		public $initial_setup_file;
-		public $success_messages_file;
-		public $product_page_file;
-		public $cart_page_file;
-		public $account_page_file;
-		public $demo_data_file;
-		public $currency_setup_file;
-		public $goals_setup_file;
-
 		public static function instance() {
 			if ( is_null( self::$_instance ) ) {
 				self::$_instance = new self();
@@ -26,54 +17,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 		}
 
 		public function __construct() {
-			$this->initial_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/initial-setup.php';
-			$this->success_messages_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/success-messages.php';
-			$this->product_page_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/product-page.php';
-			$this->cart_page_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/cart-page.php';
-			$this->account_page_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/account-page.php';
-			$this->demo_data_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/demo-data.php';
-			$this->currency_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/currency-setup.php';
-			$this->goals_setup_file = EC_PLUGIN_DIRECTORY . '/admin/template/settings/initial-setup/goal-setup.php';
-
-			add_action( 'wpeasycart_admin_initial_setup_success', array( $this, 'load_success_messages' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_product_page' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_cart_page' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_account_page' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_goal_display' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_currency_display' ) );
-			add_action( 'wpeasycart_admin_intial_setup', array( $this, 'load_demo_data_display' ) );
+			/* The Store details page is a V2 declaration ( admin/template/settings/initial-setup.php ); this
+			 * class keeps the first-install page creation and the demo data installer it calls. */
 			add_action( 'admin_init', array( $this, 'check_initial_install_setup' ) );
-		}
-
-		public function load_success_messages() {
-			include( $this->success_messages_file );
-		}
-
-		public function load_initial_setup() {
-			include( $this->initial_setup_file );
-		}
-
-		public function load_product_page() {
-			include( $this->product_page_file );
-		}
-
-		public function load_cart_page() {
-			include( $this->cart_page_file );
-		}
-
-		public function load_account_page() {
-			include( $this->account_page_file );
-		}
-		public function load_goal_display() {
-			include( $this->goals_setup_file );
-		}
-
-		public function load_demo_data_display() {
-			include( $this->demo_data_file );
-		}
-
-		public function load_currency_display() {
-			include( $this->currency_setup_file );
 		}
 
 		public function check_initial_install_setup() {
@@ -165,144 +111,6 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					update_option( 'ec_option_accountpage', $account_id );
 				}
 			}
-		}
-
-		public function save_storepage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-storepage-setup' ) ) {
-				return false;
-			}
-
-			$ec_option_storepage = (int) $_POST['ec_option_storepage'];
-			update_option( 'ec_option_storepage', $ec_option_storepage );
-			$store_slug = ec_get_the_slug( $ec_option_storepage );
-			global $wp_rewrite;
-			$wp_rewrite->add_permastruct( 'ec_store', $store_slug . '/%ec_store%/', true, 1 );
-			add_rewrite_rule( '^' . $store_slug . '/([^/]*)/?$', 'index.php?ec_store=$matches[1]', 'top');
-			$wp_rewrite->flush_rules();
-		}
-
-		public function save_cartpage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-cartpage-setup' ) ) {
-				return false;
-			}
-
-			$ec_option_cartpage = (int) $_POST['ec_option_cartpage'];
-			update_option( 'ec_option_cartpage', $ec_option_cartpage );
-		}
-
-		public function save_accountpage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-accountpage-setup' ) ) {
-				return false;
-			}
-
-			$ec_option_accountpage = (int) $_POST['ec_option_accountpage'];
-			update_option( 'ec_option_accountpage', $ec_option_accountpage );
-		}
-
-		public function save_goal_setup() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-goals-setup' ) ) {
-				return false;
-			}
-
-			$ec_option_admin_display_sales_goal = wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_admin_display_sales_goal'] );
-			$ec_option_admin_sales_goal = wp_easycart_admin_verification()->filter_float( sanitize_text_field( wp_unslash( $_POST['ec_option_admin_sales_goal'] ) ) );
-
-			update_option( 'ec_option_admin_display_sales_goal', $ec_option_admin_display_sales_goal );
-			update_option( 'ec_option_admin_sales_goal', $ec_option_admin_sales_goal );
-		}
-
-		public function save_currency_settings() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-currency-setup' ) ) {
-				return false;
-			}
-
-			$ec_option_show_currency_code = wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_show_currency_code'] );
-			$ec_option_base_currency = wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_base_currency'] ) ), 3 );
-			$ec_option_currency = wp_easycart_admin_verification()->filter_length( sanitize_text_field( wp_unslash( $_POST['ec_option_currency'] ) ), 10 );
-			$ec_option_currency_symbol_location = wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_currency_symbol_location'] );
-			$ec_option_currency_negative_location = wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_currency_negative_location'] );
-			$ec_option_currency_decimal_symbol = wp_easycart_admin_verification()->filter_length( sanitize_text_field( wp_unslash( $_POST['ec_option_currency_decimal_symbol'] ) ), 1 );
-			$ec_option_currency_decimal_places = (int) $_POST['ec_option_currency_decimal_places'];
-			$ec_option_currency_thousands_seperator = substr( trim( sanitize_text_field( wp_unslash( $_POST['ec_option_currency_thousands_seperator'] ) ) ), 0, 1 );
-
-			/* Validate Input */
-			$exchange_rates_raw = sanitize_text_field( wp_unslash( $_POST['ec_option_exchange_rates'] ) );
-			$exchange_rates_groups = explode( ',', $exchange_rates_raw );
-			$exchange_rates_arr = array();
-			if ( count( $exchange_rates_groups ) > 0 ) {
-				foreach ( $exchange_rates_groups as $exchange_rates_group ) {
-					$exchange_rate_segments = explode( '=', trim( $exchange_rates_group ) );
-					if ( $exchange_rate_segments && count( $exchange_rate_segments ) == 2 ) {
-						$exchange_rates_arr[] = wp_easycart_admin_verification()->filter_chars( $exchange_rate_segments[0], 3 ) . '=' . wp_easycart_admin_verification()->filter_float( $exchange_rate_segments[1] );
-					}
-				}
-			}
-			$ec_option_exchange_rates = implode( ',', $exchange_rates_arr );
-
-			update_option( 'ec_option_base_currency', $ec_option_base_currency );
-			update_option( 'ec_option_show_currency_code', $ec_option_show_currency_code );
-			update_option( 'ec_option_currency', $ec_option_currency );
-			update_option( 'ec_option_currency_symbol_location', $ec_option_currency_symbol_location );
-			update_option( 'ec_option_currency_negative_location', $ec_option_currency_negative_location );
-			update_option( 'ec_option_currency_decimal_symbol', $ec_option_currency_decimal_symbol );
-			update_option( 'ec_option_currency_decimal_places', $ec_option_currency_decimal_places );
-			update_option( 'ec_option_currency_thousands_seperator', $ec_option_currency_thousands_seperator );
-			update_option( 'ec_option_exchange_rates', $ec_option_exchange_rates );
-		}
-
-		public function add_storepage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-storepage-setup' ) ) {
-				return false;
-			}
-
-			$post = array( 
-				'post_content' => '[ec_store]',
-				'post_title' => __( 'Store', 'wp-easycart' ),
-				'post_type' => 'page',
-				'post_status' => 'publish',
-			);
-			$post_id = wp_insert_post( $post );
-			if ( is_wp_error( $post_id ) ) {
-				$post_id = 0;
-			}
-			update_option( 'ec_option_storepage', $post_id );
-			return $post_id;
-		}
-
-		public function add_cartpage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-cartpage-setup' ) ) {
-				return false;
-			}
-
-			$post = array(
-				'post_content' => '[ec_cart]',
-				'post_title' => __( 'Cart', 'wp-easycart' ),
-				'post_type' => 'page',
-				'post_status' => 'publish',
-			);
-			$post_id = wp_insert_post( $post );
-			if ( is_wp_error( $post_id ) ) {
-				$post_id = 0;
-			}
-			update_option( 'ec_option_cartpage', $post_id );
-		}
-
-		public function add_accountpage() {
-			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-initial-setup-accountpage-setup' ) ) {
-				return false;
-			}
-
-			$post = array(
-				'post_content' => '[ec_account]',
-				'post_title' => __( 'Account', 'wp-easycart' ),
-				'post_type' => 'page',
-				'post_status' => 'publish',
-			);
-			$post_id = wp_insert_post( $post );
-			if ( is_wp_error( $post_id ) ) {
-				$post_id = 0;
-			}
-			update_option( 'ec_option_accountpage', $post_id );
 		}
 
 		public function install_demo_data() {
@@ -587,13 +395,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'image2' => 'https://support.wpeasycart.com/sampledata/v4/products/pics2/womens-8a.jpg',
 					'post_id' => '',
 					'option_id_1' => $options[0]->option_id,
+					/* Menu columns are menulevel{LOCATION}_id_{LEVEL}: location 1 is top > sub > sub-sub, location 2 a second top menu */
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[1]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_3' => $menulevel3_items[0]->menulevel3_id,
+					'menulevel2_id_1' => $menulevel1_items[1]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[0]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
 					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
@@ -614,12 +423,12 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[1]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[1]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' =>0,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
 					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
@@ -640,9 +449,9 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[2]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[2]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
 					'menulevel3_id_1' => 0,
@@ -666,14 +475,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[0]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[3]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[3]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
 					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -692,14 +501,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[3]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[3]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
 					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -718,14 +527,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[0]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[1]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[1]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[1]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -744,14 +553,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[1]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[0]->menulevel2_id,
+					'menulevel1_id_3' => $menulevel3_items[1]->menulevel3_id,
+					'menulevel2_id_1' => $menulevel1_items[1]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[1]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -770,14 +579,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[0]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[1]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[1]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[0]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -796,14 +605,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[3]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[1]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[3]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[0]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -822,14 +631,14 @@ if ( ! class_exists( 'wp_easycart_admin_initial_setup' ) ) :
 					'post_id' => '',
 					'option_id_1' => $options[1]->option_id,
 					'menulevel1_id_1' => $menulevel1_items[0]->menulevel1_id,
-					'menulevel1_id_2' => $menulevel1_items[2]->menulevel1_id,
-					'menulevel1_id_3' => '',
-					'menulevel2_id_1' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_2' => $menulevel2_items[2]->menulevel2_id,
+					'menulevel1_id_3' => 0,
+					'menulevel2_id_1' => $menulevel1_items[2]->menulevel1_id,
 					'menulevel2_id_2' => 0,
 					'menulevel2_id_3' => 0,
-					'menulevel3_id_1' => $menulevel3_items[0]->menulevel3_id,
+					'menulevel3_id_1' => 0,
 					'menulevel3_id_2' => 0,
-					'menulevel3_id_3' => '',
+					'menulevel3_id_3' => 0,
 					'featured_product_id_1' => 0,
 					'featured_product_id_2' => 0,
 					'featured_product_id_3' => 0,
@@ -1086,45 +895,6 @@ function wp_easycart_admin_initial_setup() {
 }
 wp_easycart_admin_initial_setup();
 
-add_action( 'wp_ajax_ec_admin_ajax_save_storepage', 'ec_admin_ajax_save_storepage' );
-function ec_admin_ajax_save_storepage() {
-	wp_easycart_admin_initial_setup()->save_storepage();
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_create_storepage', 'ec_admin_ajax_create_storepage' );
-function ec_admin_ajax_create_storepage() {
-	$post_id = wp_easycart_admin_initial_setup()->add_storepage();
-	echo esc_attr( $post_id );
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_save_cartpage', 'ec_admin_ajax_save_cartpage' );
-function ec_admin_ajax_save_cartpage() {
-	wp_easycart_admin_initial_setup()->save_cartpage();
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_create_cartpage', 'ec_admin_ajax_create_cartpage' );
-function ec_admin_ajax_create_cartpage() {
-	$post_id = wp_easycart_admin_initial_setup()->add_cartpage();
-	echo esc_attr( $post_id );
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_save_accountpage', 'ec_admin_ajax_save_accountpage' );
-function ec_admin_ajax_save_accountpage() {
-	wp_easycart_admin_initial_setup()->save_accountpage();
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_create_accountpage', 'ec_admin_ajax_create_accountpage' );
-function ec_admin_ajax_create_accountpage() {
-	$post_id = wp_easycart_admin_initial_setup()->add_accountpage();
-	echo esc_attr( $post_id );
-	die();
-}
-
 add_action( 'wp_ajax_ec_admin_ajax_install_demo_data', 'ec_admin_ajax_install_demo_data' );
 function ec_admin_ajax_install_demo_data() {
 	wp_easycart_admin_initial_setup()->install_demo_data();
@@ -1134,16 +904,5 @@ function ec_admin_ajax_install_demo_data() {
 add_action( 'wp_ajax_ec_admin_ajax_uninstall_demo_data', 'ec_admin_ajax_uninstall_demo_data' );
 function ec_admin_ajax_uninstall_demo_data() {
 	wp_easycart_admin_initial_setup()->uninstall_demo_data();
-	die();
-}
-
-add_action( 'wp_ajax_ec_admin_ajax_save_currency_options', 'ec_admin_ajax_save_currency_options' );
-function ec_admin_ajax_save_currency_options() {
-	wp_easycart_admin_initial_setup()->save_currency_settings();
-	die();
-}
-add_action( 'wp_ajax_ec_admin_ajax_save_goals_setup', 'ec_admin_ajax_save_goals_setup' );
-function ec_admin_ajax_save_goals_setup() {
-	wp_easycart_admin_initial_setup()->save_goal_setup();
 	die();
 }

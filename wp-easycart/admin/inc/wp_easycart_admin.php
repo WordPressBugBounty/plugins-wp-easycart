@@ -17,6 +17,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		public $preloader;
 
 		public $date_diff;
+		/** @since 6.0.0 DB NOW() and store-local now, as UTC-parsed wall-clock timestamps ( see set_date_diff() ). */
+		public $now_storage_ts;
+		public $now_local_ts;
+		/** @since 6.0.0 memoized order fingerprint ( see order_fingerprint() ). */
+		private static $order_fingerprint = null;
+		/** @since 6.0.0 orders per report-export batch. */
+		const REPORT_BATCH = 1000;
 
 		public $month_sales_total;
 		public $month_name;
@@ -90,6 +97,21 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			$this->set_date_diff( );
 
+			/* 6.0.0: order-derived caches ( badge count, month totals, report datasets, upsell stats ) are keyed by
+			   order_fingerprint() and flushed by the admin-side order hooks. Frontend checkouts never load this
+			   file, so the fingerprint ( MAX( order_id ) ) is what catches those inserts. */
+			add_action( 'wpeasycart_order_inserted', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			add_action( 'wpeasycart_subscription_first_order_inserted', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			add_action( 'wpeasycart_order_status_update', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			add_action( 'wpeasycart_order_updated', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			add_action( 'wpeasycart_order_deleted', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			add_action( 'wp_easycart_ecv2_order_duplicated', array( __CLASS__, 'flush_order_caches' ), 5, 0 );
+			if ( self::request_touches_order_viewed() ) {
+				/* The handler for this request flips order_viewed after we run: drop the cached badge count now
+				   so the next page load recounts, and never re-store it during this request. */
+				delete_transient( 'wpec_unviewed_orders' );
+			}
+
 			if( isset( $_GET['page'] ) && (
 				$_GET['page'] == 'wp-easycart-dashboard' || 
 				$_GET['page'] == 'wp-easycart-license-status' ||
@@ -118,10 +140,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				}
 			}
 
-			$this->new_unviewed_orders = $this->get_total_new_unviewed_orders( );
+			/* The badge is only rendered by setup_menu() ( admin_menu ), which never runs on admin-ajax. */
+			$this->new_unviewed_orders = ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) ? 0 : $this->get_total_new_unviewed_orders( );
 
 			// EasyCart Admin Actions
 			add_action( 'wp_easycart_admin_messages', array( $this, 'print_core_notices_in_shell' ), 5 );
+			/* Store / cart / account page missing its shortcode: in-shell admin notice on every EasyCart screen. @since 6.0.0 */
+			if ( class_exists( 'wp_easycart_admin_settings_page_v2' ) ) {
+				add_action( 'wp_easycart_admin_messages', array( 'wp_easycart_admin_settings_page_v2', 'print_store_pages_notice' ), 6 );
+			}
 			add_action( 'wp_easycart_admin_messages', array( $this, 'load_upsell_image' ) );
 			add_action( 'wp_easycart_admin_messages', array( $this, 'load_renewal_notice' ) );
 			add_action( 'wp_ajax_ec_admin_ajax_ecv2_dismiss_renewal', array( $this, 'ajax_dismiss_renewal_notice' ) );
@@ -147,6 +174,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'admin_notices', array( $this, 'wp_easycart_pro_check' ) );
 			add_action( 'admin_notices', array( $this, 'square_check' ) );
 			add_action( 'admin_notices', array( $this, 'database_check' ) );
+			add_action( 'admin_notices', array( $this, 'database_install_errors_check' ) );
+			add_action( 'admin_notices', array( $this, 'download_recovery_check' ) );
 			add_action( 'add_meta_boxes', array( $this, 'page_lock_meta' ), 10, 2 );
 			add_action( 'save_post', array( $this, 'save_page_lock_meta' ) );
 			add_action( 'wpeasycart_product_activated', array( $this, 'wp_easycart_sync_product_post_status' ) );
@@ -247,6 +276,19 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		public function save_page_lock_meta( $post_id ){
+			/* 6.0.0: only the plugin's own meta box may write the page-lock keys ( they are protected meta ): its nonce, no autosaves / revisions, and the right to edit this post. */
+			if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+				return;
+			}
+			if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+				return;
+			}
+			if ( ! isset( $_POST['wp_easycart_page_lock_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_page_lock_nonce'] ) ), 'wp_easycart_page_lock_' . $post_id ) ) {
+				return;
+			}
+			if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				return;
+			}
 			if( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ){
 				if( array_key_exists( 'wpeasycart_restrict_product_id', $_POST ) ){
 					$wpeasycart_restrict_product_id = array( );
@@ -330,8 +372,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 		public function load_page_lock_meta_box( $post ){
 			global $wpdb;
-			$products = $wpdb->get_results( "SELECT product_id, title FROM ec_product ORDER BY title ASC LIMIT 500" );
-			$users = $wpdb->get_results( "SELECT user_id, first_name, last_name FROM ec_user ORDER BY last_name ASC, first_name ASC LIMIT 500" );
+			wp_nonce_field( 'wp_easycart_page_lock_' . $post->ID, 'wp_easycart_page_lock_nonce' );
 			$user_roles = $wpdb->get_results( "SELECT role_label FROM ec_role ORDER BY role_label ASC" );
 
 			$selected_product = get_post_meta( $post->ID, 'wpeasycart_restrict_product_id', true );
@@ -341,39 +382,48 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$selected_redirect_auth = get_post_meta( $post->ID, 'wpeasycart_restrict_redirect_url_auth', true );
 			$selected_redirect_not_auth = get_post_meta( $post->ID, 'wpeasycart_restrict_redirect_url_not_auth', true );
 
-			if( count( $products ) >= 500 ){
-				echo '<label for="wpeasycart_restrict_product_id">' . esc_attr__( 'Option 1: Restrict by Product', 'wp-easycart' ) . '</label>';
-				echo '<input type="text" name="wpeasycart_restrict_product_id" id="wpeasycart_restrict_product_id" class="postbox" value="' . esc_attr( ( is_array( $selected_product ) ) ? implode( ',', $selected_product ) : $selected_product ) . '" placeholder="' . esc_attr__( 'Enter Product ID', 'wp-easycart' ) . '">';
-			}else{
-				if( ! is_array( $selected_product ) ) {
-					$selected_product = explode( ',', $selected_product );
+			/* 6.0.0: search-as-you-type pickers. Only the stored ids are looked up; nothing lists the catalog or the customer table. */
+			$product_ids    = self::id_list( $selected_product );
+			$product_labels = array();
+			if ( $product_ids ) {
+				$rows = $wpdb->get_results( 'SELECT product_id, title FROM ec_product WHERE product_id IN ( ' . implode( ',', array_map( 'intval', $product_ids ) ) . ' )' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer ids cast with intval.
+				foreach ( $product_ids as $product_id ) {
+					$product_labels[ $product_id ] = '#' . $product_id;
 				}
-				echo '<label for="wpeasycart_restrict_product_id">' . esc_attr__( 'Option 1: Restrict by Product', 'wp-easycart' ) . '</label>
-				<select name="wpeasycart_restrict_product_id[]" id="wpeasycart_restrict_product_id" class="postbox" multiple>
-					<option value="">' . esc_attr__( 'No Restriction', 'wp-easycart' ) . '</option>';
-
-				foreach( $products as $product ){
-					echo '<option value="' . esc_attr( $product->product_id ) . '"' . ( ( ( is_array( $selected_product ) && in_array( $product->product_id, $selected_product ) ) || ( !is_array( $selected_product ) && $product->product_id == $selected_product ) ) ? ' selected="selected"' : '' ). '>' . esc_attr( $product->title ) . '</option>';
+				foreach ( (array) $rows as $row ) {
+					$product_labels[ (int) $row->product_id ] = wp_unslash( $row->title );
 				}
-				echo '</select>';
 			}
+			echo '<label for="wpeasycart_restrict_product_id">' . esc_attr__( 'Option 1: Restrict by Product', 'wp-easycart' ) . '</label>';
+			self::print_picker( array(
+				'id'          => 'wpeasycart_restrict_product_id',
+				'mode'        => 'product',
+				'name'        => 'wpeasycart_restrict_product_id[]',
+				'multiple'    => true,
+				'selected'    => $product_labels,
+				'placeholder' => __( 'Search products by name or SKU', 'wp-easycart' ),
+			) );
 
-			if( count( $users ) >= 500 ){
-				echo '<label for="wpeasycart_restrict_user_id">' . esc_attr__( 'Option 2: Restrict by User', 'wp-easycart' ) . '</label>';
-				echo '<input type="text" name="wpeasycart_restrict_user_id" id="wpeasycart_restrict_user_id" class="postbox" value="' . esc_attr( ( is_array( $selected_user ) ) ? implode( ',', $selected_user ) : $selected_user ) . '" placeholder="' . esc_attr__( 'Enter User ID', 'wp-easycart' ) . '">';
-			}else{
-				if( ! is_array( $selected_user ) ) {
-					$selected_user = explode( ',', $selected_user );
+			$user_ids    = self::id_list( $selected_user );
+			$user_labels = array();
+			if ( $user_ids ) {
+				$rows = $wpdb->get_results( 'SELECT user_id, first_name, last_name FROM ec_user WHERE user_id IN ( ' . implode( ',', array_map( 'intval', $user_ids ) ) . ' )' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer ids cast with intval.
+				foreach ( $user_ids as $user_id ) {
+					$user_labels[ $user_id ] = '#' . $user_id;
 				}
-				echo '<label for="wpeasycart_restrict_user_id">' . esc_attr__( 'Option 2: Restrict by User', 'wp-easycart' ) . '</label>
-				<select name="wpeasycart_restrict_user_id[]" id="wpeasycart_restrict_user_id" class="postbox" multiple>
-					<option value="">' . esc_attr__( 'No Restriction', 'wp-easycart' ) . '</option>';
-
-				foreach( $users as $user ){
-					echo '<option value="' . esc_attr( $user->user_id ) . '"' . ( ( ( is_array( $selected_user ) && in_array( $user->user_id, $selected_user ) ) || ( !is_array( $selected_user ) && $user->user_id == $selected_user ) ) ? ' selected="selected"' : '' ). '>' . esc_attr( $user->first_name . ' ' . $user->last_name ) . '</option>';
+				foreach ( (array) $rows as $row ) {
+					$user_labels[ (int) $row->user_id ] = wp_unslash( $row->last_name . ', ' . $row->first_name ) . ' (' . (int) $row->user_id . ')';
 				}
-				echo '</select>';
 			}
+			echo '<label for="wpeasycart_restrict_user_id">' . esc_attr__( 'Option 2: Restrict by User', 'wp-easycart' ) . '</label>';
+			self::print_picker( array(
+				'id'          => 'wpeasycart_restrict_user_id',
+				'mode'        => 'user',
+				'name'        => 'wpeasycart_restrict_user_id[]',
+				'multiple'    => true,
+				'selected'    => $user_labels,
+				'placeholder' => __( 'Search customers by name or email', 'wp-easycart' ),
+			) );
 
 			echo '<label for="wpeasycart_restrict_role_id">' . esc_attr__( 'Option 3: Restrict by User Role', 'wp-easycart' ) . '</label>';
 			echo '<select name="wpeasycart_restrict_role_id[]" id="wpeasycart_restrict_role_id" class="postbox" multiple>';
@@ -395,6 +445,175 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			echo '<p>' . esc_attr__( 'Note: You must turn off guest checkout or select a download or subscription product from the menu above. Subscription products will check the user has an active subscription. You must create a page to redirect to if a user does not have authorization.', 'wp-easycart' ) . '</p>';
 		}
 
+		/**
+		 * Positive integer ids from a stored meta value ( array, or the legacy comma string ).
+		 *
+		 * @since 6.0.0
+		 * @return int[]
+		 */
+		private static function id_list( $value ) {
+			if ( ! is_array( $value ) ) {
+				$value = explode( ',', (string) $value );
+			}
+			$ids = array();
+			foreach ( $value as $id ) {
+				$id = (int) $id;
+				if ( $id > 0 && ! in_array( $id, $ids, true ) ) {
+					$ids[] = $id;
+				}
+			}
+			return $ids;
+		}
+
+		/**
+		 * Search-as-you-type picker for products or customers. Replaces the 500-row <select>s on the page-lock
+		 * meta box and the Reports product filter. Products search through ec_admin_ajax_ecv2_product_search
+		 * ( capability-gated, read-only ); customers through ec_admin_ajax_get_order_users ( order-details nonce ).
+		 * The widget is dependency-free: it posts to ajaxurl and needs no select2 on post edit screens.
+		 *
+		 * @since 6.0.0
+		 * @param array $args {
+		 *   @type string $id          Element id.
+		 *   @type string $mode        'product' | 'user'.
+		 *   @type string $name        POST field name for the chosen ids ( use "field[]" for multiple ); '' for none.
+		 *   @type string $target      Id of a hidden input to receive the single chosen id ( '0' when cleared ).
+		 *   @type bool   $multiple    Allow more than one chip.
+		 *   @type array  $selected    id => label of the current choice(s).
+		 *   @type string $placeholder Search box placeholder.
+		 *   @type string $on_change   Global JS function to call after a change.
+		 *   @type string $class       Extra classes for the search input.
+		 * }
+		 */
+		public static function print_picker( $args ) {
+			static $assets_printed = false;
+			$a = wp_parse_args( $args, array(
+				'id'          => '',
+				'mode'        => 'product',
+				'name'        => '',
+				'target'      => '',
+				'multiple'    => false,
+				'selected'    => array(),
+				'placeholder' => '',
+				'on_change'   => '',
+				'class'       => '',
+			) );
+			$mode  = ( 'user' === $a['mode'] ) ? 'user' : 'product';
+			$id    = ( '' !== $a['id'] ) ? $a['id'] : 'wpec-pick-' . $mode . '-' . wp_rand( 1000, 999999 );
+			$nonce = ( 'user' === $mode ) ? wp_create_nonce( 'wp-easycart-order-details' ) : '';
+
+			echo '<div class="wpec-pick" id="' . esc_attr( $id ) . '" data-mode="' . esc_attr( $mode ) . '" data-multiple="' . ( $a['multiple'] ? '1' : '0' ) . '" data-name="' . esc_attr( $a['name'] ) . '" data-target="' . esc_attr( $a['target'] ) . '" data-nonce="' . esc_attr( $nonce ) . '" data-onchange="' . esc_attr( $a['on_change'] ) . '" data-empty="' . esc_attr__( 'No matches.', 'wp-easycart' ) . '" data-remove="' . esc_attr__( 'Remove', 'wp-easycart' ) . '">';
+			echo '<div class="wpec-pick-chips">';
+			foreach ( (array) $a['selected'] as $value => $label ) {
+				echo '<span class="wpec-pick-chip" data-id="' . esc_attr( $value ) . '"><span>' . esc_html( $label ) . '</span><button type="button" class="wpec-pick-x" aria-label="' . esc_attr__( 'Remove', 'wp-easycart' ) . '">&times;</button>';
+				if ( '' !== $a['name'] ) {
+					echo '<input type="hidden" name="' . esc_attr( $a['name'] ) . '" value="' . esc_attr( $value ) . '" />';
+				}
+				echo '</span>';
+			}
+			if ( '' !== $a['name'] && $a['multiple'] && empty( $a['selected'] ) ) {
+				/* An empty submission saves "no restriction" ( the legacy select did the same through its blank option ). */
+				echo '<input type="hidden" name="' . esc_attr( $a['name'] ) . '" value="" class="wpec-pick-none" />';
+			}
+			echo '</div>';
+			echo '<input type="search" class="wpec-pick-input ' . esc_attr( $a['class'] ) . '" placeholder="' . esc_attr( $a['placeholder'] ) . '" autocomplete="off" />';
+			echo '<div class="wpec-pick-results" hidden></div>';
+			echo '</div>';
+
+			if ( $assets_printed ) {
+				return;
+			}
+			$assets_printed = true;
+			?>
+<style>
+.wpec-pick{position:relative;margin:2px 0 10px}
+.wpec-pick-chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 4px}
+.wpec-pick-chips:empty{margin:0}
+.wpec-pick-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 4px 2px 8px;border:1px solid #c3c4c7;border-radius:12px;background:#f0f0f1;font-size:12px;line-height:18px}
+.wpec-pick-chip > span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wpec-pick-x{border:0;background:transparent;color:#646970;cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+.wpec-pick-x:hover{color:#d63638}
+.wpec-pick-input{width:100%;box-sizing:border-box}
+.wpec-pick-results{position:absolute;left:0;right:0;z-index:100;max-height:220px;overflow:auto;margin-top:2px;border:1px solid #c3c4c7;border-radius:4px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.wpec-pick-item{display:block;width:100%;padding:6px 10px;border:0;background:transparent;text-align:left;cursor:pointer;font-size:13px;line-height:1.4}
+.wpec-pick-item:hover,.wpec-pick-item:focus{background:#f0f6fc;outline:0}
+.wpec-pick-item small{color:#646970;margin-left:4px}
+.wpec-pick-empty{padding:6px 10px;color:#646970;font-size:12px}
+.ecrp-filters .wpec-pick{margin:0;min-width:220px}
+.ecrp-filters .wpec-pick-chips{margin:0 0 2px}
+</style>
+<script>
+( function() {
+	function esc( s ) { return String( s == null ? '' : s ).replace( /[&<>"']/g, function( c ) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ c ]; } ); }
+	function ajaxUrl() { return window.ajaxurl || ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) || '/wp-admin/admin-ajax.php'; }
+	function init( root ) {
+		if ( root.wpecPickReady ) { return; }
+		root.wpecPickReady = true;
+		var mode = root.getAttribute( 'data-mode' ), multiple = root.getAttribute( 'data-multiple' ) === '1', name = root.getAttribute( 'data-name' ) || '', target = root.getAttribute( 'data-target' ) || '', nonce = root.getAttribute( 'data-nonce' ) || '', onchange = root.getAttribute( 'data-onchange' ) || '';
+		var chips = root.querySelector( '.wpec-pick-chips' ), input = root.querySelector( '.wpec-pick-input' ), results = root.querySelector( '.wpec-pick-results' ), timer = null, seq = 0;
+		function ids() { var out = []; chips.querySelectorAll( '.wpec-pick-chip' ).forEach( function( c ) { out.push( String( c.getAttribute( 'data-id' ) ) ); } ); return out; }
+		function sync() {
+			var none = chips.querySelector( '.wpec-pick-none' ), has = !! chips.querySelector( '.wpec-pick-chip' );
+			if ( name && multiple ) {
+				if ( ! has && ! none ) { none = document.createElement( 'input' ); none.type = 'hidden'; none.name = name; none.value = ''; none.className = 'wpec-pick-none'; chips.appendChild( none ); }
+				else if ( has && none ) { none.parentNode.removeChild( none ); }
+			}
+			if ( target ) { var t = document.getElementById( target ); if ( t ) { var list = ids(); t.value = list.length ? list[ 0 ] : '0'; } }
+			if ( onchange && typeof window[ onchange ] === 'function' ) { window[ onchange ](); }
+		}
+		function add( id, label ) {
+			if ( ! multiple ) { chips.innerHTML = ''; }
+			if ( ids().indexOf( String( id ) ) !== -1 ) { return; }
+			var chip = document.createElement( 'span' );
+			chip.className = 'wpec-pick-chip';
+			chip.setAttribute( 'data-id', id );
+			chip.innerHTML = '<span>' + esc( label ) + '</span><button type="button" class="wpec-pick-x" aria-label="' + esc( root.getAttribute( 'data-remove' ) ) + '">&times;</button>' + ( name ? '<input type="hidden" name="' + esc( name ) + '" value="' + esc( id ) + '" />' : '' );
+			chips.appendChild( chip );
+			sync();
+		}
+		function render( items ) {
+			results.innerHTML = '';
+			if ( ! items.length ) { results.innerHTML = '<div class="wpec-pick-empty">' + esc( root.getAttribute( 'data-empty' ) ) + '</div>'; results.hidden = false; return; }
+			items.forEach( function( it ) {
+				var b = document.createElement( 'button' );
+				b.type = 'button'; b.className = 'wpec-pick-item';
+				b.setAttribute( 'data-id', it.id ); b.setAttribute( 'data-label', it.label );
+				b.innerHTML = esc( it.label ) + ( it.meta ? ' <small>' + esc( it.meta ) + '</small>' : '' );
+				results.appendChild( b );
+			} );
+			results.hidden = false;
+		}
+		function search( q ) {
+			var my = ++seq, body;
+			if ( mode === 'user' ) { body = 'action=ec_admin_ajax_get_order_users&q=' + encodeURIComponent( q ) + '&wp_easycart_nonce=' + encodeURIComponent( nonce ); }
+			else { body = 'action=ec_admin_ajax_ecv2_product_search&page=1&q=' + encodeURIComponent( q ); }
+			var xhr = new XMLHttpRequest();
+			xhr.open( 'POST', ajaxUrl() );
+			xhr.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8' );
+			xhr.onload = function() {
+				if ( my !== seq ) { return; }
+				var d = {}, items = [];
+				try { d = JSON.parse( xhr.responseText ); } catch ( e ) { d = {}; }
+				if ( mode === 'user' ) { ( d.items || [] ).forEach( function( u ) { if ( String( u.id ) !== '0' ) { items.push( { id: u.id, label: u.text } ); } } ); }
+				else { ( d.results || [] ).forEach( function( p ) { items.push( { id: p.id, label: p.title || p.text, meta: p.sku || '' } ); } ); }
+				render( items.slice( 0, 20 ) );
+			};
+			xhr.send( body );
+		}
+		chips.addEventListener( 'click', function( e ) { var x = e.target.closest( '.wpec-pick-x' ); if ( ! x ) { return; } var chip = x.closest( '.wpec-pick-chip' ); chip.parentNode.removeChild( chip ); sync(); } );
+		results.addEventListener( 'click', function( e ) { var b = e.target.closest( '.wpec-pick-item' ); if ( ! b ) { return; } add( b.getAttribute( 'data-id' ), b.getAttribute( 'data-label' ) ); results.hidden = true; input.value = ''; } );
+		input.addEventListener( 'input', function() { clearTimeout( timer ); var q = input.value.trim(); timer = setTimeout( function() { search( q ); }, 250 ); } );
+		input.addEventListener( 'focus', function() { if ( results.children.length ) { results.hidden = false; } else { search( input.value.trim() ); } } );
+		input.addEventListener( 'keydown', function( e ) { if ( e.key === 'Escape' ) { results.hidden = true; } } );
+		document.addEventListener( 'click', function( e ) { if ( ! root.contains( e.target ) ) { results.hidden = true; } } );
+	}
+	function boot() { document.querySelectorAll( '.wpec-pick' ).forEach( init ); }
+	window.wpecPickInit = boot;
+	if ( document.readyState === 'loading' ) { document.addEventListener( 'DOMContentLoaded', boot ); } else { boot(); }
+} )();
+</script>
+			<?php
+		}
+
 		public function add_ec_nag_widget( ){
 			wp_add_dashboard_widget( 'ec_free_dashboard_widget', esc_attr__( 'WP EasyCart FREE Edition', 'wp-easycart' ), array( $this, 'ec_dashboard_nag_widget' ) );
 			global $wp_meta_boxes;
@@ -406,7 +625,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		public function ec_dashboard_nag_widget( $post, $callback_args ){
-			echo "<div style='text-align:center;font-size: 1.3em;'>" . esc_attr__( 'Are you enjoying your FREE Shopping Cart?', 'wp-easycart' ) . '<br>' . esc_attr__( 'Want to unlock more awesome features?', 'wp-easycart' ) . '<br/><br/>' . esc_attr__( 'Upgrade to', 'wp-easycart' ) . ' <strong>' . esc_attr__( 'Professional', 'wp-easycart' ) . '</strong> & <strong>' . esc_attr__( 'Premium', 'wp-easycart' ) . '</strong> ' . esc_attr__( 'editions!', 'wp-easycart' ) . '<br/>';
+			echo "<div style='text-align:center;font-size: 1.3em;'>" . esc_attr__( 'Are you enjoying your FREE Shopping Cart?', 'wp-easycart' ) . '<br>' . esc_attr__( 'Want to unlock more awesome features?', 'wp-easycart' ) . '<br/><br/>' . esc_attr__( 'Upgrade to', 'wp-easycart' ) . ' <strong>' . esc_attr__( 'Pro', 'wp-easycart' ) . '</strong> & <strong>' . esc_attr__( 'Premium', 'wp-easycart' ) . '</strong> ' . esc_attr__( 'editions!', 'wp-easycart' ) . '<br/>';
 			echo "<a href='https://www.wpeasycart.com/wordpress-shopping-cart-pricing/?upsell=9' target='_blank'><img src='" . esc_attr( plugins_url( "wp-easycart/admin/images/ec_dashboard_nag_image.jpg", EC_PLUGIN_DIRECTORY ) ) . "' style='max-width:100%;margin: 10px;'/></a>";
 			echo "<a class='button button-primary' href='https://www.wpeasycart.com/wordpress-shopping-cart-pricing/?upsell=9' target='_blank'>" . esc_attr__( 'Upgrade Today!', 'wp-easycart' ) . "</a></div>";
 		}
@@ -479,6 +698,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					$index_file = fopen( $upload['basedir'] . '/wp-easycart/index.html', "w" );
 					fclose( $index_file );
 				}
+				/* 6.0.0: paid download files are served by the account download handler, never by URL. */
+				if ( class_exists( 'wp_easycart_customer_uploads' ) && method_exists( 'wp_easycart_customer_uploads', 'protect_area' ) ) {
+					wp_easycart_customer_uploads::ensure_protected( $upload['basedir'] . '/wp-easycart', 'downloads' );
+				}
 				$upload['subdir']  = "/wp-easycart";
 				$upload['path']    = $upload['basedir'] . "/wp-easycart";
 				$upload['url']     = $upload['baseurl'] . "/wp-easycart";
@@ -495,22 +718,137 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$storage_offset = $now_timestamp - $now_gmt_timestampt;
 			$local_offset = get_option('gmt_offset') * 60 * 60;
 			$this->date_diff = ( $local_offset - $storage_offset ) / 3600;
+			/* 6.0.0: wall-clock "now" on the storage clock and on the store's local clock, as UTC-parsed timestamps. */
+			$this->now_storage_ts = (int) $now_timestamp;
+			$this->now_local_ts   = (int) $now_timestamp + (int) round( $this->date_diff * 3600 );
+		}
+
+		/**
+		 * Per-request order fingerprint: the stats version option ( bumped by flush_order_caches() ) plus
+		 * MAX( order_id ). Folded into every order-derived cache key so a new order from any code path,
+		 * including frontend checkouts that never load the admin, misses the cache. One primary-key seek.
+		 *
+		 * @since 6.0.0
+		 * @return string
+		 */
+		public static function order_fingerprint() {
+			if ( null === self::$order_fingerprint ) {
+				global $wpdb;
+				self::$order_fingerprint = (string) get_option( 'ec_option_order_stats_version', '1' ) . '-' . (int) $wpdb->get_var( 'SELECT MAX( order_id ) FROM ec_order' );
+			}
+			return self::$order_fingerprint;
+		}
+
+		/**
+		 * Invalidate every order-derived cache: bumps the stats version ( so fingerprinted keys change ) and
+		 * drops the fixed-key transients. Hooked to the admin-side order insert / update / delete actions.
+		 *
+		 * @since 6.0.0
+		 */
+		public static function flush_order_caches() {
+			update_option( 'ec_option_order_stats_version', (string) microtime( true ) );
+			delete_transient( 'wpec_unviewed_orders' );
+			delete_transient( 'wpec_upsell_stats' );
+			self::$order_fingerprint = null;
+		}
+
+		/**
+		 * Does this request change order_viewed after the badge count is taken? ( order details marks the
+		 * order viewed while rendering; the bulk / all viewed actions run on admin_init; the row dot is AJAX. )
+		 *
+		 * @since 6.0.0
+		 * @return bool
+		 */
+		private static function request_touches_order_viewed() {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing -- read-only routing hint; the handlers named here verify their own nonces.
+			$action = isset( $_REQUEST['ec_admin_form_action'] ) ? sanitize_key( wp_unslash( $_REQUEST['ec_admin_form_action'] ) ) : '';
+			$page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+			$ajax   = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+			// phpcs:enable
+			if ( 'wp-easycart-orders' === $page && 'edit' === $action && isset( $_GET['order_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence check only.
+				return true;
+			}
+			if ( in_array( $action, array( 'mark-orders-viewed', 'mark-orders-not-viewed', 'mark-all-orders-viewed', 'mark-all-orders-not-viewed' ), true ) ) {
+				return true;
+			}
+			return ( 'ecv2_order_toggle_viewed' === $ajax );
+		}
+
+		/**
+		 * Transient helpers for order-derived stats. Keys carry the order fingerprint and the timezone shift.
+		 *
+		 * @since 6.0.0
+		 */
+		private function stats_cache_key( $key ) {
+			return 'wpec_stats_' . md5( self::order_fingerprint() . '|' . $this->date_diff . '|' . $key );
+		}
+
+		private function stats_cache_get( $key ) {
+			return get_transient( $this->stats_cache_key( $key ) );
+		}
+
+		private function stats_cache_set( $key, $value, $ttl = 600 ) {
+			set_transient( $this->stats_cache_key( $key ), $value, $ttl );
+		}
+
+		/**
+		 * Storage-clock bounds for a local calendar-day range: [ start 00:00:00, end + 1 day 00:00:00 ).
+		 * The timezone shift is applied to the constants so ec_order.order_date stays indexable.
+		 *
+		 * @since 6.0.0
+		 * @param string $start_date Y-m-d ( local ).
+		 * @param string $end_date   Y-m-d ( local, inclusive ).
+		 * @return array [ from, to ) as Y-m-d H:i:s strings on the storage clock.
+		 */
+		private function storage_bounds( $start_date, $end_date ) {
+			$shift = (int) round( $this->date_diff * 3600 );
+			$start = strtotime( substr( trim( (string) $start_date ), 0, 10 ) . ' 00:00:00 UTC' );
+			$end   = strtotime( substr( trim( (string) $end_date ), 0, 10 ) . ' 00:00:00 UTC' );
+			if ( false === $start || false === $end ) {
+				return array( '1970-01-01 00:00:00', '1970-01-01 00:00:00' );
+			}
+			return array( gmdate( 'Y-m-d H:i:s', $start - $shift ), gmdate( 'Y-m-d H:i:s', $end + DAY_IN_SECONDS - $shift ) );
+		}
+
+		/**
+		 * Approved net sales ( sub_total - discount - refund ) for one local calendar month, cached 10 minutes.
+		 *
+		 * @since 6.0.0
+		 * @param int $year  Four-digit year.
+		 * @param int $month 1-12.
+		 * @return float
+		 */
+		private function get_month_total( $year, $month ) {
+			$key    = 'month|' . sprintf( '%04d-%02d', $year, $month );
+			$cached = $this->stats_cache_get( $key );
+			if ( false !== $cached ) {
+				return (float) $cached;
+			}
+			global $wpdb;
+			$shift = (int) round( $this->date_diff * 3600 );
+			$from  = gmdate( 'Y-m-d H:i:s', gmmktime( 0, 0, 0, $month, 1, $year ) - $shift );
+			$to    = gmdate( 'Y-m-d H:i:s', gmmktime( 0, 0, 0, $month + 1, 1, $year ) - $shift );
+			$total = (float) $wpdb->get_var( $wpdb->prepare(
+				'SELECT ( IFNULL( SUM( ec_order.sub_total ), 0 ) - IFNULL( SUM( ec_order.discount_total ), 0 ) - IFNULL( SUM( ec_order.refund_total ), 0 ) ) FROM ec_order INNER JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_date >= %s AND ec_order.order_date < %s AND ec_orderstatus.is_approved = 1',
+				$from,
+				$to
+			) );
+			$this->stats_cache_set( $key, $total, 10 * MINUTE_IN_SECONDS );
+			return $total;
+		}
+
+		private function days_in_month( $month, $year ) {
+			return (int) gmdate( 't', gmmktime( 0, 0, 0, (int) $month, 1, (int) $year ) );
 		}
 
 		private function get_month_sales_total( ){
-			if( $this->date_diff < 0 ){
-				return $this->wpdb->get_var( "SELECT ( SUM( ec_order.sub_total ) - SUM( ec_order.discount_total ) - SUM( ec_order.refund_total ) ) as total FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE MONTH( DATE_SUB( NOW( ), INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) = MONTH( DATE_SUB( ec_order.order_date, INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) AND YEAR( DATE_SUB( NOW( ), INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) = YEAR( DATE_SUB( ec_order.order_date, INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) AND ec_orderstatus.`is_approved` = 1" );
-			}else{
-				return $this->wpdb->get_var( "SELECT ( SUM( ec_order.sub_total ) - SUM( ec_order.discount_total ) - SUM( ec_order.refund_total ) ) as total FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE MONTH( DATE_ADD( NOW( ), INTERVAL " . $this->date_diff . " HOUR ) ) = MONTH( DATE_ADD( ec_order.order_date, INTERVAL " . $this->date_diff . " HOUR ) ) AND YEAR( DATE_ADD( NOW( ), INTERVAL " . $this->date_diff . " HOUR ) ) = YEAR( DATE_ADD( ec_order.order_date, INTERVAL " . $this->date_diff . " HOUR ) ) AND ec_orderstatus.`is_approved` = 1" );
-			}
+			return $this->get_month_total( (int) gmdate( 'Y', $this->now_local_ts ), (int) gmdate( 'n', $this->now_local_ts ) );
 		}
 
 		private function get_month_percentage_change( ){
-			if( $this->date_diff < 0 ){
-				$last_month = $this->wpdb->get_var( "SELECT ( SUM( ec_order.sub_total ) - SUM( ec_order.discount_total ) - SUM( ec_order.refund_total ) ) as total FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE MONTH( DATE_SUB( DATE_SUB( NOW( ), INTERVAL " . ($this->date_diff*-1) . " HOUR ), INTERVAL 30 DAY ) ) = MONTH( DATE_SUB( ec_order.order_date, INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) AND YEAR( DATE_SUB( DATE_SUB( NOW( ), INTERVAL " . ($this->date_diff*-1) . " HOUR ), INTERVAL 30 DAY ) ) = YEAR( DATE_SUB( ec_order.order_date, INTERVAL " . ($this->date_diff*-1) . " HOUR ) ) AND ec_orderstatus.`is_approved` = 1" );
-			}else{
-				$last_month = $this->wpdb->get_var( "SELECT ( SUM( ec_order.sub_total ) - SUM( ec_order.discount_total ) - SUM( ec_order.refund_total ) ) as total FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE MONTH( DATE_SUB( DATE_ADD( NOW( ), INTERVAL " . $this->date_diff . " HOUR ), INTERVAL 30 DAY ) ) = MONTH( DATE_ADD( ec_order.order_date, INTERVAL " . $this->date_diff . " HOUR ) ) AND YEAR( DATE_SUB( DATE_ADD( NOW( ), INTERVAL " . $this->date_diff . " HOUR ), INTERVAL 30 DAY ) ) = YEAR( DATE_ADD( ec_order.order_date, INTERVAL " . $this->date_diff . " HOUR ) ) AND ec_orderstatus.`is_approved` = 1" );
-			}
+			/* Same month as the legacy predicate: the month that contains ( local now - 30 days ). */
+			$prev_ts    = $this->now_local_ts - ( 30 * DAY_IN_SECONDS );
+			$last_month = $this->get_month_total( (int) gmdate( 'Y', $prev_ts ), (int) gmdate( 'n', $prev_ts ) );
 			if($last_month == null) $last_month = 0;
 			$datestring = 'first day of last month';
 			$dt = date_create( $datestring );
@@ -523,10 +861,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return 0;
 			else
 				return ( ( $this->month_sales_total / ( ( $last_month / $days_last ) * $days_this_month ) ) - 1 ) * 100; //compare total over same number of days between months
-		}
-
-		private function days_in_month( $month, $year ){ 
-			return $month == 2 ? ( $year % 4 ? 28 : ( $year % 100 ? 29 : ( $year % 400 ? 28 : 29 ) ) ) : ( ( $month - 1 ) % 7 % 2 ? 30 : 31 ); 
 		}
 
 		public function get_dashboard_data( $date_type, $chart_type, $product_id ){
@@ -834,11 +1168,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		private function get_total_new_orders( ){
-			if( $this->date_diff < 0 ){
-				return $this->wpdb->get_var( "SELECT COUNT( ec_order.order_id ) as total FROM ec_order WHERE DATE_SUB( ec_order.order_date, INTERVAL " . ($this->date_diff*-1) . " HOUR ) > DATE_SUB( DATE_SUB( NOW( ), INTERVAL " . ($this->date_diff*-1) . " HOUR ), INTERVAL 1 WEEK )" );
-			}else{
-				return $this->wpdb->get_var( "SELECT COUNT( ec_order.order_id ) as total FROM ec_order WHERE DATE_ADD( ec_order.order_date, INTERVAL " . $this->date_diff . " HOUR ) > DATE_SUB( DATE_ADD( NOW( ), INTERVAL " . $this->date_diff . " HOUR ), INTERVAL 1 WEEK )" );
-			}
+			/* 6.0.0: local( order_date ) > local( now ) - 1 week  <=>  order_date > storage now - 1 week ( indexable ). */
+			global $wpdb;
+			$since = gmdate( 'Y-m-d H:i:s', $this->now_storage_ts - WEEK_IN_SECONDS );
+			return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT( ec_order.order_id ) as total FROM ec_order WHERE ec_order.order_date > %s', $since ) );
 		}
 
 		private function get_total_new_reviews( ){
@@ -885,46 +1218,49 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$groupby = 'order_year';
 			}
 
-			$date_diff = $this->date_diff;
-			$date_diff_func = 'DATE_ADD';
-			if( $date_diff < 0 ){
-				$date_diff = $date_diff * -1;
-				$date_diff_func = 'DATE_SUB';
+			$date_diff_func = ( $this->date_diff < 0 ) ? 'DATE_SUB' : 'DATE_ADD';
+			$date_diff      = abs( (int) round( $this->date_diff * 60 ) );
+			list( $from, $to ) = $this->storage_bounds( $start_date, $end_date );
+			$range_where    = $this->wpdb->prepare( 'ec_order.order_date >= %s AND ec_order.order_date < %s', $from, $to );
+			$item_join      = '';
+			$item_total_sql = 'SUM( ec_order.sub_total )';
+			if ( $product_id ) {
+				/* One grouped pass over the line items in range replaces the per-order correlated subquery. */
+				$item_join      = $this->wpdb->prepare( 'LEFT JOIN ( SELECT ec_orderdetail.order_id, SUM( ec_orderdetail.total_price ) AS item_total FROM ec_orderdetail INNER JOIN ec_order AS od_order ON od_order.order_id = ec_orderdetail.order_id WHERE od_order.order_date >= %s AND od_order.order_date < %s AND ec_orderdetail.product_id = %d GROUP BY ec_orderdetail.order_id ) AS od ON od.order_id = ec_order.order_id', $from, $to, $product_id );
+				$item_total_sql = 'SUM( IFNULL( od.item_total, 0 ) )';
 			}
 
-			$sales_data = $this->wpdb->get_results( "SELECT 
-					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id ), 0 ) 
-					) as total,
-					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . ' ' . $location_id_where . " ), 0 ) 
-					) as item_total,
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every variable fragment is prepared above or is a function name / integer minute offset / GROUP BY keyword list built from fixed strings.
+			$sales_data = $this->wpdb->get_results( "SELECT
+					SUM( ec_order.sub_total ) as total,
+					" . $item_total_sql . " as item_total,
 					SUM( ec_order.tax_total ) AS tax_total,
 					SUM( ec_order.vat_total ) AS vat_total,
 					SUM( ec_order.gst_total ) AS gst_total,
 					SUM( ec_order.hst_total ) AS hst_total,
 					SUM( ec_order.pst_total ) AS pst_total,
 					SUM( ec_order.shipping_total ) AS shipping_total,
-					SUM( ec_order.discount_total ) AS discount_total, 
+					SUM( ec_order.discount_total ) AS discount_total,
 					SUM( ec_order.refund_total ) AS refund_total,
-					DATE_FORMAT( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ), '%m/%d/%Y' ) as date, 
-					HOUR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_hour, 
-					DAY( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_day, 
-					WEEK( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_week, 
-					MONTH( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_month, 
-					YEAR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_year 
-				FROM 
+					DATE_FORMAT( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ), '%m/%d/%Y' ) as date,
+					HOUR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_hour,
+					DAY( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_day,
+					WEEK( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_week,
+					MONTH( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_month,
+					YEAR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_year
+				FROM
 					ec_order
-					LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-				WHERE 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
+					INNER JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
+					" . $item_join . "
+				WHERE
+					" . $range_where . " AND
 					ec_orderstatus.is_approved = 1 " . $country_where . " " . $billing_country_where . " " . $location_id_where . "
-				GROUP BY 
-					" . $groupby . " 
-				ORDER BY 
-					ec_order.order_date ASC" 
+				GROUP BY
+					" . $groupby . "
+				ORDER BY
+					MIN( ec_order.order_date ) ASC"
 			);
+			// phpcs:enable
 
 			$sales = array( );
 			for( $i=0; $i<=$days_length; $i++ ){
@@ -1095,39 +1431,38 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$groupby = 'order_year';
 			}
 
-			$date_diff = $this->date_diff;
-			$date_diff_func = 'DATE_ADD';
-			if( $date_diff < 0 ){
-				$date_diff = $date_diff * -1;
-				$date_diff_func = 'DATE_SUB';
-			}
+			$date_diff_func = ( $this->date_diff < 0 ) ? 'DATE_SUB' : 'DATE_ADD';
+			$date_diff      = abs( (int) round( $this->date_diff * 60 ) );
+			list( $from, $to ) = $this->storage_bounds( $start_date, $end_date );
+			$range_where    = $this->wpdb->prepare( 'ec_order.order_date >= %s AND ec_order.order_date < %s', $from, $to );
 
-			$sales_data = $this->wpdb->get_results( "SELECT 
-					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.quantity ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
-					) as total,
-					0 AS discount_total, 
-					0 AS refund_total, 
-					DATE_FORMAT( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ), '%m/%d/%Y' ) as date, 
-					HOUR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_hour, 
-					DAY( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_day, 
-					WEEK( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_week, 
-					MONTH( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_month, 
-					YEAR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_year 
-				FROM 
-					ec_orderdetail 
-					LEFT JOIN ec_order ON ec_order.order_id = ec_orderdetail.order_id 
-					LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-				WHERE 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					ec_orderstatus.is_approved = 1 
-					" . $product_where . "
-				GROUP BY 
-					" . $groupby . " 
-				ORDER BY 
-					ec_order.order_date DESC"
+			/* Quantity is summed straight off the joined line rows ( the legacy per-order subquery re-added the
+			   whole order's quantity once per line, over-counting multi-line orders ). */
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every variable fragment is prepared above or is a function name / integer minute offset / GROUP BY keyword list built from fixed strings.
+			$sales_data = $this->wpdb->get_results( "SELECT
+					IFNULL( SUM( ec_orderdetail.quantity ), 0 ) as total,
+					0 AS discount_total,
+					0 AS refund_total,
+					DATE_FORMAT( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ), '%m/%d/%Y' ) as date,
+					HOUR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_hour,
+					DAY( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_day,
+					WEEK( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_week,
+					MONTH( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_month,
+					YEAR( " . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_year
+				FROM
+					ec_order
+					INNER JOIN ec_orderdetail ON ec_orderdetail.order_id = ec_order.order_id
+					INNER JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
+				WHERE
+					" . $range_where . " AND
+					ec_orderstatus.is_approved = 1
+					" . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "
+				GROUP BY
+					" . $groupby . "
+				ORDER BY
+					MIN( ec_order.order_date ) DESC"
 			);
+			// phpcs:enable
 
 			$sales = array( );
 			for( $i=0; $i<=$days_length; $i++ ){
@@ -1244,7 +1579,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$billing_country_where = $this->wpdb->prepare( "AND ec_tempcart_data.billing_country = %s ", $billing_country );
 			}
 			if( $location_id ){
-				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
+				$location_id_where = $this->wpdb->prepare( "AND ec_tempcart_data.pickup_location = %d ", $location_id );
 			}
 
 			if( $range == 'hourly' ){
@@ -1259,38 +1594,37 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$groupby = 'order_year';
 			}
 
-			$date_diff = $this->date_diff;
-			$date_diff_func = 'DATE_ADD';
-			if( $date_diff < 0 ){
-				$date_diff = $date_diff * -1;
-				$date_diff_func = 'DATE_SUB';
-			}
+			$date_diff_func = ( $this->date_diff < 0 ) ? 'DATE_SUB' : 'DATE_ADD';
+			$date_diff      = abs( (int) round( $this->date_diff * 60 ) );
+			list( $from, $to ) = $this->storage_bounds( $start_date, $end_date );
+			$range_where    = $this->wpdb->prepare( 'ec_tempcart.last_changed_date >= %s AND ec_tempcart.last_changed_date < %s', $from, $to );
 
-			$sales_data = $this->wpdb->get_results( "SELECT 
-					COUNT( ec_tempcart.session_id ) as total, 
-					0 AS discount_total, 
-					0 AS refund_total, 
-					DATE_FORMAT( ec_tempcart.last_changed_date, '%m/%d/%Y') as date, 
-					HOUR( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_hour, 
-					DAY( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_day, 
-					WEEK( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_week, 
-					MONTH( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_month, 
-					YEAR( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) ) AS order_year 
-				FROM 
-					ec_tempcart 
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every variable fragment is prepared above or is a function name / integer minute offset / GROUP BY keyword list built from fixed strings.
+			$sales_data = $this->wpdb->get_results( "SELECT
+					COUNT( ec_tempcart.session_id ) as total,
+					0 AS discount_total,
+					0 AS refund_total,
+					DATE_FORMAT( ec_tempcart.last_changed_date, '%m/%d/%Y') as date,
+					HOUR( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_hour,
+					DAY( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_day,
+					WEEK( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_week,
+					MONTH( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_month,
+					YEAR( " . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " MINUTE ) ) AS order_year
+				FROM
+					ec_tempcart
 					LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id )
-				WHERE 
-					" . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_func . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' 
+				WHERE
+					" . $range_where . "
 					" . $product_where . "
-					" . $country_where . " 
-					" . $billing_country_where . " 
+					" . $country_where . "
+					" . $billing_country_where . "
 					" . $location_id_where . "
-				GROUP BY 
-					" . $groupby . " 
-				ORDER BY 
-					ec_tempcart.last_changed_date DESC"
+				GROUP BY
+					" . $groupby . "
+				ORDER BY
+					MIN( ec_tempcart.last_changed_date ) DESC"
 			);
+			// phpcs:enable
 
 			$sales = array( );
 			for( $i=0; $i<=$days_length; $i++ ){
@@ -1430,468 +1764,647 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $output;
 		}
 
-		public function get_tax_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ) {
-			$product_where = '';
-			$country_where = '';
-			$billing_country_where = '';
-			$location_id_where = '';
-			if ( $product_id ) {
-				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
-			}
-			if ( $country ) {
-				$country_where = $this->wpdb->prepare( "AND ec_order.shipping_country = %s ", $country );
-			}
-			if ( $billing_country ) {
-				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
-			}
-			if( $location_id ){
-				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
-			}
+		/* ------------------------------------------------------------------ */
+		/* Report exports ( resumable jobs )                                   */
+		/*                                                                    */
+		/* 6.0.0: the order and tax CSVs are written by a job that walks      */
+		/* ec_order by primary key ( order_id > cursor, LIMIT 1000 ), fetches  */
+		/* the batch's line items / options / fees / gateway responses with   */
+		/* IN ( ... ) lists and appends to the file. The AJAX caller loops    */
+		/* until done; get_order_report() / get_tax_report() run the same     */
+		/* engine to completion for any direct caller. Columns are unchanged. */
+		/* ------------------------------------------------------------------ */
 
-			$date_diff = $this->date_diff;
-			$date_diff_func = 'DATE_ADD';
-			if ( $date_diff < 0 ) {
-				$date_diff = $date_diff * -1;
-				$date_diff_func = 'DATE_SUB';
-			}
-
-			$sales_data = $this->wpdb->get_results( "SELECT 
-					ec_order.order_date,
-					ec_orderstatus.order_status,
-					ec_orderdetail.order_id,
-					ec_orderdetail.orderdetail_id,
-					ec_order.shipping_state as tax_state,
-					ec_order.shipping_country as tax_country,
-					ec_order.grand_total,
-					ec_order.shipping_total,
-					ec_order.refund_total,
-					ec_order.tax_total,
-					ec_order.vat_total,
-					ec_order.vat_rate,
-					ec_order.vat_registration_number,
-					ec_order.duty_total,
-					ec_order.gst_total,
-					ec_order.gst_rate,
-					ec_order.pst_total,
-					ec_order.pst_rate,
-					ec_order.hst_total,
-					ec_order.hst_rate,
-					ec_orderdetail.unit_price,
-					ec_orderdetail.total_price,
-					ec_orderdetail.quantity
-				FROM 
-					ec_order 
-					LEFT OUTER JOIN ec_orderdetail ON ec_order.order_id = ec_orderdetail.order_id
-					LEFT JOIN ec_country as billing_country ON billing_country.iso2_cnt = ec_order.billing_country 
-					LEFT JOIN ec_country as shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country 
-					LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id
-				WHERE 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59'
-					" . $product_where . "
-					" . $country_where . "
-					" . $billing_country_where . " 
-					" . $location_id_where . "
-				ORDER BY 
-					ec_order.order_date ASC, ec_orderdetail.order_id, ec_orderdetail.orderdetail_id", ARRAY_A
+		/**
+		 * Column map for the order export: CSV key => array( source, column ).
+		 * Sources: o = ec_order row ( plus joined order_status / billing_country_name / shipping_country_name ),
+		 * d = ec_orderdetail row, r = the order's first ec_response text.
+		 *
+		 * @since 6.0.0
+		 */
+		private static function order_report_columns() {
+			$o = array(
+				'order_date', 'order_status', 'orderdetail_id', 'order_id', 'payment_method', 'sub_total', 'tip_total', 'tax_total',
+				'refund_total', 'shipping_total', 'discount_total', 'vat_total', 'vat_rate', 'duty_total', 'gst_total', 'gst_rate',
+				'pst_total', 'pst_rate', 'hst_total', 'hst_rate', 'grand_total', 'user_id', 'use_expedited_shipping', 'shipping_method',
+				'shipping_carrier', 'shipping_service_code', 'tracking_number', 'gift_card_used', 'promo_code_used', 'product_id', 'title',
+				'model_number', 'unit_price', 'total_price', 'quantity', 'optionitem_name_1', 'optionitem_name_2', 'optionitem_name_3',
+				'optionitem_name_4', 'optionitem_name_5', 'order_notes', 'order_customer_notes', 'user_email', 'user_level',
+				'billing_first_name', 'billing_last_name', 'billing_company_name', 'billing_address_line_1', 'billing_address_line_2',
+				'billing_city', 'billing_state', 'billing_zip', 'billing_country', 'billing_country_name', 'billing_phone',
+				'shipping_first_name', 'shipping_last_name', 'shipping_company_name', 'shipping_address_line_1', 'shipping_address_line_2',
+				'shipping_city', 'shipping_state', 'shipping_zip', 'shipping_country', 'shipping_country_name', 'shipping_phone',
+				'vat_registration_number', 'agreed_to_terms', 'order_ip_address', 'use_advanced_optionset', 'giftcard_id', 'shipper_id',
+				'shipper_first_name', 'shipper_last_name', 'gift_card_message', 'gift_card_from_name', 'gift_card_to_name', 'gift_card_email',
+				'download_file_name', 'download_key', 'deconetwork_id', 'deconetwork_name', 'deconetwork_product_code', 'deconetwork_options',
+				'deconetwork_color_code', 'deconetwork_product_id', 'deconetwork_image_link', 'subscription_signup_fee', 'order_weight',
+				'order_gateway', 'card_holder_name', 'creditcard_digits', 'cc_exp_month', 'cc_exp_year', 'subscription_id', 'stripe_charge_id',
+				'nets_transaction_id', 'gateway_transaction_id', 'paypal_email_id', 'paypal_transaction_id', 'paypal_payer_id',
+				'fraktjakt_order_id', 'fraktjakt_shipment_id', 'gateway_response',
 			);
-			
-			$keys = array(
-				'order_date', 'order_status', 'order_id', 'orderdetail_id', 'tax_state',
-				'tax_country', 'grand_total', 'shipping_total', 'refund_total', 'tax_total', 'vat_total',
-				'vat_rate', 'vat_registration_number', 'duty_total', 'gst_total', 'gst_rate',
-				'pst_total', 'pst_rate', 'hst_total', 'hst_rate', 'unit_price', 'total_price',
-				'quantity',
+			$detail = array(
+				'orderdetail_id', 'product_id', 'title', 'model_number', 'unit_price', 'total_price', 'quantity', 'optionitem_name_1',
+				'optionitem_name_2', 'optionitem_name_3', 'optionitem_name_4', 'optionitem_name_5', 'use_advanced_optionset', 'giftcard_id',
+				'shipper_id', 'shipper_first_name', 'shipper_last_name', 'gift_card_message', 'gift_card_from_name', 'gift_card_to_name',
+				'gift_card_email', 'download_file_name', 'download_key', 'deconetwork_id', 'deconetwork_name', 'deconetwork_product_code',
+				'deconetwork_options', 'deconetwork_color_code', 'deconetwork_product_id', 'deconetwork_image_link', 'subscription_signup_fee',
 			);
-
-			$single_use_key_names = array(
-				'order_date', 'order_status', 'order_id', 'grand_total', 'shipping_total', 'refund_total', 'tax_total', 'vat_total',
-				'vat_rate', 'vat_registration_number', 'duty_total', 'gst_total', 'gst_rate',
-				'pst_total', 'pst_rate', 'hst_total', 'hst_rate',
+			$alias = array(
+				'gift_card_used'  => 'giftcard_id',
+				'promo_code_used' => 'promo_code',
 			);
-
-			$fee_types = $this->wpdb->get_results( 'SELECT * FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' );
-			$fee_type_keys = [];
-			if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-				for ( $i = 0; $i < count( $fee_types ); $i ++ ) {
-					$keys[] = $fee_types[ $i ]->fee_label;
-					$single_use_key_names[] = $fee_types[ $i ]->fee_label;
-					$fee_type_keys[] = $fee_types[ $i ]->fee_label;
+			$map = array();
+			foreach ( $o as $key ) {
+				if ( 'gateway_response' === $key ) {
+					$map[ $key ] = array( 'r', '' );
+				} elseif ( in_array( $key, $detail, true ) ) {
+					$map[ $key ] = array( 'd', $key );
+				} else {
+					$map[ $key ] = array( 'o', isset( $alias[ $key ] ) ? $alias[ $key ] : $key );
 				}
 			}
+			return $map;
+		}
 
-			$url_link = '';
-			$upload_dir = wp_upload_dir( );
+		/**
+		 * Column map for the tax export ( same shape as order_report_columns() ).
+		 *
+		 * @since 6.0.0
+		 */
+		private static function tax_report_columns() {
+			return array(
+				'order_date'              => array( 'o', 'order_date' ),
+				'order_status'            => array( 'o', 'order_status' ),
+				'order_id'                => array( 'o', 'order_id' ),
+				'orderdetail_id'          => array( 'd', 'orderdetail_id' ),
+				'tax_state'               => array( 'o', 'shipping_state' ),
+				'tax_country'             => array( 'o', 'shipping_country' ),
+				'grand_total'             => array( 'o', 'grand_total' ),
+				'shipping_total'          => array( 'o', 'shipping_total' ),
+				'refund_total'            => array( 'o', 'refund_total' ),
+				'tax_total'               => array( 'o', 'tax_total' ),
+				'vat_total'               => array( 'o', 'vat_total' ),
+				'vat_rate'                => array( 'o', 'vat_rate' ),
+				'vat_registration_number' => array( 'o', 'vat_registration_number' ),
+				'duty_total'              => array( 'o', 'duty_total' ),
+				'gst_total'               => array( 'o', 'gst_total' ),
+				'gst_rate'                => array( 'o', 'gst_rate' ),
+				'pst_total'               => array( 'o', 'pst_total' ),
+				'pst_rate'                => array( 'o', 'pst_rate' ),
+				'hst_total'               => array( 'o', 'hst_total' ),
+				'hst_rate'                => array( 'o', 'hst_rate' ),
+				'unit_price'              => array( 'd', 'unit_price' ),
+				'total_price'             => array( 'd', 'total_price' ),
+				'quantity'                => array( 'd', 'quantity' ),
+			);
+		}
+
+		/**
+		 * Create the CSV under uploads/<month>/wpec-reports/ ( same location and name pattern as before ).
+		 *
+		 * @since 6.0.0
+		 * @return array|false array( path, url ) or false when the directory is not writable.
+		 */
+		private function report_file( $prefix, $start_date, $end_date ) {
+			$upload_dir     = wp_upload_dir( );
 			$wp_reports_dir = $upload_dir['path'] . '/wpec-reports/';
 			$wp_reports_url = set_url_scheme( $upload_dir['url'] . '/wpec-reports/' );
 			if ( ! is_dir( $wp_reports_dir ) ) {
 				wp_mkdir_p( $wp_reports_dir );
 			}
-			if ( ! file_exists( $wp_reports_dir . 'index.php' ) ) {
-				$index_file = fopen( $wp_reports_dir . 'index.php', "w" );
-				fclose( $index_file );
+			if ( ! is_dir( $wp_reports_dir ) ) {
+				return false;
 			}
-			$file_name = 'tax-report-' . $start_date . '_' . $end_date . '-' . rand( 1000000, 999999999 ) . '.csv';
-			$url_path = $wp_reports_dir . $file_name;
-			$url_link = $wp_reports_url . $file_name;
-			$file = fopen( $url_path, "w" );
+			if ( ! file_exists( $wp_reports_dir . 'index.php' ) ) {
+				$index_file = fopen( $wp_reports_dir . 'index.php', 'w' );
+				if ( $index_file ) {
+					fclose( $index_file );
+				}
+			}
+			$clean     = preg_replace( '/[^0-9A-Za-z_-]/', '', (string) $start_date ) . '_' . preg_replace( '/[^0-9A-Za-z_-]/', '', (string) $end_date );
+			$file_name = $prefix . $clean . '-' . wp_rand( 1000000, 999999999 ) . '.csv';
+			return array( $wp_reports_dir . $file_name, $wp_reports_url . $file_name );
+		}
 
-			fputcsv( $file, $keys );
-			if ( count( $sales_data ) > 0 ) {
-				$prev_order = 0;
-				$is_new_order = false;
-				$order_details_ids = array();
-				foreach ( $sales_data as $result ) {
-					if ( $result['order_id'] != $prev_order ) {
-						$prev_order = $result['order_id'];
-						$is_new_order = true;
-						$order_details_ids = array();
-					}
+		/**
+		 * Prepare one report phase: resolve the column / fee / single-use key lists, create the file and write
+		 * the header row. The phase array is what the job stores and report_phase_batch() advances.
+		 *
+		 * @since 6.0.0
+		 * @param string $type 'order' | 'tax'.
+		 * @param string $key  Key in the final reports object ( report1, report2, reporttax ).
+		 * @return array|false
+		 */
+		private function report_phase_init( $type, $key, $start_date, $end_date ) {
+			$file = $this->report_file( ( 'tax' === $type ) ? 'tax-report-' : 'order-report-', $start_date, $end_date );
+			if ( ! $file ) {
+				return false;
+			}
 
-					if ( ! in_array( $result['orderdetail_id'], $order_details_ids ) ) {
-						$order_details_ids[] = $result['orderdetail_id'];
-
-						$new_line = array();
-						foreach ( $keys as $key ) {
-							if ( ! in_array( $key, $fee_type_keys ) ) {
-								$value = $result[ $key ];
-								if ( in_array( $key, $single_use_key_names ) && ! $is_new_order ) {
-									$new_line[] = '0.00';
-								} else if ( ! isset( $value ) || '' == $value ) {
-									$new_line[] = '';
-								} else {
-									$new_line[] = $value;
-								}
-							}
-						}
-
-						if ( $is_new_order ) {
-							if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-								$order_fee_list = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
-								foreach ( $fee_types as $fee_type ) {
-									$is_fee_type_found = false;
-									if ( $order_fee_list && is_array( $order_fee_list ) ) {
-										foreach ( $order_fee_list as $order_fee_item ) {
-											if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
-												$new_line[] = $order_fee_item->fee_total;
-												$is_fee_type_found = true;
-											}
-										}
-									}
-									if ( ! $is_fee_type_found ) {
-										$new_line[] = '0.000';
-									}
-								}
-							}
-						}
-
-						fputcsv( $file, $new_line );
-						$is_new_order = false;
+			$fee_rows = $this->wpdb->get_results( 'SELECT fee_label FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' );
+			if ( 'order' === $type ) {
+				$fee_rows = apply_filters( 'wp_easycart_order_export_fee_types', $fee_rows );
+			}
+			$fee_keys = array();
+			if ( $fee_rows && is_array( $fee_rows ) ) {
+				foreach ( $fee_rows as $fee_row ) {
+					if ( is_object( $fee_row ) && isset( $fee_row->fee_label ) ) {
+						$fee_keys[] = (string) $fee_row->fee_label;
 					}
 				}
-				fclose( $file );
 			}
-			return $url_link;
+
+			if ( 'order' === $type ) {
+				$keys   = array_keys( self::order_report_columns() );
+				$keys[] = 'advanced_product_options';
+				$single = apply_filters(
+					'wp_easycart_order_export_single_keys',
+					array(
+						'sub_total', 'tip_total', 'tax_total', 'tax_total', 'shipping_total', 'discount_total', 'vat_total', 'refund_total',
+						'vat_rate', 'hst_total', 'hst_rate', 'pst_total', 'pst_rate', 'gst_total', 'gst_rate', 'grand_total',
+						'order_date', 'order_status', 'payment_method', 'shipping_method', 'tracking_number', 'promo_code_used',
+						'order_customer_notes', 'agreed_to_terms', 'order_ip_address', 'order_weight',
+						'order_gateway', 'card_holder_name', 'creditcard_digits', 'cc_exp_month', 'cc_exp_year', 'stripe_charge_id', 'order_notes',
+						'gateway_response',
+					)
+				);
+			} else {
+				$keys   = array_keys( self::tax_report_columns() );
+				$single = array(
+					'order_date', 'order_status', 'order_id', 'grand_total', 'shipping_total', 'refund_total', 'tax_total', 'vat_total',
+					'vat_rate', 'vat_registration_number', 'duty_total', 'gst_total', 'gst_rate',
+					'pst_total', 'pst_rate', 'hst_total', 'hst_rate',
+				);
+			}
+			foreach ( $fee_keys as $fee_key ) {
+				$keys[]   = $fee_key;
+				$single[] = $fee_key;
+			}
+			if ( 'order' === $type ) {
+				$keys = apply_filters( 'wp_easycart_order_export_keys', $keys );
+			}
+			$keys = array_values( array_map( 'strval', (array) $keys ) );
+
+			$fh = fopen( $file[0], 'w' );
+			if ( ! $fh ) {
+				return false;
+			}
+			fputcsv( $fh, $keys );
+			fclose( $fh );
+
+			return array(
+				'type'     => $type,
+				'key'      => $key,
+				'start'    => (string) $start_date,
+				'end'      => (string) $end_date,
+				'path'     => $file[0],
+				'url'      => $file[1],
+				'keys'     => $keys,
+				'single'   => array_values( array_map( 'strval', (array) $single ) ),
+				'fee_keys' => $fee_keys,
+				'cursor'   => 0,
+				'done'     => false,
+			);
+		}
+
+		/**
+		 * Append the next batch of orders ( order_id > cursor, LIMIT REPORT_BATCH ) to the phase's file.
+		 *
+		 * @since 6.0.0
+		 * @param array $phase Phase state ( by reference: cursor / done advance ).
+		 * @param array $args  Job args ( product_id, country, billing_country, location_id ).
+		 * @return int Orders written in this call.
+		 */
+		private function report_phase_batch( &$phase, $args ) {
+			list( $from, $to ) = $this->storage_bounds( $phase['start'], $phase['end'] );
+			$product_id = isset( $args['product_id'] ) ? (int) $args['product_id'] : 0;
+
+			$where = $this->wpdb->prepare( 'ec_order.order_date >= %s AND ec_order.order_date < %s AND ec_order.order_id > %d', $from, $to, (int) $phase['cursor'] );
+			if ( ! empty( $args['country'] ) ) {
+				$where .= $this->wpdb->prepare( ' AND ec_order.shipping_country = %s', $args['country'] );
+			}
+			if ( ! empty( $args['billing_country'] ) ) {
+				$where .= $this->wpdb->prepare( ' AND ec_order.billing_country = %s', $args['billing_country'] );
+			}
+			if ( ! empty( $args['location_id'] ) ) {
+				$where .= $this->wpdb->prepare( ' AND ec_order.location_id = %d', (int) $args['location_id'] );
+			}
+			if ( $product_id ) {
+				/* The legacy LEFT OUTER JOIN ... AND product_id = %d kept only orders with a matching line. */
+				$where .= $this->wpdb->prepare( ' AND EXISTS ( SELECT 1 FROM ec_orderdetail AS od_x WHERE od_x.order_id = ec_order.order_id AND od_x.product_id = %d )', $product_id );
+			}
+
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- $where is built from prepared fragments above; the IN lists are integer ids cast with intval.
+			$orders = $this->wpdb->get_results(
+				'SELECT ec_order.*, ec_orderstatus.order_status, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name
+				FROM ec_order
+				LEFT JOIN ec_country AS billing_country ON billing_country.iso2_cnt = ec_order.billing_country
+				LEFT JOIN ec_country AS shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country
+				LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id
+				WHERE ' . $where . '
+				ORDER BY ec_order.order_id ASC
+				LIMIT ' . (int) self::REPORT_BATCH,
+				ARRAY_A
+			);
+			if ( empty( $orders ) ) {
+				$phase['done'] = true;
+				return 0;
+			}
+			if ( count( $orders ) < self::REPORT_BATCH ) {
+				$phase['done'] = true;
+			}
+
+			$ids = array();
+			foreach ( $orders as $order ) {
+				$ids[] = (int) $order['order_id'];
+			}
+			$in = implode( ',', array_map( 'intval', $ids ) );
+
+			$detail_sql = 'SELECT * FROM ec_orderdetail WHERE order_id IN ( ' . $in . ' )';
+			if ( $product_id ) {
+				$detail_sql .= $this->wpdb->prepare( ' AND product_id = %d', $product_id );
+			}
+			$detail_sql      .= ' ORDER BY order_id ASC, orderdetail_id ASC';
+			$details_by_order = array();
+			$detail_ids       = array();
+			$detail_rows      = $this->wpdb->get_results( $detail_sql, ARRAY_A );
+			if ( $detail_rows ) {
+				foreach ( $detail_rows as $detail_row ) {
+					$details_by_order[ (int) $detail_row['order_id'] ][] = $detail_row;
+					$detail_ids[] = (int) $detail_row['orderdetail_id'];
+				}
+			}
+
+			$options_by_detail = array();
+			$response_by_order = array();
+			if ( 'order' === $phase['type'] ) {
+				if ( $detail_ids ) {
+					$option_rows = $this->wpdb->get_results( 'SELECT orderdetail_id, option_value FROM ec_order_option WHERE orderdetail_id IN ( ' . implode( ',', array_map( 'intval', $detail_ids ) ) . ' ) ORDER BY order_option_id ASC' );
+					if ( $option_rows ) {
+						foreach ( $option_rows as $option_row ) {
+							$options_by_detail[ (int) $option_row->orderdetail_id ][] = (string) $option_row->option_value;
+						}
+					}
+				}
+				$response_rows = $this->wpdb->get_results( 'SELECT order_id, response_text FROM ec_response WHERE order_id IN ( ' . $in . ' ) ORDER BY response_id ASC' );
+				if ( $response_rows ) {
+					foreach ( $response_rows as $response_row ) {
+						if ( ! isset( $response_by_order[ (int) $response_row->order_id ] ) ) {
+							$response_by_order[ (int) $response_row->order_id ] = $response_row->response_text;
+						}
+					}
+				}
+			}
+
+			$fees_by_order = array();
+			if ( ! empty( $phase['fee_keys'] ) ) {
+				$fee_rows = $this->wpdb->get_results( 'SELECT order_id, fee_label, fee_total FROM ec_order_fee WHERE order_id IN ( ' . $in . ' ) ORDER BY fee_label ASC', ARRAY_A );
+				if ( $fee_rows ) {
+					foreach ( $fee_rows as $fee_row ) {
+						$fees_by_order[ (int) $fee_row['order_id'] ][] = $fee_row;
+					}
+				}
+			}
+			// phpcs:enable
+
+			$fh = fopen( $phase['path'], 'a' );
+			if ( ! $fh ) {
+				$phase['done']  = true;
+				$phase['error'] = 'file';
+				return 0;
+			}
+			foreach ( $orders as $order ) {
+				$order_id = (int) $order['order_id'];
+				$lines    = isset( $details_by_order[ $order_id ] ) ? $details_by_order[ $order_id ] : array( array() );
+				$is_new   = true;
+				foreach ( $lines as $detail ) {
+					fputcsv( $fh, $this->report_line( $phase, $order, $detail, $is_new, $options_by_detail, $response_by_order, $fees_by_order ) );
+					$is_new = false;
+				}
+				$phase['cursor'] = $order_id;
+			}
+			fclose( $fh );
+
+			return count( $orders );
+		}
+
+		/**
+		 * One CSV row, built exactly as the legacy per-row loop did ( single-use keys zeroed after the first
+		 * line of an order, zip codes wrapped for Excel, fee columns only on an order's first line ).
+		 *
+		 * @since 6.0.0
+		 * @return array
+		 */
+		private function report_line( $phase, $order, $detail, $is_new_order, $options_by_detail, $response_by_order, $fees_by_order ) {
+			$is_order = ( 'order' === $phase['type'] );
+			$columns  = $is_order ? self::order_report_columns() : self::tax_report_columns();
+			$order_id = (int) $order['order_id'];
+
+			$gateway_response = '';
+			if ( $is_order ) {
+				$gateway_response = ( isset( $response_by_order[ $order_id ] ) && null !== $response_by_order[ $order_id ] ) ? (string) $response_by_order[ $order_id ] : '';
+				$gateway          = isset( $order['order_gateway'] ) ? $order['order_gateway'] : '';
+				if ( 'authorize' === $gateway ) {
+					$response_exploded = explode( ',', $gateway_response );
+					if ( count( $response_exploded ) > 3 ) {
+						$gateway_response = $response_exploded[3];
+					}
+				} elseif ( 'paypal' === $gateway ) {
+					preg_match_all( "/\[payment_status\] \=\> (.*)\n/", $gateway_response, $output_array );
+					$gateway_response = isset( $output_array[1][0] ) ? $output_array[1][0] : '';
+				} else {
+					$gateway_response = str_replace( "\n", '', str_replace( "\r", '', $gateway_response ) );
+				}
+			}
+
+			$new_line = array();
+			foreach ( $phase['keys'] as $key ) {
+				if ( $is_order && 'advanced_product_options' === $key ) {
+					$detail_id  = isset( $detail['orderdetail_id'] ) ? (int) $detail['orderdetail_id'] : 0;
+					$new_line[] = ( $detail_id && isset( $options_by_detail[ $detail_id ] ) ) ? implode( ', ', $options_by_detail[ $detail_id ] ) : '';
+					continue;
+				}
+				if ( in_array( $key, $phase['fee_keys'], true ) ) {
+					continue;
+				}
+				$value = null;
+				if ( isset( $columns[ $key ] ) ) {
+					$source = $columns[ $key ][0];
+					$column = $columns[ $key ][1];
+					if ( 'o' === $source ) {
+						$value = isset( $order[ $column ] ) ? $order[ $column ] : null;
+					} elseif ( 'd' === $source ) {
+						$value = isset( $detail[ $column ] ) ? $detail[ $column ] : null;
+					} else {
+						$value = $gateway_response;
+					}
+				}
+				if ( in_array( $key, $phase['single'], true ) && ! $is_new_order ) {
+					$new_line[] = '0.00';
+				} elseif ( null === $value || '' === (string) $value ) {
+					$new_line[] = '';
+				} elseif ( $is_order && ( 'billing_zip' === $key || 'shipping_zip' === $key ) ) {
+					$new_line[] = '="' . $value . '"';
+				} else {
+					$new_line[] = $value;
+				}
+			}
+
+			if ( $is_new_order && ! empty( $phase['fee_keys'] ) ) {
+				$order_fees = isset( $fees_by_order[ $order_id ] ) ? $fees_by_order[ $order_id ] : array();
+				foreach ( $phase['fee_keys'] as $fee_key ) {
+					$found = false;
+					foreach ( $order_fees as $order_fee ) {
+						if ( (string) $order_fee['fee_label'] === (string) $fee_key ) {
+							$new_line[] = $order_fee['fee_total'];
+							$found      = true;
+						}
+					}
+					if ( ! $found ) {
+						$new_line[] = '0.000';
+					}
+				}
+			}
+
+			return $new_line;
+		}
+
+		/**
+		 * Start an export job: main order report, optional compare-range order report, tax report.
+		 *
+		 * @since 6.0.0
+		 * @param array $args start_date, end_date, start_date2, end_date2, product_id, country, billing_country, location_id.
+		 * @return string|false Job token, or false when the reports directory is not writable.
+		 */
+		public function report_job_create( $args ) {
+			$args = array_merge(
+				array( 'start_date' => '', 'end_date' => '', 'start_date2' => '', 'end_date2' => '', 'product_id' => 0, 'country' => '', 'billing_country' => '', 'location_id' => 0 ),
+				(array) $args
+			);
+			$phases  = array();
+			$phase   = $this->report_phase_init( 'order', 'report1', $args['start_date'], $args['end_date'] );
+			if ( ! $phase ) {
+				return false;
+			}
+			$phases[] = $phase;
+			if ( ! empty( $args['start_date2'] ) ) {
+				$phase = $this->report_phase_init( 'order', 'report2', $args['start_date2'], $args['end_date2'] );
+				if ( ! $phase ) {
+					return false;
+				}
+				$phases[] = $phase;
+			}
+			$phase = $this->report_phase_init( 'tax', 'reporttax', $args['start_date'], $args['end_date'] );
+			if ( ! $phase ) {
+				return false;
+			}
+			$phases[] = $phase;
+
+			$token = md5( uniqid( 'wpec-report', true ) . wp_rand() );
+			$job   = array(
+				'user_id'   => get_current_user_id(),
+				'args'      => $args,
+				'phases'    => $phases,
+				'phase'     => 0,
+				'processed' => 0,
+			);
+			set_transient( 'wpec_report_job_' . $token, $job, HOUR_IN_SECONDS );
+			return $token;
+		}
+
+		/**
+		 * Run one batch of an export job. The stored cursor is authoritative ( a retried call never re-appends ).
+		 *
+		 * @since 6.0.0
+		 * @param string $token Job token from report_job_create().
+		 * @return array|false { done, processed, total, next: { job, phase, last_order_id }, reports?: object } or false for an unknown / foreign job.
+		 */
+		public function report_job_step( $token ) {
+			$job = get_transient( 'wpec_report_job_' . $token );
+			if ( ! is_array( $job ) || empty( $job['phases'] ) || (int) $job['user_id'] !== (int) get_current_user_id() ) {
+				return false;
+			}
+			$processed = 0;
+			while ( $job['phase'] < count( $job['phases'] ) ) {
+				$written = $this->report_phase_batch( $job['phases'][ $job['phase'] ], $job['args'] );
+				$processed += $written;
+				if ( ! empty( $job['phases'][ $job['phase'] ]['done'] ) ) {
+					$job['phase']++;
+					if ( $written > 0 ) {
+						break;
+					}
+					continue; /* an empty phase costs nothing: move straight on to the next one */
+				}
+				break;
+			}
+			$job['processed'] += $processed;
+			$done = ( $job['phase'] >= count( $job['phases'] ) );
+
+			$out = array(
+				'done'      => $done,
+				'processed' => $processed,
+				'total'     => (int) $job['processed'],
+				'next'      => array(
+					'job'           => $token,
+					'phase'         => (int) $job['phase'],
+					'last_order_id' => $done ? 0 : (int) $job['phases'][ $job['phase'] ]['cursor'],
+				),
+			);
+			if ( $done ) {
+				$reports = (object) array( 'report1' => '', 'report2' => false, 'reporttax' => '' );
+				foreach ( $job['phases'] as $phase ) {
+					$reports->{ $phase['key'] } = $phase['url'];
+				}
+				$out['reports'] = apply_filters( 'wp_easycart_export_report_list', $reports, $job['args']['start_date'], $job['args']['end_date'], (int) $job['args']['product_id'], $job['args']['country'], $job['args']['billing_country'] );
+				delete_transient( 'wpec_report_job_' . $token );
+			} else {
+				set_transient( 'wpec_report_job_' . $token, $job, HOUR_IN_SECONDS );
+			}
+			return $out;
+		}
+
+		/**
+		 * Run one report to completion in-process ( direct callers ). The AJAX export uses the job API instead.
+		 *
+		 * @since 6.0.0
+		 * @return string File URL, or '' when the reports directory is not writable.
+		 */
+		private function run_report_sync( $type, $start_date, $end_date, $product_id, $country, $billing_country, $location_id ) {
+			$args  = array( 'product_id' => (int) $product_id, 'country' => (string) $country, 'billing_country' => (string) $billing_country, 'location_id' => (int) $location_id );
+			$phase = $this->report_phase_init( $type, 'report1', $start_date, $end_date );
+			if ( ! $phase ) {
+				return '';
+			}
+			while ( empty( $phase['done'] ) ) {
+				$this->report_phase_batch( $phase, $args );
+			}
+			return $phase['url'];
+		}
+
+		public function get_tax_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ) {
+			return $this->run_report_sync( 'tax', $start_date, $end_date, $product_id, $country, $billing_country, $location_id );
 		}
 
 		public function get_order_report( $start_date, $end_date, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
-			$product_where = "";
-			$country_where = "";
-			$billing_country_where = "";
-			$location_id_where = '';
-			if( $product_id ){
-				$product_where = $this->wpdb->prepare( "AND ec_orderdetail.product_id = %d ", $product_id );
-			}
-			if( $country ){
-				$country_where = $this->wpdb->prepare( "AND ec_order.shipping_country = %s ", $country );
-			}
-			if( $billing_country ){
-				$billing_country_where = $this->wpdb->prepare( "AND ec_order.billing_country = %s ", $billing_country );
-			}
-			if( $location_id ){
-				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
-			}
-
-			$date_diff = $this->date_diff;
-			$date_diff_func = 'DATE_ADD';
-			if( $date_diff < 0 ){
-				$date_diff = $date_diff * -1;
-				$date_diff_func = 'DATE_SUB';
-			}
-
-			$sales_data = $this->wpdb->get_results( "SELECT 
-					ec_order.order_date,
-					ec_orderstatus.order_status,
-					ec_orderdetail.orderdetail_id,
-					ec_orderdetail.order_id,
-					ec_order.payment_method,
-					ec_order.sub_total,
-					ec_order.tip_total,
-					ec_order.tax_total,
-					ec_order.refund_total,
-					ec_order.shipping_total,
-					ec_order.discount_total,
-					ec_order.vat_total,
-					ec_order.vat_rate,
-					ec_order.duty_total,
-					ec_order.gst_total,
-					ec_order.gst_rate,
-					ec_order.pst_total,
-					ec_order.pst_rate,
-					ec_order.hst_total,
-					ec_order.hst_rate,
-					ec_order.grand_total,
-					ec_order.user_id,
-					ec_order.use_expedited_shipping,
-					ec_order.shipping_method,
-					ec_order.shipping_carrier,
-					ec_order.shipping_service_code,
-					ec_order.tracking_number,
-					ec_order.giftcard_id as gift_card_used,
-					ec_order.promo_code as promo_code_used,
-					ec_orderdetail.product_id,
-					ec_orderdetail.title,
-					ec_orderdetail.model_number,
-					ec_orderdetail.unit_price,
-					ec_orderdetail.total_price,
-					ec_orderdetail.quantity,
-					ec_orderdetail.optionitem_name_1,
-					ec_orderdetail.optionitem_name_2,
-					ec_orderdetail.optionitem_name_3,
-					ec_orderdetail.optionitem_name_4,
-					ec_orderdetail.optionitem_name_5,
-					ec_order.order_notes,
-					ec_order.order_customer_notes,
-					ec_order.user_email,
-					ec_order.user_level,
-					ec_order.billing_first_name,
-					ec_order.billing_last_name,
-					ec_order.billing_company_name,
-					ec_order.billing_address_line_1,
-					ec_order.billing_address_line_2,
-					ec_order.billing_city,
-					ec_order.billing_state,
-					ec_order.billing_zip,
-					ec_order.billing_country,
-					billing_country.name_cnt as billing_country_name, 
-					ec_order.billing_phone,
-					ec_order.shipping_first_name,
-					ec_order.shipping_last_name,
-					ec_order.shipping_company_name,
-					ec_order.shipping_address_line_1,
-					ec_order.shipping_address_line_2,
-					ec_order.shipping_city,
-					ec_order.shipping_state,
-					ec_order.shipping_zip,
-					ec_order.shipping_country,
-					shipping_country.name_cnt as shipping_country_name,
-					ec_order.shipping_phone,
-					ec_order.vat_registration_number,
-					ec_order.agreed_to_terms,
-					ec_order.order_ip_address,
-					ec_orderdetail.use_advanced_optionset,
-					ec_orderdetail.giftcard_id,
-					ec_orderdetail.shipper_id,
-					ec_orderdetail.shipper_first_name,
-					ec_orderdetail.shipper_last_name,
-					ec_orderdetail.gift_card_message,
-					ec_orderdetail.gift_card_from_name,
-					ec_orderdetail.gift_card_to_name,
-					ec_orderdetail.gift_card_email,
-					ec_orderdetail.download_file_name,
-					ec_orderdetail.download_key,
-					ec_orderdetail.deconetwork_id,
-					ec_orderdetail.deconetwork_name,
-					ec_orderdetail.deconetwork_product_code,
-					ec_orderdetail.deconetwork_options,
-					ec_orderdetail.deconetwork_color_code,
-					ec_orderdetail.deconetwork_product_id,
-					ec_orderdetail.deconetwork_image_link,
-					ec_orderdetail.subscription_signup_fee,
-					ec_order.order_weight,
-					ec_order.order_gateway,
-					ec_order.card_holder_name,
-					ec_order.creditcard_digits,
-					ec_order.cc_exp_month,
-					ec_order.cc_exp_year,
-					ec_order.subscription_id,
-					ec_order.stripe_charge_id,
-					ec_order.nets_transaction_id,
-					ec_order.gateway_transaction_id,
-					ec_order.paypal_email_id,
-					ec_order.paypal_transaction_id,
-					ec_order.paypal_payer_id,
-					ec_order.fraktjakt_order_id,
-					ec_order.fraktjakt_shipment_id,
-					ec_response.response_text as gateway_response
-				FROM 
-					ec_order 
-					LEFT OUTER JOIN ec_orderdetail ON ec_order.order_id = ec_orderdetail.order_id
-					LEFT JOIN ec_country as billing_country ON billing_country.iso2_cnt = ec_order.billing_country 
-					LEFT JOIN ec_country as shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country 
-					LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id
-					LEFT JOIN ec_response ON ec_response.order_id = ec_order.order_id 
-				WHERE 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_func . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59'
-					" . $product_where . "
-					" . $country_where . "
-					" . $billing_country_where . " 
-					" . $location_id_where . "
-				ORDER BY 
-					ec_order.order_date ASC, ec_orderdetail.order_id, ec_orderdetail.orderdetail_id", ARRAY_A
-			);
-
-			$url_link = '';
-
-			$keys = ( count( $sales_data ) > 0 ) ? array_keys( $sales_data[0] ) : array( 'order_date','order_status', 'orderdetail_id', 'order_id', 'payment_method', 'sub_total', 'tip_total', 'tax_total', 'refund_total', 'shipping_total', 'discount_total', 'vat_total', 'vat_rate', 'duty_total', 'gst_total', 'gst_rate', 'pst_total', 'pst_rate', 'hst_total', 'hst_rate', 'grand_total', 'user_id', 'use_expedited_shipping', 'shipping_method', 'shipping_carrier', 'shipping_service_code', 'tracking_number', 'gift_card_used', 'promo_code_used', 'product_id', 'title', 'model_number', 'unit_price', 'total_price', 'quantity', 'optionitem_name_1', 'optionitem_name_2', 'optionitem_name_3', 'optionitem_name_4', 'optionitem_name_5', 'order_notes', 'order_customer_notes', 'user_email', 'user_level', 'billing_first_name', 'billing_last_name', 'billing_company_name', 'billing_address_line_1', 'billing_address_line_2', 'billing_city', 'billing_state', 'billing_zip', 'billing_country', 'billing_country_name', 'billing_phone', 'shipping_first_name', 'shipping_last_name', 'shipping_company_name', 'shipping_address_line_1', 'shipping_address_line_2', 'shipping_city', 'shipping_state', 'shipping_zip', 'shipping_country', 'shipping_country_name', 'shipping_phone', 'vat_registration_number', 'agreed_to_terms', 'order_ip_address', 'use_advanced_optionset', 'giftcard_id', 'shipper_id', 'shipper_first_name', 'shipper_last_name', 'gift_card_message', 'gift_card_from_name', 'gift_card_to_name', 'gift_card_email', 'download_file_name', 'download_key', 'deconetwork_id', 'deconetwork_name', 'deconetwork_product_code', 'deconetwork_options', 'deconetwork_color_code', 'deconetwork_product_id', 'deconetwork_image_link', 'subscription_signup_fee', 'order_weight', 'order_gateway', 'card_holder_name', 'creditcard_digits', 'cc_exp_month', 'cc_exp_year', 'subscription_id', 'stripe_charge_id', 'nets_transaction_id', 'gateway_transaction_id', 'paypal_email_id', 'paypal_transaction_id', 'paypal_payer_id', 'fraktjakt_order_id', 'fraktjakt_shipment_id', 'gateway_response' );
-			$keys[] = 'advanced_product_options';
-
-			$single_use_key_names = apply_filters( 
-				'wp_easycart_order_export_single_keys', 
-				array( 	
-					"sub_total", "tip_total", "tax_total", "tax_total", "shipping_total", "discount_total", "vat_total", "refund_total",
-					"vat_rate", "hst_total", "hst_rate", "pst_total", "pst_rate", "gst_total", "gst_rate", "grand_total",
-					"order_date", "order_status", "payment_method", "shipping_method", "tracking_number", "promo_code_used",
-					"order_customer_notes", "agreed_to_terms", "order_ip_address", "order_weight", 
-					"order_gateway", "card_holder_name", "creditcard_digits", "cc_exp_month", "cc_exp_year", "stripe_charge_id", "order_notes", 
-					"gateway_response"
-				) 
-			);
-
-			$fee_types = apply_filters( 'wp_easycart_order_export_fee_types', $this->wpdb->get_results( 'SELECT * FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' ) );
-			$fee_type_keys = [];
-			if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-				for ( $i = 0; $i < count( $fee_types ); $i ++ ) {
-					$keys[] = $fee_types[ $i ]->fee_label;
-					$single_use_key_names[] = $fee_types[ $i ]->fee_label;
-					$fee_type_keys[] = $fee_types[ $i ]->fee_label;
-				}
-			}
-
-			$keys = apply_filters( 'wp_easycart_order_export_keys', $keys );
-
-			$upload_dir = wp_upload_dir( );
-			$wp_reports_dir = $upload_dir['path'] . '/wpec-reports/';
-			$wp_reports_url = set_url_scheme( $upload_dir['url'] . '/wpec-reports/' );
-			if ( ! is_dir( $wp_reports_dir ) ) {
-				wp_mkdir_p( $wp_reports_dir );
-			}
-			if ( ! file_exists( $wp_reports_dir . 'index.php' ) ) {
-				$index_file = fopen( $wp_reports_dir . 'index.php', "w" );
-				fclose( $index_file );
-			}
-			$file_name = 'order-report-' . $start_date . '_' . $end_date . '-' . rand( 1000000, 999999999 ) . '.csv';
-			$url_path = $wp_reports_dir . $file_name;
-			$url_link = $wp_reports_url . $file_name;
-			$file = fopen( $url_path, "w" );
-
-			fputcsv( $file, $keys );
-
-			if( count( $sales_data ) > 0 ){
-				$prev_order = 0;
-				$is_new_order = false;
-				foreach( $sales_data as $result ){
-
-					if( $result['order_id'] != $prev_order ){
-						$prev_order = $result['order_id'];
-						$is_new_order = true;
-					}
-
-					if ( $result['order_gateway'] == "authorize" ) {
-						$response_exploded = explode( ",", $result['gateway_response'] );
-						if ( count( $response_exploded ) > 3 ) {
-							 $result['gateway_response'] = $response_exploded[3];
-						}
-					} else if( $result['order_gateway'] == "paypal" ) {
-						preg_match_all( "/\[payment_status\] \=\> (.*)\n/", $result['gateway_response'], $output_array );
-						if ( count( $output_array ) > 1 ) {
-							 $result['gateway_response'] = $output_array[1][0];
-						}
-					} else {
-						$result['gateway_response'] = ( isset( $result['gateway_response'] ) ) ? str_replace( "\n", '', str_replace( "\r", '', $result['gateway_response'] ) ) : '';
-					}
-
-					$new_line = array( );
-
-					foreach( $keys as $key ){
-
-						if( $key == "advanced_product_options" ){
-							$option_sql = "SELECT 
-									ec_order_option.option_value 
-								   FROM 
-									ec_order_option 
-								   WHERE 
-									ec_order_option.orderdetail_id = %s 
-								   ORDER BY 
-									ec_order_option.order_option_id ASC";
-							$option_results = $this->wpdb->get_results( $this->wpdb->prepare( $option_sql, $result['orderdetail_id'] ) );
-
-							$optionlist = '';
-							$first = true;
-							foreach( $option_results as $option_row ){
-								if( !$first )
-									$optionlist .= ', ';
-								$optionlist .= $option_row->option_value;
-								$first = false;
-							}
-							$new_line[] = $optionlist;
-
-						} else if( ! in_array( $key, $fee_type_keys ) ) {
-
-							$value = $result[$key];
-
-							if( in_array( $key, $single_use_key_names ) && !$is_new_order ){
-								$new_line[] = "0.00";
-
-							}else if( !isset( $value ) || $value == "" ){
-								$new_line[] = "";
-
-							}else if( $key == 'billing_zip' || $key == 'shipping_zip' ){
-								$new_line[] = "=\"" . $value . "\"";
-
-							}else{
-								$new_line[] = $value;
-
-							}
-
-						}
-
-					}
-
-					if ( $is_new_order ) {
-						if ( $fee_types && is_array( $fee_types ) && count( $fee_types ) > 0 ) {
-							$order_fee_list = $this->wpdb->get_results( $this->wpdb->prepare( 'SELECT * FROM ec_order_fee WHERE order_id = %d ORDER BY fee_label ASC', (int) $result['order_id'] ) );
-							foreach ( $fee_types as $fee_type ) {
-								$is_fee_type_found = false;
-								if ( $order_fee_list && is_array( $order_fee_list ) ) {
-									foreach ( $order_fee_list as $order_fee_item ) {
-										if ( $order_fee_item->fee_label == $fee_type->fee_label ) {
-											$new_line[] = $order_fee_item->fee_total;
-											$is_fee_type_found = true;
-										}
-									}
-								}
-								if ( ! $is_fee_type_found ) {
-									$new_line[] = '0.000';
-								}
-							}
-						}
-					}
-
-					fputcsv( $file, $new_line );
-
-					$is_new_order = false;
-
-				}
-
-				fclose( $file );
-			}
-
-			return $url_link;
+			return $this->run_report_sync( 'order', $start_date, $end_date, $product_id, $country, $billing_country, $location_id );
 		}
 
+		/**
+		 * Summary cards for the Reports page, cached 10 minutes per ( ranges + filters ) under the order fingerprint.
+		 *
+		 * @since 6.0.0 caching + sargable queries; the returned object is unchanged.
+		 */
 		public function get_single_stats( $start_date, $end_date, $start_date2 = false, $end_date2 = false, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
+			$key    = 'single|' . implode( '|', array( (string) $start_date, (string) $end_date, (string) $start_date2, (string) $end_date2, (int) $product_id, (string) $country, (string) $billing_country, (int) $location_id ) );
+			$cached = $this->stats_cache_get( $key );
+			if ( is_object( $cached ) && isset( $cached->gross_revenue ) ) {
+				return $cached;
+			}
+			$stats = $this->compute_single_stats( $start_date, $end_date, $start_date2, $end_date2, $product_id, $country, $billing_country, $location_id );
+			$this->stats_cache_set( $key, $stats, 10 * MINUTE_IN_SECONDS );
+			return $stats;
+		}
+
+		/**
+		 * The four aggregates behind get_single_stats() for one range. Date bounds are constants on the
+		 * indexed order_date / last_changed_date columns; the per-order correlated line-item subqueries are
+		 * replaced by ec_order.sub_total and, with a product filter, one grouped derived table in range.
+		 *
+		 * @since 6.0.0
+		 * @return array [ $sales_data, $sales_data_item, $sales_data_cart, $sales_data_flex_fees ]
+		 */
+		private function single_stats_set( $start_date, $end_date, $product_id, $w ) {
+			list( $from, $to ) = $this->storage_bounds( $start_date, $end_date );
+			$order_range = $this->wpdb->prepare( 'ec_order.order_date >= %s AND ec_order.order_date < %s', $from, $to );
+			$cart_range  = $this->wpdb->prepare( 'ec_tempcart.last_changed_date >= %s AND ec_tempcart.last_changed_date < %s', $from, $to );
+			$approved    = '( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 )';
+
+			$item_join      = '';
+			$item_rows_sql  = 'COUNT( ec_order.order_id )';
+			$item_total_sql = 'SUM( ec_order.sub_total )';
+			if ( $product_id ) {
+				$item_join      = $this->wpdb->prepare( 'LEFT JOIN ( SELECT ec_orderdetail.order_id, COUNT( ec_orderdetail.orderdetail_id ) AS item_rows, SUM( ec_orderdetail.total_price ) AS item_total FROM ec_orderdetail INNER JOIN ec_order AS od_order ON od_order.order_id = ec_orderdetail.order_id WHERE od_order.order_date >= %s AND od_order.order_date < %s AND ec_orderdetail.product_id = %d GROUP BY ec_orderdetail.order_id ) AS od ON od.order_id = ec_order.order_id', $from, $to, $product_id );
+				$item_rows_sql  = 'SUM( IFNULL( od.item_rows, 0 ) )';
+				$item_total_sql = 'SUM( IFNULL( od.item_total, 0 ) )';
+			}
+
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every variable fragment is prepared above ( range / join ) or by the caller ( filter clauses ).
+			$sales_data = $this->wpdb->get_row( "SELECT
+					COUNT( ec_order.order_id ) AS order_count,
+					COUNT( ec_order.user_id ) AS customer_count,
+					" . $item_rows_sql . " AS item_order_count,
+					" . $item_rows_sql . " AS item_customer_count,
+					SUM( ec_order.sub_total ) AS total,
+					" . $item_total_sql . " AS item_total,
+					SUM( ec_order.discount_total ) AS discount_total,
+					SUM( ec_order.refund_total ) AS refund_total,
+					SUM( ec_order.shipping_total ) AS shipping_total,
+					SUM( ec_order.tax_total ) AS tax_total,
+					SUM( ec_order.vat_total ) AS vat_total,
+					SUM( ec_order.gst_total ) AS gst_total,
+					SUM( ec_order.pst_total ) AS pst_total,
+					SUM( ec_order.hst_total ) AS hst_total
+				FROM
+					ec_order
+					INNER JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
+					" . $item_join . "
+				WHERE
+					" . $order_range . " AND " . $approved . " " . $w['country'] . " " . $w['billing'] . " " . $w['location']
+			);
+
+			$sales_data_item = $this->wpdb->get_row( "SELECT
+					IFNULL( SUM( ec_orderdetail.quantity ), 0 ) as item_count
+				FROM
+					ec_order
+					INNER JOIN ec_orderdetail ON ec_orderdetail.order_id = ec_order.order_id
+					INNER JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
+				WHERE
+					" . $order_range . " AND " . $approved . " " . $w['product'] . " " . $w['country'] . " " . $w['billing'] . " " . $w['location']
+			);
+
+			$sales_data_cart = $this->wpdb->get_row( "SELECT
+					COUNT( ec_tempcart.session_id ) as cart_total
+				FROM
+					ec_tempcart
+					LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id )
+				WHERE
+					" . $cart_range . " " . $w['product_cart'] . " " . $w['country_cart'] . " " . $w['billing_cart'] . " " . $w['location_cart']
+			);
+
+			$sales_data_flex_fees = $this->wpdb->get_results( "SELECT
+					IFNULL( SUM( ec_order_fee.fee_total ), 0 ) as total_fees,
+					ec_order_fee.fee_label
+				FROM
+					ec_order
+					INNER JOIN ec_order_fee ON ec_order_fee.order_id = ec_order.order_id
+					INNER JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id
+				WHERE
+					" . $order_range . " AND " . $approved . " " . $w['country'] . " " . $w['billing'] . " " . $w['location'] . "
+				GROUP BY ec_order_fee.fee_label"
+			);
+			// phpcs:enable
+
+			return array( $sales_data, $sales_data_item, $sales_data_cart, $sales_data_flex_fees );
+		}
+
+		/**
+		 * One chart dataset, cached 10 minutes per ( type + range + filters ) under the order fingerprint.
+		 *
+		 * @since 6.0.0
+		 */
+		private function get_dataset_cached( $type, $start_date, $end_date, $range = 'daily', $product_id = false, $country = false, $billing_country = false, $location_id = 0 ) {
+			$type = in_array( $type, array( 'sales', 'items', 'carts' ), true ) ? $type : 'sales';
+			$key  = 'dataset|' . implode( '|', array( $type, (string) $start_date, (string) $end_date, (string) $range, (int) $product_id, (string) $country, (string) $billing_country, (int) $location_id ) );
+			$cached = $this->stats_cache_get( $key );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+			$data = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
+			$this->stats_cache_set( $key, $data, 10 * MINUTE_IN_SECONDS );
+			return $data;
+		}
+
+		private function compute_single_stats( $start_date, $end_date, $start_date2 = false, $end_date2 = false, $product_id = false, $country = false, $billing_country = false, $location_id = 0 ){
 
 			$product_where = "";
 			$product_where_cart = "";
@@ -1917,152 +2430,26 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$location_id_where = $this->wpdb->prepare( "AND ec_order.location_id = %d ", $location_id );
 				$location_id_where_cart = $this->wpdb->prepare( "AND ec_tempcart_data.pickup_location = %d ", $location_id );
 			}
-			$date_diff = $this->date_diff;
-			$date_diff_type = 'DATE_ADD';
-			if( $this->date_diff < 0 ){
-				$date_diff = $date_diff * -1;
-				$date_diff_type = 'DATE_SUB';
-			}
-
-			$sales_data = $this->wpdb->get_row( "SELECT 
-					COUNT( ec_order.order_id ) AS order_count,
-					COUNT( ec_order.user_id ) AS customer_count,
-					SUM( 
-						IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
-					) AS item_order_count,
-					SUM( 
-						IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
-					) AS item_customer_count,
-					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
-					) as total,
-					SUM( 
-						IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
-					) as item_total,
-					SUM( ec_order.discount_total ) AS discount_total, 
-					SUM( ec_order.refund_total ) AS refund_total,  
-					SUM( ec_order.shipping_total ) AS shipping_total, 
-					SUM( ec_order.tax_total ) AS tax_total, 
-					SUM( ec_order.vat_total ) AS vat_total, 
-					SUM( ec_order.gst_total ) AS gst_total, 
-					SUM( ec_order.pst_total ) AS pst_total, 
-					SUM( ec_order.hst_total ) AS hst_total 
-				FROM 
-					ec_order
-					LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-				WHERE 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . " 00:00:00' AND 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where
+			$where = array(
+				'product'       => $product_where,
+				'product_cart'  => $product_where_cart,
+				'country'       => $country_where,
+				'country_cart'  => $country_where_cart,
+				'billing'       => $billing_country_where,
+				'billing_cart'  => $billing_country_where_cart,
+				'location'      => $location_id_where,
+				'location_cart' => $location_id_where_cart,
 			);
-
-			$sales_data_item = $this->wpdb->get_row( "SELECT 
-					IFNULL( SUM( ec_orderdetail.quantity ), 0 ) as item_count
-				FROM 
-					ec_orderdetail 
-					LEFT JOIN ec_order ON ec_order.order_id = ec_orderdetail.order_id 
-					LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-				WHERE 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . " 00:00:00' AND 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $product_where . " " . $country_where . " " . $billing_country_where
-			);
-
-			$sales_data_cart = $this->wpdb->get_row( "SELECT 
-					COUNT( ec_tempcart.session_id ) as cart_total
-				FROM 
-					ec_tempcart
-					LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id ) 
-				WHERE 
-					" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . "' AND 
-					" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart . " " . $location_id_where_cart
-			);
-
-			$sales_data_flex_fees = $this->wpdb->get_results( "SELECT 
-					IFNULL( SUM( ec_order_fee.fee_total ), 0 ) as total_fees,
-					ec_order_fee.fee_label
-				FROM 
-					ec_order_fee 
-					LEFT JOIN ec_order ON ec_order.order_id = ec_order_fee.order_id
-					LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-				WHERE 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date . " 00:00:00' AND 
-					" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date . " 23:59:59' AND 
-					( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where . "
-				GROUP BY fee_label"
-			);
+			list( $sales_data, $sales_data_item, $sales_data_cart, $sales_data_flex_fees ) = $this->single_stats_set( $start_date, $end_date, $product_id, $where );
 
 			$sales_data2 = false;
+			$sales_data_item2 = false;
+			$sales_data_cart2 = false;
+			$sales_data_flex_fees2 = array();
 			if( $start_date2 ){
-				$sales_data2 = $this->wpdb->get_row( "SELECT 
-						COUNT( ec_order.order_id ) AS order_count,
-						COUNT( ec_order.user_id ) AS customer_count,
-						SUM( 
-							IFNULL( ( SELECT COUNT( ec_orderdetail.order_id ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
-						) AS item_order_count,
-						SUM( 
-							IFNULL( ( SELECT COUNT( ec_order_item.user_id ) FROM ec_orderdetail LEFT JOIN ec_order AS ec_order_item ON ec_order_item.order_id = ec_orderdetail.order_id WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . " ), 0 )
-						) AS item_customer_count,
-						SUM( 
-							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
-						) as total,
-						SUM( 
-							IFNULL( ( SELECT SUM( ec_orderdetail.total_price ) FROM ec_orderdetail WHERE ec_orderdetail.order_id = ec_order.order_id " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where . "), 0 ) 
-						) as item_total,
-						SUM( ec_order.discount_total ) AS discount_total, 
-						SUM( ec_order.refund_total ) AS refund_total,  
-						SUM( ec_order.shipping_total ) AS shipping_total, 
-						SUM( ec_order.tax_total ) AS tax_total, 
-						SUM( ec_order.vat_total ) AS vat_total, 
-						SUM( ec_order.gst_total ) AS gst_total, 
-						SUM( ec_order.pst_total ) AS pst_total, 
-						SUM( ec_order.hst_total ) AS hst_total 
-					FROM 
-						ec_order
-						LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-					WHERE 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . "' AND 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where
-				);
-
-				$sales_data_item2 = $this->wpdb->get_row( "SELECT 
-						IFNULL( SUM( ec_orderdetail.quantity ), 0 ) as item_count
-					FROM 
-						ec_orderdetail 
-						LEFT JOIN ec_order ON ec_order.order_id = ec_orderdetail.order_id 
-						LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-					WHERE 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . " 00:00:00' AND 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $product_where . " " . $country_where . " " . $billing_country_where . " " . $location_id_where
-				);
-
-				$sales_data_cart2 = $this->wpdb->get_row( "SELECT 
-						COUNT( ec_tempcart.session_id ) as cart_total
-					FROM 
-						ec_tempcart 
-						LEFT JOIN ec_tempcart_data ON ( ec_tempcart_data.session_id = ec_tempcart.session_id )
-					WHERE 
-						" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . "' AND 
-						" . $date_diff_type . "( ec_tempcart.last_changed_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' " . $product_where_cart . " " . $country_where_cart . " " . $billing_country_where_cart . " " . $location_id_where_cart
-				);
-
-				$sales_data_flex_fees2 = $this->wpdb->get_results( "SELECT 
-						IFNULL( SUM( ec_order_fee.fee_total ), 0 ) as total_fees,
-						ec_order_fee.fee_label
-					FROM 
-						ec_order_fee 
-						LEFT JOIN ec_order ON ec_order.order_id = ec_order_fee.order_id
-						LEFT JOIN ec_orderstatus ON ec_order.orderstatus_id = ec_orderstatus.status_id 
-					WHERE 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) >= '" . $start_date2 . " 00:00:00' AND 
-						" . $date_diff_type . "( ec_order.order_date, INTERVAL " . $date_diff . " HOUR ) <= '" . $end_date2 . " 23:59:59' AND 
-						( ec_orderstatus.is_approved = 1 OR ec_orderstatus.status_id = 16 ) " . $country_where . " " . $billing_country_where . " " . $location_id_where . " 
-					GROUP BY fee_label"
-				);
+				list( $sales_data2, $sales_data_item2, $sales_data_cart2, $sales_data_flex_fees2 ) = $this->single_stats_set( $start_date2, $end_date2, $product_id, $where );
 			}
-			$fee_types = $this->wpdb->get_results( 'SELECT * FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' );
+			$fee_types = $this->wpdb->get_results( 'SELECT fee_label FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' );
 			$fees = array();
 			$fees_total_1 = 0;
 			$fees_total_2 = 0;
@@ -2159,8 +2546,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$chart_label = __( 'Abandoned Carts', 'wp-easycart' );
 			}
 			if( $start_date2 ){
-				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
-				$data_items2 = $this->{'get_' . $type . '_dataset'}( $start_date2, $end_date2, $range, $product_id, $country, $billing_country, $location_id );
+				$data_items = $this->get_dataset_cached( $type, $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
+				$data_items2 = $this->get_dataset_cached( $type, $start_date2, $end_date2, $range, $product_id, $country, $billing_country, $location_id );
 				$days1 = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 				if( $range == 'daily' && $days1 <= 2 ){
 					$days1 = ($days1+1) * 24;
@@ -2221,7 +2608,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				);
 
 			}else{
-				$data_items = $this->{'get_' . $type . '_dataset'}( $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
+				$data_items = $this->get_dataset_cached( $type, $start_date, $end_date, $range, $product_id, $country, $billing_country, $location_id );
 				$days1 = $this->get_sales_dataset_length( $start_date, $end_date, $range );
 				if( $range == 'daily' && $days1 <= 2 ){
 					$days1 = ( $days1 + 1 ) * 24;
@@ -2270,8 +2657,26 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return json_encode( $data );
 		}
 
+		/**
+		 * Unviewed-order badge count. Cached 60 seconds in wpec_unviewed_orders, stamped with the order
+		 * fingerprint ( a new order from any path misses ), skipped and dropped on requests that change
+		 * order_viewed ( see request_touches_order_viewed() ), and flushed by flush_order_caches().
+		 *
+		 * @since 6.0.0 cached; the count itself is unchanged.
+		 */
 		private function get_total_new_unviewed_orders( ){
-			return $this->wpdb->get_var( "SELECT COUNT( ec_order.order_id ) as total FROM ec_order WHERE ec_order.order_viewed = 0" );
+			$bypass = self::request_touches_order_viewed();
+			if ( ! $bypass ) {
+				$cached = get_transient( 'wpec_unviewed_orders' );
+				if ( is_array( $cached ) && isset( $cached['fp'], $cached['count'] ) && $cached['fp'] === self::order_fingerprint() ) {
+					return (int) $cached['count'];
+				}
+			}
+			$count = (int) $this->wpdb->get_var( "SELECT COUNT( ec_order.order_id ) as total FROM ec_order WHERE ec_order.order_viewed = 0" );
+			if ( ! $bypass ) {
+				set_transient( 'wpec_unviewed_orders', array( 'fp' => self::order_fingerprint(), 'count' => $count ), MINUTE_IN_SECONDS );
+			}
+			return $count;
 		}
 		/* END STATS FUNCTIONS */
 
@@ -2475,9 +2880,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_promotion_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_promotion_details', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_offers_hub', array( $this, 'show_upgrade' ) );
-			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_fee_list_example' ) );
-			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_upgrade' ) );
-			add_action( 'wp_easycart_admin_fee_details', array( $this, 'show_upgrade' ) );
+			/* Flex-Fees is PRO-only: the locked page, never the store's real fee rows ( @since 6.0.0 ). */
+			add_action( 'wp_easycart_admin_fee_list', array( $this, 'show_fee_locked_page' ) );
+			add_action( 'wp_easycart_admin_fee_details', array( $this, 'show_fee_locked_page' ) );
 			add_action( 'wp_easycart_admin_schedule_list', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_schedule_details', array( $this, 'show_upgrade' ) );
 			add_action( 'wp_easycart_admin_location_list', array( $this, 'show_upgrade' ) );
@@ -2493,6 +2898,12 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				remove_action( 'wp_easycart_admin_messages', array( wp_easycart_admin( ), 'load_upsell_image' ) );
 				remove_filter( 'wp_easycart_admin_advanced_option_type', array( $this, 'filter_option_type' ) );
 				remove_action( 'wp_dashboard_setup', array( $this, 'add_ec_nag_widget' ) );
+			}
+
+			/* 6.0.0: a PRO older than wp_easycart_admin_pro_gate::MIN_PRO_VERSION still calls admin controllers this
+			   release removed, so its admin is not loaded at all; wp_easycart_pro_check() asks for the PRO update. */
+			if ( class_exists( 'wp_easycart_admin_pro_gate' ) && wp_easycart_admin_pro_gate::is_outdated() ) {
+				return;
 			}
 
 			do_action( 'wp_easycart_admin_pro_ready' );
@@ -2596,24 +3007,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$this->load_admin_shell( );
 		}
 
-		public function load_reports( ){
-			add_action( 'wp_easycart_admin_shell_content', array( $this, 'load_reports_content' ), 1, 0 );
-			$this->load_admin_shell( );
-		}
-
-		public function load_reports_content( ){
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/reports.php' );
-		}
-
-		public function load_admin( ){
-			add_action( 'wp_easycart_admin_shell_content', array( $this, 'load_admin_content' ), 1, 0 );
-			$this->load_admin_shell( );
-		}
-
-		public function load_admin_content( ){
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/admin.php' );
-		}
-
 		public function load_settings( ){
 			add_action( 'wp_easycart_admin_shell_content', array( $this, 'load_settings_content' ), 1, 0 );
 			$this->load_admin_shell( );
@@ -2660,14 +3053,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 		public function load_settings_content( ){
 
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/setup-actions.php' );
-			$ec_admin_settings = new ec_admin_settings( );
-
-			// Try to Process Form Actions if Needed
-			if( isset( $_POST['ec_admin_settings_action'] ) ){
-				$ec_admin_settings->process_form_action( sanitize_key( $_POST['ec_admin_settings_action'] ) );
-			}
-
 			$this->init_shipping_data( );
 			global $wpdb;
 			if( !get_option( 'ec_option_setup_wizard_done' ) && $result = $wpdb->get_row( "SELECT product_id FROM ec_product LIMIT 1" ) ){
@@ -2675,47 +3060,33 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 
 			// Display Page Setup
-			if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "setup-wizard" ) {
+			$ecst_subpage = isset( $_GET['subpage'] ) ? sanitize_key( wp_unslash( $_GET['subpage'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+			$ecst_owner   = ( '' !== $ecst_subpage && class_exists( 'wp_easycart_admin_settings_registry' ) ) ? wp_easycart_admin_settings_registry::page_for_legacy( $ecst_subpage ) : '';
+			if ( 'initial-setup' === $ecst_subpage && ! get_option( 'ec_option_setup_wizard_done' ) ) {
+				$ecst_subpage = ''; // Until the wizard is finished, Initial Setup still means the wizard.
+				$ecst_owner   = '';
+			}
+			if ( class_exists( 'wp_easycart_admin_settings_page_v2' ) && wp_easycart_admin_settings_page_v2::is_classic_settings_screen() ) {
+				// Classic settings pages keep their own header; the settings-wide search sits just above it.
+				echo '<div class="ecv2-wrap ecst-wrap ecst-global-search">';
+				wp_easycart_admin_settings_page_v2::print_search( 'compact', $ecst_subpage );
+				echo '</div>';
+			}
+			if ( 'home' === $ecst_subpage && class_exists( 'wp_easycart_admin_settings_home' ) ) {
+				wp_easycart_admin_settings_home::render();
+			} else if ( '' !== $ecst_subpage && class_exists( 'wp_easycart_admin_settings_registry' ) && wp_easycart_admin_settings_registry::has( $ecst_subpage ) ) {
+				// Page converted to the V2 settings layout ( admin/template/settings/<slug>.php ).
+				wp_easycart_admin_settings_page_v2::render( $ecst_subpage );
+			} else if ( '' !== $ecst_owner && $ecst_owner !== $ecst_subpage ) {
+				// Old subpage slug now lives inside a converted page; keep bookmarks working.
+				wp_easycart_admin_settings_page_v2::render( $ecst_owner );
+			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "setup-wizard" ) {
 				wp_easycart_admin_setup_wizard( )->load_setup_wizard( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "initial-setup" ){
-				if ( !get_option( 'ec_option_setup_wizard_done' ) ) {
-					wp_easycart_admin_setup_wizard( )->load_setup_wizard( );
-				} else {
-					wp_easycart_admin_initial_setup( )->load_initial_setup( );
-				}
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "products" ) {
-				wp_easycart_admin_products( )->load_products_setup( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "tax" ) {
-				 wp_easycart_admin_taxes( )->load_tax_setup( );
+				// Reached only while the setup wizard is unfinished ( the registry serves Initial Setup afterwards ).
+				wp_easycart_admin_setup_wizard( )->load_setup_wizard( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "fee" ) {
 				 wp_easycart_admin_fee()->load_fee_list( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-settings" ) {
-				$shipping = new wp_easycart_admin_shipping( );
-				$shipping->load_shipping_setup( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-rates" ) {
-				$shipping = new wp_easycart_admin_shipping( );
-				$shipping->load_shipping_rates( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "payment" ) {
-				wp_easycart_admin_payments( )->load_payments( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "checkout" ) {
-				wp_easycart_admin_checkout( )->load_checkout( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "account" ) {
-				$account = new wp_easycart_admin_account( );
-				$account->load_account( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "miscellaneous") {
-				wp_easycart_admin_miscellaneous( )->load_miscellaneous( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "language-editor" ) {
-				wp_easycart_admin_language_editor()->load_language( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "design" ) {
-				$design = new wp_easycart_admin_design( );
-				$design->load_design( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "third-party" ) {
-				wp_easycart_admin_third_party( )->load_third_party( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "email-setup" ) {
-				$email = new wp_easycart_admin_email_settings( );
-				$email->load_email( );
-			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "cart-importer" ) {
-				wp_easycart_admin_cart_importer( )->load_cart_importer( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "country" ) {
 				wp_easycart_admin_country( )->load_country_list( );
 			} else if ( isset( $_GET['subpage'] ) && $_GET['subpage'] == "states" ) {
@@ -2734,7 +3105,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				if ( ! get_option( 'ec_option_setup_wizard_done' ) ) {
 					wp_easycart_admin_setup_wizard( )->load_setup_wizard( );
 				} else {
-					wp_easycart_admin_initial_setup( )->load_initial_setup( );
+					wp_easycart_admin_settings_home::render();
 				}
 			}
 		}
@@ -2828,10 +3199,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$registration->load_registration_status( );
 		}
 
-		public function load_shipping_form( $shipping_type ){
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/shipping/' . $shipping_type . '.php' );
-		}
-
 		public function load_extensions( ){
 			add_action( 'wp_easycart_admin_shell_content', array( $this, 'load_extensions_content' ), 1, 0 );
 			$this->load_admin_shell( );
@@ -2842,6 +3209,12 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		}
 
 		private function load_admin_shell( ){
+			/* 6.0.0: a companion plugin on a mismatched version replaces every EasyCart screen with the update / deactivate
+			   page. The shell is never rendered then: an older PRO hooks its nav and message boxes as soon as it loads. */
+			if ( class_exists( 'wp_easycart_admin_compat_lock' ) && wp_easycart_admin_compat_lock::is_locked() ) {
+				wp_easycart_admin_compat_lock::render_page();
+				return;
+			}
 			include( EC_PLUGIN_DIRECTORY . '/admin/template/shell.php' );
 		}
 
@@ -2922,6 +3295,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				return __( 'WP EasyCart Payment Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "checkout" ) {
 				return __( 'WP EasyCart Checkout Settings', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "home" ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page title.
+				return __( 'WP EasyCart Settings', 'wp-easycart' );
+			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && class_exists( 'wp_easycart_admin_settings_registry' ) && wp_easycart_admin_settings_registry::has( sanitize_key( wp_unslash( $_GET['subpage'] ) ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page title.
+				$ecst_page = wp_easycart_admin_settings_registry::page( sanitize_key( wp_unslash( $_GET['subpage'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page title.
+				return sprintf( __( 'WP EasyCart %s', 'wp-easycart' ), $ecst_page['title'] );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "account" ) {
 				return __( 'WP EasyCart Account Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "miscellaneous" ) {
@@ -2937,9 +3315,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "cart-importer" ) {
 				return __( 'WP EasyCart Cart Importer', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "country" ) {
-				return __( 'WP EasyCart Country Management', 'wp-easycart' );
+				return __( 'WP EasyCart Countries & Regions', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "states" ) {
-				return __( 'WP EasyCart State Management', 'wp-easycart' );
+				return __( 'WP EasyCart Countries & Regions', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "perpage" ) {
 				return __( 'WP EasyCart Per Page Settings', 'wp-easycart' );
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "pricepoint" ) {
@@ -2975,7 +3353,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'plugin-didnt-work'         => __( 'The plugin didn\'t work.', 'wp-easycart' ),
 					'better-plugin'             => __( 'I found a better plugin.', 'wp-easycart' ),
 					'what-plugin'               => __( 'What\'s the plugin\'s name?', 'wp-easycart' ),
-					'too-expensive'             => __( 'I need a PRO feature and the upgrade cost is too high.', 'wp-easycart' ),
+					'too-expensive'             => __( 'I need a Pro or Premium feature and the upgrade cost is too high.', 'wp-easycart' ),
 					'missing-feature'           => __( 'Plugin is missing a feature that my project requires.', 'wp-easycart' ),
 					'what-feature'              => __( 'What feature is missing?', 'wp-easycart' ),
 					'temporary-deactivation'    => __( 'It\'s a temporary deactivation. I\'m just debugging an issue.', 'wp-easycart' ),
@@ -3100,10 +3478,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_enqueue_style( 'wpeasycart-jquery-ui-css' );
 				wp_enqueue_style( 'wp-color-picker' );
 
-				if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "category" ){
-					wp_register_script( 'wp_easycart_admin_category_js', plugins_url( 'wp-easycart/admin/js/category.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_category_js' );	
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-orders" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "orders" ) ){
+				if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-orders" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "orders" ) ){
 					wp_enqueue_script('jquery-ui-datepicker');
 					wp_enqueue_style('jquery-ui-datepicker');
 					wp_register_script( 'wp_easycart_admin_orders_js', plugins_url( 'wp-easycart/admin/js/orders.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-datepicker' ), EC_CURRENT_VERSION );
@@ -3115,23 +3490,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						wp_enqueue_style( 'wp_easycart_admin_order_details_v2_css', plugins_url( '../css/admin-order-details-v2.css', __FILE__ ), array(), EC_CURRENT_VERSION );
 						wp_enqueue_script( 'wp_easycart_admin_orders_details_v2_js', plugins_url( '../js/orders-details-v2.js', __FILE__ ), array( 'jquery' ), EC_CURRENT_VERSION, true );
 					}
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "menus" ){
-					wp_register_script( 'wp_easycart_admin_menus_js', plugins_url( 'wp-easycart/admin/js/menus.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_menus_js' );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && isset( $_GET['subpage'] ) && ( $_GET['subpage'] == "option" || $_GET['subpage'] == "optionitems" ) ){
-					wp_register_script( 'wp_easycart_admin_option_js', plugins_url( 'wp-easycart/admin/js/option.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'jquery-ui-sortable' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_option_js' );
 					$this->enqueue_option_set_slideout_assets();
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-products" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "products" ) ){
 					$this->wp_easycart_enqueue_products_script( );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-users" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "accounts" || $_GET['subpage'] == "user-roles" ) ){
 					wp_register_script( 'wp_easycart_admin_users_js', plugins_url( 'wp-easycart/admin/js/users.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_users_js' );
-					wp_localize_script( 'wp_easycart_admin_users_js', 'wp_easycart_users_language', array(
-						'enter-email-address'       => __( 'Please enter a valid email address.', 'wp-easycart' ),
-						'processing-import'         => __( 'Processing Import File...  Please wait.', 'wp-easycart' ),
-						'import-completed'          => __( 'Completed!  You may refresh your screen.', 'wp-easycart' )
-					) );
 					wp_register_script( 'wp_easycart_admin_users_v2', plugins_url( 'wp-easycart/admin/js/users-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
 					wp_enqueue_script( 'wp_easycart_admin_users_v2' );
 					wp_register_style( 'wp_easycart_admin_users_v2_css', plugins_url( 'wp-easycart/admin/css/admin-users-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
@@ -3203,84 +3568,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 							'delete_title'    => esc_html__( 'Delete customer?', 'wp-easycart' ),
 							'delete_body'     => esc_html__( 'Permanently delete this customer account? The profile and addresses are removed. Orders are kept. This cannot be undone.', 'wp-easycart' ),
 							'created'         => esc_html__( 'Customer created. All sections are now unlocked.', 'wp-easycart' ),
+							'created_no_password' => __( 'Customer created. No password was set, so send a password reset from Password & Security when they need to sign in.', 'wp-easycart' ),
 						) );
 					}
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "initial-setup" ) ){
-					wp_register_script( 'wp_easycart_admin_initial_setup_js', plugins_url( 'wp-easycart/admin/js/initial-setup.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_initial_setup_js' );
-					wp_localize_script( 'wp_easycart_admin_initial_setup_js', 'wp_easycart_initial_setup_language', array(
-						'store'         => __( 'Store', 'wp-easycart' ),
-						'cart'          => __( 'Cart', 'wp-easycart' ),
-						'account'       => __( 'Account', 'wp-easycart' )
-					) );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "products" ){
-					$this->wp_easycart_enqueue_products_script( );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "tax" ){
-					wp_register_script( 'wp_easycart_admin_tax_js', plugins_url( 'wp-easycart/admin/js/tax.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_tax_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-settings" ){
-					wp_register_script( 'wp_easycart_admin_shipping_settings_js', plugins_url( 'wp-easycart/admin/js/shipping-settings.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_shipping_settings_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "shipping-rates" ){
-					wp_register_script( 'wp_easycart_admin_shipping_rates_js', plugins_url( 'wp-easycart/admin/js/shipping-rates.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_shipping_rates_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "payment" ){
-					wp_register_script( 'wp_easycart_admin_payment_js', plugins_url( 'wp-easycart/admin/js/payment.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_payment_js' );
-					wp_localize_script( 'wp_easycart_admin_payment_js', 'wp_easycart_payment_language', array(
-						'advanced-options'         => __( 'Advanced Options', 'wp-easycart' ),
-						'one-click-setup'         => __( 'Back to One-Click Express Setup', 'wp-easycart' ),
-						'manual-api-input'         => __( 'Use Manual API Credential Input', 'wp-easycart' )
-					) );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "checkout" ){
-					wp_enqueue_script( 'jquery-ui-core' );
-					wp_enqueue_script( 'jquery-ui-datepicker' );
-					wp_enqueue_style( 'wp-color-picker' );
-					wp_register_script( 'wp_easycart_admin_checkout_js', plugins_url( 'wp-easycart/admin/js/checkout.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_checkout_js' );
-					wp_localize_script( 'wp_easycart_admin_checkout_js', 'wp_easycart_checkout_language', array(
-						'delete'       => __( 'Delete', 'wp-easycart' ),
-					) );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "account" ){
-					wp_register_script( 'wp_easycart_admin_account_js', plugins_url( 'wp-easycart/admin/js/account.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_account_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "miscellaneous" ){
-					wp_register_script( 'wp_easycart_admin_miscellaneous_js', plugins_url( 'wp-easycart/admin/js/miscellaneous.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_miscellaneous_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "language-editor" ){
-					wp_register_script( 'wp_easycart_admin_language_editor_js', plugins_url( 'wp-easycart/admin/js/language-editor.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_language_editor_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "design" ){
-					wp_register_script( 'wp_easycart_admin_design_js', plugins_url( 'wp-easycart/admin/js/design.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_design_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "third-party" ){
-					wp_register_script( 'wp_easycart_admin_third_party_js', plugins_url( 'wp-easycart/admin/js/third-party.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_third_party_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "email-setup" ){
-					wp_register_script( 'wp_easycart_admin_email_settings_js', plugins_url( 'wp-easycart/admin/js/email-settings.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_email_settings_js' );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "cart-importer" ){
-					wp_register_script( 'wp_easycart_admin_cart_importer_js', plugins_url( 'wp-easycart/admin/js/cart-importer.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_cart_importer_js' );
-					wp_localize_script( 'wp_easycart_admin_cart_importer_js', 'wp_easycart_cart_importer_language', array(
-						'inventory-items-synced'        => __( 'Items Have Synced Inventory', 'wp-easycart' ),
-						'all-inventory-items-synced'    => __( 'All Item Inventory Synced.', 'wp-easycart' ),
-						'modifier-items-imported'       => __( 'Modifier Items Imported', 'wp-easycart' ),
-						'all-modifiers-imported'        => __( 'All Modifiers Imported, Starting Modifier Items.', 'wp-easycart' ),
-						'modifiers-imported'            => __( 'Modifiers Imported', 'wp-easycart' ),
-						'all-modifier-items-imported'   => __( 'All Modifier Items Imported, Starting Categories', 'wp-easycart' ),
-						'items-imported'                => __( 'Items Imported', 'wp-easycart' ),
-						'all-categories-imported'        => __( 'All Categories Imported, Starting Products.', 'wp-easycart' ),
-						'categories-imported'            => __( 'Categories Imported', 'wp-easycart' ),
-						'all-products-imported'         => __( 'All Products Imported!', 'wp-easycart' ),
-						'categories-imported'           => __( 'Categories Imported', 'wp-easycart' ),
-						'all-categories-imported'       => __( 'All Categories Imported!', 'wp-easycart' ),
-						'customers-imported'            => __( 'Customers Imported', 'wp-easycart' ),
-						'all-customers-imported'        => __( 'All Customers Imported!', 'wp-easycart' )
-					) );
-				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "pricepoint" ){
-					wp_register_script( 'wp_easycart_admin_pricepoint_js', plugins_url( 'wp-easycart/admin/js/pricepoint.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
-					wp_enqueue_script( 'wp_easycart_admin_pricepoint_js' );
 				} else if( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && ( !isset( $_GET['subpage'] ) || $_GET['subpage'] == "setup-wizard" ) ){
 					$this->wp_easycart_enqueue_products_script( );
 				}
@@ -3334,9 +3624,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						/* translators: %d is a count. */
 						'variant_stock'       => __( 'stock tracking on %d variations', 'wp-easycart' ),
 						/* translators: %s describes the PRO option data that will be removed. */
-						'lossy_options_confirm' => __( 'Saving will remove %s from this product and keep only the first two option sets. This cannot be undone without PRO. Save anyway?', 'wp-easycart' ),
+						'lossy_options_confirm' => sprintf( __( 'Saving will remove %1$s from this product and keep only the first two option sets. This cannot be undone without %2$s. Save anyway?', 'wp-easycart' ), '%s', ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
 						/* translators: %s describes the PRO media that will be removed. */
-						'lossy_media_confirm' => __( 'Saving will remove %s from this product and keep only the first two images. This cannot be undone without PRO. Save anyway?', 'wp-easycart' ),
+						'lossy_media_confirm' => sprintf( __( 'Saving will remove %1$s from this product and keep only the first two images. This cannot be undone without %2$s. Save anyway?', 'wp-easycart' ), '%s', ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
 					) );
 
 					wp_add_inline_script( 'wp-easycart-products-details-v2', 'window.wpeasycart_ecdv2_currency = ' . wp_json_encode( get_option( 'ec_option_currency_symbol', '$' ) ) . ';', 'before' );
@@ -3372,12 +3662,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 							'disc_shows'       => __( 'Storefront shows %1 struck through · %2% off', 'wp-easycart' ),
 							'disc_not_higher'  => __( 'List price should be higher than the price.', 'wp-easycart' ),
 							'disc_default'     => __( 'Shows a strike-through price and "% off" badge.', 'wp-easycart' ),
-							'type_pro_hint'    => __( 'Downloads, subscriptions, gift cards and more are PRO types.', 'wp-easycart' ),
+							/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+							'type_pro_hint'    => sprintf( __( 'Downloads, subscriptions, gift cards and more are %s types.', 'wp-easycart' ), ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
 							'type_stripe'      => __( 'Subscriptions and memberships bill through Stripe, Authorize.net or PayPal.', 'wp-easycart' ),
 							'type_digital'     => __( 'This type is delivered without shipping.', 'wp-easycart' ),
 							'opt_max'          => __( 'Maximum of 5 — use modifiers for more', 'wp-easycart' ),
 							/* translators: %d is the free-edition option set limit. */
-							'opt_max_free'     => __( 'Free edition allows %d — PRO allows 5', 'wp-easycart' ),
+							'opt_max_free'     => sprintf( __( 'Free edition allows %1$s — %2$s allows 5', 'wp-easycart' ), '%d', ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
 							'opt_one_left'     => __( '1 more option set available', 'wp-easycart' ),
 							/* translators: %d is a count. */
 							'opt_left'         => __( '%d more option sets available', 'wp-easycart' ),
@@ -3416,6 +3707,15 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				wp_register_style( 'wp_easycart_settings_v2_css', plugins_url( 'wp-easycart/admin/css/settings-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_css', 'wp_easycart_shell_v2_css' ), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_settings_v2_css' );
 				wp_register_script( 'wp_easycart_shell_v2_js', plugins_url( 'wp-easycart/admin/js/shell-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+				/* 6.0.0: wording the shell adds to the page itself ( the editors' mobile section panel ). */
+				wp_localize_script(
+					'wp_easycart_shell_v2_js',
+					'ecv2_shell_lang',
+					array(
+						'sections' => __( 'Sections', 'wp-easycart' ),
+						'close'    => __( 'Close', 'wp-easycart' ),
+					)
+				);
 				wp_enqueue_script( 'wp_easycart_shell_v2_js' );
 
 				add_editor_style( );
@@ -3458,7 +3758,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'product-not-category'      => esc_html__( 'Product is Not in a Category', 'wp-easycart' ),
 				'advanced-option-note5'     => esc_html__( 'You cannot use option item quantity tracking with advanced option sets. Please change to basic option sets to use this feature.', 'wp-easycart' ),
 				'no-option-item-quantities' => esc_html__( 'No Option Item Quantities Setup', 'wp-easycart' ),
-				'optionitem-tracking-note'  => esc_html__( 'Option item quantity tracking is only available with WP EasyCart PRO. Please upgrade to PRO to use this feature!', 'wp-easycart' ),
+				'optionitem-tracking-note'  => esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::requires_text( __( 'Option item quantity tracking', 'wp-easycart' ) ) : __( 'Option item quantity tracking is included with Pro and Premium licenses.', 'wp-easycart' ) ),
 				'no-volume-pricing'         => esc_html__( 'No Volume Pricing Setup', 'wp-easycart' ),
 				'no-b2b-pricing'            => esc_html__( 'No B2B Pricing Setup', 'wp-easycart' ),
 				'total-views'               => esc_html__( 'Total Views', 'wp-easycart' ),
@@ -3568,7 +3868,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'img_manage_title'   => esc_html__( 'Manage Images', 'wp-easycart' ),
 				'img_images'         => esc_html__( 'images', 'wp-easycart' ),
 				'img_remove'         => esc_html__( 'Remove', 'wp-easycart' ),
-				'img_pro_required'   => esc_html__( 'This feature requires the PRO or Premium edition.', 'wp-easycart' ),
+				'img_pro_required'   => esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::included_text( 'pro' ) : __( 'Included with Pro and Premium licenses.', 'wp-easycart' ) ),
 				'img_select_images'  => esc_html__( 'Select Images', 'wp-easycart' ),
 				'img_use_images'     => esc_html__( 'Use Selected Images', 'wp-easycart' ),
 				'img_select_thumbnail' => esc_html__( 'Select Thumbnail', 'wp-easycart' ),
@@ -3602,7 +3902,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'variant_tracking_enabled' => ( 'enabled' === $ecv2_variant_gate['state'] ) ? 1 : 0,
 				'variant_gate'             => $ecv2_variant_gate,
 				'pro_gate'                 => $ecv2_pro_gate,
-				'pro_required_variants'    => esc_html__( 'Variant tracking requires WP EasyCart PRO.', 'wp-easycart' ),
+				'pro_required_variants'    => esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::requires_text( __( 'Variant tracking', 'wp-easycart' ) ) : __( 'Variant tracking is included with Pro and Premium licenses.', 'wp-easycart' ) ),
 				'bulk_square_all'       => esc_html__( 'All selected products are synced with Square. Price and stock changes are managed by Square and cannot be edited here.', 'wp-easycart' ),
 				'bulk_square_some'      => esc_html__( '%d of %s selected products are synced with Square. Price and stock changes will be skipped for those products.', 'wp-easycart' ),
 				'square_managed'        => esc_html__( 'Managed by Square', 'wp-easycart' ),
@@ -3639,6 +3939,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'delete_orders_confirm' => esc_html__( 'Permanently delete the selected orders? This cannot be undone.', 'wp-easycart' ),
 				'order_pro_gate'        => $ecv2_order_pro_gate,
 				'pro_gate'              => $ecv2_order_pro_gate,
+				/* 6.0.0: the fulfillment cell follows status changes without a reload ( orders-v2.js / orders-v2-pro.js ). */
+				'fulfilled_status_ids'  => method_exists( 'wp_easycart_admin_order_table', 'fulfilled_status_ids' ) ? wp_easycart_admin_order_table::fulfilled_status_ids() : array( 2, 18 ),
+				'fulfilled_chip'        => method_exists( 'wp_easycart_admin_order_table', 'fulfilled_chip_html' ) ? wp_easycart_admin_order_table::fulfilled_chip_html() : '',
+				'fulfill_button'        => method_exists( 'wp_easycart_admin_order_table', 'fulfill_button_html' ) ? wp_easycart_admin_order_table::fulfill_button_html( $ecv2_order_pro_gate ) : '',
 			) );
 		}
 
@@ -3661,6 +3965,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$this->wp_easycart_pro_check( true );
 			$this->square_check( true );
 			$this->database_check( true );
+			$this->database_install_errors_check( true );
+			$this->download_recovery_check( true );
 		}
 
 		public function wp_easycart_pro_check( $in_shell = false ){
@@ -3672,16 +3978,19 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
 			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+			if ( class_exists( 'wp_easycart_admin_pro_gate' ) && wp_easycart_admin_pro_gate::is_outdated() ) {
+				return; // wp_easycart_admin_compat_lock shows the update / deactivate page and its own notice instead.
+			}
 			if( file_exists( $pro_plugin_file ) && !is_plugin_active( $pro_plugin_base ) ) {
 				if ( $in_shell ) {
 					echo '<div id="ec_pro_activate_message" class="wpec-pro-notice wpec-pro-notice--brand">';
 					echo '<span class="wpec-pro-notice-icon dashicons dashicons-admin-plugins"></span>';
-					echo '<div class="wpec-pro-notice-body"><strong>' . esc_html__( 'WP EasyCart PRO is installed but not activated.', 'wp-easycart' ) . '</strong> ' . esc_html__( 'Activate it to unlock your PRO features.', 'wp-easycart' ) . '</div>';
-					echo '<a class="wpec-pro-notice-button" href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_html__( 'Activate PRO', 'wp-easycart' ) . '</a>';
+					echo '<div class="wpec-pro-notice-body"><strong>' . esc_html__( 'WP EasyCart PRO is installed but not activated.', 'wp-easycart' ) . '</strong> ' . esc_html__( 'It runs both Pro and Premium licenses. Activate it to unlock your features.', 'wp-easycart' ) . '</div>';
+					echo '<a class="wpec-pro-notice-button" href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_html__( 'Activate WP EasyCart PRO', 'wp-easycart' ) . '</a>';
 					echo '</div>';
 				} else {
 					echo '<div class="updated">';
-					echo '<p>' . esc_attr__( 'WP EasyCart PRO is installed but NOT ACTIVATED. Please', 'wp-easycart' ) . ' <a href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_attr__( 'click here to activate your WP EasyCart PRO plugin', 'wp-easycart' ) . '</a>.</p>';
+					echo '<p>' . esc_attr__( 'WP EasyCart PRO is installed but not activated. Please', 'wp-easycart' ) . ' <a href="' . esc_url( $this->get_pro_activation_link( ) ) . '">' . esc_attr__( 'click here to activate your WP EasyCart PRO plugin', 'wp-easycart' ) . '</a>.</p>';
 					echo '</div>';
 				}
 			}
@@ -3748,6 +4057,83 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return true;
 		}
 
+		public function database_install_errors_check( $in_shell = false ) {
+			if ( ! $in_shell && $this->is_easycart_admin_page( ) ) {
+				return; // rendered in-shell via print_core_notices_in_shell instead
+			}
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_diagnostics' ) ) {
+				return;
+			}
+			if ( ! class_exists( 'ec_db_manager' ) ) {
+				return;
+			}
+			$db_manager = new ec_db_manager();
+			if ( ! method_exists( $db_manager, 'get_install_errors' ) ) {
+				return;
+			}
+			$install_errors = $db_manager->get_install_errors();
+			if ( ! is_array( $install_errors ) || ! count( $install_errors ) ) {
+				return;
+			}
+			$retry_url = wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=retry-database-install' ), 'wp-easycart-action-retry-database-install', 'wp_easycart_nonce' );
+			if ( $in_shell ) {
+				echo '<div class="wpec-pro-notice wpec-pro-notice--danger wpec-pro-notice--stacked">';
+				echo '<span class="wpec-pro-notice-icon dashicons dashicons-database"></span>';
+				echo '<div class="wpec-pro-notice-body">';
+			} else {
+				echo '<div class="error notice">';
+			}
+			echo '<p>' . esc_html__( 'The WP EasyCart database install could not complete. The following tables failed to create:', 'wp-easycart' ) . '</p>';
+			echo '<ul style="list-style:disc;padding-left:20px;">';
+			foreach ( $install_errors as $install_error ) {
+				echo '<li>' . esc_html( $install_error ) . '</li>';
+			}
+			echo '</ul>';
+			echo '<p><a href="' . esc_url( $retry_url ) . '">' . esc_html__( 'Retry the database install now', 'wp-easycart' ) . '</a> ' . esc_html__( 'or contact your host with the errors above (they usually indicate a missing CREATE privilege or an unsupported storage engine).', 'wp-easycart' ) . '</p>';
+			if ( $in_shell ) {
+				echo '</div></div>';
+			} else {
+				echo '</div>';
+			}
+		}
+
+		public function download_recovery_check( $in_shell = false ) {
+			if ( ! $in_shell && $this->is_easycart_admin_page( ) ) {
+				return; // rendered in-shell via print_core_notices_in_shell instead
+			}
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+				return;
+			}
+			if ( get_option( 'ec_option_dismiss_download_recovery_notice' ) ) {
+				return;
+			}
+			$count = get_transient( 'ec_download_recovery_count' );
+			if ( false === $count ) {
+				global $wpdb;
+				$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' )" );
+				set_transient( 'ec_download_recovery_count', $count, DAY_IN_SECONDS );
+			}
+			if ( (int) $count <= 0 ) {
+				return;
+			}
+			$dismiss_url = wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=dismiss-download-recovery' ), 'wp-easycart-action-dismiss-download-recovery', 'wp_easycart_nonce' );
+			if ( $in_shell ) {
+				echo '<div class="wpec-pro-notice wpec-pro-notice--danger wpec-pro-notice--stacked">';
+				echo '<span class="wpec-pro-notice-icon dashicons dashicons-download"></span>';
+				echo '<div class="wpec-pro-notice-body">';
+			} else {
+				echo '<div class="error notice">';
+			}
+			/* translators: %d: number of downloadable products missing a file name */
+			echo '<p>' . esc_html( sprintf( _n( '%d downloadable product has no download file attached. If your site was repaired after a database error, the file names may need to be re-saved on each product.', '%d downloadable products have no download file attached. If your site was repaired after a database error, the file names may need to be re-saved on each product.', (int) $count, 'wp-easycart' ), (int) $count ) ) . '</p>';
+			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products' ) ) . '">' . esc_html__( 'Review your products', 'wp-easycart' ) . '</a> | <a href="' . esc_url( $dismiss_url ) . '">' . esc_html__( 'Dismiss this notice', 'wp-easycart' ) . '</a></p>';
+			if ( $in_shell ) {
+				echo '</div></div>';
+			} else {
+				echo '</div>';
+			}
+		}
+
 		public function get_pro_activation_link( ){ 
 			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
 			if( strpos( $pro_plugin_file, '/' ) ){
@@ -3759,25 +4145,98 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $activate_url;
 		}
 
+		/**
+		 * Messages from the success / warning / error filters ( driven by ?success= / ?error= after a redirect ),
+		 * shown as V2 notices at the top of the shell content. A message may be a plain string or an array:
+		 * array( 'text' => '', 'tone' => 'success|warning|error|info', 'detail' => '', 'actions' => array( array( 'label', 'url', 'target' ) ) ).
+		 */
 		public function print_admin_message() {
-			$success_messages = apply_filters( 'wp_easycart_admin_success_messages', array() );
-			$warning_messages = apply_filters( 'wp_easycart_admin_warning_messages', array() );
-			$error_messages = apply_filters( 'wp_easycart_admin_error_messages', array() );
-
-			if ( count( $success_messages ) > 0 ) {
-				echo '<div id="ec_message" class="ec_admin_message_success"><div class="dashicons-before dashicons-thumbs-up"></div>' . esc_attr( implode( ', ', $success_messages ) ) . '</div>';
-
-			} else if ( count( $warning_messages ) > 0 ) {
-				echo '<div id="ec_message" class="ec_admin_message_warning"><div class="dashicons-before dashicons-warning"></div>' . esc_attr( implode( ', ', $warning_messages ) ) . '</div>';
-
-			} else if ( count( $error_messages ) > 0 ) {
-				echo '<div id="ec_message" class="ec_admin_message_error"><div class="dashicons-before dashicons-thumbs-down"></div>' . esc_attr( implode( ', ', $error_messages ) ) . '</div>';
-
+			$groups = array(
+				'success' => apply_filters( 'wp_easycart_admin_success_messages', array() ),
+				'warning' => apply_filters( 'wp_easycart_admin_warning_messages', array() ),
+				'error'   => apply_filters( 'wp_easycart_admin_error_messages', array() ),
+			);
+			foreach ( $groups as $tone => $messages ) {
+				foreach ( (array) $messages as $message ) {
+					if ( is_array( $message ) ) {
+						$text = isset( $message['text'] ) ? (string) $message['text'] : '';
+						$args = $message;
+						$item_tone = isset( $message['tone'] ) ? $message['tone'] : $tone;
+					} else {
+						$text = (string) $message;
+						$args = array();
+						$item_tone = $tone;
+					}
+					if ( '' !== trim( $text ) ) {
+						echo self::notice_html( $item_tone, $text, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
+					}
+				}
 			}
 
 			if ( ! get_option( 'ec_option_allow_tracking' ) ) {
-				echo '<div id="ec_message" class="ec_admin_message_success ec_admin_allow_tracking">' . sprintf( esc_attr__( 'Please help improve WP EasyCart by sending us %s for your plugin.', 'wp-easycart' ), '<a href="https://www.wpeasycart.com/terms-and-conditions/" target="_blank">' . esc_attr__( 'basic usage data', 'wp-easycart' ) . '</a>' ) . ' <a href="admin.php?page=wp-easycart-settings&subpage=miscellaneous&ec_admin_form_action=allow-usage-tracking&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-enable-usage-tracking' ) ) . '" class="ec_admin_tracking_allow" onclick="wp_easycart_allow_tracking( \'' . esc_attr( wp_create_nonce( 'wp-easycart-tracking' ) ) . '\' ); jQuery( this ).parent( ).fadeOut( ); return false;">' . esc_attr__( 'allow', 'wp-easycart' ) . '</a><a href="admin.php?page=wp-easycart-settings&subpage=miscellaneous&ec_admin_form_action=deny-usage-tracking&ec_admin_form_action=allow-usage-tracking&wp_easycart_nonce=' . esc_attr( wp_create_nonce( 'wp-easycart-enable-usage-tracking' ) ) . '" class="ec_admin_tracking_deny" onclick="wp_easycart_deny_tracking( \'' . esc_attr( wp_create_nonce( 'wp-easycart-disable-usage-tracking' ) ) . '\' ); jQuery( this ).parent( ).fadeOut( ); return false;">' . esc_attr__( 'deny', 'wp-easycart' ) . '</a></div>';
+				$allow_url = admin_url( 'admin.php?page=wp-easycart-settings&subpage=miscellaneous&ec_admin_form_action=allow-usage-tracking&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-enable-usage-tracking' ) );
+				$deny_url  = admin_url( 'admin.php?page=wp-easycart-settings&subpage=miscellaneous&ec_admin_form_action=deny-usage-tracking&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-enable-usage-tracking' ) );
+				echo self::notice_html( 'info', __( 'Help improve WP EasyCart by sharing basic usage data.', 'wp-easycart' ), array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
+					'class'       => 'ec_admin_allow_tracking',
+					'dismissible' => false,
+					'actions'     => array(
+						array( 'label' => __( 'Allow', 'wp-easycart' ), 'url' => $allow_url, 'primary' => true, 'onclick' => "wp_easycart_allow_tracking( '" . wp_create_nonce( 'wp-easycart-tracking' ) . "' ); jQuery( this ).closest( '.ecv2-flash' ).fadeOut(); return false;" ),
+						array( 'label' => __( 'No thanks', 'wp-easycart' ), 'url' => $deny_url, 'onclick' => "wp_easycart_deny_tracking( '" . wp_create_nonce( 'wp-easycart-disable-usage-tracking' ) . "' ); jQuery( this ).closest( '.ecv2-flash' ).fadeOut(); return false;" ),
+						array( 'label' => __( 'What is shared', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/terms-and-conditions/', 'target' => '_blank', 'link' => true ),
+					),
+				) );
 			}
+		}
+
+		/**
+		 * One V2 admin notice. Used by the shell messages above and by PRO screens that print their own
+		 * ( through wp_easycart_admin_notice_html() ).
+		 *
+		 * @since 6.0.0
+		 * @param string $tone    success | warning | error | info.
+		 * @param string $text    Main message ( plain text ).
+		 * @param array  $args    detail ( plain text ), actions ( label, url, target, primary, link, onclick ), dismissible ( bool ), class.
+		 * @return string
+		 */
+		public static function notice_html( $tone, $text, $args = array() ) {
+			$tone = in_array( $tone, array( 'success', 'warning', 'error', 'info' ), true ) ? $tone : 'info';
+			$args = wp_parse_args( $args, array( 'detail' => '', 'actions' => array(), 'dismissible' => true, 'class' => '' ) );
+			$icons = array(
+				'success' => '<path d="M20 6 9 17l-5-5"/>',
+				'warning' => '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+				'error'   => '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6"/><path d="M9 9l6 6"/>',
+				'info'    => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+			);
+			$html  = '<div class="ecv2-flash is-' . esc_attr( $tone ) . ( '' !== $args['class'] ? ' ' . esc_attr( $args['class'] ) : '' ) . '" role="' . ( 'error' === $tone ? 'alert' : 'status' ) . '">';
+			$html .= '<span class="ecv2-flash-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' . $icons[ $tone ] . '</svg></span>';
+			$html .= '<div class="ecv2-flash-body"><span class="ecv2-flash-text">' . esc_html( $text ) . '</span>';
+			if ( '' !== (string) $args['detail'] ) {
+				$html .= '<span class="ecv2-flash-detail">' . esc_html( $args['detail'] ) . '</span>';
+			}
+			$html .= '</div>';
+			if ( ! empty( $args['actions'] ) ) {
+				$html .= '<div class="ecv2-flash-actions">';
+				foreach ( (array) $args['actions'] as $action ) {
+					if ( empty( $action['label'] ) || empty( $action['url'] ) ) {
+						continue;
+					}
+					$class = ! empty( $action['link'] ) ? 'ecv2-flash-link' : ( ! empty( $action['primary'] ) ? 'ecv2-btn ecv2-btn-sm ecv2-btn-primary' : 'ecv2-btn ecv2-btn-sm' );
+					$html .= '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $action['url'] ) . '"';
+					if ( ! empty( $action['target'] ) ) {
+						$html .= ' target="' . esc_attr( $action['target'] ) . '" rel="noopener noreferrer"';
+					}
+					if ( ! empty( $action['onclick'] ) ) {
+						$html .= ' onclick="' . esc_attr( $action['onclick'] ) . '"';
+					}
+					$html .= '>' . esc_html( $action['label'] ) . '</a>';
+				}
+				$html .= '</div>';
+			}
+			if ( $args['dismissible'] ) {
+				$html .= '<button type="button" class="ecv2-flash-x" aria-label="' . esc_attr__( 'Dismiss', 'wp-easycart' ) . '"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>';
+			}
+			$html .= '</div>';
+			return $html;
 		}
 
 		/**
@@ -3800,7 +4259,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$stakes = wp_easycart_admin_upsell::renewal_stakes( $r );
 			if ( 'lapsed' === $r['tone'] ) {
 				$title = sprintf( __( 'Your %1$s license lapsed on %2$s.', 'wp-easycart' ), $r['edition'], $r['end_fmt'] );
-				$lead  = __( 'PRO panels are locked and the 2% gateway fee is back. Renew to reopen everything — nothing has been deleted.', 'wp-easycart' );
+				$lead  = $r['premium']
+					? __( 'Premium features are locked, your extensions are not syncing, and the 2% gateway fee is back. Renew to reopen everything — nothing has been deleted.', 'wp-easycart' )
+					: __( 'Pro features are locked and the 2% gateway fee is back. Renew to reopen everything — nothing has been deleted.', 'wp-easycart' );
 			} else if ( 'critical' === $r['tone'] ) {
 				$title = sprintf( _n( 'Your %2$s license ends tomorrow ( %3$s ).', 'Your %2$s license ends in %1$d days ( %3$s ).', $r['days'], 'wp-easycart' ), $r['days'], $r['edition'], $r['end_fmt'] );
 				$lead  = __( 'When it does:', 'wp-easycart' );
@@ -3826,7 +4287,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( 'lapsed' === $r['tone'] ) {
 				$deact = wp_easycart_admin_upsell::pro_deactivate_url();
 				if ( '' !== $deact ) {
-					echo '<a class="ecv2-renewal-free" href="' . esc_url( $deact ) . '" onclick="return window.confirm( ' . esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the PRO plugin. Your products, orders and settings are kept; PRO-only features stop until PRO is activated again.', 'wp-easycart' ) ) ) . ' );">' . esc_html__( 'or switch to the free edition', 'wp-easycart' ) . '</a>';
+					echo '<a class="ecv2-renewal-free" href="' . esc_url( $deact ) . '" onclick="return window.confirm( ' . esc_attr( wp_json_encode( ( $r['premium'] ? __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin, which runs your Premium license. Your products, orders and settings are kept; Premium features stop until you renew and activate it again.', 'wp-easycart' ) : __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin, which runs your Pro license. Your products, orders and settings are kept; Pro features stop until you renew and activate it again.', 'wp-easycart' ) ) ) ) . ' );">' . esc_html__( 'or switch to the free edition', 'wp-easycart' ) . '</a>';
 				}
 			}
 			if ( $dismissible ) {
@@ -3865,22 +4326,22 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			/* Modern upsell strip ( replaces the banner image ). Same trigger, same pages. */
 			$ecv2_banner_stats = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
-			$ecv2_banner_text  = __( 'Free edition. Card payments carry a 2% fee; PRO removes it and unlocks the locked panels you see around the admin.', 'wp-easycart' );
+			$ecv2_banner_text  = __( 'Free edition. Card payments carry a 2% fee; a Pro or Premium license removes it and unlocks the locked panels you see around the admin.', 'wp-easycart' );
 			if ( ! empty( $ecv2_banner_stats['orders_30d'] ) && $ecv2_banner_stats['orders_30d'] >= 3 && ! empty( $ecv2_banner_stats['avg_order'] ) ) {
 				$ecv2_banner_text = sprintf(
 					/* translators: %1$s = orders last 30 days, %2$s = estimated monthly fee. */
-					__( 'Free edition. On your last 30 days ( %1$s orders ) the 2%% gateway fee came to about %2$s — PRO removes it and unlocks the locked panels around the admin.', 'wp-easycart' ),
+					__( 'Free edition. On your last 30 days ( %1$s orders ) the 2%% gateway fee came to about %2$s — a Pro or Premium license removes it and unlocks the locked panels around the admin.', 'wp-easycart' ),
 					number_format_i18n( $ecv2_banner_stats['orders_30d'] ),
 					wp_easycart_admin_upsell::money( $ecv2_banner_stats['orders_30d'] * $ecv2_banner_stats['avg_order'] * 0.02 )
 				);
 			}
 			echo '<div class="ecv2-upsell-banner">';
-			echo '<span class="ecv2-upsell-banner-pill">PRO</span>';
+			echo '<span class="ecv2-upsell-banner-pill">' . esc_html( ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ) . '</span>';
 			echo '<span class="ecv2-upsell-banner-text">' . esc_html( $ecv2_banner_text ) . '</span>';
 			if ( class_exists( 'wp_easycart_admin_upsell' ) ) {
 				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: \'default\' } ); return false;">' . esc_html__( "See what's included", 'wp-easycart' ) . '</button>';
 			}
-			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' ) ) . '">' . esc_html__( 'Try PRO free', 'wp-easycart' ) . '</a>';
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' ) ) . '">' . esc_html__( 'Try Pro free', 'wp-easycart' ) . '</a>';
 			echo '</div>';
 		}
 
@@ -3891,8 +4352,35 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			echo '<script>jQuery( document.getElementById( \'ec_admin_upsell_popup\' ) ).appendTo( document.body );</script>';
 		}
 	
+		/**
+		 * Settings › Flex-Fees ( list and editor ) without a licensed PRO: the locked page — header, feature
+		 * strip and a sample-data preview under a soft lock. It used to print the legacy editable table of
+		 * the store's real ec_fee rows above the upsell.
+		 *
+		 * PRO removes this callback once licensed; the check below also covers PRO builds that only remove
+		 * the old callbacks, so a licensed store never sees the lock under its fee list.
+		 *
+		 * @since 6.0.0
+		 */
+		public function show_fee_locked_page() {
+			if ( class_exists( 'wp_easycart_admin_fee_pro' ) && function_exists( 'wp_easycart_admin_license' ) && wp_easycart_admin_license()->is_licensed() ) {
+				return;
+			}
+			if ( ! class_exists( 'wp_easycart_admin_upsell' ) || ( function_exists( 'wp_easycart_admin_license' ) && wp_easycart_admin_license()->license_expired ) ) {
+				/* Lapsed license or trial: PRO swaps in its "paused until you renew" body, as on every other PRO page. */
+				$this->show_upgrade();
+				return;
+			}
+			wp_easycart_admin_upsell::print_locked_page( 'fees' );
+		}
+
+		/**
+		 * Back-compat alias for show_fee_locked_page().
+		 *
+		 * @deprecated 6.0.0 Printed the store's real fee rows to unlicensed stores. Use show_fee_locked_page().
+		 */
 		public function show_fee_list_example() {
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/taxes/flex-fee.php' );
+			$this->show_fee_locked_page();
 		}
 
 		public function show_upgrade( ){
@@ -3915,6 +4403,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'decimals'            => (int) $GLOBALS['currency']->get_decimal_length(),
 				'weight_unit'         => get_option( 'ec_option_weight_unit', 'lb' ),
 				'reload_after_create' => ( isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'option', 'optionitems' ), true ) ),
+				/* Option Sets screens: after "Create option set" go straight to the full editor for the new set. */
+				'edit_after_create'   => ( isset( $_GET['subpage'] ) && in_array( $_GET['subpage'], array( 'option', 'optionitems' ), true ) ), // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput -- read-only page check against a fixed list.
 				'lang'                => array(
 					'title'           => __( 'Create an option set', 'wp-easycart' ),
 					/* translators: %s is the option set name. */
@@ -3938,6 +4428,20 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'remove'          => __( 'Remove', 'wp-easycart' ),
 					'pick_photo'      => __( 'Choose a photo', 'wp-easycart' ),
 					'use_photo'       => __( 'Use this photo', 'wp-easycart' ),
+					'swatch_title'    => __( 'Set a color or image', 'wp-easycart' ),
+					'color'           => __( 'Color', 'wp-easycart' ),
+					'image'           => __( 'Image', 'wp-easycart' ),
+					'two_tone'        => __( 'Two-tone', 'wp-easycart' ),
+					'image_hint'      => __( 'Use a photo or pattern instead of a flat color.', 'wp-easycart' ),
+					'choose_image'    => __( 'Choose image…', 'wp-easycart' ),
+					/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+					'image_pro'       => sprintf( __( 'Photo swatches are a %s feature. Color swatches are included with every store.', 'wp-easycart' ), ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
+					/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+					'unlock'          => sprintf( __( 'Unlock with %s', 'wp-easycart' ), ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
+					'remove_swatch'   => __( 'Remove', 'wp-easycart' ),
+					'cancel'          => __( 'Cancel', 'wp-easycart' ),
+					'apply'           => __( 'Apply', 'wp-easycart' ),
+					'no_media'        => __( 'The media library is not available on this page.', 'wp-easycart' ),
 					/* translators: %s is the option set name. */
 					'created'         => __( '“%s” created.', 'wp-easycart' ),
 					'error'           => __( 'An error occurred. Please try again.', 'wp-easycart' ),
@@ -3994,7 +4498,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 
 			if ( ! file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
-				echo esc_attr( sprintf( __( 'Error installing the WP EasyCart PRO plugin. Please try again or contact %s for assistance.', 'wp-easyart' ), 'support@wpeasycart.com' ) );
+				/* translators: %s: support email address. */
+				echo esc_attr( sprintf( __( 'Error installing the WP EasyCart PRO plugin. Please try again or contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) );
 				die( );
 			}
 
@@ -4013,7 +4518,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 			$license_key = $this->create_trial_license( $name, $email );
 			if ( ! $license_key ) {
-				echo esc_attr( sprintf( __( 'Error creating trial key. Something may be wrong with our server, please contact %s for assistance.', 'wp-easyart' ), 'support@wpeasycart.com' ) ) . '<br>';
+				echo esc_attr( sprintf( __( 'Error creating trial key. Something may be wrong with our server, please contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) ) . '<br>';
 				die( );
 			} else if ( $license_key == "key_exists" ) {
 				// Should load from
@@ -4668,6 +5173,18 @@ function wp_easycart_admin( ){
 }
 wp_easycart_admin( );
 
+if ( ! function_exists( 'wp_easycart_admin_notice_html' ) ) {
+	/**
+	 * V2 admin notice markup ( success / warning / error / info ). PRO and add-ons should call this
+	 * instead of printing the classic .ec_admin_message_* boxes.
+	 *
+	 * @since 6.0.0
+	 */
+	function wp_easycart_admin_notice_html( $tone, $text, $args = array() ) {
+		return wp_easycart_admin::notice_html( $tone, $text, $args );
+	}
+}
+
 add_action( 'wp_ajax_ec_admin_ajax_allow_tracking', 'ec_admin_ajax_allow_tracking' );
 function ec_admin_ajax_allow_tracking() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-tracking' ) ) {
@@ -4725,90 +5242,83 @@ function ec_admin_ajax_save_color_scheme( ){
 	die();
 }
 
+/**
+ * Report filter arguments from a Reports-page POST ( shared by the chart refresh and the export job ).
+ *
+ * @since 6.0.0
+ * @return array start_date, end_date, start_date2, end_date2, range, product_id, country, billing_country, location_id.
+ */
+function ec_admin_report_request_args() {
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- callers verify the wp-easycart-updated-stats / wp-easycart-export-stats nonce through wp_easycart_admin_verification() before reading these.
+	$text = function( $key ) {
+		return isset( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';
+	};
+	$start_date2 = $text( 'start_date2' );
+	$end_date2   = $text( 'end_date2' );
+	$args = array(
+		'start_date'      => $text( 'start_date' ),
+		'end_date'        => $text( 'end_date' ),
+		'start_date2'     => ( '' !== $start_date2 && '0' !== $start_date2 ) ? $start_date2 : '',
+		'end_date2'       => ( '' !== $end_date2 && '0' !== $end_date2 ) ? $end_date2 : '',
+		'range'           => $text( 'range' ),
+		'product_id'      => isset( $_POST['product'] ) ? (int) $_POST['product'] : 0,
+		'country'         => $text( 'country' ),
+		'billing_country' => $text( 'billing_country' ),
+		'location_id'     => isset( $_POST['location_id'] ) ? (int) $_POST['location_id'] : 0,
+	);
+	// phpcs:enable
+	if ( '0' === $args['country'] ) {
+		$args['country'] = '';
+	}
+	if ( '0' === $args['billing_country'] ) {
+		$args['billing_country'] = '';
+	}
+	return $args;
+}
+
 add_action( 'wp_ajax_ec_admin_get_updated_stat_list', 'ec_admin_get_updated_stat_list' );
 function ec_admin_get_updated_stat_list( ){
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-updated-stats' ) ) {
 		return false;
 	}
 
+	$a = ec_admin_report_request_args();
 	$stats = ( object ) array (
-		'sales' => wp_easycart_admin()->get_stats( 
-			'sales',
-			sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['start_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['range'] ) ),
-			(int) $_POST['product'],
-			sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-		),
-		'items' => wp_easycart_admin()->get_stats(
-			'items', sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['start_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['range'] ) ),
-			(int) $_POST['product'],
-			sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-		),
-		'carts' => wp_easycart_admin()->get_stats(
-			'carts',
-			sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['start_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['range'] ) ),
-			(int) $_POST['product'],
-			sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-		),
-		'single'=> wp_easycart_admin()->get_single_stats(
-			sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['start_date2'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['end_date2'] ) ),
-			(int) $_POST['product'],
-			sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-			sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-		),
+		'sales'  => wp_easycart_admin()->get_stats( 'sales', $a['start_date'], $a['end_date'], $a['start_date2'], $a['end_date2'], $a['range'], $a['product_id'], $a['country'], $a['billing_country'], $a['location_id'] ),
+		'items'  => wp_easycart_admin()->get_stats( 'items', $a['start_date'], $a['end_date'], $a['start_date2'], $a['end_date2'], $a['range'], $a['product_id'], $a['country'], $a['billing_country'], $a['location_id'] ),
+		'carts'  => wp_easycart_admin()->get_stats( 'carts', $a['start_date'], $a['end_date'], $a['start_date2'], $a['end_date2'], $a['range'], $a['product_id'], $a['country'], $a['billing_country'], $a['location_id'] ),
+		'single' => wp_easycart_admin()->get_single_stats( $a['start_date'], $a['end_date'], $a['start_date2'], $a['end_date2'], $a['product_id'], $a['country'], $a['billing_country'], $a['location_id'] ),
 	);
 	echo json_encode( $stats );
 	die( );
 }
 
+/**
+ * Resumable CSV export. First call ( no job ) creates the job and runs the first batch; every call returns
+ * { done, processed, total, next: { job, phase, last_order_id } } and, once done, `reports` ( report1,
+ * report2, reporttax ) exactly as the one-shot handler used to. The stored cursor is authoritative.
+ *
+ * @since 6.0.0 batched; nonce / capability check unchanged.
+ */
 add_action( 'wp_ajax_ec_admin_create_report_export', 'ec_admin_create_report_export' );
 function ec_admin_create_report_export( ){
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-export-stats' ) ) {
-		return false;
+		wp_send_json( array( 'error' => 'permission' ) );
 	}
 
-	$order_report = wp_easycart_admin( )->get_order_report(
-		sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-		(int) $_POST['product'],
-		sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-	);
-	$order_report2 = ( isset( $_POST['start_date2'] ) && (bool) $_POST['start_date2'] ) ? wp_easycart_admin( )->get_order_report(
-		sanitize_text_field( wp_unslash( $_POST['start_date2'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['end_date2'] ) ),
-		(int) $_POST['product'],
-		sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-	) : false;
-	$tax_report = wp_easycart_admin( )->get_tax_report(
-		sanitize_text_field( wp_unslash( $_POST['start_date'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['end_date'] ) ),
-		(int) $_POST['product'],
-		sanitize_text_field( wp_unslash( $_POST['country'] ) ),
-		sanitize_text_field( wp_unslash( $_POST['billing_country'] ) )
-	);
-	$reports = (object) array( 'report1' => $order_report, 'report2' => $order_report2, 'reporttax' => $tax_report );
-	$reports = apply_filters( 'wp_easycart_export_report_list', $reports, sanitize_text_field( wp_unslash( $_POST['start_date'] ) ), sanitize_text_field( wp_unslash( $_POST['end_date'] ) ), (int) $_POST['product'], sanitize_text_field( wp_unslash( $_POST['country'] ) ), sanitize_text_field( wp_unslash( $_POST['billing_country'] ) ) );
-	echo json_encode( $reports );
-	die( );
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by verify_access() above.
+	$token = isset( $_POST['job'] ) ? preg_replace( '/[^a-f0-9]/', '', sanitize_key( wp_unslash( $_POST['job'] ) ) ) : '';
+	if ( '' === $token ) {
+		$token = wp_easycart_admin()->report_job_create( ec_admin_report_request_args() );
+		if ( ! $token ) {
+			wp_send_json( array( 'error' => 'file', 'message' => __( 'The uploads folder is not writable, so the report file could not be created.', 'wp-easycart' ) ) );
+		}
+	}
+	$result = wp_easycart_admin()->report_job_step( $token );
+	if ( ! $result ) {
+		wp_send_json( array( 'error' => 'job', 'message' => __( 'This export has expired. Please start it again.', 'wp-easycart' ) ) );
+	}
+	wp_send_json( $result );
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_terms_accepted', 'ec_admin_ajax_save_terms_accepted' );

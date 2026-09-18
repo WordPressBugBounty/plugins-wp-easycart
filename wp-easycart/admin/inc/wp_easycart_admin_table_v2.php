@@ -34,6 +34,8 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		protected $key;
 		protected $custom_header;
 		protected $icon;
+		/** Extra context shown after the record count in the header's context line. @since 6.0.0 */
+		protected $subline;
 
 		/* Add new */
 		protected $add_new = true;
@@ -142,12 +144,13 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			} else {
 				$this->current_page = 1;
 			}
+			$this->perpage_options = array( 10, 25, 50, 100, 250, 500 );
 			if ( isset( $_GET['perpage'] ) ) {
-				$this->perpage = (int) $_GET['perpage'];
+				$this->perpage = $this->clamp_perpage( (int) $_GET['perpage'] );
 			} else if ( isset( $_COOKIE['wpeasycart_admin_perpage'] ) ) {
-				$this->perpage = (int) $_COOKIE['wpeasycart_admin_perpage'];
+				$this->perpage = $this->clamp_perpage( (int) $_COOKIE['wpeasycart_admin_perpage'] );
 			} else if ( (int) get_option( 'ec_option_admin_default_perpage' ) > 0 ) {
-				$this->perpage = (int) get_option( 'ec_option_admin_default_perpage' );
+				$this->perpage = $this->clamp_perpage( (int) get_option( 'ec_option_admin_default_perpage' ) );
 			} else {
 				$this->perpage = 25;
 			}
@@ -168,7 +171,6 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					$this->query_params[] = explode( '=', $param );
 				}
 			}
-			$this->perpage_options = array( 10, 25, 50, 100, 250, 500 );
 
 			// View mode from GET or cookie.
 			if ( isset( $_GET['view_mode'] ) && in_array( $_GET['view_mode'], $this->view_modes, true ) ) {
@@ -183,12 +185,31 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			$this->key = $key;
 			$this->resolve_perpage();
 		}
+		/**
+		 * Clamp a requested page size to the declared per-page options: never below 1
+		 * ( division by zero in total_pages ) and never above the largest option, so
+		 * ?perpage=1000000 cannot make a list load or render a whole table.
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param int $perpage Requested rows per page.
+		 * @return int
+		 */
+		protected function clamp_perpage( $perpage ) {
+			$perpage = (int) $perpage;
+			if ( $perpage < 1 ) {
+				return 25;
+			}
+			$max = ( is_array( $this->perpage_options ) && ! empty( $this->perpage_options ) ) ? (int) max( $this->perpage_options ) : 500;
+			return min( $perpage, max( 1, $max ) );
+		}
+
 		protected function resolve_perpage() {
 			$user_id = get_current_user_id();
 			$meta_key = 'wpeasycart_admin_perpage_' . $this->table;
 
 			if ( isset( $_GET['perpage'] ) ) {
-				$this->perpage = (int) $_GET['perpage'];
+				$this->perpage = $this->clamp_perpage( (int) $_GET['perpage'] );
 				if ( $user_id && in_array( $this->perpage, $this->perpage_options, true ) ) {
 					update_user_meta( $user_id, $meta_key, $this->perpage );
 				}
@@ -233,6 +254,14 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		public function set_header( $header ) {
 			$this->custom_header = $header;
 		}
+		/**
+		 * Append page context to the header's context line, after the record count.
+		 * Plain text, one short phrase ( "6 low stock" ). @since 6.0.0
+		 */
+		public function set_subline( $text ) {
+			$this->subline = $text;
+		}
+
 		public function set_icon( $icon ) {
 			$this->icon = $icon;
 		}
@@ -265,7 +294,21 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			$this->search_disabled = $search_disabled;
 		}
 		public function set_per_page( $per_page ) {
-			$this->perpage = $per_page;
+			$this->perpage = $this->clamp_perpage( $per_page );
+		}
+
+		/**
+		 * Current value of filter N from the request, sanitized ( '' when unset ).
+		 *
+		 * @since 6.0.0
+		 *
+		 * @param int $index Filter index.
+		 * @return string
+		 */
+		protected function filter_value( $index ) {
+			$key = 'filter_' . (int) $index;
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter; the value only selects which rows are shown.
+			return isset( $_GET[ $key ] ) ? sanitize_text_field( wp_unslash( $_GET[ $key ] ) ) : '';
 		}
 		public function set_bulk_actions( $bulk_actions ) {
 			$this->bulk_actions = $bulk_actions;
@@ -308,8 +351,17 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		}
 
 		/* V2-specific setters */
+		/**
+		 * @since 6.0.0 The view mode is resolved in the constructor, before a list says which modes it has, so a "card"
+		 * cookie set on another list used to stick here: the table was hidden, the generic card view took over and the
+		 * toggle was not printed ( one mode ), leaving no way back. A mode this list does not offer now falls back to
+		 * its first one.
+		 */
 		public function set_view_modes( $modes ) {
 			$this->view_modes = $modes;
+			if ( ! in_array( $this->current_view_mode, $this->view_modes, true ) ) {
+				$this->current_view_mode = ( isset( $this->view_modes[0] ) && in_array( 'table', $this->view_modes, true ) ) ? 'table' : ( isset( $this->view_modes[0] ) ? $this->view_modes[0] : 'table' );
+			}
 		}
 		public function set_health_stats( $stats ) {
 			$this->health_stats = $stats;
@@ -379,16 +431,25 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '</div>'; // .ecv2-wrap
 		}
 
+		/**
+		 * Page header: icon tile, title and a muted context line on the left, actions on the right.
+		 * The record count moved into the context line but keeps .ecv2-record-count on its own element —
+		 * products-v2.js and settings-lists-v2.js rewrite that text after a bulk action. @since 6.0.0
+		 */
 		protected function print_page_header() {
 			echo '<div class="ecv2-page-header">';
 			echo '<div class="ecv2-page-header-left">';
-			echo '<h1 class="ecv2-page-title">';
 			if ( isset( $this->icon ) ) {
-				echo '<span class="dashicons dashicons-' . esc_attr( $this->icon ) . '"></span> ';
+				echo '<span class="dashicons dashicons-' . esc_attr( $this->icon ) . ' ecv2-page-header-icon"></span>';
 			}
-			echo esc_html( isset( $this->custom_header ) ? $this->custom_header : $this->item_label_plural );
-			echo '</h1>';
-			echo '<span class="ecv2-record-count">' . esc_html( $this->record_count ) . ' ' . esc_html( $this->record_count == 1 ? $this->item_label : $this->item_label_plural ) . '</span>';
+			echo '<div class="ecv2-page-header-text">';
+			echo '<h1 class="ecv2-page-title">' . esc_html( isset( $this->custom_header ) ? $this->custom_header : $this->item_label_plural ) . '</h1>';
+			echo '<p class="ecv2-page-subline"><span class="ecv2-record-count">' . esc_html( $this->record_count ) . ' ' . esc_html( $this->record_count == 1 ? $this->item_label : $this->item_label_plural ) . '</span>';
+			if ( isset( $this->subline ) && '' !== $this->subline ) {
+				echo ' &middot; ' . esc_html( $this->subline );
+			}
+			echo '</p>';
+			echo '</div>'; // .ecv2-page-header-text
 			echo '</div>'; // .ecv2-page-header-left
 
 			echo '<div class="ecv2-page-header-right">';
@@ -400,18 +461,18 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			// Help link.
 			if ( isset( $this->docs_guide ) ) {
-				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> ' . esc_html__( 'Help', 'wp-easycart' ) . '</a>';
+				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" title="' . esc_attr__( 'Help', 'wp-easycart' ) . '"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label">' . esc_html__( 'Help', 'wp-easycart' ) . '</span></a>';
 			}
 
 			// Importer.
 			if ( $this->importer ) {
 				$subpage = isset( $_GET['subpage'] ) ? sanitize_key( $_GET['subpage'] ) : 'products';
-				echo '<a onclick="ec_admin_importer_open_close(\'' . esc_attr( $subpage ) . '_importer\');" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-upload"></span> ' . esc_html( $this->importer_button ) . '</a>';
+				echo '<a onclick="ec_admin_importer_open_close(\'' . esc_attr( $subpage ) . '_importer\');" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-upload"></span> <span class="ecv2-btn-label">' . esc_html( $this->importer_button ) . '</span></a>';
 			}
 
 			// Add new.
 			if ( $this->add_new ) {
-				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '><span class="dashicons dashicons-plus-alt2"></span> ' . esc_html( $this->add_new_label ) . '</a>';
+				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . ' title="' . esc_attr( $this->add_new_label ) . '"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
 			}
 
 			echo '</div>'; // .ecv2-page-header-right
@@ -752,8 +813,23 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 				if ( $filter_type === 'select' ) {
 					// Searchable select dropdown — isolated from v1 CSS.
+					/*
+					 * 'ajax' => array( 'action', 'nonce', 'nonce_key', 'term_key', 'min' ) turns the select into a
+					 * typeahead ( @since 6.0.0 ): 'data' then carries only the currently selected option, and the
+					 * page JS fetches choices from the named admin-ajax action as the merchant types. Big
+					 * catalogs no longer print every category / product / customer into the drawer.
+					 */
+					$ajax_attrs = '';
+					if ( ! empty( $filter['ajax'] ) && is_array( $filter['ajax'] ) && ! empty( $filter['ajax']['action'] ) ) {
+						$ajax_attrs .= ' data-ajax-action="' . esc_attr( $filter['ajax']['action'] ) . '"';
+						foreach ( array( 'nonce', 'nonce_key', 'term_key', 'min' ) as $ajax_key ) {
+							if ( isset( $filter['ajax'][ $ajax_key ] ) && '' !== (string) $filter['ajax'][ $ajax_key ] ) {
+								$ajax_attrs .= ' data-ajax-' . str_replace( '_', '-', $ajax_key ) . '="' . esc_attr( $filter['ajax'][ $ajax_key ] ) . '"';
+							}
+						}
+					}
 					echo '<div class="ecv2-drawer-select-wrap">';
-					echo '<select class="ecv2-filter-select ecv2-drawer-select" data-filter="filter_' . esc_attr( $i ) . '" data-placeholder="' . esc_attr( sprintf( __( 'Search %s...', 'wp-easycart' ), strtolower( $filter['label'] ) ) ) . '">';
+					echo '<select class="ecv2-filter-select ecv2-drawer-select' . ( '' !== $ajax_attrs ? ' ecv2-filter-ajax' : '' ) . '" data-filter="filter_' . esc_attr( $i ) . '" data-placeholder="' . esc_attr( sprintf( __( 'Search %s...', 'wp-easycart' ), strtolower( $filter['label'] ) ) ) . '"' . $ajax_attrs . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $ajax_attrs is built above from literal attribute names and esc_attr() values.
 					echo '<option value="">' . esc_html( sprintf( __( 'All %s', 'wp-easycart' ), $filter['label'] ) ) . '</option>';
 					if ( isset( $filter['data'] ) && is_array( $filter['data'] ) ) {
 						foreach ( $filter['data'] as $option ) {
@@ -763,6 +839,9 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						}
 					}
 					echo '</select>';
+					if ( ! empty( $filter['hint'] ) ) {
+						echo '<div class="ecv2-drawer-filter-hint ecv2-sub">' . esc_html( $filter['hint'] ) . '</div>';
+					}
 					echo '</div>';
 				} elseif ( $filter_type === 'range' ) {
 					// Price / numeric range inputs.
@@ -908,9 +987,8 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						$visible_cols++;
 					}
 				}
-				echo '<tr><td colspan="' . ( $visible_cols + 2 ) . '" class="ecv2-empty-state">';
-				echo '<span class="dashicons dashicons-info-outline"></span> ';
-				echo esc_html__( 'No items found.', 'wp-easycart' );
+				echo '<tr><td colspan="' . ( $visible_cols + 2 ) . '" class="ecv2-empty-state">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $visible_cols is an integer counter.
+				$this->print_empty_state();
 				echo '</td></tr>';
 			}
 			echo '</tbody>';
@@ -944,7 +1022,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					$extra_classes .= ' ecv2-hide-mobile';
 				}
 
-				echo '<th class="ecv2-col ecv2-col-' . esc_attr( $col['name'] ) . $sorted_class . $extra_classes . '"' . $width_attr . '>';
+				echo '<th class="ecv2-col ecv2-col-' . esc_attr( $col['name'] ) . $sorted_class . $extra_classes . '"' . $width_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sorted_class only carries the asc/desc value whitelisted in the constructor, $extra_classes is static literals, $width_attr is built from esc_attr().
 				echo '<a href="' . esc_url( $this->get_url( 'orderby', $col['name'], false, 'order', $sort ) ) . '" class="ecv2-sort-link">';
 				echo esc_html( $col['label'] );
 				if ( $this->current_sort_column == $col['name'] ) {
@@ -983,7 +1061,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				if ( in_array( $col['name'], $this->inline_editable_columns ) ) {
 					$editable_attr = ' data-editable="true" data-field="' . esc_attr( $col['name'] ) . '"';
 				}
-				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '"' . $editable_attr . '>';
+				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . $extra_classes . '"' . $editable_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $extra_classes is static literals, $editable_attr is built from esc_attr().
 				$this->print_cell_content( $result, $col );
 				echo '</td>';
 			}
@@ -1025,12 +1103,12 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 					echo ( (bool) $result->{ $col['name'] } ) ? esc_html__( 'Yes', 'wp-easycart' ) : esc_html__( 'No', 'wp-easycart' );
 					break;
 				case 'date':
-					$ts = strtotime( $result->{ $col['name'] } );
+					$ts = empty( $result->{ $col['name'] } ) ? 0 : strtotime( $result->{ $col['name'] } ); // Empty or NULL columns print nothing ( strtotime( null ) is deprecated on PHP 8.1+ ).
 					echo $ts > 0 ? esc_html( date( 'F d, Y', $ts ) ) : '';
 					break;
 				case 'datetime':
-					$ts = strtotime( $result->{ $col['name'] } );
-					if ( isset( $col['localize_timestamp'] ) && $col['localize_timestamp'] ) {
+					$ts = empty( $result->{ $col['name'] } ) ? 0 : strtotime( $result->{ $col['name'] } );
+					if ( $ts > 0 && isset( $col['localize_timestamp'] ) && $col['localize_timestamp'] ) {
 						$ts += $this->date_diff;
 					}
 					echo $ts > 0 ? esc_html( $this->format_relative_date( $ts, time() + ( isset( $col['localize_timestamp'] ) && $col['localize_timestamp'] ? $this->date_diff : 0 ) ) ) : '';
@@ -1079,6 +1157,10 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '<div class="ecv2-row-menu">';
 			foreach ( $this->row_menu_actions as $action ) {
 				if ( isset( $action['min_id'] ) && $result->{ $this->key } < $action['min_id'] ) {
+					continue;
+				}
+				// 'show_if' => 'column': only offer the action when that column has a value on this row.
+				if ( isset( $action['show_if'] ) && empty( $result->{ $action['show_if'] } ) ) {
 					continue;
 				}
 				$this->print_row_menu_item( $result, $action );
@@ -1141,9 +1223,26 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				$this->print_card( $result );
 			}
 			if ( empty( $this->results ) ) {
-				echo '<div class="ecv2-empty-state"><span class="dashicons dashicons-info-outline"></span> ' . esc_html__( 'No items found.', 'wp-easycart' ) . '</div>';
+				echo '<div class="ecv2-empty-state">';
+				$this->print_empty_state();
+				echo '</div>';
 			}
 			echo '</div>';
+		}
+
+		/**
+		 * What an empty result set says, in every view ( table, card, spreadsheet ).
+		 *
+		 * The caller has already opened the centred .ecv2-empty-state container. Override in a
+		 * subclass to print a richer message — for example a short explanation of the screen and
+		 * a button to create the first record when the store has nothing of this kind yet. The
+		 * default output is the plain "No items found." line every list showed before.
+		 *
+		 * @since 6.0.0
+		 */
+		protected function print_empty_state() {
+			echo '<span class="dashicons dashicons-info-outline"></span> ';
+			echo esc_html__( 'No items found.', 'wp-easycart' );
 		}
 
 		/**
@@ -1193,7 +1292,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				$is_hidden = in_array( $col['name'], $hidden_cols, true );
 				$checked = $is_hidden ? '' : ' checked';
 				echo '<label class="ecv2-ss-col-picker-item' . ( $always_on ? ' ecv2-ss-col-picker-locked' : '' ) . '">';
-				echo '<input type="checkbox" data-ss-col="' . $col_key . '"' . $checked . ( $always_on ? ' disabled' : '' ) . ' onchange="ecv2_toggle_ss_column(\'' . $col_key . '\', this.checked);" />';
+				echo '<input type="checkbox" data-ss-col="' . $col_key . '"' . $checked . ( $always_on ? ' disabled' : '' ) . ' onchange="ecv2_toggle_ss_column(\'' . $col_key . '\', this.checked);" />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $col_key is built from esc_attr() above, $checked is a static literal.
 				echo ' ' . esc_html( $col['label'] );
 				echo '</label>';
 			}
@@ -1205,8 +1304,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			if ( empty( $this->results ) ) {
 				// Empty state: white background centered message matching table/card views.
 				echo '<div class="ecv2-empty-state ecv2-empty-state-ss">';
-				echo '<span class="dashicons dashicons-info-outline"></span> ';
-				echo esc_html__( 'No items found.', 'wp-easycart' );
+				$this->print_empty_state();
 				echo '</div>';
 			} else {
 				echo '<table class="ecv2-spreadsheet">';
@@ -1217,7 +1315,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						continue;
 					}
 					$hide_style = in_array( $col['name'], $hidden_cols, true ) ? ' style="display:none;"' : '';
-					echo '<th class="ecv2-ss-col ecv2-ss-col-' . esc_attr( $col['name'] ) . '"' . $hide_style . '>' . esc_html( $col['label'] ) . '</th>';
+					echo '<th class="ecv2-ss-col ecv2-ss-col-' . esc_attr( $col['name'] ) . '"' . $hide_style . '>' . esc_html( $col['label'] ) . '</th>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $hide_style is a static literal.
 				}
 				echo '<th class="ecv2-ss-col ecv2-ss-col-actions">' . esc_html__( 'Actions', 'wp-easycart' ) . '</th>';
 				echo '</tr></thead>';
@@ -1231,7 +1329,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						}
 						$editable = isset( $col['ss_editable'] ) && $col['ss_editable'];
 						$hide_style = in_array( $col['name'], $hidden_cols, true ) ? ' style="display:none;"' : '';
-						echo '<td class="ecv2-ss-cell ecv2-ss-col ecv2-ss-col-' . esc_attr( $col['name'] ) . ( $editable ? ' ecv2-ss-editable' : '' ) . '" data-field="' . esc_attr( $col['name'] ) . '"' . ( $editable ? ' contenteditable="false"' : '' ) . $hide_style . '>';
+						echo '<td class="ecv2-ss-cell ecv2-ss-col ecv2-ss-col-' . esc_attr( $col['name'] ) . ( $editable ? ' ecv2-ss-editable' : '' ) . '" data-field="' . esc_attr( $col['name'] ) . '"' . ( $editable ? ' contenteditable="false"' : '' ) . $hide_style . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $hide_style is a static literal.
 						$this->print_spreadsheet_cell( $result, $col );
 						echo '</td>';
 					}
@@ -1283,13 +1381,13 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 				$disabled_prev = $this->current_page <= 1 ? ' disabled' : '';
 				$disabled_next = $this->current_page >= $this->total_pages ? ' disabled' : '';
 
-				echo '<a href="' . esc_url( $this->get_url( 'pagenum', '1', false ) ) . '" class="ecv2-page-btn' . $disabled_prev . '" title="' . esc_attr__( 'First', 'wp-easycart' ) . '">&laquo;</a>';
-				echo '<a href="' . esc_url( $this->get_url( 'pagenum', max( 1, $this->current_page - 1 ), false ) ) . '" class="ecv2-page-btn' . $disabled_prev . '" title="' . esc_attr__( 'Previous', 'wp-easycart' ) . '">&lsaquo;</a>';
+				echo '<a href="' . esc_url( $this->get_url( 'pagenum', '1', false ) ) . '" class="ecv2-page-btn' . $disabled_prev . '" title="' . esc_attr__( 'First', 'wp-easycart' ) . '">&laquo;</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $disabled_prev is a static literal.
+				echo '<a href="' . esc_url( $this->get_url( 'pagenum', max( 1, $this->current_page - 1 ), false ) ) . '" class="ecv2-page-btn' . $disabled_prev . '" title="' . esc_attr__( 'Previous', 'wp-easycart' ) . '">&lsaquo;</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $disabled_prev is a static literal.
 				echo '<span class="ecv2-page-info">';
 				echo '<input type="text" name="pagenum" class="ecv2-page-input" value="' . esc_attr( $this->current_page ) . '" size="1" /> / ' . esc_html( $this->total_pages );
 				echo '</span>';
-				echo '<a href="' . esc_url( $this->get_url( 'pagenum', min( $this->total_pages, $this->current_page + 1 ), false ) ) . '" class="ecv2-page-btn' . $disabled_next . '" title="' . esc_attr__( 'Next', 'wp-easycart' ) . '">&rsaquo;</a>';
-				echo '<a href="' . esc_url( $this->get_url( 'pagenum', $this->total_pages, false ) ) . '" class="ecv2-page-btn' . $disabled_next . '" title="' . esc_attr__( 'Last', 'wp-easycart' ) . '">&raquo;</a>';
+				echo '<a href="' . esc_url( $this->get_url( 'pagenum', min( $this->total_pages, $this->current_page + 1 ), false ) ) . '" class="ecv2-page-btn' . $disabled_next . '" title="' . esc_attr__( 'Next', 'wp-easycart' ) . '">&rsaquo;</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $disabled_next is a static literal.
+				echo '<a href="' . esc_url( $this->get_url( 'pagenum', $this->total_pages, false ) ) . '" class="ecv2-page-btn' . $disabled_next . '" title="' . esc_attr__( 'Last', 'wp-easycart' ) . '">&raquo;</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $disabled_next is a static literal.
 			}
 			echo '</div>';
 
@@ -1351,6 +1449,9 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						echo '<option value="' . esc_attr( $option['value'] ) . '">' . esc_html( $option['label'] ) . '</option>';
 					}
 					echo '</select>';
+					if ( ! empty( $field['hint'] ) ) {
+						echo '<div class="ecv2-modal-hint ecv2-sub">' . esc_html( $field['hint'] ) . '</div>';
+					}
 					break;
 				case 'price':
 					echo '<div class="ecv2-be-price-wrap">';
@@ -1388,9 +1489,11 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 		protected function get_data() {
 			$sql = $this->get_query();
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- both queries are assembled from table/column names and filter templates set by the subclass; request values are whitelisted ( ORDER BY ), (int) cast ( LIMIT ) or passed through $wpdb->prepare() ( filters and search ) in get_filter().
 			$this->results = $this->wpdb->get_results( $sql );
 			$this->showing = count( $this->results );
 			$record_count_row = $this->wpdb->get_row( 'SELECT COUNT( ' . $this->table . '.' . $this->key . ' ) AS total_rows' . $this->get_filter_select() . ' FROM ' . $this->table . ' ' . $this->join . $this->get_filter() );
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 			$this->record_count = ( $record_count_row && isset( $record_count_row->total_rows ) ) ? $record_count_row->total_rows : 0;
 			$this->total_pages = ceil( $this->record_count / $this->perpage );
 			if ( $this->current_page > $this->total_pages && $this->record_count == 0 ) {
@@ -1504,18 +1607,18 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						$join .= ' ' . $this->filters[ $i ]['join'];
 					}
 					if ( isset( $this->filters[ $i ]['where'] ) && '' != $this->filters[ $i ]['where'] ) {
-						$where .= ' AND ( ' . $this->wpdb->prepare( $this->filters[ $i ]['where'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) );
+						$where .= ' AND ( ' . $this->wpdb->prepare( $this->filters[ $i ]['where'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the SQL template comes from set_filters() in the subclass; the request value is the prepare() argument.
 					}
 					if ( isset( $this->filters[ $i ]['where2'] ) && '' != $this->filters[ $i ]['where2'] ) {
-						$where .= ' OR ' . $this->wpdb->prepare( $this->filters[ $i ]['where2'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) );
+						$where .= ' OR ' . $this->wpdb->prepare( $this->filters[ $i ]['where2'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the SQL template comes from set_filters() in the subclass; the request value is the prepare() argument.
 					}
 					if ( isset( $this->filters[ $i ]['where'] ) && '' != $this->filters[ $i ]['where'] ) {
 						$where .= ' )';
 					}
 					if ( isset( $this->filters[ $i ]['having'] ) && '' == $having && '' != $this->filters[ $i ]['having'] ) {
-						$having .= ' HAVING ' . $this->wpdb->prepare( $this->filters[ $i ]['having'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) );
+						$having .= ' HAVING ' . $this->wpdb->prepare( $this->filters[ $i ]['having'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the SQL template comes from set_filters() in the subclass; the request value is the prepare() argument.
 					} else if ( isset( $this->filters[ $i ]['having'] ) && '' != $this->filters[ $i ]['having'] ) {
-						$having .= ' AND ' . $this->wpdb->prepare( $this->filters[ $i ]['having'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) );
+						$having .= ' AND ' . $this->wpdb->prepare( $this->filters[ $i ]['having'], sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the SQL template comes from set_filters() in the subclass; the request value is the prepare() argument.
 					} else if ( isset( $this->filters[ $i ]['group'] ) && '' != $this->filters[ $i ]['group'] ) {
 						$having .= ' ' . $this->filters[ $i ]['group'];
 					}

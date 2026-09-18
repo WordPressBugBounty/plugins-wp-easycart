@@ -391,6 +391,26 @@
                     "title": "Store Missing Option",
                     "value": "fehlende Option:"
                 },
+                "product_details_min_length": {
+                    "title": "Text Option Minimum Length (%d is the number of characters)",
+                    "value": "Bitte mindestens %d Zeichen eingeben."
+                },
+                "product_details_file_type_error": {
+                    "title": "File Upload Type Not Accepted (%s is the list of accepted types)",
+                    "value": "Dieser Dateityp kann nicht hochgeladen werden. Erlaubte Dateitypen: %s"
+                },
+                "product_details_file_size_error": {
+                    "title": "File Upload Too Large (%s is the size limit)",
+                    "value": "Diese Datei ist zu gro\u00df. Die maximale Dateigr\u00f6\u00dfe betr\u00e4gt %s."
+                },
+                "product_details_file_upload_error": {
+                    "title": "File Upload Could Not Be Saved",
+                    "value": "Ihre Datei konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns, wenn das Problem weiterhin besteht."
+                },
+                "product_details_file_types_hint": {
+                    "title": "File Upload Accepted Types (%s is the list of accepted types)",
+                    "value": "Erlaubte Dateitypen: %s"
+                },
                 "product_details_maximum_quantity": {
                     "title": "Store Maximum Quantity Exceeded",
                     "value": "H\u00f6chstmenge \u00fcberschritten"
@@ -1290,6 +1310,22 @@
                 "cart_totals_duty": {
                     "title": "Warenkorb, Warenkorb betr\u00e4gt, Geb\u00fchr",
                     "value": "Zollgeb\u00fchren"
+                },
+                "cart_totals_gst": {
+                    "title": "Cart, Cart Totals, Canada GST",
+                    "value": "GST"
+                },
+                "cart_totals_pst": {
+                    "title": "Cart, Cart Totals, Canada PST",
+                    "value": "PST"
+                },
+                "cart_totals_qst": {
+                    "title": "Cart, Cart Totals, Quebec QST (the PST rate for Quebec addresses)",
+                    "value": "QST"
+                },
+                "cart_totals_hst": {
+                    "title": "Cart, Cart Totals, Canada HST",
+                    "value": "HST"
                 },
                 "cart_totals_grand_total": {
                     "title": "Warenkorb, Warenkorb betr\u00e4gt, Gesamtbetrag",
@@ -3192,6 +3228,126 @@
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
 					"value":"Ändern Sie Ihren Plan"
+				},
+				"subscription_status_active":{
+					"title":"Account, Subscription Details, Status Active",
+					"value":"Aktiv"
+				},
+				"subscription_status_trialing":{
+					"title":"Account, Subscription Details, Status Trial",
+					"value":"Testphase"
+				},
+				"subscription_status_past_due":{
+					"title":"Account, Subscription Details, Status Past Due",
+					"value":"Zahlung überfällig"
+				},
+				"subscription_status_incomplete":{
+					"title":"Account, Subscription Details, Status Incomplete",
+					"value":"Unvollständig"
+				},
+				"subscription_status_paused":{
+					"title":"Account, Subscription Details, Status Paused",
+					"value":"Pausiert"
+				},
+				"subscription_status_suspended":{
+					"title":"Account, Subscription Details, Status Suspended",
+					"value":"Ausgesetzt"
+				},
+				"subscription_status_canceling":{
+					"title":"Account, Subscription Details, Status Cancels at Period End",
+					"value":"Endet zum Periodenende"
+				},
+				"subscription_status_canceled":{
+					"title":"Account, Subscription Details, Status Canceled",
+					"value":"Gekündigt"
+				},
+				"subscription_status_expired":{
+					"title":"Account, Subscription Details, Status Ended",
+					"value":"Beendet"
+				},
+				"subscription_details_back":{
+					"title":"Account, Subscription Details, Back Link",
+					"value":"Zurück zu den Abonnements"
+				},
+				"subscription_details_started":{
+					"title":"Account, Subscription Details, Started Date",
+					"value":"Begonnen"
+				},
+				"subscription_details_ends":{
+					"title":"Account, Subscription Details, Ends Date",
+					"value":"Endet"
+				},
+				"subscription_details_ended":{
+					"title":"Account, Subscription Details, Ended Date",
+					"value":"Beendet am"
+				},
+				"subscription_details_quantity":{
+					"title":"Account, Subscription Details, Quantity",
+					"value":"Menge"
+				},
+				"subscription_details_manage":{
+					"title":"Account, Subscription Details, Manage Title",
+					"value":"Abonnement verwalten"
+				},
+				"subscription_details_selections":{
+					"title":"Account, Subscription Details, Purchased Options Title",
+					"value":"Ihre Auswahl"
+				},
+				"subscription_details_signup_fee":{
+					"title":"Account, Subscription Details, Sign-up Fee",
+					"value":"Einmalige Anmeldegebühr"
+				},
+				"subscription_details_plan_changed":{
+					"title":"Account, Subscription Details, Plan Changed Note (%s is the original product)",
+					"value":"Dies ist Ihre Auswahl aus dem ursprünglichen Kauf von %s. Ihr Tarif hat sich seitdem geändert."
+				},
+				"subscription_details_view_original_order":{
+					"title":"Account, Subscription Details, View Original Order",
+					"value":"Ursprüngliche Bestellung ansehen"
+				},
+				"subscription_details_no_card":{
+					"title":"Account, Subscription Details, No Card on File",
+					"value":"Keine Karte hinterlegt"
+				},
+				"subscription_details_ended_notice":{
+					"title":"Account, Subscription Details, Ended Notice",
+					"value":"Dieses Abonnement ist beendet. Zahlungsmethode und Tarif können nicht mehr geändert werden."
+				},
+				"subscription_details_canceling_notice":{
+					"title":"Account, Subscription Details, Cancels at Period End Notice",
+					"value":"Dieses Abonnement wird nicht verlängert. Es bleibt bis zum Ende des aktuellen Abrechnungszeitraums aktiv."
+				},
+				"subscription_details_past_due_notice":{
+					"title":"Account, Subscription Details, Past Due Notice",
+					"value":"Ihre letzte Zahlung ist fehlgeschlagen. Aktualisieren Sie Ihre Zahlungsmethode, damit dieses Abonnement aktiv bleibt."
+				},
+				"subscription_details_close":{
+					"title":"Account, Subscription Details, Close Panel",
+					"value":"Schließen"
+				},
+				"subscription_details_current_plan":{
+					"title":"Account, Subscription Details, Current Plan Tag",
+					"value":"Aktueller Tarif"
+				},
+				"subscription_details_decrease_quantity":{
+					"title":"Account, Subscription Details, Decrease Quantity (screen readers)",
+					"value":"Menge verringern"
+				},
+				"subscription_details_increase_quantity":{
+					"title":"Account, Subscription Details, Increase Quantity (screen readers)",
+					"value":"Menge erhöhen"
+				},
+				"subscription_details_quantity_invalid":{
+					"title":"Account, Subscription Details, Invalid Quantity Error",
+					"value":"Geben Sie eine Menge von 1 oder mehr ein."
+				},
+				"subscription_details_card_label":{
+					"title":"Account, Subscription Details, Card Details Label",
+					"value":"Kartendaten"
+				},
+				"account_subscriptions_none_active":{
+					"title":"Account, Subscriptions, No Active Subscriptions",
+					"value":"Sie haben keine aktiven Abonnements."
 				}
             }
         },
@@ -3606,6 +3762,10 @@
                 "greater_than": {
                     "title": "Besser als Text",
                     "value": "Besser als"
+                },
+                "sidebar_title": {
+                    "title": "Store Sidebar Price Filter Title",
+                    "value": "Preis"
                 }
             }
         },

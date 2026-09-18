@@ -54,7 +54,7 @@ $ecodv2_hist_samples = array(
 						<div class="wpeasycart-timeline-item is-locked" onclick="ecodv2_locked( 'history' ); return false;">
 							<span class="dashicons <?php echo esc_attr( $ecodv2_hs[0] ); ?>"></span>
 							<div class="wpeasycart-timeline-item-info">
-								<a href="#" onclick="ecodv2_locked( 'history' ); return false;"><?php echo esc_html( $ecodv2_hs[1] ); ?> <span class="ecodv2-pro-pill">PRO</span></a>
+								<a href="#" onclick="ecodv2_locked( 'history' ); return false;"><?php echo esc_html( $ecodv2_hs[1] ); ?> <span class="ecodv2-pro-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span></a>
 								<small><?php echo esc_html( $ecodv2_hs[2] ); ?></small>
 							</div>
 						</div>
@@ -66,10 +66,10 @@ $ecodv2_hist_samples = array(
 			<button type="button" class="ecodv2-history-cta" onclick="ecodv2_locked( 'history' ); return false;">
 				<span class="dashicons dashicons-backup"></span>
 				<span class="ecodv2-history-cta-text">
-					<strong><?php esc_attr_e( 'See the full order log with PRO', 'wp-easycart' ); ?></strong>
-					<span><?php esc_attr_e( 'Entries above are examples. PRO records payments, refunds, status changes, emails and staff notes for every order, automatically.', 'wp-easycart' ); ?></span>
+					<strong><?php echo esc_html( sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'See the full order log with %s', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ) ); ?></strong>
+					<span><?php echo esc_html( sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'Entries above are examples. %s records payments, refunds, status changes, emails and staff notes for every order, automatically.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ) ); ?></span>
 				</span>
-				<span class="ecodv2-pro-pill">PRO</span>
+				<span class="ecodv2-pro-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span>
 			</button>
 		</div>
 	</div>

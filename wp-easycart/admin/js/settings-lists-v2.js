@@ -238,7 +238,7 @@ jQuery( function( $ ) {
 					var opts = ''; $.each( d.targets, function( i, t ) { opts += '<option value="' + t.value + '"' + ( t.value == d.default_target ? ' selected' : '' ) + '>' + esc( t.label ) + '</option>'; } );
 					var body = '<div class="ecsd-impacts"><div class="ecsd-impact ' + ( d.users ? 'is-warn' : 'is-info' ) + '"><b>' + d.users + '</b> users have this role' + ( d.users ? ' — choose where they go:' : '.' ) + '</div>' + ( d.users ? '<select class="ecv2-select" id="ecv2_del_to">' + opts + '</select>' : '' ) + '<div class="ecsd-impact ' + ( d.prices ? 'is-warn' : 'is-info' ) + '" style="margin-top:10px"><b>' + d.prices + '</b> role prices will be removed.</div></div><div class="ecos-note info" style="margin-top:12px"><span class="dashicons dashicons-undo"></span><div>Undo is offered for 15 minutes.</div></div>';
 					ecv2_catalog_modal( 'ecv2-delrole', 'Delete role “' + esc( d.name ) + '”?', body, '<button type="button" class="ecv2-btn" data-close>Keep role</button><button type="button" class="ecv2-btn ecv2-btn-danger" id="ecv2_del_go">Delete role</button>' );
-					$( '#ecv2_del_go' ).on( 'click', function() { $( this ).prop( 'disabled', true ); post( 'ecv2_role_delete', nonce, { role_id: id, to_role_id: $( '#ecv2_del_to' ).val() || 2 }, function( r ) { ecv2_catalog_close_modal(); if ( redirect_to ) { try { sessionStorage.setItem( 'ecv2_catalog_flash', JSON.stringify( { message: r.message, role_undo: r.undo } ) ); } catch ( e ) {} window.location.href = redirect_to; return; } $( 'tr[data-id="' + id + '"]' ).fadeOut( 200, function() { $( this ).remove(); } ); undo_toast( r.message, r.undo ); } ); } );
+					$( '#ecv2_del_go' ).on( 'click', function() { $( this ).prop( 'disabled', true ); post( 'ecv2_role_delete', nonce, { role_id: id, to_role_id: $( '#ecv2_del_to' ).val() || 2 }, function( r ) { ecv2_catalog_close_modal(); if ( redirect_to ) { try { sessionStorage.setItem( 'ecv2_catalog_flash', JSON.stringify( { message: r.message, role_undo: r.undo } ) ); } catch ( e ) {} window.location.href = redirect_to; return; } $( 'tr[data-id="' + id + '"]' ).fadeOut( 200, function() { $( this ).remove(); } ); if ( window.ecv2_rows_removed ) { ecv2_rows_removed( 1 ); } undo_toast( r.message, r.undo ); } ); } );
 				} );
 			},
 			delete_row: function( link ) { var $tr = $( link ).closest( 'tr' ); if ( $tr.data( 'master' ) == 1 ) { ecv2_toast( 'Built-in roles cannot be deleted.', 'info' ); return false; } ecrole.delete_row_id( $tr.data( 'id' ) ); return false; },
@@ -262,11 +262,6 @@ jQuery( function( $ ) {
 	( function() {
 		var $bar = $( '.ecsub-bar' ); if ( ! $bar.length ) { return; }
 		var nonce = $bar.data( 'nonce' );
-		function undo_toast( msg, undo ) {
-			var $t = $( '<div class="ecv2-toast ecv2-toast-success ecv2-toast-undo"><span class="dashicons dashicons-yes"></span> <span class="ecv2-toast-msg"></span>' + ( undo ? ' <a href="#">Undo</a>' : '' ) + '</div>' ); $t.find( '.ecv2-toast-msg' ).text( msg );
-			$t.find( 'a' ).on( 'click', function( e ) { e.preventDefault(); post( 'ecv2_subscriber_restore', nonce, { undo: undo }, function( d ) { ecv2_toast( d.message, 'success' ); setTimeout( function() { window.location.reload(); }, 600 ); } ); } );
-			$( '#ecv2-toast-container' ).append( $t ); setTimeout( function() { $t.fadeOut( 300, function() { $( this ).remove(); } ); }, 12000 );
-		}
 		function parse_csv( text ) {
 			var rows = [], row = [], cur = '', q = false;
 			for ( var i = 0; i < text.length; i++ ) { var c = text[ i ]; if ( q ) { if ( c === '"' ) { if ( text[ i + 1 ] === '"' ) { cur += '"'; i++; } else { q = false; } } else { cur += c; } } else if ( c === '"' ) { q = true; } else if ( c === ',' || c === ';' || c === '\t' ) { row.push( cur ); cur = ''; } else if ( c === '\n' || c === '\r' ) { if ( cur !== '' || row.length ) { row.push( cur ); rows.push( row ); } row = []; cur = ''; if ( c === '\r' && text[ i + 1 ] === '\n' ) { i++; } } else { cur += c; } }
@@ -292,7 +287,23 @@ jQuery( function( $ ) {
 			edit: function( link ) { var $tr = $( link ).closest( 'tr' ); ecsub.add( { id: $tr.data( 'id' ), email: $tr.data( 'email' ), first: $tr.data( 'first' ), last: $tr.data( 'last' ) } ); return false; },
 			account: function( link ) { var id = $( link ).closest( 'tr' ).data( 'customer-id' ); if ( ! id ) { ecv2_toast( 'No customer account matches this email.', 'info' ); return false; } window.location.href = 'admin.php?page=wp-easycart-users&subpage=accounts&ec_admin_form_action=edit&user_id=' + id; return false; },
 			delete_row: function( link ) { var $tr = $( link ).closest( 'tr' ); ecsub.bulk_delete( [ $tr.data( 'id' ) ] ); return false; },
-			bulk_delete: function( ids ) { post( 'ecv2_subscriber_bulk', nonce, { ids: ids, op: 'delete' }, function( d ) { $.each( ids, function( i, id ) { $( 'tr[data-id="' + id + '"]' ).fadeOut( 200, function() { $( this ).remove(); } ); } ); undo_toast( d.message, d.undo ); } ); },
+			/* 6.0.1: ask first ( in the V2 dialog ), then reload so the counts and paging are right. The reload lands on
+			   ?undo=<key>, where the list prints the shared Undo bar ( wp_easycart_admin_undo::maybe_print_bar() ). It used
+			   to come back as a toast through the ecv2_catalog_flash hand-off, but catalog-v2.js read that first and sent
+			   the Undo to the category trash, so it always failed; a toast also faded before it could be reached. */
+			bulk_delete: function( ids ) {
+				var n = ids.length;
+				var q = 1 === n ? 'Delete this subscriber?' : 'Delete ' + n + ' subscribers?';
+				var ask = window.ecv2_show_confirm ? ecv2_show_confirm( q, 'They stop receiving the newsletter. You can undo this for 15 minutes.' ) : Promise.resolve( window.confirm( q ) );
+				ask.then( function( go ) {
+					if ( ! go ) { return; }
+					post( 'ecv2_subscriber_bulk', nonce, { ids: ids, op: 'delete' }, function( d ) {
+						if ( d.undo && window.ecv2_undo_landing ) { window.location.href = ecv2_undo_landing( 'undo', d.undo ); return; }
+						ecv2_toast( d.message, 'success' );
+						setTimeout( function() { window.location.reload(); }, 600 );
+					} );
+				} );
+			},
 			export_selected: function( ids ) { window.location.href = $bar.data( 'export' ) + '&ids=' + ids.join( ',' ); },
 			import_open: function() {
 				parsed = null;
@@ -316,7 +327,6 @@ jQuery( function( $ ) {
 				$( '#ecsub_import_go' ).on( 'click', function() { $( this ).prop( 'disabled', true ); post( 'ecv2_subscriber_import', nonce, { rows: JSON.stringify( build() ) }, function( d ) { ecv2_catalog_close_modal(); ecv2_toast( d.message, 'success' ); setTimeout( function() { window.location.reload(); }, 900 ); } ); } );
 			}
 		};
-		try { var flash = JSON.parse( sessionStorage.getItem( 'ecv2_catalog_flash' ) || 'null' ); if ( flash && flash.sub_undo ) { sessionStorage.removeItem( 'ecv2_catalog_flash' ); setTimeout( function() { undo_toast( flash.message, flash.sub_undo ); }, 300 ); } } catch ( e ) {}
 	} )();
 
 
@@ -377,10 +387,21 @@ jQuery( function( $ ) {
 			return $row;
 		}
 		function bump_count( delta ) { var $c = $( '.ecv2-record-count' ).first(), m = /^\s*(\d+)/.exec( $c.text() ); if ( ! m ) { return; } var n = parseInt( m[1], 10 ) + delta; $c.text( n + ' ' + ( n === 1 ? 'Country' : 'Countries' ) ); }
+		/* 6.0.1: the stat tiles above the list ( "With regions" and friends ) follow a region or ship-to change. */
+		function update_stats( stats ) {
+			if ( ! stats ) { return; }
+			$.each( stats, function( key, value ) {
+				var $card = $( '.ecv2-stat-card[data-stat-key="' + key + '"]' );
+				if ( ! $card.length ) { return; }
+				$card.find( '.ecv2-stat-value' ).text( value );
+				$card.toggleClass( 'ecv2-stat-zero', 0 === parseInt( value, 10 ) );
+			} );
+		}
 		function after_region_change( d ) {
 			cur.regions = d.country.regions; cur.usage = d.country.usage; render_regions(); eccountry.region_reset();
 			$( '.ecdrawer-tabs a[data-tab="regions"]' ).text( 'Regions · ' + cur.regions.length );
 			if ( d.row ) { replace_row( cur.id, d.row, false ); }
+			update_stats( d.stats );
 		}
 		window.eccountry = {
 			open: function( id, tab, region_id ) { if ( ! id ) { open_with( { id: 0, name: '', iso2: '', iso3: '', sort: 0, ship: true, vat: 0, vat_b2b: false, stripe: '', regions: [], usage: { regions: 0, zones: [], tax_rules: 0, orders: 0 } }, 'details' ); return false; } post( 'ecv2_country_get', nonce, { id: id }, function( c ) { open_with( c, tab, region_id ); } ); return false; },
@@ -425,6 +446,35 @@ jQuery( function( $ ) {
 			region_delete_go: function( id, btn ) {
 				$( btn ).prop( 'disabled', true ).siblings( 'button' ).prop( 'disabled', true );
 				post( 'ecv2_region_delete', nonce, { id: id }, function( d ) { after_region_change( d ); ecv2_toast( 'Region deleted.', 'success' ); }, function( m ) { $( btn ).prop( 'disabled', false ).siblings( 'button' ).prop( 'disabled', false ); ecv2_toast( m, 'error' ); } );
+				return false;
+			},
+			/* 6.0.1: delete a region straight from the expanded list row, with the same two-step confirm as the drawer. */
+			/* 6.0.1: the row menu asks in the shared V2 dialog. The old in-row Delete? / Cancel strip was
+			   written for a text link in a wide column; inside the narrow Actions cell it had nowhere to go. */
+			region_row_delete: function( id, el ) {
+				var $row = $( el ).closest( 'tr' );
+				if ( window.ecv2_close_row_menus ) { ecv2_close_row_menus(); }
+				var ask = window.ecv2_show_confirm
+					? ecv2_show_confirm( 'Delete this region?', 'It stops being offered at checkout. Shipping rates and tax rates that name it are not changed.' )
+					: Promise.resolve( window.confirm( 'Delete this region?' ) );
+				ask.then( function( go ) {
+					if ( go ) { eccountry.region_row_go( id, $row ); }
+				} );
+				return false;
+			},
+			region_row_go: function( id, btn ) {
+				var $row = ( btn && btn.jquery ) ? btn : $( btn ).closest( 'tr' ), country_id = $row.data( 'country' );
+				post( 'ecv2_region_delete', nonce, { id: id }, function( d ) {
+					$row.remove();
+					if ( d.row ) { replace_row( country_id, d.row, false ); }
+					update_stats( d.stats );
+					/* the country row is re-rendered closed: keep its regions showing if any are left */
+					var $left = $( 'tr.eccnt-region[data-country="' + country_id + '"]' ).not( '.eccnt-region-add' );
+					if ( ! $left.length ) { $( 'tr.eccnt-region[data-country="' + country_id + '"]' ).remove(); }
+					ecv2_toast( 'Region deleted.', 'success' );
+				}, function( m ) {
+					ecv2_toast( m, 'error' );
+				} );
 				return false;
 			},
 			toggle_tree: function( el ) { var $tr = $( el ).closest( 'tr' ), id = $tr.data( 'id' ), $kids = $( 'tr.eccnt-region[data-country="' + id + '"]' ), open = $kids.first().is( ':visible' ); $kids.toggle( ! open ); $tr.find( '.eccnt-tw' ).text( open ? '▸' : '▾' ).attr( 'aria-expanded', open ? 'false' : 'true' ); return false; },

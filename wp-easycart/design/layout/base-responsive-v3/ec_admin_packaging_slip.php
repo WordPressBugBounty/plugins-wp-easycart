@@ -1,482 +1,244 @@
 <?php
-// Offers v2: line-level offer flags, keyed by orderdetail_id. The scripts
-// and classes that build this template's line rows predate the offer
-// columns and cannot be assumed to select them, so fetch them directly for
-// the whole order in one query.
+/**
+ * Packing slip: the admin print ( one order or a bulk run ), the PRO PDF and the packing slip email.
+ *
+ * 6.0.1: rebuilt on the shared email design ( wp_easycart_email_design ) and driven by a packing slip profile from
+ * Settings › Documents instead of the ec_option_packing_slip_show_* options directly. Rendered by
+ * wp_easycart_documents::render( 'packing_slip', … ), which puts $document ( wp_easycart_document ) in scope: the order,
+ * the lines on this slip ( all of them, or the ones chosen for this box ), the lines to follow, and show( $field ).
+ * The variables the pre-6.0.1 template used ( $order, $order_details, $mysqli, $store_page, $email_logo_url, the
+ * formatted totals … ) are still passed, so a copy of the old file in the data folder keeps working; the Standard
+ * profile keeps those options in step. Tables and inline CSS only: dompdf renders this file for the PRO PDF.
+ *
+ * Copy this file to your wp-easycart-data layout folder to customise it; the file name must stay the same.
+ *
+ * @package wp-easycart
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+if ( ! class_exists( 'wp_easycart_email_design' ) ) {
+	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php';
+}
+if ( ! isset( $document ) || ! ( $document instanceof wp_easycart_document ) ) {
+	$document = new wp_easycart_document( 'packing_slip', isset( $order_id ) ? (int) $order_id : 0, wp_easycart_documents::resolve( 'packing_slip' ) );
+}
+if ( ! $document->order ) {
+	return;
+}
+
+$ed          = 'wp_easycart_email_design';
+$ec_ps_lang  = wp_easycart_language();
+$ec_ps_order = $document->order;
+$ec_ps_curr  = $GLOBALS['currency'];
+$ec_ps_email = ( 'email' === $document->output );
+$ec_ps_price = $document->show( 'prices' );
+$ec_ps_title = wp_easycart_documents::text( 'packing_slip_title', __( 'Packing Slip', 'wp-easycart' ) );
+
+/* Offers v2: free-gift and bundle-child markers, keyed by orderdetail_id. */
 $wpec_offer_line_flags = array();
 if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
 	global $wpdb;
-	$wpec_offer_flag_order_id = ( isset( $order_id ) ) ? (int) $order_id : ( ( isset( $order->order_id ) ) ? (int) $order->order_id : 0 );
-	if ( $wpec_offer_flag_order_id > 0 ) {
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', $wpec_offer_flag_order_id ) ) as $wpec_offer_flag_row ) {
-			$wpec_offer_line_flags[ (int) $wpec_offer_flag_row->orderdetail_id ] = $wpec_offer_flag_row;
-		}
+	foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id FROM ec_orderdetail WHERE order_id = %d', (int) $ec_ps_order->order_id ) ) as $wpec_offer_flag_row ) {
+		$wpec_offer_line_flags[ (int) $wpec_offer_flag_row->orderdetail_id ] = $wpec_offer_flag_row;
 	}
 }
-?>
-<html>
-	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-		<title><?php echo sprintf( esc_attr__( 'Packing Slip for Order %d', 'wp-easycart' ), esc_attr( $order_id ) ); ?></title>
-		<style type='text/css'>
-			<!--
-			.style20 {
-				font-family: Arial, Helvetica, sans-serif;
-				font-weight: bold;
-				font-size: 12px;
-				line-height:18px;
+
+/* The logo switch and, with 6.0.1, this document's own logo and size ( Settings › Documents ). */
+$ed::open(
+	wp_easycart_documents::open_args(
+		'packing_slip',
+		$document->fields,
+		array(
+			'title' => wp_strip_all_tags( $ec_ps_title ) . ' ' . (int) $ec_ps_order->order_id,
+			'flat'  => ! $ec_ps_email,
+		)
+	)
+);
+
+/* Title, order number, date */
+$ed::section_start();
+$ed::heading( $ec_ps_title );
+$ed::key_values(
+	array(
+		array(
+			'label' => wp_easycart_documents::text( 'order_number', __( 'Order', 'wp-easycart' ) ),
+			'value' => $document->show( 'order_number' ) ? esc_html( '#' . $ec_ps_order->order_id ) : '',
+			'mono'  => true,
+		),
+		array(
+			'label' => wp_easycart_documents::text( 'order_date', __( 'Date', 'wp-easycart' ) ),
+			'value' => $document->show( 'order_date' ) ? esc_html( $document->date() ) : '',
+		),
+	)
+);
+$ed::section_end();
+
+/* Addresses ( ship to first: it is what the packer reads ) */
+$ec_ps_cards = array();
+if ( $document->show( 'shipping' ) && get_option( 'ec_option_use_shipping' ) ) {
+	$ec_ps_ship = $ed::address( $ec_ps_order, 'shipping' );
+	if ( ! $document->show( 'phone' ) ) {
+		$ec_ps_ship['phone'] = '';
+	}
+	$ec_ps_cards[] = array(
+		'label'   => wp_easycart_documents::text( 'ship_to', __( 'Ship to', 'wp-easycart' ) ),
+		'address' => $ec_ps_ship,
+	);
+}
+if ( $document->show( 'billing' ) ) {
+	$ec_ps_bill = $ed::address( $ec_ps_order, 'billing' );
+	if ( ! $document->show( 'phone' ) ) {
+		$ec_ps_bill['phone'] = '';
+	}
+	$ec_ps_cards[] = array(
+		'label'   => wp_easycart_documents::text( 'bill_to', __( 'Bill to', 'wp-easycart' ) ),
+		'address' => $ec_ps_bill,
+	);
+}
+$ed::address_cards( $ec_ps_cards, ( $document->show( 'email' ) && '' !== (string) $ec_ps_order->user_email ) ? esc_html( $ec_ps_order->user_email ) : '' );
+
+/* Shipping method, carrier, tracking */
+if ( $document->show( 'tracking' ) && ( '' !== trim( (string) $ec_ps_order->shipping_method ) || '' !== trim( (string) $ec_ps_order->tracking_number ) ) ) {
+	$ed::section_start( array( 'top' => 0 ) );
+	$ed::card_start( array( 'padding' => '10px 16px' ) );
+	$ed::key_values(
+		array(
+			array(
+				'label' => wp_easycart_documents::text( 'shipping_method', __( 'Shipping', 'wp-easycart' ) ),
+				'value' => esc_html( wp_unslash( (string) $ec_ps_order->shipping_method ) ),
+			),
+			array(
+				'label' => wp_easycart_documents::text( 'carrier', __( 'Carrier', 'wp-easycart' ) ),
+				'value' => esc_html( (string) $ec_ps_order->shipping_carrier ),
+			),
+			array(
+				'label' => wp_easycart_documents::text( 'tracking', __( 'Tracking', 'wp-easycart' ) ),
+				'value' => esc_html( (string) $ec_ps_order->tracking_number ),
+				'mono'  => true,
+			),
+		)
+	);
+	$ed::card_end();
+	$ed::section_end();
+}
+
+/* Items */
+$ec_ps_labels = array(
+	'product' => wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_1' ) ),
+	'qty'     => wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_2' ) ),
+);
+if ( $ec_ps_price ) {
+	$ec_ps_labels['unit']  = wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_3' ) );
+	$ec_ps_labels['total'] = wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_4' ) );
+}
+$ed::items_start( $ec_ps_labels );
+foreach ( $document->lines as $ec_ps_line ) {
+	$ec_ps_title_html = $document->show( 'title' ) ? wp_easycart_escape_html( $ec_ps_lang->convert_text( $ec_ps_line->title ) ) : '';
+	$wpec_line_flags  = isset( $wpec_offer_line_flags[ (int) $ec_ps_line->orderdetail_id ] ) ? $wpec_offer_line_flags[ (int) $ec_ps_line->orderdetail_id ] : false;
+	if ( $wpec_line_flags && ! empty( $wpec_line_flags->is_free_gift ) && function_exists( 'wp_easycart_offers_text' ) ) {
+		$ec_ps_title_html .= ' <strong>[' . wp_kses_post( wp_easycart_offers_text( 'cart_offers', 'gift_line_label' ) ) . ']</strong>';
+	}
+	if ( $wpec_line_flags && '' !== (string) $wpec_line_flags->bundle_group_key && (int) $wpec_line_flags->bundle_product_id !== (int) $wpec_line_flags->product_id && function_exists( 'wp_easycart_offers_text' ) ) {
+		$ec_ps_title_html .= ' <strong>[' . wp_kses_post( wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ) ) . ' #' . esc_html( substr( (string) $wpec_line_flags->bundle_group_key, 0, 6 ) ) . ']</strong>';
+	}
+	$ed::item_start(
+		array(
+			'image_url'   => $document->show( 'image' ) ? $document->image_url( $ec_ps_line ) : '',
+			'image_alt'   => $ec_ps_lang->convert_text( $ec_ps_line->title ),
+			'image_width' => 56,
+			'title_html'  => $ec_ps_title_html,
+		)
+	);
+	if ( $document->show( 'sku' ) && '' !== (string) $ec_ps_line->model_number ) {
+		$ed::detail( esc_html( $ec_ps_line->model_number ), array( 'nolink' => true ) );
+	}
+	if ( $document->show( 'options' ) ) {
+		foreach ( $document->options( $ec_ps_line ) as $ec_ps_option ) {
+			$ed::option_detail( esc_html( $ec_ps_option['label'] ), esc_html( $ec_ps_option['value'] ) );
+		}
+	}
+	if ( ! empty( $ec_ps_line->gift_card_to_name ) ) {
+		$ed::detail( wp_kses_post( $ec_ps_lang->get_text( 'account_order_details', 'account_orders_details_gift_to' ) ) . esc_html( $ec_ps_line->gift_card_to_name ) );
+	}
+	if ( ! empty( $ec_ps_line->gift_card_from_name ) ) {
+		$ed::detail( wp_kses_post( $ec_ps_lang->get_text( 'account_order_details', 'account_orders_details_gift_from' ) ) . esc_html( $ec_ps_line->gift_card_from_name ) );
+	}
+	if ( ! empty( $ec_ps_line->gift_card_message ) ) {
+		$ed::detail( wp_kses_post( $ec_ps_lang->get_text( 'account_order_details', 'account_orders_details_gift_message' ) ) . esc_html( $ec_ps_line->gift_card_message ) );
+	}
+	do_action( 'wp_easycart_packing_slip_line_item', $ec_ps_line, $document );
+	$ec_ps_end = array( 'qty' => $ec_ps_line->quantity );
+	if ( $ec_ps_price ) {
+		$ec_ps_end['unit_html']  = $ed::ltr( $ec_ps_curr->get_currency_display( $ec_ps_line->unit_price ) );
+		$ec_ps_end['total_html'] = $ed::ltr( $ec_ps_curr->get_currency_display( $ec_ps_line->total_price ) );
+	}
+	$ed::item_end( $ec_ps_end );
+}
+$ed::items_end();
+
+/* Chosen items: what is not in this box */
+if ( $document->is_partial() ) {
+	$ed::section_start();
+	$ed::label( wp_easycart_documents::text( 'items_to_follow', __( 'To follow in a separate shipment', 'wp-easycart' ) ) );
+	$ec_ps_follow = array();
+	foreach ( $document->held_back as $ec_ps_line ) {
+		$ec_ps_follow[] = esc_html( wp_strip_all_tags( $ec_ps_lang->convert_text( $ec_ps_line->title ) ) . ' × ' . (int) $ec_ps_line->quantity );
+	}
+	$ed::paragraph( implode( '<br />', $ec_ps_follow ), array( 'nolink' => true ) );
+	$ed::section_end();
+}
+
+/* Totals ( the whole order's, so they are left off a slip that carries only some of its items ) */
+if ( $ec_ps_price && ! $document->is_partial() ) {
+	$ec_ps_totals = array();
+	if ( $document->show( 'subtotal' ) ) {
+		$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_subtotal' ) ), $ed::money( $ec_ps_order->sub_total ) );
+	}
+	if ( $document->show( 'tip' ) && $ec_ps_order->tip_total > 0 ) {
+		$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_totals', 'cart_totals_tip' ) ), $ed::money( $ec_ps_order->tip_total ) );
+	}
+	if ( $document->show( 'shipping_total' ) && $ec_ps_order->shipping_total > 0 ) {
+		$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_shipping' ) ), $ed::money( $ec_ps_order->shipping_total ) );
+	}
+	if ( $document->show( 'discounts' ) && 0 != $ec_ps_order->discount_total ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric string from the database.
+		$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_discount' ) ), $ed::ltr( '-' . $ec_ps_curr->get_currency_display( $ec_ps_order->discount_total ) ) );
+	}
+	if ( $document->show( 'tax' ) ) {
+		if ( $ec_ps_order->tax_total > 0 ) {
+			$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_tax' ) ), $ed::money( $ec_ps_order->tax_total ) );
+		}
+		if ( $ec_ps_order->duty_total > 0 ) {
+			$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_duty' ) ), $ed::money( $ec_ps_order->duty_total ) );
+		}
+		if ( 0 != $ec_ps_order->vat_rate ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric string from the database.
+			$ec_ps_totals[] = array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_vat' ) ) . esc_html( number_format( (float) $ec_ps_order->vat_rate, 0, '', '' ) ) . '%', $ed::money( $ec_ps_order->vat_total ) );
+		}
+		foreach ( array( 'gst', 'pst', 'hst' ) as $ec_ps_ca ) {
+			if ( 0 != $ec_ps_order->{$ec_ps_ca . '_rate'} ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric string from the database.
+				$ec_ps_ca_label = function_exists( 'wp_easycart_canada_tax_label' ) ? wp_easycart_canada_tax_label( $ec_ps_ca, $ec_ps_order->shipping_state ) : strtoupper( $ec_ps_ca );
+				$ec_ps_totals[] = array( esc_html( $ec_ps_ca_label . ' (' . $ec_ps_order->{$ec_ps_ca . '_rate'} . '%)' ), $ed::money( $ec_ps_order->{$ec_ps_ca . '_total'} ) );
 			}
-			.style22 {
-				font-family: Arial, Helvetica, sans-serif;
-				font-size: 12px;
-				line-height:18px;
-			}
-			.style24 {
-				font-family: Arial, Helvetica, sans-serif;
-				font-size: 12px;
-				line-height:18px;
-				color:#F00;
-				font-weight: bold;
-			}
-			.ec_option_label {
-				font-family: Arial, Helvetica, sans-serif;
-				font-size: 11px;
-				line-height:16px;
-				font-weight: bold;
-			}
-			.ec_option_name {
-				font-family: Arial, Helvetica, sans-serif;
-				font-size: 11px;
-				line-height:16px;
-			}
-			.ec_admin_page_break{ page-break-before:always; }
-			-->
-		</style>
-	</head>
-	<body>
-		<table width='539' border='0' align='center'>
-			<?php if ( get_option( 'ec_option_packing_slip_show_logo' ) ) { ?>
-			<tr>
-				<td colspan='4' align='left' class='style22'>
-					<a href="<?php echo esc_url_raw( $store_page ); ?>" target="_blank"><img src="<?php echo esc_attr( $email_logo_url ); ?>" alt="<?php echo esc_attr( get_bloginfo( "name" ) ); ?>" style="max-height:250px; max-width:100%; height:auto;" /></a>
-				</td>
-			</tr>
-			<?php }?>
-			<?php if ( get_option( 'ec_option_packing_slip_show_order_id' ) || get_option( 'ec_option_packing_slip_show_order_date' ) ) { ?>
-			<tr>
-				<td align='left' class='style22'><?php if ( get_option( 'ec_option_packing_slip_show_order_id' ) ) { ?><strong><br><?php echo wp_easycart_language()->get_text( "cart_success", "cart_success_order_number_is" ) . ' ' . esc_attr( $order->order_id ); ?></strong><br><br><?php }?></td>
-				<td colspan="3" align='right' class='style22'><?php if ( get_option( 'ec_option_packing_slip_show_order_date' ) ) { ?><strong><?php echo esc_attr( date( 'l - F jS, Y', $order_timestamp ) ); ?></strong><?php }?></td>
-			</tr>
-			<?php }?>
-			<tr>
-				<td colspan='4' align='left' class='style20'>
-					<?php if ( get_option( 'ec_option_packing_slip_show_billing' ) && get_option( 'ec_option_packing_slip_show_shipping' ) ) { ?>
-					<table width='100%' border='0' align='center' cellpadding='0' cellspacing='0'>
-						<tr>
-							<td width='47%' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_billing_label" ); ?></td>
-							<td width='3%'>&nbsp;</td>
-							<td width='50%' bgcolor='#DFDFDF' class='style20'><?php if ( get_option( 'ec_option_use_shipping' ) ) {?>
-							<?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_shipping_label" ); ?>
-							<?php }?></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_first_name, ENT_QUOTES ) . ' ' . htmlspecialchars( $order->billing_last_name, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td>
-								<span class='style22'><?php if ( get_option( 'ec_option_use_shipping' ) ) {
-									echo esc_attr( htmlspecialchars( $order->shipping_first_name, ENT_QUOTES ) . ' ' . htmlspecialchars( $order->shipping_last_name, ENT_QUOTES ) );
-								} ?></span>
-							</td>
-						</tr>
-						<?php if ( $order->billing_company_name !=  '' || ( get_option( 'ec_option_use_shipping' ) && $order->shipping_company_name !=  '' ) ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_company_name, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {
-								echo esc_attr( htmlspecialchars( $order->shipping_company_name, ENT_QUOTES ) );
-							} ?>
-							</span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_address_line_1, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {
-								echo esc_attr( htmlspecialchars( $order->shipping_address_line_1, ENT_QUOTES ) );
-							} ?>
-							</span></td>
-						</tr>
-						<?php if ( $order->billing_address_line_2 !=  '' || $order->shipping_address_line_2 !=  '' ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_address_line_2, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {?>
-							<?php echo esc_attr( htmlspecialchars( $order->shipping_address_line_2, ENT_QUOTES ) ); ?>
-							<?php }?>
-							</span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->billing_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->billing_zip, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {?>
-							<?php echo esc_attr( htmlspecialchars( $order->shipping_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->shipping_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->shipping_zip, ENT_QUOTES ) ); ?>
-							<?php }?>
-							</span></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_country, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {?>
-							<?php echo esc_attr( htmlspecialchars( $order->shipping_country, ENT_QUOTES ) ); ?>
-							<?php }?>
-							</span></td>
-						</tr>
-						<?php if ( get_option( 'ec_option_packing_slip_show_phone' ) ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_phone, ENT_QUOTES ) ); ?></span></td>
-							<td>&nbsp;</td>
-							<td><span class='style22'>
-							<?php if ( get_option( 'ec_option_use_shipping' ) ) {?>
-							<?php echo esc_attr( htmlspecialchars( $order->shipping_phone, ENT_QUOTES ) ); ?>
-							<?php }?>
-							</span></td>
-						</tr>
-						<?php }?>
-					</table>
-					<?php } else if ( get_option( 'ec_option_packing_slip_show_billing' ) ) { ?>
-					<table width='100%' border='0' align='center' cellpadding='0' cellspacing='0'>
-						<tr>
-							<td width='100%' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_billing_label" ); ?></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_first_name, ENT_QUOTES ) . ' ' . htmlspecialchars( $order->billing_last_name, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( '' != $order->billing_company_name ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_company_name, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_address_line_1, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( $order->billing_address_line_2 !=  '' || $order->shipping_address_line_2 !=  '' ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_address_line_2, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->billing_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->billing_zip, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_country, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( get_option( 'ec_option_packing_slip_show_phone' ) ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->billing_phone, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php }?>
-					</table>
-					<?php } else if ( get_option( 'ec_option_packing_slip_show_shipping' ) ) { ?>
-					<table width='100%' border='0' align='center' cellpadding='0' cellspacing='0'>
-						<tr>
-							<td width='100%' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_shipping_label" ); ?></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_first_name, ENT_QUOTES ) . ' ' . htmlspecialchars( $order->shipping_last_name, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( '' != $order->shipping_company_name ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_company_name, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_address_line_1, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( $order->shipping_address_line_2 !=  '' || $order->shipping_address_line_2 !=  '' ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_address_line_2, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php } ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_city, ENT_QUOTES ) ); ?>, <?php echo esc_attr( htmlspecialchars( $order->shipping_state, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $order->shipping_zip, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_country, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php if ( get_option( 'ec_option_packing_slip_show_phone' ) ) { ?>
-						<tr>
-							<td><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_phone, ENT_QUOTES ) ); ?></span></td>
-						</tr>
-						<?php }?>
-					</table>
-					<?php }?>
-				</td>
-			</tr>
-			<?php if ( get_option( 'ec_option_packing_slip_show_email' ) ) { ?>
-			<tr>
-				<td colspan='4' align='left' class='style20'><span class='style22'><?php echo esc_attr( htmlspecialchars( $order->user_email, ENT_QUOTES ) ); ?></span></td>
-			</tr>
-			<?php }?>
-			<tr>
-				<td width='269' align='left'>&nbsp;</td>
-				<td width='80' align='center'>&nbsp;</td>
-				<td width='91' align='center'>&nbsp;</td>
-				<td align='center'>&nbsp;</td>
-			</tr>
-			<tr>
-				<td colspan="4" align='left' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( 'cart_shipping_method', 'cart_shipping_method_title' ); ?></td>
-			</tr>
-			<tr>
-				<td colspan="4" align='left' class='style24'><?php echo esc_attr( htmlspecialchars( $order->shipping_method, ENT_QUOTES ) ); ?></td>
-			</tr>
-			<tr>
-				<td colspan="4" align='left' class='style22'><?php echo esc_attr( htmlspecialchars( $order->shipping_carrier, ENT_QUOTES ) ); ?></td>
-			</tr>
-			<tr>
-				<td colspan="4" align='left' class='style22'><?php echo esc_attr( htmlspecialchars( $order->tracking_number, ENT_QUOTES ) ); ?></td>
-			</tr>
-			<tr>
-				<td colspan="4" align='left' class='style22'>&nbsp;</td>
-			</tr>
-			<tr>
-				<td width='<?php if ( get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?>269<?php } else { ?>459<?php }?>'<?php if ( !get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?> colspan="3"<?php }?> align='left' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_details_header_1" ); ?></td>
-				<td width='80' align='center' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_details_header_2" ); ?></td>
-				<?php if ( get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?>
-				<td width='91' align='center' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_details_header_3" ); ?></td>
-				<td align='center' bgcolor='#DFDFDF' class='style20'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_details_header_4" ); ?></td>
-				<?php }?>
-			</tr>
-			<?php for( $i=0; $i < count( $order_details); $i++) { 
-				$unit_price = $GLOBALS['currency']->get_currency_display( $order_details[$i]->unit_price );
-				$total_price = $GLOBALS['currency']->get_currency_display( $order_details[$i]->total_price );
-			?>
-			<tr>
-				<td width='<?php if ( get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?>269<?php } else { ?>459<?php }?>' class='style22'<?php if ( !get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?> colspan="3"<?php }?>>
-					<?php if ( get_option( 'ec_option_packing_slip_show_product_image' ) ) { ?>
-					<?php
-					if ( $order_details[$i]->is_deconetwork ) {
-						$img_url = "https://" . get_option( 'ec_option_deconetwork_url' ) . $this->deconetwork_image_link;
+		}
+	}
+	$ec_ps_grand = $document->show( 'grand_total' ) ? array( wp_kses_post( $ec_ps_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::money( $ec_ps_order->grand_total ) ) : array();
+	if ( $ec_ps_totals || $ec_ps_grand ) {
+		$ed::totals( $ec_ps_totals, $ec_ps_grand );
+	}
+}
 
-					} else if ( substr( $order_details[$i]->image1, 0, 7 ) == 'http://' || substr( $order_details[$i]->image1, 0, 8 ) == 'https://' ) {
-						$img_url = $order_details[$i]->image1;
+/* Customer's order notes */
+if ( $document->show( 'order_notes' ) && '' !== trim( (string) $ec_ps_order->order_customer_notes ) ) {
+	$ed::section_start();
+	$ed::label( wp_kses_post( $ec_ps_lang->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ) ) );
+	$ed::card_start( array( 'padding' => '12px 14px' ) );
+	echo nl2br( esc_html( wp_unslash( $ec_ps_order->order_customer_notes ) ) );
+	$ed::card_end();
+	$ed::section_end();
+}
 
-					} else if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $order_details[$i]->image1 ) && !is_dir( EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $order_details[$i]->image1 ) ) {
-						$img_url = plugins_url( "wp-easycart-data/products/pics1/" . $order_details[$i]->image1, EC_PLUGIN_DATA_DIRECTORY );
+do_action( 'wp_easycart_packing_slip_after', $document );
 
-					} else if ( get_option( 'ec_option_product_image_default' ) && '' != get_option( 'ec_option_product_image_default' ) ) {
-						$img_url = get_option( 'ec_option_product_image_default' );
-
-					} else if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/images/ec_image_not_found.jpg" ) ) {
-						$img_url = plugins_url( "wp-easycart-data/design/theme/" . get_option( 'ec_option_base_theme' ) . "/images/ec_image_not_found.jpg", EC_PLUGIN_DATA_DIRECTORY );
-
-					} else {
-						$img_url = plugins_url( "wp-easycart/design/theme/" . get_option( 'ec_option_latest_theme' ) . "/images/ec_image_not_found.jpg", EC_PLUGIN_DIRECTORY );
-
-					}
-					?>
-					<div style="float:left; width:70px; margin-right:5px;"><img src="<?php echo esc_attr( $img_url ); ?>" style="width:70px; height:auto;" alt="<?php echo wp_easycart_language()->convert_text( $order_details[$i]->title ); ?>" /></div>
-					<?php }?>
-					<table>
-						<?php if ( get_option( 'ec_option_packing_slip_show_product_title' ) ) { ?>
-						<tr>
-							<td><?php echo wp_easycart_language()->convert_text( $order_details[$i]->title ); ?><?php
-								// Offers v2 fulfillment markers.
-								$wpec_line_flags = ( isset( $order_details[ $i ]->orderdetail_id ) && isset( $wpec_offer_line_flags[ (int) $order_details[ $i ]->orderdetail_id ] ) ) ? $wpec_offer_line_flags[ (int) $order_details[ $i ]->orderdetail_id ] : false;
-								if ( $wpec_line_flags && $wpec_line_flags->is_free_gift ) {
-									echo ' <strong>[' . wp_easycart_offers_text( 'cart_offers', 'gift_line_label' ) . ']</strong>';
-								}
-								if ( $wpec_line_flags && '' != $wpec_line_flags->bundle_group_key && $wpec_line_flags->bundle_product_id != $wpec_line_flags->product_id ) {
-									echo ' <strong>[' . wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ) . ' #' . esc_attr( substr( $order_details[ $i ]->bundle_group_key, 0, 6 ) ) . ']</strong>';
-								}
-							?></td>
-						</tr>
-						<?php } ?>
-						<?php if ( get_option( 'ec_option_packing_slip_show_model_number' ) ) { ?>
-						<tr>
-							<td class="ec_option_name"><?php echo esc_attr( $order_details[$i]->model_number ); ?></td>
-						</tr>
-						<?php } ?>
-						<?php if ( get_option( 'ec_option_packing_slip_show_options' ) ) {
-							if ( ! $order_details[$i]->use_advanced_optionset || $order_details[$i]->use_both_option_types ) {
-								if ( $order_details[$i]->optionitem_name_1 ) {
-									echo "<tr><td><span class=\"ec_option_name\">" . wp_easycart_escape_html( $order_details[$i]->optionitem_name_1 );
-									if ( $order_details[$i]->optionitem_price_1 < 0 ) {
-										echo " (" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_1 ) ) . ")";
-									} else if ( $order_details[$i]->optionitem_price_1 > 0 ) {
-										echo " (+" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_1 ) ) . ")";
-									}
-									echo "</span></td></tr>";
-								}
-								if ( $order_details[$i]->optionitem_name_2 ) {
-									echo "<tr><td><span class=\"ec_option_name\">" . wp_easycart_escape_html( $order_details[$i]->optionitem_name_2 );
-									if ( $order_details[$i]->optionitem_price_2 < 0 )
-										echo " (" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_2 ) ) . ")";
-									else if ( $order_details[$i]->optionitem_price_2 > 0 )
-										echo " (+" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_2 ) ) . ")";
-									echo "</span></td></tr>";
-								}
-								if ( $order_details[$i]->optionitem_name_3 ) {
-									echo "<tr><td><span class=\"ec_option_name\">" . wp_easycart_escape_html( $order_details[$i]->optionitem_name_3 );
-									if ( $order_details[$i]->optionitem_price_3 < 0 )
-										echo " (" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_3 ) ) . ")";
-									else if ( $order_details[$i]->optionitem_price_3 > 0 )
-										echo " (+" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_3 ) ) . ")";
-									echo "</span></td></tr>";
-								}
-								if ( $order_details[$i]->optionitem_name_4 ) {
-									echo "<tr><td><span class=\"ec_option_name\">" . wp_easycart_escape_html( $order_details[$i]->optionitem_name_4 );
-									if ( $order_details[$i]->optionitem_price_4 < 0 )
-										echo " (" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_4 ) ) . ")";
-									else if ( $order_details[$i]->optionitem_price_4 > 0 )
-										echo " (+" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_4 ) ) . ")";
-									echo "</span></td></tr>";
-								}
-								if ( $order_details[$i]->optionitem_name_5 ) {
-									echo "<tr><td><span class=\"ec_option_name\">" . wp_easycart_escape_html( $order_details[$i]->optionitem_name_5 );
-									if ( $order_details[$i]->optionitem_price_5 < 0 )
-										echo " (" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_5 ) ) . ")";
-									else if ( $order_details[$i]->optionitem_price_5 > 0 )
-										echo " (+" . esc_attr( $GLOBALS['currency']->get_currency_display( $order_details[$i]->optionitem_price_5 ) ) . ")";
-									echo "</span></td></tr>";
-								}
-							}
-							if ( $order_details[$i]->use_advanced_optionset || $order_details[$i]->use_both_option_types ) {
-								$advanced_options = $mysqli->get_order_options( $order_details[$i]->orderdetail_id );
-								foreach ( $advanced_options as $advanced_option ) {
-									if ( $advanced_option->option_type == "file" ) {
-										$file_split = explode( "/", $advanced_option->option_value );
-										echo "<tr><td><span class=\"ec_option_label\">" . wp_easycart_escape_html( $advanced_option->option_label ) . ":</span> <span class=\"ec_option_name\">" . esc_attr( $file_split[1] ) . "</span></td></tr>";
-									} else if ( $advanced_option->option_type == "grid" ) {
-										echo "<tr><td><span class=\"ec_option_label\">" . wp_easycart_escape_html( $advanced_option->option_label ) . ":</span> <span class=\"ec_option_name\">" . wp_easycart_escape_html( $advanced_option->optionitem_name . " (" . $advanced_option->option_value . ")" ) . "</span></td></tr>";
-									} else {
-										echo "<tr><td><span class=\"ec_option_label\">" . wp_easycart_escape_html( $advanced_option->option_label ) . ":</span> <span class=\"ec_option_name\">" . esc_attr( $advanced_option->option_value ) . "</span></td></tr>";
-									}
-								}
-							}
-						} ?>
-					</table>
-				</td>
-				<td width='80' align='center' class='style22'><?php echo esc_attr( $order_details[$i]->quantity ); ?></td>
-				<?php if ( get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?>
-				<td width='91' align='center' class='style22'><?php echo esc_attr( $unit_price ); ?></td>
-				<td align='center' class='style22'><?php echo esc_attr( $total_price ); ?></td>
-				<?php }?>
-			</tr>
-			<?php }//end for loop ?>
-			<?php if ( get_option( 'ec_option_packing_slip_show_pricing' ) ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center'>&nbsp;</td>
-					<td width='91' align='center'>&nbsp;</td>
-					<td>&nbsp;</td>
-				</tr>
-				<?php if ( get_option( 'ec_option_packing_slip_show_subtotal' ) ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_subtotal" ); ?></td>
-					<td align='center' class='style22'><?php echo esc_attr( $subtotal ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if( get_option( 'ec_option_packing_slip_show_tiptotal' ) && $order->tip_total > 0 ){?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tip' ); ?></td>
-					<td  align='center'  class='style22'><?php echo esc_attr( $tip ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $order->tax_total > 0 ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_tax" ); ?></td>
-					<td align='center' class='style22'><?php echo esc_attr( $tax ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_shippingtotal' ) && $order->shipping_total > 0 ) {?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_shipping" ); ?></td>
-					<td align='center' class='style22'><?php echo esc_attr( $shipping ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_discounttotal' ) && $order->discount_total > 0 ) {?>
-				<tr>
-					<td>&nbsp;</td>
-					<td align='center' class='style22'>&nbsp;</td>
-					<td align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_discount" ); ?></td>
-					<td align='center' class='style22'>-<?php echo esc_attr( $discount ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $has_duty ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_duty" ); ?></td>
-					<td align='center' class='style22'><?php echo esc_attr( $duty ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $vat_rate != 0 ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_vat" ); ?><?php echo esc_attr( $vat_rate ); ?>%</td>
-					<td align='center' class='style22'><?php echo esc_attr( $vat ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $gst_rate != 0 ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'gst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $gst_rate ); ?>%)</td>
-					<td align='center' class='style22'><?php echo esc_attr( $gst_total ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $pst_rate != 0 ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'pst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $pst_rate ); ?>%)</td>
-					<td align='center' class='style22'><?php echo esc_attr( $pst_total ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_taxtotal' ) && $hst_rate != 0 ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' class='style22'><?php echo esc_html( wp_easycart_canada_tax_label( 'hst', $order->shipping_state ) ); ?> (<?php echo esc_attr( $hst_rate ); ?>%)</td>
-					<td align='center' class='style22'><?php echo esc_attr( $hst_total ); ?></td>
-				</tr>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_packing_slip_show_grandtotal' ) ) { ?>
-				<tr>
-					<td width='269'>&nbsp;</td>
-					<td width='80' align='center' class='style22'>&nbsp;</td>
-					<td width='91' align='center' bgcolor="#DFDFDF" class='style22'><strong><?php echo wp_easycart_language()->get_text( "cart_success", "cart_payment_complete_order_totals_grand_total" ); ?></strong></td>
-					<td align='center' bgcolor="#DFDFDF" class='style22'><strong><?php echo esc_attr( $total ); ?></strong></td>
-				</tr>
-				<?php }?>
-			<?php } // Close show pricing option ?>
-
-			<?php if ( get_option( 'ec_option_packing_slip_show_order_notes' ) && '' != $order->order_customer_notes ) { ?>
-			<tr>
-				<td colspan='4' class='style22'><p><br>
-					<hr />
-					<h4><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ); ?></h4>
-					<p><?php echo esc_attr( wp_unslash( $order->order_customer_notes ) ); ?></p>
-					<br>
-					<hr />
-				</td>
-			</tr>
-			<?php }?>
-		</table>
-	</body>
-</html>
+/* No signature text on a slip; the footer image only when the profile asks for it ( off by default ). */
+$ed::close( wp_easycart_documents::close_args( 'packing_slip', $document->fields, array( 'signature_text' => false ) ) );

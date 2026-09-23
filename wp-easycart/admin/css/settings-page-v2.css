@@ -227,9 +227,14 @@
 .ecst-color-hex.is-dirty { border-color:var(--ecv2-amber); }
 .ecst-pro-btn { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 9px; border-radius:999px; border:0; background:var(--ecv2-g900); color:#fff; font-size:11px; font-weight:700; letter-spacing:.04em; cursor:pointer; }
 .ecst-pro-btn:hover { background:var(--ecv2-g700); }
+.ecst-pro-btn.is-update { text-decoration:none; } /* 6.0.1: goes to the Plugins screen */
+.ecst-pro-btn.is-update:hover, .ecst-pro-btn.is-update:focus { color:#fff; }
 
 /* fold + actions */
 .ecst-fold { padding:8px 16px 10px; font-size:12px; color:var(--ecv2-g500); border-top:1px dashed var(--ecv2-g200); display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+/* display:flex above beats the hidden attribute, so a section whose advanced rows are all behind an off parent ( VAT )
+   kept showing "Show 0 advanced settings". @since 6.0.0 */
+.ecst-fold[hidden] { display:none; }
 .ecst-fold-names { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ecst-section.is-adv-open .ecst-fold-names { display:none; }
 .ecst-custom { padding:12px 16px; border-top:1px solid var(--ecv2-g100); }
@@ -353,3 +358,18 @@
 	.ecst-header { align-items:stretch; }
 	.ecst-header .ecv2-page-header-right { width:100%; justify-content:flex-start; }
 }
+
+/* Image settings: Media Library picker + thumbnail ( 'media' => true ). @since 6.0.1 */
+.ecst-media { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.ecst-media .ecv2-btn { white-space:nowrap; }
+.ecst-media .dashicons { font-size:15px; width:15px; height:15px; }
+.ecst-media-preview { display:inline-flex; align-items:center; justify-content:center; padding:4px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rs); background:#fff; }
+.ecst-media-preview[hidden], .ecst-media-clear[hidden] { display:none; }
+.ecst-media-preview img { display:block; max-width:120px; max-height:44px; width:auto; height:auto; }
+
+/* "Create a draft page" beside a policy URL. @since 6.0.1 */
+.ecst-newpage { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.ecst-newpage .dashicons { font-size:15px; width:15px; height:15px; }
+.ecst-newpage-done { display:inline-flex; align-items:center; gap:8px; }
+.ecst-newpage-done[hidden], .ecst-newpage-btn[hidden] { display:none; }
+.ecst-newpage-chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; background:#dcfce7; color:#15803d; font-size:11.5px; font-weight:600; }

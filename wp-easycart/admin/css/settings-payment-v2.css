@@ -306,6 +306,11 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ec_admin_slider:before { width:16px; height:16px; left:2px; bottom:2px; transition:transform var(--ecv2-tr); }
 .ecpay-drawer .ecpay-legacy input.ec_admin_slider_checkbox:checked + .ec_admin_slider { background:var(--ecst-accent); }
 .ecpay-drawer .ecpay-legacy input.ec_admin_slider_checkbox:checked + .ec_admin_slider:before { transform:translateX(16px); }
+/* 6.0.1: the drawer's "show every checkbox" rule above also revealed the switch's own checkbox, drawn as a square beside
+   the track ( blue when on ). Keep it in the switch, invisible but still focusable and clickable through its label. */
+.ecpay-drawer .ecpay-legacy .ec_admin_switch { position:relative; display:inline-block; }
+.ecpay-drawer .ecpay-legacy .ec_admin_switch input.ec_admin_slider_checkbox { position:absolute; top:0; left:0; opacity:0; width:1px !important; height:1px !important; margin:0 !important; }
+.ecpay-drawer .ecpay-legacy .ec_admin_switch input.ec_admin_slider_checkbox:focus-visible + .ec_admin_slider { box-shadow:0 0 0 3px var(--ecst-accent-soft); }
 
 /* links and buttons → V2 buttons */
 .ecpay-drawer .ecpay-legacy a:not(.ec_help_icon_link) { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g800); font-size:12px; font-weight:500; text-decoration:none; line-height:1.3; margin:2px 6px 2px 0; }
@@ -334,8 +339,50 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ec_admin_webhook_copy { position:static; background:var(--ecv2-g900); color:#fff; padding:6px 10px; border-radius:var(--ecv2-r); font-size:12px; margin-top:6px; text-align:left; }
 .ecpay-drawer .ecpay-legacy .wp-easycart-admin-icons-container .wp-easycart-admin-dual-ring { width:20px; height:20px; }
 
-/* the legacy overlay spinner sits over the drawer body */
-.ecpay-drawer .ecpay-legacy .ec_admin_loader { border-radius:var(--ecv2-r); }
+/* 6.0.1: the legacy save indicator was a dark overlay over the whole form ( spinner, then a big check ). In the drawer it
+   is a small pill above the footer: "Loading…" while the request runs, a check when it is done. */
+.ecpay-drawer .ecpay-legacy .ec_admin_loader { position:fixed; top:auto; left:auto; right:24px; bottom:84px; width:auto; height:auto; min-width:40px; padding:7px 12px; border-radius:999px; background:var(--ecv2-g900); opacity:1; filter:none; z-index:30; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+.ecpay-drawer .ecpay-legacy .ec_admin_loader_animation { position:static; margin:0; width:auto; height:auto; text-indent:0; font-size:12px; font-weight:600; color:#fff; background:none; animation:none; transform:none; }
+.ecpay-drawer .ecpay-legacy .ec_admin_loader_animation:before,
+.ecpay-drawer .ecpay-legacy .ec_admin_loader_animation:after { display:none; }
+.ecpay-drawer .ecpay-legacy .ec_admin_loader_loaded { position:static; margin:0 auto; width:22px; }
+.ecpay-drawer .ecpay-legacy .ec_admin_loader_loaded svg { display:block; width:22px; height:22px; }
+
+/* 6.0.1: Square ( wp-easycart-pro/admin/template/settings/payments/square.php ): the drawer's groups */
+.ecpay-drawer .ecpay-legacy .ecsq-actions { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
+.ecpay-drawer .ecpay-legacy .ecsq-actions a { margin:0 !important; }
+.ecpay-drawer .ecpay-legacy .ecsq-actions a.ecsq-danger { color:var(--ecv2-danger, #b91c1c); border-color:#fca5a5; }
+.ecpay-drawer .ecpay-legacy .ecsq-actions a.ecsq-danger:hover { background:#fef2f2; border-color:#f87171; color:#991b1b; }
+.ecpay-drawer .ecpay-legacy .ecsq-group { margin:18px 0 0; }
+.ecpay-drawer .ecpay-legacy .ecsq-group-t { margin:0 0 4px; padding:0 0 6px; border-bottom:1px solid var(--ecv2-g200); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500); }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggles_wrap { margin:0; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle > span { display:flex; flex-direction:column; gap:2px; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle > span small { font-size:12px; font-weight:400; color:var(--ecv2-g500); line-height:1.45; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle.ecsq-child { padding-left:14px; position:relative; }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle.ecsq-child:before { content:""; position:absolute; left:3px; top:8px; bottom:8px; border-left:2px solid var(--ecv2-g200); }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle_note { margin:0 0 8px 14px; padding:8px 10px; border-radius:var(--ecv2-r); background:var(--ecv2-g50); font-size:12px; color:var(--ecv2-g600); }
+.ecpay-drawer .ecpay-legacy .ecsq .ec_admin_toggle_note_warn { background:#fff7e6; color:#874d00; }
+.ecpay-drawer .ecpay-legacy .ecsq-status { display:flex; align-items:baseline; gap:8px; }
+.ecpay-drawer .ecpay-legacy .ecsq-dot { flex:0 0 8px; width:8px; height:8px; border-radius:50%; background:var(--ecv2-g300); transform:translateY(-1px); }
+.ecpay-drawer .ecpay-legacy .ecsq-dot.is-on { background:#16a34a; }
+.ecpay-drawer .ecpay-legacy .ecsq-field { display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--ecv2-g100); }
+.ecpay-drawer .ecpay-legacy .ecsq-field:last-of-type { border-bottom:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-field > label { font-size:13px; font-weight:600; color:var(--ecv2-g900); }
+.ecpay-drawer .ecpay-legacy .ecsq-field > small { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecpay-drawer .ecpay-legacy .ecsq-field select,
+.ecpay-drawer .ecpay-legacy .ecsq-field input[type="text"] { width:100% !important; max-width:100%; float:none !important; margin:0 !important; }
+.ecpay-drawer .ecpay-legacy .ecsq-save { display:none !important; }
+/* The Checkout group: admin.css styles #ec_square_options ( indented, boxed, 500px ) for the classic page, and an id
+   outranks the drawer's classes. PRO's partial now uses #ec_square_checkout; the free partial keeps the old id. */
+.ecpay-drawer .ecpay-legacy #ec_square_options { float:none; width:auto; max-width:none; margin:18px 0 0; border:0; clear:none; }
+.ecpay-drawer .ecpay-legacy .ecsq-locked > span:first-child { opacity:.75; }
+.ecpay-drawer .ecpay-legacy .ecsq-pro-chip { flex:0 0 auto; display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; background:var(--ecv2-g900); color:#fff; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+.ecpay-drawer .ecpay-legacy .ecsq-secure { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.ecpay-drawer .ecpay-legacy .ecsq-secure-text { flex:1 1 260px; display:flex; flex-direction:column; gap:2px; }
+.ecpay-drawer .ecpay-legacy .ecsq-secure-text b { font-weight:600; }
+.ecpay-drawer .ecpay-legacy .ecsq-secure.is-done { background:#f0fdf4; color:#166534; }
+.ecpay-drawer .ecpay-legacy button.ecsq-secure-btn { flex:0 0 auto; display:inline-flex; align-items:center; height:32px; padding:0 14px; border:1px solid var(--ecst-accent); border-radius:var(--ecv2-r); background:var(--ecst-accent); color:var(--ecst-on-accent, #fff); font-size:12.5px; font-weight:600; cursor:pointer; }
+.ecpay-drawer .ecpay-legacy button.ecsq-secure-btn:disabled { opacity:.65; cursor:progress; }
 
 @media (max-width:1100px) {
 	.ecpay-chooser-grid, .ecpay-chooser-grid.is-n3 { grid-template-columns:repeat(2, minmax(0,1fr)); }

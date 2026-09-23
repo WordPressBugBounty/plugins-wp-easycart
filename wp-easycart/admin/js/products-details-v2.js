@@ -50,6 +50,16 @@ if ( typeof window.ecdv2_confirm !== 'function' ) {
 			};
 			$( '#ecdv2-confirm-title' ).text( opts.title || '' ).toggle( !! opts.title );
 			$( '#ecdv2-confirm-message' ).text( opts.message || '' );
+			/* 6.0.1: opts.details ( one line per consequence, plain text ) and opts.note ( small print under them ). The
+			   list is added on first use, so it also works on an overlay the PRO copy of this function built. */
+			var $details = $( '#ecdv2-confirm-details' );
+			if ( ! $details.length ) {
+				$details = $( '<ul id="ecdv2-confirm-details" class="ecdv2-confirm-details"></ul><p id="ecdv2-confirm-note" class="ecdv2-confirm-note"></p>' ).insertAfter( '#ecdv2-confirm-message' ).first();
+			}
+			$details.empty().toggle( !! ( opts.details && opts.details.length ) );
+			$.each( opts.details || [], function( i, line ) { $( '<li>' ).text( line ).appendTo( $details ); } );
+			$( '#ecdv2-confirm-note' ).text( opts.note || '' ).toggle( !! opts.note );
+			$overlay.find( '.ecdv2-confirm-modal' ).toggleClass( 'has-details', !! ( opts.details && opts.details.length ) );
 			$overlay.find( '[data-confirm="1"]' ).text( opts.confirm_label || 'Continue' ).toggleClass( 'ecv2-btn-danger', !! opts.danger );
 			$overlay.find( '[data-confirm="0"]' ).text( opts.cancel_label || 'Cancel' );
 			$overlay.find( '[data-confirm]' ).off( 'click' ).on( 'click', function() { settle( $( this ).data( 'confirm' ) === 1 ); } );
@@ -1082,6 +1092,86 @@ window.ecdv2 = ( function( $ ) {
 		'tax'                : 'pricing'
 	};
 
+	/*
+	 * 6.0.1: the per-choice image panel is rendered server side when the page loads, so a set attached in the
+	 * Options tab left the Media tab still reporting that there is nothing to give images to until the
+	 * merchant reloaded by hand ( and removing one left galleries for choices that no longer applied ). It is
+	 * refetched when the Media tab is opened, and only when the options have changed since it was drawn.
+	 *
+	 * The first attempt only watched the free edition's slot pickers ( #ecdv2_opt_slots ), which are never on the
+	 * page when the PRO Media panel is: PRO prints its own Options panel. So the signature now reads the PRO option
+	 * and modifier rows too, and PRO fires 'ecdv2:options-changed' after every attach, remove, reorder and modifier
+	 * change ( products-v2-pro.js ).
+	 */
+	var media_pro_stale = false;
+
+	function option_slot_signature() {
+		var sig = [];
+		$( '#ecdv2_opt_slots select' ).each( function() { sig.push( 's' + String( $( this ).val() || 0 ) ); } );
+		$( '#wp-easycart-pro-basic-options .wp-easycart-pro-option-table-row-sortable' ).not( '.wp-easycart-pro-option-modifer-row' ).each( function() { sig.push( 'b' + String( $( this ).attr( 'data-option-id' ) || 0 ) ); } );
+		$( '.wp-easycart-pro-option-modifer-row' ).each( function() { sig.push( 'm' + String( $( this ).attr( 'data-option-id' ) || 0 ) ); } );
+		return sig.join( ',' );
+	}
+
+	var media_pro_loading = false;
+	var media_pro_again   = false;
+	var media_pro_timer   = 0;
+
+	/*
+	 * 6.0.1 ( third pass ): the panel is refetched as soon as the options change, in the background, instead of only
+	 * when the Media tab is opened, and the request cannot be answered from a cache ( a GET to admin-ajax.php can be
+	 * cached by a host or a caching plugin, which matched "only a hard refresh shows it" ). A refetch asked for while
+	 * one is running runs again when it finishes. Each way this can stop is written to the console.
+	 */
+	function refresh_media_pro( force ) {
+		var $wrap = $( '#ecdv2_media_pro_wrap' );
+		if ( ! $wrap.length ) { return; }
+		if ( media_pro_loading ) { media_pro_again = true; return; }
+		var sig = option_slot_signature();
+		if ( ! force && ! media_pro_stale && sig === String( $wrap.data( 'ecdv2-slots' ) || '' ) ) { return; }
+		var product_id = parseInt( $( '#product_id' ).val(), 10 ) || 0;
+		if ( ! product_id ) { return; }
+		media_pro_loading = true;
+		$wrap.addClass( 'is-loading' );
+		$.ajax( {
+			url: ( window.wpeasycart_admin_ajax_object || {} ).ajax_url || window.ajaxurl,
+			type: 'GET',
+			cache: false,
+			dataType: 'html',
+			data: { action: 'ec_admin_ajax_get_optionitem_images_content_pro', product_id: product_id }
+		} ).done( function( html ) {
+			if ( html && -1 !== String( html ).indexOf( 'wpeasycart_product_images_pro' ) ) {
+				$wrap.html( html );
+				/* The drag-and-drop uploaders were bound to the old gallery nodes ( products-pro.js ). */
+				if ( 'function' === typeof window.wp_easycart_pro_bind_media_dropzones ) {
+					window.wp_easycart_pro_bind_media_dropzones( $wrap );
+				}
+				$wrap.data( 'ecdv2-slots', option_slot_signature() );
+				media_pro_stale = false;
+				$( document ).trigger( 'ecdv2:media-refreshed' );
+			} else if ( window.console ) {
+				window.console.warn( 'WP EasyCart: the Media panel could not be redrawn ( unexpected answer from ec_admin_ajax_get_optionitem_images_content_pro ).', String( html ).substr( 0, 200 ) );
+			}
+		} ).fail( function( xhr ) {
+			if ( window.console ) { window.console.warn( 'WP EasyCart: the Media panel could not be redrawn ( HTTP ' + ( xhr ? xhr.status : '?' ) + ' ).' ); }
+		} ).always( function() {
+			media_pro_loading = false;
+			$wrap.removeClass( 'is-loading' );
+			if ( media_pro_again ) { media_pro_again = false; refresh_media_pro( true ); }
+		} );
+	}
+
+	/* Seed the signature the panel was drawn with ( so the first visit does not refetch for nothing ), and follow
+	   option changes: refetch right away ( debounced, the save has finished by then ), and again when Media opens if
+	   that one did not land. */
+	$( function() {
+		$( '#ecdv2_media_pro_wrap' ).data( 'ecdv2-slots', option_slot_signature() );
+	} );
+	$( document ).on( 'ecdv2:options-changed', function() {
+		media_pro_stale = true;
+		clearTimeout( media_pro_timer );
+		media_pro_timer = setTimeout( function() { refresh_media_pro( true ); }, 150 );
+	} );
 	function go_tab( key ) {
 		if ( $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) && 'general' !== key ) {
 			return;
@@ -1099,6 +1189,9 @@ window.ecdv2 = ( function( $ ) {
 		}
 		if ( 'activity' === key && ! activity_loaded ) {
 			load_activity();
+		}
+		if ( 'media' === key ) {
+			refresh_media_pro();
 		}
 		load_panel_feeds( key );
 		/* mobile pill bar: keep active pill in view */
@@ -3023,6 +3116,7 @@ window.ecdv2 = ( function( $ ) {
 						$wrap.attr( 'data-counts', JSON.stringify( counts ) );
 						/* select2 fires change ( and the first render ) before this event. */
 						if ( typeof window.ecdv2_opt_render === 'function' ) { window.ecdv2_opt_render(); }
+						media_pro_stale = true;
 					} );
 				}
 			} );

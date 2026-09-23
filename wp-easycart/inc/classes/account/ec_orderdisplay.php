@@ -648,49 +648,62 @@ class ec_orderdisplay {
 	}
 
 	/**
-	 * @since 6.0.0 $recipients: send the customer receipt only, to these addresses ( admin resend dialog ).
-	 * @param bool       $admin_only Only the store copy.
-	 * @param array|null $recipients array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+	 * The receipt email's HTML, without sending it ( the send, Settings › Documents previews, the send dialog ).
+	 *
+	 * @since 6.0.1
+	 * @param bool       $is_admin        The store copy.
+	 * @param array|null $document_fields Resolved receipt profile ( wp_easycart_documents::resolve() ); null = the default profile.
+	 * @return string
 	 */
-	public function send_email_receipt( $admin_only = false, $recipients = null ){
+	public function render_email_receipt( $is_admin = false, $document_fields = null ) {
+		extract( $this->receipt_template_vars() ); // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- the receipt template reads these as plain variables.
+		$is_admin = (bool) $is_admin;
+		if ( null === $document_fields && class_exists( 'wp_easycart_documents' ) ) {
+			$document_fields = wp_easycart_documents::resolve( 'receipt' );
+		}
+		ob_start();
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php';
+		} else {
+			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_receipt.php';
+		}
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The formatted amounts and links the receipt template has always been given.
+	 *
+	 * @since 6.0.1 ( moved out of send_email_receipt() )
+	 * @return array
+	 */
+	private function receipt_template_vars() {
 		$tax_struct = new ec_tax( 0,0,0, "", "");
 		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
 		$subtotal = $GLOBALS['currency']->get_currency_display( $this->sub_total );
 		$tip = $GLOBALS['currency']->get_currency_display( $this->tip_total );
 		$tax = $GLOBALS['currency']->get_currency_display( $this->tax_total );
-		if( $this->duty_total > 0 ){ $has_duty = true; }else{ $has_duty = false; }
+		$has_duty = ( $this->duty_total > 0 );
 		$duty = $GLOBALS['currency']->get_currency_display( $this->duty_total );
 		$vat = $GLOBALS['currency']->get_currency_display( $this->vat_total );
 		$shipping = $GLOBALS['currency']->get_currency_display( $this->shipping_total );
-		if( $this->vat_rate > 0 )
+		if ( $this->vat_rate > 0 ) {
 			$vat_rate_formatted = $vat_rate = $this->vat_rate;
-		else if( ( $this->grand_total - $this->vat_total ) > 0 )
+		} else if ( ( $this->grand_total - $this->vat_total ) > 0 ) {
 			$vat_rate_formatted = $vat_rate = ( $this->vat_total / ( $this->grand_total - $this->vat_total ) ) * 100;
-		else
+		} else {
 			$vat_rate_formatted = $vat_rate = 0;
-		if( round( $vat_rate_formatted, 0 ) == $vat_rate ){
+		}
+		if ( round( $vat_rate_formatted, 0 ) == $vat_rate ) {
 			$vat_rate_formatted = number_format( round( $vat_rate_formatted, 0 ), 0, '', '' );
-		}else if( round( $vat_rate_formatted, 1 ) == $vat_rate ){
+		} else if ( round( $vat_rate_formatted, 1 ) == $vat_rate ) {
 			$vat_rate_formatted = number_format( $vat_rate_formatted, 1, '.', '' );
-		}else if( round( $vat_rate_formatted, 2 ) == $vat_rate ){
+		} else if ( round( $vat_rate_formatted, 2 ) == $vat_rate ) {
 			$vat_rate_formatted = number_format( $vat_rate_formatted, 2, '.', '' );
-		}else if( round( $vat_rate_formatted, 3 ) == $vat_rate ){
+		} else if ( round( $vat_rate_formatted, 3 ) == $vat_rate ) {
 			$vat_rate_formatted = number_format( $vat_rate_formatted, 3, '.', '' );
 		}
 		$vat_rate = $vat_rate_formatted;
-		$gst = $this->gst_total;
-		$gst_rate = $this->gst_rate;
-		$pst = $this->pst_total;
-		$pst_rate = $this->pst_rate;
-		$hst = $this->hst_total;
-		$hst_rate = $this->hst_rate;
-
-		$discount = $GLOBALS['currency']->get_currency_display( $this->discount_total );
-		$refund = $GLOBALS['currency']->get_currency_display( $this->refund_total );
-
-		$email_logo_url = get_option( 'ec_option_email_logo' );
-
-		$storepageid = get_option('ec_option_storepage');
+		$storepageid = get_option( 'ec_option_storepage' );
 		if ( function_exists( 'icl_object_id' ) ) {
 			$storepageid = icl_object_id( $storepageid, 'page', true, ICL_LANGUAGE_CODE );
 		}
@@ -699,12 +712,42 @@ class ec_orderdisplay {
 			$https_class = new WordPressHTTPS();
 			$store_page = $https_class->makeUrlHttps( $store_page );
 		}
+		return array(
+			'tax_struct'        => $tax_struct,
+			'total'             => $total,
+			'subtotal'          => $subtotal,
+			'tip'               => $tip,
+			'tax'               => $tax,
+			'has_duty'          => $has_duty,
+			'duty'              => $duty,
+			'vat'               => $vat,
+			'shipping'          => $shipping,
+			'vat_rate'          => $vat_rate,
+			'gst'               => $this->gst_total,
+			'gst_rate'          => $this->gst_rate,
+			'pst'               => $this->pst_total,
+			'pst_rate'          => $this->pst_rate,
+			'hst'               => $this->hst_total,
+			'hst_rate'          => $this->hst_rate,
+			'discount'          => $GLOBALS['currency']->get_currency_display( $this->discount_total ),
+			'refund'            => $GLOBALS['currency']->get_currency_display( $this->refund_total ),
+			'email_logo_url'    => get_option( 'ec_option_email_logo' ),
+			'store_page'        => $store_page,
+			'permalink_divider' => substr_count( (string) $store_page, '?' ) ? '&' : '?',
+		);
+	}
 
-		if ( substr_count( $store_page, '?' ) ) {
-			$permalink_divider = "&";
-		} else {
-			$permalink_divider = "?";
-		}
+	/**
+	 * @since 6.0.0 $recipients: send the customer receipt only, to these addresses ( admin resend dialog ).
+	 * @since 6.0.1 $args: document_fields ( a resolved receipt profile for this send ), plus anything the send dialog
+	 *              passes on to the attachment filters ( documents, profiles, chosen items ).
+	 * @param bool       $admin_only Only the store copy.
+	 * @param array|null $recipients array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+	 * @param array      $args       Per-send choices.
+	 */
+	public function send_email_receipt( $admin_only = false, $recipients = null, $args = array() ){
+		$args            = is_array( $args ) ? $args : array();
+		$document_fields = ( isset( $args['document_fields'] ) && is_array( $args['document_fields'] ) ) ? $args['document_fields'] : null;
 
 		$headers   = array();
 		$headers[] = "MIME-Version: 1.0";
@@ -713,41 +756,29 @@ class ec_orderdisplay {
 		$headers[] = "Reply-To: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 		$headers[] = "X-Mailer: PHP/".phpversion();
 
-		ob_start();
-		$is_admin = false;
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php' ) ) {
-			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php';	
-		} else {
-			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_receipt.php';
-		}
-		$message = ob_get_clean();
+		$message = $this->render_email_receipt( false, $document_fields );
 		$message = apply_filters( 'wpeasycart_order_email_customer_content', $message, $this->order_id );
 		$customer_title = wp_easycart_language( )->get_text( "cart_success", "cart_payment_receipt_title" ) . " " . $this->order_id;
 		$customer_title= apply_filters( 'wpeasycart_order_email_customer_title', $customer_title, $this->order_id );
 
-		ob_start();
-		$is_admin = true;
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php' ) ) {
-			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php';
-		} else {
-			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_email_receipt.php';
+		$attachments = array( );
+		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
+
+		/* 6.0.0: a resend from the order screen goes to the addresses the admin chose, without the store copy. */
+		if ( is_array( $recipients ) && ! $admin_only ) {
+			return self::send_to_recipients( $recipients, $customer_title, $message, $headers, $this->get_email_attachments( $attachments, 'customer', 'receipt', $args ) );
 		}
-		$admin_message = ob_get_clean();
+
+		$admin_message = $this->render_email_receipt( true, $document_fields );
 		$admin_message = apply_filters( 'wpeasycart_order_email_admin_content', $admin_message, $this->order_id );
 		$admin_title = wp_easycart_language( )->get_text( "cart_success", "cart_payment_receipt_title" ) . " " . $this->order_id;
 		$admin_title= apply_filters( 'wpeasycart_order_email_admin_title', $admin_title, $this->order_id );
 		$admin_email = apply_filters( 'wpeasycart_order_email_admin_email', get_option( 'ec_option_bcc_email_addresses' ), $this->order_id );
 
-		$attachments = array( );
-		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
 		/* 6.0.0: per-recipient attachments ( PRO PDF receipt ); identical to $attachments when nothing hooks in. */
-		$customer_attachments = ( $admin_only ) ? $attachments : $this->get_email_attachments( $attachments, 'customer', 'receipt' );
-		$admin_attachments    = $this->get_email_attachments( $attachments, 'admin', 'receipt' );
-
-		/* 6.0.0: a resend from the order screen goes to the addresses the admin chose, without the store copy. */
-		if ( is_array( $recipients ) && ! $admin_only ) {
-			return self::send_to_recipients( $recipients, $customer_title, $message, $headers, $customer_attachments );
-		}
+		/* 6.0.1: the store copy's files are asked for after the customer's copies went out ( the email queue records each
+		   send's attachments as it happens, and both copies can share one PDF ). */
+		$customer_attachments = ( $admin_only ) ? $attachments : $this->get_email_attachments( $attachments, 'customer', 'receipt', $args );
 
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
@@ -765,6 +796,7 @@ class ec_orderdisplay {
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
+			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
 			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $admin_attachments );
 		}else if( $email_send_method == "0" ){
 			$to = $this->user_email;
@@ -775,6 +807,7 @@ class ec_orderdisplay {
 					$mailer->send_order_email( $this->email_other, $customer_title, $message, $customer_attachments );
 				}
 			}
+			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
 			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message, $admin_attachments );
 		}else{
 			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message, $customer_attachments );
@@ -855,8 +888,8 @@ class ec_orderdisplay {
 		$attachments = array( );
 		$attachments = apply_filters( 'wpeasycart_order_email_attachments', $attachments, $this->order_id );
 		/* 6.0.0: per-recipient attachments ( PRO PDF invoice ); identical to $attachments when nothing hooks in. */
+		/* 6.0.1: the store copy's files are asked for just before it goes out, as in send_email_receipt(). */
 		$customer_attachments = ( $admin_only ) ? $attachments : $this->get_email_attachments( $attachments, 'customer', 'invoice' );
-		$admin_attachments    = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
 
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
@@ -874,6 +907,7 @@ class ec_orderdisplay {
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
+			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
 			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $admin_message, implode("\r\n", $headers), $admin_attachments );
 		}else if( $email_send_method == "0" ){
 			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
@@ -886,6 +920,7 @@ class ec_orderdisplay {
 					$mailer->send_order_email( $this->email_other, $subject, $message, $customer_attachments );
 				}
 			}
+			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
 			$mailer->send_order_email( $admin_email, $subject, $admin_message, $admin_attachments );
 		}else{
 			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message, $customer_attachments );
@@ -906,9 +941,10 @@ class ec_orderdisplay {
 	 * @param array  $attachments Files from the older 'wpeasycart_order_email_attachments' filter ( every recipient ).
 	 * @param string $recipient   'customer' | 'admin'.
 	 * @param string $email       'receipt' | 'invoice'.
+	 * @param array  $args        6.0.1: per-send choices from the admin send dialog ( documents, profiles, chosen items ).
 	 * @return array
 	 */
-	private function get_email_attachments( $attachments, $recipient, $email ) {
+	private function get_email_attachments( $attachments, $recipient, $email, $args = array() ) {
 		$attachments = is_array( $attachments ) ? $attachments : array();
 		/**
 		 * Filters the files attached to one recipient's copy of an order email.
@@ -918,9 +954,11 @@ class ec_orderdisplay {
 		 * @param array  $files     Absolute file paths to attach.
 		 * @param int    $order_id  Order ID.
 		 * @param string $recipient 'customer' ( shopper and the order's second address ) | 'admin' ( store notification addresses ).
-		 * @param array  $context   array( 'email' => 'receipt' | 'invoice', 'order' => ec_orderdisplay ).
+		 * @param array  $context   array( 'email' => 'receipt' | 'invoice', 'order' => ec_orderdisplay, 'args' => per-send choices ( 6.0.1 ) ).
 		 */
-		$extra = apply_filters( 'wp_easycart_order_email_attachments', array(), (int) $this->order_id, $recipient, array( 'email' => $email, 'order' => $this ) );
+		$context = array( 'email' => $email, 'order' => $this, 'args' => (array) $args );
+		/* 6.0.1: through ec_email so a failed send that is queued can build the same files again on retry. */
+		$extra = ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'attachments' ) ) ? ec_email::attachments( 'wp_easycart_order_email_attachments', array(), (int) $this->order_id, $recipient, $context ) : apply_filters( 'wp_easycart_order_email_attachments', array(), (int) $this->order_id, $recipient, $context );
 		if ( ! is_array( $extra ) || empty( $extra ) ) {
 			return $attachments;
 		}

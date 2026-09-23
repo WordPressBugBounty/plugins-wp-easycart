@@ -450,6 +450,17 @@ class wp_easycart_admin_payment_v2 {
 				self::generic_facts( $s, $gw );
 		}
 
+		/* 6.0.1: has anyone started on this gateway? Nothing filled in means "Connect"; a half-filled one means "Finish setup". */
+		$s['started'] = $s['connected'] || $s['enabled'];
+		if ( ! $s['started'] ) {
+			foreach ( array_merge( (array) $gw['creds'], isset( $gw['creds_any'] ) ? (array) $gw['creds_any'] : array() ) as $option ) {
+				if ( '' !== trim( (string) get_option( $option ) ) ) {
+					$s['started'] = true;
+					break;
+				}
+			}
+		}
+
 		$s = apply_filters( 'wp_easycart_payment_gateway_status', $s, $gw );
 
 		$s['ready'] = $s['connected'] || $s['live_ready'] || $s['test_ready'];
@@ -755,8 +766,16 @@ class wp_easycart_admin_payment_v2 {
 		foreach ( self::roles() as $role => $meta ) {
 			$key = self::active( $role );
 			if ( '' === $key ) {
-				if ( 'wallet' === $role || isset( $choosers[ $role ] ) ) {
-					continue; /* Wallet: sits in "More gateways". Live / third-party: the chooser stands in for the empty card. */
+				if ( 'wallet' === $role ) {
+					/* 6.0.1: the wallet slot used to be dropped entirely until a wallet was switched on, so on the
+					   free edition Amazon Pay appeared nowhere on this page unless the merchant thought to expand
+					   "Browse gateways". It gets its own card now: an upsell while it is locked, a Set up button
+					   once it is not. */
+					self::render_wallet_card( $meta, $gate );
+					continue;
+				}
+				if ( isset( $choosers[ $role ] ) ) {
+					continue; /* Live / third-party: the chooser stands in for the empty card. */
 				}
 				self::render_empty_card( $role, $meta );
 				continue;
@@ -921,7 +940,7 @@ class wp_easycart_admin_payment_v2 {
 								<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['test'] ); ?>" data-href="<?php echo esc_url( $urls['test'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Try sandbox', 'wp-easycart' ); ?></a>
 							<?php endif; ?>
 						<?php elseif ( ! $s['ready'] && $gw['drawer'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Finish setup', 'wp-easycart' ); ?></button>
+							<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( empty( $s['started'] ) ? __( 'Connect', 'wp-easycart' ) : __( 'Finish setup', 'wp-easycart' ) ); ?></button>
 						<?php endif; ?>
 						<?php if ( $s['ready'] && $gw['drawer'] ) : ?>
 							<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></button>
@@ -1162,6 +1181,55 @@ class wp_easycart_admin_payment_v2 {
 		}
 		self::render_logo( $key, $gw );
 		echo '<span class="ecpay-partner-word">' . esc_html( $gw['label'] ) . '</span>';
+	}
+
+	/**
+	 * The Wallet slot when no wallet is switched on: the first wallet the catalog knows about, shown as an
+	 * upsell when it is locked and as a "Set up" card when it is available. Keeps Amazon Pay on the page for
+	 * every edition instead of only inside the collapsed "More gateways" list.
+	 *
+	 * @since 6.0.1
+	 * @param array $meta Role meta from roles().
+	 * @param bool  $gate True while the EasyCart Connect terms still have to be accepted.
+	 * @return void
+	 */
+	private static function render_wallet_card( $meta, $gate ) {
+		$wallet_key = '';
+		$wallet     = array();
+		foreach ( self::catalog() as $key => $gw ) {
+			if ( 'wallet' === $gw['role'] ) {
+				$wallet_key = $key;
+				$wallet     = $gw;
+				break;
+			}
+		}
+		if ( '' === $wallet_key ) {
+			return;
+		}
+		$status = self::status( $wallet_key );
+		?>
+		<article class="ecpay-card is-empty<?php echo $status['locked'] ? ' is-locked' : ''; ?>" data-role="wallet" data-gateway="<?php echo esc_attr( $wallet_key ); ?>">
+			<div class="ecpay-card-role"><?php echo esc_html( $meta['label'] ); ?><?php if ( '' !== $meta['hint'] ) : ?><span><?php echo esc_html( $meta['hint'] ); ?></span><?php endif; ?></div>
+			<div class="ecpay-card-head">
+				<?php self::render_logo( $wallet_key, $wallet ); ?>
+				<div class="ecpay-card-title">
+					<h4><?php echo esc_html( $wallet['label'] ); ?><?php if ( $status['locked'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( self::pro_badge() ); ?></span><?php endif; ?></h4>
+					<?php if ( '' !== $wallet['desc'] ) : ?><span><?php echo esc_html( $wallet['desc'] ); ?></span><?php endif; ?>
+				</div>
+			</div>
+			<div class="ecpay-chips"><span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Off', 'wp-easycart' ); ?></span></div>
+			<div class="ecpay-card-actions">
+				<?php if ( $status['locked'] ) : ?>
+					<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $wallet_key ); ?>' ); return false;">&#128274; <?php echo esc_html( self::pro_badge() ); ?></button>
+				<?php elseif ( $status['ready'] ) : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $wallet_key ); ?>" data-on="1" data-swap="0"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
+					<?php if ( $wallet['drawer'] ) : ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $wallet_key ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></button><?php endif; ?>
+				<?php elseif ( $wallet['drawer'] ) : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $wallet_key ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Set up', 'wp-easycart' ); ?></button>
+				<?php endif; ?>
+			</div>
+		</article>
+		<?php
 	}
 
 	private static function render_empty_card( $role, $meta ) {

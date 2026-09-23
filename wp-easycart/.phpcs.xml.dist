@@ -92,6 +92,8 @@
 				<element value="ecv2_user_import_guard"/>
 				<!-- V2 settings pages ( admin/inc/wp_easycart_admin_settings_page_v2.php ) -->
 				<element value="ecv2_settings_guard"/>
+				<!-- Settings › Documents profile editor ( admin/inc/wp_easycart_admin_documents.php ) -->
+				<element value="ecv2_documents_guard"/>
 				<!-- Payment gateway settings saves ( admin/inc/wp_easycart_admin_payments.php ) -->
 				<element value="ecv2_payment_settings_guard"/>
 				<!-- Payment settings GET links: Square disconnect / renew, PayPal disconnect ( same file ) -->

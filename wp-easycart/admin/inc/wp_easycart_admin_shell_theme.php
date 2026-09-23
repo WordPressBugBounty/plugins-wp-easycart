@@ -238,6 +238,7 @@ function wp_easycart_shell_search_index() {
 		$items[] = array( 'label' => __( 'Design', 'wp-easycart' ), 'url' => $s . '&subpage=design', 'group' => $g, 'kw' => 'theme colors layout' );
 		$items[] = array( 'label' => __( 'Language', 'wp-easycart' ), 'url' => $s . '&subpage=language-editor', 'group' => $g, 'kw' => 'translations text labels' );
 		$items[] = array( 'label' => __( 'Email', 'wp-easycart' ), 'url' => $s . '&subpage=email-setup', 'group' => $g, 'kw' => 'receipts smtp templates' );
+		$items[] = array( 'label' => __( 'Documents', 'wp-easycart' ), 'url' => $s . '&subpage=documents', 'group' => $g, 'kw' => 'packing slip receipt shipped email pdf attachments profiles' );
 		$items[] = array( 'label' => __( 'Countries', 'wp-easycart' ), 'url' => $s . '&subpage=country', 'group' => $g, 'kw' => '' );
 		$items[] = array( 'label' => __( 'States/Territories', 'wp-easycart' ), 'url' => $s . '&subpage=states', 'group' => $g, 'kw' => 'provinces regions' );
 		$items[] = array( 'label' => __( 'Per Page Options', 'wp-easycart' ), 'url' => $s . '&subpage=perpage', 'group' => $g, 'kw' => 'pagination' );
@@ -349,6 +350,7 @@ function wp_easycart_shell_breadcrumb() {
 			'design'            => __( 'Design', 'wp-easycart' ),
 			'language-editor'   => __( 'Language', 'wp-easycart' ),
 			'email-setup'       => __( 'Email', 'wp-easycart' ),
+			'documents'         => __( 'Documents', 'wp-easycart' ),
 			'country'           => __( 'Countries', 'wp-easycart' ),
 			'states'            => __( 'States/Territories', 'wp-easycart' ),
 			'perpage'           => __( 'Per Page Options', 'wp-easycart' ),

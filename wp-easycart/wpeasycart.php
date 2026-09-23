@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 6.0.0
+ * Version: 6.0.1
  * Requires PHP: 7.3
  * Author: WP EasyCart
  * Author URI: http://www.wpeasycart.com
@@ -14,7 +14,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 6.0.0
+ * @version 6.0.1
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -23,10 +23,87 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '6_0_0' );
+define( 'EC_CURRENT_VERSION', '6_0_1' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '106' );
+define( 'EC_UPGRADE_DB', '107' );
 
+/*
+ * Square webhooks ( 6.0.1 ).
+ *
+ * Notifications come from connect.wpeasycart.com, which verifies Square's own signature and forwards the
+ * body on. Square signs the notification URL it holds — the proxy's — so the only thing this store can
+ * check is the key it gave the proxy when webhooks were registered. These helpers hold that key check,
+ * the rolling log the Square panel reads, and the event-id list that stops a replay being applied twice.
+ */
+if ( ! function_exists( 'wp_easycart_square_webhook_key_ok' ) ) {
+	/**
+	 * Does this request carry the key this store registered?
+	 *
+	 * Accepted as the X-EasyCart-Notification-Key header ( preferred ) or a `key` query argument, so the
+	 * forwarder can use whichever suits it.
+	 *
+	 * @param string $expected The stored key.
+	 * @return bool
+	 */
+	function wp_easycart_square_webhook_key_ok( $expected ) {
+		$sent = '';
+		if ( isset( $_SERVER['HTTP_X_EASYCART_NOTIFICATION_KEY'] ) ) {
+			$sent = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_EASYCART_NOTIFICATION_KEY'] ) );
+		} elseif ( isset( $_GET['key'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the key is the credential being checked.
+			$sent = sanitize_text_field( wp_unslash( $_GET['key'] ) );
+		}
+		return ( '' !== $sent && hash_equals( (string) $expected, $sent ) );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_square_webhook_log' ) ) {
+	/**
+	 * Record one notification. Kept in an option rather than ec_response, because that table only records
+	 * anything when the gateway log is switched on and this counter has to be readable either way.
+	 *
+	 * @param string $event_id Square's event id, when it sent one.
+	 * @param string $type     Event type, or 'rejected'.
+	 * @param string $note     Optional sentence for the panel.
+	 * @return void
+	 */
+	function wp_easycart_square_webhook_log( $event_id, $type, $note = '' ) {
+		$log = get_option( 'ec_option_square_webhook_log' );
+		$log = is_array( $log ) ? $log : array();
+		array_unshift( $log, array(
+			'id'   => substr( (string) $event_id, 0, 64 ),
+			'type' => substr( (string) $type, 0, 64 ),
+			'note' => substr( (string) $note, 0, 200 ),
+			'time' => time(),
+		) );
+		$log = array_slice( $log, 0, (int) apply_filters( 'wp_easycart_square_webhook_log_size', 50 ) );
+		update_option( 'ec_option_square_webhook_log', $log, false );
+		if ( 'rejected' !== $type ) {
+			update_option( 'ec_option_square_webhook_last', time(), false );
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_square_webhook_seen' ) ) {
+	/**
+	 * Has this event id already been handled? Recording happens in wp_easycart_square_webhook_log(), so this
+	 * only reads the list.
+	 *
+	 * @param string $event_id Square's event id.
+	 * @return bool
+	 */
+	function wp_easycart_square_webhook_seen( $event_id ) {
+		if ( '' === (string) $event_id ) {
+			return false;
+		}
+		$log = get_option( 'ec_option_square_webhook_log' );
+		foreach ( (array) ( is_array( $log ) ? $log : array() ) as $entry ) {
+			if ( isset( $entry['id'] ) && (string) $entry['id'] === (string) $event_id ) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
 if ( ! function_exists( 'wp_easycart_offers_active' ) ) {
 	function wp_easycart_offers_active( $min_version = '' ) {
 		return function_exists( 'wp_easycart_offers_available' ) && wp_easycart_offers_available( $min_version );
@@ -9239,11 +9316,35 @@ function wp_easycart_webhook_catch() {
 		global $wpdb;
 		$ec_db_admin = new ec_db_admin();
 
-		$body = @file_get_contents('php://input');
+		$body = @file_get_contents('php://input'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- raw request body.
 		$json = json_decode( $body );
 
-		/* Update Inventory Hook */
-		if ( isset( $json ) && is_object( $json ) && isset( $json->type ) && 'inventory.count.updated' == $json->type ) {
+		/*
+		 * 6.0.1: notifications reach this store through connect.wpeasycart.com, which is where Square's own
+		 * signature is checked — Square signs the notification URL it was given, and that URL is the proxy's,
+		 * so the signature could never verify here. What is checked here is the shared key this store handed
+		 * the proxy when webhooks were switched on, sent back with every forwarded request. Until this store
+		 * has registered a key the request is accepted as before, because existing stores registered without
+		 * one; the Square panel asks them to reconnect and close the gap.
+		 */
+		$ecwh_key = (string) get_option( 'ec_option_square_webhook_key' );
+		if ( '' !== $ecwh_key && ! wp_easycart_square_webhook_key_ok( $ecwh_key ) ) {
+			wp_easycart_square_webhook_log( '', 'rejected', __( 'A notification arrived without the right key and was ignored.', 'wp-easycart' ) );
+			status_header( 403 );
+			wp_send_json_error( array( 'message' => 'invalid key' ), 403 );
+		}
+
+		/* Every event is recorded, whatever its type, so the log means something. A repeat of an event already
+		   seen is acknowledged and dropped, so a replay cannot move stock a second time. */
+		$ecwh_event = ( isset( $json->event_id ) ) ? (string) $json->event_id : '';
+		$ecwh_type  = ( isset( $json->type ) ) ? (string) $json->type : 'unknown';
+		if ( '' !== $ecwh_event && wp_easycart_square_webhook_seen( $ecwh_event ) ) {
+			wp_easycart_square_webhook_log( $ecwh_event, $ecwh_type, __( 'Already handled; ignored.', 'wp-easycart' ) );
+			wp_send_json_success( array( 'success' => true, 'square' => true, 'duplicate' => true ), 200 );
+		}
+		wp_easycart_square_webhook_log( $ecwh_event, $ecwh_type, '' );
+
+		/* Update Inventory Hook */		if ( isset( $json ) && is_object( $json ) && isset( $json->type ) && 'inventory.count.updated' == $json->type ) {
 			/* Only sync if it is enabled*/
 			if ( get_option( 'ec_option_square_auto_sync' ) ) {
 				if ( isset( $json->data->object ) && isset( $json->data->object->inventory_counts ) && is_array( $json->data->object->inventory_counts ) ) {

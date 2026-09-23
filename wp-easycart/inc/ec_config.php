@@ -377,6 +377,7 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_options.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_optionset.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_order.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_order_totals.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-documents.php' ); /* 6.0.1: order documents ( profiles for the receipt, shipped email and packing slip ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_page_options.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_payment.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_perpages.php' );

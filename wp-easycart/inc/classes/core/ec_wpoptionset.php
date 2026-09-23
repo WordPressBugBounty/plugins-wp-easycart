@@ -62,6 +62,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_setup_wizard_step');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
 		array_push($this->wp_option_names, 'ec_option_review_complete');					array_push($this->wp_option_defaults, 0 );
+		/* 6.0.1: latched once the store has fulfilled its first real order; the review card waits for it. */
+		array_push($this->wp_option_names, 'ec_option_review_order_seen');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
 		array_push($this->wp_option_names, 'ec_option_load_ssl');							array_push($this->wp_option_defaults, $recommended['ec_option_load_ssl'] );
 																							array_push($this->wp_option_groups, 'ec-store-install-group');
@@ -627,7 +629,7 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_packing_slip_show_options');			array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_packing_slip_show_pricing');			array_push($this->wp_option_defaults, 1 );
+		array_push($this->wp_option_names, 'ec_option_packing_slip_show_pricing');			array_push($this->wp_option_defaults, 0 ); /* 6.0.1: new stores print packing slips without prices ( add_option() never overwrites, so existing stores keep theirs ). */
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_packing_slip_show_subtotal');			array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -752,6 +754,9 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_pdf_attach_admin');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		/* 6.0.1: the merchant's answer to the Store readiness checks for tax and shipping. */
+		array_push($this->wp_option_names, 'ec_option_no_tax_acknowledged');					array_push($this->wp_option_defaults, '' );
+		array_push($this->wp_option_names, 'ec_option_no_shipping_acknowledged');				array_push($this->wp_option_defaults, '' );
 		array_push($this->wp_option_names, 'ec_option_pdf_document_title');					array_push($this->wp_option_defaults, 'invoice' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_pdf_filename');						array_push($this->wp_option_defaults, 'invoice-{order_id}.pdf' );
@@ -824,6 +829,13 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_2checkout_thirdparty_secret_word');	array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
+		/* 6.0.1: Square webhooks — the key this store gave connect.wpeasycart.com, the routing row it created,
+		   the rolling event log the Square panel reads, and when one last arrived. */
+		array_push($this->wp_option_names, 'ec_option_square_webhook_key');					array_push($this->wp_option_defaults, '' );
+		array_push($this->wp_option_names, 'ec_option_square_webhook_id');					array_push($this->wp_option_defaults, '' );
+		array_push($this->wp_option_names, 'ec_option_square_webhook_log');					array_push($this->wp_option_defaults, '' );
+		array_push($this->wp_option_names, 'ec_option_square_webhook_last');					array_push($this->wp_option_defaults, '' );
+		array_push($this->wp_option_names, 'ec_option_square_webhook_error');					array_push($this->wp_option_defaults, '' );
 		array_push($this->wp_option_names, 'ec_option_amazonpay_enable');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_amazonpay_store_id');					array_push($this->wp_option_defaults, '' );

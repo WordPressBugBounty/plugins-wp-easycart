@@ -17,7 +17,7 @@
  *
  * Supported types: 'option' ( option set ), 'category'.
  *
- * AJAX: ecv2_delete_impact, ecv2_delete_execute, ecv2_delete_restore.
+ * AJAX: ecv2_delete_impact, ecv2_delete_execute, ecv2_delete_restore, ecv2_delete_targets.
  * Nonce: 'wp-easycart-safe-delete'.
  *
  * @since 5.x.x
@@ -48,6 +48,7 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			add_action( 'wp_ajax_ecv2_delete_impact', array( $this, 'ajax_impact' ) );
 			add_action( 'wp_ajax_ecv2_delete_execute', array( $this, 'ajax_execute' ) );
 			add_action( 'wp_ajax_ecv2_delete_restore', array( $this, 'ajax_restore' ) );
+			add_action( 'wp_ajax_ecv2_delete_targets', array( $this, 'ajax_targets' ) );
 		}
 
 		/* =====================================================================
@@ -75,6 +76,9 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			}
 			if ( 'manufacturer' === $type ) {
 				return $this->analyze_manufacturer( $id );
+			}
+			if ( 'customer' === $type ) {
+				return $this->analyze_customer( $id );
 			}
 			return new WP_Error( 'bad_type', __( 'Unknown record type.', 'wp-easycart' ) );
 		}
@@ -259,8 +263,14 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 				if ( $s['key'] === $strategy && empty( $s['disabled'] ) ) {
 					$valid = true;
 					if ( ! empty( $s['requires_target'] ) ) {
-						$allowed = array_map( 'intval', wp_list_pluck( isset( $s['targets'] ) ? $s['targets'] : array(), 'value' ) );
-						if ( ! $target || $target === $id || ! in_array( $target, $allowed, true ) ) {
+						if ( ! empty( $s['target_search'] ) ) {
+							/* Searched targets are not listed in the report, so check the one that was picked. @since 6.0.1 */
+							$ok = $target && $target !== $id && $this->target_exists( $s['target_search'], $target );
+						} else {
+							$allowed = array_map( 'intval', wp_list_pluck( isset( $s['targets'] ) ? $s['targets'] : array(), 'value' ) );
+							$ok      = $target && $target !== $id && in_array( $target, $allowed, true );
+						}
+						if ( ! $ok ) {
 							return new WP_Error( 'target', __( 'Choose a valid target first.', 'wp-easycart' ) );
 						}
 					}
@@ -270,15 +280,64 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 				return new WP_Error( 'strategy', __( 'That option is not available for this record.', 'wp-easycart' ) );
 			}
 			if ( 'option' === $type ) {
-				return $this->execute_option( $id, $strategy, $target, $report );
+				$result = $this->execute_option( $id, $strategy, $target, $report );
+			} else if ( 'category' === $type ) {
+				$result = $this->execute_category( $id, $strategy, $target, $redirect, $report );
+			} else if ( 'manufacturer' === $type ) {
+				$result = $this->execute_manufacturer( $id, $strategy, $target, $redirect, $report );
+			} else if ( 'customer' === $type ) {
+				$result = $this->execute_customer( $id, $strategy, $target, $report );
+			} else {
+				$result = $this->execute_menu( (int) substr( $type, 4 ), $id, $strategy, $target, $redirect, $report );
 			}
-			if ( 'category' === $type ) {
-				return $this->execute_category( $id, $strategy, $target, $redirect, $report );
+			/* 6.0.1: kept with the index entry, so a list that reloads after the delete can repeat it above its Undo. */
+			if ( is_array( $result ) && ! empty( $result['trash_id'] ) && ! empty( $result['message'] ) ) {
+				$index = get_option( self::TRASH_INDEX, array() );
+				if ( is_array( $index ) && isset( $index[ $result['trash_id'] ] ) ) {
+					$index[ $result['trash_id'] ]['message'] = $result['message'];
+					update_option( self::TRASH_INDEX, $index, 'no' );
+				}
 			}
-			if ( 'manufacturer' === $type ) {
-				return $this->execute_manufacturer( $id, $strategy, $target, $redirect, $report );
+			return $result;
+		}
+
+		/**
+		 * Does a searched-for target exist? For strategies whose targets are too many to list.
+		 *
+		 * @since 6.0.1
+		 * @param string $kind   The strategy's target_search ( 'customer' ).
+		 * @param int    $target The id that was picked.
+		 * @return bool
+		 */
+		private function target_exists( $kind, $target ) {
+			global $wpdb;
+			if ( 'customer' === $kind ) {
+				return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE user_id = %d', $target ) );
 			}
-			return $this->execute_menu( (int) substr( $type, 4 ), $id, $strategy, $target, $redirect, $report );
+			return false;
+		}
+
+		/**
+		 * The Recently deleted entry for one delete, while it can still be put back. Lists use it to print their
+		 * Undo bar after the page reloads ( wp_easycart_admin_undo::maybe_print_bar() ).
+		 *
+		 * @since 6.0.1
+		 * @param string $trash_id From execute().
+		 * @return array|false { type, name, message, time, … }
+		 */
+		public function trash_entry( $trash_id ) {
+			$trash_id = preg_replace( '/[^a-z0-9_]/', '', (string) $trash_id );
+			if ( '' === $trash_id ) {
+				return false;
+			}
+			$index = get_option( self::TRASH_INDEX, array() );
+			if ( ! is_array( $index ) || empty( $index[ $trash_id ] ) || (int) $index[ $trash_id ]['time'] < time() - self::RETENTION_DAYS * DAY_IN_SECONDS ) {
+				return false;
+			}
+			if ( ! get_option( self::TRASH_PREFIX . $trash_id ) ) {
+				return false;
+			}
+			return $index[ $trash_id ];
 		}
 
 		private function execute_option( $option_id, $strategy, $target, $report ) {
@@ -749,6 +808,102 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			return array( 'trash_id' => $trash_id, 'message' => $msg );
 		}
 
+		/**
+		 * Deleting a customer used to leave their orders pointing at an account that no longer exists, which the
+		 * order screen shows as an empty customer box. The orders themselves are never deleted: they either move
+		 * to another account or go back to being guest checkouts ( ec_order.user_id = 0 ), which is what they
+		 * would have been had the shopper never registered.
+		 *
+		 * @since 6.0.1
+		 * @param int $id Customer id.
+		 * @return array|WP_Error
+		 */
+		private function analyze_customer( $id ) {
+			global $wpdb;
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_user WHERE user_id = %d', $id ) );
+			if ( ! $row ) {
+				return new WP_Error( 'not_found', __( 'Customer not found.', 'wp-easycart' ) );
+			}
+			$name = trim( $row->first_name . ' ' . $row->last_name );
+			if ( '' === $name ) {
+				$name = $row->email;
+			}
+			$orders    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_order WHERE user_id = %d', $id ) );
+			$addresses = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_address WHERE user_id = %d', $id ) );
+			$sample    = $wpdb->get_col( $wpdb->prepare( 'SELECT CONCAT( "#", order_id ) FROM ec_order WHERE user_id = %d ORDER BY order_date DESC LIMIT 5', $id ) );
+
+			$impacts   = array();
+			$impacts[] = array(
+				'key'      => 'orders',
+				'label'    => __( 'Orders placed by this customer', 'wp-easycart' ),
+				'count'    => $orders,
+				'severity' => $orders ? 'warn' : 'info',
+				'detail'   => $orders ? __( 'Orders are never deleted. Choose below where they should belong afterwards.', 'wp-easycart' ) : __( 'They have not ordered yet.', 'wp-easycart' ),
+				'sample'   => $sample,
+				'link'     => admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&filter_5=' . $id ),
+			);
+			$impacts[] = array( 'key' => 'addresses', 'label' => __( 'Saved addresses', 'wp-easycart' ), 'count' => $addresses, 'severity' => 'info', 'detail' => __( 'Deleted with the account. The address recorded on each past order is kept.', 'wp-easycart' ), 'sample' => array() );
+
+			/* The receiving account is searched for ( ajax_targets() ) rather than listed: a store can have hundreds of
+			   thousands of customers, and the old 500-row dropdown could not reach most of them. */
+			$has_other  = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE user_id != %d LIMIT 1', $id ) );
+			$strategies = array();
+			if ( $orders ) {
+				$strategies[] = array( 'key' => 'replace', 'label' => __( 'Move their orders to another customer', 'wp-easycart' ), 'description' => __( 'Every order is attributed to the account you choose, and shows in that customer’s history.', 'wp-easycart' ), 'requires_target' => true, 'target_search' => 'customer', 'targets' => array(), 'disabled' => ! $has_other );
+				$strategies[] = array( 'key' => 'remove', 'label' => __( 'Turn their orders into guest checkouts', 'wp-easycart' ), 'description' => __( 'The orders keep the name, email and addresses recorded on them and move to the Guest Checkouts list.', 'wp-easycart' ), 'recommended' => true );
+			} else {
+				$strategies[] = array( 'key' => 'remove', 'label' => __( 'Delete the customer', 'wp-easycart' ), 'description' => __( 'Nothing else refers to this account.', 'wp-easycart' ), 'recommended' => true );
+			}
+			return array( 'type' => 'customer', 'id' => $id, 'name' => $name, 'impacts' => $impacts, 'strategies' => $strategies, 'redirect' => array( 'available' => false, 'from' => '', 'default_to' => '' ), 'undo_days' => self::RETENTION_DAYS );
+		}
+
+		/**
+		 * @since 6.0.1
+		 * @param int    $id       Customer id.
+		 * @param string $strategy 'replace' | 'remove'.
+		 * @param int    $target   Customer to move the orders to, for 'replace'.
+		 * @param array  $report   From analyze_customer().
+		 * @return array
+		 */
+		private function execute_customer( $id, $strategy, $target, $report ) {
+			global $wpdb;
+			$snap = $this->snapshot_begin( 'customer', $id, $report['name'], $strategy, $target );
+			$user = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_user WHERE user_id = %d', $id ), ARRAY_A );
+			$this->snapshot_rows( $snap, 'ec_user', 'user_id', array( $user ) );
+			$this->snapshot_rows( $snap, 'ec_address', 'address_id', (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_address WHERE user_id = %d', $id ), ARRAY_A ) );
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM ec_order WHERE user_id = %d', $id ) ) as $order_id ) {
+				$this->snapshot_update( $snap, 'ec_order', 'order_id', (int) $order_id, array( 'user_id' => $id ) );
+			}
+			do_action( 'wpeasycart_account_deleting', $id );
+			$new = ( 'replace' === $strategy ) ? (int) $target : 0;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE user_id = %d', $new, $id ) );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_address WHERE user_id = %d', $id ) );
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_user WHERE user_id = %d', $id ) );
+			do_action( 'wpeasycart_account_deleted', $id );
+			/* 6.0.1: the account receiving the orders has new figures in the customer list. */
+			if ( $new && function_exists( 'wp_easycart_refresh_user_history' ) ) {
+				wp_easycart_refresh_user_history( $new );
+			}
+			/* Orders that became guest checkouts belong on the ( cached ) Guest Checkouts list now. */
+			if ( ! $new ) {
+				update_option( 'ec_guest_list_cache_ver', time(), false );
+			}
+			$trash_id = $this->snapshot_commit( $snap );
+			$n_orders = count( $snap['updates'] );
+			if ( 'replace' === $strategy ) {
+				$to = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE( NULLIF( TRIM( CONCAT( COALESCE( first_name, "" ), " ", COALESCE( last_name, "" ) ) ), "" ), email ) FROM ec_user WHERE user_id = %d', $new ) );
+				/* translators: 1: deleted customer, 2: number of orders, 3: customer they moved to. */
+				$msg = sprintf( __( 'Deleted “%1$s” — %2$d orders moved to “%3$s”.', 'wp-easycart' ), $report['name'], $n_orders, $to );
+			} else if ( $n_orders ) {
+				/* translators: 1: deleted customer, 2: number of orders. */
+				$msg = sprintf( __( 'Deleted “%1$s” — %2$d orders are now guest checkouts.', 'wp-easycart' ), $report['name'], $n_orders );
+			} else {
+				/* translators: %s: deleted customer. */
+				$msg = sprintf( __( 'Deleted “%s”.', 'wp-easycart' ), $report['name'] );
+			}
+			return array( 'trash_id' => $trash_id, 'message' => $msg );
+		}
+
 		/* ---------------------------------------------------------------- */
 		/* Shared post / nav-item snapshot helpers                           */
 		/* ---------------------------------------------------------------- */
@@ -1036,10 +1191,20 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 				return new WP_Error( 'gone', __( 'This deletion can no longer be undone.', 'wp-easycart' ) );
 			}
 			/* Conflict check: the primary record id must be free */
-			$pks = array( 'option' => array( 'ec_option', 'option_id' ), 'category' => array( 'ec_category', 'category_id' ), 'manufacturer' => array( 'ec_manufacturer', 'manufacturer_id' ), 'menu1' => array( 'ec_menulevel1', 'menulevel1_id' ), 'menu2' => array( 'ec_menulevel2', 'menulevel2_id' ), 'menu3' => array( 'ec_menulevel3', 'menulevel3_id' ) );
+			$pks = array( 'option' => array( 'ec_option', 'option_id' ), 'category' => array( 'ec_category', 'category_id' ), 'manufacturer' => array( 'ec_manufacturer', 'manufacturer_id' ), 'menu1' => array( 'ec_menulevel1', 'menulevel1_id' ), 'menu2' => array( 'ec_menulevel2', 'menulevel2_id' ), 'menu3' => array( 'ec_menulevel3', 'menulevel3_id' ), 'customer' => array( 'ec_user', 'user_id' ) );
 			$pk = isset( $pks[ $snap['type'] ] ) ? $pks[ $snap['type'] ] : $pks['option'];
 			if ( $wpdb->get_var( $wpdb->prepare( "SELECT {$pk[1]} FROM {$pk[0]} WHERE {$pk[1]} = %d", $snap['record_id'] ) ) ) {
 				return new WP_Error( 'conflict', __( 'A record with the same ID already exists, so this cannot be restored automatically.', 'wp-easycart' ) );
+			}
+			/* 6.0.1: ec_user.email is unique, and the rows go back with REPLACE, so a shopper who registered again with the
+			   same address would have their new account silently deleted by the restore. Refuse instead. */
+			if ( 'customer' === $snap['type'] && ! empty( $snap['rows']['ec_user'] ) ) {
+				foreach ( $snap['rows']['ec_user'] as $user_row ) {
+					if ( ! empty( $user_row['email'] ) && $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s AND user_id != %d', $user_row['email'], (int) $user_row['user_id'] ) ) ) {
+						/* translators: %s: customer email address. */
+						return new WP_Error( 'conflict', sprintf( __( 'Another customer account now uses %s, so this customer cannot be put back. Change that account’s email first, then try again.', 'wp-easycart' ), $user_row['email'] ) );
+					}
+				}
 			}
 			/* The bulk file must be there before anything is put back, or the undo would be partial */
 			$bulk_file = ! empty( $snap['bulk_file'] ) ? $snap['bulk_file'] : '';
@@ -1109,6 +1274,15 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			if ( is_array( $index ) ) { unset( $index[ $trash_id ] ); update_option( self::TRASH_INDEX, $index, 'no' ); }
 			wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
 
+			/* 6.0.1: a customer coming back takes their orders with them, so both sides of the original
+			   move need their stored Orders / Spend / Last order recalculated. */
+			if ( 'customer' === $snap['type'] && function_exists( 'wp_easycart_refresh_user_history' ) ) {
+				wp_easycart_refresh_user_history( array( $snap['record_id'], $snap['target'] ) );
+			}
+			if ( 'customer' === $snap['type'] ) {
+				update_option( 'ec_guest_list_cache_ver', time(), false ); /* guest checkouts taken back by the account */
+				do_action( 'wpeasycart_account_restored', (int) $snap['record_id'] );
+			}
 			return array(
 				/* translators: %s: record name */
 				'message' => sprintf( __( 'Restored “%s”.', 'wp-easycart' ), $snap['name'] ),
@@ -1191,22 +1365,33 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 		   AJAX
 		   ===================================================================== */
 
-		private function guard() {
-			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_products' ) ) {
+		/**
+		 * @param string $type Record type, so a customer delete asks for the customers capability rather than
+		 *                     the catalog one ( 6.0.1 — the types no longer share an audience ).
+		 */
+		private function guard( $type = '' ) {
+			$cap = ( 'customer' === $type ) ? 'wpec_users' : 'wpec_products';
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( $cap ) ) {
 				wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
 			}
 			check_ajax_referer( self::NONCE, 'nonce' );
 		}
 
+		/** The type on this request, for guard(). @since 6.0.1 */
+		private function posted_type() {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() verifies the nonce immediately after.
+			return isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : '';
+		}
+
 		public function ajax_impact() {
-			$this->guard();
+			$this->guard( $this->posted_type() );
 			$r = $this->analyze( isset( $_POST['type'] ) ? sanitize_key( $_POST['type'] ) : '', isset( $_POST['id'] ) ? (int) $_POST['id'] : 0 );
 			if ( is_wp_error( $r ) ) { wp_send_json_error( array( 'message' => $r->get_error_message() ) ); }
 			wp_send_json_success( $r );
 		}
 
 		public function ajax_execute() {
-			$this->guard();
+			$this->guard( $this->posted_type() );
 			$r = $this->execute(
 				isset( $_POST['type'] ) ? sanitize_key( $_POST['type'] ) : '',
 				isset( $_POST['id'] ) ? (int) $_POST['id'] : 0,
@@ -1220,9 +1405,58 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			wp_send_json_success( $r );
 		}
 
+		/**
+		 * Search for the record a strategy should move things to, for strategies marked target_search.
+		 * Customers only for now: name, email or customer number, 20 at a time.
+		 *
+		 * @since 6.0.1
+		 */
+		public function ajax_targets() {
+			$this->guard( $this->posted_type() );
+			global $wpdb;
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- guard() verified the nonce above.
+			$type    = $this->posted_type();
+			$exclude = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+			$q       = isset( $_POST['q'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['q'] ) ) ) : '';
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			if ( 'customer' !== $type ) {
+				wp_send_json_error( array( 'message' => __( 'Unknown record type.', 'wp-easycart' ) ) );
+			}
+			$results = array();
+			if ( '' !== $q ) {
+				$like = '%' . $wpdb->esc_like( $q ) . '%';
+				$rows = $wpdb->get_results( $wpdb->prepare(
+					'SELECT user_id, first_name, last_name, email FROM ec_user
+					 WHERE user_id != %d AND ( user_id = %d OR email LIKE %s OR first_name LIKE %s OR last_name LIKE %s OR CONCAT( COALESCE( first_name, "" ), " ", COALESCE( last_name, "" ) ) LIKE %s )
+					 ORDER BY ( user_id = %d ) DESC, last_name, first_name, email LIMIT 20',
+					$exclude,
+					ctype_digit( $q ) ? (int) $q : 0,
+					$like,
+					$like,
+					$like,
+					$like,
+					ctype_digit( $q ) ? (int) $q : 0
+				) );
+				foreach ( (array) $rows as $row ) {
+					$name      = trim( wp_unslash( $row->first_name ) . ' ' . wp_unslash( $row->last_name ) );
+					$results[] = array(
+						'value'  => (int) $row->user_id,
+						'label'  => '' !== $name ? $name : $row->email,
+						'detail' => '' !== $name ? $row->email . ' · #' . (int) $row->user_id : '#' . (int) $row->user_id,
+					);
+				}
+			}
+			wp_send_json_success( array( 'results' => $results ) );
+		}
+
 		public function ajax_restore() {
-			$this->guard();
-			$r = $this->restore( isset( $_POST['trash_id'] ) ? sanitize_text_field( wp_unslash( $_POST['trash_id'] ) ) : '' );
+			/* 6.0.1: the capability follows what was deleted ( a customer asks for the customers one, anything else the
+			   catalog one ), not which of the two the current user happens to hold. */
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only lookup of the record type; guard() verifies the nonce next.
+			$trash_id = isset( $_POST['trash_id'] ) ? preg_replace( '/[^a-z0-9_]/', '', sanitize_text_field( wp_unslash( $_POST['trash_id'] ) ) ) : '';
+			$index    = get_option( self::TRASH_INDEX, array() );
+			$this->guard( ( is_array( $index ) && isset( $index[ $trash_id ]['type'] ) && 'customer' === $index[ $trash_id ]['type'] ) ? 'customer' : '' );
+			$r = $this->restore( $trash_id );
 			if ( is_wp_error( $r ) ) { wp_send_json_error( array( 'message' => $r->get_error_message() ) ); }
 			wp_send_json_success( $r );
 		}

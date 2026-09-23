@@ -24,6 +24,10 @@ class ec_db_manager {
 	/** Option holding the version-chain progress ( array of completed step names ). @since 6.0.0 */
 	const PROGRESS_OPTION = 'ec_option_db_update_progress';
 
+	/* 6.0.1: steps the merchant chose to move past, and the ones currently failing. */
+	const SKIPPED_OPTION = 'ec_option_db_update_skipped';
+	const FAILING_OPTION = 'ec_option_db_update_failing';
+
 	/** Option that records the EC_UPGRADE_DB the schema was last verified against. @since 6.0.0 */
 	const SCHEMA_VERIFIED_OPTION = 'ec_option_db_schema_verified';
 
@@ -410,6 +414,62 @@ class ec_db_manager {
 	 * @since 6.0.0
 	 * @return string[]
 	 */
+	/**
+	 * Update steps the merchant has chosen to move past.
+	 *
+	 * A step that cannot succeed on a particular database — an ALTER the host refuses, a column another
+	 * plugin holds a lock on — used to be retried every ten minutes for ever, and because the version is
+	 * only written when every step lands, the store sat on "database upgrade in progress" indefinitely.
+	 * Skipping records the step as handled so the rest of the upgrade can finish. The change itself is
+	 * still outstanding, which is why the Store Status page keeps saying so.
+	 *
+	 * @since 6.0.1
+	 * @return array
+	 */
+	public static function get_skipped_steps() {
+		$skipped = get_option( self::SKIPPED_OPTION );
+		return is_array( $skipped ) ? $skipped : array();
+	}
+
+	/**
+	 * Steps that failed on the last pass, in the order they ran.
+	 *
+	 * @since 6.0.1
+	 * @return array
+	 */
+	public static function get_failing_steps() {
+		$failing = get_option( self::FAILING_OPTION );
+		return is_array( $failing ) ? $failing : array();
+	}
+
+	/**
+	 * Move past whatever is currently failing and let the upgrade continue.
+	 *
+	 * @since 6.0.1
+	 * @return int How many steps were skipped.
+	 */
+	public static function skip_failing_steps() {
+		$failing = self::get_failing_steps();
+		if ( empty( $failing ) ) {
+			return 0;
+		}
+		update_option( self::SKIPPED_OPTION, array_values( array_unique( array_merge( self::get_skipped_steps(), $failing ) ) ), false );
+		delete_option( self::FAILING_OPTION );
+		update_option( 'ec_option_db_install_errors', array(), false );
+		delete_transient( 'ec_db_update_backoff' );
+		delete_transient( 'ec_db_update_lock' );
+		return count( $failing );
+	}
+
+	/**
+	 * Take every skipped step back, so the next pass tries them again. @since 6.0.1
+	 *
+	 * @return void
+	 */
+	public static function clear_skipped_steps() {
+		delete_option( self::SKIPPED_OPTION );
+		delete_transient( 'ec_db_update_backoff' );
+	}
 	public static function get_update_progress() {
 		$progress = get_option( self::PROGRESS_OPTION );
 		if ( ! is_array( $progress ) || ! isset( $progress['completed'] ) || ! is_array( $progress['completed'] ) ) {
@@ -455,12 +515,14 @@ class ec_db_manager {
 
 		$functions = $this->get_new_update_functions( );
 		$completed = self::get_update_progress();
+		$skipped = self::get_skipped_steps();
+		$failing = array();
 		$failed = false;
 		$paused = false;
 		$this->update_failed = false;
 		$this->update_errors = array();
 		foreach ( $functions as $function ) {
-			if ( in_array( $function, $completed, true ) || ! method_exists( $this, $function ) ) {
+			if ( in_array( $function, $completed, true ) || in_array( $function, $skipped, true ) || ! method_exists( $this, $function ) ) {
 				continue;
 			}
 			if ( $this->out_of_time() ) {
@@ -480,6 +542,7 @@ class ec_db_manager {
 				/* Not recorded as complete: it re-runs after the backoff. Keep going so steps that do
 				   not depend on it still land ( every step is idempotent ). */
 				$failed = true;
+				$failing[] = $function;
 				continue;
 			}
 			if ( false === $result ) {
@@ -501,12 +564,14 @@ class ec_db_manager {
 		if ( ! $failed && ! $this->update_failed ) {
 			update_option( 'ec_option_db_version_updated', str_replace( '_', '.', EC_CURRENT_VERSION ) );
 			delete_option( self::PROGRESS_OPTION );
+			delete_option( self::FAILING_OPTION );
 		} else {
 			/* Do not re-run the migration on every request while the cause persists; surface the
 			   messages on the Store Status page. try_repair() clears both on a clean verify. The
 			   progress option is kept so the steps that did complete are not repeated. */
 			set_transient( 'ec_db_update_backoff', 1, 10 * MINUTE_IN_SECONDS );
 			update_option( 'ec_option_db_install_errors', array_merge( $this->get_install_errors(), $this->update_errors ) );
+			update_option( self::FAILING_OPTION, array_values( array_unique( $failing ) ), false );
 		}
 		/* One forced structure check per completed chain; verify_db() marks the version on a clean pass. */
 		$this->verify_db( true );
@@ -622,6 +687,9 @@ class ec_db_manager {
 				/* Batched data steps last so every schema change above lands before the long-running rewrites start. */
 				'wpeasycart_sql_6_0_0_user_dates',
 				'wpeasycart_sql_6_0_0_zero_dates'
+			),
+			'6.0.1' => array(
+				'wpeasycart_sql_6_0_1_email'
 			),
 		);
 
@@ -1500,11 +1568,33 @@ class ec_db_manager {
 					continue;
 				}
 				if ( 'NO' === $col->Null || null !== $col->Default ) {
-					$wpdb->query( "ALTER TABLE `$table` MODIFY COLUMN `$column` text NULL" );
+					/*
+					 * 6.0.1: an index built when the column was a varchar carries no prefix length, and MySQL
+					 * refuses to turn an indexed column into TEXT without one — "BLOB/TEXT column used in key
+					 * specification without a key length" ( error 1170 ). ec_subscriber.email is the common
+					 * one: its UNIQUE key predates the schema that declares email( 191 ). The blocking index
+					 * is lifted, the column relaxed, and the index put back with the prefix the schema uses.
+					 * If the MODIFY still fails the original index goes back exactly as it was, so a store
+					 * that cannot make this change is never left without its unique constraint.
+					 */
+					$lifted = $this->prefixless_column_indexes( $table, $column );
+					foreach ( $lifted as $index ) {
+						$wpdb->query( "ALTER TABLE `$table` DROP INDEX `" . str_replace( '`', '', $index['name'] ) . "`" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers only: $table comes from the hard-coded map above, the index name from information_schema with backticks stripped.
+					}
+					$alter_sql = "ALTER TABLE `$table` MODIFY COLUMN `$column` text NULL";
+					$wpdb->query( $alter_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- identifiers only, built from the hard-coded map above.
 					$alter_error = $wpdb->last_error; // the SHOW below resets $wpdb->last_error
 					$col = $wpdb->get_row( $wpdb->prepare( "SHOW FULL COLUMNS FROM `$table` WHERE Field = %s" , $column ) );
-					if ( $col && ( 'NO' === $col->Null || null !== $col->Default ) ) {
-						$this->record_update_failure( '6.0.0: could not relax ' . $table . '.' . $column . ' to text NULL: ' . $alter_error );
+					$relaxed = ( $col && 'YES' === $col->Null && null === $col->Default );
+					foreach ( $lifted as $index ) {
+						$name   = str_replace( '`', '', $index['name'] );
+						$unique = $index['unique'] ? 'UNIQUE ' : '';
+						/* Back with a prefix once the column is TEXT; back as it was if it is still a varchar. */
+						$spec = $relaxed ? "`$column`(191)" : "`$column`";
+						$wpdb->query( "ALTER TABLE `$table` ADD {$unique}INDEX `$name` ( $spec )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers only: this is the index lifted a few lines above, name backtick-stripped.
+					}
+					if ( ! $relaxed ) {
+						$this->record_update_failure( '6.0.0: could not relax ' . $table . '.' . $column . ' to text NULL: ' . $alter_error . ' [ ' . $alter_sql . ' ]' );
 					}
 				}
 			}
@@ -1745,6 +1835,18 @@ class ec_db_manager {
 		}
 	}
 
+	/**
+	 * 6.0.1: ec_email_queue.attachments holds how to rebuild a queued email's attachments ( ec_email::attachments() ),
+	 * so a retried receipt or shipped email still carries its PDFs; the files themselves only last one request.
+	 * dbDelta adds the column from get_schema() as well ( EC_UPGRADE_DB 107 ).
+	 */
+	private function wpeasycart_sql_6_0_1_email() {
+		global $wpdb;
+		if ( ! $this->add_column( 'ec_email_queue', 'attachments', 'text' ) ) {
+			$this->record_update_failure( '6.0.1 email: could not add ec_email_queue.attachments: ' . $wpdb->last_error );
+		}
+	}
+
 	private function wpeasycart_sql_6_0_0_abandoned() {
 		global $wpdb;
 		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
@@ -1823,6 +1925,38 @@ class ec_db_manager {
 		//error_log( 'WP EasyCart DB update ' . $message );
 	}
 
+	/**
+	 * Single-column indexes on this column that were built without a prefix length.
+	 *
+	 * Those are the ones that stop a column becoming TEXT. A multi-column index is left alone: lifting one
+	 * is a bigger change than this migration should make on its own, and the failure is recorded instead.
+	 *
+	 * @since 6.0.1
+	 * @param string $table  Table name.
+	 * @param string $column Column name.
+	 * @return array List of array( 'name' => string, 'unique' => bool ).
+	 */
+	private function prefixless_column_indexes( $table, $column ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT index_name, non_unique FROM information_schema.statistics
+			 WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s
+			 AND sub_part IS NULL AND index_name != 'PRIMARY'
+			 AND index_name NOT IN (
+				SELECT index_name FROM ( SELECT index_name FROM information_schema.statistics
+					WHERE table_schema = DATABASE() AND table_name = %s
+					GROUP BY index_name HAVING COUNT(*) > 1 ) AS multi
+			 )",
+			$table,
+			$column,
+			$table
+		) );
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[] = array( 'name' => $row->index_name, 'unique' => ( '0' === (string) $row->non_unique ) );
+		}
+		return $out;
+	}
 	private function index_exists( $table, $index ) {
 		global $wpdb;
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = %s AND index_name = %s", $table, $index ) );
@@ -2377,6 +2511,7 @@ CREATE TABLE ec_email_queue (
   next_attempt datetime DEFAULT NULL,
   status varchar(20) NOT NULL DEFAULT 'pending',
   last_error text,
+  attachments text,
   PRIMARY KEY  (queue_id),
   KEY status_next (status, next_attempt),
   KEY order_id (order_id)

@@ -30,48 +30,12 @@ if( isset( $product->google_attributes ) && $product->google_attributes != NULL 
 }
 $first_image_url = '';
 if ( $product->use_optionitem_images ) {
-	$first_optionitem_id = false;
-	if ( $product->use_advanced_optionset ) {
-		if ( count( $product->advanced_optionsets ) > 0 ) {
-			$valid_optionset = false;
-			foreach ( $product->advanced_optionsets as $adv_optionset ) {
-				if( ! $valid_optionset && ( $adv_optionset->option_type == 'combo' || $adv_optionset->option_type == 'swatch' || $adv_optionset->option_type == 'radio' ) ) {
-					$valid_optionset = $adv_optionset;
-				}
-			}
-			if ( $valid_optionset ) {
-				$optionitems = $product->get_advanced_optionitems( $valid_optionset->option_id );
-				if ( count( $optionitems ) > 0 ) {
-					$first_optionitem_id = $optionitems[0]->optionitem_id;
-				}
-			}
-		}
-	} else {
-		if ( count( $product->options->optionset1->optionset ) > 0 ) {
-			for ( $j = 0; $j < count( $product->options->optionset1->optionset ) && ! $first_optionitem_id; $j++ ) {
-				if ( $product->allow_backorders ) {
-					$optionitem_in_stock = true;
-				} else if ( $product->use_optionitem_quantity_tracking && ( $product->option1quantity[ $product->options->optionset1->optionset[ $j ]->optionitem_id ] <= 0 ) ) {
-					$optionitem_in_stock = false;
-				} else {
-					$optionitem_in_stock = true;
-				}
-				if ( $product->options->verify_optionitem( 1, $product->options->optionset1->optionset[ $j ]->optionitem_id ) ) {
-					if ( ! $product->use_optionitem_quantity_tracking || $product->option1quantity[ $product->options->optionset1->optionset[ $j ]->optionitem_id ] > 0 || $optionitem_in_stock ){
-						for ( $k = 0; $k < count( $product->images->imageset ) && ! $first_optionitem_id; $k++ ) {
-							if ( $product->images->imageset[ $k ]->optionitem_id == $product->options->optionset1->optionset[ $j ]->optionitem_id ) {
-								$first_optionitem_id = $product->options->optionset1->optionset[ $j ]->optionitem_id;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	/* 6.0.1: one rule for the first image set ( ec_product::get_details_initial_imageset_id() ); 0 is the default images. */
+	$first_optionitem_id = $product->get_details_initial_imageset_id();
 	$first_image_found = false;
-	if ( $first_optionitem_id ) {
+	if ( false !== $first_optionitem_id ) {
 		for ( $i = 0; $i < count( $product->images->imageset ); $i++ ) {
-			if ( ! $first_image_found && ( 0 == (int) $product->images->imageset[$i]->optionitem_id || (int) $product->images->imageset[$i]->optionitem_id == $first_optionitem_id ) ) {
+			if ( ! $first_image_found && ( (int) $product->images->imageset[$i]->optionitem_id === (int) $first_optionitem_id ) ) {
 				if ( count( $product->images->imageset[$i]->product_images ) > 0 ) {
 					if( 'video:' == substr( $product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
 						$video_str = substr( $product->images->imageset[$i]->product_images[0], 6, strlen( $product->images->imageset[$i]->product_images[0] ) - 6 );
@@ -122,7 +86,7 @@ if ( $product->use_optionitem_images ) {
 						}
 					} // close check for video
 				} else {
-					if ( (int) $product->images->imageset[$i]->optionitem_id != 0 ) {
+					if ( 0 !== (int) $product->images->imageset[$i]->optionitem_id || '' !== trim( (string) $product->images->imageset[$i]->image1 ) ) {
 						$first_image_url = $product->get_first_image_url();
 						$first_image_found = true;
 					}

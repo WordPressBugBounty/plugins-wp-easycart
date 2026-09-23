@@ -495,6 +495,7 @@ return array(
 				 * picking a page or post writes its permalink into the field, which stays editable for an external URL. */
 				'ec_option_terms_link' => array(
 					'type'              => 'url',
+					'create_page'       => 'terms',
 					'label'             => __( 'Terms and conditions page', 'wp-easycart' ),
 					'desc'              => __( 'Linked from the agreement checkbox. Pick a page or post on this site, or type any URL.', 'wp-easycart' ),
 					'default'           => 'http://yoursite.com/termsandconditions',
@@ -509,6 +510,7 @@ return array(
 				),
 				'ec_option_privacy_link' => array(
 					'type'              => 'url',
+					'create_page'       => 'privacy',
 					'label'             => __( 'Privacy policy page', 'wp-easycart' ),
 					'desc'              => __( 'Linked from the agreement checkbox. Pick a page or post on this site, or type any URL.', 'wp-easycart' ),
 					'default'           => 'http://yoursite.com/privacypolicy',

@@ -3869,6 +3869,67 @@
                 }
             }
         },
+        "documents": {
+            "label": "Order Documents",
+            "options": {
+                "packing_slip_title": {
+                    "title": "Packing Slip Title",
+                    "value": "Pakbon"
+                },
+                "order_number": {
+                    "title": "Order Number Label",
+                    "value": "Bestelling"
+                },
+                "order_date": {
+                    "title": "Order Date Label",
+                    "value": "Datum"
+                },
+                "ship_to": {
+                    "title": "Ship To Label",
+                    "value": "Verzenden naar"
+                },
+                "bill_to": {
+                    "title": "Bill To Label",
+                    "value": "Factureren aan"
+                },
+                "shipping_method": {
+                    "title": "Shipping Method Label",
+                    "value": "Verzending"
+                },
+                "carrier": {
+                    "title": "Carrier Label",
+                    "value": "Vervoerder"
+                },
+                "tracking": {
+                    "title": "Tracking Number Label",
+                    "value": "Track & trace"
+                },
+                "items_to_follow": {
+                    "title": "Items To Follow Heading",
+                    "value": "Volgt in een aparte zending"
+                },
+                "packing_slip_email_subject": {
+                    "title": "Packing Slip Email Subject",
+                    "value": "Pakbon voor bestelling"
+                },
+                "invoice_title": {
+                    "title": "Invoice PDF Heading",
+                    "value": "Factuur"
+                },
+                "receipt_title": {
+                    "title": "Receipt PDF Heading",
+                    "value": "Ontvangstbewijs"
+                },
+                "invoice_order_number": {
+                    "title": "Invoice PDF Order Number Label",
+                    "value": "Bestelnummer:"
+                },
+                "invoice_date": {
+                    "title": "Invoice PDF Date Label",
+                    "value": "Datum:"
+                }
+            }
+        },
         "language_code": {
             "label": "Language Code",
             "options": {

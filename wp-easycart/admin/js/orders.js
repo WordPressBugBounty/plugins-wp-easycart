@@ -406,6 +406,10 @@ function ec_admin_send_order_shipped_email( skip_confirm, recipients, on_done ){
 		data.to = recipients.to;
 		data.cc = recipients.cc;
 		data.bcc = recipients.bcc;
+		/* 6.0.1: the send dialog's choices ( content profile, items, attachments ), read by WP EasyCart PRO. */
+		if ( recipients.documents ) {
+			data.documents = recipients.documents;
+		}
 	}
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( response ){

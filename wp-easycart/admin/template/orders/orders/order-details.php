@@ -60,11 +60,15 @@ if ( 17 === $wpec_status_id ) {
 
 /* Fulfillment state: fulfilled / pickup / digital ( nothing to ship, 6.0.0 ) / unfulfilled / none. One source of truth: the controller. */
 $wpec_tracking = trim( (string) $this->order->tracking_number );
+/* 6.0.1: Free Local Pickup is collected, not shipped. The state stays fulfilled / unfulfilled ( status sync and PRO's
+   actions key off it ), including at Ready for Pickup; the banner wording, icon and action change, and Create Label
+   is never offered. */
+$wpec_local_pickup = function_exists( 'wp_easycart_order_is_local_pickup' ) && wp_easycart_order_is_local_pickup( $this->order );
 if ( method_exists( $this, 'get_fulfillment_state' ) ) {
 	$fulfillment_state = $this->get_fulfillment_state();
 } else if ( 18 === $wpec_status_id || 2 === $wpec_status_id || '' !== $wpec_tracking ) {
 	$fulfillment_state = 'fulfilled';
-} else if ( 11 === $wpec_status_id || ! empty( $this->order->includes_restaurant_type ) ) {
+} else if ( ( 11 === $wpec_status_id && ! $wpec_local_pickup ) || ! empty( $this->order->includes_restaurant_type ) ) {
 	$fulfillment_state = 'pickup';
 } else if ( ! empty( $this->order->is_approved ) && ! in_array( $wpec_status_id, array( 16, 19 ), true ) ) {
 	/* 6.0.0: nothing to ship ( downloads, gift cards, subscriptions / services, shipping disabled ) is fulfilled on payment. The page is
@@ -78,6 +82,8 @@ if ( method_exists( $this, 'get_fulfillment_state' ) ) {
 	$fulfillment_state = 'none';
 }
 $fulfillment_state = apply_filters( 'wp_easycart_ecv2_order_fulfillment_state', $fulfillment_state, $this->order );
+$wpec_msg_fulfilled   = $wpec_local_pickup ? __( 'The customer has picked this order up.', 'wp-easycart' ) : __( 'This order has been fulfilled.', 'wp-easycart' );
+$wpec_msg_unfulfilled = $wpec_local_pickup ? __( 'Free local pickup. This order is waiting for the customer to collect it.', 'wp-easycart' ) : __( 'This order is awaiting fulfillment.', 'wp-easycart' );
 $item_count        = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE( SUM( quantity ), 0 ) FROM ec_orderdetail WHERE order_id = %d', $this->order->order_id ) );
 $selected_order_status = false;
 foreach ( $order_status_list as $wpec_status_check ) {
@@ -135,10 +141,17 @@ if ( '' === $wpec_customer_name ) {
 					'unfulfilled' => array( 'class' => 'ecodv2-fulfill-badge-warn', 'icon' => 'dashicons-warning', 'label' => __( 'Unfulfilled', 'wp-easycart' ) ),
 					'digital'     => array( 'class' => 'ecodv2-fulfill-badge-ok', 'icon' => 'dashicons-download', 'label' => __( 'No shipping', 'wp-easycart' ) ),
 				);
+				if ( $wpec_local_pickup ) {
+					/* 6.0.1: Free Local Pickup reads as picked up / awaiting pickup. */
+					$wpec_fb_map['fulfilled']['icon']    = 'dashicons-store';
+					$wpec_fb_map['fulfilled']['label']   = __( 'Picked up', 'wp-easycart' );
+					$wpec_fb_map['unfulfilled']['icon']  = 'dashicons-store';
+					$wpec_fb_map['unfulfilled']['label'] = __( 'Awaiting pickup', 'wp-easycart' );
+				}
 				if ( isset( $wpec_fb_map[ $fulfillment_state ] ) ) { $wpec_fb = $wpec_fb_map[ $fulfillment_state ]; ?>
-				<span class="ecodv2-fulfill-badge <?php echo esc_attr( $wpec_fb['class'] ); ?>" id="ecodv2_fulfill_badge" data-state="<?php echo esc_attr( $fulfillment_state ); ?>"><span class="dashicons <?php echo esc_attr( $wpec_fb['icon'] ); ?>"></span> <span id="ecodv2_fulfill_badge_label"><?php echo esc_html( $wpec_fb['label'] ); ?></span></span>
+				<span class="ecodv2-fulfill-badge <?php echo esc_attr( $wpec_fb['class'] ); ?>" id="ecodv2_fulfill_badge" data-state="<?php echo esc_attr( $fulfillment_state ); ?>" data-label-fulfilled="<?php echo esc_attr( $wpec_fb_map['fulfilled']['label'] ); ?>" data-label-unfulfilled="<?php echo esc_attr( $wpec_fb_map['unfulfilled']['label'] ); ?>"><span class="dashicons <?php echo esc_attr( $wpec_fb['icon'] ); ?>"></span> <span id="ecodv2_fulfill_badge_label"><?php echo esc_html( $wpec_fb['label'] ); ?></span></span>
 				<?php } else { ?>
-				<span class="ecodv2-fulfill-badge" id="ecodv2_fulfill_badge" data-state="none" style="display:none;"><span class="dashicons dashicons-yes-alt"></span> <span id="ecodv2_fulfill_badge_label"></span></span>
+				<span class="ecodv2-fulfill-badge" id="ecodv2_fulfill_badge" data-state="none" data-label-fulfilled="<?php echo esc_attr( $wpec_fb_map['fulfilled']['label'] ); ?>" data-label-unfulfilled="<?php echo esc_attr( $wpec_fb_map['unfulfilled']['label'] ); ?>" style="display:none;"><span class="dashicons dashicons-yes-alt"></span> <span id="ecodv2_fulfill_badge_label"></span></span>
 				<?php } ?>
 				<?php /* PRO v2: tags + insight chips. Wrapper is display:contents; ec_admin_ajax_update_order_user re-fills it when the account changes. */ ?>
 				<span class="ecodv2-header-chips" id="ecodv2_header_chips"><?php do_action( 'wp_easycart_ecv2_order_details_header_chips', $this->order ); ?></span>
@@ -225,11 +238,42 @@ if ( '' === $wpec_customer_name ) {
 			<div class="ecdv2-menu" id="ecodv2_header_menu">
 				<a href="admin.php?page=wp-easycart-orders&subpage=orders&bulk=<?php echo esc_attr( $this->order->order_id ); ?>&ec_admin_form_action=print-packing-slip&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-bulk-orders' ) ); ?>" target="_blank" onclick="ecodv2_menu_close();"><span class="dashicons dashicons-clipboard"></span><?php esc_attr_e( 'Print Packing Slip', 'wp-easycart' ); ?></a>
 				<a href="admin.php?page=wp-easycart-orders&subpage=orders&bulk=<?php echo esc_attr( $this->order->order_id ); ?>&ec_admin_form_action=print-receipt&wp_easycart_nonce=<?php echo esc_attr( wp_create_nonce( 'wp-easycart-bulk-orders' ) ); ?>" target="_blank" onclick="ecodv2_menu_close();"><span class="dashicons dashicons-media-text"></span><?php esc_attr_e( 'Print Receipt', 'wp-easycart' ); ?></a>
-				<?php /* 6.0.0: wording for the send dialog ( orders-details-v2.js, ecodv2_email_dialog ). */ ?>
-				<script type="application/json" id="ecodv2_email_i18n"><?php echo wp_json_encode( array( 'receipt_title' => __( 'Resend order receipt', 'wp-easycart' ), 'receipt_button' => __( 'Send receipt', 'wp-easycart' ), 'shipped_title' => __( 'Send order shipped email', 'wp-easycart' ), 'shipped_button' => __( 'Send email', 'wp-easycart' ), 'to' => __( 'To', 'wp-easycart' ), 'cc' => __( 'Cc', 'wp-easycart' ), 'bcc' => __( 'Bcc', 'wp-easycart' ), 'optional' => __( 'optional', 'wp-easycart' ), 'hint' => __( 'Separate several addresses with commas.', 'wp-easycart' ), 'cancel' => __( 'Cancel', 'wp-easycart' ), 'sending' => __( 'Sending…', 'wp-easycart' ), 'need_to' => __( 'Enter at least one email address to send to.', 'wp-easycart' ), 'failed' => __( 'The email could not be sent.', 'wp-easycart' ), 'close' => __( 'Close', 'wp-easycart' ) ), JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
-				<?php /* 6.0.0: resend the order receipt ( same sender as the Orders list bulk action; the PRO PDF attaches itself when PDF receipts are on ). */ ?>
-				<a href="#" id="ecodv2_resend_receipt_link" data-email="<?php echo esc_attr( $this->order->user_email ); ?>" data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-ecv2-order-email-' . (int) $this->order->order_id ) ); ?>" data-email-other="<?php echo esc_attr( isset( $this->order->email_other ) ? $this->order->email_other : '' ); ?>" onclick="ecodv2_resend_receipt( this ); return false;"><span class="dashicons dashicons-email"></span><?php esc_attr_e( 'Resend Order Receipt', 'wp-easycart' ); ?></a>
-				<a href="#" id="ecodv2_send_shipped_link" data-email="<?php echo esc_attr( $this->order->user_email ); ?>" data-email-other="<?php echo esc_attr( isset( $this->order->email_other ) ? $this->order->email_other : '' ); ?>" onclick="ecodv2_menu_close(); ecodv2_send_shipped_dialog( this ); return false;"><span class="dashicons dashicons-email-alt"></span><?php esc_attr_e( 'Send Order Shipped Email', 'wp-easycart' ); ?></a>
+				<?php
+				/* 6.0.0: wording for the send dialog ( orders-details-v2.js, ecodv2_email_dialog ).
+				   6.0.1: one dialog for every order email; pro = WP EasyCart PRO fills its document sections, otherwise they show locked. */
+				$wpec_send_strings = array(
+					'order_id'          => (int) $this->order->order_id,
+					'nonce'             => wp_create_nonce( 'wp-easycart-ecv2-order-email-' . (int) $this->order->order_id ),
+					'pro'               => class_exists( 'wp_easycart_documents' ) && wp_easycart_documents::pro_enabled(),
+					'pro_badge'         => class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : 'Pro',
+					'send_title'        => __( 'Send email', 'wp-easycart' ),
+					'kind_label'        => __( 'Email', 'wp-easycart' ),
+					'kind_receipt'      => __( 'Order receipt', 'wp-easycart' ),
+					'kind_shipped'      => __( 'Order shipped', 'wp-easycart' ),
+					'kind_packing_slip' => __( 'Packing slip', 'wp-easycart' ),
+					'receipt_button'    => __( 'Send receipt', 'wp-easycart' ),
+					'shipped_button'    => __( 'Send shipped email', 'wp-easycart' ),
+					'more_title'        => __( 'Attachments, content and items', 'wp-easycart' ),
+					'more_desc'         => __( 'Attach the packing slip as a PDF, leave prices off for this send, or list only the items in this box.', 'wp-easycart' ),
+					'preview'           => __( 'Preview', 'wp-easycart' ),
+					'preview_failed'    => __( 'The preview could not be loaded for this order.', 'wp-easycart' ),
+					'to'                => __( 'To', 'wp-easycart' ),
+					'cc'                => __( 'Cc', 'wp-easycart' ),
+					'bcc'               => __( 'Bcc', 'wp-easycart' ),
+					'optional'          => __( 'optional', 'wp-easycart' ),
+					'hint'              => __( 'Separate several addresses with commas.', 'wp-easycart' ),
+					'cancel'            => __( 'Cancel', 'wp-easycart' ),
+					'sending'           => __( 'Sending…', 'wp-easycart' ),
+					'need_to'           => __( 'Enter at least one email address to send to.', 'wp-easycart' ),
+					'failed'            => __( 'The email could not be sent.', 'wp-easycart' ),
+					'close'             => __( 'Close', 'wp-easycart' ),
+				);
+				?>
+				<script type="application/json" id="ecodv2_email_i18n"><?php echo wp_json_encode( $wpec_send_strings, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
+				<?php /* 6.0.1: one Send Email item replaces Resend Order Receipt and Send Order Shipped Email; the dialog opens on the shipped email once the order has tracking. */ ?>
+				<a href="#" id="ecodv2_send_email_link" data-kind="<?php echo esc_attr( '' !== trim( (string) $this->order->tracking_number ) ? 'shipped' : 'receipt' ); ?>" data-email="<?php echo esc_attr( $this->order->user_email ); ?>" data-email-other="<?php echo esc_attr( isset( $this->order->email_other ) ? $this->order->email_other : '' ); ?>" onclick="ecodv2_send_dialog( this ); return false;"><span class="dashicons dashicons-email"></span><?php esc_attr_e( 'Send Email', 'wp-easycart' ); ?></a>
+				<?php /* Kept hidden: orders.js reads the shipped email's address from #ecodv2_send_shipped_link ( the shipping-label flow ). */ ?>
+				<a href="#" id="ecodv2_send_shipped_link" hidden data-email="<?php echo esc_attr( $this->order->user_email ); ?>" data-email-other="<?php echo esc_attr( isset( $this->order->email_other ) ? $this->order->email_other : '' ); ?>" onclick="ecodv2_send_dialog( this, 'shipped' ); return false;"></a>
 				<div class="ecdv2-menu-sep"></div>
 				<?php /* 6.0.0: the duplicate drawer lives on the Orders list; orders-v2.js opens it from ecv2_duplicate. */ ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ecv2_duplicate=' . (int) $this->order->order_id ) ); ?>" onclick="ecodv2_menu_close();"><span class="dashicons dashicons-admin-page"></span><?php esc_attr_e( 'Duplicate Order', 'wp-easycart' ); ?></a>
@@ -275,23 +319,23 @@ if ( '' === $wpec_customer_name ) {
 					<h3 class="ecdv2-card-title"><?php esc_attr_e( 'Fulfillment', 'wp-easycart' ); ?></h3>
 				</div>
 <div class="ecodv2-fulfill-banner ecodv2-fulfill-banner-<?php echo esc_attr( $fulfillment_state ); ?>" id="ecodv2_fulfill_banner"
-				data-fulfill-status-ids="18,2"
-				data-msg-fulfilled="<?php esc_attr_e( 'This order has been fulfilled.', 'wp-easycart' ); ?>"
-				data-msg-unfulfilled="<?php esc_attr_e( 'This order is awaiting fulfillment.', 'wp-easycart' ); ?>">
+				data-fulfill-status-ids="18,2"<?php if ( $wpec_local_pickup ) { ?> data-local-pickup="1"<?php } ?>
+				data-msg-fulfilled="<?php echo esc_attr( $wpec_msg_fulfilled ); ?>"
+				data-msg-unfulfilled="<?php echo esc_attr( $wpec_msg_unfulfilled ); ?>">
 				<div class="ecodv2-fulfill-row">
 					<?php if ( 'fulfilled' === $fulfillment_state ) { ?>
-					<span class="dashicons dashicons-yes-alt"></span><span id="ecodv2_fulfill_message"><?php esc_attr_e( 'This order has been fulfilled.', 'wp-easycart' ); ?></span>
+					<span class="dashicons dashicons-<?php echo esc_attr( $wpec_local_pickup ? 'store' : 'yes-alt' ); ?>"></span><span id="ecodv2_fulfill_message"><?php echo esc_html( $wpec_msg_fulfilled ); ?></span>
 					<?php } else if ( 'pickup' === $fulfillment_state ) { ?>
 					<span class="dashicons dashicons-store"></span><span id="ecodv2_fulfill_message"><?php esc_attr_e( 'This order is a customer pickup.', 'wp-easycart' ); ?></span>
 					<?php } else if ( 'unfulfilled' === $fulfillment_state ) { ?>
-					<span class="dashicons dashicons-warning"></span><span id="ecodv2_fulfill_message"><?php esc_attr_e( 'This order is awaiting fulfillment.', 'wp-easycart' ); ?></span>
+					<span class="dashicons dashicons-<?php echo esc_attr( $wpec_local_pickup ? 'store' : 'warning' ); ?>"></span><span id="ecodv2_fulfill_message"><?php echo esc_html( $wpec_msg_unfulfilled ); ?></span>
 					<?php } else if ( 'digital' === $fulfillment_state ) { ?>
 					<span class="dashicons dashicons-download"></span><span id="ecodv2_fulfill_message"><?php esc_attr_e( 'Nothing to ship. Every item is a download, gift card, subscription or a product with shipping disabled, so this order was fulfilled when the payment was approved.', 'wp-easycart' ); ?></span>
 					<?php } else { ?>
 					<span class="dashicons dashicons-clock"></span><span id="ecodv2_fulfill_message"><?php esc_attr_e( 'Payment has not been approved yet.', 'wp-easycart' ); ?></span>
 					<?php } ?>
 					<?php $create_label_action = apply_filters( 'wp_easycart_ecv2_create_label_action', 'show_pro_required' ); ?>
-					<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecodv2_create_label_btn"<?php if ( 'fulfilled' === $fulfillment_state || 'digital' === $fulfillment_state ) { ?> style="display:none;"<?php } ?> onclick="ecodv2_open_label_popup( '<?php echo esc_attr( $create_label_action ); ?>' ); return false;"><span class="dashicons dashicons-printer"></span> <?php esc_attr_e( 'Create Label', 'wp-easycart' ); ?></button>
+					<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecodv2_create_label_btn"<?php if ( 'fulfilled' === $fulfillment_state || 'digital' === $fulfillment_state || $wpec_local_pickup ) { ?> style="display:none;"<?php } ?> onclick="ecodv2_open_label_popup( '<?php echo esc_attr( $create_label_action ); ?>' ); return false;"><span class="dashicons dashicons-printer"></span> <?php esc_attr_e( 'Create Label', 'wp-easycart' ); ?></button>
 					<?php do_action( 'wp_easycart_ecv2_order_details_fulfillment_banner', $this->order, $fulfillment_state ); ?>
 				</div>
 			</div>

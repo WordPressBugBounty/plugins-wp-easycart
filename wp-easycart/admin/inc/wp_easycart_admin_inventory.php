@@ -58,7 +58,16 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 			wp_register_style( 'wp_easycart_admin_inventory_v2_css', plugins_url( 'wp-easycart/admin/css/admin-inventory-v2.css', EC_PLUGIN_DIRECTORY ), array( 'wp_easycart_admin_v2_css' ), EC_CURRENT_VERSION );
 			wp_enqueue_style( 'wp_easycart_admin_inventory_v2_css' );
 
-			wp_register_script( 'wp_easycart_admin_inventory_v2_js', plugins_url( 'wp-easycart/admin/js/inventory-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+			/*
+			 * 6.0.1: select2 drives the Product filter typeahead in the drawer. The blanket enqueue in
+			 * wp_easycart_admin only fires for manage_options / wpec_manager, so a wpec_products user reached
+			 * this page without it and the filter stayed an empty native select. Same handles, so WordPress
+			 * loads one copy.
+			 */
+			wp_enqueue_style( 'wp_easycart_select2_css', plugins_url( 'wp-easycart/admin/css/select2.min.css', EC_PLUGIN_DIRECTORY ), array(), EC_CURRENT_VERSION );
+			wp_enqueue_script( 'wp_easycart_select2_js', plugins_url( 'wp-easycart/admin/js/select2.min.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION );
+
+			wp_register_script( 'wp_easycart_admin_inventory_v2_js', plugins_url( 'wp-easycart/admin/js/inventory-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery', 'wp_easycart_select2_js' ), EC_CURRENT_VERSION );
 			wp_enqueue_script( 'wp_easycart_admin_inventory_v2_js' );
 
 			wp_localize_script( 'wp_easycart_admin_inventory_v2_js', 'ecv2i_nonces', array(

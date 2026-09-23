@@ -30,10 +30,9 @@ $has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
 		<div class="ecwz-ncards">
 			<?php if ( ! $demo_installed ) { ?>
 			<div class="ecwz-ncard" id="easycart_wizard_demo_data">
-				<?php wp_easycart_admin()->preloader->print_preloader( 'ec_admin_demo_data_loader' ); ?>
 				<h4><?php esc_html_e( 'Just trying it out?', 'wp-easycart' ); ?></h4>
 				<p><?php esc_html_e( 'Install demo products, categories and options so you can see a working store immediately. Remove them any time.', 'wp-easycart' ); ?></p>
-				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=initial-setup&action=easycart-install-demo-data" onclick="return ec_admin_install_demo_data( );"><?php esc_html_e( 'Install demo data', 'wp-easycart' ); ?></a>
+				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=initial-setup&action=easycart-install-demo-data" id="ecwz_demo_btn" data-ecwz-demo="1" data-busy="<?php esc_attr_e( 'Installing demo data…', 'wp-easycart' ); ?>" data-fail="<?php esc_attr_e( 'The demo data could not be installed. Please try again.', 'wp-easycart' ); ?>"><?php esc_html_e( 'Install demo data', 'wp-easycart' ); ?></a>
 			</div>
 			<div class="ecwz-ncard" id="easycart_wizard_demo_data_done" style="display:none">
 				<h4><?php esc_html_e( 'Demo data installed', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-green">&#10003;</span></h4>

@@ -147,15 +147,16 @@
 			} );
 			refreshFold( $parent.closest( '.ecst-section' ) );
 		}
-		/* The fold names only advanced rows that will appear: not ones hidden by an off parent, and not ones nested
-		 * under another advanced row ( they show inside that row's group ). */
+		/* The fold names every advanced row that will appear: all of them except the ones hidden by a parent that
+		 * is switched off. 6.0.1: rows nested under another advanced row count too, because they are separate rows
+		 * once that parent is on, and leaving them out made the count lower than what the fold opened. */
 		function refreshFold( $sec ) {
 			var $fold = $sec.find( '.ecst-fold' ), $btn = $fold.find( '.ecst-fold-btn' );
 			if ( ! $btn.length ) { return; }
 			var names = [];
 			$sec.find( '.ecst-row.is-advanced[data-key]' ).not( '[data-type="html"]' ).each( function() {
-				var $r = $( this ), p = $r.data( 'parent' );
-				if ( $r.prop( 'hidden' ) || ( p && rowOf( p ).hasClass( 'is-advanced' ) ) ) { return; }
+				var $r = $( this );
+				if ( $r.prop( 'hidden' ) ) { return; }
 				names.push( $r.data( 'label' ) );
 			} );
 			$btn.data( 'count', names.length );
@@ -640,6 +641,56 @@
 			$sec.find( '.ecst-fold-names' ).prop( 'hidden', open );
 			$sec.find( '.ecst-row.is-advanced' ).each( function() { applyDeps( $( this ).data( 'key' ) ); } );
 			refreshFold( $sec );
+		} );
+
+		/* 6.0.1: a policy URL can start from a draft page written for you. */
+		$wrap.on( 'click', '.ecst-newpage-btn', function() {
+			var $btn = $( this ), $row = $btn.closest( '.ecst-row' ), key = $row.data( 'key' );
+			var $input = $( document.getElementById( $btn.data( 'target' ) ) ), label = $btn.text();
+			$btn.prop( 'disabled', true );
+			post( 'ecv2_settings_create_page', { type: $btn.data( 'type' ) }, function( d ) {
+				if ( d.url ) { $input.val( d.url ); markDirty( key ); saveBatch(); }
+				var $done = $row.find( '.ecst-newpage-done' );
+				$done.empty().append( $( '<span class="ecst-newpage-chip"></span>' ).text( d.title || '' ) );
+				if ( d.edit ) { $done.append( $( '<a class="ecst-link" target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', d.edit ).text( T.edit_page || 'Edit page' ) ); }
+				$done.prop( 'hidden', false );
+				$btn.prop( 'hidden', true );
+			}, function( m ) {
+				$btn.prop( 'disabled', false ).text( label );
+				setMsg( key, m, true );
+			} );
+		} );
+
+		/* 6.0.1: image settings pick from the Media Library; the field keeps the URL, so everything else is unchanged. */
+		$wrap.on( 'click', '.ecst-media-pick', function() {
+			var $btn = $( this ), $row = $btn.closest( '.ecst-row' ), key = $row.data( 'key' );
+			var $input = $( document.getElementById( $btn.data( 'target' ) ) );
+			if ( ! window.wp || ! wp.media ) { $input.trigger( 'focus' ); return; }
+			var frame = wp.media( { title: $btn.data( 'title' ), library: { type: 'image' }, button: { text: $btn.data( 'button' ) }, multiple: false } );
+			frame.on( 'select', function() {
+				var item = frame.state().get( 'selection' ).first();
+				if ( ! item ) { return; }
+				var url = item.toJSON().url || '';
+				$input.val( url );
+				mediaPreview( $row, url );
+				markDirty( key );
+			} );
+			frame.open();
+		} );
+		$wrap.on( 'click', '.ecst-media-clear', function() {
+			var $row = $( this ).closest( '.ecst-row' );
+			$( document.getElementById( $( this ).data( 'target' ) ) ).val( '' );
+			mediaPreview( $row, '' );
+			markDirty( $row.data( 'key' ) );
+		} );
+		function mediaPreview( $row, url ) {
+			$row.find( '.ecst-media-preview img' ).attr( 'src', url );
+			$row.find( '.ecst-media-preview' ).prop( 'hidden', '' === url );
+			$row.find( '.ecst-media-clear' ).prop( 'hidden', '' === url );
+		}
+		/* typing or pasting a URL keeps the thumbnail honest */
+		$wrap.on( 'input', '.ecst-row:has(.ecst-media) .ecst-input', function() {
+			mediaPreview( $( this ).closest( '.ecst-row' ), String( $( this ).val() || '' ) );
 		} );
 
 		/* actions */

@@ -13,15 +13,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Review prompt (unchanged from v1).
-if ( ! get_option( 'ec_option_review_complete' ) ) {
-?>
-<div class="wp-easycart-admin-review-us-box">
-	<?php esc_attr_e( 'Do you like WP EasyCart? If you do, please take a moment to', 'wp-easycart' ); ?> <a href="https://wordpress.org/support/plugin/wp-easycart/reviews/" target="_blank"><?php esc_attr_e( 'submit a review', 'wp-easycart' ); ?></a>, <?php esc_attr_e( 'it really helps us!', 'wp-easycart' ); ?>
-	<div class="wp-easycart-admin-review-us-close" onclick="wp_easycart_admin_close_review( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-review-us' ) ); ?>' );"><div class="dashicons dashicons-no"></div></div>
-</div>
-<?php
+/* 6.0.1: after a delete, the bar offering it back ( admin/inc/wp_easycart_admin_undo.php ). */
+if ( class_exists( 'wp_easycart_admin_undo' ) ) {
+	wp_easycart_admin_undo::maybe_print_bar( __( 'Customer deleted.', 'wp-easycart' ) );
 }
+
+/* 6.0.1: the shared review card ( admin/inc/wp_easycart_admin.php ). */
+wp_easycart_admin_print_review_prompt();
 
 if ( isset( $user_not_found ) && $user_not_found ) {
 	echo '<div class="wp-easycart-admin-error-box">' . esc_html__( 'Customer not found. They may have been removed.', 'wp-easycart' ) . '</div>';

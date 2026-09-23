@@ -522,8 +522,10 @@ function ec_admin_product_details_refresh_option_images() {
 			product_id: ec_admin_get_value( 'product_id', 'hidden' )
 		};
 
-		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'get', data: data, success: function(data){ 
+		jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'get', cache: false, data: data, success: function(data){
 			jQuery( document.getElementById( 'wpeasycart_product_images_pro' ) ).replaceWith( data );
+			/* 6.0.1: the new galleries need their drag-and-drop uploaders ( PRO products-pro.js ). */
+			if ( 'function' === typeof window.wp_easycart_pro_bind_media_dropzones ) { window.wp_easycart_pro_bind_media_dropzones( document.getElementById( 'wpeasycart_product_images_pro' ) ); }
 			ec_admin_hide_loader( 'ec_admin_product_details_images_pro_loader' );
 		} } );
 	} else {

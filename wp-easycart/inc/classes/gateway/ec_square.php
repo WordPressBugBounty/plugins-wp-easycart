@@ -1016,7 +1016,7 @@ class ec_square extends ec_gateway{
 
 	}
 
-	function insert_option( $object, $sync = truee, $skip_existing = false ){
+	function insert_option( $object, $sync = true, $skip_existing = false ){
 		if ( $this->allowed_at_location( $object ) && ! $object->is_deleted ){
 			global $wpdb;
 			if( $sync || $skip_existing ){
@@ -1617,8 +1617,16 @@ class ec_square extends ec_gateway{
 		$show_stock_quantity = $use_optionitem_quantity_tracking = 0;
 		$single_variant_id = '';
 
+		/*
+		 * 6.0.1: only a Square item with a single variation carries what is really the product's own SKU.
+		 * Taking variation #1's SKU for a multi variation item renamed the product on every sync, which
+		 * moved it away from the [ec_store modelnumber="…"] shortcode on its store page. An existing SKU
+		 * is now left alone unless the item has exactly one variation ( or the product has no SKU yet ).
+		 */
 		$model_number = $product->model_number;
-		if( isset( $object->item_data->variations ) && isset( $object->item_data->variations[0]->item_variation_data->sku ) && $object->item_data->variations[0]->item_variation_data->sku != '' ){
+		$square_variation_count = ( isset( $object->item_data->variations ) && is_array( $object->item_data->variations ) ) ? count( $object->item_data->variations ) : 0;
+		if ( isset( $object->item_data->variations[0]->item_variation_data->sku ) && '' != $object->item_data->variations[0]->item_variation_data->sku
+			&& ( 1 == $square_variation_count || '' == trim( (string) $product->model_number ) ) ) {
 			$model_number = $object->item_data->variations[0]->item_variation_data->sku;
 		}
 
@@ -1691,6 +1699,12 @@ class ec_square extends ec_gateway{
 			}
 		}
 		$product_id = $product->product_id;
+
+		/* 6.0.1: the page addresses the product by SKU, so it has to follow a SKU that actually changed. */
+		$stored_model_number = $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
+		if ( $stored_model_number != $product->model_number ) {
+			$this->retarget_store_page( $product->post_id, $product->model_number, $stored_model_number );
+		}
 
 		// Maybe Add Option Item Images
 		$this->insert_basic_option_item_images( $object, $option_id_1, $product->product_id );
@@ -1810,6 +1824,49 @@ class ec_square extends ec_gateway{
 				wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
 			}
 		}
+	}
+
+	/**
+	 * Point a product's store page at its new SKU.
+	 *
+	 * A store page is created as [ec_store modelnumber="<sku>"], and nothing else rewrites it, so a sync
+	 * that changes ec_product.model_number used to leave the page looking for a product that no longer
+	 * answers to that name. Only that one attribute is touched; anything else the merchant put on the
+	 * page is left exactly as it is.
+	 *
+	 * @since 6.0.1
+	 * @param int    $post_id   The product's ec_store post.
+	 * @param string $old_model The SKU the page currently names.
+	 * @param string $new_model The SKU the product now has.
+	 * @return void
+	 */
+	function retarget_store_page( $post_id, $old_model, $new_model ) {
+		global $wpdb;
+		$post_id   = (int) $post_id;
+		$old_model = (string) $old_model;
+		$new_model = (string) $new_model;
+		if ( ! $post_id || '' === $new_model || $old_model === $new_model ) {
+			return;
+		}
+		$content = $wpdb->get_var( $wpdb->prepare( "SELECT post_content FROM $wpdb->posts WHERE ID = %d", $post_id ) );
+		if ( null === $content || '' === $content ) {
+			return;
+		}
+		$pattern = '/(\[ec_store\b[^\]]*\bmodelnumber\s*=\s*)(["\'])' . preg_quote( $old_model, '/' ) . '\2/i';
+		$updated = preg_replace_callback(
+			$pattern,
+			function( $matches ) use ( $new_model ) {
+				return $matches[1] . $matches[2] . $new_model . $matches[2];
+			},
+			$content
+		);
+		if ( ! is_string( $updated ) || $updated === $content ) {
+			return;
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->posts SET post_content = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d", $updated, $post_id ) );
+		clean_post_cache( $post_id );
+		wp_cache_delete( 'wpeasycart-product-only-' . $old_model, 'wpeasycart-product-list' );
+		wp_cache_delete( 'wpeasycart-product-only-' . $new_model, 'wpeasycart-product-list' );
 	}
 
 	function variation_tracks_inventory( $variation, $location_id ) {

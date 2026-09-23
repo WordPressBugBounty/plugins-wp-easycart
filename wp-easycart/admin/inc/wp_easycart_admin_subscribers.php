@@ -23,6 +23,10 @@ if ( ! class_exists( 'wp_easycart_admin_subscribers' ) ) :
 		}
 
 		public function load_subscriber_list() {
+			/* 6.0.1: after a delete the list reloads onto the shared Undo bar, like orders, products and customers. */
+			if ( class_exists( 'wp_easycart_admin_undo' ) ) {
+				wp_easycart_admin_undo::maybe_print_bar( __( 'Subscriber deleted.', 'wp-easycart' ) );
+			}
 			/* No details page: legacy edit URLs open the list with the row highlighted; add-new opens the drawer */
 			$table = new wp_easycart_admin_subscriber_table();
 			$table->print_table();

@@ -22,9 +22,15 @@ function ecodv2_menu_close() {
 	}
 }
 
-/* 6.0.0 — send dialog for the order receipt and the order shipped email.
+/* 6.0.0 — send dialog for the order emails.
    To starts as the order's current email ( read from the Edit Order form when it is on the page, so an address changed
-   there is used without a reload ), Cc as its second email; Bcc starts empty. The server sends to exactly these. */
+   there is used without a reload ), Cc as its second email; Bcc starts empty. The server sends to exactly these.
+   6.0.1 — one dialog for every order email: the Email choice switches between the order receipt and the order shipped
+   email ( WP EasyCart PRO adds the packing slip email ), Preview renders what will go out, and PRO adds its own sections
+   ( content profile, adjustments, items in this box, attachments ) through two registries:
+     window.ecodv2_send_kinds[ key ]  = { label, button, send( payload, done ) }
+     window.ecodv2_send_extensions[]  = { render( ctx ), collect( ctx ) → object }   ctx = { kind, order_id, $root, T }
+   Whatever the extensions collect is posted as JSON in 'documents' ( read by the wp_easycart_order_send_args filter ). */
 function ecodv2_email_i18n() {
 	if ( ! window.ecodv2_email_strings ) {
 		var el = document.getElementById( 'ecodv2_email_i18n' ), parsed = {};
@@ -42,115 +48,232 @@ function ecodv2_order_current_email( link, attr, input_id ) {
 	return ( link && link.getAttribute( attr ) ) ? String( link.getAttribute( attr ) ).trim() : '';
 }
 
-/* opts: title, button, to, cc, send( recipients, done( ok, message, field ) ) */
+window.ecodv2_send_kinds = window.ecodv2_send_kinds || {};
+window.ecodv2_send_extensions = window.ecodv2_send_extensions || [];
+
+/* Post one of the dialog's sends; reports through the V2 toast and refreshes the order history on success. */
+function ecodv2_send_post( action, payload, done, fallback_message ) {
+	var T = ecodv2_email_i18n();
+	var data = {
+		action: action,
+		order_id: T.order_id || jQuery( document.getElementById( 'order_id' ) ).val(),
+		wp_easycart_nonce: T.nonce || '',
+		to: payload.to,
+		cc: payload.cc,
+		bcc: payload.bcc
+	};
+	if ( payload.documents ) {
+		data.documents = payload.documents;
+	}
+	jQuery.post( wpeasycart_admin_ajax_object.ajax_url, data, function( response ) {
+		if ( response && response.success ) {
+			done( true );
+			ecodv2_save_toast( ( response.data && response.data.message ) ? response.data.message : fallback_message );
+			if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length && 'function' === typeof window.ec_order_history_refresh ) {
+				window.ec_order_history_refresh();
+			}
+		} else {
+			done( false, ( response && response.data && response.data.message ) ? response.data.message : '', ( response && response.data && response.data.field ) ? response.data.field : '' );
+		}
+	}, 'json' ).fail( function() { done( false ); } );
+}
+
+/* The emails the dialog can send, in order. Without PRO the packing slip email shows locked ( upgrade popup ). */
+function ecodv2_send_kind_list() {
+	var T = ecodv2_email_i18n(), extra = window.ecodv2_send_kinds || {}, list = [];
+	list.push( {
+		key: 'receipt',
+		label: T.kind_receipt || 'Order receipt',
+		button: T.receipt_button || 'Send receipt',
+		send: function( payload, done ) { ecodv2_send_post( 'ecv2_order_resend_receipt', payload, done, 'Order receipt sent.' ); }
+	} );
+	list.push( {
+		key: 'shipped',
+		label: T.kind_shipped || 'Order shipped',
+		button: T.shipped_button || 'Send shipped email',
+		send: function( payload, done ) { ec_admin_send_order_shipped_email( true, payload, done ); }
+	} );
+	for ( var key in extra ) {
+		if ( Object.prototype.hasOwnProperty.call( extra, key ) && extra[ key ] && 'function' === typeof extra[ key ].send ) {
+			list.push( jQuery.extend( { key: key }, extra[ key ] ) );
+		}
+	}
+	if ( ! extra.packing_slip && ! T.pro ) {
+		list.push( { key: 'packing_slip', label: T.kind_packing_slip || 'Packing slip', locked: true } );
+	}
+	return list;
+}
+
+/* opts: kind ( receipt | shipped | packing_slip ), to, cc. */
 function ecodv2_email_dialog( opts ) {
 	var T = ecodv2_email_i18n(), $ = jQuery;
 	var text = function( k, fallback ) { return T[ k ] || fallback; };
+	var kinds = ecodv2_send_kind_list(), by_key = {}, i;
+	for ( i = 0; i < kinds.length; i++ ) { by_key[ kinds[ i ].key ] = kinds[ i ]; }
+	var kind = ( by_key[ opts.kind ] && ! by_key[ opts.kind ].locked ) ? opts.kind : 'receipt';
+	var exts = ( window.ecodv2_send_extensions || [] ).filter( function( ext ) { return ext && 'function' === typeof ext.render; } );
+
 	$( '#ecodv2_email_dialog' ).remove();
 	var field = function( key, label, value, optional ) {
 		return '<div class="ecodv2-send-field"><label for="ecodv2_send_' + key + '">' + ecodv2_esc( label ) + ( optional ? ' <span class="ecodv2-send-opt">' + ecodv2_esc( text( 'optional', 'optional' ) ) + '</span>' : '' ) + '</label>' +
 			'<input type="text" class="ecv2-input" id="ecodv2_send_' + key + '" value="' + ecodv2_esc( value || '' ) + '" autocomplete="off" spellcheck="false" inputmode="email"></div>';
 	};
+	var pills = '';
+	for ( i = 0; i < kinds.length; i++ ) {
+		pills += kinds[ i ].locked ?
+			'<button type="button" class="ecodv2-send-kind is-locked" data-locked="attachments">' + ecodv2_esc( kinds[ i ].label ) + ' <span class="ecodv2-send-pro">' + ecodv2_esc( text( 'pro_badge', 'Pro' ) ) + '</span></button>' :
+			'<button type="button" class="ecodv2-send-kind" data-kind="' + ecodv2_esc( kinds[ i ].key ) + '" aria-pressed="false">' + ecodv2_esc( kinds[ i ].label ) + '</button>';
+	}
+	/* T.pro: the document sections are unlocked ( a PRO without a licence still registers its Message section ). */
+	var locked_strip = ( ! T.pro ) ?
+		'<button type="button" class="ecodv2-send-more is-locked" data-locked="send"><span class="ecodv2-send-more-text"><b>' + ecodv2_esc( text( 'more_title', 'Attachments, content and items' ) ) + '</b><span>' + ecodv2_esc( text( 'more_desc', '' ) ) + '</span></span><span class="ecodv2-send-pro">' + ecodv2_esc( text( 'pro_badge', 'Pro' ) ) + '</span></button>' : '';
 	var $m = $(
 		'<div class="ecv2-modal-overlay ecodv2-send-overlay" id="ecodv2_email_dialog" role="dialog" aria-modal="true" aria-labelledby="ecodv2_send_title">' +
-			'<div class="ecv2-modal ecodv2-send-modal">' +
-				'<div class="ecv2-modal-header"><h2 id="ecodv2_send_title">' + ecodv2_esc( opts.title ) + '</h2><button type="button" class="ecv2-modal-close" data-close aria-label="' + ecodv2_esc( text( 'close', 'Close' ) ) + '">&times;</button></div>' +
+			'<div class="ecv2-modal ecodv2-send-modal' + ( exts.length ? ' has-ext' : '' ) + '">' +
+				'<div class="ecv2-modal-header"><h2 id="ecodv2_send_title">' + ecodv2_esc( text( 'send_title', 'Send email' ) ) + ( T.order_id ? ' <span class="ecodv2-send-order">#' + ecodv2_esc( T.order_id ) + '</span>' : '' ) + '</h2><button type="button" class="ecv2-modal-close" data-close aria-label="' + ecodv2_esc( text( 'close', 'Close' ) ) + '">&times;</button></div>' +
 				'<div class="ecv2-modal-body">' +
+					'<div class="ecodv2-send-field"><span class="ecodv2-send-label" id="ecodv2_send_kind_label">' + ecodv2_esc( text( 'kind_label', 'Email' ) ) + '</span><div class="ecodv2-send-kinds" role="group" aria-labelledby="ecodv2_send_kind_label">' + pills + '</div></div>' +
 					field( 'to', text( 'to', 'To' ), opts.to, false ) +
 					field( 'cc', text( 'cc', 'Cc' ), opts.cc, true ) +
 					field( 'bcc', text( 'bcc', 'Bcc' ), '', true ) +
 					'<p class="ecodv2-send-hint">' + ecodv2_esc( text( 'hint', 'Separate several addresses with commas.' ) ) + '</p>' +
+					'<div class="ecodv2-send-ext"></div>' +
+					locked_strip +
 					'<p class="ecodv2-send-error" role="alert" hidden></p>' +
 				'</div>' +
-				'<div class="ecv2-modal-footer"><div class="ecv2-modal-footer-right">' +
-					'<button type="button" class="ecv2-btn ecv2-btn-ghost" data-close>' + ecodv2_esc( text( 'cancel', 'Cancel' ) ) + '</button>' +
-					'<button type="button" class="ecv2-btn ecv2-btn-primary" id="ecodv2_send_go">' + ecodv2_esc( opts.button ) + '</button>' +
-				'</div></div>' +
+				'<div class="ecv2-modal-footer">' +
+					'<button type="button" class="ecv2-btn ecv2-btn-ghost" id="ecodv2_send_preview">' + ecodv2_esc( text( 'preview', 'Preview' ) ) + '</button>' +
+					'<div class="ecv2-modal-footer-right">' +
+						'<button type="button" class="ecv2-btn ecv2-btn-ghost" data-close>' + ecodv2_esc( text( 'cancel', 'Cancel' ) ) + '</button>' +
+						'<button type="button" class="ecv2-btn ecv2-btn-primary" id="ecodv2_send_go"></button>' +
+					'</div>' +
+				'</div>' +
 			'</div>' +
 		'</div>'
 	);
+	var $go = $m.find( '#ecodv2_send_go' ), $err = $m.find( '.ecodv2-send-error' ), $ext = $m.find( '.ecodv2-send-ext' );
+	var ctx = function() { return { kind: kind, order_id: T.order_id || '', $root: $ext, T: T }; };
 	var close = function() { $( document ).off( 'keydown.ecodv2send' ); $m.remove(); };
-	var $go = $m.find( '#ecodv2_send_go' ), $err = $m.find( '.ecodv2-send-error' );
 	var show_error = function( message, key ) {
 		$err.text( message ).prop( 'hidden', false );
-		$m.find( '.ecv2-input' ).removeClass( 'is-invalid' );
+		/* Only the address fields: a section's own field ( PRO Message subject / text ) keeps the mark its send put on it. */
+		$m.find( '#ecodv2_send_to, #ecodv2_send_cc, #ecodv2_send_bcc' ).removeClass( 'is-invalid' );
 		if ( key ) { $m.find( '#ecodv2_send_' + key ).addClass( 'is-invalid' ).trigger( 'focus' ); }
 	};
+	/* Everything the extensions collected for this send, as the JSON the server reads ( '' when there is nothing ). */
+	var documents = function() {
+		var merged = {}, any = false;
+		exts.forEach( function( ext ) {
+			if ( 'function' !== typeof ext.collect ) { return; }
+			var part = ext.collect( ctx() );
+			if ( part && 'object' === typeof part ) { $.extend( merged, part ); any = true; }
+		} );
+		return any ? JSON.stringify( merged ) : '';
+	};
+	var set_kind = function( next ) {
+		kind = next;
+		$m.find( '.ecodv2-send-kind[data-kind]' ).each( function() {
+			var on = $( this ).attr( 'data-kind' ) === kind;
+			$( this ).toggleClass( 'is-active', on ).attr( 'aria-pressed', on ? 'true' : 'false' );
+		} );
+		$go.text( by_key[ kind ].button );
+		/* A type can have no document to preview ( PRO: a written message ). */
+		$m.find( '#ecodv2_send_preview' ).prop( 'hidden', false === by_key[ kind ].preview );
+		$err.prop( 'hidden', true );
+		$ext.empty();
+		exts.forEach( function( ext ) { ext.render( ctx() ); } );
+	};
 	var go = function() {
-		var recipients = { to: $.trim( $m.find( '#ecodv2_send_to' ).val() ), cc: $.trim( $m.find( '#ecodv2_send_cc' ).val() ), bcc: $.trim( $m.find( '#ecodv2_send_bcc' ).val() ) };
-		if ( '' === recipients.to ) { show_error( text( 'need_to', 'Enter at least one email address to send to.' ), 'to' ); return; }
+		var payload = { to: $.trim( $m.find( '#ecodv2_send_to' ).val() ), cc: $.trim( $m.find( '#ecodv2_send_cc' ).val() ), bcc: $.trim( $m.find( '#ecodv2_send_bcc' ).val() ), documents: documents() };
+		if ( '' === payload.to ) { show_error( text( 'need_to', 'Enter at least one email address to send to.' ), 'to' ); return; }
 		$err.prop( 'hidden', true );
 		$go.prop( 'disabled', true ).text( text( 'sending', 'Sending…' ) );
-		opts.send( recipients, function( ok, message, key ) {
+		by_key[ kind ].send( payload, function( ok, message, key ) {
 			if ( ok ) { close(); return; }
-			$go.prop( 'disabled', false ).text( opts.button );
+			$go.prop( 'disabled', false ).text( by_key[ kind ].button );
 			show_error( message || text( 'failed', 'The email could not be sent.' ), key );
 		} );
 	};
+	var preview = function() {
+		var $btn = $m.find( '#ecodv2_send_preview' ).prop( 'disabled', true );
+		$err.prop( 'hidden', true );
+		jQuery.post( wpeasycart_admin_ajax_object.ajax_url, {
+			action: 'ecv2_order_email_preview',
+			order_id: T.order_id || jQuery( document.getElementById( 'order_id' ) ).val(),
+			wp_easycart_nonce: T.nonce || '',
+			email: kind,
+			documents: documents()
+		}, function( response ) {
+			if ( response && response.success && response.data && response.data.html ) {
+				ecodv2_email_preview( response.data.html, by_key[ kind ].label );
+			} else {
+				show_error( ( response && response.data && response.data.message ) ? response.data.message : text( 'preview_failed', 'The preview could not be loaded.' ) );
+			}
+		}, 'json' ).fail( function() {
+			show_error( text( 'preview_failed', 'The preview could not be loaded.' ) );
+		} ).always( function() { $btn.prop( 'disabled', false ); } );
+	};
 	$m.on( 'click', function( e ) { if ( $( e.target ).is( $m ) || $( e.target ).is( '[data-close]' ) ) { close(); } } );
-	$m.on( 'keydown', '.ecv2-input', function( e ) { if ( 'Enter' === e.key ) { e.preventDefault(); go(); } } );
+	$m.on( 'click', '.ecodv2-send-kind[data-kind]', function() { set_kind( $( this ).attr( 'data-kind' ) ); } );
+	$m.on( 'click', '[data-locked]', function() {
+		/* The upgrade popup shares the modal layer; close this dialog first so it does not cover the popup. */
+		var feature = $( this ).attr( 'data-locked' );
+		close();
+		if ( 'function' === typeof window.ecdv2_upsell ) { window.ecdv2_upsell( { context: 'documents', feature: feature } ); }
+		return false;
+	} );
+	/* Enter sends from a one-line field; in a text area ( PRO: a written message ) it starts a new line. */
+	$m.on( 'keydown', 'input.ecv2-input', function( e ) { if ( 'Enter' === e.key ) { e.preventDefault(); go(); } } );
 	$go.on( 'click', go );
-	$( document ).on( 'keydown.ecodv2send', function( e ) { if ( 'Escape' === e.key ) { close(); } } );
+	$m.find( '#ecodv2_send_preview' ).on( 'click', preview );
+	$( document ).on( 'keydown.ecodv2send', function( e ) { if ( 'Escape' === e.key && ! $( '#ecodv2_email_preview' ).length ) { close(); } } );
 	$( 'body' ).append( $m );
+	set_kind( kind );
 	setTimeout( function() { $m.find( '#ecodv2_send_to' ).trigger( 'focus' ).select(); }, 30 );
+}
+
+/* The rendered email, over the send dialog. */
+function ecodv2_email_preview( html, title ) {
+	var T = ecodv2_email_i18n(), $ = jQuery;
+	$( '#ecodv2_email_preview' ).remove();
+	var $p = $(
+		'<div class="ecv2-modal-overlay ecodv2-preview-overlay" id="ecodv2_email_preview" role="dialog" aria-modal="true" aria-labelledby="ecodv2_preview_title">' +
+			'<div class="ecv2-modal ecodv2-preview-modal">' +
+				'<div class="ecv2-modal-header"><h2 id="ecodv2_preview_title">' + ecodv2_esc( ( T.preview || 'Preview' ) + ' · ' + title ) + '</h2><button type="button" class="ecv2-modal-close" data-close aria-label="' + ecodv2_esc( T.close || 'Close' ) + '">&times;</button></div>' +
+				'<div class="ecv2-modal-body"><iframe class="ecodv2-preview-frame" sandbox="allow-same-origin" title="' + ecodv2_esc( title ) + '"></iframe></div>' +
+			'</div>' +
+		'</div>'
+	);
+	var close = function() { $( document ).off( 'keydown.ecodv2preview' ); $p.remove(); };
+	$p.on( 'click', function( e ) { if ( $( e.target ).is( $p ) || $( e.target ).closest( '[data-close]' ).length ) { close(); } } );
+	$( document ).on( 'keydown.ecodv2preview', function( e ) { if ( 'Escape' === e.key ) { close(); } } );
+	$( 'body' ).append( $p );
+	$p.find( 'iframe' )[0].srcdoc = html;
+	$p.find( '[data-close]' ).trigger( 'focus' );
 }
 
 function ecodv2_esc( s ) {
 	return String( s == null ? '' : s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&#39;' );
 }
 
-/* Resend the order receipt ( ecv2_order_resend_receipt, wp_easycart_admin_orders.php ); reports through the V2 toast and
-   refreshes the order history so the new timeline entry shows without a page reload. */
-function ecodv2_resend_receipt( link ) {
-	var T = ecodv2_email_i18n();
-	var nonce = ( link && link.getAttribute( 'data-nonce' ) ) ? link.getAttribute( 'data-nonce' ) : '';
+/* Open the send dialog on one email ( the header menu's Send Email, the fulfillment card ). */
+function ecodv2_send_dialog( link, kind ) {
 	ecodv2_menu_close();
 	ecodv2_email_dialog( {
-		title: T.receipt_title || 'Resend order receipt',
-		button: T.receipt_button || 'Send receipt',
+		kind: kind || ( link && link.getAttribute( 'data-kind' ) ) || 'receipt',
 		to: ecodv2_order_current_email( link, 'data-email', 'user_email' ),
-		cc: ecodv2_order_current_email( link, 'data-email-other', 'email_other' ),
-		send: function( recipients, done ) {
-			jQuery.post(
-				wpeasycart_admin_ajax_object.ajax_url,
-				{
-					action: 'ecv2_order_resend_receipt',
-					order_id: jQuery( document.getElementById( 'order_id' ) ).val(),
-					wp_easycart_nonce: nonce,
-					to: recipients.to,
-					cc: recipients.cc,
-					bcc: recipients.bcc
-				},
-				function( response ) {
-					if ( response && response.success ) {
-						done( true );
-						ecodv2_save_toast( ( response.data && response.data.message ) ? response.data.message : 'Order receipt sent.' );
-						if ( jQuery( document.getElementById( 'wpeasycart_order_history_refresh' ) ).length && 'function' === typeof window.ec_order_history_refresh ) {
-							window.ec_order_history_refresh();
-						}
-					} else {
-						done( false, ( response && response.data && response.data.message ) ? response.data.message : '', ( response && response.data && response.data.field ) ? response.data.field : '' );
-					}
-				}
-			).fail( function() { done( false ); } );
-		}
+		cc: ecodv2_order_current_email( link, 'data-email-other', 'email_other' )
 	} );
 	return false;
 }
 
-/* Send the order shipped email through the same dialog; the request itself stays in orders.js. */
+/* 6.0.0 entry points, kept for anything that still calls them. */
+function ecodv2_resend_receipt( link ) {
+	return ecodv2_send_dialog( link, 'receipt' );
+}
+
 function ecodv2_send_shipped_dialog( link ) {
-	var T = ecodv2_email_i18n();
-	ecodv2_email_dialog( {
-		title: T.shipped_title || 'Send order shipped email',
-		button: T.shipped_button || 'Send email',
-		to: ecodv2_order_current_email( link, 'data-email', 'user_email' ),
-		cc: ecodv2_order_current_email( link, 'data-email-other', 'email_other' ),
-		send: function( recipients, done ) {
-			ec_admin_send_order_shipped_email( true, recipients, done );
-		}
-	} );
-	return false;
+	return ecodv2_send_dialog( link, 'shipped' );
 }
 
 /* 6.0.0 — after the order shipped email goes out, leave a line on the fulfillment card so the
@@ -1528,6 +1651,8 @@ function ecodv2_sync_fulfillment( status_id ) {
 	var tracking = jQuery.trim( jQuery( '#ec_admin_order_details_tracking_number' ).text() );
 	var fulfilled = ( -1 !== jQuery.inArray( String( status_id ), fulfill_ids ) ) || '' !== tracking;
 	var next = fulfilled ? 'fulfilled' : 'unfulfilled';
+	/* 6.0.1: Free Local Pickup keeps its store icon and never offers a shipping label. */
+	var local_pickup = '1' === banner.getAttribute( 'data-local-pickup' );
 
 	if ( next === current ) {
 		return;
@@ -1539,20 +1664,20 @@ function ecodv2_sync_fulfillment( status_id ) {
 	}
 	var icon = banner.querySelector( '.ecodv2-fulfill-row > .dashicons' );
 	if ( icon ) {
-		icon.className = 'dashicons ' + ( fulfilled ? 'dashicons-yes-alt' : 'dashicons-warning' );
+		icon.className = 'dashicons ' + ( local_pickup ? 'dashicons-store' : ( fulfilled ? 'dashicons-yes-alt' : 'dashicons-warning' ) );
 	}
 	var label_btn = document.getElementById( 'ecodv2_create_label_btn' );
 	if ( label_btn ) {
-		label_btn.style.display = fulfilled ? 'none' : '';
+		label_btn.style.display = ( fulfilled || local_pickup ) ? 'none' : '';
 	}
 	jQuery( '.ecodv2-fulfill-btn' ).toggle( ! fulfilled );
 	if ( badge ) {
 		badge.style.display = '';
 		badge.className = 'ecodv2-fulfill-badge ' + ( fulfilled ? 'ecodv2-fulfill-badge-ok' : 'ecodv2-fulfill-badge-warn' );
-		badge.querySelector( '.dashicons' ).className = 'dashicons ' + ( fulfilled ? 'dashicons-yes-alt' : 'dashicons-warning' );
+		badge.querySelector( '.dashicons' ).className = 'dashicons ' + ( local_pickup ? 'dashicons-store' : ( fulfilled ? 'dashicons-yes-alt' : 'dashicons-warning' ) );
 		var label = document.getElementById( 'ecodv2_fulfill_badge_label' );
 		if ( label ) {
-			label.textContent = fulfilled ? 'Fulfilled' : 'Unfulfilled';
+			label.textContent = badge.getAttribute( 'data-label-' + next ) || ( fulfilled ? 'Fulfilled' : 'Unfulfilled' );
 		}
 	}
 }

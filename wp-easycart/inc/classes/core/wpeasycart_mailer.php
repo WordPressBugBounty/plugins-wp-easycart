@@ -136,10 +136,10 @@ class wpeasycart_mailer {
 			} catch (Exception $e) {
 				$errors = $e->getMessage();
 			}
-			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, $errors ); }
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, $errors, $attachments ); }
 			return $errors;
 		} else {
-			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, 'PHP Mailer Failed to Load.' ); }
+			if ( class_exists( 'ec_email' ) ) { ec_email::record_mailer_result( 'order', $to, $subject, $message, 'PHP Mailer Failed to Load.', $attachments ); }
 			return false;
 		}
 	}

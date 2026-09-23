@@ -104,7 +104,9 @@ if ( ! class_exists( 'wp_easycart_admin_perpage_v2' ) ) :
 endif;
 
 function ecv2_perpage_guard() {
-	if ( ! current_user_can( 'manage_options' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
+	/* 6.0.1: these screens live under Settings, which is reachable with wpec_settings, so demanding
+	   manage_options here let a store manager open the page and fail on every action. */
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
 	check_ajax_referer( wp_easycart_admin_perpage_v2::NONCE, 'nonce' );
 }
 add_action( 'wp_ajax_ecv2_perpage_add', 'ecv2_perpage_add' );

@@ -90,6 +90,72 @@
 	} );
 
 	/* ------------------------------------------------------------------ */
+	/*
+	 * 6.0.1: the Product filter is a <select data-ajax-action="…"> printed by wp_easycart_admin_table_v2.
+	 * Every other V2 list turns those into a select2 typeahead from its own page script; the inventory page
+	 * loads only this file, so its filter rendered as an empty native select with nothing but "All Product"
+	 * in it. Same options as the other lists: choices are fetched as the merchant types, so a catalog with
+	 * thousands of products is never printed into the drawer.
+	 */
+	function ecv2i_filter_ajax_opts( $select ) {
+		var action = $select.data( 'ajax-action' );
+		if ( ! action ) { return null; }
+		var nonce = $select.data( 'ajax-nonce' ) || '';
+		var nonce_key = $select.data( 'ajax-nonce-key' ) || 'wp_easycart_nonce';
+		var term_key = $select.data( 'ajax-term-key' ) || 'q';
+		return {
+			url: ( typeof ajaxurl !== 'undefined' ) ? ajaxurl : wpeasycart_admin_ajax_object.ajax_url,
+			type: 'POST',
+			dataType: 'json',
+			delay: 250,
+			data: function( params ) {
+				var d = { action: action, page: params.page || 1 };
+				d[ term_key ] = params.term || '';
+				if ( nonce ) { d[ nonce_key ] = nonce; }
+				return d;
+			},
+			processResults: function( r ) {
+				var list = [];
+				if ( r && Array.isArray( r.results ) ) { list = r.results; }
+				else if ( r && r.data && Array.isArray( r.data.results ) ) { list = r.data.results; }
+				else if ( r && Array.isArray( r.items ) ) { list = r.items; }
+				var out = [];
+				for ( var i = 0; i < list.length; i++ ) {
+					var it = list[ i ];
+					if ( ! it || typeof it.id === 'undefined' || it.id === null ) { continue; }
+					out.push( { id: String( it.id ), text: String( it.text || it.name || it.label || it.title || it.id ) } );
+				}
+				return { results: out, pagination: { more: !! ( r && r.more ) } };
+			},
+			cache: true
+		};
+	}
+
+	function ecv2i_init_filter_selects() {
+		if ( typeof $.fn.select2 !== 'function' ) { return; }
+		$( '.ecv2-filter-select' ).each( function() {
+			var $select = $( this );
+			if ( $select.data( 'select2' ) ) { return; }
+			var opts = {
+				width: '100%',
+				allowClear: true,
+				placeholder: $select.data( 'placeholder' ) || '',
+				minimumResultsForSearch: 10
+			};
+			/* Inside the drawer the dropdown has to be parented to it, or the backdrop covers it. */
+			var $drawer = $select.closest( '#ecv2-filter-drawer' );
+			if ( $drawer.length ) { opts.dropdownParent = $drawer; }
+			var ajax = ecv2i_filter_ajax_opts( $select );
+			if ( ajax ) {
+				opts.ajax = ajax;
+				opts.minimumResultsForSearch = 0;
+				opts.minimumInputLength = parseInt( $select.data( 'ajax-min' ), 10 ) || 0;
+			}
+			$select.select2( opts );
+		} );
+	}
+	$( document ).ready( ecv2i_init_filter_selects );
+
 	/* Shared shell: filter drawer                                          */
 	/* ------------------------------------------------------------------ */
 
@@ -104,6 +170,7 @@
 		window.ecv2_open_filter_drawer = function() {
 			$( '#ecv2-filter-drawer' ).addClass( 'ecv2-drawer-open' );
 			$( '#ecv2-drawer-backdrop' ).addClass( 'ecv2-backdrop-visible' );
+			ecv2i_init_filter_selects();
 		};
 	}
 	function ecv2i_close_drawer() {

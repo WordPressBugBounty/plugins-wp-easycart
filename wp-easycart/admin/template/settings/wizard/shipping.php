@@ -16,6 +16,12 @@ $counts  = $wizard->get_shipping_rate_counts();
 $map     = array( 'method' => 'static', 'price' => 'price', 'weight' => 'weight' );
 /* Pre-select the saved method only if this step was actually completed; the DB default is 'method'. */
 $selected = ( isset( $map[ $current ] ) && $wizard->completed_through() >= wp_easycart_admin_setup_wizard::STEP_SHIPPING ) ? $map[ $current ] : 'static';
+/* 6.0.1: a store with nothing to ship says so here, rather than installing rates it will never use. */
+$ships_nothing = ( ! get_option( 'ec_option_use_shipping' ) )
+	|| ( class_exists( 'wp_easycart_admin_store_status' ) && wp_easycart_admin_store_status::acknowledged( 'shipping' ) );
+if ( $ships_nothing ) {
+	$selected = 'none';
+}
 
 $fmt = function( $n ) use ( $symbol ) {
 	return $symbol . number_format( (float) $n, 2 );
@@ -59,6 +65,13 @@ $fmt = function( $n ) use ( $symbol ) {
 				<?php } ?>
 			</label>
 			<?php } ?>
+
+			<label class="ecwz-ccard ecwz-rcard<?php echo ( 'none' == $selected ) ? ' is-on' : ''; ?>" data-ship="none">
+				<input type="radio" name="shipping_method" value="none"<?php checked( 'none', $selected ); ?>>
+				<div class="ecwz-ccard-top"><span class="ecwz-dot" aria-hidden="true"></span><div><h4><?php esc_html_e( 'I don\'t ship anything', 'wp-easycart' ); ?></h4><span class="ecwz-sub"><?php esc_html_e( 'Downloads, services or collection only', 'wp-easycart' ); ?></span></div></div>
+				<p><?php esc_html_e( 'No rates are installed and checkout asks for no delivery charge. Your store counts as set up for shipping, so nothing keeps warning you about it.', 'wp-easycart' ); ?></p>
+				<div class="ecwz-rates-note"><?php echo sprintf( esc_html__( 'Change your mind later under %s.', 'wp-easycart' ), '<strong>' . esc_html__( 'Settings › Shipping Rates', 'wp-easycart' ) . '</strong>' ); ?></div>
+			</label>
 
 			<?php if ( $upsell ) { ?>
 			<div class="ecwz-ccard is-locked">

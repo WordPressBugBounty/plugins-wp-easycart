@@ -3886,6 +3886,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"裝箱單"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"訂單"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"日期"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"收件地址"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"帳單地址"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"運送方式"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"物流業者"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"追蹤號碼"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"將另行寄出"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"裝箱單 - 訂單"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"發票"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"收據"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"訂單編號："
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"日期："
+				}
+			}
+		},
 		"language_code":{
 			"label":"語言設定",
 			"options":{

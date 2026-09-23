@@ -401,15 +401,46 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		}
 
 		/**
-		 * @since 6.0.0 $recipients: send to these addresses only ( order screen send dialog ), without the store copy.
+		 * The order shipped email's HTML, without sending it ( the send, Settings › Documents previews, the send dialog ).
+		 *
+		 * @since 6.0.1
+		 * @param int    $order_id       Order.
+		 * @param string $trackingnumber Tracking number.
+		 * @param string $shipcarrier    Carrier.
+		 * @param array  $args           document_fields ( a resolved shipping profile; default = the store's default profile ),
+		 *                               items ( orderdetail ids in this shipment; the rest are listed as to follow ).
+		 * @return string '' when the order does not exist.
 		 */
-		public function send_customer_shipping_email( $order_id, $trackingnumber, $shipcarrier, $recipients = null ) {
+		public function render_shipping_email( $order_id, $trackingnumber, $shipcarrier, $args = array() ) {
 			global $wpdb;
 
 			$order = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_order.*, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name FROM ec_order LEFT JOIN ec_country AS billing_country ON billing_country.iso2_cnt = ec_order.billing_country LEFT JOIN ec_country AS shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country WHERE order_id = %d', $order_id ) );
+			if ( ! $order ) {
+				return '';
+			}
 			$orderdetails = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_orderdetail.* FROM ec_orderdetail WHERE order_id = %d ORDER BY product_id', $order_id ) );
 			$email_logo_url = get_option( 'ec_option_email_logo' );
 			$orderfromemail = stripslashes( get_option( 'ec_option_order_from_email' ) );
+
+			$args            = is_array( $args ) ? $args : array();
+			$document_fields = ( isset( $args['document_fields'] ) && is_array( $args['document_fields'] ) ) ? $args['document_fields'] : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping' ) : null );
+			$document_held_back = array();
+			$ship_items = isset( $args['items'] ) ? array_filter( array_map( 'intval', (array) $args['items'] ) ) : array();
+			if ( $ship_items ) {
+				$in_box = array();
+				foreach ( (array) $orderdetails as $detail ) {
+					if ( in_array( (int) $detail->orderdetail_id, $ship_items, true ) ) {
+						$in_box[] = $detail;
+					} else {
+						$document_held_back[] = $detail;
+					}
+				}
+				if ( $in_box ) {
+					$orderdetails = $in_box;
+				} else {
+					$document_held_back = array();
+				}
+			}
 
 			$storepageid = get_option('ec_option_storepage');
 			if ( function_exists( 'icl_object_id' ) ) {
@@ -433,7 +464,41 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			} else {
 				include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_shipping_email.php';
 			}
-			$message = ob_get_clean();
+			return (string) ob_get_clean();
+		}
+
+		/**
+		 * One recipient's attachments for the order shipped email, through ec_email so a queued retry can build them again.
+		 *
+		 * @since 6.0.1
+		 * @param int    $order_id  Order.
+		 * @param string $recipient customer | admin.
+		 * @param array  $args      Per-send choices.
+		 * @return array
+		 */
+		private static function shipping_attachments( $order_id, $recipient, $args ) {
+			if ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'attachments' ) ) {
+				return (array) ec_email::attachments( 'wp_easycart_shipping_email_attachments', array(), (int) $order_id, $recipient, $args );
+			}
+			return (array) apply_filters( 'wp_easycart_shipping_email_attachments', array(), (int) $order_id, $recipient, $args );
+		}
+
+		/**
+		 * @since 6.0.0 $recipients: send to these addresses only ( order screen send dialog ), without the store copy.
+		 * @since 6.0.1 $args: per-send choices ( see render_shipping_email(), plus what the send dialog passes on to the
+		 *              wp_easycart_shipping_email_attachments filter ). Sends with the store's email method like the receipt
+		 *              ( the wpeasycart_email_method filter and custom senders were skipped before ), and logs as a shipped email.
+		 */
+		public function send_customer_shipping_email( $order_id, $trackingnumber, $shipcarrier, $recipients = null, $args = array() ) {
+			global $wpdb;
+			$args    = is_array( $args ) ? $args : array();
+			$message = $this->render_shipping_email( $order_id, $trackingnumber, $shipcarrier, $args );
+			if ( '' === $message ) {
+				return;
+			}
+			$order   = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id, user_email, email_other FROM ec_order WHERE order_id = %d', $order_id ) );
+			$subject = (string) apply_filters( 'wp_easycart_shipping_email_subject', wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, (int) $order_id );
+			$message = (string) apply_filters( 'wp_easycart_shipping_email_content', $message, (int) $order_id, $args );
 
 			$headers = array( );
 			$headers[] = 'MIME-Version: 1.0';
@@ -444,27 +509,54 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 
 			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
 
+			/**
+			 * Files attached to one recipient's copy of the order shipped email ( WP EasyCart PRO adds the packing slip PDF ).
+			 *
+			 * @since 6.0.1
+			 * @param array  $files     Absolute file paths.
+			 * @param int    $order_id  Order.
+			 * @param string $recipient 'customer' | 'admin'.
+			 * @param array  $args      Per-send choices from the admin send dialog.
+			 */
+			$customer_files = self::shipping_attachments( $order_id, 'customer', $args );
+			if ( class_exists( 'ec_email' ) ) {
+				ec_email::context( 'order_shipped', $order_id );
+			}
+
 			if ( is_array( $recipients ) ) {
-				ec_orderdisplay::send_to_recipients( $recipients, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
-				self::log_email_sent( $order_id, 'order-shipping-email', $recipients );
+				ec_orderdisplay::send_to_recipients( $recipients, $subject, $message, $headers, $customer_files );
+				if ( class_exists( 'ec_email' ) ) {
+					ec_email::context( null );
+				}
+				self::log_email_sent( $order_id, 'order-shipping-email', $recipients, $args );
 				return;
 			}
 
-			if ( get_option( 'ec_option_use_wp_mail' ) ) {
-				wp_mail( $order[0]->user_email, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
+			$method = apply_filters( 'wpeasycart_email_method', get_option( 'ec_option_use_wp_mail' ) );
+			if ( '1' == $method ) {
+				wp_mail( $order[0]->user_email, $subject, $message, $headers, $customer_files );
 				if ( '' != $order[0]->email_other ) {
-					wp_mail( $order[0]->email_other, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
+					wp_mail( $order[0]->email_other, $subject, $message, $headers, $customer_files );
 				}
-				wp_mail( $admin_email, wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id, $message, $headers );
-			} else {
-				$to = $order[0]->user_email;
-				$subject = wp_easycart_language()->get_text( 'ec_shipping_email', 'shipping_email_title' ) . ' ' . $order_id;
+				/* The store copy's files are asked for after the customer's copies went out ( the queue records each send's files as it happens ). */
+				$admin_files = self::shipping_attachments( $order_id, 'admin', $args );
+				wp_mail( $admin_email, $subject, $message, $headers, $admin_files );
+			} else if ( '0' == $method ) {
 				$mailer = new wpeasycart_mailer();
-				$mailer->send_order_email( $to, $subject, $message );
+				$mailer->send_order_email( $order[0]->user_email, $subject, $message, $customer_files );
 				if ( '' != $order[0]->email_other ) {
-					$mailer->send_order_email( $order[0]->email_other, $subject, $message );
+					$mailer->send_order_email( $order[0]->email_other, $subject, $message, $customer_files );
 				}
-				$mailer->send_order_email( $admin_email, $subject, $message );
+				$admin_files = self::shipping_attachments( $order_id, 'admin', $args );
+				$mailer->send_order_email( $admin_email, $subject, $message, $admin_files );
+			} else {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $order[0]->user_email, $admin_email, $subject, $message, $customer_files );
+				if ( '' != $order[0]->email_other ) {
+					do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $order[0]->email_other, $admin_email, $subject, $message, $customer_files );
+				}
+			}
+			if ( class_exists( 'ec_email' ) ) {
+				ec_email::context( null );
 			}
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-shipping-email" )', $order_id ) );
 			$order_log_id = $wpdb->insert_id;
@@ -472,24 +564,101 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			if ( '' != $order[0]->email_other ) {
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "email_other", %s )', $order_log_id, $order_id, $order[0]->email_other ) );
 			}
+			self::log_email_extras( $order_log_id, $order_id, 'order-shipping-email', $args );
 		}
 
+		/**
+		 * @since 6.0.1 The order, its lines and its downloads are kept for 15 minutes so the list can offer an Undo.
+		 */
 		public function delete_order() {
 			global $wpdb;
 
 			$order_id = (int) $_GET['order_id'];
+			$snapshot = self::order_snapshot( array( $order_id ) );
 			do_action( 'wpeasycart_order_deleting', $order_id );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order WHERE order_id = %d', $order_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_orderdetail WHERE order_id = %d', $order_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_download WHERE order_id = %d', $order_id ) );
 			do_action( 'wpeasycart_order_deleted', $order_id );
+			if ( function_exists( 'wp_easycart_refresh_user_history' ) && ! empty( $snapshot['orders'][0]['user_id'] ) ) {
+				wp_easycart_refresh_user_history( $snapshot['orders'][0]['user_id'] );
+			}
 
-			return array( 'success' => 'order-deleted' );
+			$result = array( 'success' => 'order-deleted' );
+			if ( $snapshot['orders'] && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$result['undo'] = wp_easycart_admin_undo::store( 'order', $snapshot );
+			}
+			return $result;
 		}
 
+		/**
+		 * Every row these orders own, ready to be written back.
+		 *
+		 * @since 6.0.1
+		 * @param array $order_ids Order ids.
+		 * @return array
+		 */
+		public static function order_snapshot( $order_ids ) {
+			global $wpdb;
+			$snapshot = array( 'orders' => array(), 'details' => array(), 'downloads' => array() );
+			foreach ( (array) $order_ids as $order_id ) {
+				$order_id = (int) $order_id;
+				if ( ! $order_id ) {
+					continue;
+				}
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE order_id = %d', $order_id ), ARRAY_A );
+				if ( ! $row ) {
+					continue;
+				}
+				$snapshot['orders'][]    = $row;
+				$snapshot['details']     = array_merge( $snapshot['details'], (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d', $order_id ), ARRAY_A ) );
+				$snapshot['downloads']   = array_merge( $snapshot['downloads'], (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_download WHERE order_id = %d', $order_id ), ARRAY_A ) );
+			}
+			return $snapshot;
+		}
+
+		/**
+		 * Filter: wp_easycart_admin_undo_restore_order. Writes the rows back exactly as they were, ids included.
+		 *
+		 * @since 6.0.1
+		 * @param mixed $result   Null until something handles it.
+		 * @param array $snapshot From order_snapshot().
+		 * @return string|WP_Error
+		 */
+		public static function restore_orders( $result, $snapshot ) {
+			global $wpdb;
+			if ( empty( $snapshot['orders'] ) ) {
+				return new WP_Error( 'empty', __( 'There is nothing to put back.', 'wp-easycart' ) );
+			}
+			$restored = 0;
+			foreach ( $snapshot['orders'] as $row ) {
+				if ( $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM ec_order WHERE order_id = %d', (int) $row['order_id'] ) ) ) {
+					continue; /* already back */
+				}
+				$wpdb->insert( 'ec_order', $row );
+				$restored++;
+				do_action( 'wpeasycart_order_restored', (int) $row['order_id'] );
+			}
+			foreach ( array( 'details' => 'ec_orderdetail', 'downloads' => 'ec_download' ) as $part => $table ) {
+				foreach ( (array) $snapshot[ $part ] as $row ) {
+					$wpdb->insert( $table, $row );
+				}
+			}
+			wp_cache_flush();
+			if ( function_exists( 'wp_easycart_refresh_user_history' ) ) {
+				wp_easycart_refresh_user_history( wp_list_pluck( $snapshot['orders'], 'user_id' ) );
+			}
+			/* translators: %d: number of orders put back. */
+			return sprintf( _n( '%d order restored.', '%d orders restored.', $restored, 'wp-easycart' ), $restored );
+		}
+
+		/**
+		 * @since 6.0.1 Snapshots every order first so the list can offer one Undo for the whole batch.
+		 */
 		public function bulk_delete_order() {
 			global $wpdb;
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
+			$snapshot = self::order_snapshot( $bulk_ids );
 
 			foreach ( $bulk_ids as $bulk_id ) {
 				do_action( 'wpeasycart_order_deleting', (int) $bulk_id );
@@ -499,8 +668,15 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-deleted" )', (int) $bulk_id ) );
 				do_action( 'wpeasycart_order_deleted', (int) $bulk_id );
 			}
+			if ( function_exists( 'wp_easycart_refresh_user_history' ) ) {
+				wp_easycart_refresh_user_history( wp_list_pluck( $snapshot['orders'], 'user_id' ) );
+			}
 
-			return array( 'success' => 'order-deleted' );
+			$result = array( 'success' => 'order-deleted' );
+			if ( $snapshot['orders'] && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$result['undo'] = wp_easycart_admin_undo::store( 'order', $snapshot );
+			}
+			return $result;
 		}
 
 		public function bulk_update_order_status() {
@@ -680,18 +856,53 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			}
 		 }
 
-		 public function print_receipts() {
-			 if ( isset( $_GET['bulk'] ) && is_array( $_GET['bulk'] ) ) {
-				$bulk_count = count( $_GET['bulk'] );
-				for ( $i = 0; $i < $bulk_count; $i++ ) {
-					if ( $i > 0 )
-						echo '<div class="ec_admin_page_break"></div>';
-					$this->print_receipt( (int) $_GET['bulk'][ $i ] );
-				}
-			} else if ( isset( $_GET['bulk'] ) ) {
-				$this->print_receipt( (int) $_GET['bulk'] );
+		/**
+		 * Print stylesheet for a bulk run, emitted once before the first document.
+		 *
+		 * 6.0.1: the run used to separate documents with an empty <div class="ec_admin_page_break">. The rule
+		 * behind that class only existed inside the packing slip layout, so receipts never broke at all, and an
+		 * empty element is skipped by some print engines even when it is styled. Each document is wrapped
+		 * instead, and the break is asked for on the wrapper, which always has content.
+		 *
+		 * @return void
+		 */
+		private function print_run_styles() {
+			echo '<style type="text/css" media="print">'
+				. '.ec_admin_print_doc + .ec_admin_print_doc { break-before: page; page-break-before: always; }'
+				. '.ec_admin_print_doc { break-inside: auto; page-break-inside: auto; max-width: 100%; overflow: visible; }'
+				. '.ec_admin_page_break { break-before: page; page-break-before: always; height: 0; }'
+				. '</style>';
+		}
+
+		/** Wrap one printed document so the page break has something to attach to. @since 6.0.1 */
+		private function print_run_doc( $callback, $order_id ) {
+			echo '<div class="ec_admin_print_doc">';
+			call_user_func( $callback, (int) $order_id );
+			echo '</div>';
+		}
+
+		/**
+		 * The orders a print run covers: ?bulk[]=, ?bulk= or ?order_id=, as positive integers in the order given.
+		 * The nonce was checked by process_print_receipts() / process_print_packing_slips() through verify_access().
+		 *
+		 * @since 6.0.1
+		 * @return int[]
+		 */
+		private function print_run_ids() {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- verified in process_print_*() via wp_easycart_admin_verification()->verify_access().
+			if ( isset( $_GET['bulk'] ) ) {
+				$raw = is_array( $_GET['bulk'] ) ? array_map( 'absint', wp_unslash( $_GET['bulk'] ) ) : array( absint( wp_unslash( $_GET['bulk'] ) ) );
 			} else {
-				$this->print_receipt( (int) $_GET['order_id'] );
+				$raw = array( isset( $_GET['order_id'] ) ? absint( wp_unslash( $_GET['order_id'] ) ) : 0 );
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
+			return array_values( array_filter( $raw ) );
+		}
+
+		 public function print_receipts() {
+			$this->print_run_styles();
+			foreach ( $this->print_run_ids() as $order_id ) {
+				$this->print_run_doc( array( $this, 'print_receipt' ), $order_id );
 			}
 		 }
 
@@ -699,11 +910,13 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		 * Order timeline entry for an email sent from the order screen send dialog ( 'email' = To, 'email_other' = Cc and Bcc ).
 		 *
 		 * @since 6.0.0
+		 * @since 6.0.1 $args: the send's choices; the wp_easycart_order_email_log_meta filter adds what they were ( attachments, profile, items ).
 		 * @param int    $order_id   Order.
-		 * @param string $log_key    order-receipt-email | order-shipping-email.
+		 * @param string $log_key    order-receipt-email | order-shipping-email | order-packing-slip-email.
 		 * @param array  $recipients array( 'to' => [], 'cc' => [], 'bcc' => [] ).
+		 * @param array  $args       Per-send choices ( wp_easycart_order_send_args ).
 		 */
-		public static function log_email_sent( $order_id, $log_key, $recipients ) {
+		public static function log_email_sent( $order_id, $log_key, $recipients, $args = array() ) {
 			global $wpdb;
 			$wpdb->insert( 'ec_order_log', array( 'order_id' => (int) $order_id, 'order_log_key' => $log_key ), array( '%d', '%s' ) );
 			$order_log_id = (int) $wpdb->insert_id;
@@ -712,17 +925,49 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			if ( $others ) {
 				$wpdb->insert( 'ec_order_log_meta', array( 'order_log_id' => $order_log_id, 'order_id' => (int) $order_id, 'order_log_meta_key' => 'email_other', 'order_log_meta_value' => implode( ', ', $others ) ), array( '%d', '%d', '%s', '%s' ) );
 			}
+			self::log_email_extras( $order_log_id, $order_id, $log_key, $args );
+		}
+
+		/**
+		 * Extra timeline meta for an email: what went with it ( WP EasyCart PRO adds attachments, profile and items ).
+		 *
+		 * @since 6.0.1
+		 * @param int    $order_log_id Timeline entry.
+		 * @param int    $order_id     Order.
+		 * @param string $log_key      Entry key.
+		 * @param array  $args         Per-send choices.
+		 */
+		public static function log_email_extras( $order_log_id, $order_id, $log_key, $args = array() ) {
+			global $wpdb;
+			/**
+			 * Meta to store with an email's order timeline entry.
+			 *
+			 * @since 6.0.1
+			 * @param array  $meta     key => text.
+			 * @param int    $order_id Order.
+			 * @param string $log_key  order-receipt-email | order-shipping-email | order-packing-slip-email.
+			 * @param array  $args     Per-send choices.
+			 */
+			$meta = (array) apply_filters( 'wp_easycart_order_email_log_meta', array(), (int) $order_id, (string) $log_key, is_array( $args ) ? $args : array() );
+			foreach ( $meta as $key => $value ) {
+				$key = sanitize_key( $key );
+				if ( '' === $key || 'email' === $key || 'email_other' === $key || ! is_scalar( $value ) ) {
+					continue;
+				}
+				$wpdb->insert( 'ec_order_log_meta', array( 'order_log_id' => (int) $order_log_id, 'order_id' => (int) $order_id, 'order_log_meta_key' => $key, 'order_log_meta_value' => (string) $value ), array( '%d', '%d', '%s', '%s' ) );
+			}
 		}
 
 		/**
 		 * @since 6.0.0 $recipients: resend to these addresses only ( order screen send dialog ).
+		 * @since 6.0.1 $args: the send dialog's choices ( see ec_orderdisplay::send_email_receipt() ).
 		 */
-		 public function resend_receipt( $order_id, $recipients = null ) {
+		 public function resend_receipt( $order_id, $recipients = null, $args = array() ) {
 			$mysqli = new ec_db_admin();
 			$order_row = $mysqli->get_order_row_admin( $order_id );
 			if ( $order_row ) {
 				$order_display = new ec_orderdisplay( $order_row, true, true );
-				$order_display->send_email_receipt( false, $recipients );
+				$order_display->send_email_receipt( false, $recipients, $args );
 				return true;
 			} else {
 				return false;
@@ -852,22 +1097,21 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		 }
 
 		 public function print_packing_slips() {
-			if ( isset( $_GET['bulk'] ) && is_array( $_GET['bulk'] ) ) {
-				$bulk_count = count( $_GET['bulk'] );
-				for ( $i = 0; $i < $bulk_count; $i++ ) {
-					if ( $i > 0 ) {
-						echo '<div class="ec_admin_page_break"></div>';
-					}
-					$this->print_packing_slip( (int) $_GET['bulk'][ $i ] );
-				}
-			} else if ( isset( $_GET['bulk'] ) ) {
-				$this->print_packing_slip( (int) $_GET['bulk'] );
-			} else {
-				$this->print_packing_slip( (int) $_GET['order_id'] );
+			$this->print_run_styles();
+			foreach ( $this->print_run_ids() as $order_id ) {
+				$this->print_run_doc( array( $this, 'print_packing_slip' ), $order_id );
 			}
 		 }
 
 		 public function print_packing_slip( $order_id ) {
+			/* 6.0.1: the packing slip comes from the document engine and the store's packing slip profile ( Settings ›
+			   Documents ). A copy of the old template in the data folder still prints the way it always has, below. */
+			if ( class_exists( 'wp_easycart_documents' ) && '' === wp_easycart_documents::override_path( 'ec_admin_packaging_slip.php' ) ) {
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only: which profile to print with; the print route checks the bulk nonce.
+				$profile = isset( $_GET['document_profile'] ) ? sanitize_key( wp_unslash( $_GET['document_profile'] ) ) : '';
+				echo wp_easycart_documents::render( 'packing_slip', (int) $order_id, array( 'profile' => $profile, 'output' => 'print' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the template escapes everything it prints.
+				return;
+			}
 			$db = new ec_db_admin();
 			$mysqli = new ec_db_admin();
 			$order = $db->get_order_row_admin( $order_id );
@@ -1011,7 +1255,7 @@ function ec_admin_ajax_order_details_send_order_shipped_email() {
 		wp_send_json_error( array( 'message' => __( 'This order has no email address to send to. Add one in the Edit Order drawer first.', 'wp-easycart' ) ) );
 	}
 
-	wp_easycart_admin_orders()->send_customer_shipping_email( $order->order_id, $order->tracking_number, $order->shipping_carrier, $recipients );
+	wp_easycart_admin_orders()->send_customer_shipping_email( $order->order_id, $order->tracking_number, $order->shipping_carrier, $recipients, ecv2_order_send_args( $order_id, 'shipped' ) );
 
 	if ( null !== $recipients ) {
 		wp_send_json_success(
@@ -1068,6 +1312,84 @@ function ec_admin_ajax_get_order_users() {
 	die();
 }
 
+if ( ! function_exists( 'wp_easycart_local_pickup_labels' ) ) {
+	/**
+	 * The shipping method text an order carries when the shopper chose Free Local Pickup.
+	 *
+	 * Checkout stores only the label ( cart_estimate_shipping_free, "Free Local Pickup" by default ) in
+	 * ec_order.shipping_method, in whatever language the shopper was using, so every installed language's
+	 * wording counts, plus the English default. Stores that renamed the label after taking orders can add the
+	 * old wording through the filter. Keys are lower case, tags stripped, entities decoded.
+	 *
+	 * @since 6.0.1
+	 * @return array label => true
+	 */
+	function wp_easycart_local_pickup_labels() {
+		static $labels = null;
+		if ( null !== $labels ) {
+			return $labels;
+		}
+		$texts = array( 'Free Local Pickup' );
+		if ( function_exists( 'wp_easycart_language' ) ) {
+			$data = wp_easycart_language()->get_language_data();
+			if ( is_object( $data ) ) {
+				foreach ( get_object_vars( $data ) as $language ) {
+					if ( isset( $language->options->cart_estimate_shipping->options->cart_estimate_shipping_free->value ) ) {
+						$texts[] = (string) $language->options->cart_estimate_shipping->options->cart_estimate_shipping_free->value;
+					}
+				}
+			}
+		}
+		$texts  = (array) apply_filters( 'wp_easycart_local_pickup_labels', $texts );
+		$labels = array();
+		foreach ( $texts as $text ) {
+			$key = wp_easycart_local_pickup_key( $text );
+			if ( '' !== $key ) {
+				$labels[ $key ] = true;
+			}
+		}
+		return $labels;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_local_pickup_key' ) ) {
+	/**
+	 * A shipping method label reduced to what wp_easycart_local_pickup_labels() compares.
+	 *
+	 * @since 6.0.1
+	 * @param string $text Label as stored or as written in a language file.
+	 * @return string
+	 */
+	function wp_easycart_local_pickup_key( $text ) {
+		$text = html_entity_decode( wp_strip_all_tags( wp_unslash( (string) $text ) ), ENT_QUOTES, 'UTF-8' );
+		$text = trim( preg_replace( '/\s+/u', ' ', $text ) );
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $text, 'UTF-8' ) : strtolower( $text );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_order_is_local_pickup' ) ) {
+	/**
+	 * Did the shopper choose Free Local Pickup for this order? Such an order is collected, not shipped: it is
+	 * fulfilled by marking it Order Picked Up, with no carrier, tracking number or shipped email.
+	 *
+	 * @since 6.0.1
+	 * @param object|array $order An ec_order row, or anything with a shipping_method.
+	 * @return bool
+	 */
+	function wp_easycart_order_is_local_pickup( $order ) {
+		$method = '';
+		if ( is_object( $order ) && isset( $order->shipping_method ) ) {
+			$method = $order->shipping_method;
+		} else if ( is_array( $order ) && isset( $order['shipping_method'] ) ) {
+			$method = $order['shipping_method'];
+		}
+		$key     = wp_easycart_local_pickup_key( $method );
+		$labels  = wp_easycart_local_pickup_labels();
+		$is_pick = '' !== $key && isset( $labels[ $key ] );
+		return (bool) apply_filters( 'wp_easycart_order_is_local_pickup', $is_pick, $order );
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_admin_order_account_badge_html' ) ) {
 	/**
 	 * Account chip for the order details customer card: "#ID" plus a "View account"
@@ -1119,7 +1441,13 @@ function ec_admin_ajax_update_order_user() {
 		wp_send_json_error( array( 'message' => __( 'The selected customer account could not be found.', 'wp-easycart' ) ) );
 	}
 
+	/* 6.0.1: the customer list keeps Orders / Spend / Last order as stored columns, so the account losing
+	   the order and the one gaining it both have to be recalculated. */
+	$previous_user_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_order WHERE order_id = %d', $order_id ) );
 	$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE order_id = %d', $user_id, $order_id ) );
+	if ( function_exists( 'wp_easycart_refresh_user_history' ) ) {
+		wp_easycart_refresh_user_history( array( $previous_user_id, $user_id ) );
+	}
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-user-update" )', $order_id ) );
 	$order_log_id = $wpdb->insert_id;
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "user_id", %s )', $order_log_id, $order_id, $user_id ) );
@@ -1221,6 +1549,78 @@ function ecv2_order_email_recipients() {
 	return $lists;
 }
 
+/**
+ * The send dialog's choices for one send ( content profile, adjustments, items in this box, attachments ). Without
+ * WP EasyCart PRO there are none and every email goes out with the store's defaults. Callers verify the nonce first.
+ *
+ * @since 6.0.1
+ * @param int    $order_id Order.
+ * @param string $email    receipt | shipped | packing_slip.
+ * @return array Arguments for the senders ( document_fields, profile, overrides, items, attachments ).
+ */
+function ecv2_order_send_args( $order_id, $email ) {
+	/**
+	 * Per-send choices from the order screen's send dialog.
+	 *
+	 * @since 6.0.1
+	 * @param array  $args     Empty.
+	 * @param int    $order_id Order.
+	 * @param string $email    receipt | shipped | packing_slip.
+	 */
+	$args = apply_filters( 'wp_easycart_order_send_args', array(), (int) $order_id, (string) $email );
+	return is_array( $args ) ? $args : array();
+}
+
+add_action( 'wp_ajax_ecv2_order_email_preview', 'ecv2_order_email_preview' );
+/**
+ * The email the send dialog is about to send, rendered with its choices, for the dialog's Preview.
+ *
+ * @since 6.0.1
+ */
+function ecv2_order_email_preview() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- order_id only builds the nonce action; check_ajax_referer() verifies it on the next line.
+	$order_id = ( isset( $_POST['order_id'] ) ) ? (int) $_POST['order_id'] : 0;
+	check_ajax_referer( 'wp-easycart-ecv2-order-email-' . $order_id, 'wp_easycart_nonce' );
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_orders' ) ) {
+		wp_send_json_error( array( 'message' => __( 'You do not have permission to send order emails.', 'wp-easycart' ) ), 403 );
+	}
+	$email = isset( $_POST['email'] ) ? sanitize_key( wp_unslash( $_POST['email'] ) ) : 'receipt';
+	$args  = ecv2_order_send_args( $order_id, $email );
+	$html  = '';
+	if ( 'receipt' === $email ) {
+		$db  = new ec_db_admin();
+		$row = $db->get_order_row_admin( $order_id );
+		if ( $row ) {
+			$display = new ec_orderdisplay( $row, true, true );
+			$html    = $display->render_email_receipt( false, isset( $args['document_fields'] ) ? $args['document_fields'] : null );
+		}
+	} elseif ( 'shipped' === $email ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT tracking_number, shipping_carrier FROM ec_order WHERE order_id = %d', $order_id ) );
+		if ( $order ) {
+			$html = wp_easycart_admin_orders()->render_shipping_email( $order_id, $order->tracking_number, $order->shipping_carrier, $args );
+		}
+	} elseif ( 'packing_slip' === $email && class_exists( 'wp_easycart_documents' ) ) {
+		$html = wp_easycart_documents::render(
+			'packing_slip',
+			$order_id,
+			array(
+				'profile'   => isset( $args['profile'] ) ? $args['profile'] : '',
+				'overrides' => isset( $args['overrides'] ) ? $args['overrides'] : array(),
+				'items'     => isset( $args['items'] ) ? $args['items'] : array(),
+				'output'    => 'email',
+			)
+		);
+	}
+	if ( '' === trim( (string) $html ) ) {
+		wp_send_json_error( array( 'message' => __( 'The preview could not be loaded for this order.', 'wp-easycart' ) ) );
+	}
+	wp_send_json_success( array( 'html' => $html ) );
+}
+
+/* 6.0.1: 15-minute undo for a deleted order ( wp_easycart_admin_undo ). */
+add_filter( 'wp_easycart_admin_undo_restore_order', array( 'wp_easycart_admin_orders', 'restore_orders' ), 10, 2 );
+
 add_action( 'wp_ajax_ecv2_order_resend_receipt', 'ecv2_order_resend_receipt' );
 /**
  * Resends the order receipt from the V2 order details screen.
@@ -1251,14 +1651,15 @@ function ecv2_order_resend_receipt() {
 		wp_send_json_error( array( 'message' => __( 'This order has no email address to send to. Add one in the Edit Order drawer first.', 'wp-easycart' ) ) );
 	}
 
-	$sent = wp_easycart_admin_orders()->resend_receipt( $order_id, $recipients );
+	$args = ecv2_order_send_args( $order_id, 'receipt' );
+	$sent = wp_easycart_admin_orders()->resend_receipt( $order_id, $recipients, $args );
 	if ( ! $sent ) {
 		wp_send_json_error( array( 'message' => __( 'The receipt could not be sent. Check Settings > Logs for the mail error.', 'wp-easycart' ) ) );
 	}
 
 	/* Sent from the send dialog: log and answer with the chosen addresses. */
 	if ( null !== $recipients ) {
-		wp_easycart_admin_orders::log_email_sent( $order_id, 'order-receipt-email', $recipients );
+		wp_easycart_admin_orders::log_email_sent( $order_id, 'order-receipt-email', $recipients, $args );
 		do_action( 'wp_easycart_order_receipt_resent', $order_id );
 		wp_send_json_success(
 			array(
@@ -1276,6 +1677,7 @@ function ecv2_order_resend_receipt() {
 	if ( '' != trim( (string) $order->email_other ) ) {
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "email_other", %s )', $order_log_id, $order_id, $order->email_other ) );
 	}
+	wp_easycart_admin_orders::log_email_extras( $order_log_id, $order_id, 'order-receipt-email', $args );
 
 	do_action( 'wp_easycart_order_receipt_resent', $order_id );
 

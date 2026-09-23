@@ -1408,7 +1408,18 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecss-check-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
 .ecss-check-text strong { font-size:13px; color:var(--ecv2-g900); }
 .ecss-check-text span { font-size:12px; color:var(--ecv2-g500); }
-.ecss-check-link { font-size:12px; font-weight:600; color:var(--ecv2-primary-hover); white-space:nowrap; display:inline-flex; align-items:center; }
+.ecss-check-link { font-size:12px; font-weight:600; color:var(--ecv2-primary-hover); white-space:nowrap; display:inline-flex; align-items:center; text-decoration:none; }
+.ecss-check-link:hover { text-decoration:underline; }
+/* 6.0.1: the row is no longer one big link, so the "not applicable" answer can sit beside the setup link. */
+.ecss-check-actions { display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.ecss-check-skip { padding:0; border:0; background:none; font-size:12px; font-weight:500; color:var(--ecv2-g500); white-space:nowrap; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+.ecss-check-skip:hover { color:var(--ecv2-g800); }
+.ecss-check-skip[disabled] { opacity:.5; cursor:default; }
+.ecss-check.is-ack .ecss-check-dot { background:var(--ecv2-g100); color:var(--ecv2-g500); }
+@media screen and (max-width:782px) {
+	.ecss-check { flex-wrap:wrap; }
+	.ecss-check-actions { width:100%; justify-content:flex-end; }
+}
 .ecss-check-link .dashicons { font-size:14px; width:14px; height:14px; }
 
 .ecss-features-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 10px; }
@@ -1703,3 +1714,148 @@ body.ecv2-gate-open { overflow:hidden; }
 	.ecv2-page-header-right .ecv2-btn:not(.ecv2-btn-primary):has(.dashicons):has(.ecv2-btn-label) .ecv2-btn-label { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0; }
 	.ecv2-page-header-right .ecv2-btn:not(.ecv2-btn-primary):has(.dashicons):has(.ecv2-btn-label) .dashicons { font-size:19px; width:19px; height:19px; margin:0; }
 }
+
+/* ==================================================================
+   Reports toolbar ( 6.0.0 ): a stable two-column layout so choosing a
+   compare range no longer re-flows the filters onto another line, and
+   a V2 look for the product picker.
+================================================================== */
+.ecrp .ecrp-toolbar { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; justify-content:normal; gap:10px 16px; }
+.ecrp .ecrp-ranges { flex-wrap:nowrap; }
+/* Both range buttons keep one width, whatever the dates read: label across the top, then calendar icon, dates and caret
+   on one line ( a grid, so a long range never pushes the caret onto a second row ). */
+.ecrp .ecrp-range.ec_admin_dashboard_chart_range_button { flex:0 0 322px; width:322px; min-width:0; max-width:none; display:grid; grid-template-columns:auto minmax(0,1fr) auto; column-gap:7px; row-gap:1px; align-items:center; padding:7px 12px 8px; }
+.ecrp .ecrp-range .ecrp-range-label { grid-column:1 / -1; flex:none; }
+.ecrp .ecrp-range .dashicons-calendar { grid-column:1; }
+.ecrp .ecrp-range > span { grid-column:2; }
+.ecrp .ecrp-range .dashicons-arrow-down { grid-column:3; margin-left:0; }
+.ecrp .ecrp-filters.ec_admin_dashboard_chart_filters { justify-content:flex-end; align-items:center; row-gap:8px; }
+.ecrp .ecrp-filters > * { flex:0 0 auto; }
+.ecrp .ecrp-filters select.ecv2-select { height:38px; min-width:190px; max-width:220px !important; }
+
+/* Product picker: one control the same height as the selects, with a search icon, a focus ring and a card of results. */
+.ecrp .ecrp-filters .wpec-pick { min-width:240px; max-width:280px; margin:0; }
+.ecrp .ecrp-filters .wpec-pick-input { height:38px; width:100%; max-width:none !important; box-sizing:border-box; padding:0 12px 0 34px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff no-repeat 11px 50%; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.2-3.2'/%3E%3C/svg%3E"); background-size:15px 15px; font-size:13px; color:var(--ecv2-g800); box-shadow:none; transition:border-color var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecrp .ecrp-filters .wpec-pick-input::-webkit-search-cancel-button { -webkit-appearance:none; }
+.ecrp .ecrp-filters .wpec-pick-input::placeholder { color:var(--ecv2-g400); }
+.ecrp .ecrp-filters .wpec-pick-input:hover { border-color:var(--ecv2-g300); }
+.ecrp .ecrp-filters .wpec-pick-input:focus { border-color:var(--ecv2-primary); box-shadow:0 0 0 2px var(--ecv2-primary-light); outline:none; }
+/* A chosen product covers the field instead of stacking above it, so picking one does not change the toolbar height. */
+.ecrp .ecrp-filters .wpec-pick { height:38px; }
+.ecrp .ecrp-filters .wpec-pick-chips { position:absolute; inset:0; z-index:2; margin:0; gap:4px; align-items:center; padding:0 6px 0 8px; background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
+.ecrp .ecrp-filters .wpec-pick-chips:empty { display:none; }
+.ecrp .ecrp-filters .wpec-pick-chip { padding:3px 4px 3px 10px; border:1px solid var(--ecv2-primary-light); border-radius:999px; background:var(--ecv2-primary-light); color:var(--ecv2-g800); font-size:12px; }
+.ecrp .ecrp-filters .wpec-pick-x { color:var(--ecv2-g500); font-size:15px; }
+.ecrp .ecrp-filters .wpec-pick-x:hover { color:var(--ecv2-danger, #dc2626); }
+.ecrp .ecrp-filters .wpec-pick-results { margin-top:4px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-rl, 10px); box-shadow:0 12px 30px rgba(17,24,39,.12); padding:4px; overflow:auto; }
+.ecrp .ecrp-filters .wpec-pick-item { padding:7px 10px; border-radius:var(--ecv2-rs, 6px); font-size:12.5px; color:var(--ecv2-g700); }
+.ecrp .ecrp-filters .wpec-pick-item:hover, .ecrp .ecrp-filters .wpec-pick-item:focus { background:var(--ecv2-g100); color:var(--ecv2-g900); }
+.ecrp .ecrp-filters .wpec-pick-item small { color:var(--ecv2-g400); }
+.ecrp .ecrp-filters .wpec-pick-empty { padding:8px 10px; color:var(--ecv2-g500); }
+
+/* Side by side only when there is real room for both ( two 322px date buttons plus three filters ); below that the
+   toolbar is two rows: dates, then filters. */
+@media screen and (max-width:1850px) {
+	.ecrp .ecrp-toolbar { grid-template-columns:minmax(0,1fr); }
+	.ecrp .ecrp-filters.ec_admin_dashboard_chart_filters { justify-content:flex-start; }
+}
+/* Narrower than two fixed buttons side by side: let them share the row and grow, then wrap onto two rows. */
+@media screen and (max-width:1180px) {
+	.ecrp .ecrp-ranges { flex-wrap:wrap; }
+	.ecrp .ecrp-range.ec_admin_dashboard_chart_range_button { flex:1 1 300px; width:auto; }
+}
+@media screen and (max-width:782px) {
+	.ecrp .ecrp-ranges { flex-wrap:wrap; }
+	.ecrp .ecrp-range.ec_admin_dashboard_chart_range_button { flex:1 1 100%; width:auto; }
+	.ecrp .ecrp-filters .wpec-pick, .ecrp .ecrp-filters select.ecv2-select { flex:1 1 100%; min-width:0; max-width:none !important; }
+}
+
+/* Reports export dialog: one row per report, same shell as the customers / products importers. @since 6.0.0 */
+.ecrp-dl-modal { max-width:560px; width:100%; }
+.ecrp-dl-lede { margin:0 0 14px; font-size:13px; color:var(--ecv2-g600); line-height:1.5; }
+.ecrp-dl-rows { display:flex; flex-direction:column; gap:8px; }
+.ecrp-dl-row { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; text-decoration:none; color:inherit; transition:border-color var(--ecv2-tr), background var(--ecv2-tr), box-shadow var(--ecv2-tr); }
+.ecrp-dl-row:hover, .ecrp-dl-row:focus { border-color:var(--ecv2-primary); background:var(--ecv2-primary-light); box-shadow:none; outline:none; }
+.ecrp-dl-row:focus-visible { box-shadow:0 0 0 2px var(--ecv2-primary-light); }
+.ecrp-dl-ic { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; background:var(--ecv2-g100); color:var(--ecv2-g600); }
+.ecrp-dl-row:hover .ecrp-dl-ic { background:#fff; color:var(--ecv2-primary); }
+.ecrp-dl-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.ecrp-dl-text b { font-size:13.5px; color:var(--ecv2-g900); }
+.ecrp-dl-text span { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecrp-dl-go { flex:0 0 auto; font-size:12px; font-weight:600; color:var(--ecv2-primary); white-space:nowrap; }
+/* Older extension links dropped into the same dialog keep a matching look. */
+.ecrp-dl .wpeasycart_admin_download_report { display:block; margin-top:8px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g900); font-size:13.5px; font-weight:600; text-decoration:none; }
+.ecrp-dl .wpeasycart_admin_download_report:hover { border-color:var(--ecv2-primary); background:var(--ecv2-primary-light); }
+@media screen and (max-width:600px) {
+	.ecrp-dl-row { flex-wrap:wrap; }
+	.ecrp-dl-go { margin-left:46px; }
+}
+
+/* Diagnostics: a carrier with rates but no working connection offers both ways out. @since 6.0.1 */
+.ecss-carrier-fix { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ecss-carrier-fix .ec_status_label { flex:1 1 320px; min-width:0; }
+.ecss-carrier-acts { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
+.ecss-carrier-acts .ecv2-btn { white-space:nowrap; text-decoration:none; }
+
+/* 6.0.1: the bar above a list after a page-load delete, offering the rows back for 15 minutes. */
+.ecv2-undo-strip { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 14px; background:#fff; border:1px solid var(--ecv2-g200); border-left:3px solid var(--ec-brand,#16a34a); border-radius:var(--ecv2-r); box-shadow:var(--ecv2-sh); font-size:13px; color:var(--ecv2-g700); }
+.ecv2-undo-strip-icon { flex:0 0 auto; color:var(--ecv2-g500); }
+.ecv2-undo-strip-text { flex:1 1 auto; font-weight:600; }
+.ecv2-undo-strip-text span { font-weight:400; color:var(--ecv2-g500); }
+.ecv2-undo-strip-x { flex:0 0 auto; padding:2px 4px; border:0; background:none; color:var(--ecv2-g400); font-size:18px; line-height:1; cursor:pointer; }
+.ecv2-undo-strip-x:hover { color:var(--ecv2-g700); }
+@media screen and (max-width:782px) {
+	.ecv2-undo-strip { flex-wrap:wrap; }
+	.ecv2-undo-strip-text { flex:1 1 100%; order:3; }
+}
+.ecv2-undo-strip-done { border-left-color:#16a34a; }
+.ecv2-undo-strip-done .ecv2-undo-strip-icon { color:#16a34a; }
+
+/* 6.0.1: the safe-delete dialog ( categories, menus, option sets, manufacturers, customers ). Moved here
+   from catalog-v2.css because the customers list does not load that sheet and the dialog rendered unstyled. */
+.ecv2-sd-loading { text-align:center; padding:30px; color:var(--ecv2-g400); }
+.ecv2-sd-loading .dashicons { font-size:24px; width:24px; height:24px; }
+.ecv2-sd-impacts { border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); overflow:hidden; margin-bottom:14px; }
+.ecv2-sd-impact { display:flex; gap:12px; align-items:flex-start; padding:10px 12px; border-top:1px solid var(--ecv2-g100); font-size:12.5px; }
+.ecv2-sd-impact:first-child { border-top:0; }
+.ecv2-sd-count { min-width:44px; text-align:center; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; padding:3px 6px; border-radius:6px; background:var(--ecv2-g100); color:var(--ecv2-g700); flex-shrink:0; }
+.ecv2-sd-impact.is-warn .ecv2-sd-count { background:#fff7e6; color:#874d00; }
+.ecv2-sd-impact.is-block .ecv2-sd-count { background:var(--ecv2-danger-light); color:#b91c1c; }
+.ecv2-sd-impact-main b { display:block; color:var(--ecv2-g800); }
+.ecv2-sd-impact-main span { color:var(--ecv2-g500); line-height:1.45; }
+.ecv2-sd-impact-main em { font-style:normal; color:var(--ecv2-g700); }
+.ecv2-sd-impact-main a { color:var(--ecv2-primary-hover); font-weight:600; text-decoration:none; }
+.ecv2-sd-strategies { display:flex; flex-direction:column; gap:8px; }
+.ecv2-sd-strategy { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); cursor:pointer; }
+.ecv2-sd-strategy:has(input:checked) { border-color:var(--ecv2-primary); background:var(--ec-brand-softer, #f8fbf5); }
+.ecv2-sd-strategy.is-disabled { opacity:.55; cursor:not-allowed; }
+.ecv2-sd-strategy.is-danger:has(input:checked) { border-color:var(--ecv2-danger); background:#fff5f5; }
+.ecv2-sd-strategy input[type="radio"] { margin:3px 0 0; accent-color:var(--ecv2-primary); }
+.ecv2-sd-strategy > div { flex:1; min-width:0; }
+.ecv2-sd-strategy b { display:block; font-size:13px; color:var(--ecv2-g800); }
+.ecv2-sd-strategy > div > span { display:block; font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecv2-sd-target { margin-top:8px; max-width:360px; }
+.ecv2-sd-strategy small { display:block; color:var(--ecv2-g400); font-size:11.5px; margin-top:4px; }
+.ecv2-sd-redirect { display:flex; gap:10px; align-items:flex-start; margin-top:12px; padding:10px 12px; border-radius:var(--ecv2-r); background:var(--ecv2-g50); font-size:13px; cursor:pointer; }
+.ecv2-sd-redirect input { margin-top:3px; accent-color:var(--ecv2-primary); }
+.ecv2-sd-redirect b { display:block; font-size:13px; color:var(--ecv2-g800); }
+.ecv2-sd-redirect small { display:block; color:var(--ecv2-g500); font-size:11.5px; word-break:break-all; }
+.ecv2-sd-undo { display:flex; gap:6px; align-items:center; margin:12px 0 0; font-size:12px; color:var(--ecv2-g500); }
+.ecv2-sd-undo .dashicons { font-size:15px; width:15px; height:15px; }
+
+/* 6.0.1: the customer delete window's "move their orders to" search ( users-v2.js ). A store can have hundreds of
+   thousands of customers, so the receiving account is searched for instead of listed. */
+.ecv2-sd-search { margin-top:8px; max-width:420px; }
+.ecv2-sd-search [hidden] { display:none !important; }
+.ecv2-sd-results { margin-top:4px; max-height:220px; overflow-y:auto; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; }
+.ecv2-sd-result { display:block; width:100%; padding:7px 10px; border:0; border-top:1px solid var(--ecv2-g100); background:none; text-align:left; font:inherit; cursor:pointer; }
+.ecv2-sd-result:first-child { border-top:0; }
+.ecv2-sd-result:hover, .ecv2-sd-result.is-active, .ecv2-sd-result:focus-visible { background:var(--ec-brand-softer, #f8fbf5); outline:none; }
+.ecv2-sd-result b, .ecv2-sd-picked-text b { display:block; font-size:13px; color:var(--ecv2-g800); }
+.ecv2-sd-result small, .ecv2-sd-picked-text small { display:block; margin:0; font-size:11.5px; color:var(--ecv2-g500); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecv2-sd-results-note { padding:8px 10px; font-size:12px; color:var(--ecv2-g500); }
+.ecv2-sd-picked { display:flex; align-items:center; gap:10px; padding:7px 8px 7px 10px; border:1px solid var(--ecv2-primary); border-radius:var(--ecv2-r); background:#fff; }
+.ecv2-sd-picked > .dashicons { flex:0 0 auto; color:var(--ecv2-g400); }
+.ecv2-sd-picked-text { flex:1 1 auto; min-width:0; }
+.ecv2-sd-picked .ecv2-btn { flex:0 0 auto; }
+.ecv2-sd-strategy.is-disabled .ecv2-sd-search-input { cursor:not-allowed; }

@@ -3869,6 +3869,67 @@
                 }
             }
         },
+        "documents": {
+            "label": "Order Documents",
+            "options": {
+                "packing_slip_title": {
+                    "title": "Packing Slip Title",
+                    "value": "Følgeseddel"
+                },
+                "order_number": {
+                    "title": "Order Number Label",
+                    "value": "Ordre"
+                },
+                "order_date": {
+                    "title": "Order Date Label",
+                    "value": "Dato"
+                },
+                "ship_to": {
+                    "title": "Ship To Label",
+                    "value": "Leveres til"
+                },
+                "bill_to": {
+                    "title": "Bill To Label",
+                    "value": "Faktureres til"
+                },
+                "shipping_method": {
+                    "title": "Shipping Method Label",
+                    "value": "Forsendelse"
+                },
+                "carrier": {
+                    "title": "Carrier Label",
+                    "value": "Fragtfirma"
+                },
+                "tracking": {
+                    "title": "Tracking Number Label",
+                    "value": "Sporing"
+                },
+                "items_to_follow": {
+                    "title": "Items To Follow Heading",
+                    "value": "Følger i en separat forsendelse"
+                },
+                "packing_slip_email_subject": {
+                    "title": "Packing Slip Email Subject",
+                    "value": "Følgeseddel for ordre"
+                },
+                "invoice_title": {
+                    "title": "Invoice PDF Heading",
+                    "value": "Faktura"
+                },
+                "receipt_title": {
+                    "title": "Receipt PDF Heading",
+                    "value": "Kvittering"
+                },
+                "invoice_order_number": {
+                    "title": "Invoice PDF Order Number Label",
+                    "value": "Ordrenummer:"
+                },
+                "invoice_date": {
+                    "title": "Invoice PDF Date Label",
+                    "value": "Dato:"
+                }
+            }
+        },
         "language_code": {
             "label": "Language Code",
             "options": {

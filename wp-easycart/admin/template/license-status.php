@@ -83,13 +83,44 @@ if ( $is_free ) {
 		'cta' => array( $renew_url, $soon ? __( 'Renew now', 'wp-easycart' ) : __( 'Renew', 'wp-easycart' ), $soon ? 'primary' : '' ), 'cta2' => $is_premium ? null : array( $upgrade_url, __( 'Upgrade to Premium', 'wp-easycart' ), '' ) );
 }
 
-/* ---- Readiness checks ( same tests as before ) ----------------------- */
-$shipping_ok = ! ( false === $status->ec_using_method_shipping() && false === $status->ec_using_live_shipping() && false === $status->ec_using_price_shipping() && false === $status->ec_using_weight_shipping() && false === $status->ec_using_quantity_shipping() && false === $status->ec_using_percentage_shipping() && false === $status->ec_using_fraktjakt_shipping() );
+/* ---- Readiness checks --------------------------------------------------
+   Tax and shipping can be answered "not applicable": a downloads-only store has nothing to ship and a
+   tax-free store has no rates to enter. Without that, the card sat on a warning forever. 6.0.1. */
+/* 6.0.1: rates left behind by an earlier choice do not count while shipping is switched off. */
+$shipping_on  = (bool) get_option( 'ec_option_use_shipping' );
+$shipping_set = $shipping_on && ! ( false === $status->ec_using_method_shipping() && false === $status->ec_using_live_shipping() && false === $status->ec_using_price_shipping() && false === $status->ec_using_weight_shipping() && false === $status->ec_using_quantity_shipping() && false === $status->ec_using_percentage_shipping() && false === $status->ec_using_fraktjakt_shipping() );
+$tax_set      = ! $status->ec_using_no_tax();
+$tax_ack      = wp_easycart_admin_store_status::acknowledged( 'tax' );
+$ship_ack     = wp_easycart_admin_store_status::acknowledged( 'shipping' );
 $checks = array(
-	array( 'ok' => true, 'title' => __( 'Products', 'wp-easycart' ), 'ok_text' => sprintf( _n( '%s product in your catalog. Unlimited on every edition.', '%s products in your catalog. Unlimited on every edition.', isset( $stats['products'] ) ? $stats['products'] : 0, 'wp-easycart' ), number_format_i18n( isset( $stats['products'] ) ? $stats['products'] : 0 ) ), 'bad_text' => '', 'url' => 'admin.php?page=wp-easycart-products&subpage=products', 'link' => __( 'View products', 'wp-easycart' ) ),
-	array( 'ok' => ! $status->ec_using_no_tax(), 'title' => __( 'Taxes', 'wp-easycart' ), 'ok_text' => __( 'Tax or VAT is set up and applying at checkout.', 'wp-easycart' ), 'bad_text' => __( 'No tax or VAT is set up. Orders are charged tax-free.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-settings&subpage=tax', 'link' => __( 'Tax setup', 'wp-easycart' ) ),
-	array( 'ok' => $shipping_ok, 'title' => __( 'Shipping', 'wp-easycart' ), 'ok_text' => __( 'Shipping rates are set up for your store.', 'wp-easycart' ), 'bad_text' => __( 'No shipping method is set up. Shoppers cannot be charged for delivery.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-settings&subpage=shipping-rates', 'link' => __( 'Shipping rates', 'wp-easycart' ) ),
-	array( 'ok' => ! $status->ec_no_payment_selected(), 'title' => __( 'Payment', 'wp-easycart' ), 'ok_text' => __( 'A payment method is set up and taking orders.', 'wp-easycart' ), 'bad_text' => __( 'No payment method is set up. Shoppers cannot check out.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-settings&subpage=payment', 'link' => __( 'Payment setup', 'wp-easycart' ) ),
+	array( 'ok' => true, 'set' => true, 'title' => __( 'Products', 'wp-easycart' ), 'ok_text' => sprintf( _n( '%s product in your catalog. Unlimited on every edition.', '%s products in your catalog. Unlimited on every edition.', isset( $stats['products'] ) ? $stats['products'] : 0, 'wp-easycart' ), number_format_i18n( isset( $stats['products'] ) ? $stats['products'] : 0 ) ), 'bad_text' => '', 'url' => 'admin.php?page=wp-easycart-products&subpage=products', 'link' => __( 'View products', 'wp-easycart' ) ),
+	array(
+		'ok'        => ( $tax_set || $tax_ack ),
+		'set'       => $tax_set,
+		'title'     => __( 'Taxes', 'wp-easycart' ),
+		'ok_text'   => __( 'Tax or VAT is set up and applying at checkout.', 'wp-easycart' ),
+		'bad_text'  => __( 'No tax or VAT is set up. Orders are charged tax-free.', 'wp-easycart' ),
+		'url'       => 'admin.php?page=wp-easycart-settings&subpage=tax',
+		'link'      => __( 'Tax setup', 'wp-easycart' ),
+		'ack_key'   => 'tax',
+		'ack'       => $tax_ack,
+		'ack_text'  => __( 'This store charges no tax, as you told us. Add rates any time to change that.', 'wp-easycart' ),
+		'ack_label' => __( 'We charge no tax', 'wp-easycart' ),
+	),
+	array(
+		'ok'        => ( $shipping_set || $ship_ack ),
+		'set'       => $shipping_set,
+		'title'     => __( 'Shipping', 'wp-easycart' ),
+		'ok_text'   => __( 'Shipping rates are set up for your store.', 'wp-easycart' ),
+		'bad_text'  => __( 'No shipping method is set up. Shoppers cannot be charged for delivery.', 'wp-easycart' ),
+		'url'       => 'admin.php?page=wp-easycart-settings&subpage=shipping-rates',
+		'link'      => __( 'Shipping rates', 'wp-easycart' ),
+		'ack_key'   => 'shipping',
+		'ack'       => $ship_ack,
+		'ack_text'  => __( 'Nothing is shipped from this store, as you told us. Add rates any time to change that.', 'wp-easycart' ),
+		'ack_label' => __( 'We ship nothing', 'wp-easycart' ),
+	),
+	array( 'ok' => ! $status->ec_no_payment_selected(), 'set' => ! $status->ec_no_payment_selected(), 'title' => __( 'Payment', 'wp-easycart' ), 'ok_text' => __( 'A payment method is set up and taking orders.', 'wp-easycart' ), 'bad_text' => __( 'No payment method is set up. Shoppers cannot check out.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-settings&subpage=payment', 'link' => __( 'Payment setup', 'wp-easycart' ) ),
 );
 $ready = 0;
 foreach ( $checks as $c ) { if ( $c['ok'] ) { $ready++; } }
@@ -173,13 +204,49 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 				<span><?php esc_html_e( 'Store readiness', 'wp-easycart' ); ?></span>
 				<span class="ecss-checks-score<?php echo 4 === $ready ? ' is-ok' : ''; ?>"><?php echo esc_html( sprintf( __( '%1$d of %2$d ready', 'wp-easycart' ), $ready, count( $checks ) ) ); ?></span>
 			</div>
-			<?php foreach ( $checks as $c ) : ?>
-			<a class="ecss-check<?php echo $c['ok'] ? ' is-ok' : ' is-bad'; ?>" href="<?php echo esc_url( $c['url'] ); ?>">
+			<?php
+			foreach ( $checks as $c ) :
+				$ecss_ack_only = ( ! empty( $c['ack'] ) && empty( $c['set'] ) );
+				$ecss_state    = $ecss_ack_only ? ' is-ack' : ( $c['ok'] ? ' is-ok' : ' is-bad' );
+				$ecss_text     = $ecss_ack_only ? $c['ack_text'] : ( $c['ok'] ? $c['ok_text'] : $c['bad_text'] );
+			?>
+			<div class="ecss-check<?php echo esc_attr( $ecss_state ); ?>">
 				<span class="ecss-check-dot"><span class="dashicons <?php echo $c['ok'] ? 'dashicons-yes' : 'dashicons-warning'; ?>"></span></span>
-				<span class="ecss-check-text"><strong><?php echo esc_html( $c['title'] ); ?></strong><span><?php echo esc_html( $c['ok'] ? $c['ok_text'] : $c['bad_text'] ); ?></span></span>
-				<span class="ecss-check-link"><?php echo esc_html( $c['link'] ); ?> <span class="dashicons dashicons-arrow-right-alt2"></span></span>
-			</a>
+				<span class="ecss-check-text"><strong><?php echo esc_html( $c['title'] ); ?></strong><span><?php echo esc_html( $ecss_text ); ?></span></span>
+				<span class="ecss-check-actions">
+					<?php if ( ! empty( $c['ack_key'] ) && empty( $c['set'] ) ) : ?>
+					<button type="button" class="ecss-check-skip" data-ecss-ack="<?php echo esc_attr( $c['ack_key'] ); ?>" data-ecss-on="<?php echo $ecss_ack_only ? '0' : '1'; ?>">
+						<?php echo esc_html( $ecss_ack_only ? __( 'Undo', 'wp-easycart' ) : $c['ack_label'] ); ?>
+					</button>
+					<?php endif; ?>
+					<a class="ecss-check-link" href="<?php echo esc_url( $c['url'] ); ?>"><?php echo esc_html( $c['link'] ); ?> <span class="dashicons dashicons-arrow-right-alt2"></span></a>
+				</span>
+			</div>
 			<?php endforeach; ?>
+			<?php
+			/*
+			 * 6.0.1: "we charge no tax" / "we ship nothing" settle the check without switching anything on.
+			 * A reload is enough to redraw the card: the score, the icons and the Undo state all come from
+			 * the same two options.
+			 */
+			?>
+			<script>
+			jQuery( function( $ ) {
+				$( '.ecss-check-skip' ).on( 'click', function() {
+					var $btn = $( this );
+					$btn.prop( 'disabled', true );
+					$.post( window.ajaxurl, {
+						action: 'ecv2_status_ack',
+						key: $btn.data( 'ecss-ack' ),
+						on: $btn.data( 'ecss-on' ),
+						nonce: '<?php echo esc_js( wp_create_nonce( wp_easycart_admin_store_status::ACK_NONCE ) ); ?>'
+					} ).done( function( r ) {
+						if ( r && r.success ) { window.location.reload(); return; }
+						$btn.prop( 'disabled', false );
+					} ).fail( function() { $btn.prop( 'disabled', false ); } );
+				} );
+			} );
+			</script>
 		</div>
 	</div>
 

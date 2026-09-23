@@ -375,6 +375,17 @@
 	function delete_account( url, el ) {
 		$( '#ecudv2_header_menu' ).removeClass( 'is-open' );
 		var extra = $( el ).data( 'extra-warning' ) || '';
+		/* 6.0.1: the same delete window as the customers list ( users-v2.js ), so their orders can be moved to another
+		   customer or made guest checkouts, and the list offers Undo afterwards. The plain link below is the fallback. */
+		var user_id = parseInt( $( '#ecudv2_user_id' ).val(), 10 ) || 0;
+		if ( user_id && typeof window.ecv2_user_safe_delete === 'function' ) {
+			window.ecv2_user_safe_delete( user_id, {
+				redirect_to: ( window.ecv2_list_url || function( h ) { return h; } )( 'admin.php?page=wp-easycart-users&subpage=accounts' ),
+				warning: extra,
+				before_leave: function() { saving = true; /* suppress beforeunload */ }
+			} );
+			return;
+		}
 		var body = _t( 'delete_body', 'Permanently delete this customer account? The profile and addresses are removed. Orders are kept. This cannot be undone.' );
 		if ( extra ) { body += '\n\n' + extra; }
 		if ( confirm_native( _t( 'delete_title', 'Delete customer?' ), body ) ) {

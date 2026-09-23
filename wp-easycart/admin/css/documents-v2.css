@@ -1,0 +1,219 @@
+/* Settings › Documents: profile editors and the attachments grid ( admin/inc/wp_easycart_admin_documents.php ).
+   Lives inside .ecst-custom of each document's card; tokens come from admin-v2.css / settings-page-v2.css.
+   Accent follows the admin colorizer ( --ecst-accent → --ec-brand ). @since 6.0.1 */
+
+.ecdoc { --ecdoc-line: var(--ecv2-g200, #e5e7eb); }
+/* Sections that declare no rows: hide the empty rows box ( it holds whitespace, so :empty never matches ) and its rule.
+   The Invoice PDF section has rows ( its PDF settings ), so those stay. */
+.ecst-section:has(.ecdoc, .ecdoc-grid-wrap) > .ecst-rows:not(:has(.ecst-row)) { display:none; }
+.ecst-section:has(.ecdoc, .ecdoc-grid-wrap) > .ecst-rows:not(:has(.ecst-row)) + .ecst-custom { border-top:0; }
+
+/* Profiles */
+.ecdoc-profiles { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:12px; margin-bottom:14px; border-bottom:1px solid var(--ecdoc-line); }
+.ecdoc-tab { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:5px 12px; border:1px solid var(--ecv2-g300, #d1d5db); border-radius:999px; background:#fff; color:var(--ecv2-g700, #374151); font-size:13px; font-weight:500; line-height:1.3; cursor:pointer; transition:background .15s, border-color .15s, color .15s; }
+.ecdoc-tab:hover { border-color:var(--ecst-accent); color:var(--ecv2-g900, #111827); }
+.ecdoc-tab:focus-visible { outline:none; box-shadow:0 0 0 3px var(--ecst-accent-soft); }
+.ecdoc-tab.is-active { background:var(--ecst-accent); border-color:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecdoc-tab.is-locked { color:var(--ecv2-g500, #6b7280); background:var(--ecv2-g50, #f9fafb); border-style:dashed; }
+.ecdoc-tab.is-locked .ecst-pro-chip { font-size:9px; padding:1px 6px; }
+.ecdoc-add { border-style:dashed; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-default { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:1px 6px; border-radius:999px; background:rgba(0,0,0,.08); }
+.ecdoc-tab.is-active .ecdoc-default { background:rgba(255,255,255,.25); }
+
+/* The store's own copy of the template ( data folder ) */
+.ecdoc-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; font-size:12.5px; line-height:1.5; background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+.ecdoc-notice code { font-size:11.5px; background:rgba(0,0,0,.05); padding:1px 4px; border-radius:4px; word-break:break-all; }
+
+/* Switches beside the preview */
+.ecdoc-body { display:grid; grid-template-columns:minmax(260px, 340px) minmax(0, 1fr); gap:20px; align-items:start; }
+.ecdoc-desc { margin:0 0 12px; font-size:13px; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-group { margin-bottom:14px; }
+.ecdoc-group-t { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500, #6b7280); margin:0 0 4px; }
+.ecdoc-sw { position:relative; display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); cursor:pointer; }
+.ecdoc-sw[hidden] { display:none; }
+.ecdoc-sw.is-child { padding-left:14px; }
+.ecdoc-sw.is-child:before { content:""; position:absolute; left:3px; top:0; bottom:0; border-left:2px solid var(--ecv2-g200, #e5e7eb); }
+.ecdoc-sw.is-master b { font-weight:700; }
+.ecdoc-sw-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; font-size:13px; color:var(--ecv2-g800, #1f2937); }
+.ecdoc-sw-text b { font-weight:500; }
+.ecdoc-sw-text small { font-size:12px; color:var(--ecv2-g500, #6b7280); line-height:1.35; }
+/* 6.0.1: a switch that prints a setting links to it ( Store address → Settings › Email › Sender ). */
+.ecdoc-sw-link { margin-left:4px; font-weight:600; color:var(--ecst-accent, var(--ecv2-primary)); text-decoration:none; white-space:nowrap; }
+.ecdoc-sw-link:hover { text-decoration:underline; }
+.ecdoc-sw-link.is-empty { color:#b45309; }
+.ecdoc-sw input { position:absolute; opacity:0; width:1px; height:1px; margin:0; pointer-events:none; }
+.ecdoc-knob { position:relative; flex:0 0 36px; width:36px; height:20px; border-radius:10px; background:var(--ecv2-g300, #d1d5db); transition:background .15s; }
+.ecdoc-knob:after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left .15s; }
+.ecdoc-sw input:checked + .ecdoc-knob { background:var(--ecst-accent); }
+.ecdoc-sw input:checked + .ecdoc-knob:after { left:18px; }
+.ecdoc-sw input:focus-visible + .ecdoc-knob { box-shadow:0 0 0 3px var(--ecst-accent-soft); }
+
+.ecdoc-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:12px; }
+.ecdoc-actions [hidden] { display:none; }
+.ecdoc-grow { flex:1 1 auto; }
+.ecdoc-status { font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-status[data-tone="ok"] { color:var(--ecv2-success, #15803d); }
+.ecdoc-status[data-tone="error"] { color:var(--ecv2-danger, #dc2626); }
+
+/* Preview */
+.ecdoc-preview { min-width:0; border:1px solid var(--ecdoc-line); border-radius:8px; background:var(--ecv2-g50, #f9fafb); overflow:hidden; position:sticky; top:48px; }
+.ecdoc-preview-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid var(--ecdoc-line); background:#fff; }
+.ecdoc-preview-t { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-order { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-order .ecdoc-order-id { width:96px; min-height:28px; padding:2px 8px; font-size:12px; }
+.ecdoc-frame-wrap { position:relative; padding:12px; min-height:200px; }
+.ecdoc-frame-wrap.is-loading .ecdoc-frame { opacity:.55; }
+.ecdoc-frame { display:block; width:100%; height:480px; border:0; background:#fff; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.08); transition:opacity .15s; }
+.ecdoc-frame[hidden] { display:none; }
+.ecdoc-frame-msg { padding:40px 16px; text-align:center; font-size:13px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-frame-msg[hidden] { display:none; }
+
+/* Name dialog */
+.ecdoc-dialog .ecv2-modal { max-width:420px; }
+.ecdoc-dialog .ecv2-modal-body p { margin:0 0 12px; font-size:13px; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-dialog-field { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-dialog-field input { width:100%; }
+
+/* Attachments grid */
+.ecdoc-grid-wrap { overflow-x:auto; border:1px solid var(--ecdoc-line, #e5e7eb); border-radius:8px; }
+.ecdoc-grid-wrap.is-locked { opacity:.72; pointer-events:none; }
+.ecdoc-grid { width:100%; border-collapse:collapse; font-size:13px; }
+.ecdoc-grid th, .ecdoc-grid td { padding:10px 12px; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); text-align:center; vertical-align:middle; }
+.ecdoc-grid thead th { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500, #6b7280); background:var(--ecv2-g50, #f9fafb); }
+.ecdoc-grid tbody th { text-align:left; font-weight:600; color:var(--ecv2-g800, #1f2937); }
+.ecdoc-grid tbody th small { display:block; font-weight:400; font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-grid tbody tr:last-child th, .ecdoc-grid tbody tr:last-child td { border-bottom:0; }
+.ecdoc-grid select { min-width:140px; }
+.ecdoc-cell { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g500, #6b7280); }
+.ecdoc-grid-note { margin:10px 0 0; font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-grid-note .ecdoc-status:empty { display:none; }
+.ecdoc-grid-note .ecdoc-status { font-weight:600; }
+.ecdoc-grid-warn { margin:0 0 10px; padding:8px 12px; border-radius:6px; font-size:13px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+
+@media ( max-width: 960px ) {
+	.ecdoc-body { grid-template-columns:1fr; }
+	.ecdoc-preview { position:static; }
+}
+@media ( max-width: 600px ) {
+	.ecdoc-frame-wrap { padding:6px; }
+	.ecdoc-grid th, .ecdoc-grid td { padding:8px; }
+	.ecdoc-grid select { min-width:110px; }
+}
+
+/* 6.0.1: Edit wording ( the language editor's phrases for one document, in a drawer ) */
+.ecdoc-preview-bar { flex-wrap:wrap; }
+.ecdoc-wording-btn { display:inline-flex; align-items:center; gap:4px; margin-left:auto; }
+.ecdoc-wording-btn .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdoc-drawer-backdrop { position:fixed; inset:0; z-index:99980; background:rgba(15,23,42,.35); opacity:0; transition:opacity .2s; }
+.ecdoc-drawer-backdrop.is-open { opacity:1; }
+.ecdoc-drawer { position:fixed; top:0; right:0; bottom:0; z-index:99990; width:min(520px, 100vw); display:flex; flex-direction:column; background:#fff; box-shadow:-12px 0 32px -12px rgba(15,23,42,.35); transform:translateX(100%); transition:transform .2s ease; }
+.ecdoc-drawer.is-open { transform:translateX(0); }
+body.admin-bar .ecdoc-drawer { top:32px; }
+.ecdoc-drawer-head { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); }
+.ecdoc-drawer-head h2 { flex:1 1 auto; margin:0; font-size:16px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecdoc-drawer-x { border:0; background:none; font-size:24px; line-height:1; color:var(--ecv2-g400, #9ca3af); cursor:pointer; padding:2px 6px; border-radius:6px; }
+.ecdoc-drawer-x:hover { background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g700, #374151); }
+.ecdoc-drawer-body { flex:1 1 auto; overflow:auto; padding:14px 18px 18px; }
+.ecdoc-drawer-intro { margin:0 0 12px; font-size:12.5px; line-height:1.5; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-drawer-msg { margin:24px 0; text-align:center; font-size:13px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-word-lang { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:12.5px; font-weight:600; color:var(--ecv2-g700, #374151); }
+.ecdoc-word { display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px solid var(--ecv2-g100, #f3f4f6); }
+.ecdoc-word:last-child { border-bottom:0; }
+.ecdoc-word > label { font-size:12.5px; font-weight:600; color:var(--ecv2-g800, #1f2937); }
+.ecdoc-word .ecv2-input { width:100%; box-sizing:border-box; }
+.ecdoc-word textarea.ecv2-input { resize:vertical; min-height:64px; line-height:1.45; }
+.ecdoc-word.is-changed > label:after { content:""; display:inline-block; width:6px; height:6px; margin-left:6px; border-radius:50%; background:var(--ecst-accent, var(--ecv2-primary)); vertical-align:middle; }
+.ecdoc-word-meta { display:flex; align-items:center; gap:10px; min-height:0; }
+.ecdoc-word-meta:empty { display:none; }
+.ecdoc-word-shared { font-size:11.5px; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-link { margin-left:auto; padding:0; border:0; background:none; font-size:12px; font-weight:600; color:var(--ecst-accent, var(--ecv2-primary)); cursor:pointer; }
+.ecdoc-link:hover { text-decoration:underline; }
+.ecdoc-link[hidden] { display:none; }
+.ecdoc-drawer-foot { display:flex; align-items:center; gap:8px; padding:12px 18px; border-top:1px solid var(--ecv2-g200, #e5e7eb); background:var(--ecv2-g50, #f9fafb); }
+.ecdoc-drawer-link { font-size:12px; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-drawer-link[hidden] { display:none; }
+@media ( max-width:782px ) { body.admin-bar .ecdoc-drawer { top:46px; } }
+@media ( max-width:600px ) {
+	/* 6.0.1: WordPress stops pinning its admin bar below 600px ( it scrolls away ), so the drawer is a full-height sheet
+	   above it; it started 46px down, leaving the shell's header showing in the gap. */
+	body.admin-bar .ecdoc-drawer { top:0; }
+	.ecdoc-drawer-backdrop { z-index:99999; }
+	.ecdoc-drawer { z-index:100000; }
+	.ecdoc-drawer-foot { flex-wrap:wrap; }
+	.ecdoc-drawer-foot .ecdoc-grow { display:none; }
+}
+
+/* 6.0.1: Logo & footer ( a profile's own logo and footer image, in a drawer ). The drawer sits on <body>, outside
+   .ecst-wrap, so it takes the colorizer's brand colour directly. */
+.ecdoc-brand-btn { display:inline-flex; align-items:center; gap:4px; }
+.ecdoc-brand-btn .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdoc-brand-dot { width:7px; height:7px; margin-left:2px; border-radius:50%; background:var(--ecst-accent, var(--ecv2-primary)); }
+.ecdoc-brand-dot[hidden] { display:none; }
+.ecdoc-bd { --ecbd-accent:var(--ec-brand, var(--ecv2-primary, #22c55e)); --ecbd-soft:var(--ec-brand-soft, var(--ecv2-primary-light, rgba(34,197,94,.1))); --ecbd-on:var(--ec-on-brand, #fff); }
+.ecdoc-bd-store { display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid var(--ecv2-g200, #e5e7eb); background:var(--ecv2-g50, #f9fafb); }
+.ecdoc-bd-store p { flex:1 1 auto; margin:0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-bd-store .ecv2-btn { display:inline-flex; align-items:center; gap:4px; flex:0 0 auto; white-space:nowrap; text-decoration:none; }
+.ecdoc-bd-store .dashicons { font-size:15px; width:15px; height:15px; }
+.ecdoc-bd-scope { margin:0 0 16px; padding:12px 14px; border:1px solid var(--ecbd-accent); border-radius:10px; background:var(--ecbd-soft); }
+.ecdoc-bd-editing { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 6px; }
+.ecdoc-bd-eyebrow { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-bd-crumb { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:14px; color:var(--ecv2-g900, #111827); }
+.ecdoc-bd-crumb b { font-weight:600; }
+.ecdoc-bd-crumb > span[aria-hidden] { color:var(--ecv2-g400, #9ca3af); }
+.ecdoc-bd-scope p { margin:0; font-size:12.5px; line-height:1.5; color:var(--ecv2-g700, #374151); }
+.ecdoc-bd-lock { display:flex; align-items:center; gap:10px; margin:0 0 16px; padding:10px 12px; border:1px dashed var(--ecv2-g300, #d1d5db); border-radius:8px; background:var(--ecv2-g50, #f9fafb); }
+.ecdoc-bd-lock p { flex:1 1 auto; margin:0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g700, #374151); }
+.ecdoc-bd-lock .dashicons { color:var(--ecv2-g500, #6b7280); }
+.ecdoc-bd-part { min-width:0; margin:0 0 16px; padding:12px 14px 14px; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:10px; }
+.ecdoc-bd-part legend { margin-left:-6px; padding:0 6px; font-size:13px; font-weight:700; color:var(--ecv2-g900, #111827); }
+.ecdoc-bd-part[disabled] { opacity:.6; }
+.ecdoc-bd-part.is-off .ecdoc-bd-group { opacity:.55; }
+.ecdoc-bd-off { display:flex; align-items:center; gap:8px; margin:0 0 10px; padding:6px 10px; border:1px solid #fde68a; border-radius:6px; background:#fffbeb; font-size:12.5px; color:#92400e; }
+.ecdoc-bd-off[hidden] { display:none; }
+.ecdoc-bd-group { margin:0 0 12px; }
+.ecdoc-bd-group:last-child { margin-bottom:0; }
+.ecdoc-bd-label { margin:0 0 6px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-bd-choice { display:flex; align-items:center; gap:10px; margin:0 0 6px; padding:8px 10px; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:8px; background:#fff; cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+.ecdoc-bd-choice.is-plain { padding:7px 10px; }
+.ecdoc-bd-choice:has(input:checked) { border-color:var(--ecbd-accent); box-shadow:inset 0 0 0 1px var(--ecbd-accent); }
+.ecdoc-bd-choice input[type="radio"] { flex:0 0 auto; margin:0; }
+.ecdoc-bd-thumb { display:flex; flex:0 0 44px; align-items:center; justify-content:center; width:44px; height:44px; overflow:hidden; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:6px; background:#fff repeating-conic-gradient(#f3f4f6 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+.ecdoc-bd-thumb img { max-width:100%; max-height:100%; object-fit:contain; }
+.ecdoc-bd-thumb img[hidden] { display:none; }
+.ecdoc-bd-text { display:flex; flex-direction:column; gap:1px; min-width:0; font-size:13px; }
+.ecdoc-bd-text b { font-weight:600; color:var(--ecv2-g800, #1f2937); }
+.ecdoc-bd-text small { overflow:hidden; font-size:12px; color:var(--ecv2-g500, #6b7280); text-overflow:ellipsis; white-space:nowrap; }
+.ecdoc-bd-pick { display:flex; gap:8px; margin:0 0 6px 30px; }
+.ecdoc-bd-pick .ecv2-input { flex:1 1 auto; min-width:0; }
+.ecdoc-bd-size { display:flex; flex-wrap:wrap; gap:14px; margin:4px 0 0 30px; }
+.ecdoc-bd-size label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ecv2-g600, #4b5563); }
+.ecdoc-bd-size small { font-weight:400; color:var(--ecv2-g500, #6b7280); }
+.ecdoc-bd-num { display:inline-flex; align-items:center; gap:6px; font-weight:400; }
+.ecdoc-bd-num .ecv2-input { width:90px; }
+.ecdoc-bd-pick[hidden], .ecdoc-bd-size[hidden] { display:none; }
+.ecdoc-bd-pills { display:inline-flex; flex-wrap:wrap; overflow:hidden; border:1px solid var(--ecv2-g300, #d1d5db); border-radius:8px; }
+.ecdoc-bd-pills label { position:relative; cursor:pointer; }
+.ecdoc-bd-pills input { position:absolute; width:1px; height:1px; margin:0; opacity:0; }
+.ecdoc-bd-pills span { display:block; padding:6px 12px; border-left:1px solid var(--ecv2-g300, #d1d5db); background:#fff; font-size:12.5px; color:var(--ecv2-g700, #374151); }
+.ecdoc-bd-pills label:first-child span { border-left:0; }
+.ecdoc-bd-pills input:checked + span { background:var(--ecbd-accent); color:var(--ecbd-on); }
+.ecdoc-bd-pills input:focus-visible + span { box-shadow:inset 0 0 0 2px var(--ecbd-soft); }
+.ecdoc-bd-note { margin:0 0 10px; font-size:12px; color:var(--ecv2-g500, #6b7280); }
+@media ( max-width:600px ) {
+	.ecdoc-bd-store { flex-wrap:wrap; }
+	.ecdoc-bd-pick, .ecdoc-bd-size { margin-left:0; }
+}
+
+/* 6.0.1: a profile's choices ( the Invoice PDF's heading ), above its switches */
+.ecdoc-choice { display:flex; align-items:center; gap:10px; padding:4px 0 12px; margin:0 0 12px; border-bottom:1px solid var(--ecdoc-line); }
+.ecdoc-choice .ecdoc-sw-text { flex:1 1 auto; }
+.ecdoc-pills { display:inline-flex; flex:0 0 auto; overflow:hidden; border:1px solid var(--ecv2-g300, #d1d5db); border-radius:8px; }
+.ecdoc-pills label { position:relative; cursor:pointer; }
+.ecdoc-pills input { position:absolute; width:1px; height:1px; margin:0; opacity:0; }
+.ecdoc-pills span { display:block; padding:5px 12px; border-left:1px solid var(--ecv2-g300, #d1d5db); background:#fff; font-size:12.5px; color:var(--ecv2-g700, #374151); }
+.ecdoc-pills label:first-child span { border-left:0; }
+.ecdoc-pills input:checked + span { background:var(--ecst-accent); color:var(--ecst-on-accent); }
+.ecdoc-pills input:focus-visible + span { box-shadow:inset 0 0 0 2px var(--ecst-accent-soft); }
+/* A PRO document without PRO: its Standard profile, read only, with a real preview. */
+.ecdoc.is-locked .ecdoc-fields { opacity:.62; }
+.ecdoc.is-locked .ecdoc-sw, .ecdoc.is-locked .ecdoc-pills label { cursor:not-allowed; }

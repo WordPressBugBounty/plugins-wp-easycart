@@ -245,7 +245,11 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			if ( isset( $_GET['product_id'] ) && isset( $_GET['ec_admin_form_action'] ) && 'edit' == $_GET['ec_admin_form_action'] ) {
 				$this->load_product_details_editor( 'edit' );
 			} else if ( isset( $_GET['ec_admin_form_action'] ) && 'add-new' == $_GET['ec_admin_form_action'] ) {
-				$this->load_product_details_editor( 'add-new' );
+				/* 6.0.1: a product is created in the quick-add panel, not in the editor ( which needs a saved product ).
+				   An add-new link now opens the list with that panel up, the way the manufacturers and subscribers
+				   lists already handle their own add-new links. */
+				include( $this->product_list_file );
+				echo '<script>jQuery( function() { if ( "function" === typeof window.ecpsv2_open_create ) { window.ecpsv2_open_create(); } else if ( "function" === typeof window.wp_easycart_admin_open_slideout ) { wp_easycart_admin_open_slideout( "new_product_box" ); } } );</script>';
 			} else {
 				include( $this->product_list_file );
 			}
@@ -542,11 +546,132 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			return $args;
 		}
 
+		/**
+		 * The tables a product owns rows in, beside ec_product itself.
+		 *
+		 * @since 6.0.1
+		 * @return array
+		 */
+		public static function child_tables() {
+			return array( 'ec_optionitemimage', 'ec_pricetier', 'ec_roleprice', 'ec_optionitemquantity', 'ec_option_to_product', 'ec_review', 'ec_affiliate_rule_to_product', 'ec_categoryitem' );
+		}
+
+		/**
+		 * Everything these products own, ready to be written back: the ec_product row, the rows in each child
+		 * table, and the store page with its meta and terms. Feeds the 15-minute undo on the product list.
+		 *
+		 * @since 6.0.1
+		 * @param array $product_ids Product ids.
+		 * @return array
+		 */
+		public static function product_snapshot( $product_ids ) {
+			global $wpdb;
+			$snapshot = array( 'products' => array(), 'rows' => array(), 'posts' => array(), 'meta' => array(), 'terms' => array() );
+			foreach ( (array) $product_ids as $product_id ) {
+				$product_id = (int) $product_id;
+				if ( ! $product_id ) {
+					continue;
+				}
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ), ARRAY_A );
+				if ( ! $row ) {
+					continue;
+				}
+				$snapshot['products'][] = $row;
+				foreach ( self::child_tables() as $table ) {
+					if ( ! isset( $snapshot['rows'][ $table ] ) ) {
+						$snapshot['rows'][ $table ] = array();
+					}
+					$child = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . $table . ' WHERE product_id = %d', $product_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name comes from child_tables().
+					$snapshot['rows'][ $table ] = array_merge( $snapshot['rows'][ $table ], (array) $child );
+				}
+				$post_id = (int) $row['post_id'];
+				if ( ! $post_id ) {
+					continue;
+				}
+				$post = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $wpdb->posts WHERE ID = %d", $post_id ), ARRAY_A );
+				if ( ! $post ) {
+					continue;
+				}
+				$snapshot['posts'][ $post_id ] = $post;
+				$snapshot['meta'][ $post_id ] = (array) $wpdb->get_results( $wpdb->prepare( "SELECT meta_key, meta_value FROM $wpdb->postmeta WHERE post_id = %d", $post_id ), ARRAY_A );
+				$terms = array();
+				foreach ( get_object_taxonomies( 'ec_store' ) as $taxonomy ) {
+					$term_ids = wp_get_object_terms( $post_id, $taxonomy, array( 'fields' => 'ids' ) );
+					if ( ! is_wp_error( $term_ids ) && ! empty( $term_ids ) ) {
+						$terms[ $taxonomy ] = array_map( 'intval', $term_ids );
+					}
+				}
+				$snapshot['terms'][ $post_id ] = $terms;
+			}
+			return $snapshot;
+		}
+
+		/**
+		 * Filter: wp_easycart_admin_undo_restore_product. Writes the product rows back with their original ids and
+		 * recreates the store page at the id the rows still point at, so links and menus keep working.
+		 *
+		 * @since 6.0.1
+		 * @param mixed $result   Null until something handles it.
+		 * @param array $snapshot From product_snapshot().
+		 * @return string|WP_Error
+		 */
+		public static function restore_products( $result, $snapshot ) {
+			global $wpdb;
+			if ( empty( $snapshot['products'] ) ) {
+				return new WP_Error( 'empty', __( 'There is nothing to put back.', 'wp-easycart' ) );
+			}
+			$restored = 0;
+			$back     = array();
+			foreach ( $snapshot['products'] as $row ) {
+				$product_id = (int) $row['product_id'];
+				if ( ! $product_id || $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE product_id = %d', $product_id ) ) ) {
+					continue; /* already back */
+				}
+				$old_post_id = (int) $row['post_id'];
+				if ( $old_post_id && isset( $snapshot['posts'][ $old_post_id ] ) && ! get_post( $old_post_id ) ) {
+					$postarr = $snapshot['posts'][ $old_post_id ];
+					unset( $postarr['ID'] );
+					$postarr['import_id'] = $old_post_id;
+					$new_post_id = wp_insert_post( wp_slash( $postarr ) );
+					if ( ! is_wp_error( $new_post_id ) && $new_post_id ) {
+						$new_post_id = (int) $new_post_id;
+						$wpdb->delete( $wpdb->postmeta, array( 'post_id' => $new_post_id ) );
+						foreach ( (array) ( isset( $snapshot['meta'][ $old_post_id ] ) ? $snapshot['meta'][ $old_post_id ] : array() ) as $meta ) {
+							$wpdb->insert( $wpdb->postmeta, array( 'post_id' => $new_post_id, 'meta_key' => $meta['meta_key'], 'meta_value' => $meta['meta_value'] ) );
+						}
+						wp_cache_delete( $new_post_id, 'post_meta' );
+						foreach ( (array) ( isset( $snapshot['terms'][ $old_post_id ] ) ? $snapshot['terms'][ $old_post_id ] : array() ) as $taxonomy => $term_ids ) {
+							wp_set_object_terms( $new_post_id, $term_ids, $taxonomy, false );
+						}
+						$row['post_id'] = $new_post_id;
+					}
+				}
+				$wpdb->insert( 'ec_product', $row );
+				$back[ $product_id ] = true;
+				$restored++;
+				do_action( 'wpeasycart_product_restored', $product_id );
+			}
+			foreach ( (array) $snapshot['rows'] as $table => $rows ) {
+				if ( ! in_array( $table, self::child_tables(), true ) ) {
+					continue;
+				}
+				foreach ( (array) $rows as $row ) {
+					if ( isset( $row['product_id'] ) && isset( $back[ (int) $row['product_id'] ] ) ) {
+						$wpdb->insert( $table, $row );
+					}
+				}
+			}
+			wp_cache_delete( 'wpeasycart-all-categories' );
+			/* translators: %d: number of products put back. */
+			return sprintf( _n( '%d product restored.', '%d products restored.', $restored, 'wp-easycart' ), $restored );
+		}
+
 		public function delete_product() {
 			global $wpdb;
 
 			$product_id = (int) $_GET['product_id'];		
 			$post_id = $wpdb->get_var( $wpdb->prepare( 'SELECT post_id FROM ec_product WHERE product_id = %d', $product_id ) );
+			$snapshot = self::product_snapshot( array( $product_id ) ); /* 6.0.1: kept for 15 minutes so the list can offer an Undo. */
 			do_action( 'wpeasycart_product_deleting', $product_id );
 
 			wp_delete_post( $post_id, true );
@@ -564,6 +689,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			do_action( 'wpeasycart_product_deleted', $product_id );
 
 			$args = array( 'success' => 'product-deleted' );
+			if ( ! empty( $snapshot['products'] ) && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$args['undo'] = wp_easycart_admin_undo::store( 'product', $snapshot );
+			}
 
 			if ( isset( $_GET['pagenum'] ) ) {
 				$args['pagenum'] = (int) $_GET['pagenum'];
@@ -586,6 +714,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 		public function bulk_delete_product() {
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
 			$query_vars = array();
+			$snapshot = self::product_snapshot( $bulk_ids ); /* 6.0.1: one Undo for the whole batch. */
 
 			global $wpdb;
 			$errors = 0;
@@ -610,6 +739,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 			}
 
 			$args = array( 'success' => 'product-deleted' );
+			if ( ! empty( $snapshot['products'] ) && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$args['undo'] = wp_easycart_admin_undo::store( 'product', $snapshot );
+			}
 
 			if ( isset( $_GET['pagenum'] ) ) {
 				$args['pagenum'] = (int) $_GET['pagenum'];
@@ -4009,3 +4141,6 @@ function ec_admin_ajax_save_product_settings_v2() {
 	wp_easycart_admin_products()->save_product_settings_v2();
 	die();
 }
+
+/* 6.0.1: 15-minute undo for a deleted product ( wp_easycart_admin_undo ). */
+add_filter( 'wp_easycart_admin_undo_restore_product', array( 'wp_easycart_admin_products', 'restore_products' ), 10, 2 );

@@ -1784,7 +1784,7 @@ function square_on_off( ){
 		jQuery( document.getElementById( 'ec_option_payment_process_method' ) ).val( '0' );
 		toggle_live_gateways( );
 	}
-	ec_admin_save_square_options( );
+	ec_admin_save_square_options( true );
 }
 
 function square_sync_on_off() {
@@ -1833,67 +1833,94 @@ function square_webhooks_on_off() {
 		ec_option_square_webhooks: enable_square_webhooks,
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
 	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	/* 6.0.1: registration can fail ( no Square connection, the forwarder unreachable ). The handler answers
+	   with the state it actually saved, so the switch shows the truth rather than what was clicked. */
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, dataType: 'json', success: function( r ){
 		ec_admin_hide_loader( 'ec_admin_square_display_loader' );
-	} } );
+		if ( r && typeof r.enabled !== 'undefined' ) {
+			jQuery( document.getElementById( 'ec_option_square_webhooks' ) ).prop( 'checked', !! r.enabled );
+		}
+		var $note = jQuery( '#ec_square_webhook_note' );
+		if ( r && r.error ) { $note.text( r.error ).show(); } else { $note.hide(); }
+	}, error: function(){ ec_admin_hide_loader( 'ec_admin_square_display_loader' ); } } );
 }
 
-function ec_admin_save_square_options( ){
+/* 6.0.1: "Secure notifications" on the Square panel ( WP EasyCart PRO ): webhooks registered before notifications were
+   signed are registered again, so the store keeps a signing key. The answer says what was actually saved. */
+function ec_admin_square_webhooks_secure( button ){
+	var $button = jQuery( button ), label = $button.text();
+	var $note = jQuery( '#ec_square_webhook_note' );
+	$button.prop( 'disabled', true ).text( $button.attr( 'data-busy' ) || label );
+	jQuery.ajax( { url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', dataType: 'json', data: {
+		action: 'ec_admin_ajax_save_square_webhooks_secure',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
+	}, success: function( r ){
+		if ( r && r.secured ) {
+			$note.hide();
+			jQuery( '#ec_square_webhook_secure' ).removeClass( 'ec_admin_toggle_note_warn' ).addClass( 'is-done' ).find( '.ecsq-secure-text' ).text( r.message || '' );
+			$button.remove();
+			return;
+		}
+		jQuery( document.getElementById( 'ec_option_square_webhooks' ) ).prop( 'checked', !! ( r && r.enabled ) );
+		$note.text( ( r && r.error ) ? r.error : ( $button.attr( 'data-failed' ) || '' ) ).show();
+		$button.prop( 'disabled', false ).text( label );
+	}, error: function(){
+		$note.text( $button.attr( 'data-failed' ) || '' ).show();
+		$button.prop( 'disabled', false ).text( label );
+	} } );
+	return false;
+}
+
+/* 6.0.1: the Square settings fields that are on the page, as posted values ( a switch posts 1 or 0, a select or text
+   field its value ). Fields the partial does not show are left out, so the handler keeps what is stored. */
+function ec_admin_square_fields( data ){
+	var ids = [ 'ec_option_square_location_id', 'ec_option_square_digital_wallet', 'ec_option_square_sync_block_active_change', 'ec_option_square_merchant_name' ];
+	for ( var i = 0; i < ids.length; i++ ) {
+		var $field = jQuery( document.getElementById( ids[ i ] ) );
+		if ( ! $field.length ) {
+			continue;
+		}
+		data[ ids[ i ] ] = $field.is( ':checkbox' ) ? ( $field.is( ':checked' ) ? '1' : '0' ) : $field.val( );
+	}
+	/* The chosen location's country; none ( the default location ) clears it, as before. */
+	if ( jQuery( 'select#ec_option_square_location_id' ).length ) {
+		data.ec_option_square_location_country = jQuery( '#ec_option_square_location_id > option:selected' ).attr( 'data-country' ) || '';
+	}
+	return data;
+}
+
+/* with_method: true only from the live / sandbox switches ( square_on_off ). 6.0.1: the other controls used to post the
+   switch state too, so saving the location or merchant name on a store running another live gateway turned it off. */
+function ec_admin_save_square_options( with_method ){
 	jQuery( document.getElementById( "ec_admin_square_display_loader" ) ).fadeIn( 'fast' );
 
-	var payment_method = '0';
-	if( jQuery( document.getElementById( 'ec_option_square_enable' ) ).is( ':checked' ) || jQuery( document.getElementById( 'ec_option_square_enable_sandbox' ) ).is( ':checked' ) )
-		payment_method = 'square';
-
-	var location_id = jQuery( document.getElementById( 'ec_option_square_location_id' ) ).val( );
-	var country_code = jQuery( '#ec_option_square_location_id > option:selected' ).attr( 'data-country' );
-	var digital_wallets = jQuery( document.getElementById( 'ec_option_square_digital_wallet' ) ).val( );
-	var sync_block_active_change = jQuery( document.getElementById( 'ec_option_square_sync_block_active_change' ) ).val( );
-	var merchant_name = jQuery( document.getElementById( 'ec_option_square_merchant_name' ) ).val( );
-	var data = {
+	var data = ec_admin_square_fields( {
 		action: 'ec_admin_ajax_save_square_free',
-		payment_method: payment_method,
-		ec_option_square_location_id: location_id,
-		ec_option_square_location_country: country_code,
-		ec_option_square_digital_wallet: digital_wallets,
-		ec_option_square_sync_block_active_change: sync_block_active_change,
-		ec_option_square_merchant_name: merchant_name,
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
-	};
+	} );
+	if ( true === with_method ) {
+		data.payment_method = ( jQuery( document.getElementById( 'ec_option_square_enable' ) ).is( ':checked' ) || jQuery( document.getElementById( 'ec_option_square_enable_sandbox' ) ).is( ':checked' ) ) ? 'square' : '0';
+	}
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_square_display_loader' );
 	} } );
 
 	return false;
 }
 
+/* 6.0.1: the checkout and sync options only. It used to post ec_option_payment_process_method: 'square' ( and
+   application id / access token fields no partial has ), so changing one of these options made Square the live
+   gateway. The PRO handler saves only the fields posted. */
 function ec_admin_save_square_options_pro( ){
 	jQuery( document.getElementById( "ec_admin_square_display_loader" ) ).fadeIn( 'fast' );
 
-	var app_id = jQuery( document.getElementById( 'ec_option_square_application_id' ) ).val( );
-	var access_token = jQuery( document.getElementById( 'ec_option_square_access_token' ) ).val( );
-	var location_id = jQuery( document.getElementById( 'ec_option_square_location_id' ) ).val( );
-	var currency = jQuery( document.getElementById( 'ec_option_square_currency' ) ).val( );
-	var country_code = jQuery( '#ec_option_square_location_id > option:selected' ).attr( 'data-country' );
-	var digital_wallets = jQuery( document.getElementById( 'ec_option_square_digital_wallet' ) ).val( );
-	var sync_block_active_change = jQuery( document.getElementById( 'ec_option_square_sync_block_active_change' ) ).val( );
-	var merchant_name = jQuery( document.getElementById( 'ec_option_square_merchant_name' ) ).val( );
-	var data = {
+	var data = ec_admin_square_fields( {
 		action: 'ec_admin_ajax_save_square_pro',
-		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' ),
-		ec_option_payment_process_method: 'square',
-		ec_option_square_application_id: app_id,
-		ec_option_square_access_token: access_token,
-		ec_option_square_location_id: location_id,
-		ec_option_square_currency: currency,
-		ec_option_square_location_country: country_code,
-		ec_option_square_digital_wallet: digital_wallets,
-		ec_option_square_sync_block_active_change: sync_block_active_change,
-		ec_option_square_merchant_name: merchant_name
-	};
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
+	} );
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_square_display_loader' );
 	} } );
 

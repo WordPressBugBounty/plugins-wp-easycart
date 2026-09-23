@@ -84,6 +84,28 @@ jQuery( function( $ ) {
 	}
 	window.ecv2_show_confirm = window.ecv2_show_confirm || ecv2_show_confirm;
 
+	/* 6.0.1: after rows leave a list without a reload, the count beside the title and the All tile follow them down. */
+	window.ecv2_rows_removed = function( n ) {
+		n = parseInt( n, 10 ) || 0;
+		if ( n < 1 ) { return; }
+		$( '.ecv2-record-count' ).each( function() {
+			var $el = $( this ), text = $el.text(), m = text.match( /\d[\d,. ]*/ );
+			if ( ! m ) { return; }
+			var was = parseInt( m[0].replace( /[^0-9]/g, '' ), 10 );
+			if ( isNaN( was ) ) { return; }
+			$el.text( text.replace( m[0], String( Math.max( 0, was - n ) ) ) );
+		} );
+		$( '.ecv2-count-chip' ).each( function() {
+			var was = parseInt( $( this ).text().replace( /[^0-9]/g, '' ), 10 );
+			if ( ! isNaN( was ) ) { $( this ).text( String( Math.max( 0, was - n ) ) ); }
+		} );
+		var $total = $( '.ecv2-stat-card[data-stat-key="__total"] .ecv2-stat-value' );
+		if ( $total.length ) {
+			var t = parseInt( $total.text().replace( /[^0-9]/g, '' ), 10 );
+			if ( ! isNaN( t ) ) { $total.text( String( Math.max( 0, t - n ) ) ); }
+		}
+	};
+
 	window.ecv2_confirm_ok = function() {
 		$( '#ecv2-confirm-dialog' ).fadeOut( 200 );
 		if ( ecv2_confirm_resolve ) { ecv2_confirm_resolve( true ); ecv2_confirm_resolve = null; }
@@ -1280,6 +1302,7 @@ jQuery( function( $ ) {
 						/* opts.row: the clicked row, for lists whose data-id is not the numeric id ( menus use "level:id" ). */
 						var $row = ( opts.row && $( opts.row ).length ) ? $( opts.row ) : $( '.ecv2-row[data-id="' + id + '"], .ecv2-card[data-id="' + id + '"]' );
 						var $desc = $row.is( 'tr' ) ? tree_descendants( $row ) : $();
+						if ( window.ecv2_rows_removed ) { ecv2_rows_removed( 1 ); }
 						$row.add( strategy === 'cascade' ? $desc : $() ).fadeOut( 200, function() { $( this ).remove(); } );
 						ecv2_catalog.undo_toast( d.message, d.trash_id );
 						/* A strategy with a target ( reassign products, replace a set, move into another category or menu ) changes the
@@ -1506,6 +1529,7 @@ jQuery( function( $ ) {
 				catalog_ajax( { action: 'ecv2_review_delete', wp_easycart_nonce: NONCES.inline_update, review_id: id }, function( d ) {
 					if ( redirect_to ) { try { sessionStorage.setItem( 'ecv2_catalog_flash', JSON.stringify( { message: d.message, review_undo: d.undo } ) ); } catch ( err ) {} window.location.href = redirect_to; return; }
 					$( '.ecv2-row[data-id="' + id + '"], .ecv2-card[data-id="' + id + '"]' ).fadeOut( 200, function() { $( this ).remove(); } );
+					if ( window.ecv2_rows_removed ) { ecv2_rows_removed( 1 ); }
 					ecv2_catalog.review_undo_toast( d.message, d.undo );
 				} );
 			} );
@@ -1535,12 +1559,13 @@ jQuery( function( $ ) {
 		}
 	};
 
-	/* Flash message after a redirecting delete ( editor → list ) */
+	/* Flash message after a redirecting delete ( editor → list ). 6.0.1: only the two kinds this file made. Other lists
+	   that load it ( roles, subscription plans, subscriptions ) hand their own Undo over the same key, and taking theirs
+	   built a catalog Undo that posted an empty trash id, so it always answered "can no longer be undone". */
 	try {
-		var flash = sessionStorage.getItem( 'ecv2_catalog_flash' );
-		if ( flash ) {
+		var flash = JSON.parse( sessionStorage.getItem( 'ecv2_catalog_flash' ) || 'null' );
+		if ( flash && ( flash.trash_id || flash.review_undo ) ) {
 			sessionStorage.removeItem( 'ecv2_catalog_flash' );
-			flash = JSON.parse( flash );
 			setTimeout( function() { if ( flash.review_undo ) { ecv2_catalog.review_undo_toast( flash.message, flash.review_undo ); } else { ecv2_catalog.undo_toast( flash.message, flash.trash_id ); } }, 300 );
 		}
 	} catch ( err ) {}

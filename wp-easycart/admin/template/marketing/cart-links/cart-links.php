@@ -47,6 +47,8 @@ if ( isset( $_GET['cl_saved'] ) || isset( $_GET['cl_updated'] ) ) {
 			<span class="ecv2-count-chip"><?php echo esc_html( count( $cart_links ) ); ?></span>
 		</div>
 		<div class="ecv2-page-header-right">
+			<?php /* 6.0.1: the docs page for cart links. */ ?>
+			<a class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'marketing', 'cart-links', '' ) ); ?>" target="_blank" rel="noopener noreferrer" title="<?php esc_attr_e( 'Help', 'wp-easycart' ); ?>"><span class="dashicons dashicons-editor-help" aria-hidden="true"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 			<button type="button" class="ecv2-btn ecv2-btn-primary" onclick="ecv2_cart_link_new();" title="<?php esc_attr_e( 'New Cart Link', 'wp-easycart' ); ?>"><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'New Cart Link', 'wp-easycart' ); ?></span></button>
 		</div>
 	</div>

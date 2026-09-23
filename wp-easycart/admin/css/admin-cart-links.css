@@ -20,6 +20,8 @@
 .ecv2-cart-link-table .ecv2-col-status   { width:14% !important; min-width:120px; }
 .ecv2-cart-link-table .ecv2-col-actions  { width:8%  !important; min-width:56px; }
 .ecv2-cl-label { font-weight:600; font-size:13px; color:var(--ecv2-g900, #111827); }
+.ecv2-cl-label a { color:inherit; text-decoration:none; }
+.ecv2-cl-label a:hover, .ecv2-cl-label a:focus { color:var(--ecv2-primary); text-decoration:underline; }
 .ecv2-cl-url { display:flex; align-items:center; gap:6px; margin-top:3px; }
 .ecv2-cl-url code { font-size:11px; background:var(--ecv2-g100, #f3f4f6); padding:2px 6px; border-radius:4px; color:var(--ecv2-g600, #4b5563); }
 .ecv2-cl-copy { border:none; background:none; padding:2px; cursor:pointer; color:var(--ecv2-g400, #9ca3af); line-height:1; }

@@ -19,6 +19,9 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		 */
 		const JOB_NONCE = 'wp-easycart-ecv2-status-job';
 
+		/* 6.0.1: nonce for "this store does not charge tax / does not ship". */
+		const ACK_NONCE = 'wp-easycart-ecv2-status-ack';
+
 		/**
 		 * Nonce action for the "check the database structure again" link ( recheck=1 ).
 		 *
@@ -78,6 +81,10 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			if ( is_null( self::$_instance ) ) {
 				add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_job_script' ) );
 				add_action( 'wp_ajax_ecv2_status_job', array( $this, 'ajax_job' ) );
+				/* 6.0.1: "remove the rates for this carrier" from the live shipping checks. */
+				add_action( 'wp_ajax_ecv2_status_clear_carrier_rates', array( $this, 'ajax_clear_carrier_rates' ) );
+				/* 6.0.1: "we do not charge tax" / "we do not ship anything" from the readiness checks. */
+				add_action( 'wp_ajax_ecv2_status_ack', array( $this, 'ajax_ack' ) );
 			}
 		}
 
@@ -182,6 +189,10 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$messages[] = __( 'The database install completed successfully.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-install-failed' ) {
 				$messages[] = __( 'The database install could not complete. Please review the install errors shown in your admin notices or contact WP EasyCart support for help.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-step-skipped' ) {
+				$messages[] = __( 'The rest of the database update has been applied. The change that could not be made is still outstanding and is listed below; run it by hand, or contact WP EasyCart support.', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-steps-retried' ) {
+				$messages[] = __( 'The skipped database changes have been put back in the queue and tried again.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'download-recovery-dismissed' ) {
 				$messages[] = __( 'The downloadable products notice has been dismissed.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-repair-dismissed' ) {
@@ -238,8 +249,28 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					die();
 				}
 
-			} else if ( $_GET['ec_admin_form_action'] == 'repair-database-data' ) {
-				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-repair-database-data' ) ) {
+			} else if ( $_GET['ec_admin_form_action'] == 'skip-database-step' ) {
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-skip-database-step' ) ) {
+					/* 6.0.1: a step that cannot succeed on this database held the whole upgrade open,
+					   because the version is only written once every step lands. Recording it as handled
+					   lets the rest finish; the change itself is still outstanding and Store Status says so. */
+					ec_db_manager::skip_failing_steps();
+					$db_manager = new ec_db_manager();
+					$db_manager->try_db_update();
+					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-step-skipped' );
+					die();
+				}
+
+			} else if ( $_GET['ec_admin_form_action'] == 'retry-database-steps' ) {
+				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-retry-database-steps' ) ) {
+					ec_db_manager::clear_skipped_steps();
+					$db_manager = new ec_db_manager();
+					$db_manager->try_db_update();
+					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-steps-retried' );
+					die();
+				}
+
+			} else if ( $_GET['ec_admin_form_action'] == 'repair-database-data' ) {				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-repair-database-data' ) ) {
 					$db_manager = new ec_db_manager();
 					$db_manager->install_base_data();
 					wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-repair-complete' );
@@ -616,6 +647,155 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		 *
 		 * @since 6.0.0
 		 */
+		/**
+		 * The carriers a shipping rate can be based on: key => the ec_shippingrate column, the carrier's name and the
+		 * setting the fix link opens.
+		 *
+		 * @since 6.0.1
+		 * @return array
+		 */
+		public static function live_carriers() {
+			return array(
+				'ups'        => array( 'column' => 'is_ups_based', 'label' => 'UPS', 'anchor' => 'ec_option_ups_use_oauth' ),
+				'usps'       => array( 'column' => 'is_usps_based', 'label' => 'USPS', 'anchor' => 'ec_option_usps_v3_enable' ),
+				'fedex'      => array( 'column' => 'is_fedex_based', 'label' => 'FedEx', 'anchor' => 'ec_option_fedex_use_oauth' ),
+				'dhl'        => array( 'column' => 'is_dhl_based', 'label' => 'DHL', 'anchor' => 'ec_option_dhl_enable' ),
+				'canadapost' => array( 'column' => 'is_canadapost_based', 'label' => 'Canada Post', 'anchor' => 'ec_option_canadapost_enable' ),
+				'auspost'    => array( 'column' => 'is_auspost_based', 'label' => 'Australia Post', 'anchor' => 'ec_option_auspost_enable' ),
+			);
+		}
+
+		/**
+		 * The "this carrier has rates but is not set up" row: says so, then offers the two ways out — open its settings,
+		 * or delete the rates that depend on it.
+		 *
+		 * @since 6.0.1
+		 * @param string $carrier Key from live_carriers().
+		 */
+		public static function print_carrier_fix( $carrier ) {
+			$carriers = self::live_carriers();
+			if ( ! isset( $carriers[ $carrier ] ) ) {
+				return;
+			}
+			global $wpdb;
+			$info  = $carriers[ $carrier ];
+			$count = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_shippingrate WHERE ' . $info['column'] . ' = 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column name from live_carriers(), never from input.
+			$setup = admin_url( 'admin.php?page=wp-easycart-settings&subpage=shipping-settings#ecst-' . $info['anchor'] );
+			echo '<div class="ec_status_error ecss-carrier-fix"><div class="dashicons-before dashicons-no"></div>';
+			echo '<span class="ec_status_label">';
+			/* translators: 1: carrier name, 2: number of shipping rates that use it. */
+			echo esc_html( sprintf( _n( '%1$s live shipping is not set up, but %2$d shipping rate uses it.', '%1$s live shipping is not set up, but %2$d shipping rates use it.', $count, 'wp-easycart' ), $info['label'], $count ) );
+			echo ' ' . esc_html__( 'Those rates cannot be quoted at checkout until the carrier connects.', 'wp-easycart' );
+			echo '</span>';
+			echo '<span class="ecss-carrier-acts">';
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( $setup ) . '">' . esc_html( sprintf( /* translators: %s: carrier name. */ __( 'Set up %s', 'wp-easycart' ), $info['label'] ) ) . '</a>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecss-carrier-clear" data-carrier="' . esc_attr( $carrier ) . '" data-nonce="' . esc_attr( wp_create_nonce( self::JOB_NONCE ) ) . '" data-confirm="' . esc_attr( sprintf( /* translators: %s: carrier name. */ __( 'Delete the shipping rates that use %s? Rates for other carriers are left alone.', 'wp-easycart' ), $info['label'] ) ) . '">' . esc_html( sprintf( /* translators: %d: number of rates. */ _n( 'Remove %d rate', 'Remove %d rates', $count, 'wp-easycart' ), $count ) ) . '</button>';
+			echo '</span>';
+			echo '</div>';
+		}
+
+		/**
+		 * Delete every shipping rate based on one carrier. The rates are the merchant's own rows; the carrier's
+		 * settings are left as they are.
+		 *
+		 * @since 6.0.1
+		 */
+		/**
+		 * Readiness checks a store can answer "not applicable" to.
+		 *
+		 * A store that sells downloads, services or collection-only goods has nothing to ship, and plenty of
+		 * stores are genuinely tax free. Both used to sit on the Store readiness card as a permanent warning
+		 * with no way to settle them, so the card never reached "4 of 4 ready". Saying so here settles the
+		 * check without turning anything on; setting real rates or tax later satisfies it on its own merits
+		 * and the answer stops mattering.
+		 *
+		 * @since 6.0.1
+		 * @return array key => option name.
+		 */
+		public static function acknowledgements() {
+			return array(
+				'tax'      => 'ec_option_no_tax_acknowledged',
+				'shipping' => 'ec_option_no_shipping_acknowledged',
+			);
+		}
+
+		/**
+		 * Has the merchant said this check does not apply to their store?
+		 *
+		 * @since 6.0.1
+		 * @param string $key 'tax' | 'shipping'.
+		 * @return bool
+		 */
+		public static function acknowledged( $key ) {
+			$map = self::acknowledgements();
+			return isset( $map[ $key ] ) ? (bool) get_option( $map[ $key ] ) : false;
+		}
+
+		/**
+		 * Record, or take back, one of those answers.
+		 *
+		 * @since 6.0.1
+		 * @param string $key 'tax' | 'shipping'.
+		 * @param bool   $on  True when the check does not apply to this store.
+		 * @return void
+		 */
+		public static function set_acknowledged( $key, $on ) {
+			$map = self::acknowledgements();
+			if ( ! isset( $map[ $key ] ) ) {
+				return;
+			}
+			update_option( $map[ $key ], $on ? 1 : 0 );
+			do_action( 'wp_easycart_admin_readiness_acknowledged', $key, $on ? 1 : 0 );
+		}
+
+		/**
+		 * Record, or take back, one of those answers. @since 6.0.1
+		 */
+		public function ajax_ack() {
+			if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manage_settings' ) ) {
+				wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
+			}
+			check_ajax_referer( self::ACK_NONCE, 'nonce' );
+			$map = self::acknowledgements();
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_ajax_referer() above.
+			$key = isset( $_POST['key'] ) ? sanitize_key( wp_unslash( $_POST['key'] ) ) : '';
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_ajax_referer() above.
+			$on  = ( isset( $_POST['on'] ) && '0' !== (string) $_POST['on'] ) ? 1 : 0;
+			if ( ! isset( $map[ $key ] ) ) {
+				wp_send_json_error( array( 'message' => __( 'Unknown check.', 'wp-easycart' ) ) );
+			}
+			self::set_acknowledged( $key, $on );
+			wp_send_json_success( array( 'key' => $key, 'on' => $on ) );
+		}
+		public function ajax_clear_carrier_rates() {
+			if ( ! current_user_can( 'manage_options' ) && ! ( current_user_can( 'wpec_diagnostics' ) && current_user_can( 'wpec_manage_settings' ) ) ) {
+				wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
+			}
+			check_ajax_referer( self::JOB_NONCE, 'nonce' );
+			global $wpdb;
+			$carriers = self::live_carriers();
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_ajax_referer() above.
+			$carrier = isset( $_POST['carrier'] ) ? sanitize_key( wp_unslash( $_POST['carrier'] ) ) : '';
+			if ( ! isset( $carriers[ $carrier ] ) ) {
+				wp_send_json_error( array( 'message' => __( 'Unknown carrier.', 'wp-easycart' ) ) );
+			}
+			$column = $carriers[ $carrier ]['column'];
+			$ids    = $wpdb->get_col( 'SELECT shippingrate_id FROM ec_shippingrate WHERE ' . $column . ' = 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column name from live_carriers().
+			foreach ( (array) $ids as $id ) {
+				do_action( 'wpeasycart_shippingrate_deleting', (int) $id );
+			}
+			$removed = (int) $wpdb->query( 'DELETE FROM ec_shippingrate WHERE ' . $column . ' = 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column name from live_carriers().
+			foreach ( (array) $ids as $id ) {
+				do_action( 'wpeasycart_shippingrate_deleted', (int) $id );
+			}
+			wp_cache_delete( 'wpeasycart-shipping-data', 'wpeasycart-shipping' );
+			wp_cache_flush();
+			wp_send_json_success( array(
+				'removed' => $removed,
+				/* translators: %d: number of shipping rates removed. */
+				'message' => sprintf( _n( '%d shipping rate removed.', '%d shipping rates removed.', $removed, 'wp-easycart' ), $removed ),
+			) );
+		}
 		public function ajax_job() {
 			if ( ! current_user_can( 'manage_options' ) && ! ( current_user_can( 'wpec_diagnostics' ) && current_user_can( 'wpec_manager' ) ) ) {
 				wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );

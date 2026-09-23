@@ -92,14 +92,29 @@ jQuery( document ).ready( function( ){
 		//jQuery( this ).attr( 'disabled', 'disabled' );
 	} );
 	
-	/* PREVENT DOUBLE FORM SUBMISSION */
+	/* PREVENT DOUBLE FORM SUBMISSION
+	 * 6.0.1: a second submit within a few seconds is still ignored, but the form unlocks again afterwards. The flag used
+	 * to stay set for good, so a submit that never leaves the page ( a bulk print opening in a new tab, a CSV download, a
+	 * page restored with Back ) locked the form: on the orders list a second bulk print, and every search, filter or bulk
+	 * action after it, silently did nothing. */
 	jQuery( 'form' ).on( 'submit', function( e ){
 		if( jQuery( this ).attr( 'id' ) != 'wpeasycart_search_form' ){
-            var $form = jQuery( this );
-            if( $form.data( 'submitted' ) === true ){
+            var $form = jQuery( this ), now = new Date( ).getTime( ), last = $form.data( 'submitted' );
+            if( typeof last === 'number' && now - last < 3000 ){
                 e.preventDefault( );
             }else{
-                $form.data( 'submitted', true );
+                $form.data( 'submitted', now );
+                /* A V2 list's bulk action rides the same GET form as its search and filters. When the submit stays on the
+                   page ( a print in a new tab, a CSV download ), clear the action once it has gone, or the next search or
+                   filter would send it again and print or export instead of filtering. The request already sent keeps it. */
+                var $bulk = $form.find( '#ecv2-bulk-action' );
+                if( $bulk.length && $bulk.val( ) ){
+                    setTimeout( function( ){
+                        if( ! e.isDefaultPrevented( ) ){
+                            $bulk.val( '' );
+                        }
+                    }, 1000 );
+                }
             }
         }
 	} );

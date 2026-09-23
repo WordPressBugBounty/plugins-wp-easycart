@@ -137,7 +137,9 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 				array( 'label' => __( 'Login as Customer', 'wp-easycart' ), 'name' => 'login-as', 'icon' => 'migrate', 'action' => 'user-login-override' ),
 				array( 'label' => __( 'Send Password Reset', 'wp-easycart' ), 'name' => 'password-reset', 'icon' => 'lock', 'href' => '#', 'onclick' => 'ecv2_user_row_bulk( \'{id}\', \'accounts-force-password-reset\', true ); return false;' ),
 				array( 'label' => __( 'Resend Activation', 'wp-easycart' ), 'name' => 'resend-activation', 'icon' => 'email-alt', 'action' => 'user-resend-activation', 'pending_only' => true ),
-				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-account', 'danger' => true, 'confirm' => true ),
+				/* 6.0.1: safe-delete, so the orders this customer placed are reassigned or turned back into guest
+				   checkouts rather than left pointing at a deleted account ( users-v2.js ). */
+				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'danger' => true, 'onclick' => 'return ecv2_user_safe_delete( {id} );' ),
 			), $this->pro_gate ) );
 
 			/*
@@ -335,13 +337,13 @@ if ( ! class_exists( 'wp_easycart_admin_user_table' ) ) :
 		 * is handled by .ecv2-user-row-actions in admin-users-v2.css.
 		 */
 		private function print_identity_row_actions( $result, $edit_url ) {
-			$delete_url = $this->get_url( $this->key, $result->{ $this->key }, false, 'ec_admin_form_action', 'delete-account' );
 			echo '<div class="ecv2-user-row-actions">';
 			echo '<a href="' . esc_url( $edit_url ) . '" class="ecv2-row-action-link">' . esc_html__( 'Edit', 'wp-easycart' ) . '</a>';
 			echo '<span class="ecv2-row-action-sep">|</span>';
 			echo '<a href="#" class="ecv2-row-action-link" onclick="ecv2_user_open_quick_edit( \'' . esc_attr( (int) $result->{ $this->key } ) . '\' ); return false;">' . esc_html__( 'Quick Edit', 'wp-easycart' ) . '</a>';
 			echo '<span class="ecv2-row-action-sep">|</span>';
-			echo '<a href="' . esc_url( $delete_url ) . '" class="ecv2-row-action-link ecv2-row-action-link-danger" onclick="return ecv2_user_confirm_delete( this );">' . esc_html__( 'Delete', 'wp-easycart' ) . '</a>';
+			/* 6.0.1: the same safe-delete window as the row menu, so the orders are never left on a deleted account. */
+			echo '<a href="#" class="ecv2-row-action-link ecv2-row-action-link-danger" onclick="return ecv2_user_safe_delete( ' . (int) $result->{ $this->key } . ' );">' . esc_html__( 'Delete', 'wp-easycart' ) . '</a>';
 			echo '</div>';
 		}
 
@@ -583,6 +585,50 @@ if ( ! function_exists( 'ecv2_user_can_manage' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_refresh_user_history' ) ) {
+	/**
+	 * Recalculate the stored Orders / Spend / Last order figures for these customers.
+	 *
+	 * ec_user carries those three as columns rather than working them out per row, because the list sorts
+	 * and filters on them. They were written once by the backfill below and then only by checkout, so an
+	 * order moved in the admin — reassigned to another account, turned into a guest checkout, deleted or
+	 * put back — left both the old and the new customer showing figures that no longer matched their
+	 * orders. Every one of those paths calls this with the accounts on each side of the move.
+	 *
+	 * @since 6.0.1
+	 * @param array|int $user_ids One or more customer ids. A 0 ( guest ) is ignored.
+	 * @return void
+	 */
+	function wp_easycart_refresh_user_history( $user_ids ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( (array) $user_ids as $user_id ) {
+			$user_id = (int) $user_id;
+			if ( $user_id > 0 ) {
+				$ids[ $user_id ] = $user_id;
+			}
+		}
+		if ( empty( $ids ) ) {
+			return;
+		}
+		$id_list = implode( ',', $ids );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list is an implode of intval() ids built above.
+		$wpdb->query(
+			"UPDATE ec_user u
+			 LEFT JOIN (
+				SELECT user_id, COUNT(*) AS order_count, SUM( grand_total ) AS spend, MAX( order_date ) AS last_order
+				FROM ec_order WHERE user_id IN ( {$id_list} ) GROUP BY user_id
+			 ) o ON o.user_id = u.user_id
+			 SET u.completed_order_count = COALESCE( o.order_count, 0 ),
+			     u.lifetime_spend = COALESCE( o.spend, 0 ),
+			     u.last_order_date = o.last_order,
+			     u.history_aggregates_built = 1
+			 WHERE u.user_id IN ( {$id_list} )"
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		wp_cache_delete( 'wpeasycart-user-list', 'wpeasycart-users' );
+	}
+}
 /**
  * One-time backfill of the new account fields from order history, batched.
  * Per batch of 500 accounts (history_aggregates_built = 0):

@@ -3885,6 +3885,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Szállítólevél"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Rendelés"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Dátum"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Szállítási cím"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Számlázási cím"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Szállítás"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Futárszolgálat"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Nyomkövetés"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Külön szállítmányban érkezik"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Szállítólevél – rendelés"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Számla"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Nyugta"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Rendelésszám:"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Dátum:"
+				}
+			}
+		},
 		"language_code":{
 			"label":"A nyelvezet kódja",
 			"options":{

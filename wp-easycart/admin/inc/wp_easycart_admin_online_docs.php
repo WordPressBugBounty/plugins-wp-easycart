@@ -65,7 +65,12 @@ class wp_easycart_admin_online_docs {
 		}
 
 		if ( $section == 'marketing' ) {
-			if ( $category == 'coupons' ) {
+			/* 6.0.1: pages on the newer docs site. */
+			if ( $category == 'offers' ) {
+				return 'https://docs.wpeasycart.com/docs/administrative-console-guide/offers/';
+			} else if ( $category == 'cart-links' ) {
+				return 'https://docs.wpeasycart.com/docs/administrative-console-guide/cart-links/';
+			} else if ( $category == 'coupons' ) {
 				return $this->admin_guide_section_url . $category;
 			} else if ( $category == 'gift-cards' ) {
 				return $this->admin_guide_section_url . $category;

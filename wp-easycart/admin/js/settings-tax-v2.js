@@ -45,8 +45,9 @@
 	}
 	function refreshEmpty( $box ) {
 		var n = $box.find( 'tbody .ectx-row' ).not( '.ectx-tpl' ).length;
-		$box.find( '.ectx-empty' ).prop( 'hidden', n > 0 );
-		$box.find( '.ectx-frame' ).prop( 'hidden', n === 0 );
+		var adding = $box.find( '.ectx-addrow' ).length && ! $box.find( '.ectx-addrow' ).prop( 'hidden' );
+		$box.find( '.ectx-empty' ).prop( 'hidden', n > 0 || adding );
+		$box.find( '.ectx-frame' ).prop( 'hidden', n === 0 && ! adding );
 	}
 
 	/* ================================================================== */
@@ -78,7 +79,7 @@
 		} );
 		$row.toggleClass( 'is-dirty', dirty );
 		if ( ! dirty ) { $row.removeClass( 'is-pending' ); }
-		$row.find( '.ectx-save' ).prop( 'disabled', ! dirty || !! $row.data( 'ectxSaving' ) );
+		$row.find( '.ectx-save' ).prop( 'disabled', ( $row.find( '.ectx-save' ).hasClass( 'ectx-save-text' ) ? false : ! dirty ) || !! $row.data( 'ectxSaving' ) );
 		var $st = $row.find( '.ecst-state' );
 		if ( ! dirty && $st.hasClass( 'is-pending' ) ) { state( $st, null ); }
 		return dirty;
@@ -163,27 +164,116 @@
 				$row.find( '.ectx-group' ).text( d.group || '' );
 				$geo.data( 'ectxOrig', String( geo ) );
 				$rate.data( 'ectxOrig', rateRaw );
+				paintView( $row );
+				$row.removeClass( 'is-editing is-pending' );
 				state( $st, 'saved', t( 'saved', 'Saved' ) );
 				done( true );
 			}, function( msg ) { state( $st, 'error', msg ); done( false ); } );
 		} );
 
-		$box.on( 'keydown', '.ectx-add-rate', function( e ) {
-			if ( e.key === 'Enter' ) { e.preventDefault(); $box.find( '.ectx-add-btn' ).trigger( 'click' ); }
+		/* ---- resting row <-> editing row ( 6.0.0 ) ---------------------------------------------------------- */
+		/* A saved row reads as text. Edit swaps in the select and the rate field; Cancel, Esc or saving swaps back. */
+		function paintView( $row ) {
+			var label = $row.find( '.ectx-geo option:selected' ).text();
+			var rate = rateOf( $row.find( '.ectx-rate' ) );
+			$row.attr( 'data-label', label );
+			$row.find( '.ectx-view-geo' ).text( label );
+			$row.find( '.ectx-view-rate' ).empty()
+				.append( document.createTextNode( rate === null ? '' : rate.toFixed( 3 ) ) )
+				.append( $( '<span class="ectx-view-unit"></span>' ).text( '%' ) );
+		}
+		function leaveEdit( $row, revert ) {
+			if ( revert && $row.hasClass( 'is-dirty' ) ) { revertRow( $row ); }
+			$row.removeClass( 'is-editing is-pending' );
+		}
+		function enterEdit( $row ) {
+			if ( $row.hasClass( 'is-editing' ) ) { return; }
+			closeConfirm();
+			$box.find( '.ectx-row.is-editing' ).each( function() { leaveEdit( $( this ), true ); } );
+			$row.addClass( 'is-editing' );
+			setTimeout( function() { $row.find( '.ectx-geo' ).trigger( 'focus' ); }, 0 );
+		}
+		$box.on( 'click', '.ectx-edit-btn', function() { enterEdit( $( this ).closest( '.ectx-row' ) ); } );
+		/* Clicking the row itself opens it too, as long as the click was not on a button or a link. */
+		$box.on( 'click', '.ectx-row:not(.ectx-tpl):not(.is-editing) .ectx-view', function() { enterEdit( $( this ).closest( '.ectx-row' ) ); } );
+		$box.on( 'click', '.ectx-cancel', function() { leaveEdit( $( this ).closest( '.ectx-row' ), true ); } );
+		/* Save from an untouched row is just "I am done here". */
+		$box.on( 'click', '.ectx-save-text', function() {
+			var $row = $( this ).closest( '.ectx-row' );
+			if ( ! $row.hasClass( 'is-dirty' ) ) { leaveEdit( $row, false ); }
+		} );
+		$box.on( 'keydown', '.ectx-row .ectx-geo, .ectx-row .ectx-rate', function( e ) {
+			if ( e.key === 'Escape' ) { leaveEdit( $( this ).closest( '.ectx-row' ), true ); }
 		} );
 
+		/* ---- delete asks inside the table, never through the browser ---------------------------------------- */
+		function closeConfirm() {
+			$box.find( '.ectx-confirm' ).each( function() {
+				var $c = $( this );
+				$c.prev( '.ectx-row' ).prop( 'hidden', false ).removeClass( 'is-confirming' );
+				$c.remove();
+			} );
+		}
 		$box.on( 'click', '.ectx-delete', function() {
-			var $row = $( this ).closest( '.ectx-row' ), $st = $row.find( '.ecst-state' );
-			if ( ! window.confirm( t( 'confirm_delete', 'Delete this rate?' ) ) ) { return; }
-			state( $st, 'saving', t( 'deleting', 'Deleting…' ) );
+			var $row = $( this ).closest( '.ectx-row' ), label = String( $row.attr( 'data-label' ) || '' );
+			closeConfirm();
+			leaveEdit( $row, true );
+			var question = label ? t( 'confirm_named', 'Delete the %s rate?' ).replace( '%s', label ) : t( 'confirm_delete', 'Delete this rate?' );
+			var $strip = $( '<tr class="ectx-confirm"><td><div class="ectx-confirm-in"><span class="ectx-confirm-ic"><span class="dashicons dashicons-trash" aria-hidden="true"></span></span><span class="ectx-confirm-text"><b></b> <span></span></span><button type="button" class="ecv2-btn ecv2-btn-sm ectx-confirm-keep"></button><button type="button" class="ecv2-btn ecv2-btn-sm ectx-confirm-go"></button></div></td></tr>' );
+			$strip.find( 'td' ).attr( 'colspan', $row.children( 'td' ).length );
+			$strip.find( '.ectx-confirm-text b' ).text( question );
+			$strip.find( '.ectx-confirm-text span' ).text( t( 'confirm_note', '' ) );
+			$strip.find( '.ectx-confirm-keep' ).text( t( 'confirm_keep', 'Keep it' ) );
+			$strip.find( '.ectx-confirm-go' ).text( t( 'confirm_go', 'Delete rate' ) );
+			$row.addClass( 'is-confirming' ).prop( 'hidden', true ).after( $strip );
+			setTimeout( function() { $strip.find( '.ectx-confirm-go' ).trigger( 'focus' ); }, 0 );
+		} );
+		$box.on( 'click', '.ectx-confirm-keep', function() {
+			var $row = $( this ).closest( '.ectx-confirm' ).prev( '.ectx-row' );
+			closeConfirm();
+			setTimeout( function() { $row.find( '.ectx-delete' ).trigger( 'focus' ); }, 0 );
+		} );
+		$box.on( 'keydown', '.ectx-confirm', function( e ) { if ( e.key === 'Escape' ) { closeConfirm(); } } );
+		$box.on( 'click', '.ectx-confirm-go', function() {
+			var $strip = $( this ).closest( '.ectx-confirm' ), $row = $strip.prev( '.ectx-row' ), $btn = $( this );
+			$btn.prop( 'disabled', true ).text( t( 'deleting', 'Deleting…' ) );
 			post( 'ecv2_tax_rate_delete', { kind: kind, id: $row.data( 'id' ) }, function() {
+				$strip.remove();
 				$row.remove();
 				refreshEmpty( $box );
-			}, function( msg ) { state( $st, 'error', msg ); } );
+			}, function( msg ) {
+				$btn.prop( 'disabled', false ).text( t( 'confirm_go', 'Delete rate' ) );
+				$strip.find( '.ectx-confirm-text b' ).text( msg );
+			} );
+		} );
+
+		/* ---- the add row lives in the table ------------------------------------------------------------------ */
+		function openAdd() {
+			closeConfirm();
+			$box.find( '.ectx-frame' ).prop( 'hidden', false );
+			$box.find( '.ectx-addrow' ).prop( 'hidden', false );
+			$box.find( '.ectx-addopen-row' ).prop( 'hidden', true );
+			refreshEmpty( $box );
+			setTimeout( function() { $box.find( '.ectx-add-geo' ).trigger( 'focus' ); }, 0 );
+		}
+		function closeAdd() {
+			var $add = $box.find( '.ectx-addrow' );
+			$add.find( '.ectx-add-geo' ).val( '' );
+			$add.find( '.ectx-add-rate' ).val( '' );
+			state( $add.find( '.ecst-state' ), null );
+			$add.prop( 'hidden', true );
+			$box.find( '.ectx-addopen-row' ).prop( 'hidden', false );
+			refreshEmpty( $box );
+		}
+		$box.on( 'click', '.ectx-addopen, .ectx-empty-add', function() { openAdd(); } );
+		$box.on( 'click', '.ectx-add-cancel', function() { closeAdd(); } );
+		$box.on( 'keydown', '.ectx-add-geo, .ectx-add-rate', function( e ) {
+			if ( e.key === 'Enter' ) { e.preventDefault(); $box.find( '.ectx-add-btn' ).trigger( 'click' ); }
+			else if ( e.key === 'Escape' ) { closeAdd(); }
 		} );
 
 		$box.on( 'click', '.ectx-add-btn', function() {
-			var $add = $box.find( '.ectx-add' ), $st = $add.find( '.ecst-state' ), $btn = $( this );
+			var $add = $box.find( '.ectx-addrow' ), $st = $add.find( '.ecst-state' ), $btn = $( this );
 			var geo = $add.find( '.ectx-add-geo' ).val(), rate = rateOf( $add.find( '.ectx-add-rate' ) );
 			if ( $btn.prop( 'disabled' ) ) { return; }
 			if ( ! geo ) { state( $st, 'error', t( 'pick_geo', 'Choose one' ) ); return; }
@@ -198,10 +288,10 @@
 				$box.find( '.ectx-tpl' ).before( $row );
 				snapshot( $row );
 				markRow( $row );
-				$add.find( '.ectx-add-geo' ).val( '' );
-				$add.find( '.ectx-add-rate' ).val( '' );
-				refreshEmpty( $box );
-				state( $st, 'saved', t( 'added', 'Added' ) );
+				paintView( $row );
+				state( $row.find( '.ecst-state' ), 'saved', t( 'added', 'Added' ) );
+				closeAdd();
+				state( $st, null );
 			}, function( msg ) { state( $st, 'error', msg ); } ).always( function() { $btn.prop( 'disabled', false ); } );
 		} );
 

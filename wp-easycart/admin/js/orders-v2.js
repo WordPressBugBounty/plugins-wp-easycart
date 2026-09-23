@@ -455,11 +455,12 @@ jQuery( function( $ ) {
 		}
 
 		if ( action === 'print-receipt' || action === 'print-packing-slip' ) {
-			/* Open the print output in a new tab; keep the list in place. */
+			/* Open the print output in a new tab; keep the list in place. 6.0.1: the list never reloads, so also clear
+			   admin.js's double-submit flag, or the next bulk print ( or search, filter, bulk action ) did nothing. */
 			var $form = $( '#ecv2-posts-filter' );
 			$form.attr( 'target', '_blank' );
 			ecv2_bulk_submit( action );
-			setTimeout( function() { $form.removeAttr( 'target' ); }, 500 );
+			setTimeout( function() { $form.removeAttr( 'target' ).removeData( 'submitted' ); $( '#ecv2-bulk-action' ).val( '' ); }, 500 );
 			return false;
 		}
 
@@ -671,11 +672,15 @@ jQuery( function( $ ) {
 		status_id = parseInt( status_id, 10 );
 		$( '.ecv2-order-fulfill-wrap[data-order-id="' + order_id + '"]' ).each( function() {
 			var $wrap = $( this ), $state = $wrap.find( '.ecv2-order-fulfill-state' );
+			/* 6.0.1: "Picked up" when the status is Order Picked Up; a Free Local Pickup row offers "Mark picked up". */
+			var pickup = '1' === String( $wrap.attr( 'data-pickup' ) || '' );
+			var chip = ( 18 === status_id && L.fulfilled_chip_pickup ) ? L.fulfilled_chip_pickup : L.fulfilled_chip;
+			var button = ( pickup && L.fulfill_button_pickup ) ? L.fulfill_button_pickup : L.fulfill_button;
 			if ( $wrap.attr( 'data-tracking' ) || $state.find( '.ecv2-order-fulfill-digital' ).length ) { return; }
 			if ( done_ids.indexOf( status_id ) !== -1 ) {
-				if ( L.fulfilled_chip ) { $state.html( L.fulfilled_chip ); }
+				if ( chip ) { $state.html( chip ); }
 			} else if ( $state.find( '.ecv2-order-fulfill-done' ).length ) {
-				$state.html( ( 16 === status_id || 19 === status_id || ! L.fulfill_button ) ? '<span class="ecv2-sku-empty">&mdash;</span>' : L.fulfill_button );
+				$state.html( ( 16 === status_id || 19 === status_id || ! button ) ? '<span class="ecv2-sku-empty">&mdash;</span>' : button );
 			}
 		});
 	}

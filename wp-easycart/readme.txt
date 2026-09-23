@@ -3,7 +3,7 @@ Contributors: levelfourdevelopment, ecommercecart
 Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 6.0.0
+Stable tag: 6.0.1
 License: WP EasyCart License
 License URI: http://www.wpeasycart.com/terms-and-conditions/
 Donate Link: http://www.wpeasycart.com
@@ -218,6 +218,80 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 14. Store order management is easier then ever and very powerful!
 
 == Changelog ==
+= 6.0.1 =
+* New Feature - Inventory can be filtered to one product and its variants.
+* New Feature - Email settings: the logo in every email has its own width, height limit and left / center / right position.
+* New Feature - Deleting an order or a product can be taken back: a bar above the list offers to put it, and everything it owned, back for fifteen minutes.
+* New Feature - Settings › Documents: choose what the order receipt, the order shipped email and the packing slip show, with a live preview built from one of your own orders. The packing slip settings moved here from Settings › Shipping.
+* New Feature - Document profiles: keep more than one version of each document, such as a packing slip without prices for gifts or a drop-ship slip with SKUs and no images, and choose which one each document uses by default.
+* New Feature - Email attachments: attach the invoice or the packing slip as a PDF to the order receipt, the store's copy of it, the order shipped email and the packing slip email, each with its own profile.
+* New Feature - Order details: one Send Email window for the order receipt, the order shipped email and the packing slip. Preview the email before it goes out and, for that one send, change its content, its attachments and which items are in the box; items left out are listed as to follow. The order activity records what was attached.
+* New Feature - Order details: email the packing slip, or download it as a PDF.
+* New Feature - Settings › Documents: give any profile of the receipt, the shipped email or the packing slip its own logo and footer image, with its own size and position, from Logo & footer beside Edit wording. The store logo and footer image stay on Settings › Email.
+* New Feature - Settings › Documents: the receipt, the shipped email and the packing slip can print your store address in their footer. Set the address once on Settings › Email; the switch on each profile links to it.
+* New Feature - Settings › Documents: the invoice or receipt PDF is now a document with profiles and a live preview. Each profile chooses what the PDF shows, whether it is headed Invoice or Receipt, and its own logo, and Email attachments or the order screen picks the profile for each email. Its business details, file name and paper size moved here from Settings › Email.
+* New Feature - Order details: download the invoice PDF at any time, not only when PDFs are attached to emails.
+* Improvement - Bulk actions: Delete is always the last choice in the menu, on every list.
+* Improvement - The notice about downloadable products with no file now links to a filtered product list showing exactly those products.
+* Improvement - Payments: a gateway nothing has been entered for now says Connect rather than Finish setup.
+* Improvement - Shipping settings: "Use FedEx account discounts" moved from the live carrier rates advanced settings into the FedEx block, where the rest of its settings are.
+* Improvement - Cart Links: the link name opens the editor, like the title column on other lists.
+* Improvement - Email settings: the email logo and signature image are chosen from the Media Library, with a thumbnail, instead of asking for a pasted URL.
+* Improvement - Checkout settings: the terms and privacy fields can write a starting draft page and fill in its address.
+* Improvement - Countries & Regions: a region can be deleted straight from the expanded list, and the counts above the list follow region changes.
+* Improvement - Store Status: a carrier with shipping rates but no working connection now offers to open its settings or remove those rates.
+* Improvement - Order details: an email sent with Email Customer is recorded in the order activity, with who it went to and its subject, and appears without a reload.
+* Improvement - Deleting from a row menu now asks in the admin's own confirmation box rather than the browser's.
+* Improvement - Newsletter subscribers: deleting one, or a selection, now asks first, and the list refreshes once they are gone.
+* Improvement - Countries & Regions: a region row now carries the same "..." menu as every other list, with Edit and Delete inside it, instead of text links in the Regions column.
+* Improvement - Deleting a customer can now be undone for 15 minutes, the same as orders and products.
+* Improvement - Deleting a customer now asks what should happen to the orders they placed: move them to another customer, or turn them back into guest checkouts. Orders are never deleted, and the whole thing can be undone from Store Status.
+* Improvement - Square: inventory notifications are now checked against a key registered by your store, recorded in a log you can see on the Square panel, and ignored if the same event arrives twice.
+* Improvement - A database change that cannot be applied on your host can now be passed over, so the rest of the update finishes instead of retrying forever. The statement that failed is shown so it can be run by hand, Store Status lists anything skipped, and you can put it back in the queue at any time.
+* Improvement - Free local pickup orders are fulfilled by marking them picked up. The orders list offers "Mark picked up" and the order screen "Mark Picked Up", with no carrier, tracking number or shipped email, and the order reads "Picked up" afterwards. Fulfilling several orders at once does the same for any pickup orders among them.
+* Improvement - Product editor: removing, reordering or adding an option set now asks in the admin's own window and lists what the change means for that product: its variations and their own settings, stock tracked per variation, and the per-option image galleries.
+* Improvement - Packing slip: rebuilt on the same design as the store's emails. It can show the shipping method, carrier and tracking number, and on a new store it starts without prices.
+* Improvement - Order receipt and order shipped email: the addresses, the customer's email address, product images, SKUs, options, prices and order notes can each be switched off.
+* Improvement - A store that keeps its own copy of the receipt, shipped email or packing slip template is told on Settings › Documents that its copy keeps working but new switches do not reach it.
+* Improvement - Settings › Documents: Edit wording opens the headings and phrases a document prints, in your store's language, beside the preview, so they can be changed without leaving the page.
+* Improvement - Payments: Square's settings are laid out in groups ( payments, sync, checkout ) with every option in view instead of behind Advanced Options, and saving shows a small indicator instead of covering the form.
+* Improvement - Payments: Square's card says what syncs from Square and when the last webhook notification arrived.
+* Improvement - Order details: Email Customer is now part of Send Email, as a Message choice beside the receipt, the shipped email and the packing slip.
+* Improvement - Square: when webhook notifications are on but not signed yet, the Square settings say so and offer a one-click Secure notifications, and the Square card on Settings › Payments shows it.
+* Bug Fix - Shipping settings: choosing Live carrier rates ( or Fraktjakt ) for the first time reported "Could not save" although the choice was valid; it now saves on the first try.
+* Bug Fix - Customers list: View Orders in the row menu now filters the orders list by that customer instead of searching their email address.
+* Bug Fix - Reports and dashboard figures now pick up a change to the currency format straight away instead of showing the old format until the cache expired.
+* Bug Fix - Products: an add-new link now opens the product list with the quick-add panel, instead of an editor that cannot save a new product.
+* Bug Fix - The counts beside a list, such as "Roles 6", now go down as rows are deleted instead of holding the old number.
+* Bug Fix - Variations: changing a variation's stock, or switching one off, now updates the product's own stock total straight away, so the inventory list, the out of stock filter and the store front stop showing the old number.
+* Bug Fix - Variations: the total above the variations table now counts an enabled but untracked variation the same way the product's stored total does, so the two figures agree.
+* Bug Fix - Square: syncing an item that has more than one variation no longer replaces the product's SKU with the first variation's SKU.
+* Bug Fix - Square: when a sync does change a product's SKU, its store page now follows it, so the link to the product keeps working.
+* Bug Fix - Saving a settings page could fail with a server error instead of storing the change.
+* Bug Fix - Inventory: products whose picture sits in the gallery or in one of the older image slots now show their thumbnail, instead of a placeholder, matching the product list.
+* Bug Fix - Settings: the section menu on the left of a settings panel no longer slides up behind the page header as you scroll, hiding its first entries.
+* Bug Fix - Settings: "Show N advanced settings" now counts a setting that only appears once another advanced setting is switched on, so the number matches what opens.
+* Bug Fix - Deleting a single order, product or customer now explains what the delete does, instead of asking over an empty box.
+* Bug Fix - The warning about downloadable products with no file now appears as soon as such a product is saved, rather than waiting for a cached count to expire.
+* Bug Fix - Undo after a deletion no longer reports that the deletion can no longer be undone. The saved copy is kept somewhere a cache clear cannot reach, which affected subscribers most often.
+* Bug Fix - Square: turning Webhook Sync on when the connection cannot be registered now leaves the switch off and says why, instead of appearing to succeed. Turning it off tells the forwarder to stop as well.
+* Bug Fix - Orders: printing several receipts or packing slips at once now starts each one on its own page instead of running them together.
+* Bug Fix - Store managers with settings access can now use the Log Entries, Countries & Regions, Price points, Per page and email delivery screens fully. The pages opened for them but every action answered "Permission denied".
+* Bug Fix - USPS live rates: a thin product was measured as a full inch tall for every unit in the cart, so a large quantity was described to USPS as a far bigger parcel than it is and priced on dimensional weight. Quotes for stacks of small items are much closer now.
+* Bug Fix - USPS live rates: every parcel was reported as at least 10 x 10 x 5 inches, so small orders were quoted against a carton far bigger than what is being sent. The real size is used, and a store that does ship everything in one carton can set its own minimum.
+* Bug Fix - Live carrier rates: the parcel measured for UPS, FedEx, DHL and the other carriers ignored how many of each item were in the cart, lost any dimension under half an inch, and reported the longest side as the width.
+* Bug Fix - A database update could stop on a table whose index was built before the column changed type, leaving the store reporting "database upgrade in progress" indefinitely. The index is moved aside and put back, so the update completes.
+* Bug Fix - Customers list: the Orders, Spend and Last order columns now update when an order is moved to another customer, turned into a guest checkout, deleted, put back, or when two customers are merged. Both the customer losing the order and the one gaining it are recalculated.
+* Bug Fix - Lists: after a bulk print or an export, the next bulk action, search or filter did nothing until the page was reloaded. On the orders list this stopped a second bulk print, such as packing slips after receipts.
+* Bug Fix - Product editor: removing one option set, or dragging the sets into a new order, removed every option set and every variation from the product. Only the set you remove is taken off now, and a new order is kept.
+* Bug Fix - An order email that failed and was sent again from the email queue went out without its PDF. The attachments are now built again for every retry.
+* Bug Fix - Product page with images per option and stock per variant: when every option was out of stock, the page showed the "image not found" picture instead of the product's default images.
+* Bug Fix - Product page with images per option: the page opened on the default images and then jumped to an option's images. It now opens on the option selected by default when it can be bought, otherwise on the default images, and without default images on the first option that can be bought (or the first option).
+* Bug Fix - The order shipped email ignored an email method chosen by another plugin and was listed as a general order email in email delivery. It now goes out like the receipt and is listed as Order shipped.
+* Bug Fix - Log Entries: a new entry could read "1 hour ago" when the database server keeps a different time zone from the store.
+* Bug Fix - Square: changing whether products you switch off stay off after a sync also made Square the live payment gateway.
+* Bug Fix - Square: saving Square's location or merchant name while another gateway took live payments could switch that gateway off.
+* Bug Fix - Product pages: adding to the cart no longer fails with "Maximum quantity exceeded" when a related or featured product with quick view has less stock than the quantity chosen.
 = 6.0.0 =
 * New Feature - Settings redesigned: a Settings home with search across every setting, pages organized into sections with a jump list and clearer wording throughout.
 * New Feature - Flex-Fees: a percentage fee can now be calculated on the order total (subtotal + shipping + tax - discounts) instead of the subtotal only, so a card-processing fee such as 2.9% covers the whole charged amount.

@@ -104,7 +104,7 @@ class wp_easycart_admin_settings_icons {
 	private static function aliases() {
 		return array(
 			'admin-users' => 'users', 'admin-tools' => 'wrench', 'products' => 'package', 'admin-appearance' => 'palette', 'art' => 'palette',
-			'email' => 'mail', 'translation' => 'globe', 'money-alt' => 'credit-card', 'car' => 'truck', 'media-spreadsheet' => 'percent',
+			'email' => 'mail', 'media-document' => 'file-text', 'translation' => 'globe', 'money-alt' => 'credit-card', 'car' => 'truck', 'media-spreadsheet' => 'percent',
 			'admin-plugins' => 'puzzle', 'admin-settings' => 'wrench', 'list-view' => 'list', 'admin-site-alt3' => 'globe', 'grid-view' => 'grid',
 			'filter' => 'sliders', 'location' => 'map-pin', 'editor-ul' => 'file-text', 'admin-generic' => 'sliders',
 		);
@@ -118,6 +118,7 @@ class wp_easycart_admin_settings_icons {
 			'checkout' => array( 'cart' => 'cart', 'checkout-flow' => 'zap', 'checkout-form' => 'file-text', 'address-fields' => 'map', 'payment-page' => 'credit-card', 'orders' => 'hash', 'stock-alerts' => 'bell', 'abandoned-cart' => 'refresh', 'pickup-schedule' => 'calendar', 'text-notifications' => 'message' ),
 			'design' => array( 'colors' => 'palette', 'typography' => 'type', 'product-listings' => 'grid', 'product-page' => 'layout', 'cart-checkout' => 'cart', 'cart-icon' => 'cart', 'newsletter-popup' => 'mail', 'custom-css' => 'code', 'theme-integration' => 'puzzle', 'templates' => 'layers' ),
 			'email-setup' => array( 'deliverability' => 'mail-check', 'sender' => 'at', 'order-emails' => 'receipt', 'account-emails' => 'user', 'receipt-wording' => 'quote' ),
+			'documents' => array( 'receipt' => 'receipt', 'shipping' => 'truck', 'packing-slip' => 'box', 'invoice' => 'file-text', 'attachments' => 'layers' ), /* 6.0.1 */
 			'initial-setup' => array( 'store-pages' => 'file-text', 'currency' => 'coins', 'goals' => 'target', 'demo-data' => 'database' ),
 			'integrations' => array(
 				'google-analytics' => array( 'text' => 'GA', 'bg' => '#e37400' ),
@@ -135,7 +136,7 @@ class wp_easycart_admin_settings_icons {
 			'language-editor' => array( 'languages' => 'globe', 'phrases' => 'quote' ),
 			'payment' => array( 'active' => 'credit-card', 'more' => 'plus-circle', 'options' => 'sliders' ),
 			'products' => array( 'catalog-mode' => 'eye', 'product-pages' => 'file-text', 'sharing' => 'share', 'product-lists' => 'grid', 'add-to-cart' => 'cart-plus', 'store-sidebar' => 'sidebar', 'pricing' => 'dollar', 'inventory' => 'box', 'reviews' => 'star', 'search' => 'search', 'import-export' => 'swap' ),
-			'shipping-settings' => array( 'shipping-method' => 'truck', 'checkout' => 'cart', 'live-rates' => 'zap', 'carriers' => 'key', 'fraktjakt' => 'key', 'ship-from' => 'map-pin', 'packing-slip' => 'file-text', 'zones' => 'map', 'ship-to' => 'globe' ),
+			'shipping-settings' => array( 'shipping-method' => 'truck', 'checkout' => 'cart', 'live-rates' => 'zap', 'carriers' => 'key', 'fraktjakt' => 'key', 'ship-from' => 'map-pin', 'zones' => 'map', 'ship-to' => 'globe' ),
 			'tax' => array( 'collect' => 'percent', 'state' => 'map', 'country' => 'globe', 'vat' => 'receipt', 'canada' => 'flag', 'duty' => 'anchor', 'automated' => 'cloud' ),
 		);
 	}

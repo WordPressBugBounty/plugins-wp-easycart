@@ -113,12 +113,19 @@ background: linear-gradient(to bottom,  #678c41 2%,#415928 100%); filter: progid
 }
 
 /* Review Us Box */
-.wp-easycart-admin-review-us-box{ text-align:center; margin:15px 19px; border:1px solid #FFF; padding:20px 10px; background:#00BCD4; color:#FFF; font-size:15px; }
-.wp-easycart-admin-review-us-box > a{ color:#efefef; }
-.wp-easycart-admin-review-us-box > a:hover{ color:#fff; }
-.wp-easycart-admin-review-us-close{ float:right; cursor:pointer; border:3px solid #FFF; border-radius:100px; padding:2px; margin-top:-5px; }
-.wp-easycart-admin-review-us-close:hover{ background:#FFF; }
-.wp-easycart-admin-review-us-close:hover > div:before{ color:#00BCD4; }
+/* Review prompt ( 6.0.1 ): a quiet V2 card in place of the v1 cyan bar. Printed by wp_easycart_admin_print_review_prompt(). */
+/* 6.0.1: .ecv2-wrap sets padding:0 with the same specificity as this rule, so whichever sheet loaded
+   last won and the card lost its padding on some lists. Doubling the class settles it. */
+.ecv2-wrap.ecv2-review-prompt,
+.ecv2-review-prompt{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 14px; padding:12px 16px; border:1px solid var(--ecv2-g200,#e5e7eb); border-radius:var(--ecv2-r,8px); background:#fff; box-shadow:var(--ecv2-sh,0 1px 2px rgba(16,24,40,.04)); }
+.ecv2-review-stars{ display:inline-flex; gap:1px; color:#f59e0b; flex-shrink:0; }
+.ecv2-review-text{ display:flex; flex-direction:column; gap:2px; flex:1 1 320px; min-width:0; }
+.ecv2-review-text b{ font-size:13.5px; color:var(--ecv2-g900,#111827); }
+.ecv2-review-text span{ font-size:12.5px; color:var(--ecv2-g600,#4b5563); line-height:1.5; }
+.ecv2-review-prompt .ecv2-btn{ white-space:nowrap; text-decoration:none; }
+.ecv2-review-close{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; border:0; border-radius:7px; background:transparent; color:var(--ecv2-g400,#9ca3af); cursor:pointer; }
+.ecv2-review-close:hover{ background:var(--ecv2-g100,#f3f4f6); color:var(--ecv2-g700,#374151); }
+@media screen and (max-width:600px){ .ecv2-review-prompt .ecv2-btn{ flex:1 1 auto; justify-content:center; } }
 
 /* Setup Wizard */
 .ec_admin_wizard_container{ float:left; width:100%; }
@@ -2237,3 +2244,8 @@ select.wp-easycart-admin-field + .wp-easycart-admin-icons-container > .wp-easyca
 .ec_user_overview .ecuo-chip-gift .ecuo-chip-title { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ec_user_overview .ecuo-chip-download { border-left:3px solid var(--ecv2-blue,#3b82f6); }
 .ec_user_overview .ecuo-chip-gift { border-left:3px solid var(--ecv2-amber,#f59e0b); }
+
+/* 6.0.1: short status lines under a payment toggle ( Square webhook state, registration errors ). */
+.ec_admin_toggle_note { clear:both; margin:4px 0 10px; padding:0 2px; font-size:12px; line-height:1.5; color:#6b7280; }
+.ec_admin_toggle_note_warn { color:#b45309; }
+#ec_square_webhook_note { color:#b91c1c; }

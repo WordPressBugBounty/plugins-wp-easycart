@@ -246,7 +246,8 @@ class wp_easycart_admin_cart_links {
 		echo '<tr class="ecv2-row" data-cart-link-id="' . esc_attr( $link->cart_link_id ) . '">';
 
 		echo '<td class="ecv2-cell ecv2-cell-label">';
-		echo '<div class="ecv2-cl-label">' . esc_html( '' !== $link->link_label ? $link->link_label : __( '(untitled link)', 'wp-easycart' ) ) . '</div>';
+		/* 6.0.1: the name opens the editor, like the title column on every other V2 list. */
+		echo '<div class="ecv2-cl-label"><a href="#" class="ecv2-link-primary ecv2-title-link" onclick="ecv2_cart_link_edit( ' . esc_attr( $link->cart_link_id ) . ' ); return false;">' . esc_html( '' !== $link->link_label ? $link->link_label : __( '(untitled link)', 'wp-easycart' ) ) . '</a></div>';
 		echo '<div class="ecv2-cl-url"><code>' . esc_html( $link->link_token ) . '</code>';
 		echo '<button type="button" class="ecv2-cl-copy" data-url="' . esc_attr( $link->url ) . '" title="' . esc_attr__( 'Copy link', 'wp-easycart' ) . '" onclick="ecv2_cart_link_copy_row( this );"><span class="dashicons dashicons-clipboard"></span></button>';
 		echo '</div>';

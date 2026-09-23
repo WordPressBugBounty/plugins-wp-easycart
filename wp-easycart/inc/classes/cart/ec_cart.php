@@ -456,41 +456,66 @@ class ec_cart{
 		return number_format( $this->grand_total, 2 );
 	}
 	
-	private function calculate_parcel( ){ // Thank you Fraktjakt for this function.
- 
+	/**
+	 * The parcel this cart would ship in: items laid flat and stacked, longest side first.
+	 *
+	 * The heuristic is Fraktjakt's and is unchanged — stack each item on the smallest face, keep the
+	 * largest footprint seen. Four things around it were wrong before 6.0.1:
+	 *
+	 *  - quantity was ignored, so ten of something measured the same as one;
+	 *  - round( …, 0 ) turned any dimension under half a unit into 0, so a 0.110 inch item reported no
+	 *    height at all;
+	 *  - the longest side was assigned to width and the shortest to length, the reverse of the comment
+	 *    in the loop and of what carriers expect — length is the side girth is measured against;
+	 *  - downloads, gift cards and products excluded from shipping were measured along with the rest.
+	 *
+	 * The result is rounded up rather than to nearest, so a real parcel can never be reported as flat.
+	 * USPS does its own packing in PRO; these dimensions are what the other carriers quote against.
+	 */
+	private function calculate_parcel( ){
+
 		// Create an empty package
 		$package_dimensions = array( 0, 0, 0 );
-		
+
 		// Step through each product
 		foreach( $this->cart as $cart_item ){
-		
+
+			if ( isset( $cart_item->is_shippable ) && ! $cart_item->is_shippable ) {
+				continue;
+			}
+			if ( ! empty( $cart_item->exclude_shippable_calculation ) ) {
+				continue;
+			}
+
+			$quantity = ( isset( $cart_item->quantity ) ) ? max( 1, (int) $cart_item->quantity ) : 1;
+
 			// Create an array of product dimensions
-			$product_dimensions = array( $cart_item->width, $cart_item->height, $cart_item->length );
-			
+			$product_dimensions = array( (float) $cart_item->width, (float) $cart_item->height, (float) $cart_item->length );
+
 			// Twist and turn the item, longest side first ([0]=length, [1]=width, [2]=height)
 			rsort( $product_dimensions, SORT_NUMERIC); // Sort $product_dimensions by highest to lowest
-			
-			// Package height + item height
-			$package_dimensions[2] += $product_dimensions[2];
-			
+
+			// Package height + item height, once for every unit of it in the cart
+			$package_dimensions[2] += $product_dimensions[2] * $quantity;
+
 			// If this is the widest item so far, set item width as package width
-			if($product_dimensions[1] > $package_dimensions[1]) 
-				
+			if($product_dimensions[1] > $package_dimensions[1])
+
 				$package_dimensions[1] = $product_dimensions[1];
-			
+
 			// If this is the longest item so far, set item length as package length
-			if($product_dimensions[0] > $package_dimensions[0]) 
+			if($product_dimensions[0] > $package_dimensions[0])
 				$package_dimensions[0] = $product_dimensions[0];
-			
+
 			// Twist and turn the package, longest side first ([0]=length, [1]=width, [2]=height)
 			rsort( $package_dimensions, SORT_NUMERIC );
-			
+
 		}
-		
-		$this->width = round( $package_dimensions[0], 0 );
-		$this->height = round( $package_dimensions[1], 0 );
-		$this->length = round( $package_dimensions[2], 0 );
-		
+
+		$this->length = ( $package_dimensions[0] > 0 ) ? ceil( $package_dimensions[0] ) : 0;
+		$this->width  = ( $package_dimensions[1] > 0 ) ? ceil( $package_dimensions[1] ) : 0;
+		$this->height = ( $package_dimensions[2] > 0 ) ? ceil( $package_dimensions[2] ) : 0;
+
 		return $package_dimensions;
 	}
 

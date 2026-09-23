@@ -105,6 +105,13 @@ class wp_easycart_admin_settings_page_v2 {
 			if ( isset( $section['enqueue'] ) && is_callable( $section['enqueue'] ) ) {
 				call_user_func( $section['enqueue'], $page, $section );
 			}
+			/* 6.0.1: only a page with an image setting pays for the media library. */
+			foreach ( $section['fields'] as $field ) {
+				if ( ! empty( $field['media'] ) ) {
+					wp_enqueue_media();
+					break 2;
+				}
+			}
 		}
 		do_action( 'wp_easycart_settings_page_enqueue', $slug, $page );
 	}
@@ -519,7 +526,7 @@ class wp_easycart_admin_settings_page_v2 {
 							<span class="ecst-secnav-ic<?php echo 'mark' === $glyph['type'] ? ' is-mark' : ''; ?>"><?php echo $glyph['html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG / escaped lettermark from wp_easycart_admin_settings_icons. ?></span>
 							<span class="ecst-secnav-label"><?php echo esc_html( $section['title'] ); ?></span>
 							<?php $nav_lock = self::section_lock( $section ); ?>
-							<?php if ( $nav_lock ) : ?><span class="ecst-secnav-lock" title="<?php echo esc_attr( self::locked_text( $nav_lock ) ); ?>"><?php echo self::lock_icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?><span class="screen-reader-text"><?php echo esc_html( self::locked_badge( $nav_lock ) ); ?></span></span><?php endif; ?>
+							<?php if ( $nav_lock ) : ?><span class="ecst-secnav-lock" title="<?php echo esc_attr( self::locked_text( $nav_lock ) ); ?>"><?php echo ( 'update' === self::lock_state( $nav_lock ) ) ? self::update_icon() : self::lock_icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?><span class="screen-reader-text"><?php echo esc_html( self::locked_badge( $nav_lock ) ); ?></span></span><?php endif; ?>
 							<?php if ( $section['count'] > 0 ) : ?><span class="ecst-secnav-n"><?php echo (int) $section['count']; ?></span><?php endif; ?>
 						</a>
 					<?php endforeach; ?>
@@ -546,9 +553,11 @@ class wp_easycart_admin_settings_page_v2 {
 
 	private static function render_section( $page, $section, $page_locked ) {
 		$section_locked = $page_locked || wp_easycart_admin_settings_registry::is_locked( $section );
-		/* The fold counts and names only the advanced settings that appear when it opens: not rows hidden
-		 * because their parent is off, and not rows nested under another advanced row ( they show inside that
-		 * row's group ). settings-page-v2.js keeps the count current as toggles change. */
+		/* The fold counts and names the advanced settings that appear when it opens, which means every
+		 * advanced row that is not hidden by a parent switched off. 6.0.1: a row nested under another
+		 * advanced row used to be left out on the grounds that it shows inside that row's group, but it is
+		 * a row of its own once its parent is on ( Vatlayer API key under Verify VAT numbers ), so the fold
+		 * promised fewer settings than it opened. settings-page-v2.js keeps the count current as toggles change. */
 		$advanced_all   = array();
 		$advanced_names = array();
 		foreach ( $section['fields'] as $field ) {
@@ -558,9 +567,6 @@ class wp_easycart_admin_settings_page_v2 {
 		}
 		foreach ( $section['fields'] as $field ) {
 			if ( ! isset( $advanced_all[ $field['key'] ] ) ) {
-				continue;
-			}
-			if ( '' !== $field['parent'] && isset( $advanced_all[ $field['parent'] ] ) ) {
 				continue;
 			}
 			if ( self::is_hidden_by_parents( $page, $field ) ) {
@@ -580,7 +586,11 @@ class wp_easycart_admin_settings_page_v2 {
 				</div>
 				<span class="ecst-grow"></span>
 				<?php if ( $section_locked ) : ?>
-					<button type="button" class="ecst-link" onclick="ecst.upsell( '<?php echo esc_js( $section['slug'] ); ?>' ); return false;"><?php esc_html_e( 'See what’s included →', 'wp-easycart' ); ?></button>
+					<?php if ( 'update' === self::lock_state( $section ) ) : ?>
+						<a class="ecst-link" href="<?php echo esc_url( self_admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Update WP EasyCart PRO →', 'wp-easycart' ); ?></a>
+					<?php else : ?>
+						<button type="button" class="ecst-link" onclick="ecst.upsell( '<?php echo esc_js( $section['slug'] ); ?>' ); return false;"><?php esc_html_e( 'See what’s included →', 'wp-easycart' ); ?></button>
+					<?php endif; ?>
 				<?php endif; ?>
 			</div>
 			<div class="ecst-rows">
@@ -622,7 +632,7 @@ class wp_easycart_admin_settings_page_v2 {
 				<div class="ecst-action<?php echo $action['danger'] ? ' is-danger' : ''; ?><?php echo $action_locked ? ' is-locked' : ''; ?>">
 					<div class="ecst-action-text"><b><?php echo esc_html( $action['label'] ); ?></b><?php if ( '' !== $action['desc'] ) : ?><span><?php echo esc_html( $action['desc'] ); ?></span><?php endif; ?></div>
 					<?php if ( $action_locked ) : ?>
-						<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $action['id'] ); ?>' ); return false;" title="<?php echo esc_attr( self::locked_text( $action['pro'] ? $action : $section ) ); ?>">🔒 <?php echo esc_html( self::locked_badge( $action['pro'] ? $action : $section ) ); ?></button>
+						<?php self::print_lock_button( $action['id'], self::lock_source( $action, $section, $page ) ); ?>
 					<?php else : ?>
 						<?php
 						/* 'confirm' alone is the dialog title ( classic ). With 'confirm_title' it becomes the one-line body and
@@ -668,7 +678,7 @@ class wp_easycart_admin_settings_page_v2 {
 					<span class="ecst-state" id="ecst_state_<?php echo esc_attr( $key ); ?>"></span>
 					<?php if ( 'toggle' === $field['type'] && ! $locked ) : ?><span class="ecst-onoff"><?php echo esc_html( $value ? __( 'On', 'wp-easycart' ) : __( 'Off', 'wp-easycart' ) ); ?></span><?php endif; ?>
 					<?php if ( $locked ) : ?>
-						<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $key ); ?>' ); return false;" title="<?php echo esc_attr( self::locked_text( $field ) ); ?>">🔒 <?php echo esc_html( self::locked_badge( $field ) ); ?></button>
+						<?php self::print_lock_button( $key, self::lock_source( $field, $section, $page ) ); ?>
 						<?php if ( 'toggle' === $field['type'] ) : ?><span class="ecst-toggle is-disabled" aria-hidden="true"></span><?php endif; ?>
 					<?php else : ?>
 						<?php self::render_control( $field, $value ); ?>
@@ -945,6 +955,21 @@ class wp_easycart_admin_settings_page_v2 {
 					</datalist>
 				<?php endif; ?>
 				<?php if ( ! empty( $field['attach'] ) && 'page_picker' === $field['attach'] && wp_easycart_admin_settings_registry::is_remote( $field ) ) { self::render_attach_picker( $field, $value ); } ?>
+				<?php /* 6.0.1: a policy URL can start from a draft page written here. */ ?>
+				<?php if ( ! empty( $field['create_page'] ) ) : ?>
+				<span class="ecst-newpage">
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecst-newpage-btn" data-target="<?php echo esc_attr( $id ); ?>" data-type="<?php echo esc_attr( $field['create_page'] ); ?>"><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span> <?php esc_html_e( 'Create a draft page', 'wp-easycart' ); ?></button>
+					<span class="ecst-newpage-done" hidden></span>
+				</span>
+				<?php endif; ?>
+				<?php /* 6.0.1: an image setting can pick from the Media Library instead of asking for a pasted URL. */ ?>
+				<?php if ( ! empty( $field['media'] ) ) : ?>
+				<span class="ecst-media" data-key="<?php echo esc_attr( $key ); ?>">
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecst-media-pick" data-target="<?php echo esc_attr( $id ); ?>" data-title="<?php esc_attr_e( 'Choose an image', 'wp-easycart' ); ?>" data-button="<?php esc_attr_e( 'Use this image', 'wp-easycart' ); ?>"><span class="dashicons dashicons-format-image" aria-hidden="true"></span> <?php esc_html_e( 'Choose image', 'wp-easycart' ); ?></button>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecst-media-clear" data-target="<?php echo esc_attr( $id ); ?>"<?php echo '' === (string) $value ? ' hidden' : ''; ?>><?php esc_html_e( 'Remove', 'wp-easycart' ); ?></button>
+					<span class="ecst-media-preview"<?php echo '' === (string) $value ? ' hidden' : ''; ?>><img src="<?php echo esc_url( (string) $value ); ?>" alt="" /></span>
+				</span>
+				<?php endif; ?>
 				<?php
 		}
 	}
@@ -1167,6 +1192,57 @@ class wp_easycart_admin_settings_page_v2 {
 	}
 
 	/**
+	 * Circular arrows for a section that only needs a newer WP EasyCart PRO ( 6.0.1: a padlock there read as "buy this" ).
+	 *
+	 * @since 6.0.1
+	 * @return string
+	 */
+	public static function update_icon() {
+		return '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/></svg>';
+	}
+
+	/**
+	 * The declaration whose lock a row or action shows: its own, its section's or its page's, and an update first.
+	 * 6.0.1: a row locked by a section that needs a newer WP EasyCart PRO showed its own plan chip and opened the upgrade
+	 * popup ( the row itself only asks for PRO 6.0.0 ), as if a store that has the plan had to buy it again.
+	 *
+	 * @since 6.0.1
+	 * @param array       $item    Field or action declaration.
+	 * @param array|false $section Its section.
+	 * @param array|false $page    Its page.
+	 * @return array
+	 */
+	public static function lock_source( $item, $section = false, $page = false ) {
+		$locked = array();
+		foreach ( array( $item, $section, $page ) as $candidate ) {
+			if ( ! is_array( $candidate ) || empty( $candidate['pro'] ) || ! wp_easycart_admin_settings_registry::is_locked( $candidate ) ) {
+				continue;
+			}
+			if ( 'update' === self::lock_state( $candidate ) ) {
+				return $candidate;
+			}
+			$locked[] = $candidate;
+		}
+		return $locked ? $locked[0] : $item;
+	}
+
+	/**
+	 * The chip on a locked row or action. 6.0.1: Update, going to the Plugins screen, when only a newer WP EasyCart PRO is
+	 * missing; otherwise the plan, opening the upgrade popup.
+	 *
+	 * @since 6.0.1
+	 * @param string $key       Field key or action id ( the popup's feature ).
+	 * @param array  $lock_item Declaration from lock_source().
+	 */
+	public static function print_lock_button( $key, $lock_item ) {
+		if ( 'update' === self::lock_state( $lock_item ) ) {
+			echo '<a class="ecst-pro-btn is-update" href="' . esc_url( self_admin_url( 'plugins.php' ) ) . '" title="' . esc_attr( self::locked_text( $lock_item ) ) . '">' . self::update_icon() . ' ' . esc_html( self::locked_badge( $lock_item ) ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- update_icon() is a static SVG.
+			return;
+		}
+		echo '<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( \'' . esc_js( $key ) . '\' ); return false;" title="' . esc_attr( self::locked_text( $lock_item ) ) . '">🔒 ' . esc_html( self::locked_badge( $lock_item ) ) . '</button>';
+	}
+
+	/**
 	 * Chip text for a locked page, section, field or action ( its 'pro' flag: true or 'premium' ).
 	 *
 	 * @since 6.0.0
@@ -1174,6 +1250,9 @@ class wp_easycart_admin_settings_page_v2 {
 	 * @return string
 	 */
 	public static function locked_badge( $item ) {
+		if ( 'update' === self::lock_state( $item ) ) {
+			return __( 'Update', 'wp-easycart' );
+		}
 		$plan = ( is_array( $item ) && isset( $item['pro'] ) && 'premium' === $item['pro'] ) ? 'premium' : 'pro';
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			return wp_easycart_admin_edition::badge( $plan );
@@ -1189,11 +1268,30 @@ class wp_easycart_admin_settings_page_v2 {
 	 * @return string
 	 */
 	public static function locked_text( $item ) {
+		if ( 'update' === self::lock_state( $item ) ) {
+			return __( 'Update WP EasyCart PRO to use this.', 'wp-easycart' );
+		}
 		$plan = ( is_array( $item ) && isset( $item['pro'] ) && 'premium' === $item['pro'] ) ? 'premium' : 'pro';
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			return wp_easycart_admin_edition::included_text( $plan );
 		}
 		return 'premium' === $plan ? __( 'Included with a Premium license.', 'wp-easycart' ) : __( 'Included with Pro and Premium licenses.', 'wp-easycart' );
+	}
+
+	/**
+	 * The PRO gate's state for a PRO declaration: 'update' when WP EasyCart PRO is active but older than the declaration's
+	 * pro_min_version ( or older than WP EasyCart needs ), '' for anything that is not PRO.
+	 *
+	 * @since 6.0.1
+	 * @param array|false $item Declaration.
+	 * @return string
+	 */
+	public static function lock_state( $item ) {
+		if ( ! is_array( $item ) || empty( $item['pro'] ) || ! class_exists( 'wp_easycart_admin_pro_gate' ) ) {
+			return '';
+		}
+		$gate = wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => isset( $item['pro_min_version'] ) ? $item['pro_min_version'] : '6.0.0' ) );
+		return isset( $gate['state'] ) ? (string) $gate['state'] : '';
 	}
 
 	/** POST page, section, action → runs the declared callback. */
@@ -1250,6 +1348,28 @@ class wp_easycart_admin_settings_page_v2 {
 	}
 }
 
+/**
+ * Create the draft terms or privacy page from a URL setting and hand back its address.
+ *
+ * @since 6.0.1
+ */
+add_action( 'wp_ajax_ecv2_settings_create_page', 'ecv2_settings_create_page' );
+function ecv2_settings_create_page() {
+	ecv2_settings_guard();
+	if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) && file_exists( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_setup_wizard.php' ) ) {
+		require_once EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_setup_wizard.php';
+	}
+	if ( ! method_exists( 'wp_easycart_admin_setup_wizard', 'create_policy_page' ) ) {
+		wp_send_json_error( array( 'message' => __( 'This page cannot be created here.', 'wp-easycart' ) ) );
+	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- ecv2_settings_guard() checks the settings nonce above.
+	$type = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : '';
+	$made = wp_easycart_admin_setup_wizard::create_policy_page( $type );
+	if ( is_wp_error( $made ) ) {
+		wp_send_json_error( array( 'message' => $made->get_error_message() ) );
+	}
+	wp_send_json_success( $made );
+}
 add_action( 'admin_enqueue_scripts', array( 'wp_easycart_admin_settings_page_v2', 'enqueue_early' ), 5 );
 
 /*

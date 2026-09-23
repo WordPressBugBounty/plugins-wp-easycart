@@ -103,3 +103,70 @@
 	.ectx-add .ecv2-select { max-width:100% !important; }
 	.ectx-col-rate, .ectx-col-toggle { width:auto; }
 }
+
+/* ==================================================================
+   Rate tables, 6.0.0: a saved row reads as text with Edit / Delete on
+   hover; editing swaps the fields into the same columns; delete asks
+   in the table; adding happens in the last row.
+================================================================== */
+.ectx-rates .ectx-row .ectx-edit, .ectx-rates .ectx-row .ectx-in, .ectx-rates .ectx-row .ectx-edit-actions { display:none; }
+.ectx-rates .ectx-row.is-editing .ectx-edit, .ectx-rates .ectx-row.is-editing .ectx-in { display:inline-flex; }
+.ectx-rates .ectx-row.is-editing select.ectx-edit { display:block; width:100%; max-width:320px; }
+.ectx-rates .ectx-row.is-editing .ectx-edit-actions { display:inline-flex; align-items:center; gap:6px; }
+.ectx-rates .ectx-row.is-editing .ectx-view, .ectx-rates .ectx-row.is-editing .ectx-row-actions { display:none; }
+
+.ectx-rates .ectx-view { font-size:13.5px; color:var(--ecv2-g900); cursor:text; }
+.ectx-rates .ectx-view-rate { font-variant-numeric:tabular-nums; }
+.ectx-rates .ectx-view-unit { color:var(--ecv2-g400); margin-left:1px; }
+.ectx-rates .ectx-row > td { vertical-align:middle; }
+
+/* row actions: quiet until the row is hovered or something in it has focus */
+.ectx-rates .ectx-row-actions { display:inline-flex; gap:2px; opacity:0; transition:opacity var(--ecv2-tr); }
+.ectx-rates .ectx-row:hover .ectx-row-actions, .ectx-rates .ectx-row:focus-within .ectx-row-actions { opacity:1; }
+.ectx-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; border:0; border-radius:7px; background:transparent; color:var(--ecv2-g400); cursor:pointer; }
+.ectx-icon-btn:hover { background:var(--ecv2-g100); color:var(--ecv2-g700); }
+.ectx-icon-btn.ectx-delete:hover { background:var(--ecv2-danger-light, #fee2e2); color:#b91c1c; }
+.ectx-icon-btn:focus-visible { outline:2px solid var(--ecst-accent, var(--ecv2-primary)); outline-offset:1px; opacity:1; }
+.ectx-icon-btn .dashicons { font-size:17px; width:17px; height:17px; }
+
+/* the editing row: a marker bar instead of a fully amber row */
+.ectx-rates .ectx-row.is-dirty > td { background:transparent; }
+.ectx-rates .ectx-row.is-editing > td { background:#fffdf7; }
+.ectx-rates .ectx-row.is-editing > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
+.ectx-rates .ectx-row.is-editing.is-dirty > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
+.ectx-rates .ectx-save.ectx-save-text { visibility:visible; width:auto; height:32px; padding:0 14px !important; margin:0; }
+.ectx-rates .ectx-save.ectx-save-text .dashicons { display:none; }
+
+/* add: a dashed row at the bottom of the table, opening into the same columns */
+.ectx-addopen-row > td { padding:0 !important; border-top:1px dashed var(--ecv2-g200); }
+.ectx-addopen { display:flex; align-items:center; gap:8px; width:100%; padding:11px 14px; border:0; background:transparent; color:var(--ecst-accent, var(--ecv2-primary)); font-size:13px; font-weight:600; text-align:left; cursor:pointer; }
+.ectx-addopen:hover { background:var(--ecv2-g50); }
+.ectx-addopen-ic { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; background:var(--ecst-accent-soft, var(--ecv2-primary-light)); }
+.ectx-addopen-ic .dashicons { font-size:14px; width:14px; height:14px; }
+.ectx-addrow > td { background:#fbfdfe; border-top:1px solid var(--ecv2-g200); }
+.ectx-addrow .ecv2-select { max-width:320px; }
+.ectx-addrow .ectx-edit-actions { display:inline-flex; align-items:center; gap:6px; }
+
+/* delete asks in place */
+.ectx-confirm > td { background:#fef6f6; box-shadow:inset 3px 0 0 0 var(--ecv2-danger, #dc2626); }
+.ectx-confirm-in { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ectx-confirm-ic { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:#fee2e2; color:#b91c1c; flex-shrink:0; }
+.ectx-confirm-ic .dashicons { font-size:16px; width:16px; height:16px; }
+.ectx-confirm-text { flex:1 1 220px; min-width:0; font-size:13px; color:#7f1d1d; }
+.ectx-confirm-text b { color:#7f1d1d; }
+.ectx-confirm-text span { color:#9b4444; }
+.ectx-confirm-go { background:var(--ecv2-danger, #dc2626) !important; border-color:var(--ecv2-danger, #dc2626) !important; color:#fff !important; }
+.ectx-confirm-go:hover { filter:brightness(.94); }
+
+/* nothing added yet */
+.ectx-rates .ectx-empty { display:flex; flex-direction:column; align-items:center; gap:7px; margin:10px 0 0; padding:22px; border:1px dashed var(--ecv2-g300); border-radius:var(--ecv2-r); background:#fbfbfc; text-align:center; }
+.ectx-rates .ectx-empty[hidden] { display:none; }
+.ectx-rates .ectx-empty-ic { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--ecv2-g100); color:var(--ecv2-g400); }
+.ectx-rates .ectx-empty b { font-size:13.5px; color:var(--ecv2-g900); }
+.ectx-rates .ectx-empty > span:not(.ectx-empty-ic) { font-size:12.5px; color:var(--ecv2-g500); max-width:52ch; line-height:1.5; }
+
+@media (max-width:760px) {
+	.ectx-rates .ectx-row-actions { opacity:1; }
+	.ectx-rates .ectx-row.is-editing select.ectx-edit, .ectx-addrow .ecv2-select { max-width:none; }
+	.ectx-confirm-in { align-items:flex-start; }
+}

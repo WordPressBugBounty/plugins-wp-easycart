@@ -39,6 +39,14 @@ if ( ! isset( $is_admin ) ) {
 $ec_receipt_order_id = (int) $this->order_id;
 $ec_receipt_items    = ( isset( $this->cart ) && is_object( $this->cart ) && isset( $this->cart->cart ) && is_array( $this->cart->cart ) ) ? $this->cart->cart : array();
 
+/* 6.0.1: what this receipt shows comes from its profile in Settings › Documents ( $document_fields from the sender,
+   or the default profile ). Standard follows the old ec_option_show_image_on_receipt / _email_on_receipt options. */
+$ec_receipt_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'receipt' ) : null );
+$ec_receipt_show = function ( $key ) use ( $ec_receipt_doc ) {
+	return class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::show( $ec_receipt_doc, $key ) : true;
+};
+$ec_receipt_prices = $ec_receipt_show( 'prices' );
+
 /* Offers v2: line-level flags keyed by orderdetail_id and the order-level applied-offers snapshot. */
 $wpec_offer_line_flags    = array();
 $wpec_offer_order_summary = array();
@@ -85,6 +93,10 @@ if ( $has_shipping && isset( $this->cart->shipping_subtotal ) && $this->cart->sh
 } elseif ( $has_shipping && isset( $this->shipping_method ) ) {
 	$ec_receipt_shipping_method = (string) $this->shipping_method;
 }
+/* 6.0.1: the profile can leave the shipping method line off. */
+if ( ! $ec_receipt_show( 'shipping_method' ) ) {
+	$ec_receipt_shipping_method = '';
+}
 
 /* Coupon line. */
 $ec_receipt_promo = '';
@@ -100,15 +112,15 @@ $ec_receipt_orders_url = wpeasycart_links()->get_account_page( 'order_details', 
 $ec_receipt_img_width  = (int) apply_filters( 'wp_easycart_email_receipt_image_width', 70 );
 $ec_receipt_currency   = $GLOBALS['currency'];
 
-$ed::open(
-	array(
-		'title'     => wp_strip_all_tags( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_receipt_title' ) ) . ' ' . $ec_receipt_order_id,
-		'preheader' => $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_2' ) . ' ' . $ec_receipt_order_id,
-		'logo_url'  => (string) $email_logo_url,
-		'store_url' => (string) $store_page,
-		'eyebrow'   => ( ! empty( $is_admin ) ) ? __( 'Store notification', 'wp-easycart' ) : '',
-	)
+$ec_receipt_open = array(
+	'title'     => wp_strip_all_tags( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_receipt_title' ) ) . ' ' . $ec_receipt_order_id,
+	'preheader' => $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_2' ) . ' ' . $ec_receipt_order_id,
+	'logo_url'  => (string) $email_logo_url,
+	'store_url' => (string) $store_page,
+	'eyebrow'   => ( ! empty( $is_admin ) ) ? __( 'Store notification', 'wp-easycart' ) : '',
 );
+/* 6.0.1: the logo switch and this document's own logo and size ( Settings › Documents ). */
+$ed::open( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::open_args( 'receipt', $ec_receipt_doc, $ec_receipt_open ) : $ec_receipt_open );
 $ec_receipt_ctx = $ed::ctx();
 
 /* Payment status banners */
@@ -169,7 +181,7 @@ $ed::section_end();
 
 /* Shipping method, coupon, contact email( s ) */
 $ec_receipt_emails = array();
-if ( get_option( 'ec_option_show_email_on_receipt' ) ) {
+if ( $ec_receipt_show( 'email' ) ) {
 	if ( '' !== (string) $this->user_email ) {
 		$ec_receipt_emails[] = esc_html( $this->user_email );
 	}
@@ -217,25 +229,26 @@ $ed::address_cards(
 	array(
 		array(
 			'label'   => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_billing_label' ) ),
-			'address' => ( $has_billing ) ? $ed::address( $this, 'billing' ) : array( 'has' => false ),
+			'address' => ( $has_billing && $ec_receipt_show( 'billing' ) ) ? $ed::address( $this, 'billing' ) : array( 'has' => false ),
 		),
 		array(
 			'label'   => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_shipping_label' ) ),
-			'address' => ( $has_shipping ) ? $ed::address( $this, 'shipping' ) : array( 'has' => false ),
+			'address' => ( $has_shipping && $ec_receipt_show( 'shipping' ) ) ? $ed::address( $this, 'shipping' ) : array( 'has' => false ),
 		),
 	),
-	( $has_billing && isset( $this->vat_registration_number ) && '' !== (string) $this->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_receipt_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $this->vat_registration_number ) : ''
+	( $has_billing && $ec_receipt_show( 'billing' ) && isset( $this->vat_registration_number ) && '' !== (string) $this->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_receipt_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $this->vat_registration_number ) : ''
 );
 
 /* Items */
-$ed::items_start(
-	array(
-		'product' => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_1' ) ),
-		'qty'     => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_2' ) ),
-		'unit'    => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_3' ) ),
-		'total'   => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_4' ) ),
-	)
+$ec_receipt_columns = array(
+	'product' => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_1' ) ),
+	'qty'     => wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_2' ) ),
 );
+if ( $ec_receipt_prices ) {
+	$ec_receipt_columns['unit']  = wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_3' ) );
+	$ec_receipt_columns['total'] = wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_details_header_4' ) );
+}
+$ed::items_start( $ec_receipt_columns );
 $ec_receipt_badge_start = 'display:inline-block;margin-' . $ec_receipt_ctx['start'] . ':6px;padding:1px 8px;font-size:11px;font-weight:bold;border-radius:3px;text-transform:uppercase;vertical-align:middle;';
 foreach ( $ec_receipt_items as $ec_receipt_item ) {
 	$unit_price  = $ec_receipt_currency->get_currency_display( $ec_receipt_item->unit_price );
@@ -253,7 +266,7 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 	if ( $ec_receipt_is_child && function_exists( 'wp_easycart_offers_text' ) ) {
 		$ec_receipt_title .= ' <span style="' . esc_attr( $ec_receipt_badge_start ) . 'background:#eef1f4;color:#4a5560;">' . wp_kses_post( wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ) ) . '</span>';
 	}
-	if ( $wpec_line_flags && isset( $wpec_line_flags->applied_offers ) && '' !== (string) $wpec_line_flags->applied_offers ) {
+	if ( $ec_receipt_prices && $wpec_line_flags && isset( $wpec_line_flags->applied_offers ) && '' !== (string) $wpec_line_flags->applied_offers ) {
 		$wpec_line_offer_rows = json_decode( (string) $wpec_line_flags->applied_offers, true );
 		if ( is_array( $wpec_line_offer_rows ) && count( $wpec_line_offer_rows ) > 0 ) {
 			$ec_receipt_title .= '<div style="margin-top:4px;">';
@@ -269,7 +282,7 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 
 	/* Image ( option item image first, then the product image and the store fallbacks; https kept ). */
 	$ec_receipt_img_url = '';
-	if ( get_option( 'ec_option_show_image_on_receipt' ) ) {
+	if ( $ec_receipt_show( 'image' ) ) {
 		$ec_receipt_img_option = isset( $ec_receipt_item->image1_optionitem ) ? (string) $ec_receipt_item->image1_optionitem : '';
 		if ( empty( $ec_receipt_item->is_deconetwork ) && ( 'http://' === substr( $ec_receipt_img_option, 0, 7 ) || 'https://' === substr( $ec_receipt_img_option, 0, 8 ) ) ) {
 			$ec_receipt_img_url = $ec_receipt_img_option;
@@ -289,7 +302,7 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 		)
 	);
 	$ec_receipt_model = isset( $ec_receipt_item->orderdetails_model_number ) ? (string) $ec_receipt_item->orderdetails_model_number : (string) $ec_receipt_item->model_number;
-	if ( '' !== $ec_receipt_model ) {
+	if ( '' !== $ec_receipt_model && $ec_receipt_show( 'sku' ) ) {
 		$ed::detail( esc_html( $ec_receipt_model ), array( 'nolink' => true, 'style' => 'padding:0 0 4px 0;' ) );
 	}
 	if ( ! empty( $ec_receipt_item->gift_card_message ) ) {
@@ -307,7 +320,7 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 	$advanced_option_allow_download = true;
 
 	/* Basic options */
-	if ( empty( $ec_receipt_item->use_advanced_optionset ) || ! empty( $ec_receipt_item->use_both_option_types ) ) {
+	if ( $ec_receipt_show( 'options' ) && ( empty( $ec_receipt_item->use_advanced_optionset ) || ! empty( $ec_receipt_item->use_both_option_types ) ) ) {
 		for ( $ec_receipt_n = 1; $ec_receipt_n <= 5; $ec_receipt_n++ ) {
 			$ec_receipt_opt_name  = isset( $ec_receipt_item->{'optionitem' . $ec_receipt_n . '_name'} ) ? (string) $ec_receipt_item->{'optionitem' . $ec_receipt_n . '_name'} : '';
 			$ec_receipt_opt_price = isset( $ec_receipt_item->{'optionitem' . $ec_receipt_n . '_price'} ) ? (float) $ec_receipt_item->{'optionitem' . $ec_receipt_n . '_price'} : 0;
@@ -315,7 +328,9 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 				continue;
 			}
 			$ec_receipt_opt_price_text = '';
-			if ( $ec_receipt_opt_price < 0 ) {
+			if ( ! $ec_receipt_prices ) {
+				$ec_receipt_opt_price_text = '';
+			} elseif ( $ec_receipt_opt_price < 0 ) {
 				$ec_receipt_opt_price_text = ' (' . $ec_receipt_currency->get_currency_display( $ec_receipt_opt_price ) . ')';
 			} elseif ( $ec_receipt_opt_price > 0 ) {
 				$ec_receipt_opt_price_text = ' (+' . $ec_receipt_currency->get_currency_display( $ec_receipt_opt_price ) . ')';
@@ -364,7 +379,9 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 				} elseif ( isset( $advanced_option->optionitem_price_override ) && $advanced_option->optionitem_price_override > -1 ) {
 					$ec_receipt_adv_price = ' (' . wp_strip_all_tags( $ec_receipt_lang->get_text( 'cart', 'cart_item_new_price_option' ) ) . ' ' . $ec_receipt_currency->get_currency_display( $advanced_option->optionitem_price_override ) . ')';
 				}
-				$ed::option_detail( wp_easycart_escape_html( $advanced_option->option_label ), $ec_receipt_adv_value_html . esc_html( $ec_receipt_adv_price ) );
+				if ( $ec_receipt_show( 'options' ) ) { /* the loop still runs when options are hidden: it decides the download link */
+					$ed::option_detail( wp_easycart_escape_html( $advanced_option->option_label ), $ec_receipt_adv_value_html . ( $ec_receipt_prices ? esc_html( $ec_receipt_adv_price ) : '' ) );
+				}
 			}
 		}
 	}
@@ -390,17 +407,17 @@ foreach ( $ec_receipt_items as $ec_receipt_item ) {
 	/* Hook output here is detail rows, as before. */
 	do_action( 'wp_easycart_email_receipt_optionitems', $ec_receipt_item );
 
-	$ed::item_end(
-		array(
-			'qty'        => $ec_receipt_item->quantity,
-			'unit_html'  => $ed::ltr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $ec_receipt_item->product_id ) ),
-			'total_html' => $ed::ltr( $total_price ),
-		)
-	);
+	$ec_receipt_end = array( 'qty' => $ec_receipt_item->quantity );
+	if ( $ec_receipt_prices ) {
+		$ec_receipt_end['unit_html']  = $ed::ltr( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $ec_receipt_item->product_id ) );
+		$ec_receipt_end['total_html'] = $ed::ltr( $total_price );
+	}
+	$ed::item_end( $ec_receipt_end );
 }
 $ed::items_end();
 
-/* Totals */
+/* Totals ( all of them, including balance and refund rows, follow the profile's "Show prices" ) */
+if ( $ec_receipt_prices ) :
 $ec_receipt_totals   = array();
 $ec_receipt_totals[] = array( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_subtotal' ) ), $ed::ltr( $subtotal ) );
 if ( $this->tip_total > 0 ) {
@@ -478,9 +495,10 @@ if ( $this->refund_total > 0 ) {
 if ( $ec_receipt_after_totals ) {
 	$ed::totals( $ec_receipt_after_totals );
 }
+endif;
 
 /* Order notes, closing lines */
-if ( get_option( 'ec_option_user_order_notes' ) && isset( $this->order_customer_notes ) && '' !== trim( (string) $this->order_customer_notes ) ) {
+if ( get_option( 'ec_option_user_order_notes' ) && $ec_receipt_show( 'order_notes' ) && isset( $this->order_customer_notes ) && '' !== trim( (string) $this->order_customer_notes ) ) {
 	$ed::section_start();
 	$ed::label( wp_kses_post( $ec_receipt_lang->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ) ) );
 	$ed::card_start( array( 'padding' => '12px 14px' ) );
@@ -493,4 +511,5 @@ do_action( 'wpeasycart_email_receipt_order_notes_after', $this->order_id );
 $ed::paragraph( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_bottom_line_1' ) ), array( 'margin' => '0 0 12px 0' ) );
 $ed::paragraph( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_bottom_line_2' ) ), array( 'tone' => 'strong', 'margin' => '0' ) );
 $ed::section_end();
-$ed::close();
+/* 6.0.1: the footer image switch and this document's own footer image and size ( Settings › Documents ). */
+$ed::close( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::close_args( 'receipt', $ec_receipt_doc ) : array() );

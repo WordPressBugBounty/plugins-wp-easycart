@@ -81,6 +81,14 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			$columns = apply_filters( 'wp_easycart_admin_inventory_columns', $columns, $this->pro_enabled );
 			$this->set_list_columns( $columns );
 
+			/* The product filter lists only the chosen product ( the rest arrive from the typeahead ). */
+			$selected_products = array();
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter.
+			$selected_product  = isset( $_GET['filter_3'] ) ? (int) $_GET['filter_3'] : 0;
+			if ( $selected_product > 0 ) {
+				$product_title = $this->wpdb->get_var( $this->wpdb->prepare( 'SELECT title FROM ec_product WHERE product_id = %d', $selected_product ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared through $this->wpdb, which the sniff does not follow.
+				$selected_products[] = (object) array( 'value' => $selected_product, 'label' => ( null !== $product_title ) ? wp_unslash( $product_title ) : $selected_product );
+			}
 			$this->set_filters( array(
 				array(
 					'label' => __( 'Stock Status', 'wp-easycart' ),
@@ -105,6 +113,14 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 						(object) array( 'value' => 'active', 'label' => __( 'Active Only', 'wp-easycart' ) ),
 						(object) array( 'value' => 'inactive', 'label' => __( 'Hidden Only', 'wp-easycart' ) ),
 					),
+				),
+				/* 6.0.1: one product and its variants. Search-as-you-type, like the orders list; the chosen product is
+				   listed so the control can show its title. */
+				array(
+					'label' => __( 'Product', 'wp-easycart' ),
+					'data'  => $selected_products,
+					'type'  => 'select',
+					'ajax'  => array( 'action' => 'ec_admin_ajax_ecv2_product_search' ),
 				),
 			) );
 
@@ -153,6 +169,10 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 		 * The two UNION branches. Every alias here is part of the row
 		 * contract used by sorting, filtering and cell printers.
 		 */
+		/*
+		 * 6.0.1: both halves also select the gallery CSV and the pics2-5 columns so print_image_cell()
+		 * can resolve a thumbnail the way the product list does. The two column lists must stay identical.
+		 */
 		protected function get_union_sql() {
 			$extra = $this->get_extra_select();
 
@@ -164,6 +184,11 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				'' AS variant_label,
 				p.model_number AS sku,
 				p.image1,
+				p.image2,
+				p.image3,
+				p.image4,
+				p.image5,
+				p.product_images,
 				p.stock_quantity AS quantity,
 				p.show_stock_quantity AS tracked,
 				p.activate_in_store,
@@ -180,6 +205,11 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				CONCAT_WS( ', ', oi1.optionitem_name, oi2.optionitem_name, oi3.optionitem_name, oi4.optionitem_name, oi5.optionitem_name ) AS variant_label,
 				( CASE WHEN q.sku != '' THEN q.sku ELSE p.model_number END ) AS sku,
 				p.image1,
+				p.image2,
+				p.image3,
+				p.image4,
+				p.image5,
+				p.product_images,
 				q.quantity,
 				q.is_stock_tracking_enabled AS tracked,
 				p.activate_in_store,
@@ -236,6 +266,11 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 				} else if ( 'inactive' === $visibility ) {
 					$where .= ' AND inv.activate_in_store = 0';
 				}
+			}
+
+			/* filter_3: one product, with its variants. */
+			if ( isset( $_GET['filter_3'] ) && '' != $_GET['filter_3'] ) {
+				$where .= $this->wpdb->prepare( ' AND inv.product_id = %d', (int) $_GET['filter_3'] );
 			}
 
 			/* Search. */
@@ -465,8 +500,19 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			}
 		}
 
+		/**
+		 * The product thumbnail.
+		 *
+		 * 6.0.1: this used to read ec_product.image1 alone, through get_image_url(), which only ever looks in
+		 * the pics1 folder. A store that has been running for years often has its picture in image2-5 ( pics2-5 )
+		 * or in the product_images gallery instead, and those products showed a placeholder here while the same
+		 * picture appeared on the product list and in the product editor's media panel. Both now go through the
+		 * product list's resolver, which understands the gallery CSV, media library ids and the legacy columns.
+		 */
 		protected function print_image_cell( $result ) {
-			$image_url = self::get_image_url( $result->image1 );
+			$image_url = ( class_exists( 'wp_easycart_admin_product_table' ) && method_exists( 'wp_easycart_admin_product_table', 'resolve_thumbnail_url' ) )
+				? wp_easycart_admin_product_table::resolve_thumbnail_url( $result )
+				: self::get_image_url( $result->image1 );
 			echo '<div class="ecv2i-thumb">';
 			if ( '' !== $image_url ) {
 				echo '<img src="' . esc_url( $image_url ) . '" alt="" loading="lazy" />';

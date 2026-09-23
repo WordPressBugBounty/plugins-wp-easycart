@@ -343,7 +343,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				array( 'label' => __( 'Print Packing Slip', 'wp-easycart' ), 'name' => 'print-packing-slip', 'icon' => 'clipboard', 'href' => $this->bulk_get_link( 'print-packing-slip' ), 'target' => '_blank' ),
 				array( 'label' => __( 'Resend Receipt Email', 'wp-easycart' ), 'name' => 'resend-email', 'icon' => 'email-alt', 'href' => $this->bulk_get_link( 'resend-email' ) ),
 				array( 'label' => __( 'Duplicate', 'wp-easycart' ), 'name' => 'duplicate', 'icon' => 'admin-page', 'href' => '#', 'onclick' => 'wp_easycart_open_order_duplicate( \'{id}\' ); return false;' ),
-				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-order', 'danger' => true, 'confirm' => true ),
+				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-order', 'danger' => true, 'confirm' => true, 'confirm_text' => __( 'The order, its line items and its download links are removed. You can put it back for 15 minutes afterwards.', 'wp-easycart' ) ),
 			);
 			$this->set_row_menu_actions( apply_filters( 'wp_easycart_ecv2_order_row_menu_actions', $row_actions ) );
 
@@ -653,7 +653,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					case 'fulfilled':
 						return '( ec_order.orderstatus_id IN ( ' . self::STATUS_SHIPPED . ', ' . self::STATUS_PICKED_UP . " ) OR ec_order.tracking_number != '' )";
 					case 'pickup':
-						return '( ec_order.includes_restaurant_type = 1 OR ec_order.orderstatus_id IN ( ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_PICKED_UP . ' ) )';
+						return '( ec_order.includes_restaurant_type = 1 OR ec_order.orderstatus_id IN ( ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_PICKED_UP . ' )' . self::local_pickup_where() . ' )';
 					case 'no_shipping':
 						return self::no_shipping_where();
 				}
@@ -1010,6 +1010,9 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$approved = isset( $result->is_approved ) ? (bool) $result->is_approved : false;
 			$status   = isset( $result->orderstatus_id ) ? (int) $result->orderstatus_id : 0;
 			$gate     = ecv2_get_order_pro_gate();
+			/* 6.0.1: Free Local Pickup is collected, not shipped: "Mark picked up" instead of Fulfill. "Picked up" once the
+			   status says so ( Order Picked Up ), whatever the method. */
+			$mode     = ( self::is_local_pickup( $result ) && self::pickup_fulfill_supported() ) ? 'pickup' : 'ship';
 
 			/*
 			 * Two-line layout:
@@ -1017,19 +1020,19 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			 *  2. .ecv2-order-fulfill-line2 — shipping method + icon-only flags
 			 * JS (orders-v2-pro.js) only ever replaces line 1.
 			 */
-			echo '<div class="ecv2-order-fulfill-wrap" data-order-id="' . esc_attr( $order_id ) . '" data-tracking="' . esc_attr( $tracking ) . '" data-carrier="' . esc_attr( $carrier ) . '">';
+			echo '<div class="ecv2-order-fulfill-wrap" data-order-id="' . esc_attr( $order_id ) . '" data-tracking="' . esc_attr( $tracking ) . '" data-carrier="' . esc_attr( $carrier ) . '"' . ( 'pickup' === $mode ? ' data-pickup="1"' : '' ) . '>';
 
 			echo '<div class="ecv2-order-fulfill-state">';
 			if ( '' !== $tracking ) {
 				echo self::tracking_chip_html( $tracking, $carrier ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
 			} else if ( in_array( $status, self::fulfilled_status_ids(), true ) ) {
 				/* 6.0.0: shipped or picked up without a tracking number is still fulfilled ( matches the order details banner ). */
-				echo self::fulfilled_chip_html(); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
+				echo self::fulfilled_chip_html( self::STATUS_PICKED_UP === $status ? 'pickup' : 'ship' ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
 			} else if ( $approved && isset( $result->requires_shipping ) && ! (int) $result->requires_shipping && empty( $result->includes_restaurant_type ) && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
 				/* 6.0.0: nothing to ship ( downloads, gift cards, services, shipping disabled ): fulfilled on payment, no Fulfill button. */
 				echo '<span class="ecv2-order-track-chip ecv2-order-fulfill-digital" title="' . esc_attr__( 'Every item in this order is a download, gift card, subscription or a product with shipping disabled, so there is nothing to ship.', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> ' . esc_html__( 'No shipping', 'wp-easycart' ) . '</span>';
 			} else if ( $approved && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
-				echo self::fulfill_button_html( $gate ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
+				echo self::fulfill_button_html( $gate, $mode ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
 			} else {
 				echo '<span class="ecv2-sku-empty">&mdash;</span>';
 			}
@@ -1082,9 +1085,14 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 * Fulfillment cell chip for a fulfilled order that has no tracking number.
 		 *
 		 * @since 6.0.0
+		 * @since 6.0.1 $mode: 'pickup' reads "Picked up" for a Free Local Pickup order.
+		 * @param string $mode 'ship' or 'pickup'.
 		 * @return string
 		 */
-		public static function fulfilled_chip_html() {
+		public static function fulfilled_chip_html( $mode = 'ship' ) {
+			if ( 'pickup' === $mode ) {
+				return '<span class="ecv2-order-track-chip ecv2-order-fulfill-done ecv2-order-fulfill-pickedup" title="' . esc_attr__( 'The customer has picked this order up.', 'wp-easycart' ) . '"><span class="dashicons dashicons-store"></span> ' . esc_html__( 'Picked up', 'wp-easycart' ) . '</span>';
+			}
 			return '<span class="ecv2-order-track-chip ecv2-order-fulfill-done" title="' . esc_attr__( 'This order has been fulfilled.', 'wp-easycart' ) . '"><span class="dashicons dashicons-yes-alt"></span> ' . esc_html__( 'Fulfilled', 'wp-easycart' ) . '</span>';
 		}
 
@@ -1092,14 +1100,66 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 * Fulfill button ( locked when PRO is not available ).
 		 *
 		 * @since 6.0.0
-		 * @param array $gate ecv2_get_order_pro_gate() result.
+		 * @since 6.0.1 $mode: 'pickup' is "Mark picked up" for a Free Local Pickup order. PRO's ecv2_open_fulfill()
+		 *              reads data-fulfill-mode and asks only to confirm: no carrier, tracking or shipped email.
+		 * @param array  $gate ecv2_get_order_pro_gate() result.
+		 * @param string $mode 'ship' or 'pickup'.
 		 * @return string
 		 */
-		public static function fulfill_button_html( $gate ) {
+		public static function fulfill_button_html( $gate, $mode = 'ship' ) {
+			$pickup = ( 'pickup' === $mode );
+			$icon   = $pickup ? 'store' : 'airplane';
+			$label  = $pickup ? __( 'Mark picked up', 'wp-easycart' ) : __( 'Fulfill', 'wp-easycart' );
+			$class  = 'ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn' . ( $pickup ? ' ecv2-order-pickup-btn' : '' );
 			if ( isset( $gate['state'] ) && 'enabled' === $gate['state'] ) {
-				return '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn" onclick="ecv2_open_fulfill( this );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . '</button>';
+				return '<button type="button" class="' . esc_attr( $class ) . '" data-fulfill-mode="' . esc_attr( $pickup ? 'pickup' : 'ship' ) . '" onclick="ecv2_open_fulfill( this );"><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ' . esc_html( $label ) . '</button>';
 			}
-			return '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn ecv2-order-fulfill-locked" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Fulfill', 'wp-easycart' ) . ' <span class="dashicons dashicons-lock"></span></button>';
+			return '<button type="button" class="' . esc_attr( $class . ' ecv2-order-fulfill-locked' ) . '" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ' . esc_html( $label ) . ' <span class="dashicons dashicons-lock"></span></button>';
+		}
+
+		/**
+		 * Free Local Pickup order? See wp_easycart_order_is_local_pickup() ( admin/inc/wp_easycart_admin_orders.php ).
+		 *
+		 * @since 6.0.1
+		 * @param object $result Order row ( needs shipping_method ).
+		 * @return bool
+		 */
+		public static function is_local_pickup( $result ) {
+			return function_exists( 'wp_easycart_order_is_local_pickup' ) && wp_easycart_order_is_local_pickup( $result );
+		}
+
+		/**
+		 * Can the installed PRO mark an order picked up ( ecv2_order_fulfill mode=pickup, PRO 6.0.1 )? PRO 6.0.0 ignores
+		 * the mode and would open its shipping popover with "Mark as Shipped" and the shipped email ticked, so with it the
+		 * row keeps the plain Fulfill button. Without PRO the button is the locked upsell either way.
+		 *
+		 * @since 6.0.1
+		 * @return bool
+		 */
+		public static function pickup_fulfill_supported() {
+			return ! defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) || version_compare( WP_EASYCART_ADMIN_PRO_VERSION, '6.0.1', '>=' );
+		}
+
+		/**
+		 * " OR <shipping method is a Free Local Pickup label>" for the Pickup filter, or '' when there is nothing to match.
+		 *
+		 * @since 6.0.1
+		 * @return string
+		 */
+		private static function local_pickup_where() {
+			global $wpdb;
+			$labels = array();
+			foreach ( ( function_exists( 'wp_easycart_local_pickup_labels' ) ? array_keys( wp_easycart_local_pickup_labels() ) : array() ) as $label ) {
+				/* The keys are decoded; checkout stores the label escaped ( "&" as "&amp;" ), so match both. */
+				$labels[ $label ]                           = true;
+				$labels[ strtolower( esc_html( $label ) ) ] = true;
+			}
+			$labels = array_map( 'strval', array_keys( $labels ) );
+			if ( empty( $labels ) ) {
+				return '';
+			}
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- one %s placeholder per label, built from count().
+			return $wpdb->prepare( ' OR LOWER( TRIM( ec_order.shipping_method ) ) IN ( ' . implode( ', ', array_fill( 0, count( $labels ), '%s' ) ) . ' )', $labels );
 		}
 
 		public static function tracking_chip_html( $tracking, $carrier = '' ) {
@@ -1120,7 +1180,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 * zero date, so we treat anything before 2000 as "no pickup date".
 		 */
 		public static function is_pickup_order( $result ) {
-			if ( ! empty( $result->includes_restaurant_type ) ) {
+			if ( ! empty( $result->includes_restaurant_type ) || self::is_local_pickup( $result ) ) {
 				return true;
 			}
 			if ( isset( $result->orderstatus_id ) && in_array( (int) $result->orderstatus_id, array( self::STATUS_READY_PICKUP, self::STATUS_PICKED_UP ), true ) ) {

@@ -6802,11 +6802,15 @@ function ec_details_add_to_cart( product_id, rand_id ) {
 		}
 	}
 	// -------END INQUIRY CHECK    ----------- //
-	// Stock Quantity Check
+	// Stock Quantity Check ( 6.0.1: this product's own stock, never a quick view's elsewhere on the page )
 	var entered_quantity = Number( jQuery( document.getElementById( 'ec_quantity_' + product_id + '_' + rand_id ) ).val( ) );
 	var allowed_quantity = 9999999999999;
-	if( jQuery( document.getElementById( 'ec_details_stock_quantity' ) ).length ){
-		allowed_quantity = Number( jQuery( document.getElementById( 'ec_details_stock_quantity' ) ).html( ) );
+	var stock_element = jQuery( document.getElementById( 'ec_details_stock_quantity_' + product_id + '_' + rand_id ) );
+	if( stock_element.length && '1' != jQuery( document.getElementById( 'ec_allow_backorders_' + product_id + '_' + rand_id ) ).val( ) ){
+		var stock_text = String( stock_element.html( ) ).replace( /^\s+|\s+$/g, '' );
+		if( '' != stock_text && isFinite( Number( stock_text ) ) ){ // 'inf' ( an option without stock tracking ) sets no limit
+			allowed_quantity = Number( stock_text );
+		}
 	}
 	// Backorder Check
 	if( allowed_quantity <= 0 && jQuery( document.getElementById( 'ec_back_order_info_' + product_id + '_' + rand_id ) ).length ){

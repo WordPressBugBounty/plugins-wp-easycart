@@ -240,8 +240,10 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 			<div class="ecdv2-panel is-active" data-ecdv2-panel="general" role="tabpanel">
 				<?php $ecdv2_intro( 'general' ); ?>
 				<?php if ( ! $is_new ) { $this->print_health(); } ?>
-				<?php do_action( 'wp_easycart_admin_product_details_basic_start', $product ); ?>
 				<?php $this->section_open( 'basic', __( 'Product Details', 'wp-easycart' ), '', array( 'except' => array( 'activate_in_store' ) ) ); ?>
+					<?php /* 6.0.1: inside the card, so a cover ( PRO: Square product sync ) spans Product Details only, not the
+					   Short Description and Specifications cards Square never writes. */ ?>
+					<?php do_action( 'wp_easycart_admin_product_details_basic_start', $product ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_basic_fields' ); ?>
 				<?php $this->section_close(); ?>
 
@@ -260,11 +262,20 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="media" role="tabpanel">
 				<?php $ecdv2_intro( 'media' ); ?>
 				<?php if ( $has_pro_media_v2 ) { ?>
-					<?php do_action( 'wp_easycart_admin_product_details_v2_media_pro', $product ); ?>
+					<?php /* 6.0.1: wrapped so the panel can be refetched after the option slots change, instead of
+					   showing the choices that existed when the page loaded ( products-details-v2.js ). */ ?>
+					<div id="ecdv2_media_pro_wrap">
+						<?php do_action( 'wp_easycart_admin_product_details_v2_media_pro', $product ); ?>
+					</div>
 				<?php } else if ( $ec_legacy_pro ) { ?>
 					<div class="ecdv2-card"><div class="ecdv2-card-body ecdv2-legacy-pro" id="ecdv2_legacy_pro_media">
 						<?php do_action( 'wp_easycart_admin_product_details_after_images' ); ?>
-						<?php $ec_legacy_pro->load_images_pro(); ?>
+						<?php /* 6.0.1: the panel PRO prints here is the one products-details-v2.js refetches after the option sets
+						   change; this branch is the one current PRO takes ( its V2 hook is added before the editor class
+						   it checks for is loaded ), so it carries the same wrapper as the branch above. */ ?>
+						<div id="ecdv2_media_pro_wrap">
+							<?php $ec_legacy_pro->load_images_pro(); ?>
+						</div>
 					</div></div>
 				<?php } else if ( $has_pro_media_legacy ) { ?>
 					<div class="ecdv2-card"><div class="ecdv2-card-body ecdv2-legacy-pro" id="ecdv2_legacy_pro_media">

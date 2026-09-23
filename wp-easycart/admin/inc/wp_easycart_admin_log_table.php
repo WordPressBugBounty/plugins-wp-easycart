@@ -341,12 +341,34 @@ if ( ! class_exists( 'wp_easycart_admin_log_table' ) ) :
 			echo '<td class="ecv2-col-actions">'; $this->print_row_actions( $result ); echo '</td></tr>';
 		}
 
+		/**
+		 * Seconds from the database clock to the store's local time, measured once per request.
+		 *
+		 * @since 6.0.1
+		 * @return int
+		 */
+		public static function db_clock_offset() {
+			static $offset = null;
+			if ( null === $offset ) {
+				global $wpdb;
+				$db_now = strtotime( (string) $wpdb->get_var( 'SELECT NOW()' ) );
+				$offset = $db_now ? (int) ( current_time( 'timestamp' ) - $db_now ) : 0;
+				/* Within a minute is the same clock: no shift. */
+				$offset = ( abs( $offset ) < 60 ) ? 0 : (int) ( round( $offset / 60 ) * 60 );
+			}
+			return $offset;
+		}
+
 		protected function print_cell_content( $result, $col ) {
 			switch ( $col['format'] ) {
 				case 'log_time':
-					$ts = strtotime( $result->response_time );
-					echo '<span class="ecv2-mono" title="' . esc_attr( $result->response_time ) . '">' . esc_html( $ts > current_time( 'timestamp' ) - DAY_IN_SECONDS ? date_i18n( 'H:i:s', $ts ) : date_i18n( 'M j H:i', $ts ) ) . '</span>';
-					if ( $ts > current_time( 'timestamp' ) - DAY_IN_SECONDS ) { echo '<span class="ecv2-sub">' . esc_html( sprintf( __( '%s ago', 'wp-easycart' ), human_time_diff( $ts, current_time( 'timestamp' ) ) ) ) . '</span>'; }
+					/* 6.0.1: response_time is written by the database clock ( CURRENT_TIMESTAMP ), which can sit in another time
+					   zone than the store; shift it to store time so a new entry reads "a few seconds ago", not "1 hour ago". */
+					$now = current_time( 'timestamp' );
+					$ts  = strtotime( $result->response_time ) + self::db_clock_offset();
+					echo '<span class="ecv2-mono" title="' . esc_attr( date_i18n( 'Y-m-d H:i:s', $ts ) ) . '">' . esc_html( $ts > $now - DAY_IN_SECONDS ? date_i18n( 'H:i:s', $ts ) : date_i18n( 'M j H:i', $ts ) ) . '</span>';
+					/* translators: %s: how long ago, e.g. "5 mins". */
+					if ( $ts > $now - DAY_IN_SECONDS ) { echo '<span class="ecv2-sub">' . esc_html( sprintf( __( '%s ago', 'wp-easycart' ), human_time_diff( min( $ts, $now ), $now ) ) ) . '</span>'; }
 					break;
 				case 'log_processor': echo '<span class="ecv2-chip ecv2-chip-gray">' . esc_html( $result->processor ? $result->processor : __( 'unknown', 'wp-easycart' ) ) . '</span>'; break;
 				case 'log_order': echo $result->order_id ? '<a class="ecv2-link-primary" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ec_admin_form_action=edit&order_id=' . (int) $result->order_id ) ) . '">#' . (int) $result->order_id . '</a>' : '<span class="ecv2-sub">—</span>'; break;
@@ -364,7 +386,9 @@ if ( ! class_exists( 'wp_easycart_admin_log_table' ) ) :
 endif;
 
 function ecv2_log_guard( $get = false ) {
-	if ( ! current_user_can( 'manage_options' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
+	/* 6.0.1: these screens live under Settings, which is reachable with wpec_settings, so demanding
+	   manage_options here let a store manager open the page and fail on every action. */
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
 	if ( $get ) { if ( ! isset( $_GET['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['nonce'] ) ), wp_easycart_admin_log_table::NONCE ) ) { wp_die( 'Invalid nonce' ); } return; }
 	check_ajax_referer( wp_easycart_admin_log_table::NONCE, 'nonce' );
 }

@@ -157,7 +157,18 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				echo '<td class="ecv2-cell"><span class="eccnt-region-name">' . esc_html( wp_unslash( $s->name_sta ) ) . '</span>' . ( $s->group_sta ? ' <span class="ecv2-sub" style="display:inline">· ' . esc_html( wp_unslash( $s->group_sta ) ) . '</span>' : '' ) . '</td>';
 				echo '<td class="ecv2-cell"><span class="ecv2-mono">' . esc_html( $s->code_sta ) . '</span></td>';
 				echo '<td class="ecv2-cell"><label class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" class="eccnt-ship" data-kind="region" data-id="' . (int) $s->id_sta . '"' . ( $s->ship_to_active ? ' checked' : '' ) . ' /><span class="ecv2-toggle-slider"></span></label></td>';
-				echo '<td class="ecv2-cell ecv2-hide-tablet"></td><td class="ecv2-cell"><a href="#" class="ecv2-sub" onclick="return eccountry.open( ' . (int) $result->id_cnt . ', \'regions\', ' . (int) $s->id_sta . ' );">' . esc_html__( 'edit', 'wp-easycart' ) . '</a></td><td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->sort_order . '</td><td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->id_sta . '</td><td class="ecv2-col-actions"></td></tr>';
+				/* 6.0.1: edit and delete sat as text links in the Regions column, which read as part of the
+				   country's region summary and wrapped onto three lines. They are a row menu in the Actions
+				   column now, the same as every other row in the V2 admin. */
+				echo '<td class="ecv2-cell ecv2-hide-tablet"></td><td class="ecv2-cell"></td>';
+				echo '<td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->sort_order . '</td>';
+				echo '<td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->id_sta . '</td>';
+				echo '<td class="ecv2-col-actions"><div class="ecv2-row-menu-wrap">';
+				echo '<button type="button" class="ecv2-row-menu-trigger" onclick="ecv2_toggle_row_menu(this);">&#8943;</button>';
+				echo '<div class="ecv2-row-menu">';
+				echo '<a href="#" class="ecv2-row-menu-item" onclick="return eccountry.open( ' . (int) $result->id_cnt . ', \'regions\', ' . (int) $s->id_sta . ' );"><span class="dashicons dashicons-edit"></span> ' . esc_html__( 'Edit', 'wp-easycart' ) . '</a>';
+				echo '<a href="#" class="ecv2-row-menu-item ecv2-row-menu-item-danger" onclick="return eccountry.region_row_delete( ' . (int) $s->id_sta . ', this );"><span class="dashicons dashicons-trash"></span> ' . esc_html__( 'Delete', 'wp-easycart' ) . '</a>';
+				echo '</div></div></td></tr>';
 			}
 			if ( $regions ) { echo '<tr class="eccnt-region eccnt-region-add" data-country="' . (int) $result->id_cnt . '" style="display:none"><td></td><td class="ecv2-cell" colspan="8"><a href="#" class="ecos-link-brand" onclick="return eccountry.open( ' . (int) $result->id_cnt . ', \'regions\', 0 );">+ ' . esc_html( sprintf( __( 'Add region to %s', 'wp-easycart' ), wp_unslash( $result->name_cnt ) ) ) . '</a></td></tr>'; }
 		}
@@ -184,6 +195,23 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 		}
 
 		/* ---- shared ---- */
+		/**
+		 * The numbers behind the stat tiles, so a region or ship-to change can update them without a reload.
+		 * Keys are the tiles' filter values ( '' is printed as __total ).
+		 *
+		 * @since 6.0.1
+		 * @return array
+		 */
+		public static function stats() {
+			global $wpdb;
+			return array(
+				'__total' => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_country' ),
+				'on'      => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_country WHERE ship_to_active = 1' ),
+				'regions' => (int) $wpdb->get_var( 'SELECT COUNT( DISTINCT s.idcnt_sta ) FROM ec_state s INNER JOIN ec_country c ON c.id_cnt = s.idcnt_sta' ),
+				'vat'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_country WHERE vat_rate_cnt > 0' ),
+				'off'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_country WHERE ship_to_active = 0' ),
+			);
+		}
 		public static function flush() { wp_cache_delete( 'wpeasycart-countries' ); wp_cache_delete( 'wpeasycart-states' ); wp_cache_flush(); }
 
 		public static function country_payload( $id ) {
@@ -263,7 +291,9 @@ endif;
 
 /* ---------------------------------------------------------------------- */
 function ecv2_cnt_guard() {
-	if ( ! current_user_can( 'manage_options' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
+	/* 6.0.1: these screens live under Settings, which is reachable with wpec_settings, so demanding
+	   manage_options here let a store manager open the page and fail on every action. */
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
 	check_ajax_referer( wp_easycart_admin_country_table::NONCE, 'nonce' );
 }
 
@@ -291,7 +321,7 @@ function ecv2_region_save() {
 	$d = json_decode( wp_unslash( isset( $_POST['data'] ) ? $_POST['data'] : '{}' ), true ); if ( ! is_array( $d ) ) { $d = array(); }
 	$r = wp_easycart_admin_country_table::save_region( isset( $_POST['country_id'] ) ? (int) $_POST['country_id'] : 0, $d, isset( $_POST['id'] ) ? (int) $_POST['id'] : 0 );
 	if ( is_wp_error( $r ) ) { wp_send_json_error( array( 'message' => $r->get_error_message() ) ); }
-	wp_send_json_success( array( 'id' => $r, 'country' => wp_easycart_admin_country_table::country_payload( (int) $_POST['country_id'] ), 'row' => wp_easycart_admin_country_table::row_html( (int) $_POST['country_id'] ) ) );
+	wp_send_json_success( array( 'stats' => wp_easycart_admin_country_table::stats(), 'id' => $r, 'country' => wp_easycart_admin_country_table::country_payload( (int) $_POST['country_id'] ), 'row' => wp_easycart_admin_country_table::row_html( (int) $_POST['country_id'] ) ) );
 }
 
 add_action( 'wp_ajax_ecv2_region_delete', 'ecv2_region_delete' );
@@ -304,7 +334,7 @@ function ecv2_region_delete() {
 	$iso = $wpdb->get_var( $wpdb->prepare( 'SELECT iso2_cnt FROM ec_country WHERE id_cnt = %d', (int) $s->idcnt_sta ) );
 	if ( $iso ) { $wpdb->delete( 'ec_zone_to_location', array( 'iso2_cnt' => $iso, 'code_sta' => $s->code_sta ) ); }
 	wp_easycart_admin_country_table::flush();
-	wp_send_json_success( array( 'country' => wp_easycart_admin_country_table::country_payload( (int) $s->idcnt_sta ), 'row' => wp_easycart_admin_country_table::row_html( (int) $s->idcnt_sta ) ) );
+	wp_send_json_success( array( 'stats' => wp_easycart_admin_country_table::stats(), 'country' => wp_easycart_admin_country_table::country_payload( (int) $s->idcnt_sta ), 'row' => wp_easycart_admin_country_table::row_html( (int) $s->idcnt_sta ) ) );
 }
 
 /** Inline toggles for both levels. */

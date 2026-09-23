@@ -20,6 +20,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /* Helpers ( guarded: the file is included once per request )              */
 /* ---------------------------------------------------------------------- */
 
+if ( ! function_exists( 'ecst_email_render_pdf_moved' ) ) {
+	/** 6.0.1: where the PDF settings went ( Settings › Documents › Invoice PDF ). */
+	function ecst_email_render_pdf_moved() {
+		$url = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=wp-easycart-settings&subpage=documents#ecst-sec-invoice' ) : '';
+		echo '<p class="ecst-moved">' . esc_html__( 'The invoice and receipt PDF is a document now: its business details, file name, paper size and heading, which emails carry it and what it shows are all on Settings › Documents › Invoice PDF, with a live preview.', 'wp-easycart' ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Open Invoice PDF', 'wp-easycart' ) . ' &rarr;</a></p>';
+	}
+}
+
 if ( ! function_exists( 'ecst_email_render_deliverability' ) ) {
 	/** Health card + pre-flight checks + log, exactly what the legacy page showed at the top. */
 	function ecst_email_render_deliverability() {
@@ -522,10 +530,60 @@ return array(
 				'ec_option_email_logo' => array(
 					'type'        => 'url',
 					'label'       => __( 'Email logo', 'wp-easycart' ),
-					'desc'        => __( 'Shown at the top of every EasyCart email. Upload the image to the Media Library and paste its URL here.', 'wp-easycart' ),
+					'desc'        => __( 'Shown at the top of every EasyCart email, and on documents whose profile has no logo of its own. Choose an image from the Media Library, or paste a URL.', 'wp-easycart' ),
 					'placeholder' => 'https://',
+					'media'       => true,
 					'keywords'    => array( 'logo', 'branding', 'header image', 'template' ),
 					'legacy'      => array( 'page' => 'email-setup', 'section' => 'Order Receipt Email Setup', 'label' => 'Email Logo' ),
+				),
+				/* 6.0.1: how the header image is sized and placed in every email. */
+				'ec_option_email_logo_max_width' => array(
+					'type'     => 'number',
+					'label'    => __( 'Logo width', 'wp-easycart' ),
+					'desc'     => __( 'The widest the logo may be, as a share of the email. 100 fills the full width.', 'wp-easycart' ),
+					'default'  => 40,
+					'min'      => 5,
+					'max'      => 100,
+					'step'     => 1,
+					'unit'     => '%',
+					'keywords' => array( 'logo width', 'email logo size', 'header image' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Order Receipt Email Setup', 'label' => '( new in 6.0.1 )' ),
+				),
+				'ec_option_email_logo_max_height' => array(
+					'type'     => 'number',
+					'label'    => __( 'Logo height limit', 'wp-easycart' ),
+					'desc'     => __( 'Keeps a tall logo in check. 0 lets it be as tall as the width allows.', 'wp-easycart' ),
+					'default'  => 80,
+					'min'      => 0,
+					'max'      => 600,
+					'step'     => 1,
+					'unit'     => 'px',
+					'keywords' => array( 'logo height', 'max height', 'header image' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Order Receipt Email Setup', 'label' => '( new in 6.0.1 )' ),
+				),
+				'ec_option_email_logo_align' => array(
+					'type'     => 'pills',
+					'label'    => __( 'Logo position', 'wp-easycart' ),
+					'desc'     => __( 'Where the logo sits at the top of every email.', 'wp-easycart' ),
+					'default'  => 'center',
+					'options'  => array(
+						'left'   => __( 'Left', 'wp-easycart' ),
+						'center' => __( 'Center', 'wp-easycart' ),
+						'right'  => __( 'Right', 'wp-easycart' ),
+					),
+					'keywords' => array( 'logo alignment', 'centered', 'header image' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Order Receipt Email Setup', 'label' => '( new in 6.0.1 )' ),
+				),
+				/* 6.0.1: printed at the foot of a receipt, shipped email or packing slip whose profile has Store address on. */
+				'ec_option_store_address' => array(
+					'type'        => 'textarea',
+					'rows'        => 3,
+					'label'       => __( 'Store address', 'wp-easycart' ),
+					'desc'        => __( 'Your store’s postal address. Receipts, shipped emails and packing slips print it in their footer when their profile on Settings › Documents has Store address on.', 'wp-easycart' ),
+					'default'     => '',
+					'placeholder' => "Store Name\n1 Example Street\nSpringfield, IL 62701",
+					'keywords'    => array( 'store address', 'business address', 'return address', 'company address', 'footer', 'packing slip' ),
+					'legacy'      => array( 'page' => 'email-setup', 'section' => 'Sender', 'label' => '( new in 6.0.1 )' ),
 				),
 				'ec_option_email_signature_text' => array(
 					'type'        => 'textarea',
@@ -540,11 +598,39 @@ return array(
 				'ec_option_email_signature_image' => array(
 					'type'        => 'url',
 					'label'       => __( 'Email signature image', 'wp-easycart' ),
-					'desc'        => __( 'Image shown under the signature text at the foot of every automatic email.', 'wp-easycart' ),
+					'desc'        => __( 'Image shown under the signature text at the foot of every automatic email. Choose one from the Media Library, or paste a URL.', 'wp-easycart' ),
 					'placeholder' => 'https://',
+					'media'       => true,
 					'pro'         => true,
 					'keywords'    => array( 'signature', 'footer', 'image', 'branding' ),
 					'legacy'      => array( 'page' => 'email-setup', 'section' => 'Global Email Settings', 'label' => 'Email Signature: Image' ),
+				),
+				/* 6.0.1: the footer ( signature ) image's size, like the logo's. A document profile can use its own ( Settings › Documents, Logo & footer ). */
+				'ec_option_email_signature_image_max_width' => array(
+					'type'     => 'number',
+					'label'    => __( 'Signature image width', 'wp-easycart' ),
+					'desc'     => __( 'The widest the signature image may be, as a share of the email. 100 fills the full width.', 'wp-easycart' ),
+					'default'  => 100,
+					'min'      => 5,
+					'max'      => 100,
+					'step'     => 1,
+					'unit'     => '%',
+					'pro'      => true,
+					'keywords' => array( 'signature image size', 'footer image width' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Global Email Settings', 'label' => '( new in 6.0.1 )' ),
+				),
+				'ec_option_email_signature_image_max_height' => array(
+					'type'     => 'number',
+					'label'    => __( 'Signature image height limit', 'wp-easycart' ),
+					'desc'     => __( 'Keeps a tall image in check. 0 lets it be as tall as the width allows.', 'wp-easycart' ),
+					'default'  => 0,
+					'min'      => 0,
+					'max'      => 600,
+					'step'     => 1,
+					'unit'     => 'px',
+					'pro'      => true,
+					'keywords' => array( 'signature image height', 'footer image height' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Global Email Settings', 'label' => '( new in 6.0.1 )' ),
 				),
 			),
 		),
@@ -700,90 +786,16 @@ return array(
 			),
 		),
 
+		/* 6.0.1: the PDF is a document now ( Settings › Documents › Invoice PDF ): its settings moved there, and the attach
+		   switches are the Invoice PDF column of Email attachments. The section stays as a signpost for old links. */
 		'pdf-copies' => array(
-			'title'   => __( 'PDF receipts', 'wp-easycart' ),
-			'icon'    => 'file-text',
-			'hint'    => __( 'Attach the order as a PDF to receipt and invoice emails, as many EU buyers and bookkeepers expect', 'wp-easycart' ),
-			'pro'     => true,
-			'fields'  => array(
-				'ec_option_pdf_attach_customer' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'Attach a PDF to the customer’s receipt email', 'wp-easycart' ),
-					'desc'     => __( 'Order receipt and invoice emails to the shopper carry a PDF copy of the order they can file or forward.', 'wp-easycart' ),
-					'default'  => 0,
-					'pro'      => true,
-					'keywords' => array( 'pdf', 'invoice', 'receipt', 'attachment', 'eu', 'vat', 'accounting' ),
-					'legacy'   => array(),
-				),
-				'ec_option_pdf_attach_admin' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'Attach a PDF to the admin order email', 'wp-easycart' ),
-					'desc'     => __( 'The copy sent to your store notification addresses carries the same PDF, ready for your bookkeeping.', 'wp-easycart' ),
-					'default'  => 0,
-					'pro'      => true,
-					'keywords' => array( 'pdf', 'invoice', 'receipt', 'attachment', 'admin email', 'bookkeeping' ),
-					'legacy'   => array(),
-				),
-				'ec_option_pdf_document_title' => array(
-					'type'     => 'pills',
-					'label'    => __( 'PDF heading', 'wp-easycart' ),
-					'desc'     => __( 'The document name printed at the top of the PDF.', 'wp-easycart' ),
-					'default'  => 'invoice',
-					'options'  => array(
-						'invoice' => __( 'Invoice', 'wp-easycart' ),
-						'receipt' => __( 'Receipt', 'wp-easycart' ),
-					),
-					'pro'      => true,
-					'keywords' => array( 'pdf', 'invoice', 'receipt', 'title', 'heading' ),
-					'legacy'   => array(),
-				),
-				'ec_option_pdf_filename' => array(
-					'type'        => 'text',
-					'label'       => __( 'PDF file name', 'wp-easycart' ),
-					'desc'        => __( 'What the attachment is called. {order_id} becomes the order number and {date} the order date.', 'wp-easycart' ),
-					'default'     => 'invoice-{order_id}.pdf',
-					'placeholder' => 'invoice-{order_id}.pdf',
-					'pro'         => true,
-					'keywords'    => array( 'pdf', 'file name', 'attachment name', 'invoice number' ),
-					'legacy'      => array(),
-				),
-				'ec_option_pdf_seller_details' => array(
-					'type'        => 'textarea',
-					'label'       => __( 'Business details on the PDF', 'wp-easycart' ),
-					'desc'        => __( 'Your registered business name, address and VAT number, printed at the top. EU invoices must show them.', 'wp-easycart' ),
-					'default'     => '',
-					'placeholder' => "Store Name Ltd.\n1 Example Street, 10115 Berlin, Germany\nVAT ID: DE123456789",
-					'pro'         => true,
-					'keywords'    => array( 'pdf', 'company', 'address', 'vat number', 'tax id', 'seller', 'legal' ),
-					'legacy'      => array(),
-				),
-				'ec_option_pdf_paper_size' => array(
-					'type'     => 'select',
-					'label'    => __( 'PDF paper size', 'wp-easycart' ),
-					'desc'     => __( 'Automatic uses US Letter where it is the local standard ( such as the US, Canada and Mexico ) and A4 everywhere else.', 'wp-easycart' ),
-					'default'  => 'auto',
-					'options'  => array(
-						'auto'   => __( 'Automatic', 'wp-easycart' ),
-						'a4'     => __( 'A4', 'wp-easycart' ),
-						'letter' => __( 'US Letter', 'wp-easycart' ),
-					),
-					'advanced' => true,
-					'pro'      => true,
-					'keywords' => array( 'pdf', 'paper', 'a4', 'letter', 'page size' ),
-					'legacy'   => array(),
-				),
-			),
-			'actions' => array(
-				array(
-					'id'     => 'send_pdf_sample',
-					'label'  => __( 'Email me a sample PDF', 'wp-easycart' ),
-					'desc'   => __( 'Builds the PDF for your most recent order with the settings above and sends it to your own email address only.', 'wp-easycart' ),
-					'button' => __( 'Send sample', 'wp-easycart' ),
-					'pro'    => true,
-				),
-			),
+			'title'    => __( 'PDF invoices', 'wp-easycart' ),
+			'icon'     => 'file-text',
+			'hint'     => __( 'Now set up on Settings › Documents', 'wp-easycart' ),
+			'fields'   => array(),
+			'keywords' => array( 'pdf', 'invoice', 'receipt pdf' ),
+			'render'   => 'ecst_email_render_pdf_moved',
 		),
-
 		/* 6.0.0: subscription mail only goes out on a gateway event, so give the merchant a way to see each one. */
 		'subscription-emails' => array(
 			'title'   => __( 'Subscription emails', 'wp-easycart' ),

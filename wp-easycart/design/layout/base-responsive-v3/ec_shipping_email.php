@@ -35,6 +35,15 @@ $ec_ship_order_id = (int) $ec_ship_order->order_id;
 $ec_ship_currency = $GLOBALS['currency'];
 global $wpdb;
 
+/* 6.0.1: what this email shows comes from its profile in Settings › Documents ( $document_fields from the sender, or
+   the default profile ). $document_held_back: lines left for a later shipment when only some items were chosen. */
+$ec_ship_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping' ) : null );
+$ec_ship_show = function ( $key ) use ( $ec_ship_doc ) {
+	return class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::show( $ec_ship_doc, $key ) : true;
+};
+$ec_ship_prices = $ec_ship_show( 'prices' );
+$ec_ship_held   = ( isset( $document_held_back ) && is_array( $document_held_back ) ) ? $document_held_back : array();
+
 /* Offers v2: line-level flags keyed by orderdetail_id and the order-level applied-offers snapshot. */
 $ec_ship_offer_line_flags    = array();
 $ec_ship_offer_order_summary = array();
@@ -85,22 +94,22 @@ $ec_ship_db         = class_exists( 'ec_db' ) ? new ec_db() : null;
 $ec_ship_img_width  = (int) apply_filters( 'wp_easycart_email_receipt_image_width', 70 );
 $ec_ship_lang       = wp_easycart_language();
 
-$ed::open(
-	array(
-		'title'     => wp_strip_all_tags( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_email_title' ) ) . ' ' . $ec_ship_order_id,
-		'preheader' => $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle1' ) . ' ' . $ec_ship_order_id . ' ' . $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle2' ),
-		'accent'    => (string) apply_filters( 'wp_easycart_shipping_email_accent_color', (string) get_option( 'ec_option_details_main_color' ) ),
-		'logo_url'  => (string) $email_logo_url,
-		'store_url' => (string) $store_page,
-	)
+$ec_ship_open = array(
+	'title'     => wp_strip_all_tags( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_email_title' ) ) . ' ' . $ec_ship_order_id,
+	'preheader' => $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle1' ) . ' ' . $ec_ship_order_id . ' ' . $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle2' ),
+	'accent'    => (string) apply_filters( 'wp_easycart_shipping_email_accent_color', (string) get_option( 'ec_option_details_main_color' ) ),
+	'logo_url'  => (string) $email_logo_url,
+	'store_url' => (string) $store_page,
 );
+/* 6.0.1: the logo switch and this document's own logo and size ( Settings › Documents ). */
+$ed::open( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::open_args( 'shipping', $ec_ship_doc, $ec_ship_open ) : $ec_ship_open );
 $ec_ship_ctx = $ed::ctx();
 
 /* Greeting */
 $ed::section_start();
 $ed::heading( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_dear' ) ) . ' ' . esc_html( trim( $ec_ship_order->billing_first_name . ' ' . $ec_ship_order->billing_last_name ) ) . ',' );
 $ed::paragraph( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle1' ) ) . ' <strong style="color:#111827;">' . esc_html( $ec_ship_order_id ) . '</strong> ' . wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle2' ) ) );
-if ( get_option( 'ec_option_show_email_on_receipt' ) && '' !== (string) $ec_ship_order->user_email ) {
+if ( $ec_ship_show( 'email' ) && '' !== (string) $ec_ship_order->user_email ) {
 	$ed::paragraph( esc_html( $ec_ship_order->user_email ), array( 'tone' => 'small', 'nolink' => true ) );
 }
 $ed::section_end();
@@ -140,25 +149,26 @@ $ed::address_cards(
 	array(
 		array(
 			'label'   => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_shipping_label' ) ),
-			'address' => $ec_ship_shipping,
+			'address' => $ec_ship_show( 'shipping' ) ? $ec_ship_shipping : array( 'has' => false ),
 		),
 		array(
 			'label'   => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_billing_label' ) ),
-			'address' => $ec_ship_billing,
+			'address' => $ec_ship_show( 'billing' ) ? $ec_ship_billing : array( 'has' => false ),
 		),
 	),
-	( '' !== (string) $ec_ship_order->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_ship_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $ec_ship_order->vat_registration_number ) : ''
+	( $ec_ship_show( 'billing' ) && '' !== (string) $ec_ship_order->vat_registration_number ) ? '<strong>' . wp_kses_post( $ec_ship_lang->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ) ) . ':</strong> ' . esc_html( $ec_ship_order->vat_registration_number ) : ''
 );
 
 /* Items */
-$ed::items_start(
-	array(
-		'product' => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_product' ) ),
-		'qty'     => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_quantity' ) ),
-		'unit'    => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_unit_price' ) ),
-		'total'   => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_total_price' ) ),
-	)
+$ec_ship_columns = array(
+	'product' => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_product' ) ),
+	'qty'     => wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_quantity' ) ),
 );
+if ( $ec_ship_prices ) {
+	$ec_ship_columns['unit']  = wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_unit_price' ) );
+	$ec_ship_columns['total'] = wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_total_price' ) );
+}
+$ed::items_start( $ec_ship_columns );
 foreach ( $ec_ship_items as $ec_ship_item ) {
 	$ec_ship_line_flags = ( isset( $ec_ship_item->orderdetail_id ) && isset( $ec_ship_offer_line_flags[ (int) $ec_ship_item->orderdetail_id ] ) ) ? $ec_ship_offer_line_flags[ (int) $ec_ship_item->orderdetail_id ] : false;
 
@@ -169,7 +179,7 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 	if ( $ec_ship_line_flags && '' !== (string) $ec_ship_line_flags->bundle_group_key && $ec_ship_line_flags->bundle_product_id != $ec_ship_line_flags->product_id && function_exists( 'wp_easycart_offers_text' ) ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- numeric strings from the database.
 		$ec_ship_title .= ' <span style="display:inline-block;margin-' . esc_attr( $ec_ship_ctx['start'] ) . ':6px;padding:1px 8px;background:#eef1f4;color:#4a5560;font-size:11px;font-weight:bold;border-radius:3px;text-transform:uppercase;vertical-align:middle;">' . wp_kses_post( wp_easycart_offers_text( 'cart_offers', 'bundle_line_label' ) ) . '</span>';
 	}
-	if ( $ec_ship_line_flags && isset( $ec_ship_line_flags->applied_offers ) && '' !== (string) $ec_ship_line_flags->applied_offers ) {
+	if ( $ec_ship_prices && $ec_ship_line_flags && isset( $ec_ship_line_flags->applied_offers ) && '' !== (string) $ec_ship_line_flags->applied_offers ) {
 		$ec_ship_line_offers = json_decode( (string) $ec_ship_line_flags->applied_offers, true );
 		if ( is_array( $ec_ship_line_offers ) && count( $ec_ship_line_offers ) > 0 ) {
 			$ec_ship_title .= '<div style="margin-top:4px;">';
@@ -185,13 +195,13 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 
 	$ed::item_start(
 		array(
-			'image_url'   => get_option( 'ec_option_show_image_on_receipt' ) ? $ed::product_image_url( $ec_ship_item->image1, ! empty( $ec_ship_item->is_deconetwork ), isset( $ec_ship_item->deconetwork_image_link ) ? $ec_ship_item->deconetwork_image_link : '' ) : '',
+			'image_url'   => $ec_ship_show( 'image' ) ? $ed::product_image_url( $ec_ship_item->image1, ! empty( $ec_ship_item->is_deconetwork ), isset( $ec_ship_item->deconetwork_image_link ) ? $ec_ship_item->deconetwork_image_link : '' ) : '',
 			'image_alt'   => $ec_ship_item->title,
 			'image_width' => $ec_ship_img_width,
 			'title_html'  => $ec_ship_title,
 		)
 	);
-	if ( '' !== (string) $ec_ship_item->model_number ) {
+	if ( '' !== (string) $ec_ship_item->model_number && $ec_ship_show( 'sku' ) ) {
 		$ed::detail( esc_html( $ec_ship_item->model_number ), array( 'nolink' => true, 'style' => 'padding:0 0 4px 0;' ) );
 	}
 	if ( ! empty( $ec_ship_item->gift_card_message ) ) {
@@ -208,7 +218,7 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 	$ec_ship_allow_download = true;
 	$ec_ship_use_advanced   = ! empty( $ec_ship_item->use_advanced_optionset );
 	$ec_ship_use_both       = ! empty( $ec_ship_item->use_both_option_types );
-	if ( ! $ec_ship_use_advanced || $ec_ship_use_both ) {
+	if ( $ec_ship_show( 'options' ) && ( ! $ec_ship_use_advanced || $ec_ship_use_both ) ) {
 		for ( $ec_ship_n = 1; $ec_ship_n <= 5; $ec_ship_n++ ) {
 			$ec_ship_opt_name  = isset( $ec_ship_item->{'optionitem_name_' . $ec_ship_n} ) ? (string) $ec_ship_item->{'optionitem_name_' . $ec_ship_n} : '';
 			$ec_ship_opt_price = isset( $ec_ship_item->{'optionitem_price_' . $ec_ship_n} ) ? (float) $ec_ship_item->{'optionitem_price_' . $ec_ship_n} : 0;
@@ -216,7 +226,9 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 				continue;
 			}
 			$ec_ship_opt_price_text = '';
-			if ( $ec_ship_opt_price < 0 ) {
+			if ( ! $ec_ship_prices ) {
+				$ec_ship_opt_price_text = '';
+			} elseif ( $ec_ship_opt_price < 0 ) {
 				$ec_ship_opt_price_text = ' (' . $ec_ship_currency->get_currency_display( $ec_ship_opt_price ) . ')';
 			} elseif ( $ec_ship_opt_price > 0 ) {
 				$ec_ship_opt_price_text = ' (+' . $ec_ship_currency->get_currency_display( $ec_ship_opt_price ) . ')';
@@ -249,7 +261,9 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 			} elseif ( isset( $ec_ship_adv->optionitem_price_onetime ) && $ec_ship_adv->optionitem_price_onetime < 0 ) {
 				$ec_ship_adv_price = ' (' . $ec_ship_currency->get_currency_display( $ec_ship_adv->optionitem_price_onetime ) . ' ' . wp_strip_all_tags( $ec_ship_lang->get_text( 'cart', 'cart_order_adjustment' ) ) . ')';
 			}
-			$ed::option_detail( wp_kses_post( $ec_ship_adv->option_label ), esc_html( $ec_ship_adv_value . $ec_ship_adv_price ) );
+			if ( $ec_ship_show( 'options' ) ) { /* the loop still runs when options are hidden: it decides the download link */
+				$ed::option_detail( wp_kses_post( $ec_ship_adv->option_label ), esc_html( $ec_ship_adv_value . ( $ec_ship_prices ? $ec_ship_adv_price : '' ) ) );
+			}
 		}
 	}
 	if ( '' !== $ec_ship_order_link && ( ! empty( $ec_ship_item->is_giftcard ) || ( ! empty( $ec_ship_item->is_download ) && $ec_ship_allow_download ) ) ) {
@@ -259,17 +273,29 @@ foreach ( $ec_ship_items as $ec_ship_item ) {
 		$ec_ship_codes = $wpdb->get_col( $wpdb->prepare( 'SELECT code_val FROM ec_code WHERE ec_code.orderdetail_id = %d', (int) $ec_ship_item->orderdetail_id ) );
 		$ed::detail( wp_kses_post( $ec_ship_lang->get_text( 'account_order_details', 'account_orders_details_your_codes' ) ) . ' ' . esc_html( implode( ', ', (array) $ec_ship_codes ) ) );
 	}
-	$ed::item_end(
-		array(
-			'qty'        => $ec_ship_item->quantity,
-			'unit_html'  => $ed::money( $ec_ship_item->unit_price ),
-			'total_html' => $ed::money( $ec_ship_item->total_price ),
-		)
-	);
+	$ec_ship_end = array( 'qty' => $ec_ship_item->quantity );
+	if ( $ec_ship_prices ) {
+		$ec_ship_end['unit_html']  = $ed::money( $ec_ship_item->unit_price );
+		$ec_ship_end['total_html'] = $ed::money( $ec_ship_item->total_price );
+	}
+	$ed::item_end( $ec_ship_end );
 }
 $ed::items_end();
 
-/* Totals */
+/* 6.0.1: items chosen for a later shipment */
+if ( $ec_ship_held ) {
+	$ed::section_start();
+	$ed::label( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::text( 'items_to_follow', __( 'To follow in a separate shipment', 'wp-easycart' ) ) : esc_html__( 'To follow in a separate shipment', 'wp-easycart' ) );
+	$ec_ship_follow = array();
+	foreach ( $ec_ship_held as $ec_ship_held_line ) {
+		$ec_ship_follow[] = esc_html( wp_strip_all_tags( (string) $ec_ship_held_line->title ) . ' × ' . (int) $ec_ship_held_line->quantity );
+	}
+	$ed::paragraph( implode( '<br />', $ec_ship_follow ), array( 'nolink' => true ) );
+	$ed::section_end();
+}
+
+/* Totals ( the whole order's: left off when prices are hidden, or when only some items are in this shipment ) */
+if ( $ec_ship_prices && ! $ec_ship_held ) :
 $ec_ship_totals   = array();
 $ec_ship_totals[] = array( wp_kses_post( $ec_ship_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_subtotal' ) ), $ed::money( $ec_ship_order->sub_total ) );
 if ( $ec_ship_order->tip_total > 0 ) {
@@ -306,9 +332,10 @@ foreach ( $ec_ship_fees as $ec_ship_fee ) {
 	$ec_ship_totals[] = array( esc_html( $ec_ship_fee->fee_label ), $ed::money( $ec_ship_fee->fee_total ) );
 }
 $ed::totals( $ec_ship_totals, array( wp_kses_post( $ec_ship_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::money( $ec_ship_order->grand_total ) ) );
+endif;
 
 /* Notes, closing lines */
-if ( get_option( 'ec_option_user_order_notes' ) && '' !== trim( (string) $ec_ship_order->order_customer_notes ) ) {
+if ( get_option( 'ec_option_user_order_notes' ) && $ec_ship_show( 'order_notes' ) && '' !== trim( (string) $ec_ship_order->order_customer_notes ) ) {
 	$ed::section_start();
 	$ed::label( wp_kses_post( $ec_ship_lang->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ) ) );
 	$ed::card_start( array( 'padding' => '12px 14px' ) );
@@ -320,4 +347,5 @@ $ed::section_start( array( 'top' => 24, 'bottom' => 8 ) );
 $ed::paragraph( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_final_note1' ) ), array( 'margin' => '0 0 12px 0' ) );
 $ed::paragraph( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_final_note2' ) ), array( 'tone' => 'strong', 'margin' => '0' ) );
 $ed::section_end();
-$ed::close();
+/* 6.0.1: the footer image switch and this document's own footer image and size ( Settings › Documents ). */
+$ed::close( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::close_args( 'shipping', $ec_ship_doc ) : array() );

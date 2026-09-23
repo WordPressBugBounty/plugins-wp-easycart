@@ -3889,6 +3889,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Bon de livraison"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Commande"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Date"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Livrer à"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Facturer à"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Livraison"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Transporteur"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Suivi"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Suivra dans un envoi séparé"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Bon de livraison de la commande"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Facture"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Reçu"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Numéro de commande :"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Date :"
+				}
+			}
+		},
 		"language_code":{
 			"label":"Language Code",
 			"options":{

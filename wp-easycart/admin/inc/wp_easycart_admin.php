@@ -780,7 +780,22 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		 * @since 6.0.0
 		 */
 		private function stats_cache_key( $key ) {
-			return 'wpec_stats_' . md5( self::order_fingerprint() . '|' . $this->date_diff . '|' . $key );
+			return 'wpec_stats_' . md5( self::order_fingerprint() . '|' . $this->date_diff . '|' . self::currency_fingerprint() . '|' . $key );
+		}
+
+		/**
+		 * Cached stats carry money already formatted, so the currency settings are part of their key: changing the
+		 * symbol, its position or the separators shows the new format at once instead of after the cache expires.
+		 *
+		 * @since 6.0.1
+		 * @return string
+		 */
+		public static function currency_fingerprint() {
+			$parts = array();
+			foreach ( array( 'ec_option_base_currency', 'ec_option_currency', 'ec_option_currency_symbol_location', 'ec_option_currency_negative_location', 'ec_option_currency_decimal_symbol', 'ec_option_currency_decimal_places', 'ec_option_currency_thousands_seperator', 'ec_option_show_currency_code' ) as $option ) {
+				$parts[] = (string) get_option( $option );
+			}
+			return md5( implode( '|', $parts ) );
 		}
 
 		private function stats_cache_get( $key ) {
@@ -3506,6 +3521,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						'inline_update' => wp_create_nonce( 'wp-easycart-ecv2-user-inline-update' ),
 						'bulk_edit'     => wp_create_nonce( 'wp-easycart-ecv2-user-bulk-edit' ),
 						'quick_edit'    => wp_create_nonce( 'wp-easycart-ecv2-user-quick-edit' ),
+						/* 6.0.1: the safe-delete engine, for reassigning a deleted customer's orders. */
+						'safe_delete'   => wp_create_nonce( class_exists( 'wp_easycart_admin_safe_delete' ) ? wp_easycart_admin_safe_delete::NONCE : 'wp-easycart-safe-delete' ),
 					) );
 
 					wp_localize_script( 'wp_easycart_admin_users_v2', 'ecv2_user_lang', array(
@@ -3533,6 +3550,27 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 						'bulk_confirm_reset'       => esc_html__( 'Invalidate the current password for %d customer(s) and email each a reset link?', 'wp-easycart' ),
 						'row_confirm_reset_title'  => esc_html__( 'Send password reset?', 'wp-easycart' ),
 						'row_confirm_reset'        => esc_html__( 'This invalidates the customer’s current password immediately and emails them a reset link. Continue?', 'wp-easycart' ),
+						/* 6.0.1: the customer delete window ( users-v2.js, ecv2_user_safe_delete ). Inserted with .text(), so not escaped here. */
+						'delete'                    => __( 'Delete', 'wp-easycart' ),
+						'deleting'                  => __( 'Deleting…', 'wp-easycart' ),
+						'cancel'                    => __( 'Cancel', 'wp-easycart' ),
+						'close'                     => __( 'Close', 'wp-easycart' ),
+						'change'                    => __( 'Change', 'wp-easycart' ),
+						'view'                      => __( 'View', 'wp-easycart' ),
+						'recommended'               => __( 'Recommended', 'wp-easycart' ),
+						'delete_checking'           => __( 'Checking what this affects…', 'wp-easycart' ),
+						/* translators: %s: customer name. */
+						'delete_named'              => __( 'Delete “%s”?', 'wp-easycart' ),
+						'target_search_placeholder' => __( 'Search customers by name, email or #', 'wp-easycart' ),
+						'target_searching'          => __( 'Searching…', 'wp-easycart' ),
+						/* translators: %s: what was typed in the search box. */
+						'target_none'               => __( 'No other customer matches “%s”.', 'wp-easycart' ),
+						'target_more'               => __( 'Showing the first 20. Type more to narrow it down.', 'wp-easycart' ),
+						'target_min'                => __( 'Keep typing…', 'wp-easycart' ),
+						'target_no_other'           => __( 'There is no other customer to move them to.', 'wp-easycart' ),
+						'target_required'           => __( 'Choose the customer their orders should move to.', 'wp-easycart' ),
+						/* translators: %d: number of days a deletion can be undone. */
+						'undo_note'                 => __( 'You can undo this for %d days from Store Status › Recently deleted.', 'wp-easycart' ),
 						'pro_gate'                 => wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => '5.9.3' ) ),
 					) );
 					
@@ -3943,6 +3981,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'fulfilled_status_ids'  => method_exists( 'wp_easycart_admin_order_table', 'fulfilled_status_ids' ) ? wp_easycart_admin_order_table::fulfilled_status_ids() : array( 2, 18 ),
 				'fulfilled_chip'        => method_exists( 'wp_easycart_admin_order_table', 'fulfilled_chip_html' ) ? wp_easycart_admin_order_table::fulfilled_chip_html() : '',
 				'fulfill_button'        => method_exists( 'wp_easycart_admin_order_table', 'fulfill_button_html' ) ? wp_easycart_admin_order_table::fulfill_button_html( $ecv2_order_pro_gate ) : '',
+				/* 6.0.1: "Picked up" ( status Order Picked Up ) and "Mark picked up" ( a Free Local Pickup row, data-pickup="1" ). */
+				'fulfilled_chip_pickup' => method_exists( 'wp_easycart_admin_order_table', 'pickup_fulfill_supported' ) ? wp_easycart_admin_order_table::fulfilled_chip_html( 'pickup' ) : '',
+				'fulfill_button_pickup' => ( method_exists( 'wp_easycart_admin_order_table', 'pickup_fulfill_supported' ) && wp_easycart_admin_order_table::pickup_fulfill_supported() ) ? wp_easycart_admin_order_table::fulfill_button_html( $ecv2_order_pro_gate, 'pickup' ) : '',
 			) );
 		}
 
@@ -4090,7 +4131,17 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			echo '</ul>';
 			echo '<p><a href="' . esc_url( $retry_url ) . '">' . esc_html__( 'Retry the database install now', 'wp-easycart' ) . '</a> ' . esc_html__( 'or contact your host with the errors above (they usually indicate a missing CREATE privilege or an unsupported storage engine).', 'wp-easycart' ) . '</p>';
-			if ( $in_shell ) {
+			/*
+			 * 6.0.1: a step that cannot succeed on this database used to be retried for ever, and because
+			 * the version is only written once every step lands, the store sat on "upgrade in progress"
+			 * with no way out. The message in square brackets above is the statement that failed, so it can
+			 * be run by hand; this link records the step as handled so the rest of the upgrade can finish.
+			 */
+			if ( class_exists( 'ec_db_manager' ) && method_exists( 'ec_db_manager', 'get_failing_steps' ) && ec_db_manager::get_failing_steps() ) {
+				$skip_url = wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=skip-database-step' ), 'wp-easycart-action-skip-database-step', 'wp_easycart_nonce' );
+				echo '<p>' . esc_html__( 'If retrying keeps failing, the statement shown in brackets can be run by hand in phpMyAdmin or by your host. Once it has been, retry above.', 'wp-easycart' ) . '</p>';
+				echo '<p><a href="' . esc_url( $skip_url ) . '">' . esc_html__( 'Continue without this change', 'wp-easycart' ) . '</a> ' . esc_html__( 'finishes the rest of the update and stops the retries. Store Status will keep reporting the change as outstanding.', 'wp-easycart' ) . '</p>';
+			}			if ( $in_shell ) {
 				echo '</div></div>';
 			} else {
 				echo '</div>';
@@ -4126,7 +4177,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 			/* translators: %d: number of downloadable products missing a file name */
 			echo '<p>' . esc_html( sprintf( _n( '%d downloadable product has no download file attached. If your site was repaired after a database error, the file names may need to be re-saved on each product.', '%d downloadable products have no download file attached. If your site was repaired after a database error, the file names may need to be re-saved on each product.', (int) $count, 'wp-easycart' ), (int) $count ) ) . '</p>';
-			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products' ) ) . '">' . esc_html__( 'Review your products', 'wp-easycart' ) . '</a> | <a href="' . esc_url( $dismiss_url ) . '">' . esc_html__( 'Dismiss this notice', 'wp-easycart' ) . '</a></p>';
+			echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=products&health_filter=download_missing' ) ) . '">' . esc_html__( 'Show the products to fix', 'wp-easycart' ) . '</a> | <a href="' . esc_url( $dismiss_url ) . '">' . esc_html__( 'Dismiss this notice', 'wp-easycart' ) . '</a></p>';
 			if ( $in_shell ) {
 				echo '</div></div>';
 			} else {
@@ -5168,6 +5219,106 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 	}
 endif; // End if class_exists check
 
+
+/*
+ * 6.0.1: the "downloadable product with no file" count is cached for a day, so a product saved without a
+ * file did not raise the notice until the transient expired, while the product list tile ( which counts
+ * live ) already showed it. Any product write drops the cache so the two agree.
+ */
+foreach ( array( 'wpeasycart_product_added', 'wpeasycart_product_updated', 'wp_easycart_product_updated', 'wpeasycart_product_deleted', 'wpeasycart_product_restored' ) as $wpec_dl_hook ) {
+	add_action( $wpec_dl_hook, 'wp_easycart_admin_clear_download_recovery_cache' );
+}
+unset( $wpec_dl_hook );
+if ( ! function_exists( 'wp_easycart_admin_clear_download_recovery_cache' ) ) {
+	/** Forget the cached count of downloadable products missing a file. @since 6.0.1 */
+	function wp_easycart_admin_clear_download_recovery_cache() {
+		delete_transient( 'ec_download_recovery_count' );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_review_prompt_earned' ) ) {
+	/**
+	 * Has this store put a real order all the way through?
+	 *
+	 * Asking for a review on the day the plugin is installed asks someone who has not used it yet. The card now
+	 * waits for the first non-demo order that is approved, not refunded or cancelled, and fulfilled: shipped or
+	 * picked up, carrying a tracking number, or with nothing to ship at all ( downloads, gift cards, services ),
+	 * which the order list already treats as fulfilled on payment. Same rule as
+	 * wp_easycart_admin_order_table::unfulfilled_where(), inverted.
+	 *
+	 * The answer only ever goes from no to yes, so it is latched in an option and the query stops running.
+	 *
+	 * @since 6.0.1
+	 * @return bool
+	 */
+	function wp_easycart_admin_review_prompt_earned() {
+		if ( get_option( 'ec_option_review_order_seen' ) ) {
+			return true;
+		}
+		global $wpdb;
+		$shipped   = class_exists( 'wp_easycart_admin_order_table' ) ? wp_easycart_admin_order_table::STATUS_SHIPPED : 2;
+		$picked_up = class_exists( 'wp_easycart_admin_order_table' ) ? wp_easycart_admin_order_table::STATUS_PICKED_UP : 18;
+		$refunded  = class_exists( 'wp_easycart_admin_order_table' ) ? wp_easycart_admin_order_table::STATUS_REFUNDED : 16;
+		$cancelled = class_exists( 'wp_easycart_admin_order_table' ) ? wp_easycart_admin_order_table::STATUS_CANCELLED : 19;
+		$found     = (int) $wpdb->get_var( $wpdb->prepare(
+			'SELECT o.order_id FROM ec_order o
+			 INNER JOIN ec_orderstatus s ON s.status_id = o.orderstatus_id
+			 WHERE o.is_demo_item = 0 AND s.is_approved = 1
+			 AND o.orderstatus_id NOT IN ( %d, %d )
+			 AND (
+				o.tracking_number != \'\'
+				OR o.orderstatus_id IN ( %d, %d )
+				OR NOT EXISTS ( SELECT 1 FROM ec_orderdetail d WHERE d.order_id = o.order_id AND d.is_shippable = 1 AND d.is_download = 0 AND d.is_giftcard = 0 )
+			 )
+			 LIMIT 1',
+			$refunded,
+			$cancelled,
+			$shipped,
+			$picked_up
+		) );
+		if ( $found ) {
+			update_option( 'ec_option_review_order_seen', 1 );
+			return true;
+		}
+		return false;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_admin_print_review_prompt' ) ) {
+	/**
+	 * The "enjoying WP EasyCart?" card above the product, order and customer lists. Shown until the merchant follows
+	 * the link or dismisses it ( ec_option_review_complete, set by ec_admin_ajax_close_review_us ).
+	 *
+	 * 6.0.1: was a full-width cyan bar from v1; now a quiet V2 card that matches the rest of the admin, and it
+	 * holds off until the store has fulfilled its first real order ( wp_easycart_admin_review_prompt_earned ).
+	 * Filter 'wp_easycart_show_review_prompt' to override either way.
+	 *
+	 * @since 6.0.1
+	 */
+	function wp_easycart_admin_print_review_prompt() {
+		$show = ! get_option( 'ec_option_review_complete' ) && wp_easycart_admin_review_prompt_earned();
+		if ( ! apply_filters( 'wp_easycart_show_review_prompt', $show ) ) {
+			return;
+		}
+		$stars = '';
+		for ( $i = 0; $i < 5; $i++ ) {
+			$stars .= '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="m12 3.6 2.5 5.1 5.6.8-4 3.9 1 5.6-5.1-2.7-5 2.7 1-5.6-4.1-3.9 5.6-.8z"/></svg>';
+		}
+		?>
+		<div class="ecv2-wrap ecv2-review-prompt wp-easycart-admin-review-us-box">
+			<span class="ecv2-review-stars" aria-hidden="true"><?php echo $stars; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG built above. ?></span>
+			<span class="ecv2-review-text">
+				<b><?php esc_html_e( 'Enjoying WP EasyCart?', 'wp-easycart' ); ?></b>
+				<span><?php esc_html_e( 'A review on WordPress.org helps other stores find it, and tells us what to build next.', 'wp-easycart' ); ?></span>
+			</span>
+			<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="https://wordpress.org/support/plugin/wp-easycart/reviews/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Leave a review', 'wp-easycart' ); ?></a>
+			<button type="button" class="ecv2-review-close wp-easycart-admin-review-us-close" onclick="wp_easycart_admin_close_review( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-review-us' ) ); ?>' );" aria-label="<?php esc_attr_e( 'Dismiss', 'wp-easycart' ); ?>" title="<?php esc_attr_e( 'Dismiss', 'wp-easycart' ); ?>">
+				<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+			</button>
+		</div>
+		<?php
+	}
+}
 function wp_easycart_admin( ){
 	return wp_easycart_admin::instance( );
 }

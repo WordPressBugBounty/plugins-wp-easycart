@@ -3889,6 +3889,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Δελτίο αποστολής"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Παραγγελία"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Ημερομηνία"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Αποστολή σε"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Χρέωση σε"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Αποστολή"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Μεταφορέας"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Παρακολούθηση"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Θα ακολουθήσει σε ξεχωριστή αποστολή"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Δελτίο αποστολής για την παραγγελία"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Τιμολόγιο"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Απόδειξη"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Αριθμός παραγγελίας:"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Ημερομηνία:"
+				}
+			}
+		},
 		"language_code":{
 			"label":"Language Code",
 			"options":{

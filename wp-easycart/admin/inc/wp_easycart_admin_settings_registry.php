@@ -735,6 +735,8 @@ class wp_easycart_admin_settings_registry {
 			'display'     => 'auto',           // multiselect: auto | pills | picker | remote
 			'exclusive'   => array(),          // multiselect: values that cannot combine with others
 			'suggestions' => array(),          // text: value => label offered in a datalist
+			'media'       => false,            // url/text: adds a Media Library picker with a thumbnail ( images ). @since 6.0.1
+			'create_page' => '',               // url: 'terms'|'privacy' adds a button that writes a draft page and fills the URL. @since 6.0.1
 			'pair'        => array(),          // pairs: key / value column settings, join character, add-row label
 			'option_hints' => array(),         // multiselect picker: value => secondary text, or a callable( $field )
 			'unit'        => '',

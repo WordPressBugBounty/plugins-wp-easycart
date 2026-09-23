@@ -629,17 +629,22 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 		public function update_square() {
 			ecv2_payment_settings_guard();
 
-			update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ), array( 'square' ) ) );
-			if ( get_option( 'ec_option_square_is_sandbox' ) ) {
-				update_option( 'ec_option_square_sandbox_location_id', sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_id'] ) ) );
-
-			} else {
-				update_option( 'ec_option_square_location_id', sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_id'] ) ) );
-
+			/* 6.0.1: a field the form does not show is not posted ( ec_admin_square_fields() ); keep what is stored. */
+			if ( isset( $_POST['payment_method'] ) ) {
+				update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['payment_method'] ) ), array( 'square' ) ) );
 			}
-			update_option( 'ec_option_square_location_country', wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_country'] ) ), 2 ) );
-			update_option( 'ec_option_square_digital_wallet', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_square_digital_wallet'] ) );
-			update_option( 'ec_option_square_merchant_name', sanitize_text_field( wp_unslash( $_POST['ec_option_square_merchant_name'] ) ) );
+			if ( isset( $_POST['ec_option_square_location_id'] ) ) {
+				update_option( get_option( 'ec_option_square_is_sandbox' ) ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id', sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_id'] ) ) );
+			}
+			if ( isset( $_POST['ec_option_square_location_country'] ) ) {
+				update_option( 'ec_option_square_location_country', wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_square_location_country'] ) ), 2 ) );
+			}
+			if ( isset( $_POST['ec_option_square_digital_wallet'] ) ) {
+				update_option( 'ec_option_square_digital_wallet', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_square_digital_wallet'] ) );
+			}
+			if ( isset( $_POST['ec_option_square_merchant_name'] ) ) {
+				update_option( 'ec_option_square_merchant_name', sanitize_text_field( wp_unslash( $_POST['ec_option_square_merchant_name'] ) ) );
+			}
 
 			$square = new ec_square();
 			$square->set_currency();

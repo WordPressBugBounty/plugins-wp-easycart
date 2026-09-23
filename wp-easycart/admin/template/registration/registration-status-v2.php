@@ -59,7 +59,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Registration & activation', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="<?php echo esc_url( $ecrs_docs ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( $ecrs_docs ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 		</div>
 	</div>
 
@@ -176,6 +176,17 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			</form>
 			<?php endif; ?>
 		</div>
+	</div>
+
+	<?php /* 6.0.1: a licensed store gets a direct path to support tickets, which live in the WP EasyCart account. */ ?>
+	<div class="ecreg-support">
+		<span class="dashicons dashicons-sos ecreg-support-icon" aria-hidden="true"></span>
+		<div class="ecreg-support-text">
+			<b><?php esc_html_e( 'Need a hand with your store?', 'wp-easycart' ); ?></b>
+			<span><?php echo esc_html( $ecrs_lapsed ? __( 'Support tickets are answered while support and updates are active. Renew below to open a new ticket.', 'wp-easycart' ) : __( 'Your license includes support. Open a ticket from your WP EasyCart account and the team replies by email.', 'wp-easycart' ) ); ?></span>
+		</div>
+		<a class="ecv2-btn ecv2-btn-primary" href="<?php echo esc_url( $ecrs_account ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open a support ticket', 'wp-easycart' ); ?> <span class="dashicons dashicons-external" aria-hidden="true"></span></a>
+		<a class="ecv2-btn" href="http://docs.wpeasycart.com/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Documentation', 'wp-easycart' ); ?></a>
 	</div>
 
 	<div class="ecreg-paths ecreg-paths-3">

@@ -3885,6 +3885,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Albarán"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Pedido"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Fecha"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Enviar a"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Facturar a"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Envío"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Transportista"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Seguimiento"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Llegará en un envío separado"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Albarán del pedido"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Factura"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Recibo"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Número de pedido:"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Fecha:"
+				}
+			}
+		},
 		"language_code":{
 			"label":"Language Code",
 			"options":{

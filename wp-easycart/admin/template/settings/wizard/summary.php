@@ -53,7 +53,10 @@ $rows = array(
 	array( 'step' => $W::STEP_PAYMENTS, 'k' => __( 'Checkout', 'wp-easycart' ),
 		'v' => get_option( 'ec_option_allow_guest' ) ? __( 'Guest checkout allowed', 'wp-easycart' ) : __( 'Account required', 'wp-easycart' ) ),
 	array( 'step' => $W::STEP_SHIPPING, 'k' => __( 'Shipping', 'wp-easycart' ),
-		'v' => isset( $ship_labels[ $ship_method ] ) ? $ship_labels[ $ship_method ] : $not_set ),
+		/* 6.0.1: the stored method still names a system when shipping is switched off, so say so instead. */
+		'v' => ! get_option( 'ec_option_use_shipping' )
+			? __( 'Nothing shipped', 'wp-easycart' )
+			: ( isset( $ship_labels[ $ship_method ] ) ? $ship_labels[ $ship_method ] : $not_set ) ),
 	array( 'step' => $W::STEP_FINISH, 'k' => __( 'Policies', 'wp-easycart' ), 'ok' => ( $terms && $privacy ),
 		'v' => ( $terms ? __( 'Terms ✓', 'wp-easycart' ) : __( 'Terms —', 'wp-easycart' ) ) . ' · ' . ( $privacy ? __( 'Privacy ✓', 'wp-easycart' ) : __( 'Privacy —', 'wp-easycart' ) ) ),
 	array( 'step' => $W::STEP_FINISH, 'k' => __( 'Notifications', 'wp-easycart' ), 'ok' => '' !== $from,

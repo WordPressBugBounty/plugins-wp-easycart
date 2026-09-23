@@ -23,6 +23,11 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$this->users_list_file = EC_PLUGIN_DIRECTORY . '/admin/template/users/users/user-list.php';
 			$this->export_accounts_csv = EC_PLUGIN_DIRECTORY . '/admin/template/exporters/export-accounts-csv.php';
 
+			/* 6.0.1: deleting a customer runs through safe-delete so their orders can be reassigned or made guest. */
+			if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) {
+				include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_safe_delete.php' );
+			}
+
 			/* Process Admin Messages */
 			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'add_success_messages' ) );
 			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'add_failure_messages' ) );
@@ -482,6 +487,69 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			);
 		}
 
+		/**
+		 * The customer rows and their addresses, ready to be written back.
+		 *
+		 * Orders are untouched by a customer delete, so nothing there needs snapshotting. @since 6.0.1
+		 *
+		 * @param array $user_ids Customer ids.
+		 * @return array
+		 */
+		public static function account_snapshot( $user_ids ) {
+			global $wpdb;
+			$snapshot = array( 'users' => array(), 'addresses' => array() );
+			foreach ( (array) $user_ids as $user_id ) {
+				$user_id = (int) $user_id;
+				if ( ! $user_id ) {
+					continue;
+				}
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_user WHERE user_id = %d', $user_id ), ARRAY_A );
+				if ( ! $row ) {
+					continue;
+				}
+				$snapshot['users'][]     = $row;
+				$snapshot['addresses']   = array_merge( $snapshot['addresses'], (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_address WHERE user_id = %d', $user_id ), ARRAY_A ) );
+			}
+			return $snapshot;
+		}
+
+		/**
+		 * Filter: wp_easycart_admin_undo_restore_account. Writes the customers and their addresses back with
+		 * their original ids, so any order that names one lines up again.
+		 *
+		 * @since 6.0.1
+		 * @param mixed $result   Null until something handles it.
+		 * @param array $snapshot From account_snapshot().
+		 * @return string|WP_Error
+		 */
+		public static function restore_accounts( $result, $snapshot ) {
+			global $wpdb;
+			if ( empty( $snapshot['users'] ) ) {
+				return new WP_Error( 'empty', __( 'There is nothing to put back.', 'wp-easycart' ) );
+			}
+			$restored = 0;
+			$back     = array();
+			foreach ( $snapshot['users'] as $row ) {
+				$user_id = (int) $row['user_id'];
+				if ( ! $user_id || $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE user_id = %d', $user_id ) ) ) {
+					continue; /* already back */
+				}
+				if ( false === $wpdb->insert( 'ec_user', $row ) ) {
+					continue; /* email taken again by a new registration ( ec_user.email is unique ): leave that account alone */
+				}
+				$back[ $user_id ] = true;
+				$restored++;
+				do_action( 'wpeasycart_account_restored', $user_id );
+			}
+			foreach ( (array) $snapshot['addresses'] as $row ) {
+				if ( isset( $row['user_id'] ) && isset( $back[ (int) $row['user_id'] ] ) ) {
+					$wpdb->insert( 'ec_address', $row );
+				}
+			}
+			/* translators: %d: number of customers put back. */
+			return sprintf( _n( '%d customer restored.', '%d customers restored.', $restored, 'wp-easycart' ), $restored );
+		}
+
 		public function delete_user() {
 			if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-delete-account' ) ) {
 				return false;
@@ -493,11 +561,16 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 
 			global $wpdb;
 			$user_id = (int) $_GET['user_id'];
+			$snapshot = self::account_snapshot( array( $user_id ) ); /* 6.0.1: kept for 15 minutes so the list can offer an Undo. */
 			do_action( 'wpeasycart_account_deleting', $user_id );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_address WHERE user_id = %d', $user_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_user WHERE user_id = %d', $user_id ) );
 			do_action( 'wpeasycart_account_deleted', $user_id );
-			return array( 'success' => 'user-deleted' );
+			$result = array( 'success' => 'user-deleted' );
+			if ( $snapshot['users'] && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$result['undo'] = wp_easycart_admin_undo::store( 'account', $snapshot );
+			}
+			return $result;
 		}
 
 		public function bulk_delete_user() {
@@ -512,6 +585,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			global $wpdb;
 
 			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
+			$snapshot = self::account_snapshot( $bulk_ids ); /* 6.0.1: one Undo for the whole batch. */
 
 			foreach ( $bulk_ids as $bulk_id ) {
 				do_action( 'wpeasycart_account_deleting', (int) $bulk_id );
@@ -520,7 +594,11 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				do_action( 'wpeasycart_account_deleted', (int) $bulk_id );
 			}
 
-			return array( 'success' => 'user-deleted' );
+			$result = array( 'success' => 'user-deleted' );
+			if ( $snapshot['users'] && class_exists( 'wp_easycart_admin_undo' ) ) {
+				$result['undo'] = wp_easycart_admin_undo::store( 'account', $snapshot );
+			}
+			return $result;
 		}
 
 		public function bulk_force_password_reset() {
@@ -613,3 +691,6 @@ function wp_easycart_admin_users() {
 	return wp_easycart_admin_users::instance();
 }
 wp_easycart_admin_users();
+
+/* 6.0.1: 15-minute undo for a deleted customer ( wp_easycart_admin_undo ). */
+add_filter( 'wp_easycart_admin_undo_restore_account', array( 'wp_easycart_admin_users', 'restore_accounts' ), 10, 2 );

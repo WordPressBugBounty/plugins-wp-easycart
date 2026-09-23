@@ -150,8 +150,156 @@ if ( ! class_exists( 'ec_email' ) ) :
 			return in_array( (string) $type, array( self::TEST_TYPE, self::SIMULATE_TYPE ), true );
 		}
 
-		/** One attempt through the configured transport. wp_mail results are logged by the capture hooks. */
-		private static function deliver( $to, $subject, $message, $channel, $headers = array() ) {
+		/* ------------------------------------------------------------------ */
+		/* Attachments that survive a retry ( @since 6.0.1 )                   */
+		/* ------------------------------------------------------------------ */
+
+		/** Attachment filters a queued retry may replay to build its files again. */
+		const REBUILDABLE_FILTERS = array( 'wp_easycart_order_email_attachments', 'wp_easycart_shipping_email_attachments', 'wp_easycart_packing_slip_email_attachments' );
+
+		/** File path => how it was made ( filter and arguments ), for the files built in this request. */
+		private static $attachment_specs = array();
+
+		/** Does ec_email_queue have its attachments column yet ( EC_UPGRADE_DB 107 )? */
+		private static $queue_attachments_column = null;
+
+		/**
+		 * Apply an email's attachment filter and remember how its files were made. Attachments such as the PRO PDFs are
+		 * temporary ( deleted at the end of the request ), so a send that fails and is queued stores this recipe instead
+		 * of the files, and the retry builds them again ( rebuild_attachments() ).
+		 *
+		 * @since 6.0.1
+		 * @param string $filter    One of REBUILDABLE_FILTERS.
+		 * @param array  $files     Files so far.
+		 * @param int    $order_id  Order.
+		 * @param string $recipient customer | admin.
+		 * @param array  $context   The filter's fourth argument ( objects in it are not kept for the retry ).
+		 * @return array
+		 */
+		public static function attachments( $filter, $files, $order_id, $recipient, $context = array() ) {
+			$before = array_values( array_filter( (array) $files, 'is_string' ) );
+			$files  = (array) apply_filters( $filter, $before, (int) $order_id, $recipient, $context );
+			$spec   = array(
+				'filter'    => (string) $filter,
+				'order_id'  => (int) $order_id,
+				'recipient' => (string) $recipient,
+				'context'   => self::plain( $context ),
+			);
+			foreach ( $files as $path ) {
+				if ( is_string( $path ) && ! in_array( $path, $before, true ) ) {
+					self::$attachment_specs[ $path ] = $spec;
+				}
+			}
+			return $files;
+		}
+
+		/** Arrays and scalars only ( an ec_orderdisplay in a filter context cannot be stored ). */
+		private static function plain( $value ) {
+			if ( is_object( $value ) || is_resource( $value ) ) {
+				return null;
+			}
+			if ( ! is_array( $value ) ) {
+				return $value;
+			}
+			$out = array();
+			foreach ( $value as $key => $item ) {
+				$item = self::plain( $item );
+				if ( null !== $item ) {
+					$out[ $key ] = $item;
+				}
+			}
+			return $out;
+		}
+
+		/**
+		 * The recipe for a send's attachments: the filters that made them, and any other files as they are.
+		 *
+		 * @param mixed $files Attachment paths of one send.
+		 * @return array|null Null when the send had no attachments.
+		 */
+		private static function attachment_recipe( $files ) {
+			$files = array_values( array_filter( (array) $files, 'is_string' ) );
+			if ( ! $files ) {
+				return null;
+			}
+			$specs  = array();
+			$static = array();
+			foreach ( $files as $path ) {
+				if ( isset( self::$attachment_specs[ $path ] ) ) {
+					$specs[ md5( wp_json_encode( self::$attachment_specs[ $path ] ) ) ] = self::$attachment_specs[ $path ];
+				} else {
+					$static[] = $path;
+				}
+			}
+			return array( 'specs' => array_values( $specs ), 'files' => $static );
+		}
+
+		/**
+		 * Build a queued email's attachments again from its recipe.
+		 *
+		 * @param object $q Queue row.
+		 * @return array File paths.
+		 */
+		private static function rebuild_attachments( $q ) {
+			if ( empty( $q->attachments ) ) {
+				return array();
+			}
+			$recipe = json_decode( (string) $q->attachments, true );
+			if ( ! is_array( $recipe ) ) {
+				return array();
+			}
+			$files   = array();
+			$content = realpath( WP_CONTENT_DIR );
+			foreach ( isset( $recipe['files'] ) ? (array) $recipe['files'] : array() as $path ) {
+				$real = is_string( $path ) ? realpath( $path ) : false;
+				/* Files kept as they were must still exist, inside wp-content. */
+				if ( $real && $content && 0 === strpos( str_replace( '\\', '/', $real ), rtrim( str_replace( '\\', '/', $content ), '/' ) . '/' ) && is_readable( $real ) ) {
+					$files[] = $real;
+				}
+			}
+			foreach ( isset( $recipe['specs'] ) ? (array) $recipe['specs'] : array() as $spec ) {
+				if ( ! is_array( $spec ) || ! isset( $spec['filter'] ) || ! in_array( $spec['filter'], self::REBUILDABLE_FILTERS, true ) ) {
+					continue;
+				}
+				$spec_order   = isset( $spec['order_id'] ) ? (int) $spec['order_id'] : 0;
+				$spec_context = isset( $spec['context'] ) ? (array) $spec['context'] : array();
+				/* The receipt / invoice filter documents an 'order' ( ec_orderdisplay ) in its context: load it again. */
+				if ( 'wp_easycart_order_email_attachments' === $spec['filter'] && $spec_order > 0 && ! isset( $spec_context['order'] ) && class_exists( 'ec_db_admin' ) && class_exists( 'ec_orderdisplay' ) ) {
+					$db  = new ec_db_admin();
+					$row = $db->get_order_row_admin( $spec_order );
+					if ( $row ) {
+						$spec_context['order'] = new ec_orderdisplay( $row, true, true );
+					}
+				}
+				$built = (array) apply_filters( $spec['filter'], array(), $spec_order, isset( $spec['recipient'] ) ? (string) $spec['recipient'] : 'customer', $spec_context );
+				$files = array_merge( $files, array_filter( $built, 'is_string' ) );
+			}
+			/**
+			 * A queued email's attachments, rebuilt for a retry.
+			 *
+			 * @since 6.0.1
+			 * @param array  $files  File paths.
+			 * @param array  $recipe array( 'specs' => [], 'files' => [] ).
+			 * @param object $q      Queue row.
+			 */
+			return array_values( array_unique( (array) apply_filters( 'wp_easycart_email_queue_attachments', $files, $recipe, $q ) ) );
+		}
+
+		/** @return bool */
+		private static function queue_can_hold_attachments() {
+			if ( null === self::$queue_attachments_column ) {
+				global $wpdb;
+				self::$queue_attachments_column = (bool) $wpdb->get_var( "SHOW COLUMNS FROM ec_email_queue LIKE 'attachments'" );
+			}
+			return self::$queue_attachments_column;
+		}
+
+		/**
+		 * One attempt through the configured transport. wp_mail results are logged by the capture hooks.
+		 *
+		 * @since 6.0.1 $attachments.
+		 */
+		private static function deliver( $to, $subject, $message, $channel, $headers = array(), $attachments = array() ) {
 			$t = self::configured_transport();
 			if ( self::is_simulated_failure() ) {
 				/* The merchant asked to watch the retry queue work: fail without touching the mail server. */
@@ -166,17 +314,17 @@ if ( ! class_exists( 'ec_email' ) ) :
 			if ( 'wp_mail' === $t ) {
 				$h = array_merge( array( 'MIME-Version: 1.0', 'Content-Type: text/html; charset=utf-8', 'From: ' . $from, 'Reply-To: ' . $from, 'X-Mailer: PHP/' . phpversion() ), (array) $headers );
 				self::$wp_mail_handled = false; self::$last_wp_error = '';
-				$ok = (bool) wp_mail( $to, $subject, $message, implode( "\r\n", $h ) );
+				$ok = (bool) wp_mail( $to, $subject, $message, implode( "\r\n", $h ), (array) $attachments );
 				return array( 'ok' => $ok, 'transport' => 'wp_mail', 'error' => $ok ? '' : ( self::$last_wp_error ? self::$last_wp_error : 'wp_mail() returned false' ), 'handled' => self::$wp_mail_handled );
 			}
 			if ( 'custom' === $t ) {
-				do_action( 'wpeasycart_custom_store_email', $from, $to, '', $subject, $message );
+				do_action( 'wpeasycart_custom_store_email', $from, $to, '', $subject, $message, (array) $attachments );
 				return array( 'ok' => true, 'transport' => 'custom', 'error' => '', 'handled' => false );
 			}
 			if ( ! class_exists( 'wpeasycart_mailer' ) ) { return array( 'ok' => false, 'transport' => $t, 'error' => 'wpeasycart_mailer not loaded', 'handled' => false ); }
 			$mailer = new wpeasycart_mailer();
 			self::$suppress_mailer_record = true;
-			$err = ( 'order' === $channel ) ? $mailer->send_order_email( $to, $subject, $message ) : $mailer->send_customer_email( $to, $subject, $message );
+			$err = ( 'order' === $channel ) ? $mailer->send_order_email( $to, $subject, $message, (array) $attachments ) : $mailer->send_customer_email( $to, $subject, $message );
 			self::$suppress_mailer_record = false;
 			return array( 'ok' => false === $err, 'transport' => $t, 'error' => false === $err ? '' : (string) $err, 'handled' => false );
 		}
@@ -213,6 +361,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 			self::$pending[ self::key( $to, $subject ) ] = array(
 				'store' => $store, 'to' => $to, 'subject' => $subject, 'message' => isset( $atts['message'] ) ? $atts['message'] : '',
 				'headers' => isset( $atts['headers'] ) ? $atts['headers'] : '', 'ctx' => self::$context, 'from_queue' => self::$sending_from_queue,
+				'attachments' => self::attachment_recipe( isset( $atts['attachments'] ) ? $atts['attachments'] : array() ),
 			);
 			return $atts;
 		}
@@ -252,7 +401,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 			self::record( $ctx['type'], $ctx['order_id'], $p['to'], $p['subject'], 'wp_mail', 'failed', $msg, 1, 0, $p['message'] );
 			/* Legacy callers get retries too: re-queue from the captured arguments. */
 			if ( self::queue_enabled() && self::tables_exist() && '' !== $p['message'] ) {
-				self::enqueue( $p['to'], $p['subject'], $p['message'], array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => 'order', 'headers' => $p['headers'], 'error' => $msg, 'attempts' => 1 ) );
+				self::enqueue( $p['to'], $p['subject'], $p['message'], array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => 'order', 'headers' => $p['headers'], 'error' => $msg, 'attempts' => 1, 'attachments' => isset( $p['attachments'] ) ? $p['attachments'] : null ) );
 			}
 		}
 
@@ -289,7 +438,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 		}
 
 		/** Called by wpeasycart_mailer after each attempt ( unless ec_email::send() is the caller and records itself ). */
-		public static function record_mailer_result( $channel, $to, $subject, $message, $error ) {
+		public static function record_mailer_result( $channel, $to, $subject, $message, $error, $attachments = array() ) {
 			if ( self::$suppress_mailer_record ) { return; }
 			$t = get_option( 'order' === $channel ? 'ec_option_order_use_smtp' : 'ec_option_password_use_smtp' ) ? 'plugin_smtp' : 'plugin_mail';
 			$ctx = self::$context ? self::$context : array( 'type' => 'store', 'order_id' => 0 );
@@ -297,7 +446,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 			$ok = ( false === $error );
 			self::record( $ctx['type'], $ctx['order_id'], self::normalise_to( $to ), $subject, $t, $ok ? 'sent' : 'failed', $ok ? '' : (string) $error, 1, 0, $message );
 			if ( ! $ok && self::queue_enabled() && self::tables_exist() && ! self::$sending_from_queue ) {
-				self::enqueue( self::normalise_to( $to ), $subject, $message, array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => $channel, 'error' => (string) $error, 'attempts' => 1 ) );
+				self::enqueue( self::normalise_to( $to ), $subject, $message, array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => $channel, 'error' => (string) $error, 'attempts' => 1, 'attachments' => self::attachment_recipe( $attachments ) ) );
 			}
 		}
 
@@ -313,13 +462,18 @@ if ( ! class_exists( 'ec_email' ) ) :
 		public static function enqueue( $to, $subject, $message, $args = array() ) {
 			global $wpdb;
 			if ( ! self::tables_exist() ) { return 0; }
-			$args = wp_parse_args( $args, array( 'type' => 'store', 'order_id' => 0, 'channel' => 'order', 'headers' => array(), 'error' => '', 'attempts' => 0 ) );
+			$args = wp_parse_args( $args, array( 'type' => 'store', 'order_id' => 0, 'channel' => 'order', 'headers' => array(), 'error' => '', 'attempts' => 0, 'attachments' => null ) );
 			$attempts = (int) $args['attempts'];
-			$wpdb->insert( 'ec_email_queue', array(
+			$row = array(
 				'created_at' => current_time( 'mysql' ), 'email_type' => substr( (string) $args['type'], 0, 40 ), 'order_id' => (int) $args['order_id'], 'channel' => $args['channel'], 'to_email' => $to, 'subject' => $subject,
 				'message' => $message, 'headers' => is_array( $args['headers'] ) ? implode( "\r\n", $args['headers'] ) : (string) $args['headers'],
 				'attempts' => $attempts, 'next_attempt' => self::next_attempt( $attempts ), 'status' => 'pending', 'last_error' => (string) $args['error'],
-			) );
+			);
+			/* 6.0.1: how to build the attachments again ( attachment_recipe() ), once the column exists. */
+			if ( ! empty( $args['attachments'] ) && self::queue_can_hold_attachments() ) {
+				$row['attachments'] = wp_json_encode( $args['attachments'] );
+			}
+			$wpdb->insert( 'ec_email_queue', $row );
 			$id = (int) $wpdb->insert_id;
 			/* A pending row now exists: schedule its retry here, on this request, rather than waiting for the init path. */
 			self::queue_changed();
@@ -391,7 +545,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 			self::$sending_from_queue = true;
 			self::context( $q->email_type, (int) $q->order_id );
 			$headers = '' !== (string) $q->headers ? explode( "\r\n", (string) $q->headers ) : array();
-			$res = self::deliver( $q->to_email, $q->subject, $q->message, $q->channel, $headers );
+			$res = self::deliver( $q->to_email, $q->subject, $q->message, $q->channel, $headers, self::rebuild_attachments( $q ) );
 			self::context( null );
 			self::$sending_from_queue = false;
 			$attempts = (int) $q->attempts + 1;

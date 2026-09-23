@@ -307,8 +307,30 @@
 		}
 	}
 
+	/* 6.0.1: demo data installs from the button itself ( the old full-card preloader overlay is gone ). */
+	function initDemoData() {
+		$( document ).on( 'click', '[data-ecwz-demo]', function( e ) {
+			e.preventDefault();
+			var $btn = $( this ), label = $btn.text();
+			if ( $btn.attr( 'aria-disabled' ) === 'true' ) { return; }
+			$btn.attr( 'aria-disabled', 'true' ).text( $btn.data( 'busy' ) || label );
+			$( '#ecwz_demo_error' ).remove();
+			$.post( ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) || window.ajaxurl, {
+				action: 'ec_admin_ajax_install_demo_data',
+				wp_easycart_nonce: $( '#wp_easycart_demo_settings_nonce' ).val()
+			} ).done( function() {
+				$( '#easycart_wizard_demo_data' ).hide();
+				$( '#easycart_wizard_demo_data_done' ).show();
+			} ).fail( function() {
+				$btn.removeAttr( 'aria-disabled' ).text( label );
+				$btn.after( $( '<p class="ecwz-note ecwz-note-amber" id="ecwz_demo_error"></p>' ).text( $btn.data( 'fail' ) || '' ) );
+			} );
+		} );
+	}
+
 	$( function() {
 		if ( ! byId( 'ecwz' ) ) { return; }
+		initDemoData();
 		initLocation();
 		initPayments();
 		initShipping();

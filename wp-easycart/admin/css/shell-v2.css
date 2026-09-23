@@ -395,6 +395,14 @@
 	top:calc(var(--ecsh-adminbar) + var(--ecsh-topbar-h) + 8px + 64px);
 }
 
+/* 6.0.1: the settings section menu and the language page group headings were written for the old
+   layout ( top:46px, the WP admin bar alone ), so inside the shell they slid under the sticky topbar
+   and their first rows were hidden. Same correction as the product editor header and rail above. */
+.ecsh-main .ecst-secnav,
+.ecsh-main .ecl-group-head {
+	top:calc(var(--ecsh-adminbar) + var(--ecsh-topbar-h) + 8px);
+}
+
 /* =========================================================
    MOBILE  (<=782px, the WP breakpoint)
    ========================================================= */

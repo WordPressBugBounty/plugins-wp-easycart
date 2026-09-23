@@ -440,6 +440,24 @@ class wp_easycart_admin_upsell {
 					'large'  => self::f( 'dashicons-cloud', __( 'Large files', 'wp-easycart' ), __( 'Protected storage for big downloads.', 'wp-easycart' ) ),
 				),
 			),
+			/* 6.0.1: Settings › Documents ( more profiles per document, PDF attachments, changes at send time ). */
+			'documents' => array(
+				'title'    => __( 'Order documents', 'wp-easycart' ),
+				'headline' => __( 'Send the right paperwork with every order', 'wp-easycart' ),
+				'lede'     => __( 'Packing slips and receipts as PDF attachments, a profile for every kind of order, and changes made when you send.', 'wp-easycart' ),
+				'plan'     => 'pro',
+				/* 6.0.1: the WP EasyCart PRO release these need; an older one gets the update wording, never the plans. */
+				'min_version' => '6.0.1',
+				'icon'     => 'dashicons-media-document',
+				'features' => array(
+					'profiles'    => self::f( 'dashicons-admin-page', __( 'More profiles', 'wp-easycart' ), __( 'A gift slip without prices, a drop-ship slip with SKUs, a minimal receipt: pick the one each order needs.', 'wp-easycart' ) ),
+					'invoice'     => self::f( 'dashicons-media-text', __( 'Invoice PDF', 'wp-easycart' ), __( 'An invoice or receipt PDF with your business details on order emails, laid out the way you choose.', 'wp-easycart' ) ),
+					'attachments' => self::f( 'dashicons-paperclip', __( 'PDF attachments', 'wp-easycart' ), __( 'Attach the packing slip or receipt as a PDF to the order receipt and shipped emails.', 'wp-easycart' ) ),
+					'send'        => self::f( 'dashicons-email-alt', __( 'Change it when you send', 'wp-easycart' ), __( 'Choose documents, profiles and items for one email without touching your defaults.', 'wp-easycart' ) ),
+					'split'       => self::f( 'dashicons-share-alt2', __( 'Partial shipments', 'wp-easycart' ), __( 'A slip and shipped email for just the items in this box, with the rest listed to follow.', 'wp-easycart' ) ),
+					'branding'    => self::f( 'dashicons-format-image', __( 'A logo for each profile', 'wp-easycart' ), __( 'Give any profile its own logo and footer image, sized and placed for it, such as a plain logo on the gift slip.', 'wp-easycart' ) ),
+				),
+			),
 			'fees' => array(
 				'title'     => __( 'Flex-Fees', 'wp-easycart' ),
 				'headline'  => __( 'Charge the fees your business needs', 'wp-easycart' ),
@@ -625,7 +643,78 @@ class wp_easycart_admin_upsell {
 		$e['stat_line'] = self::stat_line( $context );
 		$e['pro_url']   = self::plan_url( 'pro', $context );
 		$e['prem_url']  = self::plan_url( 'premium', $context );
+		/* 6.0.1: only a newer WP EasyCart PRO is missing, so the popup asks for the update instead of offering the plans. */
+		$e['update_version'] = self::update_version( $context );
+		$e['update']         = ( '' !== $e['update_version'] );
+		$e['update_url']     = self_admin_url( 'plugins.php' );
+		$e['update_badge']   = __( 'Update', 'wp-easycart' );
+		$e['update_text']    = self::update_text( $e['update_version'] );
+		/* A feature can need a newer PRO than the rest of its context ( its own min_version ). */
+		foreach ( ( isset( $e['features'] ) && is_array( $e['features'] ) ) ? $e['features'] : array() as $feature_key => $feature ) {
+			if ( ! empty( $feature['min_version'] ) ) {
+				$e['features'][ $feature_key ]['update_version'] = self::update_version( $context, $feature_key );
+				$e['features'][ $feature_key ]['update_text']    = self::update_text( $e['features'][ $feature_key ]['update_version'] );
+			}
+		}
 		return $e;
+	}
+
+	/**
+	 * The popup sentence asking for a WP EasyCart PRO update.
+	 *
+	 * @since 6.0.1
+	 * @param string $version The version needed.
+	 * @return string
+	 */
+	private static function update_text( $version ) {
+		/* translators: %s: WP EasyCart PRO version number. */
+		return sprintf( __( 'This comes with the WP EasyCart PRO plugin already on this site. Update the plugin to version %s or newer to use it.', 'wp-easycart' ), $version );
+	}
+
+	/**
+	 * The WP EasyCart PRO version a context's features need when the PRO on this site is older ( the feature's own
+	 * min_version, else the catalog entry's, or the oldest PRO this release loads ), else ''. The store then lacks
+	 * nothing but an update, so its locked controls ask for the update instead of naming a plan and offering it for sale.
+	 *
+	 * @since 6.0.1
+	 * @param string $context Catalog key.
+	 * @param string $feature Optional feature key in that entry.
+	 * @return string
+	 */
+	public static function update_version( $context, $feature = '' ) {
+		if ( ! class_exists( 'wp_easycart_admin_pro_gate' ) ) {
+			return '';
+		}
+		if ( wp_easycart_admin_pro_gate::is_outdated() ) {
+			return wp_easycart_admin_pro_gate::MIN_PRO_VERSION;
+		}
+		$catalog = self::catalog();
+		$context = self::resolve_context( $context );
+		$min     = isset( $catalog[ $context ]['min_version'] ) ? (string) $catalog[ $context ]['min_version'] : '';
+		if ( '' !== $feature && ! empty( $catalog[ $context ]['features'][ $feature ]['min_version'] ) ) {
+			$min = (string) $catalog[ $context ]['features'][ $feature ]['min_version'];
+		}
+		if ( '' === $min ) {
+			return '';
+		}
+		$gate = wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => $min ) );
+		return ( isset( $gate['state'] ) && 'update' === $gate['state'] ) ? $min : '';
+	}
+
+	/**
+	 * Chip text for a locked control: Update when only a newer WP EasyCart PRO is missing, otherwise the store's plan.
+	 *
+	 * @since 6.0.1
+	 * @param string $context Catalog key.
+	 * @param string $plan    pro|premium.
+	 * @param string $feature Optional feature key in that entry.
+	 * @return string
+	 */
+	public static function badge_for( $context, $plan = 'pro', $feature = '' ) {
+		if ( '' !== self::update_version( $context, $feature ) ) {
+			return __( 'Update', 'wp-easycart' );
+		}
+		return self::plan_badge( $plan );
 	}
 
 	public static function entries_for_js() {

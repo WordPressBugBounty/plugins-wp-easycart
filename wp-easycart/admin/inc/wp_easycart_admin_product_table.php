@@ -144,7 +144,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'label' => __( 'Quick Edit', 'wp-easycart' ), 'name' => 'quick-edit', 'icon' => 'welcome-write-blog', 'href' => '#', 'onclick' => 'wp_easycart_open_quick_edit( \'product\', \'{id}\' ); return false;' ),
 				array( 'label' => __( 'View on Site', 'wp-easycart' ), 'name' => 'view-on-site', 'icon' => 'visibility', 'href' => '#', 'target' => '_blank' ),
 				array( 'label' => __( 'Duplicate', 'wp-easycart' ), 'name' => 'duplicate', 'icon' => 'admin-page', 'action' => 'duplicate-product' ),
-				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-product', 'danger' => true, 'confirm' => true ),
+				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-product', 'danger' => true, 'confirm' => true, 'confirm_text' => __( 'The product, its store page, options, pricing and reviews are removed. Past orders keep what they recorded. You can put it back for 15 minutes afterwards.', 'wp-easycart' ) ),
 			) );
 
 			$this->set_bulk_edit_fields( array(
@@ -263,6 +263,11 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'label' => __( '$0 price', 'wp-easycart' ), 'value' => $this->health_data['zero_price'], 'filter_value' => 'zero_price', 'color' => 'amber', 'group' => 'attention' ),
 				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber', 'group' => 'attention' ),
 			);
+			/* 6.0.1: only shown while some downloadable product is missing its file. */
+			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' )" );
+			if ( $download_missing > 0 ) {
+				$health_stats[] = array( 'label' => __( 'Missing download file', 'wp-easycart' ), 'value' => $download_missing, 'filter_value' => 'download_missing', 'color' => 'red', 'group' => 'attention' );
+			}
 			if ( $this->health_data['square_synced'] > 0 ) {
 				array_splice( $health_stats, 4, 0, array(
 					array( 'label' => __( 'Square synced', 'wp-easycart' ), 'value' => $this->health_data['square_synced'], 'filter_value' => 'square_synced', 'color' => 'blue', 'group' => 'catalog' ),
@@ -433,6 +438,9 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					return $where;
 				case 'on_sale':
 					return 'ec_product.list_price > 0 AND ec_product.list_price > ec_product.price';
+				/* 6.0.1: downloadable products whose file name was lost ( the recovery notice links here ). */
+				case 'download_missing':
+					return "ec_product.is_download = 1 AND ( ec_product.download_file_name IS NULL OR ec_product.download_file_name = '' )";
 				case 'square_synced':
 					return "ec_product.square_id IS NOT NULL AND ec_product.square_id != ''";
 				default:

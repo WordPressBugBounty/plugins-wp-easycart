@@ -198,6 +198,8 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=design', __( 'Design', 'wp-easycart' ), 'design' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=language-editor', __( 'Language', 'wp-easycart' ), 'language-editor' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=email-setup', __( 'Email', 'wp-easycart' ), 'email-setup' === $ecsh_subpage );
+		/* 6.0.1: receipts, shipped emails and packing slips ( admin/template/settings/documents.php ). */
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=documents', __( 'Documents', 'wp-easycart' ), 'documents' === $ecsh_subpage );
 		/* Countries and regions ( states / provinces ) are one screen; subpage=states is kept as an alias for old bookmarks. */
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=country', __( 'Countries & Regions', 'wp-easycart' ), 'country' === $ecsh_subpage || 'states' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-settings&subpage=perpage', __( 'Per Page Options', 'wp-easycart' ), 'perpage' === $ecsh_subpage );

@@ -310,8 +310,22 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only list filter; the value only selects which rows are shown.
 			return isset( $_GET[ $key ] ) ? sanitize_text_field( wp_unslash( $_GET[ $key ] ) ) : '';
 		}
+		/**
+		 * @since 6.0.1 Anything that deletes goes to the end of the menu, whatever order a list declares its actions
+		 * in, so the destructive choice is never next to an everyday one.
+		 */
 		public function set_bulk_actions( $bulk_actions ) {
-			$this->bulk_actions = $bulk_actions;
+			$keep   = array();
+			$delete = array();
+			foreach ( (array) $bulk_actions as $action ) {
+				$name = isset( $action['name'] ) ? (string) $action['name'] : '';
+				if ( '' !== $name && false !== strpos( $name, 'delete' ) ) {
+					$delete[] = $action;
+				} else {
+					$keep[] = $action;
+				}
+			}
+			$this->bulk_actions = array_merge( $keep, $delete );
 		}
 		public function set_bulk_action_hidden_variables( $bulk_variables ) {
 			$this->bulk_variables = $bulk_variables;
@@ -1144,7 +1158,13 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 					echo '<a href="' . esc_url( $href ) . '" class="ecv2-action-icon" title="' . esc_attr( $label ) . '"';
 					if ( 'Delete' == $label ) {
-						echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure you want to delete this item?', 'wp-easycart' ) . '\');"';
+						/* 6.0.1: the V2 dialog, not the browser box ( catalog-v2.js picks this up ). */
+						/* translators: %s: what one row is, e.g. order. */
+						/* translators: %s: what one row is, e.g. order. */
+						echo ' data-ecv2-confirm="' . esc_attr( sprintf( __( 'Delete this %s?', 'wp-easycart' ), $this->item_label ) ) . '"';
+						/* translators: %s: what one row is, e.g. order. */
+						echo ' data-ecv2-confirm-text="' . esc_attr( sprintf( __( 'This %s is removed from your store. This cannot be undone.', 'wp-easycart' ), $this->item_label ) ) . '"';
+						echo ' data-ecv2-confirm-ok="' . esc_attr__( 'Delete', 'wp-easycart' ) . '"';
 					}
 					echo '><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span></a>';
 				}
@@ -1200,8 +1220,18 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			if ( isset( $action['onclick'] ) ) {
 				echo ' onclick="' . esc_attr( str_replace( '{id}', $result->{ $this->key }, $action['onclick'] ) ) . '"';
 			}
-			if ( isset( $action['confirm'] ) && $action['confirm'] ) {
-				echo ' onclick="return confirm(\'' . esc_attr__( 'Are you sure?', 'wp-easycart' ) . '\');"';
+			if ( isset( $action['confirm'] ) && $action['confirm'] && ! isset( $action['onclick'] ) ) {
+				/* 6.0.1: the V2 dialog, not the browser box ( catalog-v2.js picks this up ). A row action that already
+				   has its own onclick handles its own asking. */
+				/* translators: %s: what one row is, e.g. order. */
+				$confirm_q = isset( $action['confirm_title'] ) ? $action['confirm_title'] : sprintf( __( 'Delete this %s?', 'wp-easycart' ), $this->item_label );
+				echo ' data-ecv2-confirm="' . esc_attr( $confirm_q ) . '"';
+				/* 6.0.1: without this the dialog opened on an empty body, where the bulk action version explains
+				   itself. A list that has nothing more specific to say still gets the plain warning. */
+				/* translators: %s: what one row is, e.g. order. */
+				$confirm_body = ! empty( $action['confirm_text'] ) ? $action['confirm_text'] : sprintf( __( 'This %s is removed from your store. This cannot be undone.', 'wp-easycart' ), $this->item_label );
+				echo ' data-ecv2-confirm-text="' . esc_attr( $confirm_body ) . '"';
+				echo ' data-ecv2-confirm-ok="' . esc_attr( $action['label'] ) . '"';
 			}
 			if ( isset( $action['target'] ) && '' !== $action['target'] ) {
 				$allowed_targets = array( '_blank', '_self', '_parent', '_top' );
@@ -1427,7 +1457,7 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '<h2 id="ecv2-confirm-title">' . esc_html__( 'Confirm', 'wp-easycart' ) . '</h2>';
 			echo '<button type="button" class="ecv2-modal-close" onclick="ecv2_confirm_cancel();">&times;</button>';
 			echo '</div>';
-			echo '<div class="ecv2-modal-body">';
+			echo '<div class="ecv2-modal-body" id="ecv2-confirm-body">';
 			echo '<p id="ecv2-confirm-message"></p>';
 			echo '</div>';
 			echo '<div class="ecv2-modal-footer">';
@@ -1438,6 +1468,53 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '</div>';
 			echo '</div>'; // .ecv2-modal
 			echo '</div>'; // .ecv2-modal-overlay
+
+			/*
+			 * 6.0.1: every row action carrying data-ecv2-confirm asks here rather than in the browser's box.
+			 * It lives beside the dialog it drives, not in one list's script, because each list page loads a
+			 * different one ( catalog-v2.js, orders-v2.js, products-v2.js, users-v2.js ) and they disagree on
+			 * whether ecv2_show_confirm() returns a promise or takes a callback, so both shapes are handled.
+			 */
+			?>
+			<script>
+			jQuery( function( $ ) {
+				$( document ).on( 'click', '[data-ecv2-confirm]', function( e ) {
+					var $link = $( this );
+					if ( $link.data( 'ecv2ConfirmGo' ) ) { $link.removeData( 'ecv2ConfirmGo' ); return; }
+					if ( e.metaKey || e.ctrlKey || e.shiftKey || 1 === e.button ) { return; }
+					e.preventDefault();
+					if ( window.ecv2_close_row_menus ) { ecv2_close_row_menus(); }
+					else { $( '.ecv2-row-menu' ).removeClass( 'ecv2-row-menu-open ecv2-menu-fixed' ).css( { top: '', right: '', left: '' } ); }
+
+					var href = $link.attr( 'href' ) || '';
+					var $ok = $( '#ecv2-confirm-ok' ), was = $ok.text(), label = $link.attr( 'data-ecv2-confirm-ok' );
+					var danger = $link.hasClass( 'ecv2-row-menu-item-danger' ) || $link.hasClass( 'ecv2-action-icon' );
+					if ( label ) { $ok.text( label ); }
+					$ok.toggleClass( 'ecv2-btn-danger', !! danger );
+
+					var settled = false;
+					function done( go ) {
+						if ( settled ) { return; }
+						settled = true;
+						$( '#ecv2-confirm-dialog' ).off( 'click.ecv2confirm' );
+						$ok.text( was ).removeClass( 'ecv2-btn-danger' );
+						if ( ! go ) { return; }
+						if ( href && '#' !== href ) { window.location.href = href; return; }
+						$link.data( 'ecv2ConfirmGo', true ).trigger( 'click' );
+					}
+
+					var title = String( $link.attr( 'data-ecv2-confirm' ) || '' );
+					var text  = String( $link.attr( 'data-ecv2-confirm-text' ) || '' );
+					$( '#ecv2-confirm-body' ).toggle( '' !== text );
+					if ( ! window.ecv2_show_confirm ) { done( window.confirm( title ) ); return; }
+					/* Cancel and close only resolve the promise shape, so catch them for the callback shape too. */
+					$( '#ecv2-confirm-dialog' ).one( 'click.ecv2confirm', '.ecv2-modal-close, .ecv2-btn-ghost', function() { done( false ); } );
+					var asked = window.ecv2_show_confirm( title, text, function() { done( true ); } );
+					if ( asked && 'function' === typeof asked.then ) { asked.then( done ); }
+				} );
+			} );
+			</script>
+			<?php
 		}
 
 		protected function print_bulk_edit_field( $field ) {
@@ -1673,8 +1750,8 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 						// Ignore pagenum when resorting.
 					} else if ( 'subpage' == $alt_param && 'subpage' == $query_param[0] ) {
 						// Skip.
-					} else if ( 'success' == $query_param[0] ) {
-						// Skip.
+					} else if ( 'success' == $query_param[0] || 'undo' == $query_param[0] || 'trash' == $query_param[0] || 'restored' == $query_param[0] ) {
+						// Skip: one-shot notices. 6.0.1 adds the undo keys ( trash = a safe-delete Undo ) so sorting or paging does not re-offer a spent Undo.
 					} else if ( isset( $query_param[0] ) && isset( $query_param[1] ) && $query_param[0] != $param && ( ! $alt_param || $query_param[0] != $alt_param ) ) {
 						$url .= '&' . $query_param[0] . '=' . $query_param[1];
 					}

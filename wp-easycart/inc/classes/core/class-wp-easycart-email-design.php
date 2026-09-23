@@ -103,10 +103,48 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				'store_name' => $store_name,
 				'store_url'  => $store_url,
 				'logo_url'   => isset( $args['logo_url'] ) ? (string) $args['logo_url'] : (string) get_option( 'ec_option_email_logo' ),
+				/* 6.0.1: the header image is sized and placed by the merchant. Width is a share of the email body,
+				   height is a ceiling in pixels ( 0 = no ceiling ), and the default stays the old 80px / centered. */
+				/* A document can size and place its own logo ( Settings › Documents, wp_easycart_documents::open_args() ). */
+				'logo_align' => ( isset( $args['logo_align'] ) && in_array( $args['logo_align'], array( 'left', 'center', 'right' ), true ) ) ? $args['logo_align'] : self::logo_align(),
+				'logo_max_w' => isset( $args['logo_max_w'] ) ? max( 5, min( 100, (int) $args['logo_max_w'] ) ) : self::logo_number( 'ec_option_email_logo_max_width', 40, 5, 100 ),
+				'logo_max_h' => isset( $args['logo_max_h'] ) ? max( 0, min( 600, (int) $args['logo_max_h'] ) ) : self::logo_number( 'ec_option_email_logo_max_height', 80, 0, 600 ),
 			);
 			return (array) apply_filters( 'wp_easycart_email_design_context', $ctx, $args );
 		}
 
+		/**
+		 * Where the header image sits: left, center ( the default ) or right.
+		 *
+		 * @since 6.0.1
+		 * @return string
+		 */
+		public static function logo_align() {
+			$align = (string) get_option( 'ec_option_email_logo_align' );
+			return in_array( $align, array( 'left', 'center', 'right' ), true ) ? $align : 'center';
+		}
+
+		/**
+		 * One of the header image's size settings, kept inside sane bounds.
+		 *
+		 * @since 6.0.1
+		 * @param string $option  Option name.
+		 * @param int    $default Value when the option was never set.
+		 * @param int    $min     Lowest allowed.
+		 * @param int    $max     Highest allowed.
+		 * @return int
+		 */
+		public static function logo_number( $option, $default, $min, $max ) {
+			$value = get_option( $option );
+			if ( '' === $value || null === $value || false === $value ) {
+				return (int) $default;
+			}
+			$value = (int) $value;
+			if ( $value < $min ) {
+				return (int) $min;
+			}
+			return ( $value > $max ) ? (int) $max : $value;
+		}
 		/**
 		 * Current context ( the one open() set, else defaults ).
 		 *
@@ -177,7 +215,8 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * Doctype, head, body, preheader, 600px container, accent bar and header.
 		 *
 		 * @param array $args title, preheader, lang, accent, rtl, logo_url, store_url, store_name,
-		 *                    header ( bool, default true ), header_align ( start | center ), eyebrow ( small label above the content ).
+		 *                    header ( bool, default true ), header_align ( start | center ), eyebrow ( small label above the content ),
+		 *                    @since 6.0.1 top_html ( escaped HTML above the accent bar: the Invoice PDF's business details and heading ).
 		 * @return string
 		 */
 		public static function get_open( $args = array() ) {
@@ -188,7 +227,8 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			$lang      = isset( $args['lang'] ) ? (string) $args['lang'] : get_bloginfo( 'language' );
 			$title     = isset( $args['title'] ) ? wp_strip_all_tags( (string) $args['title'] ) : $c['store_name'];
 			$preheader = isset( $args['preheader'] ) ? trim( wp_strip_all_tags( (string) $args['preheader'] ) ) : '';
-			$align     = ( isset( $args['header_align'] ) && 'center' === $args['header_align'] ) ? 'center' : $c['start'];
+			/* 6.0.1: the header image's own alignment setting, unless the caller asked for one. */
+			$align     = isset( $args['header_align'] ) ? ( 'center' === $args['header_align'] ? 'center' : $c['start'] ) : ( 'left' === $c['logo_align'] ? $c['start'] : ( 'right' === $c['logo_align'] ? $c['end'] : 'center' ) );
 
 			$h  = '<!DOCTYPE html>' . "\n";
 			$h .= '<html lang="' . esc_attr( $lang ) . '" dir="' . ( $c['rtl'] ? 'rtl' : 'ltr' ) . '" xmlns="http://www.w3.org/1999/xhtml">' . "\n";
@@ -216,7 +256,8 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				. ( isset( $args['extra_css'] ) ? (string) $args['extra_css'] : '' )
 				. '</style>' . "\n";
 			$h .= '</head>' . "\n";
-			$h .= '<body id="ec-email-body" style="margin:0;padding:0;background-color:#f3f4f6;">' . "\n";
+			/* Flat ( PDF ) pages are white: a PDF renderer paints the body colour down to the foot of the page. */
+			$h .= '<body id="ec-email-body" style="margin:0;padding:0;background-color:' . ( self::$flat ? '#ffffff' : '#f3f4f6' ) . ';">' . "\n";
 			if ( '' !== $preheader ) {
 				$h .= '<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">' . esc_html( $preheader ) . '</div>' . "\n";
 			}
@@ -225,6 +266,9 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			 * <body>: PDF renderers ( dompdf, PRO PDF receipt ) cannot split a nested table across pages, so a long
 			 * receipt would otherwise start on a blank page and be cut off.
 			 */
+			if ( ! empty( $args['top_html'] ) ) {
+				$h .= (string) $args['top_html'] . "\n";
+			}
 			if ( ! self::$flat ) {
 				$h .= '<table role="presentation" class="ec-email-bg" width="100%" border="0" cellpadding="0" cellspacing="0" bgcolor="#f3f4f6" style="background-color:#f3f4f6;"><tr><td class="ec-email-shell" align="center" style="padding:24px 12px;">' . "\n";
 				$h .= '<table role="presentation" class="ec-email-container" width="600" border="0" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:10px;border-collapse:separate;">' . "\n";
@@ -235,7 +279,11 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			if ( ! isset( $args['header'] ) || $args['header'] ) {
 				$h .= '<tr><td class="ec-email-pad" align="' . esc_attr( $align ) . '" style="padding:24px 32px 8px 32px;">';
 				if ( '' !== $c['logo_url'] ) {
-					$h .= '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="text-decoration:none;"><img src="' . esc_url( $c['logo_url'] ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="display:' . ( 'center' === $align ? 'inline-block' : 'block' ) . ';max-height:80px;max-width:240px;width:auto;height:auto;" /></a>';
+					$logo_style = 'display:' . ( 'center' === $align ? 'inline-block' : 'block' ) . ';max-width:' . (int) $c['logo_max_w'] . '%;width:auto;height:auto;';
+					if ( (int) $c['logo_max_h'] > 0 ) {
+						$logo_style .= 'max-height:' . (int) $c['logo_max_h'] . 'px;';
+					}
+					$h .= '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="text-decoration:none;"><img src="' . esc_url( $c['logo_url'] ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="' . esc_attr( $logo_style ) . '" /></a>';
 				} else {
 					$h .= '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="font-family:' . esc_attr( $c['font'] ) . ';font-size:20px;font-weight:700;color:#111827;text-decoration:none;">' . esc_html( $c['store_name'] ) . '</a>';
 				}
@@ -251,7 +299,10 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * Signature ( optional ), footer with the store link, closing tags.
 		 *
 		 * @param array $args footer_html ( e.g. an unsubscribe link ), after_html ( e.g. an open-tracking pixel ),
-		 *                    signature ( bool, default true: ec_option_email_signature_text / _image ).
+		 *                    signature ( bool, default true: ec_option_email_signature_text / _image ),
+		 *                    @since 6.0.1 signature_text ( bool, default true ), signature_image ( URL, '' for none, default the
+		 *                    store's ), signature_image_w ( % ), signature_image_h ( px ) — see get_signature(); store_address ( text
+ *                    printed under the store name in the footer ).
 		 * @return string
 		 */
 		public static function get_close( $args = array() ) {
@@ -259,9 +310,13 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			$c    = self::ctx();
 			$h    = '';
 			if ( ! isset( $args['signature'] ) || $args['signature'] ) {
-				$h .= self::get_signature();
+				$h .= self::get_signature( $args );
 			}
 			$footer = '<a href="' . esc_url( $c['store_url'] ) . '" target="_blank" style="color:#6b7280;text-decoration:none;">' . esc_html( $c['store_name'] ) . '</a>';
+			/* 6.0.1: the store address, for documents whose profile shows it ( wp_easycart_documents::close_args() ). */
+			if ( ! empty( $args['store_address'] ) && is_string( $args['store_address'] ) ) {
+				$footer .= '<br /><span class="ec-email-nolink">' . nl2br( esc_html( trim( $args['store_address'] ) ) ) . '</span>';
+			}
 			if ( ! empty( $args['footer_html'] ) ) {
 				$footer .= '<br />' . $args['footer_html'];
 			}
@@ -280,21 +335,29 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		/**
 		 * Signature text / image from Settings › Email ( '' when neither is set ).
 		 *
+		 * @since 6.0.1 $args: signature_text ( bool ), signature_image ( URL, '' for none; the store's when not given ),
+		 *              signature_image_w ( % of the email ), signature_image_h ( px ceiling, 0 = none ). The store's image
+		 *              size comes from ec_option_email_signature_image_max_width / _max_height ( 100 % / none ).
+		 * @param array $args Overrides ( Settings › Documents, wp_easycart_documents::close_args() ).
 		 * @return string
 		 */
-		public static function get_signature() {
-			$text  = (string) get_option( 'ec_option_email_signature_text' );
-			$image = (string) get_option( 'ec_option_email_signature_image' );
+		public static function get_signature( $args = array() ) {
+			$args  = is_array( $args ) ? $args : array();
+			$text  = ( ! isset( $args['signature_text'] ) || $args['signature_text'] ) ? (string) get_option( 'ec_option_email_signature_text' ) : '';
+			$image = isset( $args['signature_image'] ) ? (string) $args['signature_image'] : (string) get_option( 'ec_option_email_signature_image' );
 			if ( '' === $text && '' === $image ) {
 				return '';
 			}
-			$c = self::ctx();
-			$h = '<tr><td class="ec-email-pad" align="' . esc_attr( $c['start'] ) . '" style="padding:12px 32px 0 32px;' . esc_attr( self::css( 'text' ) ) . '">';
+			$width  = isset( $args['signature_image_w'] ) ? max( 5, min( 100, (int) $args['signature_image_w'] ) ) : self::logo_number( 'ec_option_email_signature_image_max_width', 100, 5, 100 );
+			$height = isset( $args['signature_image_h'] ) ? max( 0, min( 600, (int) $args['signature_image_h'] ) ) : self::logo_number( 'ec_option_email_signature_image_max_height', 0, 0, 600 );
+			$c      = self::ctx();
+			$h      = '<tr><td class="ec-email-pad" align="' . esc_attr( $c['start'] ) . '" style="padding:12px 32px 0 32px;' . esc_attr( self::css( 'text' ) ) . '">';
 			if ( '' !== $text ) {
 				$h .= '<div style="margin:0 0 10px 0;">' . nl2br( esc_html( $text ) ) . '</div>';
 			}
 			if ( '' !== $image ) {
-				$h .= '<img src="' . esc_url( $image ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="display:block;max-width:100%;height:auto;" />';
+				$style = 'display:block;max-width:' . (int) $width . '%;width:auto;height:auto;' . ( $height > 0 ? 'max-height:' . (int) $height . 'px;' : '' );
+				$h    .= '<img src="' . esc_url( $image ) . '" alt="' . esc_attr( $c['store_name'] ) . '" style="' . esc_attr( $style ) . '" />';
 			}
 			return $h . '</td></tr>' . "\n";
 		}

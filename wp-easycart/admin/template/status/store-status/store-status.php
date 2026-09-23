@@ -36,6 +36,21 @@ ob_start();
 		</div>
 			<?php
 		}
+		/*
+		 * 6.0.1: a change the merchant chose to move past. It is not an error — the store works — but it is
+		 * still outstanding, so it is said plainly here with a way to try it again once the host has been
+		 * spoken to or the statement run by hand.
+		 */
+		$ecds_skipped = ( class_exists( 'ec_db_manager' ) && method_exists( 'ec_db_manager', 'get_skipped_steps' ) ) ? ec_db_manager::get_skipped_steps() : array();
+		if ( ! empty( $ecds_skipped ) ) {
+			$ecds_retry_url = wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status&ec_admin_form_action=retry-database-steps' ), 'wp-easycart-action-retry-database-steps', 'wp_easycart_nonce' );
+			?>
+		<div class="ec_status_subs">
+			<div class="ec_status_subtitles"><div class="dashicons-before dashicons-info"></div><?php echo esc_html( sprintf( /* translators: %d: number of database changes skipped. */ _n( '%d database change was skipped', '%d database changes were skipped', count( $ecds_skipped ), 'wp-easycart' ), count( $ecds_skipped ) ) ); ?></div>
+			<span class="ec_status_label"><?php esc_html_e( 'You chose to continue without these, so the rest of the update finished. Your store works, but the structure checks below may keep reporting them.', 'wp-easycart' ); ?> <a href="<?php echo esc_url( $ecds_retry_url ); ?>"><?php esc_html_e( 'Try them again', 'wp-easycart' ); ?></a></span>
+		</div>
+			<?php
+		}
 		$ecds_recheck_url = method_exists( $status, 'recheck_url' ) ? $status->recheck_url() : '';
 		?>
 		<?php if( $errors = $status->database_check( ) ){ ?>
@@ -440,9 +455,14 @@ ob_start();
 		////////////////////////////
 		// No Shipping Check
 		////////////////////////////
-		if( $status->ec_using_method_shipping( ) == false && $status->ec_using_live_shipping( ) == false && $status->ec_using_price_shipping( ) == false && $status->ec_using_weight_shipping( ) == false && $status->ec_using_quantity_shipping( ) == false && $status->ec_using_percentage_shipping( ) == false && $status->ec_using_fraktjakt_shipping( ) == false){ ?>
+		if( $status->ec_using_method_shipping( ) == false && $status->ec_using_live_shipping( ) == false && $status->ec_using_price_shipping( ) == false && $status->ec_using_weight_shipping( ) == false && $status->ec_using_quantity_shipping( ) == false && $status->ec_using_percentage_shipping( ) == false && $status->ec_using_fraktjakt_shipping( ) == false){
+			/* 6.0.1: a store that told us it ships nothing has settled this; it is not an error. */
+			if ( wp_easycart_admin_store_status::acknowledged( 'shipping' ) ) { ?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'Nothing is shipped from this store, as you told us on the Store status page.', 'wp-easycart' ); ?></span></div>
+		<?php } else { ?>
 		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'No shipping methods have been setup at this time.', 'wp-easycart' ); ?></span></div>
 		<?php }
+		}
 
 
 
@@ -504,7 +524,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_ups_shipping( ) && $status->ec_ups_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup UPS live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_ups_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'UPS live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'ups' ); ?>
 		<?php }
 
 		////////////////////////////
@@ -513,7 +533,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_usps_shipping( ) && $status->ec_usps_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup USPS live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_usps_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'USPS live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'usps' ); ?>
 		<?php }
 
 		////////////////////////////
@@ -522,7 +542,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_fedex_shipping( ) && $status->ec_fedex_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup FedEx live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_fedex_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'FedEx live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'fedex' ); ?>
 		<?php }
 
 		////////////////////////////
@@ -531,7 +551,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) && $status->ec_dhl_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup DHL live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'DHL live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'dhl' ); ?>
 		<?php }
 
 		////////////////////////////
@@ -540,7 +560,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_auspost_shipping( ) && $status->ec_auspost_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup Australia Post live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_auspost_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'Australia Post live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'auspost' ); ?>
 		<?php } 
 
 		////////////////////////////
@@ -549,7 +569,7 @@ ob_start();
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_canadapost_shipping( ) && $status->ec_canadapost_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup Canada Post live shipping.', 'wp-easycart' ); ?></span></div>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_canadapost_shipping( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'Canada Post live shipping setup incorrectly.', 'wp-easycart' ); ?></span></div>
+		<?php wp_easycart_admin_store_status::print_carrier_fix( 'canadapost' ); ?>
 		<?php } 
 
 		////////////////////////////
@@ -731,7 +751,7 @@ $ecds_ok   = ( 0 === $ecds_fail );
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Diagnostics', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="<?php echo esc_url_raw( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'store-status', 'settings' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url_raw( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'store-status', 'settings' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 			<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecds_toggle_passed" onclick="ecds_toggle_passed();"><?php esc_html_e( 'Show passed checks', 'wp-easycart' ); ?></button>
 		</div>
 	</div>
@@ -796,6 +816,26 @@ jQuery( function() {
 		var fails = $card.find( '.ec_status_error' ).length, warns = $card.find( '.dashicons-warning' ).length;
 		$card.toggleClass( 'is-bad', fails > 0 ).toggleClass( 'is-warn', fails === 0 && warns > 0 );
 		$h.append( '<span class="ecds-card-badge">' + ( fails ? fails + ' ' + <?php echo wp_json_encode( __( 'to fix', 'wp-easycart' ) ); ?> : ( warns ? warns + ' ' + <?php echo wp_json_encode( __( 'warnings', 'wp-easycart' ) ); ?> : <?php echo wp_json_encode( __( 'OK', 'wp-easycart' ) ); ?> ) ) + '</span>' );
+	} );
+} );
+</script>
+
+<?php /* 6.0.1: "Remove N rates" on a live shipping check. One handler for every carrier row. */ ?>
+<script>
+jQuery( function( $ ) {
+	$( document ).on( 'click', '.ecss-carrier-clear', function() {
+		var $btn = $( this ), label = $btn.text();
+		if ( ! window.confirm( $btn.data( 'confirm' ) ) ) { return; }
+		$btn.prop( 'disabled', true );
+		$.post( ( window.ajaxurl || ( window.wpeasycart_admin_ajax_object && wpeasycart_admin_ajax_object.ajax_url ) ), {
+			action: 'ecv2_status_clear_carrier_rates',
+			carrier: $btn.data( 'carrier' ),
+			nonce: $btn.data( 'nonce' )
+		} ).done( function( r ) {
+			if ( r && r.success ) { window.location.reload(); return; }
+			$btn.prop( 'disabled', false ).text( label );
+			window.alert( ( r && r.data && r.data.message ) ? r.data.message : label );
+		} ).fail( function() { $btn.prop( 'disabled', false ).text( label ); } );
 	} );
 } );
 </script>

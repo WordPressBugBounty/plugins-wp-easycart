@@ -2323,6 +2323,90 @@ class ec_product {
 		return $return_image;
 	}
 
+	/**
+	 * With images per option item: which image set the details page shows before the shopper picks anything
+	 * ( ec_optionitemimage.optionitem_id; 0 is the product's default images ).
+	 *
+	 * 1. The option item the page opens with selected ( selected by default, or named in the URL ), when it can be
+	 *    bought and has images of its own: ec-option-defaults.js selects it on load, so drawing its images here
+	 *    avoids a flash from the default images to its own.
+	 * 2. The default images.
+	 * 3. The first option item that can be bought and has images, else the first with images, in stock or not.
+	 *
+	 * @since 6.0.1
+	 * @return int|false Image set, or false when the product has no image sets ( the caller falls back to image1 ).
+	 */
+	public function get_details_initial_imageset_id() {
+		if ( ! $this->use_optionitem_images || ! isset( $this->images->imageset ) || ! is_array( $this->images->imageset ) ) {
+			return false;
+		}
+		$with_images = array();
+		foreach ( $this->images->imageset as $set ) {
+			if ( ( is_array( $set->product_images ) && count( $set->product_images ) > 0 ) || '' !== trim( (string) $set->image1 ) ) {
+				$with_images[ (int) $set->optionitem_id ] = true;
+			}
+		}
+		if ( ! $with_images ) {
+			return false;
+		}
+
+		$items = array();
+		if ( $this->use_advanced_optionset ) {
+			if ( is_array( $this->advanced_optionsets ) ) {
+				foreach ( $this->advanced_optionsets as $adv_optionset ) {
+					if ( in_array( $adv_optionset->option_type, array( 'combo', 'swatch', 'radio' ), true ) ) {
+						foreach ( (array) $this->get_advanced_optionitems( $adv_optionset->option_id ) as $optionitem ) {
+							$items[] = array( 'id' => (int) $optionitem->optionitem_id, 'available' => true, 'preselected' => false );
+						}
+						break;
+					}
+				}
+			}
+		} else if ( isset( $this->options->optionset1->optionset ) && is_array( $this->options->optionset1->optionset ) ) {
+			$optionset = $this->options->optionset1;
+			$url_var   = ( isset( $optionset->option_meta['url_var'] ) ) ? (string) $optionset->option_meta['url_var'] : '';
+			foreach ( $optionset->optionset as $optionitem ) {
+				$id = (int) $optionitem->optionitem_id;
+				if ( ! $this->options->verify_optionitem( 1, $id ) ) {
+					continue; /* no enabled variant: the page does not offer it */
+				}
+				$quantity  = ( is_array( $this->option1quantity ) && isset( $this->option1quantity[ $id ] ) ) ? $this->option1quantity[ $id ] : 0;
+				$available = ( $this->allow_backorders || ! $this->use_optionitem_quantity_tracking || $quantity > 0 );
+				/* The same test the swatches and dropdown use to mark an item selected ( ec_product_details_page.php ). */
+				// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only: which option item a shared product link opens with.
+				$preselected = ! empty( $optionitem->optionitem_initially_selected )
+					|| ( '' !== $url_var && isset( $_GET[ $url_var ] ) && strtolower( sanitize_text_field( wp_unslash( $_GET[ $url_var ] ) ) ) == strtolower( $optionitem->optionitem_name ) )
+					|| ( isset( $_GET[ 'o' . $optionitem->option_id ] ) && sanitize_text_field( wp_unslash( $_GET[ 'o' . $optionitem->option_id ] ) ) == $optionitem->optionitem_name );
+				// phpcs:enable WordPress.Security.NonceVerification.Recommended
+				$items[] = array( 'id' => $id, 'available' => $available, 'preselected' => $preselected );
+			}
+			/* ec-option-defaults.js applies only the first item marked selected, and only when it can be bought. */
+			foreach ( $items as $item ) {
+				if ( $item['preselected'] ) {
+					if ( $item['available'] && isset( $with_images[ $item['id'] ] ) ) {
+						return $item['id'];
+					}
+					break;
+				}
+			}
+		}
+
+		if ( isset( $with_images[0] ) ) {
+			return 0;
+		}
+		foreach ( $items as $item ) {
+			if ( $item['available'] && isset( $with_images[ $item['id'] ] ) ) {
+				return $item['id'];
+			}
+		}
+		foreach ( $items as $item ) {
+			if ( isset( $with_images[ $item['id'] ] ) ) {
+				return $item['id'];
+			}
+		}
+		return false;
+	}
+
 	public function get_first_image_url( ){
 
 		$test_src = EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $this->images->get_single_image( );

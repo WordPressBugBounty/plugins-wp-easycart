@@ -1469,6 +1469,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Pavadzīme"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Pasūtījums"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Datums"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Piegādes adrese"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Rēķina adrese"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Piegāde"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Pārvadātājs"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Izsekošana"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Tiks nosūtīts atsevišķā sūtījumā"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Pavadzīme pasūtījumam"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Rēķins"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Kvīts"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Pasūtījuma numurs:"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Datums:"
+				}
+			}
+		},
 		"language_code":{
 			"label":"Language Code",
 			"options":{

@@ -1051,3 +1051,275 @@ jQuery( function( $ ) {
 	}
 	window.ecv2u_import = { open: function( btn ) { state.nonce = $( btn ).data( 'nonce' ) || state.nonce; state.match_email = false; step_pick(); return false; } };
 } )( jQuery );
+
+/* =====================================================================
+   Customer delete — the safe-delete flow the catalog lists use.
+
+   6.0.1: a customer delete used to run straight off a link, leaving every order they had placed pointing
+   at an account that no longer existed ( the order screen shows that as an empty customer box ). The same
+   engine that reassigns categories, menus and option sets now handles customers, so the merchant decides
+   where the orders go first. catalog-v2.js owns the original modal, but it cannot be loaded here: it binds
+   the same delegated handlers this file does, so filters, stat cards and view toggles would all fire twice.
+
+   The customer the orders move to is searched for ( ecv2_delete_targets ), not picked from a list: a store
+   can have hundreds of thousands of accounts. After the delete the page reloads onto the list's Undo bar
+   ( ?trash=<id>, wp_easycart_admin_undo::maybe_print_bar() ); a toast faded before its Undo could be used.
+   Used by the list's row menu and hover link, and by the customer details page ( opts.redirect_to ).
+   ===================================================================== */
+( function( $ ) {
+	'use strict';
+
+	/* Safe in text and in quoted attributes ( customer names and emails are shopper-entered ). */
+	function esc( s ) {
+		return String( s == null ? '' : s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&#039;' );
+	}
+
+	function t( key, fallback ) {
+		return ( typeof ecv2_user_lang !== 'undefined' && ecv2_user_lang[ key ] ) ? ecv2_user_lang[ key ] : fallback;
+	}
+
+	function nonce() {
+		return ( typeof ecv2_user_nonces !== 'undefined' && ecv2_user_nonces.safe_delete ) ? ecv2_user_nonces.safe_delete : '';
+	}
+
+	function url() {
+		return ( typeof ajaxurl !== 'undefined' ) ? ajaxurl : wpeasycart_admin_ajax_object.ajax_url;
+	}
+
+	function toast( m, type ) {
+		if ( window.ecv2_toast ) { ecv2_toast( m, type ); }
+	}
+
+	function reset_go() {
+		$( '#ecv2_ud_go' ).prop( 'disabled', false ).text( t( 'delete', 'Delete' ) );
+	}
+
+	function ajax( data, done ) {
+		return $.post( url(), data, function( r ) {
+			if ( ! r || ! r.success ) {
+				toast( ( r && r.data && r.data.message ) || t( 'error', 'Something went wrong.' ), 'error' );
+				reset_go();
+				return;
+			}
+			done( r.data );
+		}, 'json' ).fail( function( xhr, status ) {
+			if ( 'abort' === status ) { return; }
+			toast( t( 'error', 'Something went wrong.' ), 'error' );
+			reset_go();
+		} );
+	}
+
+	/* Bumped whenever a window closes, so a late answer for an earlier window never fills a newer one. */
+	var modal_gen = 0;
+
+	function close_modal() {
+		modal_gen++;
+		$( '#ecv2_user_delete_modal' ).remove();
+		$( document ).off( 'keydown.ecv2ud' );
+	}
+
+	function open_modal( title, body, footer ) {
+		close_modal();
+		$( 'body' ).append(
+			'<div class="ecv2-modal-overlay ecv2-sd-modal" id="ecv2_user_delete_modal" style="display:flex;">' +
+				'<div class="ecv2-modal" role="dialog" aria-modal="true" aria-labelledby="ecv2_ud_title">' +
+					'<div class="ecv2-modal-header"><h2 id="ecv2_ud_title">' + esc( title ) + '</h2>' +
+						'<button type="button" class="ecv2-modal-close" id="ecv2_ud_x" aria-label="' + esc( t( 'close', 'Close' ) ) + '">&times;</button></div>' +
+					'<div class="ecv2-modal-body" id="ecv2_ud_body">' + body + '</div>' +
+					'<div class="ecv2-modal-footer"><div class="ecv2-modal-footer-right" id="ecv2_ud_foot">' + footer + '</div></div>' +
+				'</div>' +
+			'</div>'
+		);
+		$( '#ecv2_ud_x' ).on( 'click', close_modal );
+		$( document ).on( 'keydown.ecv2ud', function( e ) {
+			if ( 'Escape' === e.key && ! $( '#ecv2_ud_go' ).prop( 'disabled' ) ) { close_modal(); }
+		} );
+	}
+
+	/* ---------- The "move their orders to" search box ---------- */
+
+	function search_html( s ) {
+		return '<div class="ecv2-sd-search" data-for="' + esc( s.key ) + '">' +
+			'<input type="hidden" class="ecv2-sd-target" data-for="' + esc( s.key ) + '" value="">' +
+			'<div class="ecv2-sd-picked" hidden><span class="dashicons dashicons-admin-users" aria-hidden="true"></span><span class="ecv2-sd-picked-text"><b></b><small></small></span>' +
+				'<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-sd-picked-change">' + esc( t( 'change', 'Change' ) ) + '</button></div>' +
+			'<input type="search" class="ecv2-input ecv2-sd-search-input" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-autocomplete="list"' +
+				' placeholder="' + esc( t( 'target_search_placeholder', 'Search customers by name, email or #' ) ) + '"' + ( s.disabled ? ' disabled' : '' ) + '>' +
+			'<div class="ecv2-sd-results" role="listbox" hidden></div>' +
+		'</div>';
+	}
+
+	function bind_search( id ) {
+		var $box = $( '#ecv2_ud_body .ecv2-sd-search' );
+		if ( ! $box.length ) { return; }
+		var key = $box.data( 'for' ), $in = $box.find( '.ecv2-sd-search-input' ), $res = $box.find( '.ecv2-sd-results' );
+		var timer = null, xhr = null, seq = 0;
+
+		function choose_strategy() {
+			$( 'input[name="ecv2_ud_strategy"][value="' + key + '"]' ).prop( 'checked', true );
+		}
+		function show( html ) {
+			$res.html( html ).prop( 'hidden', false );
+			$in.attr( 'aria-expanded', 'true' );
+		}
+		function hide() {
+			$res.prop( 'hidden', true ).empty();
+			$in.attr( 'aria-expanded', 'false' );
+		}
+		function pick( $item ) {
+			$box.find( '.ecv2-sd-target' ).val( $item.attr( 'data-value' ) );
+			$box.find( '.ecv2-sd-picked-text b' ).text( $item.attr( 'data-label' ) || '' );
+			$box.find( '.ecv2-sd-picked-text small' ).text( $item.attr( 'data-detail' ) || '' );
+			$box.find( '.ecv2-sd-picked' ).prop( 'hidden', false );
+			$in.prop( 'hidden', true ).val( '' );
+			hide();
+			choose_strategy();
+		}
+		function search( q ) {
+			if ( xhr ) { xhr.abort(); }
+			var mine = ++seq;
+			show( '<div class="ecv2-sd-results-note">' + esc( t( 'target_searching', 'Searching…' ) ) + '</div>' );
+			xhr = ajax( { action: 'ecv2_delete_targets', nonce: nonce(), type: 'customer', id: id, q: q }, function( d ) {
+				if ( mine !== seq ) { return; }
+				if ( ! d.results || ! d.results.length ) {
+					show( '<div class="ecv2-sd-results-note">' + esc( t( 'target_none', 'No other customer matches “%s”.' ).replace( '%s', q ) ) + '</div>' );
+					return;
+				}
+				var html = '';
+				$.each( d.results, function( i, r ) {
+					html += '<button type="button" class="ecv2-sd-result" role="option" data-value="' + esc( r.value ) + '" data-label="' + esc( r.label ) + '" data-detail="' + esc( r.detail ) + '">' +
+						'<b>' + esc( r.label ) + '</b><small>' + esc( r.detail ) + '</small></button>';
+				} );
+				if ( 20 <= d.results.length ) {
+					html += '<div class="ecv2-sd-results-note">' + esc( t( 'target_more', 'Showing the first 20. Type more to narrow it down.' ) ) + '</div>';
+				}
+				show( html );
+			} );
+		}
+
+		$in.on( 'focus', choose_strategy );
+		$in.on( 'input', function() {
+			var q = $.trim( this.value );
+			clearTimeout( timer );
+			if ( q.length < 2 && ! /^\d+$/.test( q ) ) {
+				if ( xhr ) { xhr.abort(); }
+				seq++;
+				if ( q.length ) { show( '<div class="ecv2-sd-results-note">' + esc( t( 'target_min', 'Keep typing…' ) ) + '</div>' ); } else { hide(); }
+				return;
+			}
+			timer = setTimeout( function() { search( q ); }, 250 );
+		} );
+		$in.on( 'keydown', function( e ) {
+			var $items = $res.find( '.ecv2-sd-result' ), i = $items.index( $items.filter( '.is-active' ) );
+			if ( 'ArrowDown' === e.key || 'ArrowUp' === e.key ) {
+				if ( ! $items.length ) { return; }
+				e.preventDefault();
+				i = 'ArrowDown' === e.key ? Math.min( i + 1, $items.length - 1 ) : Math.max( i - 1, 0 );
+				$items.removeClass( 'is-active' ).eq( i ).addClass( 'is-active' )[0].scrollIntoView( { block: 'nearest' } );
+			} else if ( 'Enter' === e.key ) {
+				e.preventDefault();
+				if ( $items.length ) { pick( i >= 0 ? $items.eq( i ) : $items.first() ); }
+			} else if ( 'Escape' === e.key && ! $res.prop( 'hidden' ) ) {
+				e.stopPropagation();
+				hide();
+			}
+		} );
+		$res.on( 'mousedown', '.ecv2-sd-result', function( e ) { e.preventDefault(); } ); /* keep focus in the box */
+		$res.on( 'click', '.ecv2-sd-result', function( e ) { e.preventDefault(); pick( $( this ) ); } );
+		$box.on( 'click', '.ecv2-sd-picked-change', function( e ) {
+			e.preventDefault();
+			$box.find( '.ecv2-sd-target' ).val( '' );
+			$box.find( '.ecv2-sd-picked' ).prop( 'hidden', true );
+			$in.prop( 'hidden', false ).trigger( 'focus' );
+		} );
+	}
+
+	/**
+	 * Ask what should happen to this customer's orders, then delete.
+	 *
+	 * @param {number} id   Customer id.
+	 * @param {Object} opts { redirect_to: list URL to land on ( details page ), warning: extra line to show,
+	 *                      before_leave: called just before the page navigates away }.
+	 */
+	window.ecv2_user_safe_delete = function( id, opts ) {
+		id = parseInt( id, 10 ) || 0;
+		opts = opts || {};
+		if ( ! id ) { return false; }
+		if ( window.ecv2_close_row_menus ) { ecv2_close_row_menus(); }
+
+		open_modal(
+			t( 'delete_checking', 'Checking what this affects…' ),
+			'<div class="ecv2-sd-loading"><span class="dashicons dashicons-update ecv2-spin"></span></div>',
+			'<button type="button" class="ecv2-btn" id="ecv2_ud_cancel">' + esc( t( 'cancel', 'Cancel' ) ) + '</button>'
+		);
+		$( '#ecv2_ud_cancel' ).on( 'click', close_modal );
+
+		var gen = modal_gen;
+		ajax( { action: 'ecv2_delete_impact', nonce: nonce(), type: 'customer', id: id }, function( r ) {
+			if ( gen !== modal_gen || ! $( '#ecv2_user_delete_modal' ).length ) { return; }
+			var html = '<div class="ecv2-sd-impacts">';
+			$.each( r.impacts, function( i, im ) {
+				html += '<div class="ecv2-sd-impact is-' + esc( im.severity ) + '"><span class="ecv2-sd-count">' + esc( im.count ) + '</span>' +
+					'<div class="ecv2-sd-impact-main"><b>' + esc( im.label ) + '</b><span>' + esc( im.detail ) +
+					( im.sample && im.sample.length ? ' <em>' + esc( im.sample.join( ', ' ) ) + ( im.count > im.sample.length ? ' …' : '' ) + '</em>' : '' ) +
+					( im.link ? ' <a href="' + esc( im.link ) + '" target="_blank" rel="noopener">' + esc( t( 'view', 'View' ) ) + '</a>' : '' ) +
+					'</span></div></div>';
+			} );
+			if ( opts.warning ) {
+				html += '<div class="ecv2-sd-impact is-block"><span class="ecv2-sd-count">!</span><div class="ecv2-sd-impact-main"><span>' + esc( opts.warning ) + '</span></div></div>';
+			}
+			html += '</div><div class="ecv2-sd-strategies">';
+			var first = null;
+			$.each( r.strategies, function( i, s ) {
+				if ( first === null && ! s.disabled ) { first = s.key; }
+				html += '<label class="ecv2-sd-strategy' + ( s.disabled ? ' is-disabled' : '' ) + '">' +
+					'<input type="radio" name="ecv2_ud_strategy" value="' + esc( s.key ) + '"' + ( s.disabled ? ' disabled' : '' ) + ( s.recommended && ! s.disabled ? ' checked' : '' ) + '>' +
+					'<div><b>' + esc( s.label ) + ( s.recommended ? ' <span class="ecv2-chip ecv2-chip-green">' + esc( t( 'recommended', 'Recommended' ) ) + '</span>' : '' ) + '</b><span>' + esc( s.description ) + '</span>';
+				if ( s.requires_target && s.target_search ) {
+					html += search_html( s ) + ( s.disabled ? '<small>' + esc( t( 'target_no_other', 'There is no other customer to move them to.' ) ) + '</small>' : '' );
+				} else if ( s.requires_target ) {
+					html += '<select class="ecv2-select ecv2-sd-target" data-for="' + esc( s.key ) + '"' + ( s.disabled ? ' disabled' : '' ) + '>';
+					$.each( s.targets || [], function( j, tg ) { html += '<option value="' + esc( tg.value ) + '">' + esc( tg.label ) + '</option>'; } );
+					html += '</select>' + ( s.disabled ? '<small>' + esc( t( 'target_no_other', 'There is no other customer to move them to.' ) ) + '</small>' : '' );
+				}
+				html += '</div></label>';
+			} );
+			html += '</div><p class="ecv2-sd-undo"><span class="dashicons dashicons-backup"></span> ' + esc( t( 'undo_note', 'You can undo this for %d days from Store Status › Recently deleted.' ).replace( '%d', r.undo_days ) ) + '</p>';
+
+			$( '#ecv2_ud_title' ).text( t( 'delete_named', 'Delete “%s”?' ).replace( '%s', r.name ) );
+			$( '#ecv2_ud_body' ).html( html );
+			if ( ! $( 'input[name="ecv2_ud_strategy"]:checked' ).length && first ) {
+				$( 'input[name="ecv2_ud_strategy"][value="' + first + '"]' ).prop( 'checked', true );
+			}
+			bind_search( id );
+			$( '#ecv2_ud_foot' ).html( '<button type="button" class="ecv2-btn" id="ecv2_ud_cancel">' + esc( t( 'cancel', 'Cancel' ) ) + '</button><button type="button" class="ecv2-btn ecv2-btn-danger" id="ecv2_ud_go">' + esc( t( 'delete', 'Delete' ) ) + '</button>' );
+			$( '#ecv2_ud_cancel' ).on( 'click', close_modal );
+
+			$( '#ecv2_ud_go' ).on( 'click', function() {
+				var strategy = $( 'input[name="ecv2_ud_strategy"]:checked' ).val();
+				if ( ! strategy ) { return; }
+				var chosen = $.grep( r.strategies || [], function( s ) { return s.key === strategy; } )[0] || {};
+				var target = $( '.ecv2-sd-target[data-for="' + strategy + '"]' ).val() || 0;
+				if ( chosen.requires_target && ! parseInt( target, 10 ) ) {
+					toast( t( 'target_required', 'Choose the customer their orders should move to.' ), 'error' );
+					$( '.ecv2-sd-search[data-for="' + strategy + '"] .ecv2-sd-search-input' ).trigger( 'focus' );
+					return;
+				}
+				$( this ).prop( 'disabled', true ).text( t( 'deleting', 'Deleting…' ) );
+				ajax( { action: 'ecv2_delete_execute', nonce: nonce(), type: 'customer', id: id, strategy: strategy, target_id: target }, function( d ) {
+					/* Land on the list with its Undo bar. The reload also redraws the Orders / Spend figures of a customer
+					   who just received orders. */
+					if ( opts.before_leave ) { opts.before_leave(); }
+					if ( d.trash_id && window.ecv2_undo_landing ) {
+						window.location.href = ecv2_undo_landing( 'trash', d.trash_id, opts.redirect_to );
+						return;
+					}
+					close_modal();
+					toast( d.message, 'success' );
+					setTimeout( function() { if ( opts.redirect_to ) { window.location.href = opts.redirect_to; } else { window.location.reload(); } }, 900 );
+				} );
+			} );
+		} );
+		return false;
+	};
+} )( jQuery );

@@ -363,6 +363,18 @@
 		$n.addClass( 'is-leaving' );
 		setTimeout( function() { $n.remove(); }, 200 );
 	} );
+	/* After an AJAX delete: the list URL to reload onto so it prints its Undo bar ( wp_easycart_admin_undo::maybe_print_bar(),
+	 * ?undo=<key> or ?trash=<safe-delete id> ). A toast faded before the merchant could reach its Undo. Keeps the list's
+	 * search, filters and page; drops any earlier one-time flag. @since 6.0.1 */
+	window.ecv2_undo_landing = function( param, value, base ) {
+		var u;
+		try { u = new URL( base || window.location.href, window.location.href ); } catch ( e ) { return base || window.location.href; }
+		[ 'undo', 'trash', 'restored', 'success', 'error', 'warning' ].forEach( function( k ) { u.searchParams.delete( k ); } );
+		u.searchParams.set( param, value );
+		u.hash = '';
+		return u.toString();
+	};
+
 	$( function() {
 		if ( window.wpEasyCartListRestoring || ! $( '.ecv2-flash' ).length || ! window.history || ! window.history.replaceState || typeof URL !== 'function' ) { return; }
 		try {

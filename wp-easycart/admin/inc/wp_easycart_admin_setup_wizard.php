@@ -2661,8 +2661,36 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					global $wpdb;
 					$presets = $this->get_shipping_presets();
 					$method  = isset( $_POST['shipping_method'] ) ? sanitize_key( $_POST['shipping_method'] ) : 'static';
+
+					/*
+					 * 6.0.1: "I don't ship anything" installs nothing and leaves the calculation method as it is.
+					 * It only records the answer, which settles the Shipping row on the Store readiness card
+					 * instead of leaving a warning a downloads-only store can never clear.
+					 */
+					if ( 'none' === $method ) {
+						/*
+						 * Switch shipping off for real. Recording the answer alone left any rates the merchant had
+						 * already installed still live: checkout kept charging them, the wizard summary kept
+						 * reading ec_setting.shipping_method and still said "Flat rates", and the Store readiness
+						 * card still saw rates and called shipping set up. The rate rows are deliberately left
+						 * where they are, so turning shipping back on restores them untouched.
+						 */
+						update_option( 'ec_option_use_shipping', 0 );
+						if ( class_exists( 'wp_easycart_admin_store_status' ) ) {
+							wp_easycart_admin_store_status::set_acknowledged( 'shipping', true );
+						}
+						$this->mark_completed( self::STEP_SHIPPING );
+						wp_redirect( $this->step_url( self::STEP_FINISH ) );
+						exit;
+					}
+
 					if ( ! isset( $presets[ $method ] ) ) {
 						$method = 'static';
+					}
+					/* Rates are being set up after all, so shipping goes back on and the answer above no longer applies. */
+					update_option( 'ec_option_use_shipping', 1 );
+					if ( class_exists( 'wp_easycart_admin_store_status' ) ) {
+						wp_easycart_admin_store_status::set_acknowledged( 'shipping', false );
 					}
 
 					/* Install presets for the chosen type only when that type has no rates yet.
@@ -2861,6 +2889,23 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 		public function ajax_create_page() {
 			$this->ajax_guard();
 			$type = isset( $_POST['type'] ) ? sanitize_key( $_POST['type'] ) : '';
+			$made = self::create_policy_page( $type );
+			if ( is_wp_error( $made ) ) {
+				wp_send_json_error( array( 'message' => $made->get_error_message() ) );
+			}
+			wp_send_json_success( $made );
+		}
+
+		/**
+		 * Create the draft terms or privacy page with a starting outline. Used by the wizard and, since 6.0.1, by the
+		 * Checkout settings page.
+		 *
+		 * @since 6.0.1
+		 * @param string $type terms | privacy.
+		 * @return array|WP_Error id, title, url, edit.
+		 */
+		public static function create_policy_page( $type ) {
+			$type = sanitize_key( $type );
 			$name = get_bloginfo( 'name' );
 
 			if ( 'terms' == $type ) {
@@ -2876,7 +2921,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 					. '<h2>' . esc_html__( 'Payment processing', 'wp-easycart' ) . '</h2><p>' . esc_html__( 'Name the payment providers you use and note that card details are handled by them, not stored on this site.', 'wp-easycart' ) . '</p>'
 					. '<h2>' . esc_html__( 'Your choices', 'wp-easycart' ) . '</h2><p>' . esc_html__( 'How customers can view, update, or delete their information and unsubscribe from emails.', 'wp-easycart' ) . '</p>';
 			} else {
-				wp_send_json_error( array( 'message' => __( 'Unknown page type.', 'wp-easycart' ) ) );
+				return new WP_Error( 'type', __( 'Unknown page type.', 'wp-easycart' ) );
 			}
 
 			$id = wp_insert_post( array(
@@ -2886,17 +2931,18 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 				'post_type'    => 'page',
 			), true );
 			if ( is_wp_error( $id ) ) {
-				wp_send_json_error( array( 'message' => $id->get_error_message() ) );
+				return $id;
 			}
 			if ( 'privacy' == $type && ! get_option( 'wp_page_for_privacy_policy' ) ) {
 				update_option( 'wp_page_for_privacy_policy', $id );
 			}
-			wp_send_json_success( array(
+			return array(
 				'id'    => $id,
 				/* translators: %s: page title */
 				'title' => sprintf( __( '%s (draft)', 'wp-easycart' ), $title ),
+				'url'   => get_permalink( $id ),
 				'edit'  => get_edit_post_link( $id, '' ),
-			) );
+			);
 		}
 
 		/** Send a test order-style email through wp_mail() using the store's From address. */

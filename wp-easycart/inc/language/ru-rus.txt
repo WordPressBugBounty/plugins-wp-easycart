@@ -1471,6 +1471,67 @@
 				}
 			}
 		},
+		"documents":{
+			"label":"Order Documents",
+			"options":{
+				"packing_slip_title":{
+					"title":"Packing Slip Title",
+					"value":"Упаковочный лист"
+				},
+				"order_number":{
+					"title":"Order Number Label",
+					"value":"Заказ"
+				},
+				"order_date":{
+					"title":"Order Date Label",
+					"value":"Дата"
+				},
+				"ship_to":{
+					"title":"Ship To Label",
+					"value":"Адрес доставки"
+				},
+				"bill_to":{
+					"title":"Bill To Label",
+					"value":"Адрес плательщика"
+				},
+				"shipping_method":{
+					"title":"Shipping Method Label",
+					"value":"Доставка"
+				},
+				"carrier":{
+					"title":"Carrier Label",
+					"value":"Перевозчик"
+				},
+				"tracking":{
+					"title":"Tracking Number Label",
+					"value":"Отслеживание"
+				},
+				"items_to_follow":{
+					"title":"Items To Follow Heading",
+					"value":"Будет отправлено отдельной посылкой"
+				},
+				"packing_slip_email_subject":{
+					"title":"Packing Slip Email Subject",
+					"value":"Упаковочный лист для заказа"
+				},
+				"invoice_title":{
+					"title":"Invoice PDF Heading",
+					"value":"Счёт"
+				},
+				"receipt_title":{
+					"title":"Receipt PDF Heading",
+					"value":"Квитанция"
+				},
+				"invoice_order_number":{
+					"title":"Invoice PDF Order Number Label",
+					"value":"Номер заказа:"
+				},
+				"invoice_date":{
+					"title":"Invoice PDF Date Label",
+					"value":"Дата:"
+				}
+			}
+		},
 		"language_code":{
 			"label":"Language Code",
 			"options":{

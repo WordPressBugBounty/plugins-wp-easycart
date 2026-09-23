@@ -109,13 +109,13 @@ $ecrp_cards = array(
 		<div class="ecrp-ranges">
 			<div id="wpeasycart_admin_report_range1" class="ec_admin_dashboard_chart_range_button ecrp-range">
 				<div class="ecrp-range-label"><?php esc_html_e( 'Date range', 'wp-easycart' ); ?></div>
-				<i class="dashicons dashicons-calendar"></i>&nbsp;
+				<i class="dashicons dashicons-calendar"></i>
 				<span></span>
 				<i class="dashicons dashicons-arrow-down"></i>
 			</div>
 			<div id="wpeasycart_admin_report_range2" class="ec_admin_dashboard_chart_range_button ecrp-range ecrp-range-compare">
 				<div class="ecrp-range-label"><?php esc_html_e( 'Compare to', 'wp-easycart' ); ?></div>
-				<i class="dashicons dashicons-calendar"></i>&nbsp;
+				<i class="dashicons dashicons-calendar"></i>
 				<span></span>
 				<i class="dashicons dashicons-arrow-down"></i>
 			</div>
@@ -643,6 +643,49 @@ function wpeasycart_admin_update_chart_type( type ){
 		options: options_carts
 	} );
 }
+/* 6.0.0: the finished export opens a V2 dialog ( same shell as the customers and products importers ) with one row per
+   report instead of the old stack of dark buttons. */
+function wpeasycart_admin_report_download_modal( reports ){
+	var esc = function( s ){ return jQuery( '<span>' ).text( s == null ? '' : s ).html(); };
+	var icon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v5h5"/><path d="M15 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M12 12v5"/><path d="m9.5 14.5 2.5 2.5 2.5-2.5"/></svg>';
+	var row = function( url, title, sub ){
+		return '<a class="ecrp-dl-row" href="' + esc( url ) + '" download>' +
+			'<span class="ecrp-dl-ic">' + icon + '</span>' +
+			'<span class="ecrp-dl-text"><b>' + esc( title ) + '</b><span>' + esc( sub ) + '</span></span>' +
+			'<span class="ecrp-dl-go"><?php echo esc_js( __( 'Download CSV', 'wp-easycart' ) ); ?></span></a>';
+	};
+	/* Extensions appended their own links by concatenating onto a variable named modal; the hooks below keep that working. */
+	var modal = '';
+	var body = '<p class="ecrp-dl-lede"><?php echo esc_js( __( 'Your export is ready. Each file covers the filters and dates set on this page.', 'wp-easycart' ) ); ?></p><div class="ecrp-dl-rows">';
+	<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
+	body += row( reports.report1, '<?php echo esc_js( __( 'Main report', 'wp-easycart' ) ); ?>', '<?php echo esc_js( __( 'Every order in the selected range, with totals, fees and taxes.', 'wp-easycart' ) ); ?>' );
+	if( reports.report2 ){
+		body += row( reports.report2, '<?php echo esc_js( __( 'Compare range report', 'wp-easycart' ) ); ?>', '<?php echo esc_js( __( 'The same columns for the range you are comparing against.', 'wp-easycart' ) ); ?>' );
+	}
+	body += row( reports.reporttax, '<?php echo esc_js( __( 'Tax report', 'wp-easycart' ) ); ?>', '<?php echo esc_js( __( 'Tax collected per order, grouped the way filings ask for it.', 'wp-easycart' ) ); ?>' );
+	<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
+	body += modal;
+	body += '</div>';
+
+	jQuery( '#ecrp_export_modal' ).remove();
+	var $m = jQuery(
+		'<div class="ecv2-modal-overlay ecrp-dl" id="ecrp_export_modal" role="dialog" aria-modal="true" aria-labelledby="ecrp_export_title">' +
+			'<div class="ecv2-modal ecrp-dl-modal">' +
+				'<div class="ecv2-modal-header"><h2 id="ecrp_export_title"><?php echo esc_js( __( 'Export reports', 'wp-easycart' ) ); ?></h2>' +
+				'<button type="button" class="ecv2-modal-close" data-close aria-label="<?php echo esc_js( __( 'Close', 'wp-easycart' ) ); ?>">&times;</button></div>' +
+				'<div class="ecv2-modal-body">' + body + '</div>' +
+				'<div class="ecv2-modal-footer"><div class="ecv2-modal-footer-right">' +
+					'<button type="button" class="ecv2-btn" data-close><?php echo esc_js( __( 'Done', 'wp-easycart' ) ); ?></button>' +
+				'</div></div>' +
+			'</div>' +
+		'</div>'
+	);
+	var close = function(){ jQuery( document ).off( 'keydown.ecrpdl' ); $m.remove(); };
+	jQuery( 'body' ).append( $m );
+	$m.on( 'click', function( e ){ if( jQuery( e.target ).is( $m ) || jQuery( e.target ).is( '[data-close]' ) ){ close(); } } );
+	jQuery( document ).on( 'keydown.ecrpdl', function( e ){ if( 'Escape' === e.key ){ close(); } } );
+	setTimeout( function(){ $m.find( '.ecrp-dl-row' ).first().trigger( 'focus' ); }, 30 );
+}
 function wpeasycart_admin_export_report( ){
 	jQuery( '.wpeasycart_admin_chart_export > .dashicons' ).removeClass( 'dashicons-download' ).addClass( 'dashicons-image-rotate' );
 	var start_date = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').startDate.format( 'YYYY-MM-DD' );
@@ -696,19 +739,7 @@ function wpeasycart_admin_export_report( ){
 				return;
 			}
 			export_finish( );
-			var reports = response.reports;
-			var modal = '<div class="wpeasycart_admin_modal"><div class="wpeasycart_admin_modal_content">';
-			modal += '<div class="wpeasycart_admin_modal_close" onclick="jQuery( this ).parent( ).parent( ).remove( )">X</div>';
-			<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
-			modal += '<a href="' + reports.report1 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Main Report', 'wp-easycart' ); ?></a>';
-			if( reports.report2 ){
-				modal += '<a href="' + reports.report2 + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Compare Range Report', 'wp-easycart' ); ?></a>';
-			}
-			modal += '<a href="' + reports.reporttax + '" download class="wpeasycart_admin_download_report"><?php esc_attr_e( 'Download Tax Report', 'wp-easycart' ); ?></a>';
-			<?php do_action( 'wp_easycart_dashboard_reports_links_end' ); ?>
-			modal += '</div></div>';
-
-			jQuery( 'body' ).append( modal );
+			wpeasycart_admin_report_download_modal( response.reports );
 		}, error: function( ){
 			export_fail( '' );
 		} } );

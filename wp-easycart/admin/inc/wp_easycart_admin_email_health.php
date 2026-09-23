@@ -103,7 +103,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 		}
 
 		public static function type_label( $t ) {
-			$l = array( 'order' => __( 'Order email', 'wp-easycart' ), 'order_receipt' => __( 'Order receipt', 'wp-easycart' ), 'order_status' => __( 'Status update', 'wp-easycart' ), 'store' => __( 'Store email', 'wp-easycart' ), 'account' => __( 'Account email', 'wp-easycart' ), 'review_request' => __( 'Review request', 'wp-easycart' ), 'review_reminder' => __( 'Review reminder', 'wp-easycart' ), 'review_reply' => __( 'Review reply', 'wp-easycart' ), 'review_alert' => __( 'Low-rating alert', 'wp-easycart' ), 'giftcard' => __( 'Gift card', 'wp-easycart' ), 'test' => __( 'Test', 'wp-easycart' ), 'test_failure' => __( 'Test — simulated failure', 'wp-easycart' ), 'subscription_trial' => __( 'Subscription trial started', 'wp-easycart' ), 'subscription_trial_ending' => __( 'Subscription trial ending', 'wp-easycart' ), 'subscription_upcoming' => __( 'Subscription renewal notice', 'wp-easycart' ), 'subscription_ended' => __( 'Subscription ended', 'wp-easycart' ), 'subscription_failed' => __( 'Subscription payment failed', 'wp-easycart' ) );
+			$l = array( 'order' => __( 'Order email', 'wp-easycart' ), 'order_receipt' => __( 'Order receipt', 'wp-easycart' ), 'order_shipped' => __( 'Order shipped', 'wp-easycart' ), 'packing_slip' => __( 'Packing slip', 'wp-easycart' ), 'order_status' => __( 'Status update', 'wp-easycart' ), 'store' => __( 'Store email', 'wp-easycart' ), 'account' => __( 'Account email', 'wp-easycart' ), 'review_request' => __( 'Review request', 'wp-easycart' ), 'review_reminder' => __( 'Review reminder', 'wp-easycart' ), 'review_reply' => __( 'Review reply', 'wp-easycart' ), 'review_alert' => __( 'Low-rating alert', 'wp-easycart' ), 'giftcard' => __( 'Gift card', 'wp-easycart' ), 'test' => __( 'Test', 'wp-easycart' ), 'test_failure' => __( 'Test — simulated failure', 'wp-easycart' ), 'subscription_trial' => __( 'Subscription trial started', 'wp-easycart' ), 'subscription_trial_ending' => __( 'Subscription trial ending', 'wp-easycart' ), 'subscription_upcoming' => __( 'Subscription renewal notice', 'wp-easycart' ), 'subscription_ended' => __( 'Subscription ended', 'wp-easycart' ), 'subscription_failed' => __( 'Subscription payment failed', 'wp-easycart' ) );
 			return isset( $l[ $t ] ) ? $l[ $t ] : ucfirst( str_replace( '_', ' ', (string) $t ) );
 		}
 
@@ -530,7 +530,9 @@ endif;
 /* AJAX                                                                    */
 /* ---------------------------------------------------------------------- */
 function ecv2_email_guard() {
-	if ( ! current_user_can( 'manage_options' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
+	/* 6.0.1: these screens live under Settings, which is reachable with wpec_settings, so demanding
+	   manage_options here let a store manager open the page and fail on every action. */
+	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
 	check_ajax_referer( wp_easycart_admin_email_health::NONCE, 'nonce' );
 	if ( ! wp_easycart_admin_email_health::available() ) { wp_send_json_error( array( 'message' => __( 'Email logging is not available until the database update runs.', 'wp-easycart' ) ) ); }
 }

@@ -3877,6 +3877,67 @@
                 }
             }
         },
+        "documents": {
+            "label": "Order Documents",
+            "options": {
+                "packing_slip_title": {
+                    "title": "Packing Slip Title",
+                    "value": "Lieferschein"
+                },
+                "order_number": {
+                    "title": "Order Number Label",
+                    "value": "Bestellung"
+                },
+                "order_date": {
+                    "title": "Order Date Label",
+                    "value": "Datum"
+                },
+                "ship_to": {
+                    "title": "Ship To Label",
+                    "value": "Lieferung an"
+                },
+                "bill_to": {
+                    "title": "Bill To Label",
+                    "value": "Rechnung an"
+                },
+                "shipping_method": {
+                    "title": "Shipping Method Label",
+                    "value": "Versand"
+                },
+                "carrier": {
+                    "title": "Carrier Label",
+                    "value": "Versanddienstleister"
+                },
+                "tracking": {
+                    "title": "Tracking Number Label",
+                    "value": "Sendungsverfolgung"
+                },
+                "items_to_follow": {
+                    "title": "Items To Follow Heading",
+                    "value": "Folgt in einer separaten Sendung"
+                },
+                "packing_slip_email_subject": {
+                    "title": "Packing Slip Email Subject",
+                    "value": "Lieferschein für Bestellung"
+                },
+                "invoice_title": {
+                    "title": "Invoice PDF Heading",
+                    "value": "Rechnung"
+                },
+                "receipt_title": {
+                    "title": "Receipt PDF Heading",
+                    "value": "Quittung"
+                },
+                "invoice_order_number": {
+                    "title": "Invoice PDF Order Number Label",
+                    "value": "Bestellnummer:"
+                },
+                "invoice_date": {
+                    "title": "Invoice PDF Date Label",
+                    "value": "Datum:"
+                }
+            }
+        },
         "language_code": {
             "label": "Language Code",
             "options": {

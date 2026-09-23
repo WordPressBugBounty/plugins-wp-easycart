@@ -256,7 +256,7 @@ if ( ! function_exists( 'wp_easycart_admin_catalog_recent_trash_html' ) ) :
 			return $html . '<p class="ecos-hint">' . esc_html__( 'Nothing deleted in the last 30 days.', 'wp-easycart' ) . '</p></div>';
 		}
 		foreach ( $items as $id => $e ) {
-			$labels = array( 'option' => __( 'Option set', 'wp-easycart' ), 'category' => __( 'Category', 'wp-easycart' ), 'manufacturer' => __( 'Manufacturer', 'wp-easycart' ), 'menu1' => __( 'Menu', 'wp-easycart' ), 'menu2' => __( 'Sub-menu', 'wp-easycart' ), 'menu3' => __( 'Sub-sub-menu', 'wp-easycart' ) );
+			$labels = array( 'option' => __( 'Option set', 'wp-easycart' ), 'category' => __( 'Category', 'wp-easycart' ), 'manufacturer' => __( 'Manufacturer', 'wp-easycart' ), 'menu1' => __( 'Menu', 'wp-easycart' ), 'menu2' => __( 'Sub-menu', 'wp-easycart' ), 'menu3' => __( 'Sub-sub-menu', 'wp-easycart' ), 'customer' => __( 'Customer', 'wp-easycart' ) );
 			$type = isset( $labels[ $e['type'] ] ) ? $labels[ $e['type'] ] : $e['type'];
 			$user = get_userdata( (int) $e['user'] );
 			$html .= '<div class="ecos-u"><div class="ecos-u-main"><b>' . esc_html( $e['name'] ) . '</b> <span class="ecv2-chip ecv2-chip-gray">' . esc_html( $type ) . '</span><span class="ecv2-sub">' . esc_html( sprintf( __( 'Deleted %1$s by %2$s · restorable until %3$s', 'wp-easycart' ), human_time_diff( $e['time'] ) . ' ' . __( 'ago', 'wp-easycart' ), $user ? $user->display_name : '—', date_i18n( get_option( 'date_format' ), $e['expires'] ) ) ) . '</span></div>';

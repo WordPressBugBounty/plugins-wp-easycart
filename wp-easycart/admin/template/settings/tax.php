@@ -123,6 +123,11 @@ if ( ! function_exists( 'ecst_tax_enqueue' ) ) {
 				'pick_geo'       => __( 'Choose one first', 'wp-easycart' ),
 				'enter_rate'     => __( 'Enter a rate', 'wp-easycart' ),
 				'confirm_delete' => __( 'Delete this rate?', 'wp-easycart' ),
+				/* translators: %s: the place the rate is for, e.g. Canada. */
+				'confirm_named'  => __( 'Delete the %s rate?', 'wp-easycart' ),
+				'confirm_note'   => __( 'Orders already placed keep the tax they were charged.', 'wp-easycart' ),
+				'confirm_keep'   => __( 'Keep it', 'wp-easycart' ),
+				'confirm_go'     => __( 'Delete rate', 'wp-easycart' ),
 				'unsaved'        => __( 'Not saved', 'wp-easycart' ),
 				'leave'          => __( 'You have tax rates that are not saved.', 'wp-easycart' ),
 			),
@@ -305,19 +310,66 @@ if ( ! function_exists( 'ecst_tax_print_save_button' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_tax_geo_label' ) ) {
+	/** The name of the place a saved row points at, for the resting row and the delete question. @since 6.0.0 */
+	function ecst_tax_geo_label( $kind, $row, $states, $countries ) {
+		if ( null === $row ) {
+			return '';
+		}
+		if ( 'state' === $kind ) {
+			foreach ( $states as $state ) {
+				if ( (string) $state->id === (string) $row->state_id ) {
+					return $state->name;
+				}
+			}
+			return (string) $row->state_id;
+		}
+		foreach ( $countries as $country ) {
+			if ( (string) $country->iso2 === (string) $row->country ) {
+				return $country->name;
+			}
+		}
+		return (string) $row->country;
+	}
+}
+
 if ( ! function_exists( 'ecst_tax_print_rates_row' ) ) {
-	/** One row of the state / country rate table; $row null prints the hidden template row the JS clones. */
+	/**
+	 * One row of the state / country rate table; $row null prints the hidden template row the JS clones.
+	 *
+	 * 6.0.0: a saved row reads as text ( place, rate ) with Edit and Delete on hover or focus. Editing swaps in the
+	 * select and the rate field in the same columns, with Cancel / Save rate where the actions were; the JS
+	 * ( settings-tax-v2.js ) does the swapping, so both halves are printed here.
+	 */
 	function ecst_tax_print_rates_row( $kind, $row, $states, $countries ) {
 		$is_tpl = ( null === $row );
 		$geo    = $is_tpl ? '' : ( 'state' === $kind ? $row->state_id : $row->country );
+		$label  = ecst_tax_geo_label( $kind, $row, $states, $countries );
+		$rate   = $is_tpl ? '' : (string) (float) $row->rate;
 		?>
-		<tr class="ectx-row<?php echo $is_tpl ? ' ectx-tpl' : ''; ?>" data-id="<?php echo esc_attr( $is_tpl ? '' : $row->id ); ?>"<?php echo $is_tpl ? ' hidden' : ''; ?>>
-			<td><select class="ecv2-select ectx-geo" aria-label="<?php echo esc_attr( 'state' === $kind ? __( 'State', 'wp-easycart' ) : __( 'Country', 'wp-easycart' ) ); ?>"><?php ecst_tax_print_geo_options( $kind, $geo, $states, $countries ); ?></select></td>
+		<tr class="ectx-row<?php echo $is_tpl ? ' ectx-tpl' : ''; ?>" data-id="<?php echo esc_attr( $is_tpl ? '' : $row->id ); ?>" data-label="<?php echo esc_attr( $label ); ?>"<?php echo $is_tpl ? ' hidden' : ''; ?>>
+			<td class="ectx-cell-geo">
+				<span class="ectx-view ectx-view-geo"><?php echo esc_html( $label ); ?></span>
+				<select class="ecv2-select ectx-geo ectx-edit" aria-label="<?php echo esc_attr( 'state' === $kind ? __( 'State', 'wp-easycart' ) : __( 'Country', 'wp-easycart' ) ); ?>"><?php ecst_tax_print_geo_options( $kind, $geo, $states, $countries ); ?></select>
+			</td>
 			<?php if ( 'state' === $kind ) : ?>
 				<td class="ectx-group"><?php echo esc_html( $is_tpl ? '' : $row->country ); ?></td>
 			<?php endif; ?>
-			<td><?php ecst_tax_print_rate_input( 'ectx-rate', $is_tpl ? '' : (string) (float) $row->rate ); ?></td>
-			<td class="ectx-actions"><span class="ecst-state"></span><?php ecst_tax_print_save_button(); ?><button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm ectx-delete" title="<?php esc_attr_e( 'Delete', 'wp-easycart' ); ?>"><span class="dashicons dashicons-trash" aria-hidden="true"></span></button></td>
+			<td class="ectx-cell-rate">
+				<span class="ectx-view ectx-view-rate"><?php echo esc_html( '' === $rate ? '' : number_format_i18n( (float) $rate, 3 ) ); ?><span class="ectx-view-unit">%</span></span>
+				<?php ecst_tax_print_rate_input( 'ectx-rate', $rate ); ?>
+			</td>
+			<td class="ectx-actions">
+				<span class="ecst-state"></span>
+				<span class="ectx-row-actions">
+					<button type="button" class="ectx-icon-btn ectx-edit-btn" title="<?php esc_attr_e( 'Edit', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Edit this rate', 'wp-easycart' ); ?>"><span class="dashicons dashicons-edit" aria-hidden="true"></span></button>
+					<button type="button" class="ectx-icon-btn ectx-delete" title="<?php esc_attr_e( 'Delete', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Delete this rate', 'wp-easycart' ); ?>"><span class="dashicons dashicons-trash" aria-hidden="true"></span></button>
+				</span>
+				<span class="ectx-edit-actions">
+					<button type="button" class="ecv2-btn ecv2-btn-sm ectx-cancel"><?php esc_html_e( 'Cancel', 'wp-easycart' ); ?></button>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ectx-save ectx-save-text" title="<?php esc_attr_e( 'Save (Enter). Esc cancels.', 'wp-easycart' ); ?>"><?php esc_html_e( 'Save rate', 'wp-easycart' ); ?></button>
+				</span>
+			</td>
 		</tr>
 		<?php
 	}
@@ -347,15 +399,35 @@ if ( ! function_exists( 'ecst_tax_render_rates_table' ) ) {
 						<?php ecst_tax_print_rates_row( $kind, $row, $states, $countries ); ?>
 					<?php endforeach; ?>
 					<?php ecst_tax_print_rates_row( $kind, null, $states, $countries ); ?>
+					<?php /* 6.0.0: adding happens in the table, in the same columns as the rows above it. */ ?>
+					<tr class="ectx-addrow" hidden>
+						<td class="ectx-cell-geo"><select class="ecv2-select ectx-add-geo" aria-label="<?php echo esc_attr( 'state' === $kind ? __( 'State', 'wp-easycart' ) : __( 'Country', 'wp-easycart' ) ); ?>"><?php ecst_tax_print_geo_options( $kind, '', $states, $countries ); ?></select></td>
+						<?php if ( 'state' === $kind ) : ?><td class="ectx-group"></td><?php endif; ?>
+						<td class="ectx-cell-rate"><?php ecst_tax_print_rate_input( 'ectx-add-rate', '' ); ?></td>
+						<td class="ectx-actions">
+							<span class="ecst-state"></span>
+							<span class="ectx-edit-actions">
+								<button type="button" class="ecv2-btn ecv2-btn-sm ectx-add-cancel"><?php esc_html_e( 'Cancel', 'wp-easycart' ); ?></button>
+								<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ectx-add-btn"><?php esc_html_e( 'Add rate', 'wp-easycart' ); ?></button>
+							</span>
+						</td>
+					</tr>
+					<tr class="ectx-addopen-row">
+						<td colspan="<?php echo ( 'state' === $kind ) ? 4 : 3; ?>">
+							<button type="button" class="ectx-addopen">
+								<span class="ectx-addopen-ic"><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span></span>
+								<?php echo esc_html( 'state' === $kind ? __( 'Add a state rate', 'wp-easycart' ) : __( 'Add a country rate', 'wp-easycart' ) ); ?>
+							</button>
+						</td>
+					</tr>
 				</tbody>
-			</table>
+				</table>
 			</div>
-			<p class="ectx-empty"<?php echo empty( $rows ) ? '' : ' hidden'; ?>><?php echo esc_html( 'state' === $kind ? __( 'No state rates yet. Add the first one below.', 'wp-easycart' ) : __( 'No country rates yet. Add the first one below.', 'wp-easycart' ) ); ?></p>
-			<div class="ectx-add">
-				<select class="ecv2-select ectx-add-geo" aria-label="<?php echo esc_attr( 'state' === $kind ? __( 'State', 'wp-easycart' ) : __( 'Country', 'wp-easycart' ) ); ?>"><?php ecst_tax_print_geo_options( $kind, '', $states, $countries ); ?></select>
-				<?php ecst_tax_print_rate_input( 'ectx-add-rate', '' ); ?>
-				<button type="button" class="ecv2-btn ecv2-btn-sm ectx-add-btn"><?php esc_html_e( 'Add rate', 'wp-easycart' ); ?></button>
-				<span class="ecst-state"></span>
+			<div class="ectx-empty"<?php echo empty( $rows ) ? '' : ' hidden'; ?>>
+				<span class="ectx-empty-ic"><span class="dashicons <?php echo esc_attr( 'state' === $kind ? 'dashicons-location' : 'dashicons-admin-site' ); ?>" aria-hidden="true"></span></span>
+				<b><?php echo esc_html( 'state' === $kind ? __( 'No state rates yet', 'wp-easycart' ) : __( 'No country rates yet', 'wp-easycart' ) ); ?></b>
+				<span><?php echo esc_html( 'state' === $kind ? __( 'Add one for each state or province you collect tax in. A state with no row is not taxed.', 'wp-easycart' ) : __( 'Add one for each country you collect tax in. State rates are checked first, then these.', 'wp-easycart' ) ); ?></span>
+				<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ectx-empty-add"><?php echo esc_html( 'state' === $kind ? __( 'Add a state rate', 'wp-easycart' ) : __( 'Add a country rate', 'wp-easycart' ) ); ?></button>
 			</div>
 		</div>
 		<?php

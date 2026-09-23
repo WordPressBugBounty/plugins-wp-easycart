@@ -224,20 +224,57 @@ function ecv2_subscriber_bulk() {
 	$rows = $wpdb->get_results( 'SELECT * FROM ec_subscriber WHERE subscriber_id IN ( ' . implode( ',', $ids ) . ' )', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ids is an intval()-mapped list built above.
 	foreach ( $rows as $r ) { do_action( 'wpeasycart_subscriber_deleting', (int) $r['subscriber_id'] ); }
 	$wpdb->query( 'DELETE FROM ec_subscriber WHERE subscriber_id IN ( ' . implode( ',', $ids ) . ' )' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ids is an intval()-mapped list built above.
-	$undo = 'sub_' . time() . '_' . wp_rand( 100, 999 ); set_transient( 'ec_subscriber_undo_' . $undo, $rows, 15 * MINUTE_IN_SECONDS );
-	wp_send_json_success( array( 'done' => count( $rows ), 'undo' => $undo, 'message' => sprintf( _n( 'Deleted %d subscriber.', 'Deleted %d subscribers.', count( $rows ), 'wp-easycart' ), count( $rows ) ) ) );
+	/* translators: %d: number of subscribers deleted. */
+	$message = sprintf( _n( 'Deleted %d subscriber.', 'Deleted %d subscribers.', count( $rows ), 'wp-easycart' ), count( $rows ) );
+	/* 6.0.1: shared store, on an option rather than a transient — see wp_easycart_admin_undo::store(). The list reloads
+	   onto the shared Undo bar ( wp_easycart_admin_undo::maybe_print_bar() ), which restores through the filter below. */
+	$undo = class_exists( 'wp_easycart_admin_undo' ) ? wp_easycart_admin_undo::store( 'subscriber', $rows, $message ) : '';
+	wp_send_json_success( array( 'done' => count( $rows ), 'undo' => $undo, 'message' => $message ) );
 }
+
+/**
+ * Write deleted subscribers back with their original ids.
+ *
+ * @since 6.0.1
+ * @param array $rows ec_subscriber rows as they were deleted.
+ * @return string|WP_Error
+ */
+function ecv2_subscriber_restore_rows( $rows ) {
+	global $wpdb;
+	if ( ! $rows || ! is_array( $rows ) ) {
+		return new WP_Error( 'gone', __( 'This deletion can no longer be undone.', 'wp-easycart' ) );
+	}
+	foreach ( $rows as $r ) {
+		$wpdb->replace( 'ec_subscriber', $r );
+	}
+	wp_easycart_admin_subscriber_table::clear_invalid_cache();
+	/* translators: %d: number of subscribers put back. */
+	return sprintf( _n( 'Restored %d subscriber.', 'Restored %d subscribers.', count( $rows ), 'wp-easycart' ), count( $rows ) );
+}
+
+/**
+ * Filter: wp_easycart_admin_undo_restore_subscriber. The Undo bar above the list restores through
+ * ecv2_undo_restore, which hands the snapshot here.
+ *
+ * @since 6.0.1
+ * @param mixed $result   Null until something handles it.
+ * @param array $snapshot Rows from ecv2_subscriber_bulk().
+ * @return string|WP_Error
+ */
+function ecv2_subscriber_undo_restore( $result, $snapshot ) {
+	return ecv2_subscriber_restore_rows( $snapshot );
+}
+add_filter( 'wp_easycart_admin_undo_restore_subscriber', 'ecv2_subscriber_undo_restore', 10, 2 );
 
 add_action( 'wp_ajax_ecv2_subscriber_restore', 'ecv2_subscriber_restore' );
 function ecv2_subscriber_restore() {
 	ecv2_sub_guard(); global $wpdb;
-	$key = isset( $_POST['undo'] ) ? preg_replace( '/[^a-z0-9_]/', '', (string) $_POST['undo'] ) : '';
-	$rows = get_transient( 'ec_subscriber_undo_' . $key );
-	if ( ! $rows || ! is_array( $rows ) ) { wp_send_json_error( array( 'message' => __( 'This deletion can no longer be undone.', 'wp-easycart' ) ) ); }
-	foreach ( $rows as $r ) { $wpdb->replace( 'ec_subscriber', $r ); }
-	delete_transient( 'ec_subscriber_undo_' . $key );
-	wp_easycart_admin_subscriber_table::clear_invalid_cache();
-	wp_send_json_success( array( 'message' => sprintf( _n( 'Restored %d subscriber.', 'Restored %d subscribers.', count( $rows ), 'wp-easycart' ), count( $rows ) ) ) );
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- ecv2_sub_guard() verifies the nonce above.
+	$key   = isset( $_POST['undo'] ) ? sanitize_text_field( wp_unslash( $_POST['undo'] ) ) : '';
+	$entry = class_exists( 'wp_easycart_admin_undo' ) ? wp_easycart_admin_undo::take( $key ) : false;
+	$result = ecv2_subscriber_restore_rows( ( $entry && isset( $entry['snapshot'] ) ) ? $entry['snapshot'] : false );
+	if ( is_wp_error( $result ) ) { wp_send_json_error( array( 'message' => $result->get_error_message() ) ); }
+	wp_send_json_success( array( 'message' => $result ) );
 }
 
 /** Rows come parsed from the browser as [ { email, first, last }, … ]; we validate, dedupe and report. */

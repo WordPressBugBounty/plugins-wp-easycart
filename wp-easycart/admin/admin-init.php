@@ -1,6 +1,8 @@
 <?php
 do_action( 'wpeasycart_admin_load_init' );
-// Load Helper Classes 
+/* 6.0.1: EasyCart admin assets carry their file time in the version, so an update is picked up without a forced reload. */
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_asset_version.php' );
+// Load Helper Classes
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shell_theme.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_upsell.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_verification.php' );
@@ -13,6 +15,8 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_settings_page_v2.ph
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_settings_home.php' );
 // The Language settings page saves phrases through its own AJAX handlers ( ecv2_language_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_language_v2.php' );
+// 6.0.1: Settings › Documents saves and previews profiles through its own AJAX handlers ( ecv2_documents_* ), so it must also load on admin-ajax requests.
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_documents.php' );
 // The Payment settings page loads gateway forms and switches gateways through its own AJAX handlers ( ecv2_payment_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payment_v2.php' );
 // The Shipping settings page edits zones through its own AJAX handlers ( ecv2_shipping_zone_* ), so it must also load on admin-ajax requests.
@@ -50,6 +54,7 @@ if( $wp_easycart_is_ajax || ( isset( $_GET['page'] ) && isset( $_GET['subpage'] 
 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_miscellaneous.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_option.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_undo.php' ); /* 6.0.1: shared 15-minute undo for list deletions */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_orders.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payments.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_preloader.php' );

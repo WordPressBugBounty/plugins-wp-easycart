@@ -33,7 +33,13 @@
 		var e = V.entries[ key ];
 		if ( ! e ) { return; }
 		$panel.attr( 'data-upsell-context', key );
-		$panel.find( '[data-upsell-plan]' ).text( e.badge || ( e.plan === 'premium' ? 'Premium' : 'Pro/Premium' ) );
+		/* 6.0.1: only a newer WP EasyCart PRO is missing: the update, never the plans ( CSS hides them under .is-update ). */
+		var fe = ( feature && e.features && e.features[ feature ] && e.features[ feature ].update_version ) ? e.features[ feature ] : null;
+		var update = !! ( fe || e.update );
+		$panel.toggleClass( 'is-update', update );
+		$panel.find( '[data-upsell-update-text]' ).text( ( fe ? fe.update_text : e.update_text ) || '' );
+		$panel.find( '[data-upsell-update-link]' ).attr( 'href', e.update_url || 'plugins.php' );
+		$panel.find( '[data-upsell-plan]' ).text( update ? ( e.update_badge || 'Update' ) : ( e.badge || ( e.plan === 'premium' ? 'Premium' : 'Pro/Premium' ) ) );
 		$panel.find( '[data-upsell-title]' ).text( e.headline || e.title );
 		$panel.find( '[data-upsell-lede]' ).text( e.lede );
 		$panel.find( '[data-upsell-stat]' ).toggle( !! e.stat_line ).find( '.ecv2-upsell-stat-text' ).text( e.stat_line || '' );
@@ -59,6 +65,7 @@
 		var $popup = $( '#ec_admin_upsell_popup' );
 		if ( ! $popup.length ) {
 			var e = V.entries[ key ] || V.entries[ 'default' ];
+			if ( e && ( e.update || ( feature && e.features && e.features[ feature ] && e.features[ feature ].update_version ) ) ) { window.location.href = e.update_url; return; }
 			if ( e ) { window.open( e.pro_url, '_blank' ); }
 			return;
 		}

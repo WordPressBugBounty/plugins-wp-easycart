@@ -225,7 +225,7 @@ class ec_db_admin extends ec_db{
 			ec_order.pickup_asap,
 			ec_order.pickup_time,
 
-			GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data 
+			'' as customfield_data 
 
 			FROM 
 			ec_order
@@ -239,11 +239,6 @@ class ec_db_admin extends ec_db{
 			LEFT JOIN ec_orderstatus ON
 			ec_order.orderstatus_id = ec_orderstatus.status_id
 
-			LEFT JOIN ec_customfield
-			ON ec_customfield.table_name = 'ec_order'
-
-			LEFT JOIN ec_customfielddata
-			ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_order.order_id
 
 			LEFT JOIN ec_user
 			ON ec_user.user_id = ec_order.user_id
@@ -324,7 +319,7 @@ class ec_db_admin extends ec_db{
 				ec_orderdetail.include_code,
 				ec_orderdetail.subscription_signup_fee,
 
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 
 				FROM ec_orderdetail
 
@@ -337,11 +332,6 @@ class ec_db_admin extends ec_db{
 				LEFT JOIN ec_download
 				ON ec_download.download_id = ec_orderdetail.download_key
 
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_orderdetail'
-
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_orderdetail.orderdetail_id 
 
 
 

@@ -220,8 +220,9 @@ if ( ! function_exists( 'ecv2_shipping_on_save_ups_setting' ) ) {
 if ( ! function_exists( 'ecv2_shipping_carrier_details' ) ) {
 	/**
 	 * The saved details of a carrier that has no on/off setting of its own ( Australia Post, Canada Post, DHL ):
-	 * key => array( store, value when cleared ). Its "Enable" row is on while any of these are filled, and turning
-	 * it off clears them, which is what stops the carrier quoting ( ec_live_shipping checks these values ).
+	 * key => array( store, value when cleared[, counts as a detail ] ). Its "Enable" row is on while any of these are
+	 * filled, and turning it off clears them, which is what stops the carrier quoting ( ec_live_shipping checks these
+	 * values ). A third element of false marks a choice that is reset but does not make the carrier "in use" on its own.
 	 *
 	 * @since 6.0.0
 	 * @param string $carrier Carrier key.
@@ -242,9 +243,13 @@ if ( ! function_exists( 'ecv2_shipping_carrier_details' ) ) {
 				'canadapost_test_mode'       => array( 'setting', '0' ),
 			),
 			'dhl'        => array(
+				'ec_option_dhl_api'            => array( 'option', 'rest', false ), // 6.0.2: back to the MyDHL API, the connection a new setup starts on.
+				'ec_option_dhl_api_key'        => array( 'option', '' ),
+				'ec_option_dhl_api_secret'     => array( 'option', '' ),
 				'dhl_site_id'                  => array( 'setting', '' ),
 				'dhl_password'                 => array( 'setting', '' ),
 				'ec_option_dhl_account_number' => array( 'option', '' ),
+				'ec_option_dhl_ship_from_city' => array( 'option', '' ),
 				'dhl_ship_from_zip'            => array( 'setting', '' ),
 				'dhl_ship_from_country'        => array( 'setting', '' ),
 				'dhl_weight_unit'              => array( 'setting', '' ),
@@ -255,12 +260,45 @@ if ( ! function_exists( 'ecv2_shipping_carrier_details' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecv2_shipping_dhl_default_api' ) ) {
+	/**
+	 * The DHL connection of a store that never chose one: XML Services when a Site ID is saved ( DHL set up before 6.0.2 ),
+	 * else the MyDHL API. WP EasyCart PRO's ec_dhl::api_mode() answers the same way.
+	 *
+	 * @since 6.0.2
+	 * @return string rest | xml
+	 */
+	function ecv2_shipping_dhl_default_api() {
+		if ( ! ecv2_shipping_dhl_rest_ready() ) {
+			return 'xml';
+		}
+		return ( '' !== trim( (string) ecv2_shipping_setting( 'dhl_site_id', '' ) ) ) ? 'xml' : 'rest';
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_dhl_rest_ready' ) ) {
+	/**
+	 * Whether the installed WP EasyCart PRO quotes through the MyDHL API ( its ec_dhl has api_mode() ). A PRO without it
+	 * reads only the XML Services Site ID, so the page keeps the older DHL rows instead of fields PRO would ignore.
+	 * Outside WordPress ( the migration map generator ) every row is listed.
+	 *
+	 * @since 6.0.2
+	 * @return bool
+	 */
+	function ecv2_shipping_dhl_rest_ready() {
+		if ( ! defined( 'WPINC' ) ) {
+			return true;
+		}
+		return class_exists( 'ec_dhl' ) && method_exists( 'ec_dhl', 'api_mode' );
+	}
+}
+
 if ( ! function_exists( 'ecv2_shipping_carrier_in_use' ) ) {
 	/** Default of a carrier's "Enable" row on stores that never saved it: on when any credential or origin detail is filled. @since 6.0.0 */
 	function ecv2_shipping_carrier_in_use( $carrier ) {
 		foreach ( ecv2_shipping_carrier_details( $carrier ) as $key => $detail ) {
-			if ( '0' === $detail[1] ) {
-				continue; // Test mode alone does not make a carrier set up.
+			if ( '0' === $detail[1] || ( isset( $detail[2] ) && ! $detail[2] ) ) {
+				continue; // Test mode or a connection choice alone does not make a carrier set up.
 			}
 			$value = ( 'option' === $detail[0] ) ? ( function_exists( 'get_option' ) ? get_option( $key, '' ) : '' ) : ecv2_shipping_setting( $key, '' );
 			if ( '' !== trim( (string) $value ) ) {
@@ -483,6 +521,24 @@ if ( ! function_exists( 'ecv2_shipping_render_carrier_head' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecv2_shipping_render_dhl_xml_note' ) ) {
+	/**
+	 * Html row under DHL's Connection while it is XML Services: how to move to the MyDHL API. DHL still answers XML
+	 * Services, so nothing stops quoting; the note says what to ask DHL for and where.
+	 *
+	 * @since 6.0.2
+	 * @param array $field The row.
+	 * @param array $page  The page.
+	 */
+	function ecv2_shipping_render_dhl_xml_note( $field, $page ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's html render signature.
+		echo '<div class="ecsh-note">';
+		echo '<div class="ecsh-note-text"><b>' . esc_html__( 'Move to the MyDHL API', 'wp-easycart' ) . '</b>';
+		echo '<span>' . esc_html__( 'XML Services still quotes, but DHL now issues MyDHL API keys instead. Request MyDHL API access for your DHL Express account, then choose MyDHL API above and add the API key, secret, account number and origin city. Your Site ID stays saved, so you can switch back.', 'wp-easycart' ) . '</span></div>';
+		echo '<a class="ecv2-btn" href="' . esc_url( 'https://developer.dhl.com/api-reference/dhl-express-mydhl-api#get-started-section/user-guide--get-access' ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Request MyDHL API access', 'wp-easycart' ) . ' ↗</a>';
+		echo '</div>';
+	}
+}
+
 if ( ! function_exists( 'ecv2_shipping_carrier_row' ) ) {
 	/**
 	 * One carrier field with the shared defaults filled in. $store says where the value
@@ -554,14 +610,30 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 		$c = 'dhl';
 		$n = __( 'DHL', 'wp-easycart' );
 		$fields[ 'ecv2_shipping_head_' . $c ] = array( 'type' => 'html', 'render' => 'ecv2_shipping_render_carrier_head', 'carrier' => $c, 'carrier_name' => $n, 'mark' => 'DHL', 'docs' => 'dhl' );
-		$fields['ec_option_dhl_enable'] = ecv2_shipping_carrier_row( $c, $n, 'carrier_enable', array( 'key' => 'ec_option_dhl_enable', 'type' => 'toggle', 'default' => ecv2_shipping_carrier_in_use( $c ), 'label' => __( 'Enable DHL', 'wp-easycart' ), 'desc' => __( 'Quotes DHL services with your DHL XML Services account. Turning it off clears the saved DHL details.', 'wp-easycart' ), 'on_save' => 'ecv2_shipping_on_save_carrier_enable', 'legacy' => array( 'label' => '( new in 6.0.0 )', 'note' => 'on while any detail is filled; turning it off clears the details' ) ) );
-		$fields['dhl_site_id']                 = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_site_id', 'label' => __( 'Site ID', 'wp-easycart' ), 'desc' => __( 'From your DHL XML Services account.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'DHL Site ID' ) ) );
-		$fields['dhl_password']                = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_password', 'type' => 'password', 'label' => __( 'Site password', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'DHL Site Password' ) ) );
-		$fields['ec_option_dhl_account_number'] = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_account_number', 'label' => __( 'Account number', 'wp-easycart' ), 'default' => '', 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'DHL Account Number' ) ) );
+		$fields['ec_option_dhl_enable'] = ecv2_shipping_carrier_row( $c, $n, 'carrier_enable', array( 'key' => 'ec_option_dhl_enable', 'type' => 'toggle', 'default' => ecv2_shipping_carrier_in_use( $c ), 'label' => __( 'Enable DHL', 'wp-easycart' ), 'desc' => __( 'Quotes DHL Express services with your DHL account. Turning it off clears the saved DHL details.', 'wp-easycart' ), 'on_save' => 'ecv2_shipping_on_save_carrier_enable', 'legacy' => array( 'label' => '( new in 6.0.0 )', 'note' => 'on while any detail is filled; turning it off clears the details' ) ) );
+		/* 6.0.2: the MyDHL API, or the XML Services Site ID a store set up before it. */
+		$fields['ec_option_dhl_api']            = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_api', 'type' => 'select', 'options' => array( 'rest' => __( 'MyDHL API', 'wp-easycart' ), 'xml' => __( 'XML Services ( older )', 'wp-easycart' ) ), 'default' => ecv2_shipping_dhl_default_api(), 'label' => __( 'Connection', 'wp-easycart' ), 'desc' => __( 'The MyDHL API is DHL’s current connection. XML Services keeps an existing Site ID quoting until you switch.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'pro_min_version' => '6.0.2', 'legacy' => array( 'label' => '( new in 6.0.2 )', 'note' => 'defaults to XML Services when a Site ID is saved, else the MyDHL API' ) ) );
+		$fields['ecv2_shipping_dhl_xml_note']   = array( 'type' => 'html', 'render' => 'ecv2_shipping_render_dhl_xml_note', 'carrier' => $c, 'parent' => 'ec_option_dhl_api', 'show_when' => 'xml' );
+		$fields['ec_option_dhl_api_key']        = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_api_key', 'label' => __( 'API key', 'wp-easycart' ), 'default' => '', 'desc' => __( 'From the MyDHL API access DHL gives your account on developer.dhl.com.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_api', 'show_when' => 'rest', 'pro_min_version' => '6.0.2', 'legacy' => array( 'label' => '( new in 6.0.2 )' ) ) );
+		$fields['ec_option_dhl_api_secret']     = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_api_secret', 'type' => 'password', 'label' => __( 'API secret', 'wp-easycart' ), 'default' => '', 'parent' => 'ec_option_dhl_api', 'show_when' => 'rest', 'pro_min_version' => '6.0.2', 'legacy' => array( 'label' => '( new in 6.0.2 )' ) ) );
+		$fields['dhl_site_id']                 = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_site_id', 'label' => __( 'Site ID', 'wp-easycart' ), 'desc' => __( 'From your DHL XML Services account.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_api', 'show_when' => 'xml', 'legacy' => array( 'label' => 'DHL Site ID', 'note' => '6.0.2: shown when Connection is XML Services' ) ) );
+		$fields['dhl_password']                = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_password', 'type' => 'password', 'label' => __( 'Site password', 'wp-easycart' ), 'parent' => 'ec_option_dhl_api', 'show_when' => 'xml', 'legacy' => array( 'label' => 'DHL Site Password', 'note' => '6.0.2: shown when Connection is XML Services' ) ) );
+		$fields['ec_option_dhl_account_number'] = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_account_number', 'label' => __( 'Account number', 'wp-easycart' ), 'default' => '', 'desc' => __( 'Your DHL Express account number. The MyDHL API needs it to quote your rates.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'DHL Account Number' ) ) );
+		$fields['ec_option_dhl_ship_from_city'] = ecv2_shipping_carrier_row( $c, $n, 'option', array( 'key' => 'ec_option_dhl_ship_from_city', 'label' => __( 'Origin city', 'wp-easycart' ), 'default' => '', 'desc' => __( 'The city parcels ship from. DHL needs it with the postal code.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_api', 'show_when' => 'rest', 'pro_min_version' => '6.0.2', 'legacy' => array( 'label' => '( new in 6.0.2 )' ) ) );
 		$fields['dhl_ship_from_zip']           = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_ship_from_zip', 'label' => __( 'Origin postal code', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Origin Postal Code' ) ) );
 		$fields['dhl_ship_from_country']       = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_ship_from_country', 'type' => 'select', 'options' => $countries, 'label' => __( 'Origin country', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Origin Country' ) ) );
 		$fields['dhl_weight_unit']             = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_weight_unit', 'type' => 'select', 'options' => array_merge( array( '' => __( 'Select one', 'wp-easycart' ) ), $lb_kg ), 'label' => __( 'Weight unit', 'wp-easycart' ), 'desc' => __( 'The unit your product weights are entered in.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Weight Unit' ) ) );
 		$fields['dhl_test_mode']               = ecv2_shipping_carrier_row( $c, $n, 'setting', array( 'key' => 'dhl_test_mode', 'type' => 'toggle', 'label' => __( 'Test mode', 'wp-easycart' ), 'desc' => __( 'Sends requests to DHL’s test server.', 'wp-easycart' ), 'parent' => 'ec_option_dhl_enable', 'legacy' => array( 'label' => 'Test Mode' ) ) );
+		/* 6.0.2: a WP EasyCart PRO that only speaks XML Services keeps the Site ID rows it reads, without a Connection choice
+		   or MyDHL API fields it would ignore. */
+		if ( ! ecv2_shipping_dhl_rest_ready() ) {
+			unset( $fields['ec_option_dhl_api'], $fields['ecv2_shipping_dhl_xml_note'], $fields['ec_option_dhl_api_key'], $fields['ec_option_dhl_api_secret'], $fields['ec_option_dhl_ship_from_city'] );
+			foreach ( array( 'dhl_site_id', 'dhl_password' ) as $dhl_key ) {
+				$fields[ $dhl_key ]['parent'] = 'ec_option_dhl_enable';
+				unset( $fields[ $dhl_key ]['show_when'] );
+			}
+			$fields['ec_option_dhl_account_number']['desc'] = __( 'Your DHL Express account number.', 'wp-easycart' );
+		}
 
 		/* FedEx */
 		$c = 'fedex';
@@ -632,6 +704,42 @@ if ( ! function_exists( 'ecv2_shipping_carrier_fields' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecv2_shipping_render_boxes' ) ) {
+	/** Section render: the box library ( 6.0.2, wp_easycart_admin_packages ). */
+	function ecv2_shipping_render_boxes( $page, $section ) {
+		if ( ! class_exists( 'wp_easycart_admin_packages' ) ) {
+			echo '<p>' . esc_html__( 'The box editor is not available on this install.', 'wp-easycart' ) . '</p>';
+			return;
+		}
+		wp_easycart_admin_packages::render_boxes();
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_enqueue_boxes' ) ) {
+	/** Section enqueue: the box editor's script and styles. */
+	function ecv2_shipping_enqueue_boxes( $page = null, $section = null ) {
+		if ( class_exists( 'wp_easycart_admin_packages' ) ) {
+			wp_easycart_admin_packages::enqueue_settings();
+		}
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_status_options' ) ) {
+	/** Order statuses for the Delivered status select ( makes "Order Delivered" when the store has none yet ). */
+	function ecv2_shipping_status_options() {
+		global $wpdb;
+		if ( class_exists( 'wp_easycart_shipments' ) ) {
+			wp_easycart_shipments::delivered_status_id();
+		}
+		$options = array();
+		$rows    = isset( $GLOBALS['wpdb'] ) ? $wpdb->get_results( 'SELECT status_id, order_status FROM ec_orderstatus ORDER BY status_id ASC' ) : array();
+		foreach ( (array) $rows as $row ) {
+			$options[ (string) $row->status_id ] = (string) $row->order_status;
+		}
+		return $options;
+	}
+}
+
 /* Plan name for copy: the store's own plan, or Pro/Premium when no license is known ( and outside WordPress ). */
 $ecv2_shipping_plan = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : 'Pro/Premium';
 
@@ -639,7 +747,8 @@ return array(
 	'slug'        => 'shipping-settings',
 	'title'       => __( 'Shipping settings', 'wp-easycart' ),
 	'description' => __( 'How shipping is charged, what shoppers can choose, and where you ship.', 'wp-easycart' ),
-	'group'       => 'financial',
+	'group'       => 'shipping',
+	'order'       => 10,
 	'icon'        => 'car',
 	'docs'        => array( 'settings', 'shipping-settings', 'shipping-basic-options' ),
 	'legacy'      => array( 'shipping-settings' ),
@@ -765,6 +874,62 @@ return array(
 					'on_save'  => 'ecv2_shipping_flush_cache',
 					'keywords' => array( 'per item', 'separately', 'multiply', 'static' ),
 					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Additional Shipping Options', 'label' => 'Item Ships Separately (Static Method)' ),
+				),
+				/* 6.0.2: items a fulfillment partner ( print on demand ) makes and ships ( wp_easycart_shipping_groups ). */
+				'ec_option_free_shipping_covers_partners' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Free shipping also covers partner shipping', 'wp-easycart' ),
+					'desc'     => __( 'When your free shipping applies ( a free-shipping threshold, promotion or coupon ), items a fulfillment partner ships are free to the shopper too and you pay the partner’s shipping. Off, shoppers still pay the partner’s shipping.', 'wp-easycart' ),
+					'default'  => 0,
+					'advanced' => true,
+					'parent'   => 'ec_option_use_shipping',
+					'keywords' => array( 'free shipping', 'print on demand', 'fulfillment', 'partner', 'printful', 'printify' ),
+					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Options at checkout', 'label' => 'New in 6.0.2' ),
+				),
+			),
+		),
+
+		/* 6.0.2: the box library; orders are split into packages from it ( wp_easycart_packages ). */
+		'boxes' => array(
+			'title'   => __( 'Boxes and packing', 'wp-easycart' ),
+			'hint'    => __( 'The boxes you ship in. Orders are split into packages from them, and a label is bought for each package.', 'wp-easycart' ),
+			'enqueue' => 'ecv2_shipping_enqueue_boxes',
+			'fields'  => array(
+				'ec_option_pack_new_orders' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Pack new orders into boxes', 'wp-easycart' ),
+					'desc'     => __( 'Each new order is split into packages when it is placed; older orders are packed the first time you open them.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'box', 'package', 'packing', 'parcel', 'carton' ),
+					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Boxes and packing', 'label' => 'New in 6.0.2' ),
+				),
+			),
+			'render'  => 'ecv2_shipping_render_boxes',
+		),
+
+		/* 6.0.2: the Delivered order status ( wp_easycart_shipments ). */
+		'delivery' => array(
+			'title'  => __( 'Delivery', 'wp-easycart' ),
+			'hint'   => __( 'What happens when tracking says an order arrived', 'wp-easycart' ),
+			'fields' => array(
+				'ec_option_mark_delivered_auto' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Mark orders delivered from tracking', 'wp-easycart' ),
+					'desc'     => __( 'When a label service reports that every package on a paid order arrived, the order moves to the status below.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'delivered', 'tracking', 'arrived', 'status' ),
+					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Delivery', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_orderstatus_delivered' => array(
+					'type'      => 'select',
+					'label'     => __( 'Delivered status', 'wp-easycart' ),
+					'desc'      => __( 'The status a delivered order moves to. Rename it or change its colour under Order statuses.', 'wp-easycart' ),
+					'default'   => '',
+					'options'   => 'ecv2_shipping_status_options',
+					'parent'    => 'ec_option_mark_delivered_auto',
+					'show_when' => '1',
+					'keywords'  => array( 'delivered', 'order status' ),
+					'legacy'    => array( 'page' => 'shipping-settings', 'section' => 'Delivery', 'label' => 'New in 6.0.2' ),
 				),
 			),
 		),

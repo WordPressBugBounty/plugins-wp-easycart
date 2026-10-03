@@ -31,7 +31,11 @@ class wp_easycart_admin_pro_gate {
 			return self::$status;
 		}
 
-		$pro_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+		/* 6.0.2: WordPress installs PRO in WP_PLUGIN_DIR/wp-easycart-pro whatever this plugin's own folder is called. */
+		$pro_file = WP_PLUGIN_DIR . '/wp-easycart-pro/wp-easycart-admin-pro.php';
+		if ( ! file_exists( $pro_file ) && file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
+			$pro_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+		}
 
 		if ( ! function_exists( 'is_plugin_active' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -144,6 +148,30 @@ class wp_easycart_admin_pro_gate {
 	public static function is_enabled( $args = array() ) {
 		$gate = self::evaluate( $args );
 		return ( 'enabled' === $gate['state'] );
+	}
+
+	/**
+	 * Volume pricing tiers and role ( B2B ) prices are Pro. Every new or changed tier or role price goes through this
+	 * gate: the product editor, the products CSV import and Users › User roles. Prices saved earlier keep applying at
+	 * checkout and can still be removed. The same PRO versions as the editor's own lock ( gate_row() ), so a licensed
+	 * WP EasyCart PRO 6.0.1 keeps both.
+	 *
+	 * @since 6.0.2
+	 * @return array evaluate() result.
+	 */
+	public static function price_rules() {
+		return self::evaluate( array( 'min_version' => self::MIN_PRO_VERSION ) );
+	}
+
+	/**
+	 * The refusal a locked price rule write answers with.
+	 *
+	 * @since 6.0.2
+	 * @param string $kind tiers|roles.
+	 * @return string
+	 */
+	public static function price_rules_message( $kind = 'roles' ) {
+		return self::message( self::price_rules(), ( 'tiers' === $kind ) ? __( 'Volume pricing', 'wp-easycart' ) : __( 'Role pricing', 'wp-easycart' ) );
 	}
 
 	public static function message( $gate, $feature_label = '' ) {

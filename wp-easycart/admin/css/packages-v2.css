@@ -1,0 +1,292 @@
+/* WP EasyCart — boxes and packages ( 6.0.2 ): Settings › Shipping › Boxes and the order screen's Packages block. */
+
+.ecpk-muted { color: var( --ecv2-g500, #6b7280 ); font-size: 12px; }
+.ecpk-link { background: none; border: 0; padding: 0; margin: 0 0 0 12px; color: var( --ec-brand, #2271b1 ); font-size: 12.5px; cursor: pointer; text-decoration: underline; }
+.ecpk-link:first-child { margin-left: 0; }
+.ecpk-link.is-danger { color: #b91c1c; }
+.ecpk-link:focus-visible { outline: 2px solid var( --ec-brand, #2271b1 ); outline-offset: 2px; }
+
+/* Settings › Boxes */
+.ecpk-boxes { display: grid; gap: 12px; justify-items: start; }
+.ecpk-boxes-list { width: 100%; overflow-x: auto; }
+.ecpk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ecpk-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var( --ecv2-g500, #6b7280 ); padding: 8px 10px; border-bottom: 1px solid var( --ecv2-g200, #e5e7eb ); white-space: nowrap; }
+.ecpk-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-variant-numeric: tabular-nums; }
+.ecpk-table tr.is-off td { opacity: .6; }
+.ecpk-table .ecpk-box-name b { color: var( --ecv2-g900, #111827 ); }
+.ecpk-row-actions { text-align: right; white-space: nowrap; }
+/* 6.0.2: the box name and size open the editor; the row's actions are a "…" menu ( V2 .ecv2-row-menu ). */
+.ecpk-box-open { background: none; border: 0; padding: 0; margin: 0; font: inherit; font-weight: 600; color: var( --ecv2-g900, #111827 ); cursor: pointer; text-align: left; }
+.ecpk-box-open.is-size { font-weight: 400; color: inherit; font-variant-numeric: tabular-nums; }
+.ecpk-box-open:hover { color: var( --ec-brand, #2271b1 ); text-decoration: underline; }
+.ecpk-box-open:focus-visible { outline: 2px solid var( --ec-brand, #2271b1 ); outline-offset: 2px; border-radius: 3px; }
+.ecpk-boxes-list { overflow: visible; }
+.ecpk-box-menu .ecv2-row-menu-item { width: 100%; background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
+.ecpk-field small { color: var( --ecv2-g500, #6b7280 ); font-size: 11.5px; }
+.ecpk-field em.ecpk-muted { font-style: normal; font-weight: 400; }
+.ecpk-box-type { display: block; margin-top: 2px; font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpk-chip-default { background: var( --ec-brand-softer, #eef4fb ); color: var( --ec-brand, #2271b1 ); border: 1px solid var( --ec-brand-soft, #cfe0f2 ); }
+.ecpk-field .ecv2-select { max-width: 100% !important; }
+@media ( max-width: 600px ) {
+	.ecpk-boxes-list { overflow-x: auto; }
+	.ecpk-col-weight { display: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Order screen: the Packages block ( inside the Fulfillment card )    */
+/* ------------------------------------------------------------------ */
+
+.ecpk-order { border-top: 1px solid var( --ecv2-g100, #f3f4f6 ); padding: 12px 16px 14px; }
+.ecpk-order-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 0 0 10px; }
+.ecpk-order-head.is-returns { margin-top: 14px; }
+.ecpk-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var( --ecv2-g400, #9ca3af ); }
+.ecpk-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g600, #4b5563 ); font-size: 10.5px; letter-spacing: 0; }
+.ecpk-order-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.ecpk-order-tools .ecv2-btn { gap: 5px; }
+.ecpk-order-tools .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 14px; }
+.ecpk-note { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 10px; padding: 8px 11px; border-radius: 8px; background: var( --ecv2-g50, #f9fafb ); border: 1px solid var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g600, #4b5563 ); font-size: 12.5px; line-height: 1.45; }
+.ecpk-note .dashicons { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; margin-top: 1px; color: var( --ecv2-g400, #9ca3af ); }
+.ecpk-note.is-planned { background: var( --ec-brand-softer, #f5f9fd ); border-color: var( --ec-brand-soft, #dbe8f5 ); }
+.ecpk-note.is-planned .dashicons { color: var( --ec-brand, #2271b1 ); }
+.ecpk-note.is-warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.ecpk-note.is-warning .dashicons { color: #d97706; }
+
+.ecpk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ecpk-pkg { display: grid; grid-template-columns: auto minmax( 0, 1fr ) auto; align-items: start; gap: 12px; margin: 0; padding: 12px; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 10px; background: #fff; }
+.ecpk-pkg.is-planned { border-style: dashed; }
+.ecpk-pkg.is-delivered { border-color: #bbf7d0; background: #f7fdf9; }
+.ecpk-pkg.is-exception { border-color: #fecaca; background: #fff8f8; }
+.ecpk-pkg.is-voided { opacity: .65; }
+.ecpk-pkg-icon.dashicons { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g500, #6b7280 ); font-size: 17px; }
+.ecpk-pkg.is-label .ecpk-pkg-icon, .ecpk-pkg.is-shipped .ecpk-pkg-icon { background: #eff6ff; color: #1d4ed8; }
+.ecpk-pkg.is-delivered .ecpk-pkg-icon { background: #dcfce7; color: #15803d; }
+.ecpk-pkg.is-exception .ecpk-pkg-icon { background: #fee2e2; color: #b91c1c; }
+.ecpk-pkg-main { min-width: 0; display: grid; gap: 4px; font-size: 12.5px; color: var( --ecv2-g700, #374151 ); }
+.ecpk-pkg-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 20px; }
+.ecpk-pkg-title b { color: var( --ecv2-g900, #111827 ); font-size: 13px; font-weight: 600; }
+.ecpk-pkg-meta { color: var( --ecv2-g500, #6b7280 ); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ecpk-pkg-items { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.ecpk-pkg-items li { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; margin: 0; padding: 2px 8px; border-radius: 999px; background: var( --ecv2-g50, #f9fafb ); border: 1px solid var( --ecv2-g100, #f3f4f6 ); font-size: 12px; line-height: 1.5; color: var( --ecv2-g700, #374151 ); overflow-wrap: anywhere; }
+.ecpk-pkg-qty { font-weight: 700; color: var( --ecv2-g900, #111827 ); font-variant-numeric: tabular-nums; }
+.ecpk-pkg-track { overflow-wrap: anywhere; }
+.ecpk-pkg-track a { font-family: SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.ecpk-pkg-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.ecpk-list.is-returns .ecpk-pkg { border-style: dashed; }
+
+/* Status chips: the order screen does not load catalog-v2.css, so they are styled here. */
+.ecpk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.6; white-space: nowrap; background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g600, #4b5563 ); }
+.ecpk-chip-blue { background: #eff6ff; color: #1d4ed8; }
+.ecpk-chip-green { background: #dcfce7; color: #15803d; }
+.ecpk-chip-amber { background: #fef3c7; color: #92400e; }
+.ecpk-chip-red { background: #fee2e2; color: #b91c1c; }
+.ecpk-chip-planned { background: #fff; color: var( --ecv2-g500, #6b7280 ); box-shadow: inset 0 0 0 1px var( --ecv2-g300, #d1d5db ); }
+
+@media ( max-width: 600px ) {
+	.ecpk-order { padding: 12px; }
+	.ecpk-pkg { grid-template-columns: auto minmax( 0, 1fr ); }
+	.ecpk-pkg-actions { grid-column: 1 / -1; justify-content: flex-start; }
+	.ecpk-order-tools { width: 100%; }
+	.ecpk-order-tools .ecv2-btn { flex: 1 1 auto; justify-content: center; min-height: 36px; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Dialogs ( on <body>, class ecv2-layer )                             */
+/* ------------------------------------------------------------------ */
+
+body.ecpk-modal-open { overflow: hidden; }
+.ecpk-modal-backdrop { position: fixed; inset: 0; background: rgba( 15, 23, 42, .5 ); -webkit-backdrop-filter: blur( 3px ); backdrop-filter: blur( 3px ); z-index: 100050; }
+/* 6.0.2: centred without a transform, so the editor's menus ( position: fixed ) are placed against the window. */
+.ecpk-modal { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; color: var( --ecv2-g800, #1f2937 ); box-sizing: border-box; position: fixed; top: 8vh; left: 0; right: 0; margin: 0 auto; width: 480px; max-width: calc( 100vw - 32px ); max-height: 84vh; display: flex; flex-direction: column; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba( 0, 0, 0, .3 ); z-index: 100051; }
+.ecpk-modal *, .ecpk-modal *::before, .ecpk-modal *::after { box-sizing: border-box; }
+.ecpk-modal.is-wide { width: 720px; }
+.ecpk-modal[hidden], .ecpk-modal-backdrop[hidden] { display: none !important; }
+.ecpk-modal-head { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); }
+.ecpk-modal-head h3 { margin: 0; font-size: 15px; font-weight: 600; color: var( --ecv2-g900, #111827 ); }
+.ecpk-modal-head h3:focus { outline: none; }
+.ecpk-modal-titles { min-width: 0; display: grid; gap: 2px; }
+.ecpk-modal-sub { margin: 0; font-size: 12px; color: var( --ecv2-g500, #6b7280 ); font-variant-numeric: tabular-nums; }
+.ecpk-x { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var( --ecv2-g400, #9ca3af ); padding: 0; border-radius: 8px; flex: 0 0 auto; }
+.ecpk-x:hover { background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g800, #1f2937 ); }
+.ecpk-x .dashicons { font-size: 20px; width: 20px; height: 20px; }
+.ecpk-modal-body { padding: 16px 20px; overflow-y: auto; display: grid; gap: 12px; }
+.ecpk-modal-foot { padding: 13px 20px; border-top: 1px solid var( --ecv2-g100, #f3f4f6 ); background: var( --ecv2-g50, #f9fafb ); display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; border-radius: 0 0 16px 16px; }
+.ecpk-field { display: grid; gap: 4px; font-size: 12.5px; color: var( --ecv2-g700, #374151 ); }
+.ecpk-field > span { font-weight: 600; }
+.ecpk-field .ecv2-input, .ecpk-field .ecv2-select { width: 100%; max-width: 100%; }
+.ecpk-dims { display: flex; align-items: center; gap: 6px; }
+.ecpk-dims .ecv2-input { min-width: 0; flex: 1; }
+.ecpk-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ecpk-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var( --ecv2-g700, #374151 ); }
+.ecpk-check-note { display: block; margin: -6px 0 0 24px; color: var( --ecv2-g500, #6b7280 ); font-size: 11.5px; }
+.ecpk-error { margin: 0; padding: 9px 12px; border-radius: 8px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 12.5px; line-height: 1.45; }
+.ecpk-error[hidden] { display: none; }
+.ecpk-error:focus { outline: 2px solid #fca5a5; outline-offset: 1px; }
+.ecpk-confirm { width: 420px; top: 18vh; z-index: 100061; }
+.ecpk-confirm-backdrop { z-index: 100060; }
+.ecpk-confirm p { margin: 0; font-size: 13px; line-height: 1.5; color: var( --ecv2-g600, #4b5563 ); }
+.ecpk-confirm .ecv2-btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.ecpk-sr { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect( 0 0 0 0 ); clip-path: inset( 50% ); white-space: nowrap; border: 0; }
+
+/* ------------------------------------------------------------------ */
+/* Package editor ( #ecpk_edit_modal )                                 */
+/* ------------------------------------------------------------------ */
+
+.ecpk-editor { width: 780px; top: 5vh; max-height: 90vh; }
+.ecpk-dirty { flex: 0 0 auto; display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.ecpk-dirty[hidden] { display: none; }
+.ecpk-dirty:not([hidden]) + .ecpk-x { margin-left: 0; }
+.ecpk-modal-titles + .ecpk-dirty { margin-left: auto; }
+.ecpk-ed-body { flex: 1 1 auto; background: var( --ecv2-g50, #f9fafb ); padding: 16px 20px 20px; }
+.ecpk-ed { display: grid; gap: 14px; min-width: 0; }
+.ecpk-ed-intro { display: grid; gap: 8px; }
+.ecpk-ed-lead { margin: 0; font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g500, #6b7280 ); }
+.ecpk-ed-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.45; background: #fff; border: 1px solid var( --ecv2-g200, #e5e7eb ); color: var( --ecv2-g600, #4b5563 ); }
+.ecpk-ed-note .dashicons { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; margin-top: 1px; color: var( --ecv2-g400, #9ca3af ); }
+.ecpk-ed-note.is-planned { background: var( --ec-brand-softer, #f5f9fd ); border-color: var( --ec-brand-soft, #dbe8f5 ); }
+.ecpk-ed-note.is-planned .dashicons { color: var( --ec-brand, #2271b1 ); }
+.ecpk-ed-note a { color: var( --ec-brand, #2271b1 ); font-weight: 600; }
+
+/* Not in a package yet / More than the order has */
+.ecpk-ed-alerts { display: grid; gap: 10px; }
+.ecpk-ed-tray { border: 1px solid #fde68a; background: #fffbeb; border-radius: 12px; padding: 4px 14px 6px; }
+.ecpk-ed-tray.is-over { border-color: #fecaca; background: #fef2f2; }
+.ecpk-ed-tray-head { display: flex; align-items: center; gap: 8px; padding: 8px 0 6px; }
+.ecpk-ed-tray-head .dashicons { font-size: 17px; width: 17px; height: 17px; color: #d97706; }
+.ecpk-ed-tray.is-over .ecpk-ed-tray-head .dashicons { color: #dc2626; }
+.ecpk-ed-tray-head h4 { margin: 0; flex: 1 1 auto; font-size: 13px; font-weight: 600; color: #92400e; }
+.ecpk-ed-tray.is-over .ecpk-ed-tray-head h4 { color: #991b1b; }
+.ecpk-ed-tray-head h4:focus { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 3px; }
+.ecpk-ed-tray .ecpk-ed-row { border-top-color: rgba( 146, 64, 14, .12 ); }
+.ecpk-ed-tray.is-over .ecpk-ed-row { border-top-color: rgba( 153, 27, 27, .12 ); }
+.ecpk-ed-left { font-size: 12px; font-weight: 600; color: #92400e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ecpk-ed-tray.is-over .ecpk-ed-left { color: #991b1b; }
+
+/* A package */
+.ecpk-ed-list { display: grid; gap: 12px; }
+.ecpk-ed-pkg { background: #fff; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 12px; box-shadow: 0 1px 2px rgba( 17, 24, 39, .04 ); min-width: 0; }
+.ecpk-ed-pkg-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); }
+.ecpk-ed-pkg-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var( --ec-brand-softer, #eef4fb ); color: var( --ec-brand, #2271b1 ); }
+.ecpk-ed-pkg-icon .dashicons { font-size: 17px; width: 17px; height: 17px; }
+.ecpk-ed-pkg-titles { min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
+.ecpk-ed-pkg-titles h4 { margin: 0; font-size: 14px; font-weight: 600; color: var( --ecv2-g900, #111827 ); }
+.ecpk-ed-pkg-titles h4:focus { outline: 2px solid var( --ec-brand, #2271b1 ); outline-offset: 2px; border-radius: 3px; }
+.ecpk-ed-pkg-sum { font-size: 12px; color: var( --ecv2-g500, #6b7280 ); font-variant-numeric: tabular-nums; }
+.ecpk-icon-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: none; color: var( --ecv2-g400, #9ca3af ); cursor: pointer; }
+.ecpk-icon-btn .dashicons { font-size: 17px; width: 17px; height: 17px; }
+.ecpk-icon-btn:hover { background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g700, #374151 ); }
+.ecpk-icon-btn.is-danger:hover { background: #fee2e2; color: #b91c1c; }
+.ecpk-ed-pkg.is-locked { background: var( --ecv2-g50, #f9fafb ); box-shadow: none; }
+.ecpk-ed-pkg.is-locked .ecpk-ed-pkg-icon { background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g500, #6b7280 ); }
+.ecpk-ed-locked-note { margin: 0; padding: 10px 14px 4px; font-size: 12px; color: var( --ecv2-g500, #6b7280 ); overflow-wrap: anywhere; }
+.ecpk-ed-readonly { list-style: none; margin: 0; padding: 6px 14px 12px; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.ecpk-ed-readonly li { margin: 0; padding: 2px 8px; border-radius: 999px; background: #fff; border: 1px solid var( --ecv2-g200, #e5e7eb ); font-size: 12px; color: var( --ecv2-g700, #374151 ); }
+
+/* Box and weight */
+.ecpk-ed-pkg-box { display: grid; grid-template-columns: minmax( 0, 1fr ) minmax( 150px, 200px ); gap: 12px 16px; padding: 12px 14px; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); }
+.ecpk-ed-col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.ecpk-ed-label, .ecpk-ed-dims legend { display: block; margin: 0; padding: 0; font-size: 11.5px; font-weight: 600; color: var( --ecv2-g600, #4b5563 ); }
+.ecpk-ed .ecv2-select.ecpk-ed-select { width: 100%; max-width: 100% !important; min-height: 36px; }
+/* WordPress's input[type=number] rules outrank .ecv2-input: the editor's fields keep the V2 look. */
+.ecpk-ed .ecv2-input { min-height: 36px; margin: 0; padding: 7px 10px; border: 1px solid var( --ecv2-g300, #d1d5db ); border-radius: 8px; background: #fff; box-shadow: none; line-height: 1.4; font-size: 13px; color: var( --ecv2-g800, #1f2937 ); }
+.ecpk-ed .ecv2-input:focus, .ecpk-ed .ecv2-select:focus { border-color: var( --ec-brand, #2271b1 ); box-shadow: 0 0 0 3px var( --ec-brand-soft, rgba( 34, 113, 177, .15 ) ); outline: none; }
+.ecpk-ed-hint { margin: 0; font-size: 12px; line-height: 1.45; color: var( --ecv2-g500, #6b7280 ); font-variant-numeric: tabular-nums; }
+.ecpk-ed-dims { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 6px; }
+.ecpk-ed-dims-row { display: flex; align-items: flex-end; gap: 6px; }
+.ecpk-ed-dim { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; }
+.ecpk-ed-dim-label { font-size: 11px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpk-ed-times { padding-bottom: 9px; color: var( --ecv2-g400, #9ca3af ); }
+.ecpk-ed-wnote { font-size: 12px; line-height: 1.45; color: var( --ecv2-g500, #6b7280 ); }
+.ecpk-ed-warn { display: flex; align-items: flex-start; gap: 4px; margin-top: 4px; color: #b45309; font-weight: 500; }
+.ecpk-ed-warn .dashicons { font-size: 14px; width: 14px; height: 14px; margin-top: 2px; }
+.ecpk-linkbtn { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var( --ec-brand, #2271b1 ); text-decoration: underline; cursor: pointer; }
+.ecpk-linkbtn:hover { color: var( --ec-brand-hover, #135e96 ); }
+
+/* Items: name, quantity stepper, Move */
+.ecpk-ed-items { padding: 2px 14px 4px; }
+.ecpk-ed-rows { list-style: none; margin: 0; padding: 0; }
+.ecpk-ed-row { display: grid; grid-template-columns: minmax( 0, 1fr ) auto auto; align-items: center; gap: 8px 12px; margin: 0; padding: 9px 0; border-top: 1px solid var( --ecv2-g100, #f3f4f6 ); }
+.ecpk-ed-rows > .ecpk-ed-row:first-child { border-top: 0; }
+.ecpk-ed-row.is-over .ecpk-step { border-color: #fca5a5; box-shadow: 0 0 0 3px #fee2e2; }
+.ecpk-ed-name { min-width: 0; display: grid; gap: 1px; }
+.ecpk-ed-title { font-size: 13px; font-weight: 500; color: var( --ecv2-g900, #111827 ); overflow-wrap: anywhere; }
+.ecpk-ed-sub { font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); overflow-wrap: anywhere; }
+.ecpk-ed-qty { display: inline-flex; align-items: center; gap: 6px; }
+.ecpk-ed-of { font-size: 12px; color: var( --ecv2-g500, #6b7280 ); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ecpk-step { display: inline-flex; align-items: stretch; height: 34px; border: 1px solid var( --ecv2-g300, #d1d5db ); border-radius: 8px; background: #fff; overflow: hidden; }
+.ecpk-step:focus-within { border-color: var( --ec-brand, #2271b1 ); box-shadow: 0 0 0 3px var( --ec-brand-soft, rgba( 34, 113, 177, .15 ) ); }
+.ecpk-step-btn { width: 32px; padding: 0; border: 0; background: #fff; color: var( --ecv2-g600, #4b5563 ); font-size: 17px; line-height: 1; cursor: pointer; }
+.ecpk-step-btn:hover:not(:disabled) { background: var( --ecv2-g50, #f9fafb ); color: var( --ecv2-g900, #111827 ); }
+.ecpk-step-btn:disabled { color: var( --ecv2-g300, #d1d5db ); cursor: default; }
+.ecpk-step-btn:focus-visible { outline: 2px solid var( --ec-brand, #2271b1 ); outline-offset: -2px; }
+input.ecpk-step-input { width: 46px; min-height: 0; margin: 0; padding: 0 4px; border: 0; border-left: 1px solid var( --ecv2-g200, #e5e7eb ); border-right: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 0; background: #fff; box-shadow: none; text-align: center; font-size: 13px; font-weight: 600; color: var( --ecv2-g900, #111827 ); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+input.ecpk-step-input::-webkit-outer-spin-button, input.ecpk-step-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.ecpk-step-input:focus { outline: none; box-shadow: none; background: var( --ec-brand-softer, #f5f9fd ); }
+.ecpk-menu-btn { gap: 4px; white-space: nowrap; }
+.ecpk-menu-btn .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 14px; color: var( --ecv2-g400, #9ca3af ); }
+.ecpk-menu-btn[aria-expanded="true"] { border-color: var( --ec-brand, #2271b1 ); color: var( --ec-brand, #2271b1 ); }
+.ecpk-ed-empty { margin: 0; padding: 14px 0 12px; font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g500, #6b7280 ); text-align: center; }
+
+.ecpk-ed-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; padding: 10px; border: 1px dashed var( --ecv2-g300, #d1d5db ); border-radius: 12px; background: #fff; color: var( --ecv2-g700, #374151 ); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.ecpk-ed-add:hover { border-color: var( --ec-brand, #2271b1 ); color: var( --ec-brand, #2271b1 ); background: var( --ec-brand-softer, #f5f9fd ); }
+.ecpk-ed-add .dashicons { font-size: 16px; width: 16px; height: 16px; }
+
+/* Move / Add to menu ( fixed to the window, placed by packages-v2.js ) */
+.ecpk-menu { position: fixed; z-index: 100070; min-width: 220px; max-width: min( 340px, calc( 100vw - 16px ) ); max-height: 50vh; overflow-y: auto; padding: 4px; background: #fff; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 10px; box-shadow: 0 10px 30px rgba( 17, 24, 39, .18 ); }
+.ecpk-menu-item { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var( --ecv2-g700, #374151 ); font: inherit; font-size: 13px; line-height: 1.35; text-align: left; cursor: pointer; }
+.ecpk-menu-item:hover, .ecpk-menu-item:focus { background: var( --ec-brand-softer, #f0f6fc ); color: var( --ecv2-g900, #111827 ); outline: none; }
+.ecpk-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var( --ec-brand, #2271b1 ); }
+.ecpk-menu-item.is-danger { color: #b91c1c; }
+.ecpk-menu-item.is-danger:hover, .ecpk-menu-item.is-danger:focus { background: #fef2f2; color: #991b1b; }
+.ecpk-menu-sep { height: 1px; margin: 4px 6px; background: var( --ecv2-g100, #f3f4f6 ); }
+
+/* Footer: what is left to do, then Cancel and Save */
+.ecpk-ed-foot { justify-content: flex-end; }
+.ecpk-ed-status { flex: 1 1 220px; display: flex; align-items: flex-start; gap: 6px; min-width: 0; margin: 0; font-size: 12.5px; line-height: 1.4; font-weight: 500; }
+.ecpk-ed-status .dashicons { flex: 0 0 auto; font-size: 17px; width: 17px; height: 17px; }
+.ecpk-ed-status.is-ok { color: #15803d; }
+.ecpk-ed-status.is-warn { color: #92400e; }
+.ecpk-ed-status.is-warn .dashicons { color: #d97706; }
+.ecpk-ed-status.is-bad { color: #991b1b; }
+.ecpk-ed-status.is-muted { color: var( --ecv2-g500, #6b7280 ); }
+#ecpk_edit_save.is-blocked { opacity: .55; cursor: not-allowed; }
+#ecpk_edit_save:disabled { opacity: .55; cursor: default; }
+
+.ecpk-toast { position: fixed; right: 24px; bottom: 24px; z-index: 100080; background: var( --ecv2-g900, #111827 ); color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+.ecpk-toast.is-error { background: #991b1b; }
+
+@media ( max-width: 720px ) {
+	.ecpk-ed-pkg-box { grid-template-columns: 1fr; }
+	.ecpk-ed-row { grid-template-columns: minmax( 0, 1fr ) auto; }
+	.ecpk-ed-row > .ecpk-ed-name { grid-column: 1 / -1; }
+	.ecpk-ed-tray .ecpk-ed-row { grid-template-columns: minmax( 0, 1fr ) auto; }
+	.ecpk-ed-tray .ecpk-ed-row > .ecpk-ed-name { grid-column: auto; }
+	.ecpk-ed-tray .ecpk-ed-row > .ecpk-menu-btn { grid-column: 1 / -1; justify-self: start; }
+}
+
+@media ( max-width: 600px ) {
+	/* Dialogs become a sheet from the bottom; the editor takes the whole screen. */
+	.ecpk-modal { top: auto; bottom: 0; width: 100%; max-width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+	.ecpk-modal-foot { border-radius: 0; padding: 12px 16px calc( 12px + env( safe-area-inset-bottom ) ); }
+	.ecpk-modal-head { padding: 13px 16px; }
+	.ecpk-modal-body { padding: 14px 16px; }
+	.ecpk-editor { top: 0; height: 100%; max-height: 100%; border-radius: 0; }
+	.ecpk-ed-body { padding: 12px 12px 16px; }
+	.ecpk-ed-pkg-head, .ecpk-ed-pkg-box, .ecpk-ed-items { padding-left: 12px; padding-right: 12px; }
+	.ecpk-ed-foot .ecpk-ed-status { flex-basis: 100%; }
+	.ecpk-ed-foot .ecv2-btn { flex: 1 1 0; justify-content: center; min-height: 44px; }
+	.ecpk-step { height: 40px; }
+	.ecpk-step-btn { width: 40px; }
+	.ecpk-menu-btn { min-height: 40px; }
+	.ecpk-two { grid-template-columns: 1fr; }
+}
+
+/* 6.0.2 bug round 6: a button that saves ( Save tracking, Mark delivered, Pack again ) shows a spinner and "Saving…" until
+   the answer comes back or the page reloads. */
+.ecpk-busy { cursor: progress !important; opacity: .85; }
+.ecpk-spin { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; margin-right: 6px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; box-sizing: border-box; animation: ecpk-spin .7s linear infinite; }
+@keyframes ecpk-spin { to { transform: rotate( 360deg ); } }
+
+@media ( prefers-reduced-motion: reduce ) {
+	.ecpk-modal-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
+	.ecpk-spin { animation-duration: 2s; }
+}

@@ -143,7 +143,8 @@ if ( $orders->num_orders > 0 ) {
 					echo "</span>";
 				}
 				if ( $order_item->include_code && $order->is_approved ) {
-					$codes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_code WHERE ec_code.orderdetail_id = %d", $cart->cart[$i]->orderdetail_id ) );
+					/* 6.0.2: this line's codes ( it read an undefined $cart->cart[$i], so no code was ever shown ). */
+					$codes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_code WHERE ec_code.orderdetail_id = %d", (int) $order_item->orderdetail_id ) );
 					$code_list = "";
 					for ( $code_index = 0; $code_index < count( $codes ); $code_index++ ) {
 						if( $code_index > 0 )
@@ -195,8 +196,9 @@ if ( $orders->num_orders > 0 ) {
 		$total_orders_displayed++;
 	?>
 </div><?php // Close order item wrap
+		/* 6.0.2: only once an order was shown, so a status filter that matches nothing shows the no-orders message ( it showed nothing ). */
+		$is_first_order = false;
 	}
-	$is_first_order = false;
 } ?>
 <?php if ( $is_first_order ) {
 	echo '<div class="wp-easycart-no-orders-found">';
@@ -219,14 +221,15 @@ if ( $orders->num_orders > 0 ) {
 		</div>
 
 		<a href="#" class="wp-easycart-orders-page-nav wp-easycart-orders-pagination-next-page" data-page="next"><?php echo esc_html__( 'Next', 'wp-easycart' ); ?> &rsaquo;</a>
-		<a href="#" class="wp-easycart-orders-page-nav wp-easycart-orders-pagination-last-page" data-page="last"><?php echo esc_html__( 'Last' ); ?> &raquo;</a>
+		<a href="#" class="wp-easycart-orders-page-nav wp-easycart-orders-pagination-last-page" data-page="last"><?php echo esc_html__( 'Last', 'wp-easycart' ); ?> &raquo;</a>
 	</nav>
 <?php } ?>
 </div>
 
 <?php if ( 'yes' == $args['enable_view_all'] ) { ?>
 <div class="wp-easycart-orders-all-row">
-	<a href="<?php echo esc_attr( $account_page . $permalink_divider ); ?>ec_page=orders" class="wp-easycart-orders-all"><?php echo esc_html( $args['view_orders_button_text'] ); ?></a>
+	<?php /* 6.0.2: the account page's orders list ( this used variables that are not set here, so the link was the relative "ec_page=orders" ). */ ?>
+	<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'orders' ) ); ?>" class="wp-easycart-orders-all"><?php echo esc_html( $args['view_orders_button_text'] ); ?></a>
 </div>
 <?php }?>
 

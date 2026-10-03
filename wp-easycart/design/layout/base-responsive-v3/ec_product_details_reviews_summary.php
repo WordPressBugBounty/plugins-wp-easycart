@@ -1,7 +1,8 @@
 <?php
 /**
  * Rating summary shown at the top of the reviews tab: average, count, 5→1 distribution.
- * Included by ec_product_details_page.php; $this->product is the ec_product. Safe when ec_reviews is absent.
+ * Included by ec_product_details_page.php, and by ec_product_details_page_tabs.php through ec_reviews::print_summary();
+ * $this->product is the ec_product in both. Safe when ec_reviews is absent.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 if ( ! class_exists( 'ec_reviews' ) || ! $this->product->use_customer_reviews ) { return; }

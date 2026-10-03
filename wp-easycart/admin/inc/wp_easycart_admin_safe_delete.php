@@ -134,7 +134,8 @@ if ( ! class_exists( 'wp_easycart_admin_safe_delete' ) ) :
 			}
 
 			/* Strategies */
-			$targets = $wpdb->get_results( $wpdb->prepare( 'SELECT option_id AS value, CONCAT( option_name, " (", ( SELECT COUNT(*) FROM ec_optionitem WHERE ec_optionitem.option_id = ec_option.option_id ), ")" ) AS label FROM ec_option WHERE option_id != %d AND option_type IN ( %s, %s, %s, %s ) ORDER BY option_name', $option_id, 'basic-combo', 'basic-swatch', 'combo', 'swatch' ) );
+			$shared  = class_exists( 'wp_easycart_product_writer' ) ? wp_easycart_product_writer::shared_sets_sql() : ''; /* 6.0.2: not the sets that belong to one product */
+			$targets = $wpdb->get_results( $wpdb->prepare( 'SELECT option_id AS value, CONCAT( option_name, " (", ( SELECT COUNT(*) FROM ec_optionitem WHERE ec_optionitem.option_id = ec_option.option_id ), ")" ) AS label FROM ec_option WHERE option_id != %d AND option_type IN ( %s, %s, %s, %s )' . $shared . ' ORDER BY option_name', $option_id, 'basic-combo', 'basic-swatch', 'combo', 'swatch' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $shared is a literal condition.
 			$strategies = array();
 			if ( $total_products ) {
 				$strategies[] = array(

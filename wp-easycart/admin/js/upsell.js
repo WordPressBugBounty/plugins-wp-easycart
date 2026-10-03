@@ -56,13 +56,29 @@
 
 		$panel.find( '[data-upsell-plan-card="pro"]' ).attr( 'href', e.pro_url ).toggleClass( 'is-recommended', e.plan !== 'premium' );
 		$panel.find( '[data-upsell-plan-card="premium"]' ).attr( 'href', e.prem_url ).toggleClass( 'is-recommended', e.plan === 'premium' );
+		/* 6.0.2: a Premium context ( the extensions ) offers Premium alone, worded for this store ( CSS hides the Pro card and
+		   the trial link under .is-premium ); every other context gets the standard Premium card back. */
+		var prem = ( e.plan === 'premium' && !! e.prem_cta );
+		$panel.toggleClass( 'is-premium', prem ).toggleClass( 'is-renew', prem && e.offer_mode === 'renew' );
+		$panel.find( '[data-upsell-prem-title]' ).text( prem ? e.prem_title : ( V.lang.prem_title || 'Premium' ) );
+		$panel.find( '[data-upsell-prem-desc]' ).text( prem ? ( e.prem_desc || V.lang.prem_desc || '' ) : ( V.lang.prem_desc || '' ) );
+		$panel.find( '[data-upsell-prem-cta]' ).text( prem ? e.prem_cta : ( V.lang.prem_cta || 'Get Premium' ) );
 		$panel.find( '[data-upsell-docs]' )
 			.attr( 'href', e.docs || 'https://www.wpeasycart.com/wordpress-shopping-cart-features/' )
 			.text( ( e.docs ? ( V.lang.learn || 'How it works' ) : ( V.lang.full || 'Full feature list' ) ) + ' ↗' );
 	}
 
+	/* 6.0.2: Premium contexts open the Premium popup ( printed by wp_easycart_admin_extensions::print_popup() on every store
+	   without a current Premium license, even where PRO removed the upsell popup or swapped in its renewal page ). */
+	function popup_for( key ) {
+		var e = V.entries[ key ];
+		var $prem = $( '#ec_admin_premium_popup' );
+		if ( e && e.plan === 'premium' && $prem.length ) { return $prem; }
+		return $( '#ec_admin_upsell_popup' );
+	}
+
 	function open( key, feature ) {
-		var $popup = $( '#ec_admin_upsell_popup' );
+		var $popup = popup_for( key );
 		if ( ! $popup.length ) {
 			var e = V.entries[ key ] || V.entries[ 'default' ];
 			if ( e && ( e.update || ( feature && e.features && e.features[ feature ] && e.features[ feature ].update_version ) ) ) { window.location.href = e.update_url; return; }
@@ -80,7 +96,7 @@
 	}
 
 	function close() {
-		$( '#ec_admin_upsell_popup' ).stop( true, true ).fadeOut( 140 );
+		$( '#ec_admin_upsell_popup, #ec_admin_premium_popup' ).stop( true, true ).fadeOut( 140 );
 		$( 'body' ).removeClass( 'ecv2-upsell-lock' );
 	}
 
@@ -107,11 +123,11 @@
 	};
 	window.hide_pro_required = close;
 
-	$( document ).on( 'click', '#ec_admin_upsell_popup', function( e ) {
+	$( document ).on( 'click', '#ec_admin_upsell_popup, #ec_admin_premium_popup', function( e ) {
 		if ( e.target === this ) { close(); }
 	} );
 	$( document ).on( 'keydown', function( e ) {
-		if ( e.key === 'Escape' && $( '#ec_admin_upsell_popup' ).is( ':visible' ) ) { close(); }
+		if ( e.key === 'Escape' && $( '#ec_admin_upsell_popup, #ec_admin_premium_popup' ).is( ':visible' ) ) { close(); }
 	} );
 	/* Locked preview blocks are focusable; Enter/Space opens. */
 	$( document ).on( 'keydown', '.ecv2-locked-preview', function( e ) {

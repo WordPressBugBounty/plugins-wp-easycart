@@ -7,6 +7,10 @@
  * sidebar groups them. Pages still on the classic layout are listed too,
  * so the home page is complete from day one.
  *
+ * 6.0.2: this catalog is also the sidebar's Settings menu ( navigation() ): eight groups
+ * ( wp_easycart_admin_settings_registry::groups() ), each page in its group by 'order'. A new page
+ * only declares its group and order; the sidebar, this page and search pick it up.
+ *
  * @since 6.0.0
  */
 
@@ -20,41 +24,53 @@ class wp_easycart_admin_settings_home {
 
 	/**
 	 * Every settings page, converted or not. Converted pages are overridden by
-	 * their registry declaration ( title, description, count, url ).
+	 * their registry declaration ( title, description, count, url, group, order ).
+	 * Each entry: group, order, icon, title, description, plan ( '' | pro | premium ),
+	 * aliases ( other subpage slugs that open it ), legacy, count, url.
 	 */
 	public static function catalog() {
 		$pages = array(
-			'products'          => array( 'group' => 'store-setup', 'icon' => 'products', 'title' => __( 'Products', 'wp-easycart' ), 'description' => __( 'Product pages, lists, reviews, inventory and store defaults.', 'wp-easycart' ) ),
-			'checkout'          => array( 'group' => 'store-setup', 'icon' => 'cart', 'title' => __( 'Checkout', 'wp-easycart' ), 'description' => __( 'Cart behavior, checkout form fields, order statuses and stock control.', 'wp-easycart' ) ),
-			'account'           => array( 'group' => 'store-setup', 'icon' => 'admin-users', 'title' => __( 'Accounts', 'wp-easycart' ), 'description' => __( 'Registration requirements, account page and spam protection.', 'wp-easycart' ) ),
-			'payment'           => array( 'group' => 'financial', 'icon' => 'money-alt', 'title' => __( 'Payment', 'wp-easycart' ), 'description' => __( 'Live gateway, third-party checkout, bill later and test mode.', 'wp-easycart' ) ),
-			'tax'               => array( 'group' => 'financial', 'icon' => 'media-spreadsheet', 'title' => __( 'Taxes', 'wp-easycart' ), 'description' => __( 'Global, state, country, VAT, duty and Canada tax.', 'wp-easycart' ) ),
-			'fee'               => array( 'group' => 'financial', 'icon' => 'tag', 'title' => __( 'Flex-Fees', 'wp-easycart' ), 'description' => __( 'Percentage or flat fees and discounts by location, role or payment type.', 'wp-easycart' ), 'pro' => true ),
-			'shipping-settings' => array( 'group' => 'financial', 'icon' => 'car', 'title' => __( 'Shipping settings', 'wp-easycart' ), 'description' => __( 'Shipping method, zones, packing slip and live-rate carriers.', 'wp-easycart' ) ),
-			'shipping-rates'    => array( 'group' => 'financial', 'icon' => 'list-view', 'title' => __( 'Shipping rates', 'wp-easycart' ), 'description' => __( 'The rate tables for your chosen shipping method.', 'wp-easycart' ) ),
-			'miscellaneous'     => array( 'group' => 'customize', 'icon' => 'admin-settings', 'title' => __( 'Additional settings', 'wp-easycart' ), 'description' => __( 'Admin options, storefront search, cart icon and newsletter popup.', 'wp-easycart' ) ),
-			'design'            => array( 'group' => 'customize', 'icon' => 'art', 'title' => __( 'Design', 'wp-easycart' ), 'description' => __( 'Store colors, layout options and custom CSS.', 'wp-easycart' ) ),
-			'language-editor'   => array( 'group' => 'customize', 'icon' => 'translation', 'title' => __( 'Language', 'wp-easycart' ), 'description' => __( 'Every storefront phrase, editable.', 'wp-easycart' ) ),
-			'email-setup'       => array( 'group' => 'customize', 'icon' => 'email', 'title' => __( 'Email', 'wp-easycart' ), 'description' => __( 'Sender, order receipts, account emails and a test send.', 'wp-easycart' ) ),
-			'country'           => array( 'group' => 'customize', 'icon' => 'admin-site-alt3', 'title' => __( 'Countries & Regions', 'wp-easycart' ), 'description' => __( 'Where you ship, and the regions shoppers can pick.', 'wp-easycart' ) ),
-			'perpage'           => array( 'group' => 'customize', 'icon' => 'grid-view', 'title' => __( 'Per page options', 'wp-easycart' ), 'description' => __( 'How many products a shopper can show per page.', 'wp-easycart' ) ),
-			'pricepoint'        => array( 'group' => 'customize', 'icon' => 'filter', 'title' => __( 'Price points', 'wp-easycart' ), 'description' => __( 'Price ranges shoppers filter by.', 'wp-easycart' ) ),
-			'schedule'          => array( 'group' => 'customize', 'icon' => 'clock', 'title' => __( 'Schedule & locations', 'wp-easycart' ), 'description' => __( 'Opening hours, holidays and pickup windows, plus the store locations shoppers pick up from.', 'wp-easycart' ), 'pro' => true ),
-			'third-party'       => array( 'group' => 'integrations', 'icon' => 'admin-plugins', 'title' => __( 'Third party', 'wp-easycart' ), 'description' => __( 'Google Analytics, Amazon, DecoNetwork.', 'wp-easycart' ) ),
-			'cart-importer'     => array( 'group' => 'integrations', 'icon' => 'download', 'title' => __( 'Cart importer', 'wp-easycart' ), 'description' => __( 'Bring products in from Square or another cart.', 'wp-easycart' ) ),
-			'logs'              => array( 'group' => 'troubleshoot', 'icon' => 'editor-ul', 'title' => __( 'Log entries', 'wp-easycart' ), 'description' => __( 'Gateway and webhook responses for troubleshooting.', 'wp-easycart' ) ),
+			'products'          => array( 'group' => 'store', 'order' => 20, 'icon' => 'products', 'title' => __( 'Products', 'wp-easycart' ), 'description' => __( 'Product pages, lists, reviews, inventory and store defaults.', 'wp-easycart' ) ),
+			'checkout'          => array( 'group' => 'cart-checkout', 'order' => 10, 'icon' => 'cart', 'title' => __( 'Checkout', 'wp-easycart' ), 'description' => __( 'Cart behavior, checkout form fields, order statuses and stock control.', 'wp-easycart' ) ),
+			'account'           => array( 'group' => 'store', 'order' => 30, 'icon' => 'admin-users', 'title' => __( 'Accounts', 'wp-easycart' ), 'description' => __( 'Registration requirements, account page and spam protection.', 'wp-easycart' ) ),
+			'payment'           => array( 'group' => 'payments-taxes', 'order' => 10, 'icon' => 'money-alt', 'title' => __( 'Payment', 'wp-easycart' ), 'description' => __( 'Live gateway, third-party checkout, bill later and test mode.', 'wp-easycart' ) ),
+			'tax'               => array( 'group' => 'payments-taxes', 'order' => 20, 'icon' => 'media-spreadsheet', 'title' => __( 'Taxes', 'wp-easycart' ), 'description' => __( 'Global, state, country, VAT, duty and Canada tax.', 'wp-easycart' ) ),
+			'fee'               => array( 'group' => 'payments-taxes', 'order' => 30, 'icon' => 'tag', 'title' => __( 'Flex-Fees', 'wp-easycart' ), 'description' => __( 'Percentage or flat fees and discounts by location, role or payment type.', 'wp-easycart' ), 'plan' => 'pro' ),
+			'shipping-settings' => array( 'group' => 'shipping', 'order' => 10, 'icon' => 'car', 'title' => __( 'Shipping settings', 'wp-easycart' ), 'description' => __( 'Shipping method, zones, packing slip and live-rate carriers.', 'wp-easycart' ) ),
+			'shipping-rates'    => array( 'group' => 'shipping', 'order' => 20, 'icon' => 'list-view', 'title' => __( 'Shipping rates', 'wp-easycart' ), 'description' => __( 'The rate tables for your chosen shipping method.', 'wp-easycart' ) ),
+			'miscellaneous'     => array( 'group' => 'advanced', 'order' => 10, 'icon' => 'admin-settings', 'title' => __( 'Additional settings', 'wp-easycart' ), 'description' => __( 'Admin options, storefront search, cart icon and newsletter popup.', 'wp-easycart' ) ),
+			'design'            => array( 'group' => 'appearance', 'order' => 10, 'icon' => 'art', 'title' => __( 'Design', 'wp-easycart' ), 'description' => __( 'Store colors, layout options and custom CSS.', 'wp-easycart' ) ),
+			'language-editor'   => array( 'group' => 'appearance', 'order' => 20, 'icon' => 'translation', 'title' => __( 'Language', 'wp-easycart' ), 'description' => __( 'Every storefront phrase, editable.', 'wp-easycart' ) ),
+			'email-setup'       => array( 'group' => 'emails-documents', 'order' => 10, 'icon' => 'email', 'title' => __( 'Email', 'wp-easycart' ), 'description' => __( 'Sender, order receipts, account emails and a test send.', 'wp-easycart' ) ),
+			'country'           => array( 'group' => 'store', 'order' => 40, 'icon' => 'admin-site-alt3', 'title' => __( 'Countries & Regions', 'wp-easycart' ), 'description' => __( 'Where you ship, and the regions shoppers can pick.', 'wp-easycart' ), 'aliases' => array( 'states' ) ),
+			'perpage'           => array( 'group' => 'appearance', 'order' => 30, 'icon' => 'grid-view', 'title' => __( 'Per page options', 'wp-easycart' ), 'description' => __( 'How many products a shopper can show per page.', 'wp-easycart' ) ),
+			'pricepoint'        => array( 'group' => 'appearance', 'order' => 40, 'icon' => 'filter', 'title' => __( 'Price points', 'wp-easycart' ), 'description' => __( 'Price ranges shoppers filter by.', 'wp-easycart' ) ),
+			'schedule'          => array( 'group' => 'store', 'order' => 50, 'icon' => 'clock', 'title' => __( 'Schedule & locations', 'wp-easycart' ), 'description' => __( 'Opening hours, holidays and pickup windows, plus the store locations shoppers pick up from.', 'wp-easycart' ), 'plan' => 'pro', 'aliases' => array( 'location' ) ),
+			'third-party'       => array( 'group' => 'advanced', 'order' => 20, 'icon' => 'admin-plugins', 'title' => __( 'Third party', 'wp-easycart' ), 'description' => __( 'Google Analytics, Amazon, DecoNetwork.', 'wp-easycart' ) ),
+			'cart-importer'     => array( 'group' => 'advanced', 'order' => 30, 'icon' => 'download', 'title' => __( 'Cart importer', 'wp-easycart' ), 'description' => __( 'Bring products in from Square or another cart.', 'wp-easycart' ) ),
+			'logs'              => array( 'group' => 'advanced', 'order' => 90, 'icon' => 'editor-ul', 'title' => __( 'Log entries', 'wp-easycart' ), 'description' => __( 'Gateway and webhook responses for troubleshooting.', 'wp-easycart' ) ),
 		);
 		$pages = apply_filters( 'wp_easycart_settings_home_catalog', $pages );
 		foreach ( $pages as $slug => $entry ) {
-			$pages[ $slug ] = wp_parse_args( $entry, array( 'pro' => false, 'legacy' => true, 'count' => 0, 'url' => admin_url( 'admin.php?page=wp-easycart-settings&subpage=' . $slug ) ) );
+			$entry = wp_parse_args( $entry, array( 'group' => 'advanced', 'order' => 100, 'plan' => '', 'aliases' => array(), 'legacy' => true, 'count' => 0, 'url' => admin_url( 'admin.php?page=wp-easycart-settings&subpage=' . $slug ) ) );
+			if ( '' === $entry['plan'] && ! empty( $entry['pro'] ) ) {
+				$entry['plan'] = ( 'premium' === $entry['pro'] ) ? 'premium' : 'pro'; /* entries added before 6.0.2 said 'pro' => true */
+			}
+			$entry['group'] = wp_easycart_admin_settings_registry::group_for( $entry['group'] );
+			$pages[ $slug ] = $entry;
 		}
 		foreach ( wp_easycart_admin_settings_registry::pages() as $slug => $page ) {
+			if ( 'extensions' === $page['host'] ) {
+				continue; // 6.0.2: an extension's settings live under EasyCart › Extensions
+			}
 			$pages[ $slug ] = array(
 				'group'       => $page['group'],
+				'order'       => $page['order'],
 				'icon'        => $page['icon'],
 				'title'       => $page['title'],
 				'description' => $page['description'],
-				'pro'         => false,
+				'plan'        => $page['plan'],
+				'aliases'     => array_values( array_diff( $page['legacy'], array( $slug ) ) ),
 				'legacy'      => false,
 				'count'       => $page['count'],
 				'url'         => $page['url'],
@@ -66,6 +82,124 @@ class wp_easycart_admin_settings_home {
 			}
 		}
 		return $pages;
+	}
+
+	/**
+	 * The settings pages by group, in order ( 6.0.2 ): the Settings home and the sidebar's Settings menu.
+	 *
+	 * @return array group slug => array( label, hint, pages => array( slug => catalog entry ) ); empty groups left out.
+	 */
+	public static function build_navigation() {
+		$groups = wp_easycart_admin_settings_registry::groups();
+		$out    = array();
+		foreach ( $groups as $slug => $group ) {
+			$out[ $slug ] = array(
+				'label' => (string) $group['label'],
+				'hint'  => (string) $group['hint'],
+				'pages' => array(),
+			);
+		}
+		foreach ( self::catalog() as $slug => $entry ) {
+			if ( isset( $out[ $entry['group'] ] ) ) {
+				$out[ $entry['group'] ]['pages'][ $slug ] = $entry;
+			}
+		}
+		foreach ( $out as $slug => $group ) {
+			if ( ! $group['pages'] ) {
+				unset( $out[ $slug ] );
+				continue;
+			}
+			uasort( $out[ $slug ]['pages'], array( __CLASS__, 'compare' ) );
+		}
+		/**
+		 * The settings pages by group, in order ( the Settings home and the sidebar ).
+		 *
+		 * @since 6.0.2
+		 * @param array $out group slug => array( label, hint, pages ).
+		 */
+		return (array) apply_filters( 'wp_easycart_settings_navigation', $out );
+	}
+
+	/**
+	 * Pages in a group: by 'order', then by title.
+	 *
+	 * @param array $a Entry.
+	 * @param array $b Entry.
+	 * @return int
+	 */
+	public static function compare( $a, $b ) {
+		$order = (int) $a['order'] - (int) $b['order'];
+		return ( 0 !== $order ) ? $order : strcasecmp( (string) $a['title'], (string) $b['title'] );
+	}
+
+	/**
+	 * The settings menu for the sidebar, on every EasyCart screen ( 6.0.2 ). Reading every declaration is only worth it on a
+	 * settings screen, so other screens use a saved copy ( option wp_easycart_settings_nav, one per admin language ), made
+	 * again whenever WP EasyCart, WP EasyCart PRO or the active plugins change, and refreshed by any request that read the
+	 * declarations anyway.
+	 *
+	 * @return array See build_navigation().
+	 */
+	public static function navigation() {
+		static $nav = null;
+		if ( null !== $nav ) {
+			return $nav;
+		}
+		$locale    = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+		$signature = md5( ( defined( 'EC_CURRENT_VERSION' ) ? EC_CURRENT_VERSION : '' ) . '|' . ( defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ? WP_EASYCART_ADMIN_PRO_VERSION : '' ) . '|' . wp_json_encode( (array) get_option( 'active_plugins', array() ) ) . '|' . admin_url() . '|' . implode( ',', array_keys( wp_easycart_admin_settings_registry::groups() ) ) );
+		$saved     = get_option( 'wp_easycart_settings_nav' );
+		$saved     = is_array( $saved ) ? $saved : array();
+		if ( ! wp_easycart_admin_settings_registry::loaded() && isset( $saved[ $locale ]['sig'], $saved[ $locale ]['nav'] ) && $signature === $saved[ $locale ]['sig'] && is_array( $saved[ $locale ]['nav'] ) ) {
+			$nav = $saved[ $locale ]['nav'];
+			return $nav;
+		}
+		$nav = self::build_navigation();
+		if ( ! isset( $saved[ $locale ]['nav'], $saved[ $locale ]['sig'] ) || $saved[ $locale ]['nav'] !== $nav || $signature !== $saved[ $locale ]['sig'] ) {
+			$saved            = array_slice( $saved, -4, 4, true ); /* a few admin languages at most */
+			$saved[ $locale ] = array(
+				'sig' => $signature,
+				'nav' => $nav,
+			);
+			update_option( 'wp_easycart_settings_nav', $saved, false );
+		}
+		return $nav;
+	}
+
+	/**
+	 * The catalog entry a settings subpage opens ( its own slug or an old one that lands there ), or ''.
+	 *
+	 * @param string $subpage Subpage slug.
+	 * @param array  $nav     navigation().
+	 * @return string Page slug.
+	 */
+	public static function current_page( $subpage, $nav ) {
+		$subpage = sanitize_key( (string) $subpage );
+		foreach ( $nav as $group ) {
+			foreach ( $group['pages'] as $slug => $entry ) {
+				if ( $subpage === $slug || in_array( $subpage, (array) $entry['aliases'], true ) ) {
+					return (string) $slug;
+				}
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * The group a settings page is in ( for the page's breadcrumb ), or an empty array.
+	 *
+	 * @param string $slug Page slug.
+	 * @return array array( slug, label ) or array().
+	 */
+	public static function group_of( $slug ) {
+		foreach ( self::navigation() as $group_slug => $group ) {
+			if ( isset( $group['pages'][ $slug ] ) ) {
+				return array(
+					'slug'  => (string) $group_slug,
+					'label' => (string) $group['label'],
+				);
+			}
+		}
+		return array();
 	}
 
 	/**
@@ -120,8 +254,7 @@ class wp_easycart_admin_settings_home {
 
 	public static function render() {
 		wp_easycart_admin_settings_page_v2::enqueue();
-		$groups  = wp_easycart_admin_settings_registry::groups();
-		$catalog = self::catalog();
+		$groups  = self::build_navigation();
 		$wizard  = function_exists( 'wp_easycart_admin_setup_wizard' ) ? wp_easycart_admin_setup_wizard() : false;
 		$wizard_done = (bool) get_option( 'ec_option_setup_wizard_done' );
 		$remaining = ( $wizard && method_exists( $wizard, 'count_checklist_remaining' ) ) ? (int) $wizard->count_checklist_remaining() : 0;
@@ -176,13 +309,8 @@ class wp_easycart_admin_settings_home {
 			<?php do_action( 'wp_easycart_settings_home_before_groups' ); ?>
 
 			<?php foreach ( $groups as $group_slug => $group ) : ?>
-				<?php
-				$entries = array_filter( $catalog, function( $e ) use ( $group_slug ) { return $e['group'] === $group_slug; } );
-				if ( empty( $entries ) ) {
-					continue;
-				}
-				?>
-				<div class="ecst-group">
+				<?php $entries = $group['pages']; ?>
+				<div class="ecst-group" id="ecst-group-<?php echo esc_attr( $group_slug ); ?>">
 					<div class="ecst-group-head"><h2><?php echo esc_html( $group['label'] ); ?></h2><span><?php echo esc_html( $group['hint'] ); ?></span></div>
 					<div class="ecst-tiles">
 						<?php foreach ( $entries as $slug => $entry ) : ?>
@@ -190,7 +318,7 @@ class wp_easycart_admin_settings_home {
 								<?php $tile_svg = class_exists( 'wp_easycart_admin_settings_icons' ) ? wp_easycart_admin_settings_icons::svg( wp_easycart_admin_settings_icons::for_page( $entry ) ) : ''; ?>
 								<span class="ecst-tile-ic"><?php if ( '' !== $tile_svg ) { echo $tile_svg; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG from wp_easycart_admin_settings_icons. */ } else { ?><span class="dashicons dashicons-<?php echo esc_attr( $entry['icon'] ); ?>"></span><?php } ?></span>
 								<span class="ecst-tile-text">
-									<b><?php echo esc_html( $entry['title'] ); ?><?php if ( $entry['pro'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( wp_easycart_admin_edition::badge( 'pro' ) ); ?></span><?php endif; ?></b>
+									<b><?php echo esc_html( $entry['title'] ); ?><?php if ( '' !== $entry['plan'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( wp_easycart_admin_edition::badge( 'premium' === $entry['plan'] ? 'premium' : 'pro' ) ); ?></span><?php endif; ?></b>
 									<span><?php echo esc_html( $entry['description'] ); ?></span>
 									<?php if ( ! $entry['legacy'] && $entry['count'] > 0 ) : ?><em><?php echo esc_html( sprintf( _n( '%d setting', '%d settings', $entry['count'], 'wp-easycart' ), $entry['count'] ) ); ?></em><?php endif; ?>
 								</span>

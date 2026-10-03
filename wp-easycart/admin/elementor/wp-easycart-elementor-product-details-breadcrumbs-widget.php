@@ -26,11 +26,8 @@ $more_atts['use_post_id'] = ( 'yes' == $use_post_id ) ? 1 : 0;
 $more_atts['breadcrumb_element'] = $breadcrumb_element;
 $more_atts['divider_character'] = $divider_character;
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 echo '<div class="wp-easycart-product-details-breadcrumbs-shortcode-wrapper d-flex">';
-echo do_shortcode( '[ec_product_details_breadcrumbs ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_product_details_breadcrumbs ' . $extra_atts . ']' );
 echo '</div>';

@@ -499,7 +499,7 @@ class CredentialProvider
             credentials, but for all subsequent profiles, static credentials are
             used if present, and only in their absence will the profile's
             source_profile and role_arn keys be used to load another set of
-            credentials. This bool is intended to yield compatible behaviour in this
+            credentials. This bool is intended to yield compatible behavior in this
             sdk.
             */
             $preferStaticCredentialsToRoleArn = ($preferStaticCredentials

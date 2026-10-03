@@ -26,7 +26,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) {
 	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php';
 }
 if ( ! isset( $document ) || ! ( $document instanceof wp_easycart_document ) ) {
-	$document = new wp_easycart_document( 'invoice', isset( $order_id ) ? (int) $order_id : 0, wp_easycart_documents::resolve( 'invoice' ) );
+	$document = new wp_easycart_document( 'invoice', isset( $order_id ) ? (int) $order_id : 0, wp_easycart_documents::resolve( 'invoice', '', array(), isset( $order_id ) ? (int) $order_id : 0 ) );
 }
 if ( ! $document->order ) {
 	return;
@@ -41,18 +41,33 @@ $ec_in_db    = ( isset( $mysqli ) && is_object( $mysqli ) ) ? $mysqli : ( class_
 $ec_in_items = ( isset( $order_details ) && is_array( $order_details ) ) ? $order_details : $document->lines;
 $ec_in_price = $document->show( 'prices' );
 
-/* Offers v2: line-level offer flags keyed by orderdetail_id, and the order-level applied-offers snapshot. */
-$wpec_offer_line_flags    = array();
+/* Offers v2: line-level offer flags keyed by orderdetail_id ( from the snapshot of an issued invoice ), and the order-level
+   applied-offers summary. */
+$wpec_offer_line_flags    = method_exists( $document, 'offer_flags' ) ? $document->offer_flags() : array();
 $wpec_offer_order_summary = array();
-if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
-	global $wpdb;
-	foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', $ec_in_id ) ) as $wpec_offer_flag_row ) {
-		$wpec_offer_line_flags[ (int) $wpec_offer_flag_row->orderdetail_id ] = $wpec_offer_flag_row;
-	}
-	$wpec_offer_order_json    = $wpdb->get_var( $wpdb->prepare( 'SELECT applied_offers FROM ec_order WHERE order_id = %d', $ec_in_id ) );
-	$wpec_offer_order_decoded = ( $wpec_offer_order_json ) ? json_decode( (string) $wpec_offer_order_json, true ) : false;
+if ( $document->snapshot || ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) ) {
+	$wpec_offer_order_decoded = ( isset( $ec_in_order->applied_offers ) && '' !== (string) $ec_in_order->applied_offers ) ? json_decode( (string) $ec_in_order->applied_offers, true ) : false;
 	if ( is_array( $wpec_offer_order_decoded ) && isset( $wpec_offer_order_decoded['applied_offers'] ) && is_array( $wpec_offer_order_decoded['applied_offers'] ) ) {
 		$wpec_offer_order_summary = $wpec_offer_order_decoded['applied_offers'];
+	}
+}
+
+/* 6.0.2: the order's invoice ( number, issue date, terms, due date ) when WP EasyCart PRO has issued one. */
+$ec_in_invoice = ( isset( $document->args['invoice'] ) && is_object( $document->args['invoice'] ) ) ? $document->args['invoice'] : null;
+$ec_in_po      = isset( $ec_in_order->po_number ) ? trim( (string) $ec_in_order->po_number ) : '';
+$ec_in_terms   = isset( $ec_in_order->payment_terms ) ? trim( (string) $ec_in_order->payment_terms ) : '';
+$ec_in_due     = ( isset( $ec_in_order->payment_due_date ) && '' !== (string) $ec_in_order->payment_due_date && 0 !== strpos( (string) $ec_in_order->payment_due_date, '0000' ) ) ? (string) $ec_in_order->payment_due_date : '';
+if ( $ec_in_invoice ) {
+	$ec_in_terms = ( '' !== (string) $ec_in_invoice->payment_terms ) ? (string) $ec_in_invoice->payment_terms : $ec_in_terms;
+	$ec_in_due   = ( '' !== (string) $ec_in_invoice->due_date && 0 !== strpos( (string) $ec_in_invoice->due_date, '0000' ) ) ? (string) $ec_in_invoice->due_date : $ec_in_due;
+}
+/* 6.0.2: nothing is due on a receipt or on an order that has been paid ( its status now, not the snapshot's ), so the red
+   Due line is left out. */
+if ( '' !== $ec_in_due ) {
+	if ( 'receipt' === $document->option( 'heading' ) ) {
+		$ec_in_due = '';
+	} elseif ( isset( $GLOBALS['wpdb'] ) && (int) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( 'SELECT ec_orderstatus.is_approved FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_id = %d', $ec_in_id ) ) ) {
+		$ec_in_due = '';
 	}
 }
 
@@ -94,6 +109,20 @@ if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 		$ec_in_head .= '<div class="wpec-pdf-title" style="font-size:22px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin:0 0 4px 0;">' . esc_html( $ec_in_title ) . '</div>';
 		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'invoice_order_number', __( 'Order number:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_in_id ) . '</div>';
 		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'invoice_date', __( 'Date:', 'wp-easycart' ) ) . ' ' . esc_html( $document->date() ) . '</div>';
+	}
+	/* 6.0.2: invoice number, issue date, terms, due date and PO, under the heading. */
+	if ( $document->show( 'invoice_details' ) && $ec_in_invoice ) {
+		$ec_in_head .= '<div style="margin-top:6px;">' . wp_easycart_documents::text( 'invoice_number_label', __( 'Invoice number:', 'wp-easycart' ) ) . ' <strong>' . esc_html( $ec_in_invoice->invoice_number ) . '</strong></div>';
+		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'invoice_issued_label', __( 'Issued:', 'wp-easycart' ) ) . ' ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( (string) $ec_in_invoice->issue_date ) ) ) . '</div>';
+	}
+	if ( $document->show( 'invoice_details' ) && '' !== $ec_in_terms ) {
+		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'payment_terms_label', __( 'Terms:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_in_terms ) . '</div>';
+	}
+	if ( $document->show( 'invoice_details' ) && '' !== $ec_in_due ) {
+		$ec_in_head .= '<div style="font-weight:bold;color:#9a3412;">' . wp_easycart_documents::text( 'due_date_label', __( 'Due:', 'wp-easycart' ) ) . ' ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( $ec_in_due ) ) ) . '</div>';
+	}
+	if ( $document->show( 'po_number' ) && '' !== $ec_in_po ) {
+		$ec_in_head .= '<div>' . wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ) . ' ' . esc_html( $ec_in_po ) . '</div>';
 	}
 	$ec_in_head .= '</td></tr></table>';
 }
@@ -224,8 +253,8 @@ foreach ( $ec_in_items as $ec_in_item ) {
 			}
 		}
 		/* Advanced ( option set ) options */
-		if ( $ec_in_db && ( ! empty( $ec_in_item->use_advanced_optionset ) || ! empty( $ec_in_item->use_both_option_types ) ) ) {
-			foreach ( (array) $ec_in_db->get_order_options( $ec_in_item->orderdetail_id ) as $advanced_option ) {
+		if ( ! empty( $ec_in_item->use_advanced_optionset ) || ! empty( $ec_in_item->use_both_option_types ) ) {
+			foreach ( $document->advanced_options( $ec_in_item ) as $advanced_option ) {
 				if ( 'file' === $advanced_option->option_type ) {
 					$ec_in_file_parts = explode( '/', (string) $advanced_option->option_value );
 					$ec_in_opt_value  = $ec_in_file_parts[ count( $ec_in_file_parts ) - 1 ];
@@ -281,13 +310,28 @@ foreach ( $ec_in_items as $ec_in_item ) {
 		$ec_in_total      = $ec_in_curr->get_currency_display( $ec_in_total_base );
 		$ec_in_total_disc = ( apply_filters( 'wp_easycart_order_details_show_discount_total', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $ec_in_total_promo > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $ec_in_total_coupon > 0 ) ) );
 
+		/* 6.0.2: Offers savings on this line, shown the way "Show coupon / promotion savings on each line" show the older ones. */
+		$ec_in_offer_line = 0;
+		if ( $wpec_line_flags && function_exists( 'wp_easycart_offer_line_savings' ) ) {
+			$ec_in_offer_json = is_object( $wpec_line_flags ) ? ( isset( $wpec_line_flags->applied_offers ) ? $wpec_line_flags->applied_offers : '' ) : ( ( is_array( $wpec_line_flags ) && isset( $wpec_line_flags['applied_offers'] ) ) ? $wpec_line_flags['applied_offers'] : '' );
+			$ec_in_offer      = wp_easycart_offer_line_savings( is_string( $ec_in_offer_json ) ? $ec_in_offer_json : '' );
+			$ec_in_offer_line = min( $ec_in_offer['shown'], max( 0, (float) $ec_in_item->total_price ) );
+		}
+		$ec_in_offer_unit = ( $ec_in_offer_line > 0 && (int) $ec_in_item->quantity > 0 ) ? $ec_in_offer_line / (int) $ec_in_item->quantity : 0;
+		if ( $ec_in_offer_line > 0 ) {
+			$ec_in_unit_disc  = $ec_in_unit_disc || apply_filters( 'wp_easycart_order_details_show_discount_unit', true );
+			$ec_in_total_disc = $ec_in_total_disc || apply_filters( 'wp_easycart_order_details_show_discount_total', true );
+		}
+		$ec_in_unit_after  = max( 0, $ec_in_item->unit_price - ( get_option( 'ec_option_show_coupon_discount_total' ) ? round( $ec_in_unit_coupon, 2 ) : 0 ) - $ec_in_offer_unit );
+		$ec_in_total_after = max( 0, $ec_in_item->total_price - ( get_option( 'ec_option_show_coupon_discount_total' ) ? round( $ec_in_total_coupon, 2 ) : 0 ) - $ec_in_offer_line );
+
 		if ( $ec_in_unit_disc ) {
-			$ec_in_end['unit_html'] = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $ec_in_unit, $ec_in_item->product_id ) ) . '</span><br /><strong>' . esc_html( get_option( 'ec_option_show_coupon_discount_total' ) ? $ec_in_curr->get_currency_display( $ec_in_item->unit_price - round( $ec_in_unit_coupon, 2 ) ) : $ec_in_curr->get_currency_display( $ec_in_item->unit_price ) ) . '</strong>';
+			$ec_in_end['unit_html'] = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $ec_in_unit, $ec_in_item->product_id ) ) . '</span><br /><strong>' . esc_html( $ec_in_curr->get_currency_display( $ec_in_unit_after ) ) . '</strong>';
 		} else {
 			$ec_in_end['unit_html'] = esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $ec_in_unit, $ec_in_item->product_id ) );
 		}
 		if ( $ec_in_total_disc ) {
-			$ec_in_end['total_html'] = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( $ec_in_total ) . '</span><br /><strong>' . esc_html( get_option( 'ec_option_show_coupon_discount_total' ) ? $ec_in_curr->get_currency_display( $ec_in_item->total_price - round( $ec_in_total_coupon, 2 ) ) : $ec_in_curr->get_currency_display( $ec_in_item->total_price ) ) . '</strong>';
+			$ec_in_end['total_html'] = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( $ec_in_total ) . '</span><br /><strong>' . esc_html( $ec_in_curr->get_currency_display( $ec_in_total_after ) ) . '</strong>';
 		} else {
 			$ec_in_end['total_html'] = esc_html( $ec_in_total );
 		}
@@ -355,10 +399,8 @@ if ( $ec_in_price ) {
 			$ec_in_totals[] = array( esc_html( $ec_in_ca_label . ' (' . $ec_in_ca_rate . '%)' ), $ed::money( $ec_in_order->{$ec_in_ca . '_total'} ) );
 		}
 	}
-	if ( $ec_in_db && method_exists( $ec_in_db, 'get_order_fees' ) ) {
-		foreach ( (array) $ec_in_db->get_order_fees( $ec_in_id ) as $ec_in_fee ) {
-			$ec_in_totals[] = array( esc_html( $ec_in_fee->fee_label ), $ed::money( $ec_in_fee->fee_total ) );
-		}
+	foreach ( $document->fees() as $ec_in_fee ) {
+		$ec_in_totals[] = array( esc_html( $ec_in_fee->fee_label ), $ed::money( $ec_in_fee->fee_total ) );
 	}
 	if ( $ec_in_order->refund_total > 0 ) {
 		$ec_in_totals[] = array(
@@ -368,6 +410,26 @@ if ( $ec_in_price ) {
 		);
 	}
 	$ed::totals( $ec_in_totals, array( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::money( $ec_in_grand ) ) );
+	/* 6.0.2: an order changed after it was paid ( as it is now, not an issued invoice's snapshot ): what was paid and the balance. */
+	$ec_in_paid = ( ! $document->snapshot && class_exists( 'wp_easycart_order_payments' ) ) ? wp_easycart_order_payments::summary( (int) $ec_in_id ) : null;
+	if ( $ec_in_paid && $ec_in_paid['recorded'] && $ec_in_paid['paid'] >= 0.005 && $ec_in_paid['due'] >= 0.005 && abs( $ec_in_paid['total'] - (float) $ec_in_grand ) < 0.005 ) {
+		$ed::totals(
+			array(
+				array( wp_easycart_documents::text( 'pay_paid_label', __( 'Paid', 'wp-easycart' ) ), $ed::ltr( '-' . $ec_in_curr->get_currency_display( $ec_in_paid['paid'] - $ec_in_paid['overpaid_refunded'] ) ) ),
+			),
+			array( wp_easycart_documents::text( 'pay_balance_label', __( 'Balance due', 'wp-easycart' ) ), $ed::money( $ec_in_paid['due'] ) )
+		);
+	}
+	if ( $document->show( 'invoice_details' ) && '' !== $ec_in_due ) {
+		$ed::section_start( array( 'top' => 4, 'align' => 'end' ) );
+		echo '<span style="font-weight:bold;color:#9a3412;">' . wp_easycart_documents::text( 'due_date_label', __( 'Due:', 'wp-easycart' ) ) . ' ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( $ec_in_due ) ) ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_easycart_documents::text() returns escaped HTML.
+		$ed::section_end();
+	}
+}
+
+/* 6.0.2: answers to checkout fields ( WP EasyCart PRO ); an issued invoice keeps the answers it was issued with. */
+if ( $document->show( 'checkout_fields' ) && class_exists( 'wp_easycart_order_fields' ) ) {
+	wp_easycart_order_fields::print_email_section( $document, 'invoice' );
 }
 
 /* Customer's order notes */

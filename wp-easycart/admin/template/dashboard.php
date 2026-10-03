@@ -1,74 +1,101 @@
 <?php
 /**
- * Reports ( V2 ).
+ * Reports ( 6.0.2 ).
  *
- * Markup rebuilt on the V2 tokens; every id / class the inline chart script
- * depends on is preserved verbatim ( range buttons, filters, stat cells,
- * chart canvases, export and chart-type controls ), so the script below is
- * unchanged. Free installs get the standard upsell line instead of the
- * legacy status bubble.
+ * The page is drawn by admin/js/reports-v2.js from wp_easycart_reports::page_config() ( the Overview for the last
+ * 30 days comes with the page ). Kept from the older page for WP EasyCart PRO and extensions: the hooks
+ * wp_easycart_admin_dashboard_pre_chart / _post, wp_easycart_reports_filters_pre / _post ( PRO's #location_filter
+ * calls wpeasycart_admin_update_chart_data() ), wp_easycart_dashboard_reports_links_start / _end ( JavaScript that adds to
+ * `modal` or `body` in the export dialog ), the jQuery event wpeasycart_reports_filters_changed with the older request
+ * data, the ids #daily_filter, #product_filter, #country_filter, #billing_country_filter, #wpeasycart_admin_report_range1,
+ * and the export job ( ec_admin_create_report_export ).
+ *
+ * @package wp-easycart
  */
-?>
-<?php do_action( 'wp_easycart_admin_dashboard_pre_chart' ); ?>
-<?php $single_stats = wp_easycart_admin()->get_single_stats( date( 'Y-m-d', strtotime( '-13 days' ) ), date( 'Y-m-d' ) ); ?>
-<?php
-$status = new wp_easycart_admin_store_status();
-$license_data = false; $days_left = 0; $is_premium = false; $is_trial = false; $transaction_key = '';
-$renew_url = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-$upgrade_url = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+do_action( 'wp_easycart_admin_dashboard_pre_chart' );
+
+$ecv2_rp_config      = wp_easycart_reports::page_config();
+$ecv2_rp_license     = false;
+$ecv2_rp_days_left   = 0;
+$ecv2_rp_is_premium  = false;
+$ecv2_rp_is_trial    = false;
+$ecv2_rp_key         = '';
+$ecv2_rp_renew_url   = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
+$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/';
 if ( function_exists( 'wp_easycart_admin_license' ) ) {
-	$license_data    = wp_easycart_admin_license()->license_data;
-	$license_info    = get_option( 'wp_easycart_license_info' );
-	$transaction_key = ( is_array( $license_info ) && isset( $license_info['transaction_key'] ) ) ? $license_info['transaction_key'] : '';
-	$days_left       = max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( strtotime( $license_data->support_end_date ) ) : (int) round( ( strtotime( $license_data->support_end_date ) - time() ) / DAY_IN_SECONDS ) );
-	$is_premium      = ( 'ec410' === strtolower( trim( (string) $license_data->model_number ) ) );
-	$is_trial        = ! empty( $license_data->is_trial );
-	if ( $is_trial ) {
-		$renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key;
-		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $transaction_key . '&license_type=Premium';
-	} else {
-		$renew_url   = ( ! $is_premium ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $transaction_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
-		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
+	$ecv2_rp_license      = wp_easycart_admin_license()->license_data;
+	$ecv2_rp_license_info = get_option( 'wp_easycart_license_info' );
+	$ecv2_rp_key          = ( is_array( $ecv2_rp_license_info ) && isset( $ecv2_rp_license_info['transaction_key'] ) ) ? $ecv2_rp_license_info['transaction_key'] : '';
+	if ( $ecv2_rp_license && isset( $ecv2_rp_license->support_end_date ) ) {
+		$ecv2_rp_days_left  = max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( strtotime( $ecv2_rp_license->support_end_date ) ) : (int) round( ( strtotime( $ecv2_rp_license->support_end_date ) - time() ) / DAY_IN_SECONDS ) );
+		$ecv2_rp_is_premium = ( 'ec410' === strtolower( trim( (string) $ecv2_rp_license->model_number ) ) );
+		$ecv2_rp_is_trial   = ! empty( $ecv2_rp_license->is_trial );
+		if ( $ecv2_rp_is_trial ) {
+			$ecv2_rp_renew_url   = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key;
+			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . $ecv2_rp_key . '&license_type=Premium';
+		} else {
+			$ecv2_rp_renew_url   = ( ! $ecv2_rp_is_premium ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $ecv2_rp_key : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $ecv2_rp_key;
+			$ecv2_rp_upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $ecv2_rp_key;
+		}
 	}
 }
-$ecrp_stats = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
 
 /* One-line license strip. Only states that need attention render; an active license in good standing shows nothing. */
-$ecrp_strip = null;
-if ( ! $license_data ) {
-	$ecrp_strip = array( 'tone' => 'free', 'icon' => 'dashicons-chart-area',
+$ecv2_rp_strip = null;
+if ( ! $ecv2_rp_license ) {
+	$ecv2_rp_strip = array(
+		'tone' => 'free',
+		'icon' => 'dashicons-chart-area',
 		/* translators: %s: plan name, "Pro/Premium". */
-		'text' => sprintf( __( 'Free edition. These reports cover the basics; %s adds product, customer and coupon breakdowns, the abandoned-cart recovery report and scheduled email summaries.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
-		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try Pro free', 'wp-easycart' ) ), 'more' => true );
-} else if ( $is_trial && $days_left > 0 ) {
-	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day left on your Pro trial.', '%d days left on your Pro trial.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $upgrade_url, __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
-} else if ( $is_trial ) {
-	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your Pro trial has ended. Upgrade to reopen the Pro panels; nothing has been lost.', 'wp-easycart' ), 'cta' => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ) ), 'more' => false );
-} else if ( $days_left <= 0 ) {
-	$ecrp_strip = array( 'tone' => 'expired', 'icon' => 'dashicons-warning', 'text' => __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ), 'cta' => array( $renew_url, __( 'Renew', 'wp-easycart' ) ), 'more' => false );
-} else if ( $days_left < 100 ) {
-	$ecrp_strip = array( 'tone' => 'trial', 'icon' => 'dashicons-clock', 'text' => sprintf( _n( '%d day of support and updates remaining.', '%d days of support and updates remaining.', $days_left, 'wp-easycart' ), $days_left ), 'cta' => array( $renew_url, __( 'Renew', 'wp-easycart' ) ), 'more' => false );
+		'text' => sprintf( __( 'Free reports cover the Overview and Taxes. %s opens Products, Customers, Codes, Carts, Sources, Profit, Fulfillment, Searches and Subscriptions, with saved views and scheduled summaries.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
+		'cta'  => array( wp_easycart_admin()->pro_install_url( 'trial', true ), __( 'Try Pro free', 'wp-easycart' ) ),
+		'more' => true,
+	);
+} elseif ( $ecv2_rp_is_trial && $ecv2_rp_days_left > 0 ) {
+	$ecv2_rp_strip = array(
+		'tone' => 'trial',
+		'icon' => 'dashicons-clock',
+		/* translators: %d: days left. */
+		'text' => sprintf( _n( '%d day left on your Pro trial.', '%d days left on your Pro trial.', $ecv2_rp_days_left, 'wp-easycart' ), $ecv2_rp_days_left ),
+		'cta'  => array( $ecv2_rp_upgrade_url, __( 'Upgrade now', 'wp-easycart' ) ),
+		'more' => false,
+	);
+} elseif ( $ecv2_rp_is_trial ) {
+	$ecv2_rp_strip = array(
+		'tone' => 'expired',
+		'icon' => 'dashicons-warning',
+		'text' => __( 'Your Pro trial has ended. Upgrade to reopen the Pro reports; nothing has been lost.', 'wp-easycart' ),
+		'cta'  => array( 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', __( 'Upgrade now', 'wp-easycart' ) ),
+		'more' => false,
+	);
+} elseif ( $ecv2_rp_days_left <= 0 ) {
+	$ecv2_rp_strip = array(
+		'tone' => 'expired',
+		'icon' => 'dashicons-warning',
+		'text' => __( 'Your license has expired. Renew to keep updates and support.', 'wp-easycart' ),
+		'cta'  => array( $ecv2_rp_renew_url, __( 'Renew', 'wp-easycart' ) ),
+		'more' => false,
+	);
+} elseif ( $ecv2_rp_days_left < 100 ) {
+	$ecv2_rp_strip = array(
+		'tone' => 'trial',
+		'icon' => 'dashicons-clock',
+		/* translators: %d: days left. */
+		'text' => sprintf( _n( '%d day of support and updates remaining.', '%d days of support and updates remaining.', $ecv2_rp_days_left, 'wp-easycart' ), $ecv2_rp_days_left ),
+		'cta'  => array( $ecv2_rp_renew_url, __( 'Renew', 'wp-easycart' ) ),
+		'more' => false,
+	);
 }
 
 global $wpdb;
-/* 6.0.0: the product filter is a search-as-you-type picker ( see wp_easycart_admin::print_picker() ); the catalog is no longer listed here. */
-$countries = $wpdb->get_results( 'SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY sort_order ASC' );
-
-/* Stat cards: [ id, label, value, money? ] — ids 1–10 are fixed ( the chart script updates them by number ). */
-$ecrp_cards = array(
-	array( 1,  __( 'Total payments', 'wp-easycart' ),   $single_stats->gross_revenue->set1, true ),
-	array( 6,  __( 'Net revenue', 'wp-easycart' ),      $single_stats->net_revenue->set1,   true ),
-	array( 7,  __( 'Orders', 'wp-easycart' ),           $single_stats->orders->set1,        false ),
-	array( 8,  __( 'Items sold', 'wp-easycart' ),       $single_stats->items->set1,         false ),
-	array( 9,  __( 'Unique customers', 'wp-easycart' ), $single_stats->customers->set1,     false ),
-	array( 10, __( 'Abandoned carts', 'wp-easycart' ),  $single_stats->carts->set1,         false ),
-	array( 2,  __( 'Shipping', 'wp-easycart' ),         $single_stats->shipping->set1,      true ),
-	array( 3,  __( 'Taxes', 'wp-easycart' ),            $single_stats->tax->set1,           true ),
-	array( 4,  __( 'Discounts', 'wp-easycart' ),        $single_stats->discount->set1,      true ),
-	array( 5,  __( 'Refunds', 'wp-easycart' ),          $single_stats->refund->set1,        true ),
-);
+$ecv2_rp_countries = $wpdb->get_results( 'SELECT iso2_cnt, name_cnt FROM ec_country ORDER BY sort_order ASC' );
+$ecv2_rp_card      = ( class_exists( 'wp_easycart_order_source' ) && wp_easycart_order_source::pro() );
 ?>
-<div id="ec_admin_chart" class="ec_admin_chart_holder ec_admin_chart_holder_active ecv2-wrap ecrp">
+<div id="ec_admin_chart" class="ec_admin_chart_holder ec_admin_chart_holder_active ecv2-wrap ecrp ecrp3">
 
 	<div class="ecv2-page-header">
 		<div class="ecv2-page-header-left">
@@ -76,575 +103,132 @@ $ecrp_cards = array(
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Reports', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right ecrp-header-tools">
-			<?php /* Chart type + granularity: classes / ids are bound by the chart script. */ ?>
-			<div class="wpeasycart_admin_chart_types ecrp-chart-types" role="group" aria-label="<?php esc_attr_e( 'Chart type', 'wp-easycart' ); ?>">
-				<span class="dashicons dashicons-chart-line wpeasycart_admin_chart_type_line selected" onclick="wpeasycart_admin_update_chart_type( 'line' );" title="<?php esc_attr_e( 'Line', 'wp-easycart' ); ?>"></span>
-				<span class="dashicons dashicons-chart-bar wpeasycart_admin_chart_type_bar" onclick="wpeasycart_admin_update_chart_type( 'bar' );" title="<?php esc_attr_e( 'Bars', 'wp-easycart' ); ?>"></span>
+			<div class="ecrp3-menu" data-ecrp-menu="views">
+				<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecrp_views_btn" aria-haspopup="true" aria-expanded="false"><span class="dashicons dashicons-star-empty"></span> <?php esc_html_e( 'Views', 'wp-easycart' ); ?></button>
+				<div class="ecrp3-menu-list" id="ecrp_views_menu" role="menu" hidden></div>
 			</div>
-			<select id="daily_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
-				<option value="daily" selected="selected"><?php esc_html_e( 'Daily', 'wp-easycart' ); ?></option>
-				<option value="weekly"><?php esc_html_e( 'Weekly', 'wp-easycart' ); ?></option>
-				<option value="monthly"><?php esc_html_e( 'Monthly', 'wp-easycart' ); ?></option>
-				<option value="yearly"><?php esc_html_e( 'Yearly', 'wp-easycart' ); ?></option>
-			</select>
-			<div class="wpeasycart_admin_chart_export ecv2-btn ecv2-btn-primary ecv2-btn-sm" onclick="wpeasycart_admin_export_report( );" role="button" tabindex="0">
-				<span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export CSV', 'wp-easycart' ); ?>
+			<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecrp_summary_btn"><span class="dashicons dashicons-email-alt"></span> <?php esc_html_e( 'Summary email', 'wp-easycart' ); ?></button>
+			<div class="ecrp3-menu" data-ecrp-menu="export">
+				<button type="button" class="wpeasycart_admin_chart_export ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="ecrp_export_btn" aria-haspopup="true" aria-expanded="false"><span class="dashicons dashicons-download"></span> <?php esc_html_e( 'Export', 'wp-easycart' ); ?></button>
+				<div class="ecrp3-menu-list is-right" id="ecrp_export_menu" role="menu" hidden>
+					<button type="button" role="menuitem" data-ecrp-export="orders"><strong><?php esc_html_e( 'Orders and taxes', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Every order in the range, and the tax report, as CSV files.', 'wp-easycart' ); ?></span></button>
+					<button type="button" role="menuitem" data-ecrp-export="research"><strong><?php esc_html_e( 'Research export', 'wp-easycart' ); ?> <span class="ecrp3-chip" data-ecrp-research-chip></span></strong><span><?php esc_html_e( 'Orders, lines, payments, refunds, customers and daily store activity, for a spreadsheet or analysis tool.', 'wp-easycart' ); ?></span></button>
+				</div>
 			</div>
 		</div>
 	</div>
 
-	<?php if ( $ecrp_strip ) : ?>
-	<div class="ecrp-strip is-<?php echo esc_attr( $ecrp_strip['tone'] ); ?>">
-		<span class="dashicons <?php echo esc_attr( $ecrp_strip['icon'] ); ?>"></span>
-		<span class="ecrp-strip-text"><?php echo esc_html( $ecrp_strip['text'] ); ?></span>
-		<?php if ( $ecrp_strip['more'] && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
-		<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: 'default' } ); return false;"><?php esc_html_e( "See what's included", 'wp-easycart' ); ?></button>
+	<?php if ( $ecv2_rp_strip ) : ?>
+	<div class="ecrp-strip is-<?php echo esc_attr( $ecv2_rp_strip['tone'] ); ?>">
+		<span class="dashicons <?php echo esc_attr( $ecv2_rp_strip['icon'] ); ?>"></span>
+		<span class="ecrp-strip-text"><?php echo esc_html( $ecv2_rp_strip['text'] ); ?></span>
+		<?php if ( $ecv2_rp_strip['more'] && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
+		<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: 'reports' } ); return false;"><?php esc_html_e( "See what's included", 'wp-easycart' ); ?></button>
 		<?php endif; ?>
-		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecrp_strip['cta'][0] ); ?>"<?php echo ( 0 === strpos( $ecrp_strip['cta'][0], 'http' ) ) ? ' target="_blank"' : ''; ?>><?php echo esc_html( $ecrp_strip['cta'][1] ); ?></a>
+		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecv2_rp_strip['cta'][0] ); ?>"<?php echo ( 0 === strpos( $ecv2_rp_strip['cta'][0], 'http' ) ) ? ' target="_blank" rel="noopener"' : ''; ?>><?php echo esc_html( $ecv2_rp_strip['cta'][1] ); ?></a>
 	</div>
 	<?php endif; ?>
 
-	<?php /* ---- Toolbar: ranges + filters ---- */ ?>
-	<div class="ecrp-toolbar">
+	<?php /* ---- Toolbar: range, compare, grouping, chart type, filters ---- */ ?>
+	<div class="ecrp-toolbar ecrp3-toolbar">
 		<div class="ecrp-ranges">
-			<div id="wpeasycart_admin_report_range1" class="ec_admin_dashboard_chart_range_button ecrp-range">
+			<div id="wpeasycart_admin_report_range1" class="ec_admin_dashboard_chart_range_button ecrp-range" role="button" tabindex="0" aria-haspopup="dialog">
 				<div class="ecrp-range-label"><?php esc_html_e( 'Date range', 'wp-easycart' ); ?></div>
 				<i class="dashicons dashicons-calendar"></i>
-				<span></span>
+				<span id="ecrp_range_text"></span>
 				<i class="dashicons dashicons-arrow-down"></i>
 			</div>
-			<div id="wpeasycart_admin_report_range2" class="ec_admin_dashboard_chart_range_button ecrp-range ecrp-range-compare">
-				<div class="ecrp-range-label"><?php esc_html_e( 'Compare to', 'wp-easycart' ); ?></div>
-				<i class="dashicons dashicons-calendar"></i>
-				<span></span>
-				<i class="dashicons dashicons-arrow-down"></i>
+			<label class="ecrp3-field">
+				<span class="ecrp-range-label"><?php esc_html_e( 'Compare to', 'wp-easycart' ); ?></span>
+				<select id="ecrp_compare" class="ecv2-select ecv2-select-sm">
+					<option value="none"><?php esc_html_e( 'No comparison', 'wp-easycart' ); ?></option>
+					<option value="previous"><?php esc_html_e( 'Previous period', 'wp-easycart' ); ?></option>
+					<option value="year"><?php esc_html_e( 'Same dates last year', 'wp-easycart' ); ?></option>
+				</select>
+			</label>
+			<label class="ecrp3-field">
+				<span class="ecrp-range-label"><?php esc_html_e( 'Group by', 'wp-easycart' ); ?></span>
+				<select id="daily_filter" class="ecv2-select ecv2-select-sm">
+					<option value="daily"><?php esc_html_e( 'Day', 'wp-easycart' ); ?></option>
+					<option value="weekly"><?php esc_html_e( 'Week', 'wp-easycart' ); ?></option>
+					<option value="monthly"><?php esc_html_e( 'Month', 'wp-easycart' ); ?></option>
+					<option value="yearly"><?php esc_html_e( 'Year', 'wp-easycart' ); ?></option>
+				</select>
+			</label>
+			<?php /* The icon is a span inside the button: the admin shell gives every button font:inherit, which took the dashicons font off a button that was itself the icon. */ ?>
+			<div class="wpeasycart_admin_chart_types ecrp-chart-types" role="group" aria-label="<?php esc_attr_e( 'Chart type', 'wp-easycart' ); ?>">
+				<button type="button" class="ecrp3-chart-type wpeasycart_admin_chart_type_line" data-ecrp-chart="line" title="<?php esc_attr_e( 'Show charts as lines', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Show charts as lines', 'wp-easycart' ); ?>" aria-pressed="false"><span class="dashicons dashicons-chart-line" aria-hidden="true"></span></button>
+				<button type="button" class="ecrp3-chart-type wpeasycart_admin_chart_type_bar" data-ecrp-chart="bar" title="<?php esc_attr_e( 'Show charts as bars', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Show charts as bars', 'wp-easycart' ); ?>" aria-pressed="false"><span class="dashicons dashicons-chart-bar" aria-hidden="true"></span></button>
 			</div>
 		</div>
 		<div class="ec_admin_dashboard_chart_filters ecrp-filters">
-			<?php do_action( 'wp_easycart_admin_reports_filters_pre' ); ?>
-			<?php /* 6.0.0: search-as-you-type product filter; #product_filter stays the hidden value the chart script reads ( 0 = all products ). */ ?>
+			<?php do_action( 'wp_easycart_reports_filters_pre' ); ?>
 			<input type="hidden" id="product_filter" value="0" />
 			<?php
-			wp_easycart_admin::print_picker( array(
-				'id'          => 'wpec_report_product_pick',
-				'mode'        => 'product',
-				'target'      => 'product_filter',
-				'multiple'    => false,
-				'placeholder' => __( 'All products', 'wp-easycart' ),
-				'on_change'   => 'wpeasycart_admin_update_chart_data',
-				'class'       => 'ecv2-input ecv2-input-sm',
-			) );
+			wp_easycart_admin::print_picker(
+				array(
+					'id'          => 'wpec_report_product_pick',
+					'mode'        => 'product',
+					'target'      => 'product_filter',
+					'multiple'    => false,
+					'placeholder' => __( 'All products', 'wp-easycart' ),
+					'on_change'   => 'wpeasycart_admin_update_chart_data',
+					'class'       => 'ecv2-input ecv2-input-sm',
+				)
+			);
 			?>
-			<select id="country_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+			<select id="country_filter" class="ecv2-select ecv2-select-sm" aria-label="<?php esc_attr_e( 'Ships to', 'wp-easycart' ); ?>">
 				<option value="0" selected="selected"><?php esc_html_e( 'Ships to: anywhere', 'wp-easycart' ); ?></option>
-				<?php foreach ( $countries as $country ) : ?>
-				<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_html( $country->name_cnt ); ?></option>
+				<?php foreach ( (array) $ecv2_rp_countries as $ecv2_rp_country ) : ?>
+				<option value="<?php echo esc_attr( $ecv2_rp_country->iso2_cnt ); ?>"><?php echo esc_html( $ecv2_rp_country->name_cnt ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<select id="billing_country_filter" class="ecv2-select ecv2-select-sm" onchange="wpeasycart_admin_update_chart_data( );">
+			<select id="billing_country_filter" class="ecv2-select ecv2-select-sm" aria-label="<?php esc_attr_e( 'Billed in', 'wp-easycart' ); ?>">
 				<option value="0" selected="selected"><?php esc_html_e( 'Billed in: anywhere', 'wp-easycart' ); ?></option>
-				<?php foreach ( $countries as $country ) : ?>
-				<option value="<?php echo esc_attr( $country->iso2_cnt ); ?>"><?php echo esc_html( $country->name_cnt ); ?></option>
+				<?php foreach ( (array) $ecv2_rp_countries as $ecv2_rp_country ) : ?>
+				<option value="<?php echo esc_attr( $ecv2_rp_country->iso2_cnt ); ?>"><?php echo esc_html( $ecv2_rp_country->name_cnt ); ?></option>
 				<?php endforeach; ?>
 			</select>
-			<?php do_action( 'wp_easycart_admin_reports_filters_post' ); ?>
+			<?php do_action( 'wp_easycart_reports_filters_post' ); ?>
 		</div>
 	</div>
 
-	<?php /* ---- Stat cards. Inner structure is what the chart script updates. ---- */ ?>
-	<div class="ec_admin_dashboard_stat_items ecrp-stats">
-		<?php foreach ( $ecrp_cards as $c ) : ?>
-		<div class="ec_admin_dashboard_stat_item ecrp-stat<?php echo $c[3] ? ' is-money' : ''; ?>" id="ec_admin_dashboard_stat_item<?php echo (int) $c[0]; ?>">
-			<div class="ec_admin_dashboard_stat_item_title"><?php echo esc_html( $c[1] ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_html( $c[2] ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_html_e( 'Previous period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
+	<?php /* ---- Tabs ---- */ ?>
+	<div class="ecrp3-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Reports', 'wp-easycart' ); ?>" id="ecrp_tabs">
+		<?php foreach ( $ecv2_rp_config['tabs'] as $ecv2_rp_tab ) : ?>
+		<button type="button" role="tab" class="ecrp3-tab<?php echo ( 'free' === $ecv2_rp_tab['state'] || 'enabled' === $ecv2_rp_tab['state'] ) ? '' : ' is-locked'; ?>" id="ecrp_tab_<?php echo esc_attr( $ecv2_rp_tab['id'] ); ?>" data-tab="<?php echo esc_attr( $ecv2_rp_tab['id'] ); ?>" aria-controls="ecrp_panel" aria-selected="<?php echo 'overview' === $ecv2_rp_tab['id'] ? 'true' : 'false'; ?>" tabindex="<?php echo 'overview' === $ecv2_rp_tab['id'] ? '0' : '-1'; ?>" title="<?php echo esc_attr( $ecv2_rp_tab['desc'] ); ?>">
+			<?php echo esc_html( $ecv2_rp_tab['label'] ); ?>
+			<?php if ( '' !== $ecv2_rp_tab['badge'] ) : ?>
+			<span class="ecrp3-chip<?php echo 'update' === $ecv2_rp_tab['state'] ? ' is-update' : ''; ?>"><?php echo esc_html( $ecv2_rp_tab['badge'] ); ?></span>
+			<?php endif; ?>
+		</button>
 		<?php endforeach; ?>
-		<?php for ( $i = 0; $i < count( $single_stats->fees ); $i++ ) : ?>
-		<div class="ec_admin_dashboard_stat_item ecrp-stat is-money is-fee" id="ec_admin_dashboard_stat_item<?php echo esc_attr( 11 + $i ); ?>">
-			<div class="ec_admin_dashboard_stat_item_title"><?php echo esc_html( '' !== trim( (string) $single_stats->fees[ $i ]->fee_label ) && '0' !== trim( (string) $single_stats->fees[ $i ]->fee_label ) ? $single_stats->fees[ $i ]->fee_label : __( 'Fee', 'wp-easycart' ) ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_total"><?php echo esc_html( $single_stats->fees[ $i ]->set1 ); ?></div>
-			<div class="ec_admin_dashboard_stat_item_change decrease" style="display:none"><span class="dashicons dashicons-arrow-down-alt"></span> -36.3%</div>
-			<div class="ec_admin_dashboard_stat_item_prev_total" style="display:none"><?php esc_html_e( 'Previous period', 'wp-easycart' ); ?><br />$0.00</div>
-		</div>
-		<?php endfor; ?>
 	</div>
 
-	<?php /* ---- Charts ---- */ ?>
-	<div class="ecrp-charts">
-		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_1" class="ec_admin_chart"></canvas></div>
-		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_2" class="ec_admin_chart"></canvas></div>
-		<div class="ec_admin_dashboard_chart ecrp-chart"><canvas id="ec_admin_chart_data_3" class="ec_admin_chart"></canvas></div>
+	<?php /* ---- Summary email offer ( D4: one click, off until then ) and the store activity note ---- */ ?>
+	<div class="ecrp3-offer" id="ecrp_offer" hidden>
+		<span class="dashicons dashicons-email-alt"></span>
+		<span class="ecrp3-offer-text"><?php esc_html_e( 'Get these numbers by email every week: sales, orders, refunds and new customers, compared with the week before.', 'wp-easycart' ); ?></span>
+		<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecrp-offer="on"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
+		<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecrp-offer="dismiss"><?php esc_html_e( 'No thanks', 'wp-easycart' ); ?></button>
 	</div>
 
-	<?php if ( ! $license_data && class_exists( 'wp_easycart_admin_upsell' ) ) : ?>
-	<?php /* Free edition: what PRO reporting adds, in the standard clickable strip. */ ?>
-	<div class="ecrp-upsell">
-		<?php
-		$ecrp_e = wp_easycart_admin_upsell::entry( 'reports' );
-		if ( '' !== $ecrp_e['stat_line'] ) {
-			echo '<p class="ecv2-page-intro ecv2-upsell-stat-inline"><span class="dashicons dashicons-chart-line"></span> ' . esc_html( $ecrp_e['stat_line'] ) . '</p>';
-		}
-		wp_easycart_admin_upsell::print_feature_strip( 'reports' );
-		?>
+	<div class="ecrp3-panel" id="ecrp_panel" role="tabpanel" aria-labelledby="ecrp_tab_overview" aria-live="polite"></div>
+
+	<?php if ( $ecv2_rp_card ) : ?>
+	<div id="ecrp_sources_card" class="ecrp3-sources-card" hidden>
+		<?php wp_easycart_order_source::reports_card(); ?>
 	</div>
 	<?php endif; ?>
 
+	<script type="application/json" id="ecrp_config"><?php echo wp_json_encode( $ecv2_rp_config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON encoded with the HEX flags. ?></script>
 </div>
 
 <?php do_action( 'wp_easycart_admin_dashboard_post' ); ?>
 
 <script type="text/javascript">
-function get_currency_display( amount ){
-	var display_amount = '';
-	var show_currency_code = <?php echo ( $GLOBALS['currency']->get_symbol_location( ) ) ? 1 : 0; ?>;
-	var currency_code = '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>';
-	var negative_location = <?php echo ( $GLOBALS['currency']->get_negative_location( ) ) ? 1 : 0; ?>;
-	var symbol_location = <?php echo ( $GLOBALS['currency']->get_symbol_location( ) ) ?  1 : 0; ?>;
-	var symbol = '<?php echo esc_attr( $GLOBALS['currency']->get_symbol( ) ); ?>';
-	var decimal_length = <?php echo esc_attr( $GLOBALS['currency']->get_decimal_length( ) ); ?>;
-	var decimal_symbol = '<?php echo esc_attr( $GLOBALS['currency']->get_decimal_symbol( ) ); ?>';
-	var grouping_symbol = '<?php echo esc_attr( $GLOBALS['currency']->get_grouping_symbol( ) ); ?>';
-	if( show_currency_code )
-		display_amount += currency_code + ' ';
-	if( amount < 0 && negative_location )
-		display_amount += '-';
-	if( symbol_location )
-		display_amount += symbol;
-	if( amount < 0 && !negative_location )
-		display_amount += '-';
-	if( amount < 0 )
-		amount = amount * -1;
-	display_amount += ec_admin_chart_number_format( amount, decimal_length, decimal_symbol, grouping_symbol );
-	if( !symbol_location )
-		display_amount += symbol;
-	return display_amount;
-}
-function ec_admin_chart_number_format( number, decimals, dec_point, thousands_sep ){
-	number = ( number + '' ).replace( /[^0-9+\-Ee.]/g, '' );
-	var n = !isFinite( +number ) ? 0 : +number,
-		prec = !isFinite( +decimals ) ? 0 : Math.abs( decimals ),
-		sep = ( typeof thousands_sep === 'undefined' ) ? ',' : thousands_sep,
-		dec = ( typeof dec_point === 'undefined' ) ? '.' : dec_point,
-		s = '',
-		toFixedFix = function ( n, prec ){
-			var k = Math.pow( 10, prec );
-			return '' + Math.round( n * k ) / k;
-		};
-	s = ( prec ? toFixedFix( n, prec ) : '' + Math.round( n ) ).split( '.' );
-	if( s[0].length > 3 ){
-		s[0] = s[0].replace( /\B(?=(?:\d{3})+(?!\d))/g, sep );
-	}
-	if( ( s[1] || '' ).length < prec ){
-		s[1] = s[1] || '';
-		s[1] += new Array( prec - s[1].length + 1 ).join( '0' );
-	}
-	return s.join( dec );
-}
-var start1 = moment( ).subtract( 13, 'days' );
-var end1 = moment( );
-function wpeasycart_admin_report_cb1( start, end ){
-	jQuery( '#wpeasycart_admin_report_range1 span' ).html( start.format( 'MMMM D, YYYY' ) + ' - ' + end.format( 'MMMM D, YYYY' ) );
-}
-jQuery( '#wpeasycart_admin_report_range1' ).daterangepicker( {
-	chosenLabel: 'Last 14 Days',
-	startDate: start1,
-	endDate: end1,
-	ranges: {
-	   '<?php esc_attr_e( 'Today', 'wp-easycart' ); ?>': [moment(), moment()],
-	   '<?php esc_attr_e( 'Yesterday', 'wp-easycart' ); ?>': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-	   '<?php esc_attr_e( 'Last 7 Days', 'wp-easycart' ); ?>': [moment().subtract(6, 'days'), moment()],
-	   '<?php esc_attr_e( 'Last 14 Days', 'wp-easycart' ); ?>': [moment().subtract(13, 'days'), moment()],
-	   '<?php esc_attr_e( 'Last 30 Days', 'wp-easycart' ); ?>': [moment().subtract(29, 'days'), moment()],
-	   '<?php esc_attr_e( 'This Month', 'wp-easycart' ); ?>': [moment().startOf('month'), moment().endOf('month')],
-	   '<?php esc_attr_e( 'Last Month', 'wp-easycart' ); ?>': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-	   '<?php esc_attr_e( 'Last 3 Months', 'wp-easycart' ); ?>': [moment().subtract(2, 'month').startOf('month'), moment().endOf('month')],
-	   '<?php esc_attr_e( 'Last 6 Months', 'wp-easycart' ); ?>': [moment().subtract(5, 'month').startOf('month'), moment().endOf('month')],
-	   '<?php esc_attr_e( 'Last 12 Months', 'wp-easycart' ); ?>': [moment().subtract(11, 'month').startOf('month'), moment().endOf('month')],
-	   '<?php esc_attr_e( 'This Quarter', 'wp-easycart' ); ?>': [moment().startOf('quarter'), moment().endOf('quarter')],
-	   '<?php esc_attr_e( 'Last Quarter', 'wp-easycart' ); ?>': [moment().subtract(1, 'quarter').startOf('quarter'), moment().subtract(1, 'quarter').endOf('quarter')],
-	   '<?php esc_attr_e( 'This Year', 'wp-easycart' ); ?>': [moment().startOf('year'), moment().endOf('year')],
-	   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')],
-	   '<?php esc_attr_e( 'Last 2 Years', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().endOf('year')],
-	   '<?php esc_attr_e( 'Last 3 Years', 'wp-easycart' ); ?>': [moment().subtract(2, 'year').startOf('year'), moment().endOf('year')],
-	   '<?php esc_attr_e( 'Last 5 Years', 'wp-easycart' ); ?>': [moment().subtract(4, 'year').startOf('year'), moment().endOf('year')]
-	}
-}, wpeasycart_admin_report_cb1 ).on( 'apply.daterangepicker', function( ev, picker ){
-	wpeasycart_admin_report_update_range2( );
-	wpeasycart_admin_update_chart_data( );
-} );
-wpeasycart_admin_report_cb1( start1, end1 );
-jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').chosenLabel = 'Last 14 Days';
-var start2 = moment().add(1, 'days');
-var end2 = moment().add(1, 'days');
-function wpeasycart_admin_report_cb2( start, end ){
-	var selected_range = jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel;
-	if( selected_range == '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2 span' ).html( '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' );
-	}else{
-		jQuery( '#wpeasycart_admin_report_range2 span' ).html( start.format( 'MMMM D, YYYY' ) + ' - ' + end.format( 'MMMM D, YYYY' ) );
-	}
-}
-wpeasycart_admin_report_update_range2( );
-wpeasycart_admin_report_cb2( start2, end2 );
-function wpeasycart_admin_report_update_range2( ){
-	var selected_range = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').chosenLabel;
-	if( selected_range == '<?php esc_attr_e( 'Last 7 Days', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(13, 'days'), moment().subtract(7, 'days')],
-			   '<?php esc_attr_e( 'Last Month', 'wp-easycart' ); ?>': [moment().subtract(1, 'month').subtract( 6, 'days' ), moment().subtract(1, 'month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract( 6, 'days' ), moment().subtract(1, 'year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 14 Days', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(27, 'days'), moment().subtract(14, 'days')],
-			   '<?php esc_attr_e( 'Last Month', 'wp-easycart' ); ?>': [moment().subtract(1, 'month').subtract( 13, 'days' ), moment().subtract(1, 'month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract( 13, 'days' ), moment().subtract(1, 'year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 30 Days', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(59, 'days'), moment().subtract(30, 'days')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(29, 'days'), moment().subtract(1, 'year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'This Month', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('month'), moment().subtract(1, 'year').endOf('month')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last Month', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(2, 'month').startOf('month'), moment().subtract(2, 'month').endOf('month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(1, 'month').startOf('month'), moment().subtract(1, 'year').subtract(1, 'month').endOf('month')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 3 Months', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(5, 'month').startOf('month'), moment().subtract(3, 'month').endOf('month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(2, 'month').startOf('month'), moment().subtract(1, 'year').endOf('month')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 6 Months', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(11, 'month').startOf('month'), moment().subtract(6, 'month').endOf('month')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(5, 'month').startOf('month'), moment().subtract(1, 'year').endOf('month')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 12 Months', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(23, 'month').startOf('month'), moment().subtract(12, 'month').endOf('month')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'This Quarter', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(1, 'quarter').startOf('quarter'), moment().subtract(1, 'quarter').endOf('quarter')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('quarter'), moment().subtract(1, 'year').endOf('quarter')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last Quarter', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(2, 'quarter').startOf('quarter'), moment().subtract(2, 'quarter').endOf('quarter')],
-			   '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(1, 'quarter').startOf('quarter'), moment().subtract(1, 'year').subtract(1, 'quarter').endOf('quarter')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'This Year', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last Year', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(2, 'year').startOf('year'), moment().subtract(2, 'year').endOf('year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 2 Years', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(3, 'year').startOf('year'), moment().subtract(2, 'year').endOf('year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 3 Years', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(5, 'year').startOf('year'), moment().subtract(3, 'year').endOf('year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else if( selected_range == '<?php esc_attr_e( 'Last 5 Years', 'wp-easycart' ); ?>' ){
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Previous Period', 'wp-easycart' ); ?>': [moment().subtract(9, 'year').startOf('year'), moment().subtract(5, 'year').endOf('year')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}else{
-		jQuery( '#wpeasycart_admin_report_range2' ).daterangepicker( {
-			chosenLabel: '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>',
-			startDate: start2,
-			endDate: end2,
-			ranges: {
-			   '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>': [moment().add(1, 'days'), moment().add(1, 'days')],
-			   '<?php esc_attr_e( 'Yesterday', 'wp-easycart' ); ?>': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-			   '<?php esc_attr_e( 'Last 7 Days, Previous Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract( 6, 'days' ), moment().subtract(1, 'year')],
-			   '<?php esc_attr_e( 'Last Month', 'wp-easycart' ); ?>': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-			   '<?php esc_attr_e( 'Last 3 Months, Previous Year', 'wp-easycart' ); ?>': [moment().subtract(1, 'year').subtract(3, 'month').startOf('month'), moment().subtract(1, 'year').endOf('month')],
-			   '<?php esc_attr_e( 'Last Quarter', 'wp-easycart' ); ?>': [moment().subtract(1, 'quarter').startOf('quarter'), moment().subtract(1, 'quarter').endOf('quarter')]
-			}
-		}, wpeasycart_admin_report_cb2 ).on( 'apply.daterangepicker', function( ev, picker ){
-			wpeasycart_admin_update_chart_data( );
-		} );
-	}
-	jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel = '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>';
-	jQuery( '#wpeasycart_admin_report_range2 span' ).html( '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' );
-}
-var dashboard_data_sales = <?php echo wp_easycart_admin( )->get_stats( 'sales', esc_attr( date( 'Y-m-d', strtotime( '-14 days' ) ) ), esc_attr( date( 'Y-m-d' ) ) ); // Printing Pre-Escaped JSON Encoded Data ?>;
-var dashboard_data_items = <?php echo wp_easycart_admin( )->get_stats( 'items', esc_attr( date( 'Y-m-d', strtotime( '-14 days' ) ) ), esc_attr( date( 'Y-m-d' ) ) ); // Printing Pre-Escaped JSON Encoded Data ?>;
-var dashboard_data_abandoned = <?php echo wp_easycart_admin( )->get_stats( 'carts', esc_attr( date( 'Y-m-d', strtotime( '-14 days' ) ) ), esc_attr( date( 'Y-m-d' ) ) ); // Printing Pre-Escaped JSON Encoded Data ?>;
-var options_sales = {
-	scaleBeginAtZero : true,
-	scaleShowGridLines : true,
-	scaleGridLineColor : "rgba(0,0,0,.90)",
-	scaleGridLineWidth : 1,
-	scaleShowHorizontalLines: true,
-	scaleShowVerticalLines: true,
-	barShowStroke : true,
-	barStrokeWidth : 2,
-	barValueSpacing : 5,
-	barDatasetSpacing : 1,
-	cubicInterpolationMode: 'default',
-	bezierCurve: false,
-	lineTension: 0,
-	tooltips: {
-		enabled: true,
-		mode: 'single',
-		callbacks: {
-			title: function( tooltipItems, data ){
-				return data.datasets[tooltipItems[0].datasetIndex].datalabels[tooltipItems[0].index];
-			},
-			label: function( tooltipItems, data ){
-				return get_currency_display( tooltipItems.yLabel );
-			}
-		}
-	},
-	elements: {
-		line: {
-			tension: 0
-		}
-	}
-};
-var options_items = {
-	scaleBeginAtZero : true,
-	scaleShowGridLines : true,
-	scaleGridLineColor : "rgba(0,0,0,.90)",
-	scaleGridLineWidth : 1,
-	scaleShowHorizontalLines: true,
-	scaleShowVerticalLines: true,
-	barShowStroke : true,
-	barStrokeWidth : 2,
-	barValueSpacing : 5,
-	barDatasetSpacing : 1,
-	cubicInterpolationMode: 'default',
-	bezierCurve: false,
-	lineTension: 0,
-	tooltips: {
-		enabled: true,
-		mode: 'single',
-		callbacks: {
-			title: function( tooltipItems, data ){
-				return data.datasets[tooltipItems[0].datasetIndex].datalabels[tooltipItems[0].index];
-			},
-			label: function( tooltipItems, data ){
-				return tooltipItems.yLabel + ' <?php esc_attr_e( 'Items', 'wp-easycart' ); ?>';
-			}
-		}
-	},
-	elements: {
-		line: {
-			tension: 0
-		}
-	}
-};
-var options_carts = {
-	scaleBeginAtZero : true,
-	scaleShowGridLines : true,
-	scaleGridLineColor : "rgba(0,0,0,.90)",
-	scaleGridLineWidth : 1,
-	scaleShowHorizontalLines: true,
-	scaleShowVerticalLines: true,
-	barShowStroke : true,
-	barStrokeWidth : 2,
-	barValueSpacing : 5,
-	barDatasetSpacing : 1,
-	cubicInterpolationMode: 'default',
-	bezierCurve: false,
-	lineTension: 0,
-	tooltips: {
-		enabled: true,
-		mode: 'single',
-		callbacks: {
-			title: function( tooltipItems, data ){
-				return data.datasets[tooltipItems[0].datasetIndex].datalabels[tooltipItems[0].index];
-			},
-			label: function( tooltipItems, data ){
-				return tooltipItems.yLabel + ' <?php esc_attr_e( 'Abandoned Carts', 'wp-easycart' ); ?>';
-			}
-		}
-	},
-	elements: {
-		line: {
-			tension: 0
-		}
-	}
-};
-var ctx_1 = 'ec_admin_chart_data_1';
-var chart1 = new Chart( ctx_1, {
-	type: 'line',
-	data: dashboard_data_sales,
-	options: options_sales
-} );
-var ctx_2 = 'ec_admin_chart_data_2';
-var chart2 = new Chart( ctx_2, {
-	type: 'line',
-	data: dashboard_data_items,
-	options: options_items
-} );
-var ctx_3 = 'ec_admin_chart_data_3';
-var chart3 = new Chart( ctx_3, {
-	type: 'line',
-	data: dashboard_data_abandoned,
-	options: options_carts
-} );
-document.addEventListener( 'DOMContentLoaded', function( ){ // Fixing load display, sizing issue.
-	wpeasycart_admin_update_chart_type( 'line' )
-}, false );
-function wpeasycart_admin_update_chart_type( type ){
-	jQuery( '.wpeasycart_admin_chart_types > .dashicons' ).removeClass( 'selected' );
-	jQuery( '.wpeasycart_admin_chart_types > .wpeasycart_admin_chart_type_' + type ).addClass( 'selected' );
-	chart1.destroy( );
-	chart1 = new Chart( ctx_1, {
-		type: type,
-		data: dashboard_data_sales,
-		options: options_sales
-	} );
-	chart2.destroy( );
-	chart2 = new Chart( ctx_2, {
-		type: type,
-		data: dashboard_data_items,
-		options: options_items
-	} );
-	chart3.destroy( );
-	chart3 = new Chart( ctx_3, {
-		type: type,
-		data: dashboard_data_abandoned,
-		options: options_carts
-	} );
-}
-/* 6.0.0: the finished export opens a V2 dialog ( same shell as the customers and products importers ) with one row per
-   report instead of the old stack of dark buttons. */
+/* The export dialog and job. Extensions add rows through wp_easycart_dashboard_reports_links_start / _end: JavaScript that
+	appends to `body` or to `modal`. */
 function wpeasycart_admin_report_download_modal( reports ){
 	var esc = function( s ){ return jQuery( '<span>' ).text( s == null ? '' : s ).html(); };
 	var icon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v5h5"/><path d="M15 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M12 12v5"/><path d="m9.5 14.5 2.5 2.5 2.5-2.5"/></svg>';
@@ -654,7 +238,6 @@ function wpeasycart_admin_report_download_modal( reports ){
 			'<span class="ecrp-dl-text"><b>' + esc( title ) + '</b><span>' + esc( sub ) + '</span></span>' +
 			'<span class="ecrp-dl-go"><?php echo esc_js( __( 'Download CSV', 'wp-easycart' ) ); ?></span></a>';
 	};
-	/* Extensions appended their own links by concatenating onto a variable named modal; the hooks below keep that working. */
 	var modal = '';
 	var body = '<p class="ecrp-dl-lede"><?php echo esc_js( __( 'Your export is ready. Each file covers the filters and dates set on this page.', 'wp-easycart' ) ); ?></p><div class="ecrp-dl-rows">';
 	<?php do_action( 'wp_easycart_dashboard_reports_links_start' ); ?>
@@ -687,40 +270,25 @@ function wpeasycart_admin_report_download_modal( reports ){
 	setTimeout( function(){ $m.find( '.ecrp-dl-row' ).first().trigger( 'focus' ); }, 30 );
 }
 function wpeasycart_admin_export_report( ){
-	jQuery( '.wpeasycart_admin_chart_export > .dashicons' ).removeClass( 'dashicons-download' ).addClass( 'dashicons-image-rotate' );
-	var start_date = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').startDate.format( 'YYYY-MM-DD' );
-	var end_date = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').endDate.format( 'YYYY-MM-DD' );
-	var start_date2 = 0;
-	if(  jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel != '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' && jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').startDate ){
-		start_date2 = jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').startDate.format( 'YYYY-MM-DD' );
-	}
-	var end_date2 = 0;
-	if( jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel != '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' && jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').endDate ){
-		end_date2 = jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').endDate.format( 'YYYY-MM-DD' );
-	}
-	var range = jQuery( '#daily_filter' ).val( );
-	var product_filter = jQuery( '#product_filter' ).val( );
-	var country_filter = jQuery( '#country_filter' ).val( );
-	var billing_country_filter = jQuery( '#billing_country_filter' ).val( );
-	var location_filter = ( jQuery( '#location_filter' ).length ) ? jQuery( '#location_filter' ).val() : 0;
+	var state = ( window.wpecReports && window.wpecReports.state ) ? window.wpecReports.state : {};
+	var button = jQuery( '#ecrp_export_btn' );
+	button.find( '.dashicons' ).removeClass( 'dashicons-download' ).addClass( 'dashicons-image-rotate' );
 	var data = {
 		action: 'ec_admin_create_report_export',
-		start_date: start_date,
-		end_date: end_date,
-		start_date2: start_date2,
-		end_date2: end_date2,
-		range: range,
-		product: product_filter,
-		country: country_filter,
-		billing_country: billing_country_filter,
-		location_id: location_filter,
+		start_date: state.start,
+		end_date: state.end,
+		start_date2: state.start2 || 0,
+		end_date2: state.end2 || 0,
+		range: jQuery( '#daily_filter' ).val( ),
+		product: jQuery( '#product_filter' ).val( ),
+		country: jQuery( '#country_filter' ).val( ),
+		billing_country: jQuery( '#billing_country_filter' ).val( ),
+		location_id: ( jQuery( '#location_filter' ).length ) ? jQuery( '#location_filter' ).val() : 0,
 		wp_easycart_nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-export-stats' ) ); ?>'
 	};
-	/* 6.0.0: the export is a resumable job. Each call writes up to 1,000 orders and returns { done, next }; loop
-	   until done, then show the same download modal as before. */
 	var export_finish = function( ){
-		jQuery( '.wpeasycart_admin_chart_export > .dashicons' ).removeClass( 'dashicons-image-rotate' ).addClass( 'dashicons-download' );
-		jQuery( '.wpeasycart_admin_chart_export' ).removeAttr( 'title' );
+		button.find( '.dashicons' ).removeClass( 'dashicons-image-rotate' ).addClass( 'dashicons-download' );
+		button.removeAttr( 'title' );
 	};
 	var export_fail = function( message ){
 		export_finish( );
@@ -734,7 +302,7 @@ function wpeasycart_admin_export_report( ){
 				return;
 			}
 			if( !response.done ){
-				jQuery( '.wpeasycart_admin_chart_export' ).attr( 'title', '<?php echo esc_js( __( 'Exporting…', 'wp-easycart' ) ); ?> ' + response.total );
+				button.attr( 'title', '<?php echo esc_js( __( 'Exporting…', 'wp-easycart' ) ); ?> ' + response.total );
 				export_step( { job: response.next.job, phase: response.next.phase, last_order_id: response.next.last_order_id } );
 				return;
 			}
@@ -745,221 +313,5 @@ function wpeasycart_admin_export_report( ){
 		} } );
 	};
 	export_step( null );
-}
-function wpeasycart_admin_update_chart_data( ){
-	jQuery( '.wpeasycart_admin_chart_types' ).prepend( '<div class="dashicons dashicons-image-rotate"></div>' );
-	var start_date = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').startDate.format( 'YYYY-MM-DD' );
-	var end_date = jQuery( '#wpeasycart_admin_report_range1' ).data('daterangepicker').endDate.format( 'YYYY-MM-DD' );
-	var start_date2 = 0;
-	if(  jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel != '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' && jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').startDate ){
-		start_date2 = jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').startDate.format( 'YYYY-MM-DD' );
-	}
-	var end_date2 = 0;
-	if( jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').chosenLabel != '<?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?>' && jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').endDate ){
-		end_date2 = jQuery( '#wpeasycart_admin_report_range2' ).data('daterangepicker').endDate.format( 'YYYY-MM-DD' );
-	}
-	var range = jQuery( '#daily_filter' ).val( );
-	var product_filter = jQuery( '#product_filter' ).val( );
-	var country_filter = jQuery( '#country_filter' ).val( );
-	var billing_country_filter = jQuery( '#billing_country_filter' ).val( );
-	var location_filter = ( jQuery( '#location_filter' ).length ) ? jQuery( '#location_filter' ).val() : 0;
-	var data = {
-		action: 'ec_admin_get_updated_stat_list',
-		start_date: start_date,
-		end_date: end_date,
-		start_date2: start_date2,
-		end_date2: end_date2,
-		range: range,
-		product: product_filter,
-		country: country_filter,
-		billing_country: billing_country_filter,
-		location_id: location_filter,
-		wp_easycart_nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-updated-stats' ) ); ?>'
-	};
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function( response ){ 
-		jQuery( '.wpeasycart_admin_chart_types .dashicons-image-rotate' ).remove( );
-		var stats = JSON.parse( response );
-		var single_stats = stats.single;
-		dashboard_data_sales = JSON.parse( stats.sales );
-		chart1.data = dashboard_data_sales;
-		chart1.update( );
-		dashboard_data_items = JSON.parse( stats.items );
-		chart2.data = dashboard_data_items;
-		chart2.update( );
-		dashboard_data_abandoned = JSON.parse( stats.carts );
-		chart3.data = dashboard_data_abandoned;
-		chart3.update( );
-
-		jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.gross_revenue.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.shipping.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.tax.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.discount.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.refund.set1 );
-
-		jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.net_revenue.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.orders.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.items.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.customers.set1 );
-		jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_total' ).html( single_stats.carts.set1 );
-
-		if ( single_stats.fees.length > 0 ) {
-			for ( var fee_i = 0; fee_i < single_stats.fees.length; fee_i++ ) {
-				jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_total' ).html( single_stats.fees[ fee_i ].set1 );
-			}
-		}
-
-		if( start_date2 ){
-			if( single_stats.gross_revenue.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.gross_revenue.diff + '%' );
-			}else if( single_stats.gross_revenue.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.gross_revenue.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.gross_revenue.diff + '%' );
-			}
-
-			if( single_stats.shipping.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.shipping.diff + '%' );
-			}else if( single_stats.shipping.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.shipping.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.shipping.diff + '%' );
-			}
-
-			if( single_stats.tax.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.tax.diff + '%' );
-			}else if( single_stats.tax.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.tax.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.tax.diff + '%' );
-			}
-
-			if( single_stats.discount.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.discount.diff + '%' );
-			}else if( single_stats.discount.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.discount.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.discount.diff + '%' );
-			}
-
-			if( single_stats.refund.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'descrease' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.refund.diff + '%' );
-			}else if( single_stats.refund.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.refund.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.refund.diff + '%' );
-			}
-
-			if( single_stats.net_revenue.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.net_revenue.diff + '%' );
-			}else if( single_stats.net_revenue.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.net_revenue.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.net_revenue.diff + '%' );
-			}
-
-			if( single_stats.orders.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.orders.diff + '%' );
-			}else if( single_stats.orders.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.orders.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.orders.diff + '%' );
-			}
-
-			if( single_stats.items.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.items.diff + '%' );
-			}else if( single_stats.items.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.items.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.items.diff + '%' );
-			}
-
-			if( single_stats.customers.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.customers.diff + '%' );
-			}else if( single_stats.customers.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.customers.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.customers.diff + '%' );
-			}
-
-			if( single_stats.carts.diff > 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.carts.diff + '%' );
-			}else if( single_stats.carts.diff < 0 ){
-				jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.carts.diff + '%' );
-			}else{
-				jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.carts.diff + '%' );
-			}
-
-			jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.gross_revenue.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.shipping.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.tax.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.discount.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.refund.set2 );
-
-			jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.net_revenue.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.orders.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.items.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.customers.set2 );
-			jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_prev_total' ).show( ).html( single_stats.carts.set2 );
-			
-			if ( single_stats.fees.length > 0 ) {
-				for ( fee_i = 0; fee_i < single_stats.fees.length; fee_i++ ) {
-					if( single_stats.fees[ fee_i ].diff > 0 ){
-						jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-arrow-up-alt"></span>' + single_stats.fees[ fee_i ].diff + '%' );
-					}else if( single_stats.fees[ fee_i ].diff < 0 ){
-						jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).addClass( 'decrease' ).show( ).html( '<span class="dashicons dashicons-arrow-down-alt"></span>' + single_stats.fees[ fee_i ].diff + '%' );
-					}else{
-						jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_change' ).removeClass( 'decrease' ).removeClass( 'increase' ).show( ).html( '<span class="dashicons dashicons-minus"></span>' + single_stats.fees[ fee_i ].diff + '%' );
-					}
-					
-					jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_prev_total' ).show().html( single_stats.fees[ fee_i ].set2 );
-				}
-			}
-		}else{
-			jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_change' ).hide( );
-
-			jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_change' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_change' ).hide( );
-
-			jQuery( '#ec_admin_dashboard_stat_item1 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item2 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item3 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item4 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item5 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-
-			jQuery( '#ec_admin_dashboard_stat_item6 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item7 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item8 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item9 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-			jQuery( '#ec_admin_dashboard_stat_item10 > .ec_admin_dashboard_stat_item_prev_total' ).hide( );
-
-			if ( single_stats.fees.length > 0 ) {
-				for ( fee_i = 0; fee_i < single_stats.fees.length; fee_i++ ) {
-					jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_change' ).hide( );
-					jQuery( '#ec_admin_dashboard_stat_item' + Number( fee_i + 11 ) + ' > .ec_admin_dashboard_stat_item_prev_total' ).hide();
-				}
-			}
-		}
-
-		if( product_filter != '0' ){
-			jQuery( '#ec_admin_dashboard_stat_item2' ).addClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item3' ).addClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item4' ).addClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item5' ).addClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item6' ).addClass( 'deactivate' );
-		}else{
-			jQuery( '#ec_admin_dashboard_stat_item2' ).removeClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item3' ).removeClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item4' ).removeClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item5' ).removeClass( 'deactivate' );
-			jQuery( '#ec_admin_dashboard_stat_item6' ).removeClass( 'deactivate' );
-		}
-	} } );
 }
 </script>

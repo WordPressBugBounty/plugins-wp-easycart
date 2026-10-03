@@ -27,6 +27,18 @@
 		return String( s == null ? '' : s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&#039;' );
 	}
 
+	/* 6.0.2: a drawer closes when it saves, so the page says so ( same toast as settings-page-v2.js; owner bug round 4, item 17 ). */
+	function toast( msg, kind ) {
+		if ( ! msg ) { return; }
+		if ( typeof window.ecv2_toast === 'function' ) {
+			if ( ! document.getElementById( 'ecv2-toast-container' ) ) { $( '<div id="ecv2-toast-container" role="status" aria-live="polite"></div>' ).appendTo( 'body' ); }
+			window.ecv2_toast( msg, kind || 'success' );
+			return;
+		}
+		var $t = $( '<div class="ecdv2-toast" role="status" style="position:fixed;bottom:24px;right:24px;z-index:100100;background:#111827;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px"></div>' ).text( msg ).appendTo( 'body' );
+		setTimeout( function() { $t.fadeOut( 200, function() { $t.remove(); } ); }, 2600 );
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* Small dialog ( confirm, or confirm with a name field )              */
 	/* ------------------------------------------------------------------ */
@@ -94,7 +106,7 @@
 		this.$el.on( 'click', '[data-edit-link]', function( e ) { e.stopPropagation(); self.flush(); } );
 		this.$el.on( 'click', '.ecdoc-actions [data-op]', function() { self.op( $( this ).attr( 'data-op' ) ); } );
 		this.$el.on( 'change', '.ecdoc-order-id', function() { self.preview( true ); } );
-		this.$el.on( 'click', '[data-wording]', function() { wording( self.type, $( this ).attr( 'data-title' ) || '' ); } );
+		this.$el.on( 'click', '[data-wording]', function() { wording( self.type, $( this ).attr( 'data-title' ) || '', self ); } );
 		this.$el.on( 'click', '[data-branding]', function() { self.flush(); branding( self, $( this ).attr( 'data-title' ) || '', $( this ) ); } );
 		this.$frame.on( 'load', function() { self.fit(); } );
 		/* 6.0.1: every visit starts on the newest order; a number typed last time ( restored by the browser ) is not kept. */
@@ -384,7 +396,7 @@
 	/* Wording drawer ( the language editor's phrases for one document )   */
 	/* ------------------------------------------------------------------ */
 
-	function wording( type, title ) {
+	function wording( type, title, editor ) {
 		if ( $( '.ecdoc-drawer' ).length ) { return; }
 		var state = { type: type, language: '', rows: [], initial: '' };
 		var $back = $( '<div class="ecdoc-drawer-backdrop"></div>' );
@@ -494,10 +506,13 @@
 			status( t( 'saving', 'Saving…' ) );
 			post( { action: 'ecv2_documents_wording_save', type: type, language: state.language, values: JSON.stringify( values() ) } ).done( function( r ) {
 				if ( r && r.success ) {
-					draw( r.data );
-					status( r.data.message || t( 'saved', 'Saved' ), 'ok' );
+					/* 6.0.2: saved, so the drawer closes and the page says so ( it only redrew, with a small note in its footer ). */
+					var said = r.data.message || t( 'saved', 'Saved' );
+					if ( editor ) { editor.status( said, 'ok' ); }
+					toast( said, 'success' );
 					/* Every document can share a phrase: redraw each preview. */
 					$( '.ecdoc' ).each( function() { if ( this.ecdoc ) { this.ecdoc.preview( true ); } } );
+					close( true );
 					return;
 				}
 				$b.prop( 'disabled', false );
@@ -605,6 +620,7 @@
 					part( 'logo', t( 'brand_logo', 'Logo' ), t( 'brand_st_logo', 'The store logo' ), STORE.logo_width, STORE.logo_height ) +
 					part( 'footer', t( 'brand_footer', 'Footer image' ), t( 'brand_st_foot', 'The store footer image' ), STORE.footer_width, STORE.footer_height ) +
 					( 'receipt' === editor.type ? '<p class="ecdoc-bd-note">' + esc( t( 'brand_pdf', 'This changes the receipt email. The PDF attached to it is the Invoice PDF, which has its own profiles and logo.' ) ) + '</p>' : '' ) +
+					( 'invoice_email' === editor.type ? '<p class="ecdoc-bd-note">' + esc( t( 'brand_pdf_inv', 'This changes the invoice email. The PDF attached to it is the Invoice PDF, which has its own profiles and logo.' ) ) + '</p>' : '' ) +
 				'</div>' +
 				'<footer class="ecdoc-drawer-foot"><span class="ecdoc-grow"></span>' +
 					'<span class="ecdoc-status" role="status" aria-live="polite"></span>' +
@@ -723,6 +739,7 @@
 					if ( editor.data.profiles[ p.id ] ) { editor.data.profiles[ p.id ].branding = r.data.branding; }
 					editor.brandMark();
 					editor.status( t( 'saved', 'Saved' ), 'ok' );
+					toast( t( 'saved', 'Saved' ), 'success' );
 					editor.preview( true );
 					close( true );
 					return;

@@ -18,6 +18,10 @@ if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option(
 <?php if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) { ?>
 <script>
 	jQuery( document ).ready( function() {
+		if ( window.wpec_ga4_begin_checkout ) { /* 6.0.2: once per page, not on every redraw of this section */
+			return;
+		}
+		window.wpec_ga4_begin_checkout = true;
 		<?php if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) { ?>
 		dataLayer.push( { ecommerce: null } );
 		dataLayer.push( {
@@ -26,7 +30,7 @@ if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option(
 		<?php } else { ?>
 		gtag( "event", "begin_checkout", {
 		<?php }?>
-			currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+			currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 			value: <?php echo esc_attr( number_format( $cartpage->order_totals->grand_total, 2, '.', '' ) ); ?>,
 			coupon_code: "<?php echo esc_attr( $cartpage->coupon_code ); ?>",
 			items: [
@@ -53,10 +57,14 @@ if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option(
 <?php $allow_express_checkout = false;
 if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) && get_option( 'ec_option_stripe_enable_apple_pay' ) ) {
 	$allow_express_checkout = true;
-} else if ( get_option( 'ec_option_payment_process_method' ) == 'square' && get_option( 'ec_option_square_digital_wallet' ) && ! get_option( 'ec_option_onepage_checkout_tabbed' ) ) {
+} else if ( get_option( 'ec_option_payment_process_method' ) == 'square' && get_option( 'ec_option_square_digital_wallet' ) ) { /* 6.0.2: the steps layout too ( its script now has its own scope ) */
 	$allow_express_checkout = true;
 }
 if ( ( $cartpage->has_downloads || ! get_option( 'ec_option_allow_guest' ) ) && '' == $GLOBALS['ec_cart_data']->cart_data->user_id ) {
+	$allow_express_checkout = false;
+}
+/* 6.0.2: express buttons skip this form ( WP EasyCart PRO hides them while a required checkout field applies ). */
+if ( $allow_express_checkout && ! apply_filters( 'wpeasycart_express_checkout_allowed', true, 'checkout', $cartpage ) ) {
 	$allow_express_checkout = false;
 }
 if ( $allow_express_checkout ) { 
@@ -64,7 +72,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 ?>
 <div class="ec_cart_express_checkout">
 	<div class="ec_cart_express_checkout_header" style="margin-bottom:10px;">
-		Express checkout
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'express_checkout' ) ); ?>
 	</div>
 		<div class="ec_cart_express_button_container<?php echo ( $show_paypal ) ? '' : ' ec_cart_express_button_container_single'; ?>">
 			<?php if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
@@ -74,6 +82,8 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			} ?>
 			<?php if( $show_paypal ){ ?>
 				<div id="paypal-button-container" style="float:left; width:100%; margin:10px 0;"></div>
+				<?php /* 6.0.2: PayPal could not start ( ec_cart_paypal_button_code.php shows it ). */ ?>
+				<div class="ec_cart_error wpec-paypal-error" style="display:none;"><div><?php echo wp_kses_post( wp_easycart_language()->get_text( 'ec_errors', 'thirdparty_failed' ) ); ?></div></div>
 				<div id="paypal-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
 					<style>
 					@keyframes rotation{
@@ -96,14 +106,14 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 	</div>
 	<div id="error-message"></div>
 	<div class="ec_cart_express_checkout_divider">
-		<div>OR</div>
+		<div><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'express_or' ) ); ?></div>
 	</div>
 </div>
 <?php } ?>
 
 <?php if( $GLOBALS['ec_cart_data']->cart_data->user_id == "" ) { ?>
 	<div class="ec_cart_header ec_cart_header_no_border" id="ec_cart_contact_header">
-		<span>Contact</span>
+		<span><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'contact' ) ); ?></span>
 		<div style="float:right; font-size:14px; text-transform:none; letter-spacing:1px;">
 			<a href="" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_link"><?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_already_have_account' ); ?></a>
 			<a href="" onclick="return ec_cart_toggle_login_v2();" id="ec_user_login_cancel_link" style="display:none"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ); ?></a>
@@ -130,7 +140,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_password_label' ); ?>
 		</div>
 
-		<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 		<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />
 		<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_recaptcha"></div>
 		<?php }?>
@@ -149,10 +159,10 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			<a href="" onclick="return ec_cart_toggle_login_v2();" class="ec_account_login_cancel_link"><?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ); ?></a>
 		</div>
 		<div class="ec_cart_create_account_row_v2">
-			<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'register' ) ); ?>">Create Account</a>
+			<a href="<?php echo esc_url( wpeasycart_links()->get_account_page( 'register' ) ); ?>"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'create_account_link' ) ); ?></a>
 		</div>
 
-		<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( wp_easycart_cart_is_dynamic() && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 		<script type="text/javascript">
 			if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
 				var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
@@ -162,8 +172,6 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			}
 		</script>
 		<?php }?>
-		<?php if ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { $cartpage->display_page_one_form_end(); } ?>
-
 	</div>
 
 	<div class="ec_cart_input_row" id="ec_user_contact_form">
@@ -172,10 +180,10 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 				<!-- Elements will create form elements here -->
 			</div>
 			<div class="ec_cart_error_row" id="ec_email_order1_error">
-				Please enter a valid email address.
+				<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'invalid_email' ) ); ?>
 			</div>
 			<div class="ec_cart_error_row" id="ec_create_account_email_error">
-				The email address already has an account, please login to continue.
+				<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'email_has_account' ) ); ?>
 			</div>
 			<div class="ec_cart_error_row" id="ec_subscription_email_exists" style="display:none;">
 				<div>
@@ -192,7 +200,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_valid' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_email' ); ?>
 			</div>
 			<div class="ec_cart_error_row" id="ec_create_account_email_error">
-				The email address already has an account, please login to continue.
+				<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'email_has_account' ) ); ?>
 			</div>
 		<?php } ?>
 
@@ -203,6 +211,8 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 		</div>
 		<?php } ?>
 	</div>
+
+	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<?php if ( ( ! get_option( 'ec_option_allow_guest' ) || $cartpage->has_downloads ) && ( '' == $GLOBALS['ec_cart_data']->cart_data->email || ( '' != $GLOBALS['ec_cart_data']->cart_data->is_guest && $GLOBALS['ec_cart_data']->cart_data->is_guest ) || ! $GLOBALS['ec_user']->user_id ) ) { ?>
 	<div id="ec_user_create_form" style="display:block;">
@@ -256,16 +266,16 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 		</div>
 
 		<?php if( get_option( 'ec_option_require_account_terms' ) ){ ?>
-			<div class="ec_cart_error_row" id="ec_terms_error">
+			<div class="ec_cart_error_row" id="ec_account_terms_error">
 				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
 			</div>
 			<div class="ec_cart_input_row">
-				<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" class="ec_account_register_input_field" />
+				<input type="checkbox" name="ec_account_terms_agree" id="ec_account_terms_agree" class="ec_account_register_input_field" />
 				<?php echo wp_easycart_language( )->get_text( 'account_register', 'account_register_agree_terms' )?>
 			</div>
 		<?php }?>
 
-		<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( wp_easycart_recaptcha_ready() ){ /* 6.0.2: as ec_ajax_subscription_create_account() requires */ ?>
 			<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
 			<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
 		<?php }?>
@@ -275,7 +285,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
 		</div>
 
-		<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( wp_easycart_cart_is_dynamic() && wp_easycart_recaptcha_ready() ){ ?>
 		<script type="text/javascript">
 			if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
 				var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
@@ -296,6 +306,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 	<div class="ec_cart_input_row" id="ec_cart_logged_in_section">
 		<?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_text' ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_user']->first_name, ENT_QUOTES ) ); ?> <?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_user']->last_name, ENT_QUOTES ) ); ?>, <a href="<?php echo esc_attr( $cartpage->cart_page . $cartpage->permalink_divider . "ec_cart_action=logout" ); ?>" onclick="ec_cart_logout_v2();"><?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_logout_link' ); ?></a> <?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_account_information_text2' ); ?>
 	</div>
+	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 <?php }?>
 
 <?php if ( ( ! $cartpage->has_downloads && get_option( 'ec_option_allow_guest' ) ) || '' != $GLOBALS['ec_cart_data']->cart_data->user_id ) { ?>
@@ -324,7 +335,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 		<input type="hidden" id="ec_shipping_phone" value="<?php echo esc_attr( $GLOBALS['ec_cart_data']->cart_data->shipping_phone ); ?>" />
 	<?php } else { // Billing Only, Not Shippable ?>
 		<div class="ec_cart_header ec_cart_header_no_border">
-			Billing Address
+			<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'billing_address' ) ); ?>
 		</div>
 
 		<div id="billing-address-element" class="ec_cart_stripe_address_is_init">
@@ -441,7 +452,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 			</div>
 		<?php } ?>
 
-		<?php if( get_option( 'ec_option_cache_prevent' ) ){ ?>
+		<?php if( wp_easycart_cart_is_dynamic() ){ ?>
 		<script type="text/javascript">
 			wpeasycart_cart_shipping_country_update( );
 			jQuery( document.getElementById( 'ec_cart_shipping_country' ) ).change( wpeasycart_cart_shipping_country_update );
@@ -552,7 +563,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 		</div>
 		<?php }?>
 
-		<?php if( get_option( 'ec_option_cache_prevent' ) ){ ?>
+		<?php if( wp_easycart_cart_is_dynamic() ){ ?>
 		<script type="text/javascript">
 			wpeasycart_cart_billing_country_update( );
 			jQuery( document.getElementById( 'ec_cart_billing_country' ) ).change( wpeasycart_cart_billing_country_update );
@@ -567,23 +578,29 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 
 <?php } // Using standard address, not stripe auto-complete ?>
 
+<?php if ( ! ( get_option( 'ec_option_use_shipping' ) && $cartpage->shipping_address_allowed && ( $cartpage->cart->shippable_total_items > 0 || $cartpage->order_totals->handling_total > 0 || $cartpage->cart->excluded_shippable_total_items > 0 ) ) ) {
+	do_action( 'wpeasycart_checkout_fields', 'billing', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ); a shipping cart has them with the billing address, in the payment section */
+} ?>
+
 <?php if ( ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) && get_option( 'ec_option_onepage_checkout_tabbed' ) ) {
 	$cartpage->print_stripe_script_v2( false );
 } ?>
 
 <?php do_action( 'wpeasycart_shipping_after' ); ?>
+<?php do_action( 'wpeasycart_checkout_fields', 'shipping', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 <?php if( get_option( 'ec_option_user_order_notes' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_notes_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ); ?>
 	</div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_input_row ec_cart_notes_part">
 	<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_message' ); ?>
 		<textarea name="ec_order_notes" id="ec_order_notes" onchange="wp_easycart_save_order_notes_v2();"><?php if( $GLOBALS['ec_cart_data']->cart_data->order_notes != "" ){ echo esc_textarea( $GLOBALS['ec_cart_data']->cart_data->order_notes ); } ?></textarea>
 	</div>
 <?php }?>
 
-<?php do_action( 'wpeasycart_order_notes_after' ); ?>
+<?php do_action( 'wpeasycart_order_notes_after', $cartpage ); /* 6.0.2: with the checkout ( WP EasyCart PRO shows gift options only when the cart ships ) */ ?>
+<?php do_action( 'wpeasycart_checkout_fields', 'order_notes', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 <?php if( get_option( 'ec_option_enable_extra_email' ) ) { ?>
 	<div class="ec_cart_header">
@@ -603,7 +620,7 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 
 <div class="ec_cart_bottom_nav_v2 ec_cart_bottom_nav_tabbed">
 	<div class="ec_cart_bottom_nav_left">
-		<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'cart', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Return to Cart</a>
+		<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'cart', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'return_to_cart' ) ); ?></a>
 	</div>
 	<div class="ec_cart_bottom_nav_right ec_cart_button_column">
 		<input type="button" value="<?php if( get_option( 'ec_option_skip_shipping_page' ) || ( $cartpage->cart->shippable_total_items <= 0 && $cartpage->order_totals->handling_total <= 0 ) ){ echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_continue_payment' ); } else { echo wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_continue_shipping' ); }?>" onclick="return wp_easycart_goto_shipping_v2( true );" class="ec_cart_button" />
@@ -611,11 +628,11 @@ $show_paypal = ( get_option( 'ec_option_payment_third_party' ) == 'paypal' && ap
 </div>
 
 <div class="ec_cart_error_row" id="ec_email_order2_error">
-	Please enter a valid email address.
+	<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'invalid_email' ) ); ?>
 </div>
 
 <div class="ec_cart_error_row" id="ec_shipping_order_error">
-	Please correct errors with your shipping address.
+	<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'shipping_address_error' ) ); ?>
 </div>
 
 <div class="ec_cart_error_row" id="ec_create_account_order_error">

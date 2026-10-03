@@ -52,7 +52,7 @@ jQuery( function( $ ) {
 			'<span><input type="checkbox" class="ecrl-rp-check" value="' + p.id + '"></span>' +
 			'<span class="ecrl-rp-p"><span class="ecv2-thumb ecv2-thumb-xs">' + ( p.image ? '<img src="' + attr( p.image ) + '" alt="">' : '<span class="dashicons dashicons-format-image"></span>' ) + '</span><span class="ecrl-rp-p-text"><b>' + esc( p.title ) + '</b><span class="ecv2-sub">' + esc( p.sku ) + ( inactive ? ' · ' + esc( t( 'inactive', 'Inactive' ) ) : '' ) + '</span></span></span>' +
 			'<span class="ecrl-rp-reg">' + ( p.orphan ? '<span class="ecv2-sub">—</span>' : money( p.regular ) ) + '</span>' +
-			'<span><input type="number" step="0.01" min="0" class="ecv2-input ecrl-rp-input" value="' + money( p.role_price ) + '"' + ( p.orphan ? ' disabled' : '' ) + ' aria-label="' + attr( R.label ) + '"></span>' +
+			'<span><input type="number" step="0.01" min="0" class="ecv2-input ecrl-rp-input" value="' + money( p.role_price ) + '"' + ( p.orphan || R.locked ? ' disabled' : '' ) + ' aria-label="' + attr( R.label ) + '"></span>' + /* 6.0.2: read-only without Pro ( R.locked ) */
 			'<span class="ecrl-rp-pct">' + pct_html( p ) + '</span>' +
 			'<span class="ecrl-rp-rm"><a href="#" class="ecrl-rp-remove" title="' + attr( t( 'remove_title', 'Remove this role price' ) ) + '">' + esc( t( 'remove', 'Remove' ) ) + '</a></span>' +
 		'</div>';

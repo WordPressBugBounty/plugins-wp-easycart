@@ -76,6 +76,31 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 */
 		private $customer_counts = array();
 
+		/**
+		 * Orders on this page tagged as possible card tests ( checkout protection ). Filled by prime_page_rows().
+		 *
+		 * @since 6.0.2
+		 * @var int[]
+		 */
+		private $card_test_ids = array();
+
+		/**
+		 * Orders on this page whose Fulfillment cell reads wp_easycart_fulfillment::state() ( orders_needing_state() ),
+		 * order_id => true. Null until prime_page_rows() ran ( then every order is looked up ).
+		 *
+		 * @since 6.0.2
+		 * @var array|null
+		 */
+		private static $fulfillment_orders = null;
+
+		/**
+		 * Packed ticks per order ( pack_counts() ): order_id => lines, packed; null before the database update that keeps them.
+		 *
+		 * @since 6.0.2
+		 * @var array
+		 */
+		private static $pack_counts = array();
+
 		/* Core status ids (see ec_db_manager defaults). */
 		const STATUS_SHIPPED         = 2;
 		const STATUS_READY_PICKUP    = 11;
@@ -114,7 +139,19 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$this->set_default_sort( 'order_id', 'DESC' );
 			$this->set_header( __( 'Manage Orders', 'wp-easycart' ) );
 			$this->set_docs_link( 'orders', 'order-management' );
-			$this->set_add_new( false, '', '' );
+			/* 6.0.2: New order builds an order in the admin ( WP EasyCart PRO opens its builder through this filter ). */
+			$this->set_add_new( true, 'new-order', __( 'New order', 'wp-easycart' ) );
+			$new_order_js = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::onclick( 'documents', 'new_order' ) : 'return false;';
+			if ( class_exists( 'wp_easycart_admin_pro_gate' ) ) {
+				/* A store that has WP EasyCart PRO but an older or inactive copy is told to update or activate it, not upsold. */
+				$new_order_gate = wp_easycart_admin_pro_gate::evaluate( array( 'min_version' => '6.0.2' ) );
+				if ( in_array( $new_order_gate['state'], array( 'update', 'inactive' ), true ) ) {
+					/* 6.0.2: in the list's own confirm dialog ( orders-v2.js takes a callback, catalog-v2.js answers a promise ), the browser's box only as a fallback. */
+					$gate_msg     = wp_json_encode( wp_easycart_admin_pro_gate::message( $new_order_gate, __( 'New order', 'wp-easycart' ) ) );
+					$new_order_js = 'var ecgo = function() { window.location.href = ' . wp_json_encode( $new_order_gate['url'] ) . '; }; if ( \'function\' === typeof window.ecv2_show_confirm ) { var ecp = window.ecv2_show_confirm( ' . wp_json_encode( __( 'New order', 'wp-easycart' ) ) . ', ' . $gate_msg . ', ecgo ); if ( ecp && ecp.then ) { ecp.then( function( y ) { if ( y ) { ecgo(); } } ); } } else if ( window.confirm( ' . $gate_msg . ' ) ) { ecgo(); } return false;';
+				}
+			}
+			$this->set_add_new_js( (string) apply_filters( 'wp_easycart_admin_order_new_js', $new_order_js ) );
 			$this->set_label( __( 'Order', 'wp-easycart' ), __( 'Orders', 'wp-easycart' ) );
 			$this->set_join( 'LEFT JOIN ec_orderstatus ON (ec_orderstatus.status_id = ec_order.orderstatus_id)' );
 
@@ -144,9 +181,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					'format' => 'order_items',
 					'tablet_hide' => true,
 					'width'  => 84,
+					'default_hidden' => true, /* 6.0.2: a leaner default list ( Columns shows it again ) */
 				),
 				array( 'name' => 'grand_total', 'label' => __( 'Total', 'wp-easycart' ), 'format' => 'order_total', 'width' => 110 ),
-				array( 'select' => 'ec_order.order_gateway AS payment_gateway', 'name' => 'payment_gateway', 'label' => __( 'Payment', 'wp-easycart' ), 'format' => 'payment_chip', 'laptop_hide' => true, 'width' => 140 ),
+				array( 'select' => 'ec_order.order_gateway AS payment_gateway', 'name' => 'payment_gateway', 'label' => __( 'Payment', 'wp-easycart' ), 'format' => 'payment_chip', 'laptop_hide' => true, 'default_hidden' => true, 'width' => 140 ),
 				array( 'select' => 'ec_order.orderstatus_id AS orderstatus_id', 'name' => 'orderstatus_id', 'label' => __( 'Status', 'wp-easycart' ), 'format' => 'status_chip', 'width' => 190 ),
 				array( 'name' => 'tracking_number', 'label' => __( 'Fulfillment', 'wp-easycart' ), 'format' => 'fulfillment_cell', 'tablet_hide' => true, 'width' => 230 ),
 
@@ -186,7 +224,25 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				array( 'select' => 'ec_order.subscription_id', 'name' => 'subscription_id', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_order.order_notes', 'name' => 'order_notes', 'format' => 'hidden', 'label' => '' ),
 			);
-			$this->set_list_columns( apply_filters( 'wp_easycart_admin_order_list_columns', $columns ) );
+			/* 6.0.2: where each order came from ( the shopper's first visit ), before Status. */
+			if ( class_exists( 'wp_easycart_order_source' ) && wp_easycart_order_source::ready() ) {
+				array_splice( $columns, 6, 0, array( array( 'select' => 'ec_order.source_name', 'name' => 'source_name', 'label' => __( 'Source', 'wp-easycart' ), 'format' => 'order_source', 'laptop_hide' => true, 'default_hidden' => true, 'width' => 140 ) ) );
+				$columns[] = array( 'select' => 'ec_order.source_type', 'name' => 'source_type', 'format' => 'hidden', 'label' => '' );
+			}
+			/* 6.0.2: what each order was paid, for the Total cell's Balance due / Refund due badge. */
+			if ( class_exists( 'wp_easycart_order_payments' ) && wp_easycart_order_payments::ready() ) {
+				$columns[] = array( 'select' => 'ec_order.amount_paid', 'name' => 'amount_paid', 'format' => 'hidden', 'label' => '' );
+				$columns[] = array( 'select' => 'ec_order.overpaid_refund_total', 'name' => 'overpaid_refund_total', 'format' => 'hidden', 'label' => '' );
+			}
+			$columns = apply_filters( 'wp_easycart_admin_order_list_columns', $columns );
+			/* 6.0.2: the leaner default list: accounting sync columns ( WP EasyCart Premium's Xero / QuickBooks, format accounting ) start hidden
+			   unless the column says otherwise; the Columns button shows them. */
+			foreach ( (array) $columns as $wpec_col_index => $wpec_col ) {
+				if ( is_array( $wpec_col ) && isset( $wpec_col['format'] ) && 'accounting' === $wpec_col['format'] && ! array_key_exists( 'default_hidden', $wpec_col ) ) {
+					$columns[ $wpec_col_index ]['default_hidden'] = true;
+				}
+			}
+			$this->set_list_columns( $columns );
 
 			/* -------------------------------------------------------------- */
 			/* Filters                                                          */
@@ -281,13 +337,35 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					'where2' => '( ec_order.user_id = 0 AND ec_order.user_email <> \'\' AND ec_order.user_email = ( SELECT email FROM ec_user WHERE ec_user.user_id = %d ) )',
 				),
 			);
+			// 6.0.2: orders with some packages shipped and some not ( fulfillment partners, several packages ).
+			if ( self::fulfillment_ready() ) {
+				$partial_pill = array(
+					'value' => 'partial',
+					'label' => __( 'Partly shipped', 'wp-easycart' ),
+					'icon'  => 'clock',
+				);
+				array_splice( $filters[2]['data'], 1, 0, array( (object) $partial_pill ) );
+			}
+			/* 6.0.2: payments checkout protection tagged during a card-testing attack, offered once a store has any. */
+			if ( self::card_tests_on() ) {
+				$filters[] = array(
+					'data'           => array(
+						(object) array( 'value' => 'possible_card_test', 'label' => __( 'Possible card tests', 'wp-easycart' ), 'icon' => 'shield' ),
+					),
+					'label'          => __( 'Checkout protection', 'wp-easycart' ),
+					'type'           => 'pills',
+					'where_callback' => true,
+				);
+			}
 			/* V1-compatible filter hook preserved so existing PRO filters (locations) still attach. */
 			$this->set_filters( apply_filters( 'wp_easycart_admin_order_list_filters', $filters ) );
 
 			/* -------------------------------------------------------------- */
 			/* Search                                                           */
 			/* -------------------------------------------------------------- */
-			$this->set_search_columns( array(
+			/* 6.0.2: filter wp_easycart_admin_order_list_search_columns ( WP EasyCart PRO adds PO numbers ). Columns of ec_order
+			   or a joined table, searched with LIKE. */
+			$this->set_search_columns( (array) apply_filters( 'wp_easycart_admin_order_list_search_columns', array(
 				'ec_order.order_id',
 				'ec_order.user_email',
 				'ec_order.billing_first_name',
@@ -300,7 +378,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				'ec_order.tracking_number',
 				'ec_order.gateway_transaction_id',
 				'ec_order.billing_phone',
-			) );
+			) ) );
 
 			/* -------------------------------------------------------------- */
 			/* Bulk actions — exact V1 contract (GET form handlers unchanged).  */
@@ -343,7 +421,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				array( 'label' => __( 'Print Packing Slip', 'wp-easycart' ), 'name' => 'print-packing-slip', 'icon' => 'clipboard', 'href' => $this->bulk_get_link( 'print-packing-slip' ), 'target' => '_blank' ),
 				array( 'label' => __( 'Resend Receipt Email', 'wp-easycart' ), 'name' => 'resend-email', 'icon' => 'email-alt', 'href' => $this->bulk_get_link( 'resend-email' ) ),
 				array( 'label' => __( 'Duplicate', 'wp-easycart' ), 'name' => 'duplicate', 'icon' => 'admin-page', 'href' => '#', 'onclick' => 'wp_easycart_open_order_duplicate( \'{id}\' ); return false;' ),
-				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-order', 'danger' => true, 'confirm' => true, 'confirm_text' => __( 'The order, its line items and its download links are removed. You can put it back for 15 minutes afterwards.', 'wp-easycart' ) ),
+				array( 'label' => __( 'Delete', 'wp-easycart' ), 'name' => 'delete', 'icon' => 'trash', 'action' => 'delete-order', 'danger' => true, 'confirm' => true, 'confirm_text' => __( 'The order is removed with its items, download links, packages and checkout answers. You can put it back for 15 minutes afterwards.', 'wp-easycart' ) ),
 			);
 			$this->set_row_menu_actions( apply_filters( 'wp_easycart_ecv2_order_row_menu_actions', $row_actions ) );
 
@@ -371,6 +449,9 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			}
 			if ( $this->health_data['preorders'] > 0 ) {
 				$health_stats[] = array( 'label' => __( 'Preorders', 'wp-easycart' ), 'value' => $this->health_data['preorders'], 'filter_value' => 'preorders', 'color' => 'gray', 'group' => 'flow' );
+			}
+			if ( $this->health_data['card_tests'] > 0 ) {
+				$health_stats[] = array( 'label' => __( 'Card tests', 'wp-easycart' ), 'value' => $this->health_data['card_tests'], 'filter_value' => 'card_tests', 'color' => 'red', 'group' => 'flow' );
 			}
 			$health_stats[] = array( 'label' => __( 'Today', 'wp-easycart' ), 'value' => $this->health_data['today'], 'filter_value' => 'today', 'color' => 'default', 'group' => 'period' );
 			$health_stats[] = array( 'label' => __( 'Last 7 days', 'wp-easycart' ), 'value' => $this->health_data['last7'], 'filter_value' => 'last7', 'color' => 'default', 'group' => 'period' );
@@ -434,6 +515,96 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			if ( ! empty( $order_ids ) && class_exists( 'wp_easycart_admin_email_health' ) && method_exists( 'wp_easycart_admin_email_health', 'prime' ) ) {
 				wp_easycart_admin_email_health::prime( $order_ids );
 			}
+
+			if ( ! empty( $order_ids ) && self::card_tests_on() ) {
+				$this->card_test_ids = array_merge( $this->card_test_ids, wp_easycart_checkout_guard::flagged_among( $order_ids ) );
+			}
+
+			/* 6.0.2: which orders on the page need wp_easycart_fulfillment::state() ( two queries for the page, not per row ). */
+			if ( ! empty( $order_ids ) && self::fulfillment_ready() ) {
+				if ( null === self::$fulfillment_orders ) {
+					self::$fulfillment_orders = array();
+				}
+				foreach ( self::orders_needing_state( $this->wpdb, (array) $this->results ) as $found_id ) {
+					self::$fulfillment_orders[ (int) $found_id ] = true;
+				}
+			}
+
+			/* 6.0.2: the order screen's Packed ticks, for the Fulfillment cell ( one query for the page ). */
+			if ( ! empty( $order_ids ) ) {
+				self::prime_pack_counts( $order_ids );
+			}
+		}
+
+		/**
+		 * The orders among these list rows whose Fulfillment cell has to read wp_easycart_fulfillment::state(); every other
+		 * row draws the same cell from its own columns ( tracking number, status ), with no query.
+		 *
+		 * The two can only disagree when a fulfillment partner is involved ( a partner line, or a package
+		 * whose provider is a registered partner ) or when a package has gone out ( label, shipped, delivered, exception )
+		 * while the order is not in a fulfilled status: then the packages decide ( "Partly shipped", Fulfilled without a
+		 * tracking number ... ). A store order whose packages are all still packed ( every new order once Settings ›
+		 * Shipping › Boxes packs them ), or that is in a fulfilled status, reads the same either way: with no outgoing
+		 * package state() counts its units shipped exactly when it has a tracking number or a fulfilled status, and with a
+		 * fulfilled status all of them.
+		 *
+		 * @since 6.0.2
+		 * @param wpdb  $db   Database.
+		 * @param array $rows List rows ( order_id, orderstatus_id ).
+		 * @return int[] Order ids.
+		 */
+		public static function orders_needing_state( $db, $rows ) {
+			$status_of = array();
+			foreach ( (array) $rows as $row ) {
+				if ( is_object( $row ) && ! empty( $row->order_id ) ) {
+					$status_of[ (int) $row->order_id ] = isset( $row->orderstatus_id ) ? (int) $row->orderstatus_id : null;
+				}
+			}
+			if ( ! $status_of ) {
+				return array();
+			}
+			$id_list  = implode( ',', array_map( 'intval', array_keys( $status_of ) ) );
+			$partners = class_exists( 'wp_easycart_fulfillment' ) ? array_map( 'strval', array_keys( wp_easycart_fulfillment::providers() ) ) : array();
+			$partners = $partners ? $db->prepare( implode( ', ', array_fill( 0, count( $partners ), '%s' ) ), $partners ) : '';
+			$out      = array();
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- IN list is an implode of (int)-cast ids; $partners is a $wpdb->prepare() list of quoted slugs.
+			$packages = (array) $db->get_results( "SELECT order_id, MAX( CASE WHEN status IN ( 'label', 'shipped', 'delivered', 'exception' ) THEN 1 ELSE 0 END ) AS outgoing, " . ( '' !== $partners ? "MAX( CASE WHEN provider IN ( {$partners} ) THEN 1 ELSE 0 END )" : '0' ) . " AS partner FROM ec_order_shipment WHERE order_id IN ( {$id_list} ) AND is_return = 0 AND status <> 'voided' GROUP BY order_id" );
+			$lines    = (array) $db->get_col( "SELECT DISTINCT order_id FROM ec_orderdetail WHERE order_id IN ( {$id_list} ) AND fulfillment_provider <> ''" );
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			foreach ( $lines as $order_id ) {
+				$out[ (int) $order_id ] = true;
+			}
+			/* Something that changes state() ( filter wp_easycart_order_fulfillment_state ) could change any order with packages. */
+			$filtered  = function_exists( 'has_filter' ) && has_filter( 'wp_easycart_order_fulfillment_state' );
+			$fulfilled = self::fulfilled_status_ids();
+			foreach ( $packages as $package ) {
+				$order_id = (int) $package->order_id;
+				$status   = array_key_exists( $order_id, $status_of ) ? $status_of[ $order_id ] : null;
+				if ( $filtered || (int) $package->partner || ( (int) $package->outgoing && ( null === $status || ! in_array( $status, $fulfilled, true ) ) ) ) {
+					$out[ $order_id ] = true;
+				}
+			}
+			return array_keys( $out );
+		}
+
+		/**
+		 * Checkout protection has tagged at least one order on this store ( so the tag, filter and tile have work to do ).
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		private static function card_tests_on() {
+			return class_exists( 'wp_easycart_checkout_guard' ) && method_exists( 'wp_easycart_checkout_guard', 'has_flagged_orders' ) && wp_easycart_checkout_guard::has_flagged_orders();
+		}
+
+		/**
+		 * Tagged orders that still need a look: placed in the last 30 days and not refunded, cancelled or declined.
+		 *
+		 * @since 6.0.2
+		 * @return string SQL.
+		 */
+		private function card_tests_open_where() {
+			return '( ' . wp_easycart_checkout_guard::flagged_sql( 'ec_order' ) . ' AND ec_order.orderstatus_id NOT IN ( ' . self::STATUS_CARD_DENIED . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PARTIAL_REFUND . ', ' . self::STATUS_CANCELLED . ' ) AND ' . $this->wpdb->prepare( 'ec_order.order_date >= %s', $this->db_local_day_start( 29 ) ) . ' )';
 		}
 
 		/**
@@ -512,7 +683,22 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		public static function unfulfilled_where() {
-			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.orderstatus_id NOT IN ( " . self::STATUS_SHIPPED . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PICKED_UP . ', ' . self::STATUS_CANCELLED . ' ) AND ' . self::requires_shipping_sql() . ' )';
+			if ( self::fulfillment_ready() ) {
+				// 6.0.2: by what is left to ship ( packages and fulfillment partners, as wp_easycart_fulfillment::state() counts ):
+				// an order partly shipped, or still with a partner, is still awaiting fulfillment.
+				return '( ec_orderstatus.is_approved = 1 AND ec_order.orderstatus_id NOT IN ( ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_CANCELLED . ' ) AND ' . self::requires_shipping_sql() . ' AND ' . wp_easycart_fulfillment::open_sql( 'ec_order' ) . ' )';
+			}
+			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.orderstatus_id NOT IN ( " . self::fulfilled_sql() . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_CANCELLED . ' ) AND ' . self::requires_shipping_sql() . ' )';
+		}
+
+		/**
+		 * The fulfillment partner columns exist ( WP EasyCart 6.0.2's database update ran ).
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public static function fulfillment_ready() {
+			return class_exists( 'wp_easycart_fulfillment' ) && wp_easycart_fulfillment::ready() && class_exists( 'wp_easycart_shipments' ) && wp_easycart_shipments::ready();
 		}
 
 		/**
@@ -548,7 +734,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 
 		/** Approved, nothing to ship, and not refunded / cancelled: the "No shipping" fulfillment preset. @since 6.0.0 */
 		public static function no_shipping_where() {
-			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.includes_restaurant_type = 0 AND ec_order.orderstatus_id NOT IN ( " . self::STATUS_SHIPPED . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PICKED_UP . ', ' . self::STATUS_CANCELLED . ' ) AND NOT ' . self::requires_shipping_sql() . ' )';
+			return "( ec_orderstatus.is_approved = 1 AND ec_order.tracking_number = '' AND ec_order.includes_restaurant_type = 0 AND ec_order.orderstatus_id NOT IN ( " . self::fulfilled_sql() . ', ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_REFUNDED . ', ' . self::STATUS_CANCELLED . ' ) AND NOT ' . self::requires_shipping_sql() . ' )';
 		}
 
 		private function compute_health_data() {
@@ -590,6 +776,8 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				'last7'        => $row ? (int) $row->last7 : 0,
 				'pickup_ready' => $row ? (int) $row->pickup_ready : 0,
 				'preorders'    => $row ? (int) $row->preorders : 0,
+				/* 6.0.2: only stores checkout protection has tagged an order on pay for this count. */
+				'card_tests'   => self::card_tests_on() ? (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_order WHERE ' . $this->card_tests_open_where() ) : 0, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- card_tests_open_where() is literal SQL plus one prepared date.
 				/* Raw boundaries — handy for PRO revenue cards. */
 				'today_start'  => $today_start,
 				'week_start'   => $week_start,
@@ -604,7 +792,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				case 'awaiting':
 					return self::unfulfilled_where();
 				case 'shipped':
-					return '( ec_order.orderstatus_id = ' . self::STATUS_SHIPPED . " OR ec_order.tracking_number != '' )";
+					return '( ec_order.orderstatus_id IN ( ' . self::shipped_sql() . " ) OR ec_order.tracking_number != '' )";
 				case 'refunded':
 					return 'ec_order.orderstatus_id IN ( ' . self::STATUS_REFUNDED . ', ' . self::STATUS_PARTIAL_REFUND . ' )';
 				case 'today':
@@ -617,6 +805,8 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 					return 'ec_order.orderstatus_id = ' . self::STATUS_READY_PICKUP;
 				case 'preorders':
 					return 'ec_order.includes_preorder_items = 1';
+				case 'card_tests':
+					return self::card_tests_on() ? $this->card_tests_open_where() : '';
 			}
 			return apply_filters( 'wp_easycart_ecv2_order_health_filter_where', '', $filter_key, $this );
 		}
@@ -650,13 +840,25 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				switch ( $value ) {
 					case 'unfulfilled':
 						return self::unfulfilled_where();
+					case 'partial':
+						/* 6.0.2: some of the order has left, some has not ( a partner's package, or a second package ). */
+						return self::fulfillment_ready() ? '( ec_orderstatus.is_approved = 1 AND ' . wp_easycart_fulfillment::open_sql( 'ec_order' ) . ' AND ' . wp_easycart_fulfillment::some_shipped_sql( 'ec_order' ) . ' )' : '';
 					case 'fulfilled':
-						return '( ec_order.orderstatus_id IN ( ' . self::STATUS_SHIPPED . ', ' . self::STATUS_PICKED_UP . " ) OR ec_order.tracking_number != '' )";
+						if ( self::fulfillment_ready() ) {
+							/* 6.0.2: nothing left to ship ( a partner still making items keeps the order out ). */
+							return '( ' . wp_easycart_fulfillment::some_shipped_sql( 'ec_order' ) . ' AND NOT ' . wp_easycart_fulfillment::open_sql( 'ec_order' ) . ' )';
+						}
+						return '( ec_order.orderstatus_id IN ( ' . self::fulfilled_sql() . " ) OR ec_order.tracking_number != '' )";
 					case 'pickup':
 						return '( ec_order.includes_restaurant_type = 1 OR ec_order.orderstatus_id IN ( ' . self::STATUS_READY_PICKUP . ', ' . self::STATUS_PICKED_UP . ' )' . self::local_pickup_where() . ' )';
 					case 'no_shipping':
 						return self::no_shipping_where();
 				}
+			}
+
+			/* Checkout protection: every order tagged as a possible card test, handled or not. */
+			if ( __( 'Checkout protection', 'wp-easycart' ) === $filter['label'] && 'possible_card_test' === $value && self::card_tests_on() ) {
+				return wp_easycart_checkout_guard::flagged_sql( 'ec_order' );
 			}
 
 			return apply_filters( 'wp_easycart_ecv2_order_filter_callback_where', '', $filter_index, $value, $this );
@@ -828,8 +1030,22 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				case 'fulfillment_cell':
 					$this->print_fulfillment_cell( $result );
 					break;
+				case 'order_source':
+					echo wp_easycart_order_source::chip( isset( $result->source_type ) ? $result->source_type : '', isset( $result->source_name ) ? $result->source_name : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- chip() escapes every part.
+					break;
 				default:
-					parent::print_cell_content( $result, $col );
+					if ( isset( $col['format'] ) && has_action( 'wp_easycart_admin_order_list_cell_' . $col['format'] ) ) {
+						/**
+						 * Draw a cell of a column an extension added ( wp_easycart_admin_order_list_columns ) with its own format.
+						 *
+						 * @since 6.0.2
+						 * @param object $result The order's row.
+						 * @param array  $col    The column.
+						 */
+						do_action( 'wp_easycart_admin_order_list_cell_' . $col['format'], $result, $col );
+					} else {
+						parent::print_cell_content( $result, $col );
+					}
 					break;
 			}
 		}
@@ -937,8 +1153,26 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 				$full = ( $refund >= $total );
 				echo '<span class="ecv2-order-badge ecv2-order-badge-refund" title="' . esc_attr( $full ? __( 'Fully refunded', 'wp-easycart' ) : __( 'Partially refunded', 'wp-easycart' ) ) . '">&minus;' . esc_html( $GLOBALS['currency']->get_currency_display( $refund ) ) . '</span>';
 			}
+			/* 6.0.2: an order changed after it was paid shows what is still to pay, or what was paid over its new total. */
+			if ( property_exists( $result, 'amount_paid' ) && class_exists( 'wp_easycart_order_payments' ) ) {
+				$paid = wp_easycart_order_payments::summary( $result );
+				if ( 'partial' === $paid['state'] ) {
+					/* translators: 1: amount paid, 2: the order's total. */
+					$paid_title = sprintf( __( 'Paid %1$s of %2$s', 'wp-easycart' ), $GLOBALS['currency']->get_currency_display( $paid['paid'] ), $GLOBALS['currency']->get_currency_display( $paid['total'] ) );
+					/* translators: %s: amount still to pay. */
+					$paid_text = sprintf( __( '%s due', 'wp-easycart' ), $GLOBALS['currency']->get_currency_display( $paid['due'] ) );
+					echo '<span class="ecv2-order-badge ecv2-order-badge-due" title="' . esc_attr( $paid_title ) . '">' . esc_html( $paid_text ) . '</span>';
+				} elseif ( 'overpaid' === $paid['state'] ) {
+					/* translators: %s: amount paid over the order's total. */
+					$paid_text = sprintf( __( '%s refund due', 'wp-easycart' ), $GLOBALS['currency']->get_currency_display( $paid['over'] ) );
+					echo '<span class="ecv2-order-badge ecv2-order-badge-over" title="' . esc_attr__( 'The customer paid more than the order now comes to.', 'wp-easycart' ) . '">' . esc_html( $paid_text ) . '</span>';
+				}
+			}
 			if ( '' !== $promo ) {
 				echo '<span class="ecv2-order-badge ecv2-order-badge-promo" title="' . esc_attr( sprintf( __( 'Promo code used: %s', 'wp-easycart' ), $promo ) ) . '"><span class="dashicons dashicons-tag"></span>' . esc_html( $promo ) . '</span>';
+			}
+			if ( in_array( (int) $result->order_id, $this->card_test_ids, true ) ) {
+				echo '<span class="ecv2-order-badge ecv2-order-badge-cardtest" title="' . esc_attr__( 'Paid during a card-testing attack by a shopper whose cards were declined first. Open the order for the note; refund it if you don\'t recognise the customer.', 'wp-easycart' ) . '"><span class="dashicons dashicons-shield"></span>' . esc_html__( 'Possible card test', 'wp-easycart' ) . '</span>';
 			}
 			echo '</div>';
 		}
@@ -1007,12 +1241,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$tracking = isset( $result->tracking_number ) ? trim( (string) $result->tracking_number ) : '';
 			$carrier  = isset( $result->shipping_carrier ) ? trim( (string) $result->shipping_carrier ) : '';
 			$method   = isset( $result->shipping_method ) ? trim( (string) $result->shipping_method ) : '';
-			$approved = isset( $result->is_approved ) ? (bool) $result->is_approved : false;
-			$status   = isset( $result->orderstatus_id ) ? (int) $result->orderstatus_id : 0;
 			$gate     = ecv2_get_order_pro_gate();
 			/* 6.0.1: Free Local Pickup is collected, not shipped: "Mark picked up" instead of Fulfill. "Picked up" once the
-			   status says so ( Order Picked Up ), whatever the method. */
-			$mode     = ( self::is_local_pickup( $result ) && self::pickup_fulfill_supported() ) ? 'pickup' : 'ship';
+			   status says so ( Order Picked Up ), whatever the method. 6.0.2 bug round 14: restaurant orders and preorders too. */
+			$mode     = self::fulfill_mode( $result );
 
 			/*
 			 * Two-line layout:
@@ -1020,22 +1252,11 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			 *  2. .ecv2-order-fulfill-line2 — shipping method + icon-only flags
 			 * JS (orders-v2-pro.js) only ever replaces line 1.
 			 */
-			echo '<div class="ecv2-order-fulfill-wrap" data-order-id="' . esc_attr( $order_id ) . '" data-tracking="' . esc_attr( $tracking ) . '" data-carrier="' . esc_attr( $carrier ) . '"' . ( 'pickup' === $mode ? ' data-pickup="1"' : '' ) . '>';
+			/* 6.0.2: data-nonce ( the row's status nonce ) so Fulfill works with the Status column hidden. */
+			echo '<div class="ecv2-order-fulfill-wrap" data-order-id="' . esc_attr( $order_id ) . '" data-tracking="' . esc_attr( $tracking ) . '" data-carrier="' . esc_attr( $carrier ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-order-status-' . $order_id ) ) . '"' . ( 'pickup' === $mode ? ' data-pickup="1"' : '' ) . '>';
 
 			echo '<div class="ecv2-order-fulfill-state">';
-			if ( '' !== $tracking ) {
-				echo self::tracking_chip_html( $tracking, $carrier ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
-			} else if ( in_array( $status, self::fulfilled_status_ids(), true ) ) {
-				/* 6.0.0: shipped or picked up without a tracking number is still fulfilled ( matches the order details banner ). */
-				echo self::fulfilled_chip_html( self::STATUS_PICKED_UP === $status ? 'pickup' : 'ship' ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
-			} else if ( $approved && isset( $result->requires_shipping ) && ! (int) $result->requires_shipping && empty( $result->includes_restaurant_type ) && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
-				/* 6.0.0: nothing to ship ( downloads, gift cards, services, shipping disabled ): fulfilled on payment, no Fulfill button. */
-				echo '<span class="ecv2-order-track-chip ecv2-order-fulfill-digital" title="' . esc_attr__( 'Every item in this order is a download, gift card, subscription or a product with shipping disabled, so there is nothing to ship.', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> ' . esc_html__( 'No shipping', 'wp-easycart' ) . '</span>';
-			} else if ( $approved && ! in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true ) ) {
-				echo self::fulfill_button_html( $gate, $mode ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
-			} else {
-				echo '<span class="ecv2-sku-empty">&mdash;</span>';
-			}
+			echo self::fulfillment_state_html( $result ); /* phpcs:ignore WordPress.Security.EscapeOutput -- escaped in helper */
 			echo '</div>';
 
 			/* Contextual order flags — icon-only in the table, icon + text in card view. */
@@ -1068,9 +1289,129 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		/**
-		 * Tracking chip markup. Public/static so PRO (and JS via ecv2_lang) can
-		 * reproduce the exact same chip after an inline fulfill.
+		 * The Fulfillment cell's first line: tracking chip, Fulfilled / Partly shipped / "With {partner}" chips, No shipping,
+		 * or the Fulfill button. Public so WP EasyCart PRO can redraw it after its Fulfill action.
+		 *
+		 * @since 6.0.2
+		 * @param object $result Order row ( order_id, orderstatus_id, is_approved, tracking_number, shipping_carrier,
+		 *                       shipping_method, requires_shipping, includes_restaurant_type ).
+		 * @return string
 		 */
+		public static function fulfillment_state_html( $result ) {
+			$tracking = isset( $result->tracking_number ) ? trim( (string) $result->tracking_number ) : '';
+			$carrier  = isset( $result->shipping_carrier ) ? trim( (string) $result->shipping_carrier ) : '';
+			$approved = isset( $result->is_approved ) ? (bool) $result->is_approved : false;
+			$status   = isset( $result->orderstatus_id ) ? (int) $result->orderstatus_id : 0;
+			$gate     = ecv2_get_order_pro_gate();
+			$mode     = self::fulfill_mode( $result );
+			$ended    = in_array( $status, array( self::STATUS_REFUNDED, self::STATUS_CANCELLED, self::STATUS_PICKED_UP ), true );
+
+			/* 6.0.2: an order with packages or fulfillment partner lines reads what is left to ship. */
+			$state = ( $approved && ! $ended && 'ship' === $mode ) ? self::fulfillment_state_for( $result ) : null;
+			if ( $state && empty( $state['legacy'] ) && 'none' !== $state['state'] ) {
+				if ( 'fulfilled' === $state['state'] ) {
+					return '' !== $tracking ? self::tracking_chip_html( $tracking, $carrier ) : self::fulfilled_chip_html( 'ship' );
+				}
+				$html = '';
+				if ( 'partial' === $state['state'] ) {
+					$html .= self::partial_chip_html( $state );
+				}
+				foreach ( wp_easycart_fulfillment::open_providers( $state ) as $slug => $label ) {
+					$html .= self::partner_chip_html( $label, $state['providers'][ $slug ] );
+				}
+				if ( wp_easycart_fulfillment::store_open( $state ) ) {
+					$html .= ( 'partial' !== $state['state'] ? self::pack_chip_html( (int) $result->order_id ) : '' ) . self::fulfill_button_html( $gate, 'ship' );
+				}
+				if ( '' !== $html ) {
+					return $html;
+				}
+			}
+
+			if ( '' !== $tracking ) {
+				return self::tracking_chip_html( $tracking, $carrier );
+			} elseif ( in_array( $status, self::fulfilled_status_ids(), true ) ) {
+				/* 6.0.0: shipped or picked up without a tracking number is still fulfilled ( matches the order details banner ). */
+				return self::fulfilled_chip_html( self::STATUS_PICKED_UP === $status ? 'pickup' : 'ship' );
+			} elseif ( $approved && isset( $result->requires_shipping ) && ! (int) $result->requires_shipping && 'pickup' !== $mode && ! $ended ) {
+				/* 6.0.0: nothing to ship ( downloads, gift cards, services, shipping disabled ): fulfilled on payment, no Fulfill button. */
+				return '<span class="ecv2-order-track-chip ecv2-order-fulfill-digital" title="' . esc_attr__( 'Every item in this order is a download, gift card, subscription or a product with shipping disabled, so there is nothing to ship.', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> ' . esc_html__( 'No shipping', 'wp-easycart' ) . '</span>';
+			} elseif ( $approved && ! $ended ) {
+				return ( 'ship' === $mode && ! empty( $result->order_id ) ? self::pack_chip_html( (int) $result->order_id ) : '' ) . self::fulfill_button_html( $gate, $mode );
+			}
+			return '<span class="ecv2-sku-empty">&mdash;</span>';
+		}
+
+		/**
+		 * The fulfillment state of a list row ( wp_easycart_fulfillment::state() ), when its cell needs it ( see
+		 * orders_needing_state() ).
+		 *
+		 * @since 6.0.2
+		 * @param object $result Order row.
+		 * @return array|null
+		 */
+		private static function fulfillment_state_for( $result ) {
+			if ( ! self::fulfillment_ready() || empty( $result->order_id ) ) {
+				return null;
+			}
+			if ( is_array( self::$fulfillment_orders ) && ! isset( self::$fulfillment_orders[ (int) $result->order_id ] ) ) {
+				return null;
+			}
+			return wp_easycart_fulfillment::state( (int) $result->order_id, ( isset( $result->orderstatus_id ) && property_exists( $result, 'tracking_number' ) ) ? $result : null );
+		}
+
+		/**
+		 * "Partly shipped" chip.
+		 *
+		 * @since 6.0.2
+		 * @param array $state wp_easycart_fulfillment::state().
+		 * @return string
+		 */
+		public static function partial_chip_html( $state ) {
+			/* translators: 1: items shipped, 2: items in the order to ship. */
+			$title = sprintf( __( '%1$d of %2$d items shipped', 'wp-easycart' ), (int) $state['shipped'], (int) $state['total'] );
+			return '<span class="ecv2-order-track-chip ecv2-order-fulfill-partial" title="' . esc_attr( $title ) . '"><span class="dashicons dashicons-clock"></span> ' . esc_html__( 'Partly shipped', 'wp-easycart' ) . '</span>';
+		}
+
+		/**
+		 * "With {partner}" chip: a fulfillment partner still has items to ship.
+		 *
+		 * @since 6.0.2
+		 * @param string $label    Partner name.
+		 * @param array  $provider state()'s providers entry ( units, shipped ).
+		 * @return string
+		 */
+		public static function partner_chip_html( $label, $provider ) {
+			$left = max( 0, (int) $provider['units'] - (int) $provider['shipped'] );
+			/* translators: 1: fulfillment partner, e.g. Printful, 2: number of items it still has to ship. */
+			$title = sprintf( _n( '%1$s is making and shipping %2$d item.', '%1$s is making and shipping %2$d items.', $left, 'wp-easycart' ), $label, $left );
+			/* translators: %s: fulfillment partner, e.g. Printful. */
+			return '<span class="ecv2-order-track-chip ecv2-order-fulfill-partner" title="' . esc_attr( $title ) . '"><span class="dashicons dashicons-products"></span> ' . esc_html( sprintf( __( 'With %s', 'wp-easycart' ), $label ) ) . '</span>';
+		}
+
+		/**
+		 * fulfilled_status_ids() for SQL.
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		private static function fulfilled_sql() {
+			return implode( ', ', array_map( 'intval', self::fulfilled_status_ids() ) );
+		}
+
+		/**
+		 * Shipped and Delivered for SQL ( the health strip's Shipped filter ).
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		private static function shipped_sql() {
+			$ids = array( self::STATUS_SHIPPED );
+			if ( class_exists( 'wp_easycart_shipments' ) && wp_easycart_shipments::delivered_status_id_if_set() > 0 ) {
+				$ids[] = wp_easycart_shipments::delivered_status_id_if_set();
+			}
+			return implode( ', ', array_map( 'intval', $ids ) );
+		}
+
 		/**
 		 * Statuses that mean the order is fulfilled even without a tracking number ( same rule as the order details banner ).
 		 *
@@ -1078,6 +1419,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		 * @return int[]
 		 */
 		public static function fulfilled_status_ids() {
+			/* 6.0.2: and the Delivered status, once the store has one. */
+			if ( class_exists( 'wp_easycart_shipments' ) ) {
+				return wp_easycart_shipments::fulfilled_status_ids();
+			}
 			return array( self::STATUS_SHIPPED, self::STATUS_PICKED_UP );
 		}
 
@@ -1097,12 +1442,15 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		/**
-		 * Fulfill button ( locked when PRO is not available ).
+		 * Fulfill button.
 		 *
 		 * @since 6.0.0
 		 * @since 6.0.1 $mode: 'pickup' is "Mark picked up" for a Free Local Pickup order. PRO's ecv2_open_fulfill()
 		 *              reads data-fulfill-mode and asks only to confirm: no carrier, tracking or shipped email.
-		 * @param array  $gate ecv2_get_order_pro_gate() result.
+		 * @since 6.0.2 Free ( as on the order screen ): orders-v2.js's ecv2_order_open_ship() ships the order the order screen's
+		 *              way ( ecv2_order_list_fulfill, wp_easycart_admin_order_screen::ship() / mark_picked_up() ). $gate is
+		 *              no longer read.
+		 * @param array  $gate ecv2_get_order_pro_gate() result ( unused ).
 		 * @param string $mode 'ship' or 'pickup'.
 		 * @return string
 		 */
@@ -1111,10 +1459,117 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			$icon   = $pickup ? 'store' : 'airplane';
 			$label  = $pickup ? __( 'Mark picked up', 'wp-easycart' ) : __( 'Fulfill', 'wp-easycart' );
 			$class  = 'ecv2-btn ecv2-btn-sm ecv2-order-fulfill-btn' . ( $pickup ? ' ecv2-order-pickup-btn' : '' );
-			if ( isset( $gate['state'] ) && 'enabled' === $gate['state'] ) {
-				return '<button type="button" class="' . esc_attr( $class ) . '" data-fulfill-mode="' . esc_attr( $pickup ? 'pickup' : 'ship' ) . '" onclick="ecv2_open_fulfill( this );"><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ' . esc_html( $label ) . '</button>';
+			return '<button type="button" class="' . esc_attr( $class ) . '" data-fulfill-mode="' . esc_attr( $pickup ? 'pickup' : 'ship' ) . '" onclick="ecv2_order_open_ship( this );"><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ' . esc_html( $label ) . '</button>';
+		}
+
+		/**
+		 * "Packed" / "2 of 3 packed" beside an order's Fulfill button, from the order screen's Packed ticks
+		 * ( ec_orderdetail.packed_quantity ); '' until something is packed.
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id Order.
+		 * @return string
+		 */
+		public static function pack_chip_html( $order_id ) {
+			$counts = self::pack_counts( $order_id );
+			if ( ! $counts || $counts['packed'] <= 0 || $counts['lines'] <= 0 ) {
+				return '';
 			}
-			return '<button type="button" class="' . esc_attr( $class . ' ecv2-order-fulfill-locked' ) . '" onclick="return wpec_gate.locked_action( ecv2_lang.order_pro_gate );"><span class="dashicons dashicons-' . esc_attr( $icon ) . '"></span> ' . esc_html( $label ) . ' <span class="dashicons dashicons-lock"></span></button>';
+			if ( $counts['packed'] >= $counts['lines'] ) {
+				return '<span class="ecv2-order-track-chip ecv2-order-pack-chip ecv2-order-pack-done" title="' . esc_attr__( 'Every item is packed.', 'wp-easycart' ) . '"><span class="dashicons dashicons-yes"></span> ' . esc_html__( 'Packed', 'wp-easycart' ) . '</span>';
+			}
+			/* translators: 1: items packed, 2: items to pack. */
+			$text = sprintf( __( '%1$d of %2$d packed', 'wp-easycart' ), $counts['packed'], $counts['lines'] );
+			return '<span class="ecv2-order-track-chip ecv2-order-pack-chip" title="' . esc_attr( $text ) . '"><span class="dashicons dashicons-archive"></span> ' . esc_html( $text ) . '</span>';
+		}
+
+		/**
+		 * The store's lines to pack on an order and how many are packed ( read for the whole page by prime_page_rows() ).
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id Order.
+		 * @return array|null lines, packed; null before the database update that keeps Packed ticks.
+		 */
+		private static function pack_counts( $order_id ) {
+			$order_id = (int) $order_id;
+			if ( ! array_key_exists( $order_id, self::$pack_counts ) ) {
+				self::prime_pack_counts( array( $order_id ) );
+			}
+			return isset( self::$pack_counts[ $order_id ] ) ? self::$pack_counts[ $order_id ] : null;
+		}
+
+		/**
+		 * Packed ticks for these orders, one query ( lines to ship: shippable, not a download or gift card, not a
+		 * fulfillment partner's, not wholly refunded; the order screen's rule ).
+		 *
+		 * @since 6.0.2
+		 * @param int[] $order_ids Orders.
+		 */
+		private static function prime_pack_counts( $order_ids ) {
+			global $wpdb;
+			$order_ids = array_values( array_filter( array_map( 'intval', (array) $order_ids ) ) );
+			if ( ! $order_ids ) {
+				return;
+			}
+			$ready = class_exists( 'wp_easycart_admin_order_screen' ) && method_exists( 'wp_easycart_admin_order_screen', 'packing_ready' ) && wp_easycart_admin_order_screen::packing_ready();
+			foreach ( $order_ids as $order_id ) {
+				self::$pack_counts[ $order_id ] = $ready ? array( 'lines' => 0, 'packed' => 0 ) : null;
+			}
+			if ( ! $ready ) {
+				return;
+			}
+			$id_list = implode( ',', $order_ids );
+			$partner = self::fulfillment_ready() ? " AND fulfillment_provider = ''" : '';
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- IN list is an implode of (int)-cast ids; $partner is a fixed fragment.
+			$rows = (array) $wpdb->get_results( "SELECT order_id, COUNT(*) AS line_count, SUM( CASE WHEN packed_quantity >= quantity - refunded_quantity THEN 1 ELSE 0 END ) AS packed_count FROM ec_orderdetail WHERE order_id IN ( {$id_list} ) AND is_shippable = 1 AND is_download = 0 AND is_giftcard = 0 AND quantity > refunded_quantity{$partner} GROUP BY order_id" );
+			foreach ( $rows as $row ) {
+				self::$pack_counts[ (int) $row->order_id ] = array(
+					'lines'  => (int) $row->line_count,
+					'packed' => (int) $row->packed_count,
+				);
+			}
+		}
+
+		/**
+		 * An order status as the list's chips read it.
+		 *
+		 * @since 6.0.2
+		 * @param int $status_id Status.
+		 * @return array|null status_id, label, color, is_approved.
+		 */
+		public static function status_payload( $status_id ) {
+			global $wpdb;
+			$status = $wpdb->get_row( $wpdb->prepare( 'SELECT status_id, order_status, is_approved, color_code FROM ec_orderstatus WHERE status_id = %d', (int) $status_id ) );
+			if ( ! $status ) {
+				return null;
+			}
+			return array(
+				'status_id'   => (int) $status->status_id,
+				'label'       => $status->order_status,
+				'color'       => ( '' !== (string) $status->color_code ) ? $status->color_code : '#e5e7eb',
+				'is_approved' => (int) $status->is_approved,
+			);
+		}
+
+		/**
+		 * The Fulfillment cell's first line for an order as it is now ( after a change made from the list ).
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id Order.
+		 * @return string
+		 */
+		public static function fulfillment_cell_html( $order_id ) {
+			global $wpdb;
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- requires_shipping_sql() is fixed SQL.
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.order_id, ec_order.orderstatus_id, ec_order.tracking_number, ec_order.shipping_carrier, ec_order.shipping_method, ec_order.includes_restaurant_type, ec_order.includes_preorder_items, ec_orderstatus.is_approved, ( ' . self::requires_shipping_sql() . ' ) AS requires_shipping FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_id = %d', (int) $order_id ) );
+			if ( ! $row ) {
+				return '';
+			}
+			unset( self::$pack_counts[ (int) $order_id ] );
+			if ( is_array( self::$fulfillment_orders ) ) {
+				self::$fulfillment_orders[ (int) $order_id ] = true; /* read it again */
+			}
+			return self::fulfillment_state_html( $row );
 		}
 
 		/**
@@ -1129,15 +1584,30 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		}
 
 		/**
-		 * Can the installed PRO mark an order picked up ( ecv2_order_fulfill mode=pickup, PRO 6.0.1 )? PRO 6.0.0 ignores
-		 * the mode and would open its shipping popover with "Mark as Shipped" and the shipped email ticked, so with it the
-		 * row keeps the plain Fulfill button. Without PRO the button is the locked upsell either way.
+		 * What the row's Fulfill does: pickup ( Mark picked up: a restaurant order, preorder items, Free Local Pickup, or an order
+		 * in Ready for Pickup ) or ship, as the order screen's next step decides ( wp_easycart_order_is_pickup() ).
 		 *
-		 * @since 6.0.1
+		 * @since 6.0.2 bug round 14
+		 * @param object $result Order row ( orderstatus_id, shipping_method, includes_restaurant_type, includes_preorder_items ).
+		 * @return string pickup | ship
+		 */
+		public static function fulfill_mode( $result ) {
+			$pickup = function_exists( 'wp_easycart_order_is_pickup' ) ? wp_easycart_order_is_pickup( $result ) : self::is_local_pickup( $result );
+			if ( ! $pickup && isset( $result->orderstatus_id ) && self::STATUS_READY_PICKUP === (int) $result->orderstatus_id ) {
+				$pickup = true;
+			}
+			return ( $pickup && self::pickup_fulfill_supported() ) ? 'pickup' : 'ship';
+		}
+
+		/**
+		 * Can a Free Local Pickup row be marked picked up from the list?
+		 *
+		 * @since 6.0.1 Only with PRO 6.0.1 ( ecv2_order_fulfill mode=pickup ).
+		 * @since 6.0.2 Always: WP EasyCart marks it picked up itself ( wp_easycart_admin_order_screen::mark_picked_up() ).
 		 * @return bool
 		 */
 		public static function pickup_fulfill_supported() {
-			return ! defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) || version_compare( WP_EASYCART_ADMIN_PRO_VERSION, '6.0.1', '>=' );
+			return true;
 		}
 
 		/**
@@ -1162,6 +1632,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			return $wpdb->prepare( ' OR LOWER( TRIM( ec_order.shipping_method ) ) IN ( ' . implode( ', ', array_fill( 0, count( $labels ), '%s' ) ) . ' )', $labels );
 		}
 
+		/**
+		 * Tracking chip markup. Public/static so PRO (and JS via ecv2_lang) can
+		 * reproduce the exact same chip after an inline fulfill.
+		 */
 		public static function tracking_chip_html( $tracking, $carrier = '' ) {
 			$html  = '<span class="ecv2-order-track-chip" title="' . esc_attr( ( '' !== $carrier ? $carrier . ' — ' : '' ) . $tracking ) . '">';
 			$html .= '<span class="dashicons dashicons-car"></span>';
@@ -1271,8 +1745,52 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			echo '</div>';
 			echo '</div></div>';
 
+			/* 6.0.2: what the status chip's Undo says ( orders-v2.js ): it puts the old status back and nothing else. */
+			echo '<div id="ecv2-order-status-undo-text" hidden data-updated="' . esc_attr__( 'Order status updated. Undo puts the old status back, but stock and payment changes stay.', 'wp-easycart' ) . '" data-undone="' . esc_attr__( 'Status put back. Stock and payment changes were not undone.', 'wp-easycart' ) . '"></div>';
+
+			$this->print_ship_popover();
+
 			/* PRO modals (fulfill, bulk fulfill, note, timeline). */
 			do_action( 'wp_easycart_admin_ecv2_order_render_modals', $this->table_id );
+		}
+
+		/**
+		 * The row's Fulfill and Mark picked up ( orders-v2.js, ecv2_order_open_ship() ): the order screen's Ship order in a
+		 * popover. An order with several packages to ship is sent to the order screen, where each package gets its number.
+		 * Moved to <body> by shell-v2.js ( data-ecv2-layer ).
+		 *
+		 * @since 6.0.2
+		 */
+		private function print_ship_popover() {
+			echo '<div class="ecv2-order-ship-pop" id="ecv2-order-ship-pop" role="dialog" aria-labelledby="ecv2-ship-title" data-ecv2-layer hidden>';
+			echo '<div class="ecv2-order-ship-title" id="ecv2-ship-title"><span data-ship-show="ship many">' . esc_html__( 'Ship order', 'wp-easycart' ) . '</span><span data-ship-show="pickup">' . esc_html__( 'Mark picked up', 'wp-easycart' ) . '</span> <span id="ecv2-ship-order-label"></span></div>';
+
+			echo '<div class="ecv2-order-ship-body" data-ship-show="ship">';
+			echo '<p class="ecv2-order-ship-meta" id="ecv2-ship-meta" hidden></p>';
+			echo '<div class="ecv2-modal-field"><label class="ecv2-modal-label" for="ecv2-ship-tracking">' . esc_html__( 'Tracking number', 'wp-easycart' ) . '</label>';
+			echo '<input type="text" id="ecv2-ship-tracking" class="ecv2-input" placeholder="' . esc_attr__( 'Paste or scan a tracking number', 'wp-easycart' ) . '" autocomplete="off" spellcheck="false" /></div>';
+			echo '<div class="ecv2-modal-field"><label class="ecv2-modal-label" for="ecv2-ship-carrier">' . esc_html__( 'Carrier', 'wp-easycart' ) . '</label>';
+			echo '<select id="ecv2-ship-carrier" class="ecv2-select"><option value="">' . esc_html__( 'Select carrier', 'wp-easycart' ) . '</option>';
+			foreach ( ecv2_order_carrier_suggestions() as $carrier ) {
+				echo '<option value="' . esc_attr( $carrier ) . '">' . esc_html( $carrier ) . '</option>';
+			}
+			echo '</select></div>';
+			echo '<label class="ecv2-order-ship-check"><input type="checkbox" id="ecv2-ship-mark" checked="checked" /> ' . esc_html__( 'Mark the order as shipped', 'wp-easycart' ) . '</label>';
+			echo '<label class="ecv2-order-ship-check" id="ecv2-ship-email-row"><input type="checkbox" id="ecv2-ship-email" checked="checked" /> ' . esc_html__( 'Email the customer', 'wp-easycart' ) . '</label>';
+			echo '</div>';
+
+			echo '<div class="ecv2-order-ship-body" data-ship-show="many"><p id="ecv2-ship-many-text"></p></div>';
+			/* 6.0.2 bug round 14: restaurant orders and preorders are collected too, so the words fit every pickup. */
+			echo '<div class="ecv2-order-ship-body" data-ship-show="pickup"><p>' . esc_html__( 'The customer collects this order. This sets the order to Order Picked Up. No carrier, tracking number or shipped email is involved.', 'wp-easycart' ) . '</p></div>';
+			echo '<p class="ecv2-order-ship-error" id="ecv2-ship-error" role="alert" hidden></p>';
+
+			echo '<div class="ecv2-order-ship-actions">';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" onclick="ecv2_order_close_ship();">' . esc_html__( 'Cancel', 'wp-easycart' ) . '</button>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="ecv2-ship-save" data-ship-show="ship" onclick="ecv2_order_save_ship();"><span class="dashicons dashicons-airplane"></span> ' . esc_html__( 'Ship order', 'wp-easycart' ) . '</button>';
+			echo '<a class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="ecv2-ship-many-link" data-ship-show="many" href="#">' . esc_html__( 'Open the order', 'wp-easycart' ) . '</a>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" id="ecv2-ship-pickup" data-ship-show="pickup" onclick="ecv2_order_save_pickup();"><span class="dashicons dashicons-store"></span> ' . esc_html__( 'Mark picked up', 'wp-easycart' ) . '</button>';
+			echo '</div>';
+			echo '</div>';
 		}
 	}
 
@@ -1301,48 +1819,140 @@ if ( ! function_exists( 'ecv2_get_order_pro_gate' ) ) {
 /* ---------------------------------------------------------------------- */
 
 /**
- * Inline single-order status change. Modern UX for the existing free bulk
- * status-change capability; mirrors bulk_update_order_status() side effects
- * (order log + wpeasycart_order_status_update action).
+ * Guard for the orders list's per-row actions: the Orders permission and the row's nonce
+ * ( wp-easycart-ecv2-order-status-{order_id}, printed on the status chip and the Fulfillment cell ). Answers a JSON error
+ * and ends the request otherwise.
+ *
+ * @since 6.0.2
+ * @return int The order id posted.
  */
-add_action( 'wp_ajax_ecv2_order_set_status', 'ecv2_order_set_status' );
-function ecv2_order_set_status() {
+function ecv2_order_row_guard() {
 	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_orders' ) ) {
 		wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
 	}
-	$order_id = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0;
+	$order_id = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only used to build the nonce action checked by wp_verify_nonce() on the next line.
 	if ( ! isset( $_POST['wp_easycart_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-order-status-' . $order_id ) ) {
 		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
 	}
-
-	$status_id = isset( $_POST['status_id'] ) ? (int) $_POST['status_id'] : 0;
-	if ( ! $order_id || ! $status_id ) {
+	if ( ! $order_id ) {
 		wp_send_json_error( array( 'message' => __( 'Invalid request.', 'wp-easycart' ) ) );
 	}
+	return $order_id;
+}
 
-	global $wpdb;
-	$status = $wpdb->get_row( $wpdb->prepare( 'SELECT status_id, order_status, is_approved, color_code FROM ec_orderstatus WHERE status_id = %d', $status_id ) );
+/**
+ * Inline single-order status change ( the status chip ).
+ *
+ * @since 6.0.2 Through wp_easycart_admin_orders::set_order_status(), as the order screen: stock is taken when the order
+ *              becomes paid, and the paid, shipped and refund hooks fire; the same status again changes nothing. Answers
+ *              changed and state_html ( the Fulfillment cell as it reads now ).
+ */
+add_action( 'wp_ajax_ecv2_order_set_status', 'ecv2_order_set_status' );
+function ecv2_order_set_status() {
+	$order_id = ecv2_order_row_guard();
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- ecv2_order_row_guard() above.
+	$status_id = isset( $_POST['status_id'] ) ? (int) $_POST['status_id'] : 0;
+	$status    = $status_id ? wp_easycart_admin_order_table::status_payload( $status_id ) : null;
 	if ( ! $status ) {
 		wp_send_json_error( array( 'message' => __( 'Invalid status.', 'wp-easycart' ) ) );
 	}
+	$result = wp_easycart_admin_orders()->set_order_status( $order_id, $status_id );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+	}
 
-	$old_status_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT orderstatus_id FROM ec_order WHERE order_id = %d', $order_id ) );
+	wp_send_json_success(
+		array_merge(
+			$status,
+			array(
+				'order_id'      => $order_id,
+				'old_status_id' => (int) $result['previous'],
+				'changed'       => ! empty( $result['changed'] ),
+				'state_html'    => wp_easycart_admin_order_table::fulfillment_cell_html( $order_id ),
+			)
+		)
+	);
+}
 
-	$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %d, last_updated = NOW() WHERE order_id = %d', $status_id, $order_id ) );
-	do_action( 'wpeasycart_order_status_update', $order_id, $status_id );
+/**
+ * The orders list's Fulfill and Mark picked up ( free from 6.0.2, as on the order screen ). Posts order_id,
+ * wp_easycart_nonce ( the row's ) and step:
+ *  - check: what Fulfill will do ( packages: how many of the store's packages wait to ship, url: the order screen at
+ *    its tracking step when there are several );
+ *  - ship: carrier, tracking_number, mark_shipped, notify ( wp_easycart_admin_order_screen::ship() );
+ *  - pickup: Order Picked Up ( wp_easycart_admin_order_screen::mark_picked_up() ).
+ * Answers message, status ( the chip ), tracking, carrier and state_html ( the Fulfillment cell ).
+ *
+ * @since 6.0.2
+ */
+add_action( 'wp_ajax_ecv2_order_list_fulfill', 'ecv2_order_list_fulfill' );
+function ecv2_order_list_fulfill() {
+	global $wpdb;
+	$order_id = ecv2_order_row_guard();
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- ecv2_order_row_guard() above.
+	$step  = isset( $_POST['step'] ) ? sanitize_key( wp_unslash( $_POST['step'] ) ) : 'ship';
+	$order = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, ec_orderstatus.is_approved FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_id = %d', $order_id ) );
+	if ( ! $order ) {
+		wp_send_json_error( array( 'message' => __( 'The order could not be found.', 'wp-easycart' ) ) );
+	}
 
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
-	$order_log_id = $wpdb->insert_id;
-	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $status_id ) );
+	if ( 'check' === $step ) {
+		$open = array();
+		foreach ( wp_easycart_admin_order_screen::label_rows( $order ) as $row ) {
+			if ( empty( $row['done'] ) ) {
+				$open[] = $row;
+			}
+		}
+		$count = count( $open );
+		wp_send_json_success(
+			array(
+				'packages' => $count,
+				'meta'     => ( 1 === $count ) ? (string) $open[0]['meta'] : '',
+				/* translators: %d: number of packages. */
+				'message'  => ( $count > 1 ) ? sprintf( __( 'This order has %d packages to ship. Add each package’s tracking number on the order.', 'wp-easycart' ), $count ) : '',
+				'url'      => ( $count > 1 ) ? add_query_arg( 'ecodv2_open', 'tracking', wp_easycart_admin_order_screen::order_url( $order_id ) ) : '',
+				'email'    => '' !== trim( (string) $order->user_email ),
+			)
+		);
+	}
 
-	wp_send_json_success( array(
-		'order_id'      => $order_id,
-		'status_id'     => (int) $status->status_id,
-		'label'         => $status->order_status,
-		'color'         => ( '' !== $status->color_code ) ? $status->color_code : '#e5e7eb',
-		'is_approved'   => (int) $status->is_approved,
-		'old_status_id' => $old_status_id,
-	) );
+	if ( 'pickup' === $step ) {
+		$result  = wp_easycart_admin_order_screen::mark_picked_up( $order_id );
+		$message = __( 'Order marked as picked up.', 'wp-easycart' );
+	} else {
+		$result = wp_easycart_admin_order_screen::ship(
+			$order_id,
+			array(
+				'carrier'  => isset( $_POST['carrier'] ) ? sanitize_text_field( wp_unslash( $_POST['carrier'] ) ) : '',
+				'tracking' => isset( $_POST['tracking_number'] ) ? sanitize_text_field( wp_unslash( $_POST['tracking_number'] ) ) : '',
+				'mark'     => ! empty( $_POST['mark_shipped'] ),
+				'notify'   => ! empty( $_POST['notify'] ),
+			)
+		);
+		$message = is_wp_error( $result ) ? '' : $result['message'];
+	}
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
+	if ( is_wp_error( $result ) ) {
+		$data = $result->get_error_data();
+		wp_send_json_error(
+			array(
+				'message' => $result->get_error_message(),
+				'code'    => $result->get_error_code(),
+				'url'     => ( is_array( $data ) && isset( $data['url'] ) ) ? $data['url'] : '',
+			)
+		);
+	}
+	$fresh = $wpdb->get_row( $wpdb->prepare( 'SELECT orderstatus_id, tracking_number, shipping_carrier FROM ec_order WHERE order_id = %d', $order_id ) );
+	wp_send_json_success(
+		array(
+			'order_id'   => $order_id,
+			'message'    => $message,
+			'status'     => $fresh ? wp_easycart_admin_order_table::status_payload( (int) $fresh->orderstatus_id ) : null,
+			'tracking'   => $fresh ? (string) $fresh->tracking_number : '',
+			'carrier'    => $fresh ? (string) $fresh->shipping_carrier : '',
+			'state_html' => wp_easycart_admin_order_table::fulfillment_cell_html( $order_id ),
+		)
+	);
 }
 
 /**
@@ -1536,31 +2146,49 @@ function ecv2_order_quick_edit_save() {
 	}
 
 	$status_changed   = ( (int) $current->orderstatus_id !== $status_id );
-	$shipping_changed = ( (int) $current->use_expedited_shipping !== $expedited || (string) $current->shipping_method !== $method || (string) $current->shipping_carrier !== $carrier || (string) $current->tracking_number !== $tracking );
+	$method_changed   = ( (int) $current->use_expedited_shipping !== $expedited || (string) $current->shipping_method !== $method );
+	$tracking_changed = ( (string) $current->shipping_carrier !== $carrier || (string) $current->tracking_number !== $tracking );
 
-	if ( $status_changed || $shipping_changed ) {
-		$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %d, use_expedited_shipping = %d, shipping_method = %s, shipping_carrier = %s, tracking_number = %s, last_updated = NOW() WHERE order_id = %d', $status_id, $expedited, $method, $carrier, $tracking, $order_id ) );
-
-		if ( $status_changed ) {
-			do_action( 'wpeasycart_order_status_update', $order_id, $status_id );
+	/* 6.0.2: the shipping method first, so the tracking hook below carries it. */
+	if ( $method_changed ) {
+		$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET use_expedited_shipping = %d, shipping_method = %s, last_updated = NOW() WHERE order_id = %d', $expedited, $method, $order_id ) );
+	}
+	/* 6.0.2: a tracking number goes through the order screen's path: a first number is recorded on the order's package
+	   ( what the customer's emails and My Account list ), a corrected one corrects that package too; either way
+	   wpeasycart_tracking_info_update fires and the activity log gets it. */
+	if ( $tracking_changed ) {
+		wp_easycart_admin_order_screen::set_tracking( $order_id, $carrier, $tracking );
+	} elseif ( $method_changed ) {
+		do_action( 'wpeasycart_tracking_info_update', $order_id, $expedited, $method, $carrier, $tracking );
+	}
+	/* 6.0.2: the status as the order screen changes it: stock taken when the order becomes paid, the paid, shipped and
+	   refund hooks. */
+	if ( $status_changed ) {
+		$result = wp_easycart_admin_orders()->set_order_status( $order_id, $status_id );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
-		if ( $shipping_changed ) {
-			do_action( 'wpeasycart_tracking_info_update', $order_id, $expedited, $method, $carrier, $tracking );
-		}
+	}
 
-		/* One log entry per save, only the fields that actually changed. */
+	/* One log entry for the rest of the save ( the status and tracking changes write their own ). */
+	if ( $method_changed ) {
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-quick-edit" )', $order_id ) );
 		$order_log_id = $wpdb->insert_id;
-		$changes = array();
-		if ( $status_changed ) { $changes['orderstatus_id'] = $status_id; }
-		if ( (int) $current->use_expedited_shipping !== $expedited ) { $changes['use_expedited_shipping'] = $expedited; }
-		if ( (string) $current->shipping_method !== $method ) { $changes['shipping_method'] = $method; }
-		if ( (string) $current->shipping_carrier !== $carrier ) { $changes['shipping_carrier'] = $carrier; }
-		if ( (string) $current->tracking_number !== $tracking ) { $changes['tracking_number'] = $tracking; }
+		$changes      = array();
+		if ( (int) $current->use_expedited_shipping !== $expedited ) {
+			$changes['use_expedited_shipping'] = $expedited;
+		}
+		if ( (string) $current->shipping_method !== $method ) {
+			$changes['shipping_method'] = $method;
+		}
 		foreach ( $changes as $key => $value ) {
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, %s, %s )', $order_log_id, $order_id, $key, $value ) );
 		}
 	}
+
+	$fresh    = $wpdb->get_row( $wpdb->prepare( 'SELECT tracking_number, shipping_carrier FROM ec_order WHERE order_id = %d', $order_id ) );
+	$tracking = $fresh ? (string) $fresh->tracking_number : $tracking;
+	$carrier  = $fresh ? (string) $fresh->shipping_carrier : $carrier;
 
 	$email_sent = false;
 	if ( $send_email ) {
@@ -1569,7 +2197,9 @@ function ecv2_order_quick_edit_save() {
 	}
 
 	do_action( 'wp_easycart_ecv2_order_quick_edit_saved', $order_id, $status_id, $expedited, $method, $carrier, $tracking, $email_sent );
-	do_action( 'wpeasycart_order_updated', $order_id );
+	if ( $method_changed && ! $tracking_changed && ! $status_changed ) {
+		do_action( 'wpeasycart_order_updated', $order_id ); /* set_tracking() and set_order_status() fire it themselves */
+	}
 
 	wp_send_json_success( array(
 		'order_id'    => $order_id,
@@ -1582,8 +2212,9 @@ function ecv2_order_quick_edit_save() {
 		'carrier'     => $carrier,
 		'tracking'    => $tracking,
 		'email_sent'  => $email_sent,
-		'changed'     => ( $status_changed || $shipping_changed ),
+		'changed'     => ( $status_changed || $method_changed || $tracking_changed ),
 		'chip_html'   => ( '' !== $tracking ) ? wp_easycart_admin_order_table::tracking_chip_html( $tracking, $carrier ) : '',
+		'state_html'  => wp_easycart_admin_order_table::fulfillment_cell_html( $order_id ), /* 6.0.2 */
 	) );
 }
 
@@ -1728,6 +2359,8 @@ function ecv2_order_duplicate_create() {
 	/* ---- Build the new order row ---- */
 	$new = $original;
 	unset( $new['order_id'], $new['order_date'] );
+	/* 6.0.2: the copy's own paid and fulfilled times ( Reports; set when its status is ). */
+	unset( $new['paid_at'], $new['fulfilled_at'] );
 
 	/* Never carry these over: identity, payment, fulfillment, refunds, integrations. */
 	$reset_blank = array(
@@ -1736,6 +2369,8 @@ function ecv2_order_duplicate_create() {
 		'edit_sequence', 'credit_memo_txn_id', 'card_holder_name', 'creditcard_digits', 'cc_exp_month', 'cc_exp_year',
 		'fraktjakt_order_id', 'fraktjakt_shipment_id', 'stripe_charge_id', 'nets_transaction_id', 'affirm_charge_id',
 		'gateway_transaction_id', 'guest_key', 'converted_cart_id', 'giftcard_id', 'order_notes',
+		'source_type', 'source_name', 'last_source_type', 'last_source_name', 'source_data', /* 6.0.2: the copy is marked Staff */
+		'device', /* 6.0.2: made by staff, not on the shopper's device ( Reports ) */
 	);
 	foreach ( $reset_blank as $col ) {
 		if ( array_key_exists( $col, $new ) ) {
@@ -1743,11 +2378,16 @@ function ecv2_order_duplicate_create() {
 		}
 	}
 	$new['orderstatus_id']       = $status_id;
+	if ( array_key_exists( 'fulfillment_released_at', $new ) ) {
+		$new['fulfillment_released_at'] = null; /* 6.0.2: the copy goes to fulfillment partners when it is paid */
+	}
 	$new['last_updated']         = current_time( 'mysql' );
 	$new['order_viewed']         = $mark_viewed ? 1 : 0;
 	$new['refund_total']         = 0;
 	$new['shipping_refund_total']= 0;
 	$new['tax_refund_total']     = 0;
+	/* 6.0.2: nothing paid on the copy yet ( recorded when its status is set, wp_easycart_order_payments ). */
+	unset( $new['amount_paid'], $new['overpaid_refund_total'] );
 	$new['subscription_id']      = 0;
 	$new['success_page_shown']   = 0;
 	$new['agreed_to_terms']      = 1;
@@ -1783,6 +2423,16 @@ function ecv2_order_duplicate_create() {
 		$nd['quantity']          = $qty;
 		$nd['refunded_quantity'] = 0;
 		$nd['stock_adjusted']    = 0;
+		/* 6.0.2: a partner's progress on the original lines is not the copy's. */
+		foreach ( array( 'fulfillment_status', 'fulfillment_ref' ) as $wpec_col ) {
+			if ( array_key_exists( $wpec_col, $nd ) ) {
+				$nd[ $wpec_col ] = '';
+			}
+		}
+		/* 6.0.2: nothing of the copy is packed yet. */
+		if ( array_key_exists( 'packed_quantity', $nd ) ) {
+			$nd['packed_quantity'] = 0;
+		}
 		$nd['unit_price']        = $unit;
 		$nd['total_price']       = $unit * $qty;
 		if ( 'zero' === $pricing ) {
@@ -1852,6 +2502,9 @@ function ecv2_order_duplicate_create() {
 		$nd['order_id'] = $new_order_id;
 		$wpdb->insert( 'ec_orderdetail', $nd );
 		$new_detail_id = (int) $wpdb->insert_id;
+		if ( $new_detail_id && class_exists( 'wp_easycart_fulfillment' ) ) {
+			wp_easycart_fulfillment::stamp_line( $new_detail_id ); /* 6.0.2: variant, partner and cost as the product says now */
+		}
 
 		/* Option rows (the legacy duplicate dropped these — product options were lost). */
 		$opts = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_order_option WHERE orderdetail_id = %d', $orig_detail_id ), ARRAY_A );
@@ -1885,7 +2538,7 @@ function ecv2_order_duplicate_create() {
 	$log_id = $wpdb->insert_id;
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "new_order_id", %s )', $log_id, $order_id, $new_order_id ) );
 
-	do_action( 'wpeasycart_order_status_update', $new_order_id, $status_id );
+	do_action( 'wpeasycart_order_status_update', $new_order_id, $status_id, 0 ); /* 6.0.2: a new order, no status before */
 	do_action( 'wp_easycart_ecv2_order_duplicated', $new_order_id, $order_id, $_POST );
 
 	$email_sent = false;

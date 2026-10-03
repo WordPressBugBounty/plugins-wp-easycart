@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Scheme_Color;
 use Elementor\Group_Control_Typography;
@@ -20,6 +22,8 @@ use Elementor\Group_Control_Image_Size;
 use Elementor\Utils;
 use Elementor\Wp_Easycart_Controls_Manager;
 
+require_once EC_PLUGIN_DIRECTORY . '/admin/elementor/wp-easycart-elementor-account-functions.php';
+
 /**
  * WP EasyCart Account Forms Widget for Elementor
  *
@@ -28,6 +32,8 @@ use Elementor\Wp_Easycart_Controls_Manager;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
 
 	/**
 	 * Get store widget name.
@@ -68,17 +74,15 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 	 * Enqueue store widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js' ) );
 	}
 
 	/**
 	 * Setup store widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 		$this->start_controls_section(
 			'section_content_form_fields',
 			array(
@@ -109,6 +113,9 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				'render_type'  => 'template',
 			)
 		);
+
+		/* 6.0.2: Show to ( everyone | signed-in customers | visitors ). The default keeps saved widgets showing to everyone. */
+		$this->add_control( 'visibility', wp_easycart_elementor_account_visibility_control() );
 
 		$this->add_control(
 			'first_name_label',
@@ -145,7 +152,8 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 			array(
 				'label'   => esc_html__( 'Last Name Label', 'wp-easycart' ),
 				'type'    => Controls_Manager::TEXT,
-				'default' => wp_easycart_language( )->get_text( 'cart_contact_information', 'account_billing_information_last_name' ),
+				// 6.0.2: this read a phrase the Contact Information group does not have, so the label was empty.
+				'default' => wp_easycart_language( )->get_text( 'cart_contact_information', 'cart_contact_information_last_name' ),
 				'dynamic' => array(
 					'active' => true,
 				),
@@ -1011,8 +1019,9 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 				'label_off'    => esc_html__( 'No', 'wp-easycart' ),
 				'return_value' => 'yes',
 				'default'      => 'no',
+				// 6.0.2: also the Email & Name form, which can now show the customer's newsletter box.
 				'condition'   => array(
-					'form_type' => array( 'register' ),
+					'form_type' => array( 'register', 'personal' ),
 				),
 			)
 		);
@@ -1579,8 +1588,36 @@ class Wp_Easycart_Elementor_Account_Forms_Widget extends \Elementor\Widget_Base 
 		$this->end_controls_section();
 	}
 
+	/**
+	 * Whether the element returns dynamic content ( Elementor element caching ).
+	 *
+	 * 6.0.2: never cached; the forms carry the signed-in customer's details and nonces. Elementor 3.22+ already treats
+	 * widgets as dynamic; this keeps it so if that default changes.
+	 *
+	 * @return bool
+	 */
+	protected function is_dynamic_content(): bool {
+		return true;
+	}
+
+	/**
+	 * Plain content Elementor saves as the page's post_content.
+	 *
+	 * 6.0.2: nothing. Elementor's default renders the widget when the page is saved in the editor, which wrote the account
+	 * forms, their nonces and the editing admin's own store details ( or a customer's, during Login as Customer ) into
+	 * post_content, where excerpts, site search and feeds show them.
+	 */
+	public function render_plain_content() {}
+
+	/**
+	 * Render the account form.
+	 */
 	protected function render() {
 		$atts = $this->get_settings_for_display();
+		/* 6.0.2: no page cache, and the Show to setting. */
+		if ( ! wp_easycart_elementor_account_render_start( $atts ) ) {
+			return;
+		}
 		if ( 'login' == $atts['form_type'] ) {
 			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/wp-easycart-elementor-account-login-widget.php' );
 		} else if ( 'register' == $atts['form_type'] ) {

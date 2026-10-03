@@ -1,0 +1,10 @@
+/* WP EasyCart Elementor dynamic data ( 6.0.2 ): the "added to your cart" note of an add to cart link that stays on the page. */
+.wpec-dyn-added{ position:fixed; z-index:99999; left:50%; bottom:24px; transform:translateX(-50%); display:flex; align-items:center; gap:12px; box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); margin:0; padding:10px 8px 10px 16px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-inline-start:4px solid var(--wpec-success-color, #2e7d32); border-radius:var(--wpec-radius, 8px); background:#FFFFFF; color:#1D1D1D; box-shadow:0 8px 24px rgba(0,0,0,.18); font-size:15px; line-height:1.4; animation:wpec-dyn-added-in .2s ease-out; }
+.wpec-dyn-added .wpec-dyn-added__text{ flex:1 1 auto; margin:0; padding:0; color:inherit; font-size:inherit; }
+.wpec-dyn-added a.wpec-dyn-added__link{ flex:0 0 auto; color:var(--wpec-button-bg, var(--e-global-color-accent, #1D1D1D)); font-weight:600; text-decoration:underline; white-space:nowrap; }
+.wpec-dyn-added button.wpec-dyn-added__close{ flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; min-height:0; margin:0; padding:0; border:0; border-radius:50%; background:transparent; box-shadow:none; color:inherit; font-size:22px; line-height:1; cursor:pointer; }
+.wpec-dyn-added button.wpec-dyn-added__close:hover{ background:rgba(0,0,0,.06); color:inherit; }
+.wpec-dyn-added a.wpec-dyn-added__link:focus-visible, .wpec-dyn-added button.wpec-dyn-added__close:focus-visible{ outline:2px solid currentColor; outline-offset:2px; }
+@keyframes wpec-dyn-added-in{ from{ opacity:0; transform:translate(-50%, 8px); } to{ opacity:1; transform:translate(-50%, 0); } }
+@media ( prefers-reduced-motion:reduce ){ .wpec-dyn-added{ animation:none; } }
+@media only screen and ( max-width:480px ){ .wpec-dyn-added{ left:16px; right:16px; bottom:16px; width:auto; max-width:none; transform:none; animation:none; } }

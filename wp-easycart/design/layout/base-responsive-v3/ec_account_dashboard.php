@@ -79,7 +79,9 @@
 			</div>
 			<div class="ec_account_order_header_column_left ec_account_order_header_column_left_div4">
 				<span><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_order_label' )?> <?php echo esc_attr( $order->order_id ); ?></span>
-				<div><a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order->order_id ) ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' )?></a> | <a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $order->order_id ) ) ); ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' )?></a></div>
+				<?php /* 6.0.2: Settings › Documents › Customer downloads can turn the print link off, and a document rule can for some orders ( as on the order details page ). */ ?>
+				<?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- language phrases, sanitized when saved. ?>
+				<div><a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order->order_id ) ) ); ?>"><?php echo wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' )?></a><?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'print_receipt', (int) $order->order_id ) : get_option( 'ec_option_account_print_receipt', 1 ) ) { ?> | <a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $order->order_id ) ) ); ?>" target="_blank"><?php echo wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' )?></a><?php } ?></div>
 			</div>
 		</div>
 
@@ -168,7 +170,8 @@
 					}
 					if ( $order_item->include_code && $order->is_approved ) {
 						global $wpdb;
-						$codes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_code WHERE ec_code.orderdetail_id = %d", $this->cart->cart[$i]->orderdetail_id ) );
+						/* 6.0.2: this line's codes ( it read an undefined $this->cart->cart[$i], so no code was ever shown ). */
+						$codes = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_code WHERE ec_code.orderdetail_id = %d", (int) $order_item->orderdetail_id ) );
 						$code_list = "";
 						for ( $code_index = 0; $code_index < count( $codes ); $code_index++ ) {
 							if( $code_index > 0 )

@@ -48,6 +48,9 @@ if ( ! class_exists( 'ec_logs' ) ) :
 			$text = preg_replace( '/("?(cvc|cvv|cvv2|security_code|card_code)"?\s*[:=]\s*"?)\d{3,4}/i', '$1•••', $text );
 			$text = preg_replace( '/\b((sk|rk|pk)_(live|test)_)[A-Za-z0-9]{8,}/', '$1••••••••', $text );
 			$text = preg_replace( '/\b(whsec_)[A-Za-z0-9]{8,}/', '$1••••••••', $text );
+			/* 6.0.2: Shippo tokens, and any Authorization header value an extension printed into its log ( Shippo 1.0.x logged its request headers ). */
+			$text = preg_replace( '/\b(shippo_(live|test)_)[A-Za-z0-9]{8,}/', '$1••••••••', $text );
+			$text = preg_replace( '/\b((ShippoToken|Bearer|Basic)\s+)[A-Za-z0-9._~+\/=-]{8,}/', '$1••••••••', $text );
 			$text = preg_replace( '/("?(password|passwd|api_key|apikey|access_token|secret|signature|license)"?\s*[:=]\s*"?)[^"&\s,}]{4,}/i', '$1••••••••', $text );
 			return $text;
 		}

@@ -244,6 +244,19 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$messages[] = __( 'Order(s) receipt was resent to the customer(s)', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && 'shipping-email-sent' == $_GET['success'] ) {
 				$messages[] = __( 'Shipping email(s) were sent to the customer(s)', 'wp-easycart' );
+			} else if ( isset( $_GET['success'] ) && 'order-status-updated' === $_GET['success'] ) {
+				/* 6.0.2: Change Order Status in bulk says what it did. */
+				// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only counts for the notice after the bulk action's redirect.
+				$changed   = isset( $_GET['status_changed'] ) ? absint( $_GET['status_changed'] ) : 0;
+				$unchanged = isset( $_GET['status_unchanged'] ) ? absint( $_GET['status_unchanged'] ) : 0;
+				// phpcs:enable WordPress.Security.NonceVerification.Recommended
+				/* translators: %d: number of orders. */
+				$message = sprintf( _n( '%d order moved to the new status.', '%d orders moved to the new status.', $changed, 'wp-easycart' ), $changed );
+				if ( $unchanged > 0 ) {
+					/* translators: %d: number of orders. */
+					$message .= ' ' . sprintf( _n( '%d already had it and was left as is.', '%d already had it and were left as is.', $unchanged, 'wp-easycart' ), $unchanged );
+				}
+				$messages[] = $message;
 			}
 			return $messages;
 		}
@@ -288,60 +301,63 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		}
 
 		public function update_orderstatus() {
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- the AJAX wrapper verified the order screen's nonce ( verify_access ).
+			$order_id       = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0;
+			$orderstatus_id = isset( $_POST['orderstatus_id'] ) ? (int) $_POST['orderstatus_id'] : 0;
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			return $this->set_order_status( $order_id, $orderstatus_id );
+		}
+
+		/**
+		 * Move an order to another status: stock taken when it becomes approved, the order log, and the status hooks. Nothing
+		 * happens when the order already has that status ( 6.0.2: choosing it again used to run every hook again, lowering the
+		 * customer's lifetime spend twice for Refunded, or marking the order paid twice ), or when another request moved the
+		 * order first.
+		 *
+		 * @since 6.0.2 ( the body of update_orderstatus() )
+		 * @param int $order_id       Order.
+		 * @param int $orderstatus_id Status.
+		 * @return array|WP_Error changed ( bool ), previous ( status id ).
+		 */
+		public function set_order_status( $order_id, $orderstatus_id ) {
 			global $wpdb;
 
-			$order_id = (int) $_POST['order_id'];
-			$orderstatus_id = (int) $_POST['orderstatus_id'];
+			$order_id       = (int) $order_id;
+			$orderstatus_id = (int) $orderstatus_id;
 
 			/* Check for Applicable Stock Adjustments */
 			$order = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, ec_orderstatus.is_approved FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_id = %d', $order_id ) );
 			$orderstatus = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_orderstatus.* FROM ec_orderstatus WHERE ec_orderstatus.status_id = %d', $orderstatus_id ) );
-			$orderdetails = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE ec_orderdetail.order_id = %d', $order_id ) );
-
-			if ( ! $order->is_approved && $orderstatus->is_approved ) { // Take out of stock
-				$ec_db = new ec_db();
-				foreach ( $orderdetails as $orderdetail ) {
-					if ( ! $orderdetail->stock_adjusted ) {
-						$product = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_product.* FROM ec_product WHERE ec_product.product_id = %d', $orderdetail->product_id ) );
-						if ( $product ) {
-							$stock_log_oiq_id = 0;
-							$stock_log_old_quantity = (int) $product->stock_quantity;
-							if ( $product->use_optionitem_quantity_tracking ) {
-								$stock_log_oiq_row = $wpdb->get_row( $wpdb->prepare( 'SELECT optionitemquantity_id, quantity FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d', $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 ) );
-								if ( $stock_log_oiq_row ) {
-									$stock_log_oiq_id = (int) $stock_log_oiq_row->optionitemquantity_id;
-									$stock_log_old_quantity = (int) $stock_log_oiq_row->quantity;
-								}
-							}
-
-							if ( $product->use_optionitem_quantity_tracking ) {
-								$ec_db->update_quantity_value( $orderdetail->quantity, $orderdetail->product_id, $orderdetail->optionitem_id_1, $orderdetail->optionitem_id_2, $orderdetail->optionitem_id_3, $orderdetail->optionitem_id_4, $orderdetail->optionitem_id_5 );
-							}
-							$ec_db->update_product_stock( $orderdetail->product_id, $orderdetail->quantity );
-							$ec_db->update_details_stock_adjusted( $orderdetail->orderdetail_id );
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-stock-update" )', $order_id ) );
-							$order_log_id = $wpdb->insert_id;
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "product_id", %s )', $order_log_id, $order_id, $orderdetail->product_id ) );
-							$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "quantity", %s )', $order_log_id, $order_id, '-' . $orderdetail->quantity ) );
-
-							do_action( 'wpeasycart_inventory_stock_changed', array(
-								'product_id'            => (int) $orderdetail->product_id,
-								'optionitemquantity_id' => $stock_log_oiq_id,
-								'old_quantity'          => $stock_log_old_quantity,
-								'new_quantity'          => $stock_log_old_quantity - (int) $orderdetail->quantity,
-								'delta'                 => -1 * (int) $orderdetail->quantity,
-								'reason'                => 'order',
-								'source'                => 'order',
-								'note'                  => sprintf( __( 'Order #%d approved', 'wp-easycart' ), $order_id ),
-								'user_id'               => get_current_user_id(),
-							) );
-						}
-					}
-				}
+			if ( ! $order ) {
+				return new WP_Error( 'order', __( 'The order could not be found.', 'wp-easycart' ) );
+			}
+			if ( ! $orderstatus ) {
+				return new WP_Error( 'status', __( 'That order status no longer exists. Reload the page and choose another.', 'wp-easycart' ) );
+			}
+			if ( (int) $order->orderstatus_id === $orderstatus_id ) {
+				return array(
+					'changed'  => false,
+					'previous' => $orderstatus_id,
+				);
+			}
+			/* 6.0.2: the move is made only from the status read above, so of two requests at once ( a double click, a pay link
+			   paying while staff set a paid status ) only one moves the order, takes its stock and fires the hooks. */
+			$moved = $wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %d, last_updated = NOW() WHERE order_id = %d AND orderstatus_id = %d', $orderstatus_id, $order_id, (int) $order->orderstatus_id ) );
+			if ( 1 !== (int) $moved ) {
+				return array(
+					'changed'  => false,
+					'previous' => (int) $order->orderstatus_id,
+				);
+			}
+			if ( ! $order->is_approved && $orderstatus->is_approved && class_exists( 'wp_easycart_order_pay' ) ) { // Take out of stock
+				/* 6.0.2 bug round 14: one way to take an order's stock ( wp_easycart_order_pay::take_stock(): each line not yet
+				   adjusted is claimed first, so only one request takes it ), shared with pay links, Mark as paid, New order and
+				   the order screen's Take stock now. */
+				/* translators: %d: order number. */
+				wp_easycart_order_pay::take_stock( $order_id, sprintf( __( 'Order #%d approved', 'wp-easycart' ), $order_id ) );
 			}
 			/* END Stock Adjustment Check */
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %s, last_updated = NOW() WHERE order_id = %d', $orderstatus_id, $order_id ) );
-			do_action( 'wpeasycart_order_status_update', $order_id, $orderstatus_id );
+			do_action( 'wpeasycart_order_status_update', $order_id, $orderstatus_id, ( $order ? (int) $order->orderstatus_id : 0 ) ); /* 6.0.2: the status before */
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
 			$order_log_id = $wpdb->insert_id;
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
@@ -353,29 +369,49 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			} else if ( '16' == $orderstatus_id ) {
 				do_action( 'wpeasycart_full_order_refund', $order_id );
 			} else if ( '17' == $orderstatus_id ) {
-				do_action( 'wpeasycart_partial_order_refund', $order_id );
+				/* 6.0.2: every path passes three arguments. Only the status changed here, so nothing was refunded now ( 0 ). */
+				do_action( 'wpeasycart_partial_order_refund', $order_id, 0, (float) $order->refund_total );
 			}
 			do_action( 'wpeasycart_order_updated', $order_id );
+			return array(
+				'changed'  => true,
+				'previous' => (int) $order->orderstatus_id,
+			);
 		}
 
+		/**
+		 * Save the order's weight, gift card, coupon code and pinned note.
+		 *
+		 * @since 6.0.2 Saves only the fields posted: the order screen has no weight field, and posting its absent value
+		 *              blanked the order's weight on every pinned note or shipping details save.
+		 * @return int The order.
+		 */
 		public function update_order_info() {
 			global $wpdb;
 
-			$order_id = (int) $_POST['order_id'];
-			$order_weight = sanitize_text_field( wp_unslash( $_POST['order_weight'] ) );
-			$giftcard_id = sanitize_text_field( wp_unslash( $_POST['giftcard_id'] ) );
-			$promo_code = sanitize_text_field( wp_unslash( $_POST['promo_code'] ) );
-			$order_notes = sanitize_textarea_field( wp_unslash( $_POST['order_notes'] ) );
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- ec_admin_ajax_edit_order_info() verified the request.
+			$order_id = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0;
+			$values   = array();
+			foreach ( array( 'order_weight', 'giftcard_id', 'promo_code', 'order_notes' ) as $key ) {
+				if ( isset( $_POST[ $key ] ) ) {
+					$values[ $key ] = ( 'order_notes' === $key ) ? sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) ) : sanitize_text_field( wp_unslash( $_POST[ $key ] ) );
+				}
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			if ( ! $order_id || ! $values ) {
+				return $order_id;
+			}
 
-			$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET order_weight = %s, giftcard_id = %s, promo_code = %s, order_notes = %s, last_updated = NOW() WHERE order_id = %d', $order_weight, $giftcard_id, $promo_code, $order_notes, $order_id ) );
+			$wpdb->update( 'ec_order', $values, array( 'order_id' => $order_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET last_updated = NOW() WHERE order_id = %d', $order_id ) );
 			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-info-update" )', $order_id ) );
 			$order_log_id = $wpdb->insert_id;
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "order_weight", %s )', $order_log_id, $order_id, $order_weight ) );
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "giftcard_id", %s )', $order_log_id, $order_id, $giftcard_id ) );
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "promo_code", %s )', $order_log_id, $order_id, $promo_code ) );
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "order_notes", %s )', $order_log_id, $order_id, $order_notes ) );
+			foreach ( $values as $key => $value ) {
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, %s, %s )', $order_log_id, $order_id, $key, $value ) );
+			}
 
 			do_action( 'wpeasycart_order_updated', $order_id );
+			return $order_id;
 		}
 
 		public function update_shipping_method_info() {
@@ -386,6 +422,17 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$shipping_method = sanitize_text_field( wp_unslash( $_POST['shipping_method'] ) );
 			$shipping_carrier = sanitize_text_field( wp_unslash( $_POST['shipping_carrier'] ) );
 			$tracking_number = sanitize_text_field( wp_unslash( $_POST['tracking_number'] ) );
+
+			/* 6.0.2: a changed tracking number or carrier goes through the order screen's set_tracking(), as Quick edit does: a
+			   first number is recorded on the order's package, a correction also corrects the store's package that carried the
+			   old one ( My Account and the shipped email list the packages' numbers ). It fires the hook and writes the log. */
+			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT shipping_carrier, tracking_number FROM ec_order WHERE order_id = %d', $order_id ) );
+			if ( $current && class_exists( 'wp_easycart_admin_order_screen' ) && method_exists( 'wp_easycart_admin_order_screen', 'set_tracking' ) && ( trim( (string) $current->tracking_number ) !== trim( $tracking_number ) || trim( (string) $current->shipping_carrier ) !== trim( $shipping_carrier ) ) ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET use_expedited_shipping = %d, shipping_method = %s, last_updated = NOW() WHERE order_id = %d', $use_expedited_shipping, $shipping_method, $order_id ) );
+				if ( wp_easycart_admin_order_screen::set_tracking( $order_id, $shipping_carrier, $tracking_number ) ) {
+					return;
+				}
+			}
 
 			do_action( 'wpeasycart_tracking_info_update', $order_id, $use_expedited_shipping, $shipping_method, $shipping_carrier, $tracking_number );
 
@@ -423,7 +470,7 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$orderfromemail = stripslashes( get_option( 'ec_option_order_from_email' ) );
 
 			$args            = is_array( $args ) ? $args : array();
-			$document_fields = ( isset( $args['document_fields'] ) && is_array( $args['document_fields'] ) ) ? $args['document_fields'] : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping' ) : null );
+			$document_fields = ( isset( $args['document_fields'] ) && is_array( $args['document_fields'] ) ) ? $args['document_fields'] : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping', '', array(), (int) $order_id ) : null );
 			$document_held_back = array();
 			$ship_items = isset( $args['items'] ) ? array_filter( array_map( 'intval', (array) $args['items'] ) ) : array();
 			if ( $ship_items ) {
@@ -579,6 +626,7 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order WHERE order_id = %d', $order_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_orderdetail WHERE order_id = %d', $order_id ) );
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_download WHERE order_id = %d', $order_id ) );
+			self::delete_order_parts( $order_id );
 			do_action( 'wpeasycart_order_deleted', $order_id );
 			if ( function_exists( 'wp_easycart_refresh_user_history' ) && ! empty( $snapshot['orders'][0]['user_id'] ) ) {
 				wp_easycart_refresh_user_history( $snapshot['orders'][0]['user_id'] );
@@ -601,6 +649,10 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 		public static function order_snapshot( $order_ids ) {
 			global $wpdb;
 			$snapshot = array( 'orders' => array(), 'details' => array(), 'downloads' => array() );
+			$parts    = self::order_parts();
+			foreach ( array_keys( $parts ) as $part ) {
+				$snapshot[ $part ] = array();
+			}
 			foreach ( (array) $order_ids as $order_id ) {
 				$order_id = (int) $order_id;
 				if ( ! $order_id ) {
@@ -613,8 +665,55 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$snapshot['orders'][]    = $row;
 				$snapshot['details']     = array_merge( $snapshot['details'], (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d', $order_id ), ARRAY_A ) );
 				$snapshot['downloads']   = array_merge( $snapshot['downloads'], (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_download WHERE order_id = %d', $order_id ), ARRAY_A ) );
+				foreach ( $parts as $part => $table ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table comes from order_parts(), a fixed list.
+					$snapshot[ $part ] = array_merge( $snapshot[ $part ], (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE order_id = %d", $order_id ), ARRAY_A ) );
+				}
 			}
 			return $snapshot;
+		}
+
+		/**
+		 * The other tables that hold rows of an order and go with it when it is deleted: its packages and shipments, fees,
+		 * checkout answers and tags. Only the tables this store's database has ( some arrive with a database update ). Before
+		 * 6.0.2 they stayed behind, and a later order that took the same number ( MySQL can hand out a deleted order's number
+		 * again after a restart ) showed them.
+		 *
+		 * @since 6.0.2
+		 * @return array Snapshot key => table.
+		 */
+		public static function order_parts() {
+			static $parts = null;
+			global $wpdb;
+			if ( null === $parts ) {
+				$parts = array();
+				foreach ( array(
+					'shipments'    => 'ec_order_shipment',
+					'fees'         => 'ec_order_fee',
+					'fields'       => 'ec_order_field',
+					'tags'         => 'ec_order_tag_item',
+					'transactions' => 'ec_order_transaction', /* 6.0.2: payments and refunds ( Reports ) */
+				) as $part => $table ) {
+					if ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+						$parts[ $part ] = $table;
+					}
+				}
+			}
+			return $parts;
+		}
+
+		/**
+		 * Delete an order's rows in the order_parts() tables.
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id Order.
+		 */
+		public static function delete_order_parts( $order_id ) {
+			global $wpdb;
+			foreach ( self::order_parts() as $table ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table comes from order_parts(), a fixed list.
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE order_id = %d", (int) $order_id ) );
+			}
 		}
 
 		/**
@@ -639,8 +738,9 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$restored++;
 				do_action( 'wpeasycart_order_restored', (int) $row['order_id'] );
 			}
-			foreach ( array( 'details' => 'ec_orderdetail', 'downloads' => 'ec_download' ) as $part => $table ) {
-				foreach ( (array) $snapshot[ $part ] as $row ) {
+			/* 6.0.2: and the order's packages, fees, checkout answers and tags ( snapshots from 6.0.1 have none ). */
+			foreach ( array_merge( array( 'details' => 'ec_orderdetail', 'downloads' => 'ec_download' ), self::order_parts() ) as $part => $table ) {
+				foreach ( isset( $snapshot[ $part ] ) ? (array) $snapshot[ $part ] : array() as $row ) {
 					$wpdb->insert( $table, $row );
 				}
 			}
@@ -665,6 +765,7 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_order WHERE order_id = %d', (int) $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_orderdetail WHERE order_id = %d', (int) $bulk_id ) );
 				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_download WHERE order_id = %d', (int) $bulk_id ) );
+				self::delete_order_parts( (int) $bulk_id );
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-deleted" )', (int) $bulk_id ) );
 				do_action( 'wpeasycart_order_deleted', (int) $bulk_id );
 			}
@@ -679,20 +780,31 @@ if ( ! class_exists( 'wp_easycart_admin_orders' ) ) :
 			return $result;
 		}
 
+		/**
+		 * Change Order Status in bulk.
+		 *
+		 * @since 6.0.2 Each order goes through set_order_status(), as on the order screen ( stock taken when an order becomes
+		 *              paid; the paid, shipped and refund hooks ), and an order already in that status is left alone. The
+		 *              redirect says how many changed ( status_changed, status_unchanged ).
+		 */
 		public function bulk_update_order_status() {
-			global $wpdb;
-			$bulk_ids = (array) $_GET['bulk']; // XSS OK. Forced array and each item sanitized.
-			$orderstatus_id = (int) $_GET['bulk_order_status'];
-
-			foreach ( $bulk_ids as $bulk_id ) {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET orderstatus_id = %d WHERE order_id = %d', $orderstatus_id, (int) $bulk_id ) );
-				do_action( 'wpeasycart_order_status_update', (int) $bulk_id, $orderstatus_id );
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', (int) $bulk_id ) );
-				$order_log_id = $wpdb->insert_id;
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, (int) $bulk_id, $orderstatus_id ) );
+			$bulk_ids       = array_filter( array_map( 'intval', (array) $_GET['bulk'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- process_update_order_status() verified the bulk nonce; each id is cast to int.
+			$orderstatus_id = isset( $_GET['bulk_order_status'] ) ? (int) $_GET['bulk_order_status'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- process_update_order_status() verified the bulk nonce.
+			$changed        = 0;
+			$unchanged      = 0;
+			foreach ( array_unique( $bulk_ids ) as $bulk_id ) {
+				$result = $this->set_order_status( $bulk_id, $orderstatus_id );
+				if ( is_wp_error( $result ) || empty( $result['changed'] ) ) {
+					++$unchanged;
+				} else {
+					++$changed;
+				}
 			}
-
-			return array( 'success' => 'order-status-updated' );
+			return array(
+				'success'          => 'order-status-updated',
+				'status_changed'   => $changed,
+				'status_unchanged' => $unchanged,
+			);
 		}
 
 		public function bulk_mark_order_viewed() {
@@ -1180,40 +1292,68 @@ function wp_easycart_admin_orders() {
 }
 wp_easycart_admin_orders();
 add_action( 'wp_ajax_ec_admin_ajax_edit_order_info', 'ec_admin_ajax_edit_order_info' );
+/**
+ * @since 6.0.2 Answers with JSON, so the order screen says "saved" only when it was.
+ */
 function ec_admin_ajax_edit_order_info() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'The order was not saved: this page has expired or you do not have permission. Reload the page and try again.', 'wp-easycart' ) ) );
 	}
 
 	wp_easycart_admin_orders()->update_order_info();
-	die();
+	wp_send_json_success( array( 'message' => __( 'Order saved.', 'wp-easycart' ) ) );
 }
 add_action( 'wp_ajax_ec_admin_ajax_edit_shipping_method_info', 'ec_admin_ajax_edit_shipping_method_info' );
+/**
+ * @since 6.0.2 Answers with JSON, so the order screen says "saved" only when it was.
+ */
 function ec_admin_ajax_edit_shipping_method_info() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'The shipping details were not saved: this page has expired or you do not have permission. Reload the page and try again.', 'wp-easycart' ) ) );
 	}
 
 	wp_easycart_admin_orders()->update_shipping_method_info();
-	die();
+	wp_send_json_success( array( 'message' => __( 'Shipping details saved.', 'wp-easycart' ) ) );
 }
 add_action( 'wp_ajax_ec_admin_ajax_edit_orderstatus', 'ec_admin_ajax_edit_orderstatus' );
+/**
+ * @since 6.0.2 Answers with JSON: the status saved ( or unchanged ), the header badge and the order's balance, so the order
+ *              screen shows the result instead of guessing it before the save.
+ */
 function ec_admin_ajax_edit_orderstatus() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'The status was not changed: this page has expired or you do not have permission. Reload the page and try again.', 'wp-easycart' ) ) );
 	}
 
-	wp_easycart_admin_orders()->update_orderstatus();
-	die();
+	$result = wp_easycart_admin_orders()->update_orderstatus();
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+	}
+	global $wpdb;
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verify_access() above.
+	$order_id = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0;
+	$order    = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, ec_orderstatus.is_approved, ec_orderstatus.order_status AS status_label FROM ec_order LEFT JOIN ec_orderstatus ON ec_orderstatus.status_id = ec_order.orderstatus_id WHERE ec_order.order_id = %d', $order_id ) );
+	$data     = array(
+		'changed' => ! empty( $result['changed'] ),
+		/* translators: %s: order status name. */
+		'message' => $order ? ( ! empty( $result['changed'] ) ? sprintf( __( 'Status changed to %s.', 'wp-easycart' ), wp_unslash( $order->status_label ) ) : __( 'The order already has this status.', 'wp-easycart' ) ) : '',
+	);
+	if ( $order && class_exists( 'wp_easycart_admin_order_screen' ) ) {
+		$data = array_merge( $data, wp_easycart_admin_order_screen::status_reply( $order ) );
+	}
+	wp_send_json_success( $data );
 }
 add_action( 'wp_ajax_ec_admin_ajax_edit_customer_notes', 'ec_admin_ajax_edit_customer_notes' );
+/**
+ * @since 6.0.2 Answers with JSON, so the order screen says "saved" only when it was.
+ */
 function ec_admin_ajax_edit_customer_notes() {
 	if ( ! wp_easycart_admin_verification()->verify_access( 'wp-easycart-order-details' ) ) {
-		return false;
+		wp_send_json_error( array( 'message' => __( 'The note was not saved: this page has expired or you do not have permission. Reload the page and try again.', 'wp-easycart' ) ) );
 	}
 
 	wp_easycart_admin_orders()->update_notes();
-	die();
+	wp_send_json_success( array( 'message' => __( 'Customer note saved.', 'wp-easycart' ) ) );
 }
 add_action( 'wp_ajax_ec_admin_ajax_resend_giftcard_email', 'ec_admin_ajax_resend_giftcard_email' );
 /**
@@ -1390,6 +1530,53 @@ if ( ! function_exists( 'wp_easycart_order_is_local_pickup' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_order_pickup_kind' ) ) {
+	/**
+	 * How the customer gets this order when they collect it: a restaurant order, preorder items ( picked up on the date
+	 * chosen at checkout ) or Free Local Pickup; '' when it ships. The order screen and the orders list offer Mark picked up
+	 * for all three, never the shipping flow. wp_easycart_order_is_local_pickup() still answers Free Local Pickup alone
+	 * ( packages and document rules read it ).
+	 *
+	 * @since 6.0.2 bug round 14
+	 * @param object|array $order An ec_order row ( includes_restaurant_type, includes_preorder_items, shipping_method ).
+	 * @return string restaurant | preorder | local | ''.
+	 */
+	function wp_easycart_order_pickup_kind( $order ) {
+		$row  = is_array( $order ) ? (object) $order : $order;
+		$kind = '';
+		if ( is_object( $row ) && ! empty( $row->includes_restaurant_type ) ) {
+			$kind = 'restaurant';
+		} elseif ( is_object( $row ) && ! empty( $row->includes_preorder_items ) ) {
+			$kind = 'preorder';
+		} elseif ( wp_easycart_order_is_local_pickup( $order ) ) {
+			$kind = 'local';
+		}
+		/**
+		 * How the customer gets an order they collect.
+		 *
+		 * @since 6.0.2
+		 * @param string       $kind  restaurant | preorder | local | '' ( shipped ).
+		 * @param object|array $order The order.
+		 */
+		$kind = (string) apply_filters( 'wp_easycart_order_pickup_kind', $kind, $order );
+		return in_array( $kind, array( 'restaurant', 'preorder', 'local' ), true ) ? $kind : '';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_order_is_pickup' ) ) {
+	/**
+	 * Is this order collected by the customer ( a restaurant order, preorder items or Free Local Pickup ) rather than
+	 * shipped? See wp_easycart_order_pickup_kind().
+	 *
+	 * @since 6.0.2 bug round 14
+	 * @param object|array $order An ec_order row.
+	 * @return bool
+	 */
+	function wp_easycart_order_is_pickup( $order ) {
+		return '' !== wp_easycart_order_pickup_kind( $order );
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_admin_order_account_badge_html' ) ) {
 	/**
 	 * Account chip for the order details customer card: "#ID" plus a "View account"
@@ -1451,6 +1638,19 @@ function ec_admin_ajax_update_order_user() {
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-user-update" )', $order_id ) );
 	$order_log_id = $wpdb->insert_id;
 	$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "user_id", %s )', $order_log_id, $order_id, $user_id ) );
+
+	if ( $previous_user_id !== $user_id ) {
+		/**
+		 * An order was moved to another customer account.
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id         Order.
+		 * @param int $user_id          The account it belongs to now ( 0: a guest checkout ).
+		 * @param int $previous_user_id The account it belonged to ( 0: a guest checkout ).
+		 */
+		do_action( 'wp_easycart_admin_order_user_changed', $order_id, $user_id, $previous_user_id );
+	}
+	do_action( 'wpeasycart_order_updated', $order_id );
 
 	/* Same record the details template renders from ( wp_easycart_admin_details_orders::init_data ). */
 	$order = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, ec_user.first_name, ec_user.last_name, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name, ec_orderstatus.is_approved, ec_orderstatus.order_status FROM ec_order LEFT JOIN ec_orderstatus ON ( ec_orderstatus.status_id = ec_order.orderstatus_id ) LEFT JOIN ec_country AS billing_country ON ( billing_country.iso2_cnt = ec_order.billing_country ) LEFT JOIN ec_country AS shipping_country ON ( shipping_country.iso2_cnt = ec_order.shipping_country ) LEFT JOIN ec_user ON ( ec_user.user_id = ec_order.user_id ) WHERE ec_order.order_id = %d', $order_id ) );
@@ -1612,6 +1812,16 @@ function ecv2_order_email_preview() {
 			)
 		);
 	}
+	/**
+	 * The preview of an email kind a plugin adds to the send dialog ( WP EasyCart PRO: the invoice and gift receipt ).
+	 *
+	 * @since 6.0.2
+	 * @param string $html     Preview HTML so far ( '' for a kind WP EasyCart does not know ).
+	 * @param string $email    Kind.
+	 * @param int    $order_id Order.
+	 * @param array  $args     Per-send choices ( ecv2_order_send_args() ).
+	 */
+	$html = (string) apply_filters( 'wp_easycart_order_email_preview', $html, $email, $order_id, $args );
 	if ( '' === trim( (string) $html ) ) {
 		wp_send_json_error( array( 'message' => __( 'The preview could not be loaded for this order.', 'wp-easycart' ) ) );
 	}

@@ -141,6 +141,7 @@ class ec_categorywidget extends WP_Widget{
 		$category_items = $mysqli->get_category_items( $level, $menu_id, $submenu_id, $subsubmenu_id );
 		$categories = array(); 
 		if ( $category_items && is_array( $category_items ) ) {
+			wp_easycart_prime_store_posts( wp_list_pluck( $category_items, 'post_id' ) );
 			for( $i=0; $i<count( $category_items ); $i++ ){
 				$categories[] = array( $category_items[$i]->menu_id, wp_easycart_language( )->convert_text( $category_items[$i]->menu_name ), $category_items[$i]->product_count, $this->ec_get_permalink( $category_items[$i] , $level, $store_page, $permalink_divider ) );
 			}
@@ -155,18 +156,21 @@ class ec_categorywidget extends WP_Widget{
 	}
 	
 	private function ec_get_permalink( $category_item, $level, $store_page, $permalink_divider ){
-		
+
+		$classic = '';
+		if( $level == 0 )
+			$classic = $store_page . $permalink_divider . "menuid=" . $category_item->menu_id . "&menuname=" . $category_item->menu_name;
+		else if( $level == 1 )
+			$classic = $store_page . $permalink_divider . "submenuid=" . $category_item->menu_id . "&submenuname=" . $category_item->menu_name;
+		else if( $level == 2 )
+			$classic = $store_page . $permalink_divider . "subsubmenuid=" . $category_item->menu_id . "&subsubmenuname=" . $category_item->menu_name;
+
 		if( !get_option( 'ec_option_use_old_linking_style' ) && $category_item->post_id != "0" ){
-			return $category_item->guid;
-		}else{
-			if( $level == 0 )
-				return $store_page . $permalink_divider . "menuid=" . $category_item->menu_id . "&menuname=" . $category_item->menu_name;
-			else if( $level == 1 )
-				return $store_page . $permalink_divider . "submenuid=" . $category_item->menu_id . "&submenuname=" . $category_item->menu_name;
-			else if( $level == 2 )
-				return $store_page . $permalink_divider . "subsubmenuid=" . $category_item->menu_id . "&subsubmenuname=" . $category_item->menu_name;
+			/* 6.0.2: the live permalink ( the stored guid keeps a renamed store page's old slug ). */
+			return wp_easycart_store_post_link( $category_item->post_id, $classic );
 		}
-		
+		return $classic;
+
 	}
  
 }

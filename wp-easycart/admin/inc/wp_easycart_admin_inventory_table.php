@@ -71,7 +71,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory_table' ) ) :
 			$this->set_search_columns( array( 'inv.title', 'inv.sku', 'inv.variant_label' ) );
 
 			$columns = array(
-				array( 'name' => 'image1', 'label' => '', 'width' => 54 ),
+				array( 'name' => 'image1', 'label' => '', 'chooser_label' => __( 'Image', 'wp-easycart' ), 'width' => 54 ),
 				array( 'name' => 'title', 'label' => __( 'Item', 'wp-easycart' ) ),
 				array( 'name' => 'sku', 'label' => __( 'SKU', 'wp-easycart' ), 'laptop_hide' => true ),
 				array( 'name' => 'row_type', 'label' => __( 'Type', 'wp-easycart' ), 'tablet_hide' => true ),

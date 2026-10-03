@@ -10,8 +10,8 @@
  * shows which method is on, offers a compact switcher that saves that same field
  * through ecv2_settings_save ( page 'shipping-settings' ), and edits the rate tables.
  *
- * Nothing here is a wp_option: every table is rows of ec_shippingrate, edited in
- * place through the ecv2_shipping_rate_* handlers in
+ * Nothing here is a wp_option: every table is rows of ec_shippingrate, listed as
+ * rows and edited in a side drawer ( 6.0.2 ) through the ecv2_shipping_rate_* handlers in
  * admin/inc/wp_easycart_admin_shipping_rates_v2.php, which also holds the render
  * callables. The PRO live-rate list is declared locked here and rendered by
  * wp-easycart-pro/admin/template/settings/shipping-rates.php through the page filter.
@@ -67,7 +67,8 @@ return array(
 	'slug'        => 'shipping-rates',
 	'title'       => __( 'Shipping rates', 'wp-easycart' ),
 	'description' => __( 'The rate table behind your shipping method: what each option costs and where it applies.', 'wp-easycart' ),
-	'group'       => 'financial',
+	'group'       => 'shipping',
+	'order'       => 20,
 	'icon'        => 'list',
 	'docs'        => array( 'settings', 'shipping-rates', 'shipping-method' ),
 	'legacy'      => array( 'shipping-rates' ),

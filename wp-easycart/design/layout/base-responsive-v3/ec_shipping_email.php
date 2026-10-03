@@ -37,7 +37,7 @@ global $wpdb;
 
 /* 6.0.1: what this email shows comes from its profile in Settings › Documents ( $document_fields from the sender, or
    the default profile ). $document_held_back: lines left for a later shipment when only some items were chosen. */
-$ec_ship_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping' ) : null );
+$ec_ship_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'shipping', '', array(), $ec_ship_order_id ) : null );
 $ec_ship_show = function ( $key ) use ( $ec_ship_doc ) {
 	return class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::show( $ec_ship_doc, $key ) : true;
 };
@@ -69,6 +69,9 @@ if ( in_array( strtolower( $ec_ship_carrier ), array( '0', 'null' ), true ) ) {
 }
 $ec_ship_tracking_url = (string) apply_filters( 'wp_easycart_shipping_email_tracking_url', $ed::tracking_url( $ec_ship_carrier, $ec_ship_tracking ), $ec_ship_carrier, $ec_ship_tracking, $ec_ship_order );
 $ec_ship_track_text   = (string) apply_filters( 'wp_easycart_shipping_email_track_button_text', __( 'Track your package', 'wp-easycart' ), $ec_ship_order );
+
+/* 6.0.2: an order sent in several packages lists each one's tracking number under this email's own. */
+$ec_ship_packages = class_exists( 'wp_easycart_shipments' ) ? wp_easycart_shipments::tracking_rows( $ec_ship_order_id ) : array();
 
 /* Addresses ( country-aware lines from the shared formatter; the shipping-email filter still applies ). */
 $ec_ship_billing = $ed::address( $ec_ship_order, 'billing' );
@@ -136,6 +139,29 @@ if ( '' !== $ec_ship_tracking || '' !== $ec_ship_carrier ) {
 	);
 	if ( '' !== $ec_ship_tracking_url ) {
 		$ed::button( $ec_ship_tracking_url, $ec_ship_track_text, array( 'margin' => '14px 0 0 0', 'arrow' => true ) );
+	}
+	if ( count( $ec_ship_packages ) > 1 && class_exists( 'wp_easycart_documents' ) ) {
+		/* 6.0.2: the phrases are editable, so the number goes in with str_replace() ( sprintf() throws on a stray % or a
+		   second %d ). The package already shown above as this email's tracking number is not listed again, and the others
+		   stack one under another instead of squeezing into one row. */
+		/* translators: %d: package number ( 1, 2, 3 … ). */
+		$ec_ship_package_text = wp_easycart_documents::text( 'shipment_package', __( 'Package %d', 'wp-easycart' ) );
+		$ec_ship_package_rows = array();
+		foreach ( $ec_ship_packages as $ec_ship_package_i => $ec_ship_package ) {
+			if ( '' !== $ec_ship_tracking && (string) $ec_ship_package['tracking'] === $ec_ship_tracking ) {
+				continue;
+			}
+			$ec_ship_package_label  = str_replace( array( '%1$d', '%d' ), (string) ( $ec_ship_package_i + 1 ), $ec_ship_package_text ) . ( '' !== $ec_ship_package['carrier'] ? ' · ' . esc_html( $ec_ship_package['carrier'] ) : '' );
+			$ec_ship_package_rows[] = array(
+				'label' => $ec_ship_package_label,
+				'value' => '' !== $ec_ship_package['url'] ? '<a href="' . esc_url( $ec_ship_package['url'] ) . '" target="_blank" dir="ltr" style="' . esc_attr( $ed::css( 'link' ) ) . '">' . esc_html( $ec_ship_package['tracking'] ) . '</a>' : '<span class="ec-email-nolink" dir="ltr">' . esc_html( $ec_ship_package['tracking'] ) . '</span>',
+				'mono'  => true,
+			);
+		}
+		/* translators: %d: how many packages the order ships in. */
+		$ec_ship_packages_intro = wp_easycart_documents::text( 'shipment_packages_intro', __( 'Your order ships in %d packages. Each one has its own tracking number.', 'wp-easycart' ) );
+		$ed::paragraph( str_replace( array( '%1$d', '%d' ), (string) count( $ec_ship_packages ), $ec_ship_packages_intro ), array( 'tone' => 'small', 'margin' => '16px 0 8px 0' ) );
+		$ed::key_values( $ec_ship_package_rows, array( 'per_row' => 1 ) );
 	}
 	$ed::card_end();
 	$ed::section_end();
@@ -334,7 +360,21 @@ foreach ( $ec_ship_fees as $ec_ship_fee ) {
 $ed::totals( $ec_ship_totals, array( wp_kses_post( $ec_ship_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::money( $ec_ship_order->grand_total ) ) );
 endif;
 
+/** 6.0.2: download links for the order's documents ( see ec_cart_email_receipt.php ). */
+do_action( 'wp_easycart_document_email_links', 'shipping', $ec_ship_order_id, 'customer' );
+
 /* Notes, closing lines */
+/* 6.0.2: a gift order ( WP EasyCart PRO ): the gift message and who gets the gift receipt, when this profile's Gift details
+   switch is on. */
+if ( $ec_ship_show( 'gift' ) && class_exists( 'wp_easycart_order_gift' ) ) {
+	wp_easycart_order_gift::print_email_section( (int) $ec_ship_order_id, array( 'context' => 'shipped' ) );
+}
+
+/* 6.0.2: answers to checkout fields ( WP EasyCart PRO ), where each field and this profile show them. */
+if ( $ec_ship_show( 'checkout_fields' ) && class_exists( 'wp_easycart_order_fields' ) ) {
+	wp_easycart_order_fields::print_email_section( (int) $ec_ship_order_id, 'shipped' );
+}
+
 if ( get_option( 'ec_option_user_order_notes' ) && $ec_ship_show( 'order_notes' ) && '' !== trim( (string) $ec_ship_order->order_customer_notes ) ) {
 	$ed::section_start();
 	$ed::label( wp_kses_post( $ec_ship_lang->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ) ) );

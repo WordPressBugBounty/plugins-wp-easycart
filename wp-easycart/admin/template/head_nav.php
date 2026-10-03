@@ -51,4 +51,5 @@ $ecsh_videos = apply_filters( 'wp_easycart_shell_help_videos', array(
 <a href="http://blog.wpeasycart.com/" target="_blank"><span class="dashicons dashicons-welcome-write-blog"></span> <?php esc_attr_e( 'eCommerce Blog', 'wp-easycart' ); ?></a>
 <div class="ecsh-dd-sep"></div>
 <a href="http://support.wpeasycart.com" target="_blank"><span class="dashicons dashicons-sos"></span> <?php esc_attr_e( 'Support Center', 'wp-easycart' ); ?></a>
-<a href="https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/" target="_blank"><span class="dashicons dashicons-cart"></span> <?php esc_attr_e( 'Extensions &amp; Add-ons', 'wp-easycart' ); ?></a>
+<?php /* 6.0.2: the Extensions page in the admin ( every store gets the catalog ). */ ?>
+<a href="<?php echo esc_url( class_exists( 'wp_easycart_admin_extensions' ) ? wp_easycart_admin_extensions::url() : 'https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/' ); ?>"><span class="dashicons dashicons-admin-plugins"></span> <?php esc_attr_e( 'Extensions &amp; Add-ons', 'wp-easycart' ); ?></a>

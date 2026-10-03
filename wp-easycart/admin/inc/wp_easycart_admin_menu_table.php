@@ -211,6 +211,73 @@ if ( ! class_exists( 'wp_easycart_admin_menu_table' ) ) :
 			$editor = self::editor_url( $r->level, $r->menu_id );
 			echo '<tr class="ecv2-row ecv2-cat-row ecv2-menu-row' . ( $kids ? ' has-children' : '' ) . '" data-id="' . esc_attr( $key ) . '" data-level="' . (int) $depth . '" data-menu-level="' . (int) $r->level . '" data-menu-id="' . (int) $r->menu_id . '" data-parent="' . esc_attr( $r->parent_key ) . '" data-edit-url="' . esc_url( $editor ) . '" data-slug="' . esc_attr( (string) $r->slug ) . '" data-name="' . esc_attr( wp_unslash( $r->name ) ) . '" draggable="true">';
 			echo '<td class="ecv2-col-check"><input type="checkbox" name="bulk[]" value="' . esc_attr( $key ) . '" class="ecv2-row-check" /></td>';
+			/* 6.0.2: the cells follow the list's columns, so the Columns chooser's order and hidden columns apply here too. */
+			foreach ( $this->list_columns as $col ) {
+				if ( isset( $col['format'] ) && 'hidden' === $col['format'] ) {
+					continue;
+				}
+				$this->print_node_cell( $col, $r, $key, $depth, $kids, $count, $editor );
+			}
+			echo '<td class="ecv2-col-actions">';
+			$this->print_row_actions( (object) array( $this->key => $key ) );
+			echo '</td></tr>';
+			foreach ( $kids as $kid ) {
+				$this->print_node( $kid, $depth + 1 );
+			}
+		}
+
+		/**
+		 * One cell of a menu row, for the column $col.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param array  $col    Column.
+		 * @param object $r      Menu row.
+		 * @param string $key    Row key ( level:id ).
+		 * @param int    $depth  Tree depth.
+		 * @param array  $kids   Child keys drawn under it.
+		 * @param int    $count  Products in the menu.
+		 * @param string $editor Editor URL.
+		 */
+		private function print_node_cell( $col, $r, $key, $depth, $kids, $count, $editor ) {
+			$name = isset( $col['name'] ) ? $col['name'] : '';
+			if ( 'name' !== $name ) {
+				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $name ) . ( ! empty( $col['tablet_hide'] ) ? ' ecv2-hide-tablet' : '' ) . ( ! empty( $col['laptop_hide'] ) ? ' ecv2-hide-laptop' : '' ) . '">';
+				switch ( $name ) {
+					case 'level':
+						$labels = array(
+							1 => __( 'Menu', 'wp-easycart' ),
+							2 => __( 'Sub-menu', 'wp-easycart' ),
+							3 => __( 'Sub-sub-menu', 'wp-easycart' ),
+						);
+						echo '<span class="ecv2-chip ecv2-chip-' . ( 1 === (int) $r->level ? 'brand' : 'gray' ) . '">' . esc_html( $labels[ (int) $r->level ] ) . '</span>';
+						break;
+					case 'product_count':
+						if ( $count ) {
+							/* translators: %d: number of products. */
+							echo '<a class="ecv2-usage" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=products&menu=' . (int) $r->level . ':' . (int) $r->menu_id ) ) . '">' . esc_html( sprintf( _n( '%d product', '%d products', $count, 'wp-easycart' ), $count ) ) . '</a>';
+						} else {
+							echo '<span class="ecv2-usage ecv2-usage-zero">' . esc_html__( '0 products', 'wp-easycart' ) . '</span>';
+						}
+						break;
+					case 'child_count':
+						$cc = isset( $this->children[ $key ] ) ? count( $this->children[ $key ] ) : 0;
+						echo ( $cc ? '<span class="ecv2-chip ecv2-chip-gray">' . (int) $cc . '</span>' : '<span class="ecv2-sub">—</span>' );
+						break;
+					case 'clicks':
+						echo (int) $r->clicks;
+						break;
+					case 'menulevel1_id':
+						echo '<span class="ecv2-sub" style="margin:0">' . (int) $r->menu_id . '</span>';
+						break;
+					default:
+						/* A column added to this list: its value when the menu row carries one. */
+						echo esc_html( ( '' !== $name && isset( $r->{ $name } ) && is_scalar( $r->{ $name } ) ) ? (string) $r->{ $name } : '' );
+						break;
+				}
+				echo '</td>';
+				return;
+			}
 			/* name */
 			echo '<td class="ecv2-cell ecv2-cell-name"><div class="ecv2-tree" style="--lvl:' . (int) $depth . '">';
 			if ( $this->tree_mode ) {
@@ -224,23 +291,6 @@ if ( ! class_exists( 'wp_easycart_admin_menu_table' ) ) :
 			if ( '' === (string) $r->banner_image ) { $subs[] = '<span class="ecv2-sub-warn">' . esc_html__( 'No banner', 'wp-easycart' ) . '</span>'; }
 			if ( $subs ) { echo '<span class="ecv2-sub">' . implode( ' · ', $subs ) . '</span>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every $subs entry is built from esc_html()/esc_html__() plus literal markup above.
 			echo '</div></div></td>';
-			/* level */
-			$labels = array( 1 => __( 'Menu', 'wp-easycart' ), 2 => __( 'Sub-menu', 'wp-easycart' ), 3 => __( 'Sub-sub-menu', 'wp-easycart' ) );
-			echo '<td class="ecv2-cell"><span class="ecv2-chip ecv2-chip-' . ( 1 === (int) $r->level ? 'brand' : 'gray' ) . '">' . esc_html( $labels[ (int) $r->level ] ) . '</span></td>';
-			/* products */
-			echo '<td class="ecv2-cell">';
-			if ( $count ) { echo '<a class="ecv2-usage" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=products&menu=' . (int) $r->level . ':' . (int) $r->menu_id ) ) . '">' . esc_html( sprintf( _n( '%d product', '%d products', $count, 'wp-easycart' ), $count ) ) . '</a>'; }
-			else { echo '<span class="ecv2-usage ecv2-usage-zero">' . esc_html__( '0 products', 'wp-easycart' ) . '</span>'; }
-			echo '</td>';
-			/* children */
-			$cc = isset( $this->children[ $key ] ) ? count( $this->children[ $key ] ) : 0;
-			echo '<td class="ecv2-cell ecv2-hide-tablet">' . ( $cc ? '<span class="ecv2-chip ecv2-chip-gray">' . (int) $cc . '</span>' : '<span class="ecv2-sub">—</span>' ) . '</td>';
-			echo '<td class="ecv2-cell ecv2-hide-laptop">' . (int) $r->clicks . '</td>';
-			echo '<td class="ecv2-cell ecv2-hide-laptop"><span class="ecv2-sub" style="margin:0">' . (int) $r->menu_id . '</span></td>';
-			echo '<td class="ecv2-col-actions">';
-			$this->print_row_actions( (object) array( $this->key => $key ) );
-			echo '</td></tr>';
-			foreach ( $kids as $kid ) { $this->print_node( $kid, $depth + 1 ); }
 		}
 
 		private function path_for( $key ) {

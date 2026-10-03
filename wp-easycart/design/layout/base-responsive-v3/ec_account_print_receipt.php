@@ -250,14 +250,29 @@ foreach ( $ec_pr_items as $ec_pr_item ) {
 	}
 	do_action( 'wp_easycart_print_receipt_optionitems', $ec_pr_item );
 
+	/* 6.0.2: Offers savings on this line, shown the way "Show coupon / promotion savings on each line" show the older ones. */
+	$ec_pr_offer_line = 0;
+	if ( $wpec_line_flags && function_exists( 'wp_easycart_offer_line_savings' ) ) {
+		$ec_pr_offer_json = is_object( $wpec_line_flags ) ? ( isset( $wpec_line_flags->applied_offers ) ? $wpec_line_flags->applied_offers : '' ) : ( ( is_array( $wpec_line_flags ) && isset( $wpec_line_flags['applied_offers'] ) ) ? $wpec_line_flags['applied_offers'] : '' );
+		$ec_pr_offer      = wp_easycart_offer_line_savings( is_string( $ec_pr_offer_json ) ? $ec_pr_offer_json : '' );
+		$ec_pr_offer_line = min( $ec_pr_offer['shown'], max( 0, (float) $ec_pr_item->total_price ) );
+	}
+	$ec_pr_offer_unit = ( $ec_pr_offer_line > 0 && (int) $ec_pr_item->quantity > 0 ) ? $ec_pr_offer_line / (int) $ec_pr_item->quantity : 0;
+	if ( $ec_pr_offer_line > 0 ) {
+		$has_unit_discount  = $has_unit_discount || apply_filters( 'wp_easycart_order_details_show_discount_unit', true );
+		$has_total_discount = $has_total_discount || apply_filters( 'wp_easycart_order_details_show_discount_total', true );
+	}
+	$ec_pr_unit_after  = max( 0, $ec_pr_item->unit_price - ( get_option( 'ec_option_show_coupon_discount_total' ) ? round( $unit_discount_coupon, 2 ) : 0 ) - $ec_pr_offer_unit );
+	$ec_pr_total_after = max( 0, $ec_pr_item->total_price - ( get_option( 'ec_option_show_coupon_discount_total' ) ? round( $total_discount_coupon, 2 ) : 0 ) - $ec_pr_offer_line );
+
 	/* Prices ( struck through when a discount applies, as before ). */
 	if ( $has_unit_discount ) {
-		$ec_pr_unit_html = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $ec_pr_item->product_id ) ) . '</span><br /><strong>' . esc_html( get_option( 'ec_option_show_coupon_discount_total' ) ? $ec_pr_curr->get_currency_display( $ec_pr_item->unit_price - round( $unit_discount_coupon, 2 ) ) : $ec_pr_curr->get_currency_display( $ec_pr_item->unit_price ) ) . '</strong>';
+		$ec_pr_unit_html = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $ec_pr_item->product_id ) ) . '</span><br /><strong>' . esc_html( $ec_pr_curr->get_currency_display( $ec_pr_unit_after ) ) . '</strong>';
 	} else {
 		$ec_pr_unit_html = esc_html( apply_filters( 'wp_easycart_cart_item_unit_price_display', $unit_price, $ec_pr_item->product_id ) );
 	}
 	if ( $has_total_discount ) {
-		$ec_pr_total_html = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( $total_price ) . '</span><br /><strong>' . esc_html( get_option( 'ec_option_show_coupon_discount_total' ) ? $ec_pr_curr->get_currency_display( $ec_pr_item->total_price - round( $total_discount_coupon, 2 ) ) : $ec_pr_curr->get_currency_display( $ec_pr_item->total_price ) ) . '</strong>';
+		$ec_pr_total_html = '<span style="color:#b91c1c;text-decoration:line-through;">' . esc_html( $total_price ) . '</span><br /><strong>' . esc_html( $ec_pr_curr->get_currency_display( $ec_pr_total_after ) ) . '</strong>';
 	} else {
 		$ec_pr_total_html = esc_html( $total_price );
 	}
@@ -322,6 +337,11 @@ if ( $order->refund_total > 0 ) {
 	);
 }
 $ed::totals( $ec_pr_totals, array( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::ltr( $total ) ) );
+
+/* 6.0.2: answers to checkout fields ( WP EasyCart PRO ) that the store shows on invoices. */
+if ( class_exists( 'wp_easycart_order_fields' ) ) {
+	wp_easycart_order_fields::print_email_section( (int) $order_id, 'invoice' );
+}
 
 /* Order notes and closing lines */
 if ( get_option( 'ec_option_user_order_notes' ) && '' !== trim( (string) $order->order_customer_notes ) ) {

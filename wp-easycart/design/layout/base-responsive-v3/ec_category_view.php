@@ -1,5 +1,8 @@
 <?php
 $groups = $GLOBALS['ec_categories']->get_categories( $parentid );
+if ( ! is_array( $groups ) ) { /* 6.0.2: a category with no subcategories ( or one not found ) answers false */
+	$groups = array();
+}
 $ec_cv_index = 0;
 foreach ( $groups as $category_item ) {
 	$category = new ec_category( $category_item );

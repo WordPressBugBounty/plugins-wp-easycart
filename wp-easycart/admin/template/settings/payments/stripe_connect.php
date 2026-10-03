@@ -1,847 +1,596 @@
 <?php
-/* Plan name for the locked options below: the store's own plan, or Pro/Premium when no license is known. */
-$wpec_plan_name = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' );
-$default_currency = false;
-$account_country = false;
-if ( class_exists( 'ec_stripe_connect' ) ) {
-	$stripe = new ec_stripe_connect();
-	$account = $stripe->get_connect_account();
-	if ( $account ) {
-		$default_currency = ( isset( $account->default_currency ) ) ? strtoupper( $account->default_currency ) : false;
-		$account_country = ( isset( $account->country ) ) ? strtoupper( $account->country ) : false;
+/**
+ * Stripe ( free edition ): Stripe through WP EasyCart's Stripe Connect, loaded into the Payments drawer
+ * ( wp_easycart_admin_payment_v2 ). A licensed WP EasyCart PRO replaces this file with its own ( payment methods, the
+ * payment form's look, subscription emails ).
+ *
+ * 6.0.2: laid out like the Square panel ( 6.0.1 ): the drawer's groups ( Payments, Currency and country, Payment methods,
+ * Checkout, Subscriptions, Notifications from Stripe ) with every option in view. Element ids are unchanged: admin/js/payment.js
+ * saves from them. The switches save as they change ( Live and Test mode choose the gateway; the others save the options,
+ * which never change the live gateway ); the currency, country and signing secret save from the drawer's Save button ( the
+ * hidden ec_admin_save_stripe_connect_options() button ). What needs WP EasyCart PRO shows locked and is saved off, as the
+ * one-choice selects it replaces were.
+ *
+ * @package wp-easycart
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/* Plan name for the locked rows: the store's own plan, or Pro/Premium when no license is known. */
+$ec_stripe_plan  = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' );
+$ec_stripe_badge = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : 'Pro';
+
+$ec_stripe_active    = ( 'stripe_connect' === get_option( 'ec_option_payment_process_method' ) );
+$ec_stripe_sandbox   = (bool) get_option( 'ec_option_stripe_connect_use_sandbox' );
+$ec_stripe_has_live  = '' !== (string) get_option( 'ec_option_stripe_connect_production_access_token' );
+$ec_stripe_has_test  = '' !== (string) get_option( 'ec_option_stripe_connect_sandbox_access_token' );
+$ec_stripe_connected = $ec_stripe_has_live || $ec_stripe_has_test;
+$ec_stripe_currency  = strtoupper( (string) get_option( 'ec_option_stripe_currency' ) );
+$ec_stripe_country   = strtoupper( (string) get_option( 'ec_option_stripe_company_country' ) );
+if ( 'PO' === $ec_stripe_country ) {
+	$ec_stripe_country = 'PL'; // 6.0.2: the old list stored Poland as PO; the next save stores PL.
+}
+
+/* Connect and disconnect links: the same endpoints the gateway card uses. */
+if ( class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'connect_urls' ) ) {
+	$ec_stripe_urls = wp_easycart_admin_payment_v2::connect_urls( 'stripe_connect' );
+} else {
+	$ec_stripe_redirect = esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' );
+	$ec_stripe_urls     = array(
+		'live' => 'https://connect.wpeasycart.com/connect/?step=start&redirect=' . rawurlencode( $ec_stripe_redirect . '&env=production' ) . '&env=production',
+		'test' => 'https://connect.wpeasycart.com/connect/?step=start&redirect=' . rawurlencode( $ec_stripe_redirect . '&env=sandbox' ) . '&env=sandbox',
+	);
+}
+$ec_stripe_env        = ( ( $ec_stripe_sandbox && $ec_stripe_has_test ) || ! $ec_stripe_has_live ) ? 'test' : 'live';
+$ec_stripe_disconnect = ( $ec_stripe_connected && class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'disconnect_url' ) ) ? wp_easycart_admin_payment_v2::disconnect_url( 'stripe_connect', $ec_stripe_env ) : '';
+
+/* The connected account ( the mode in use ): its name, default currency and country. Asked only when that mode is connected. */
+$ec_stripe_account     = false;
+$ec_stripe_account_err = '';
+if ( class_exists( 'ec_stripe_connect' ) && ( $ec_stripe_sandbox ? $ec_stripe_has_test : $ec_stripe_has_live ) ) {
+	$ec_stripe_api      = new ec_stripe_connect();
+	$ec_stripe_response = $ec_stripe_api->get_connect_account();
+	if ( is_object( $ec_stripe_response ) && isset( $ec_stripe_response->error ) ) {
+		$ec_stripe_account_err = ( is_object( $ec_stripe_response->error ) && isset( $ec_stripe_response->error->message ) ) ? (string) $ec_stripe_response->error->message : __( 'No reason given.', 'wp-easycart' );
+	} elseif ( is_object( $ec_stripe_response ) && isset( $ec_stripe_response->id ) ) {
+		$ec_stripe_account = $ec_stripe_response;
 	}
 }
+$ec_stripe_account_currency = ( $ec_stripe_account && isset( $ec_stripe_account->default_currency ) ) ? strtoupper( $ec_stripe_account->default_currency ) : '';
+$ec_stripe_account_country  = ( $ec_stripe_account && isset( $ec_stripe_account->country ) ) ? strtoupper( $ec_stripe_account->country ) : '';
+$ec_stripe_account_name     = '';
+if ( $ec_stripe_account ) {
+	if ( isset( $ec_stripe_account->settings->dashboard->display_name ) && '' !== (string) $ec_stripe_account->settings->dashboard->display_name ) {
+		$ec_stripe_account_name = (string) $ec_stripe_account->settings->dashboard->display_name;
+	} elseif ( isset( $ec_stripe_account->business_profile->name ) && '' !== (string) $ec_stripe_account->business_profile->name ) {
+		$ec_stripe_account_name = (string) $ec_stripe_account->business_profile->name;
+	} elseif ( isset( $ec_stripe_account->email ) ) {
+		$ec_stripe_account_name = (string) $ec_stripe_account->email;
+	}
+}
+
+$ec_stripe_currencies = array(
+	'USD' => 'U.S. Dollar',
+	'CAD' => 'Canadian Dollar',
+	'AUD' => 'Australian Dollar',
+	'EUR' => 'Euro',
+	'GBP' => 'British Pound',
+	'DEM' => 'German Mark',
+	'CHF' => 'Swiss Franc',
+	'AFN' => 'Afghanistan Afghani',
+	'ALL' => 'Albanian Lek',
+	'AMD' => 'Armenian Dram',
+	'AOA' => 'Angolan Kwanza',
+	'ARS' => 'Argentine Peso',
+	'AWG' => 'Aruban Florin',
+	'AZN' => 'Azerbaijani Manat',
+	'BSD' => 'Bahamanian Dollar',
+	'BHD' => 'Bahraini Dinar',
+	'BDT' => 'Bangladeshi Taka',
+	'BBD' => 'Barbados Dollar',
+	'BYR' => 'Belarussian Ruble',
+	'BZD' => 'Belize Dollar',
+	'BMD' => 'Bermudian Dollar',
+	'BOB' => 'Bolivian Boliviano',
+	'BWP' => 'Botswana Pula',
+	'BRL' => 'Brazilian Real',
+	'BND' => 'Brunei Dollar',
+	'BGN' => 'Bulgarian Lev',
+	'BIF' => 'Burundi Franc',
+	'KHR' => 'Cambodian Riel',
+	'CVE' => 'Cape Verde Escudo',
+	'KYD' => 'Cayman Islands Dollar',
+	'XAF' => 'Central African Republic Franc BCEAO',
+	'XPF' => 'CFP Franc',
+	'CLP' => 'Chilean Peso',
+	'CNY' => 'Chinese Yuan Renminbi',
+	'COP' => 'Colombian Peso',
+	'KMF' => 'Comoros Franc',
+	'BAM' => 'Convertible Marks',
+	'CRC' => 'Costa Rican Colon',
+	'HRK' => 'Croatian Kuna',
+	'CUP' => 'Cuban Peso',
+	'CYP' => 'Cyprus Pound',
+	'CZK' => 'Czech Republic Koruna',
+	'DKK' => 'Danish Krone',
+	'DJF' => 'Djibouti Franc',
+	'DOP' => 'Dominican Peso',
+	'XCD' => 'East Caribbean Dollar',
+	'ECS' => 'Ecuador Sucre',
+	'EGP' => 'Egyptian Pound',
+	'SVC' => 'El Salvador Colon',
+	'ERN' => 'Eritrea Nakfa',
+	'EEK' => 'Estonian Kroon',
+	'ETB' => 'Ethiopian Birr',
+	'FKP' => 'Falkland Islands Pound',
+	'FJD' => 'Fiji Dollar',
+	'CDF' => 'Franc Congolais',
+	'GMD' => 'Gambian Dalasi',
+	'GEL' => 'Georgian Lari',
+	'GHS' => 'Ghanaian Cedi',
+	'GIP' => 'Gibraltar Pound',
+	'GTQ' => 'Guatemalan Quetzal',
+	'GNF' => 'Guinea Franc',
+	'GWP' => 'Guinea-Bissau Peso',
+	'GYD' => 'Guyanan Dollar',
+	'HTG' => 'Haitian Gourde',
+	'HNL' => 'Honduran Lempira',
+	'HKD' => 'Hong Kong Dollar',
+	'HUF' => 'Hungarian Forint',
+	'ISK' => 'Iceland Krona',
+	'INR' => 'Indian Rupee',
+	'IDR' => 'Indonesian Rupiah',
+	'IRR' => 'Iranian Rial',
+	'IQD' => 'Iraqi Dinar',
+	'ILS' => 'Israeli New Shekel',
+	'JMD' => 'Jamaican Dollar',
+	'JPY' => 'Japanese Yen',
+	'JOD' => 'Jordanian Dinar',
+	'KZT' => 'Kazakhstan Tenge',
+	'KES' => 'Kenyan Shilling',
+	'KWD' => 'Kuwaiti Dinar',
+	'GKS' => 'Kyrgyzstan Som',
+	'KIP' => 'Laos Kip',
+	'LAK' => 'Laosian Kip',
+	'LVL' => 'Latvian Lat',
+	'LBP' => 'Lebanese Pound',
+	'LRD' => 'Liberian Dollar',
+	'LYD' => 'Libyan Dinar',
+	'LTL' => 'Lithuanian Litas',
+	'LSL' => 'Loti',
+	'MOP' => 'Macanese Pataca',
+	'MKD' => 'Macedonian Denar',
+	'MGF' => 'Malagasy Franc',
+	'MGA' => 'Malagasy Ariary',
+	'MWK' => 'Malawi Kwacha',
+	'MYR' => 'Malaysian Ringgit',
+	'MVR' => 'Maldive Rufiyaa',
+	'MTL' => 'Maltese Lira',
+	'MRO' => 'Mauritanian Ouguiya',
+	'MUR' => 'Mauritius Rupee',
+	'MXN' => 'Mexican Peso',
+	'MNT' => 'Mongolian Tugrik',
+	'MAD' => 'Moroccan Dirham',
+	'MZM' => 'Mozambique Metical',
+	'MMK' => 'Myanmar Kyat',
+	'NAD' => 'Namibia Dollar',
+	'NPR' => 'Nepalese Rupee',
+	'ANG' => 'Netherlands Antillean Guilder',
+	'PGK' => 'New Guinea Kina',
+	'TWD' => 'New Taiwan Dollar',
+	'TRY' => 'New Turkish Lira',
+	'NZD' => 'New Zealand Dollar',
+	'NIO' => 'Nicaraguan Cordoba Oro',
+	'NGN' => 'Nigerian Naira',
+	'KPW' => 'North Korea Won',
+	'NOK' => 'Norwegian Kroner',
+	'PKR' => 'Pakistan Rupee',
+	'PAB' => 'Panamanian Balboa',
+	'PYG' => 'Paraguay Guarani',
+	'PEN' => 'Peruvian Nuevo Sol',
+	'PHP' => 'Philippine Peso',
+	'PLN' => 'Polish Zloty',
+	'QAR' => 'Qatari Rial',
+	'OMR' => 'Rial Omani',
+	'RON' => 'Romanian Leu',
+	'RUB' => 'Russian Rouble',
+	'RWF' => 'Rwanda Franc',
+	'WST' => 'Samoan Tala',
+	'STD' => 'Sao Tome/Principe Dobra',
+	'SAR' => 'Saudi Riyal',
+	'RSD' => 'Serbian Dinar',
+	'SCR' => 'Seychelles Rupee',
+	'SLL' => 'Sierra Leone Leone',
+	'SGD' => 'Singapore Dollar',
+	'SKK' => 'Slovak Koruna',
+	'SIT' => 'Slovenian Tolar',
+	'SBD' => 'Solomon Islands Dollar',
+	'SOS' => 'Somalia Shilling',
+	'ZAR' => 'South African Rand',
+	'KRW' => 'South-Korean Won',
+	'LKR' => 'Sri Lanka Rupee',
+	'SHP' => 'St. Helena Pound',
+	'SDD' => 'Sudanese Dollar',
+	'SRD' => 'Suriname Dollar',
+	'SZL' => 'Swaziland Lilangeni',
+	'SEK' => 'Swedish Krona',
+	'SYP' => 'Syrian Arab Republic Pound',
+	'TJS' => 'Tajikistani Somoni',
+	'TZS' => 'Tanzanian Shilling',
+	'THB' => 'Thai Baht',
+	'TOP' => "Tonga Pa'anga",
+	'TTD' => 'Trinidad/Tobago Dollar',
+	'TND' => 'Tunisian Dinar',
+	'TMM' => 'Turkmenistan Manat',
+	'UGX' => 'Uganda Shilling',
+	'UAH' => 'Ukraine Hryvnia',
+	'AED' => 'Utd. Arab Emir. Dirham',
+	'UYU' => 'Uruguayo Peso',
+	'UZS' => 'Uzbekistan Som',
+	'VUV' => 'Vanuatu Vatu',
+	'VEF' => 'Venezuelan Bolivar Fuerte',
+	'VND' => 'Vietnamese Dong',
+	'XOF' => 'West African CFA Franc BCEAO',
+	'YER' => 'Yemeni Rial',
+	'YUM' => 'Yugoslav New Dinar',
+	'ZMK' => 'Zambian Kwacha',
+	'ZWD' => 'Zimbabwean Dollar',
+);
+if ( '' !== $ec_stripe_currency && ! isset( $ec_stripe_currencies[ $ec_stripe_currency ] ) ) {
+	$ec_stripe_currencies[ $ec_stripe_currency ] = $ec_stripe_currency; // A code saved by an older list stays selected.
+}
+$ec_stripe_countries = array(
+	'US' => __( 'United States (US)', 'wp-easycart' ),
+	'AU' => __( 'Australia (AU)', 'wp-easycart' ),
+	'AT' => __( 'Austria (AT)', 'wp-easycart' ),
+	'BE' => __( 'Belgium (BE)', 'wp-easycart' ),
+	'BR' => __( 'Brazil (BR)', 'wp-easycart' ),
+	'CA' => __( 'Canada (CA)', 'wp-easycart' ),
+	'HR' => __( 'Croatia (HR)', 'wp-easycart' ),
+	'CY' => __( 'Cyprus (CY)', 'wp-easycart' ),
+	'CZ' => __( 'Czech Republic (CZ)', 'wp-easycart' ),
+	'DK' => __( 'Denmark (DK)', 'wp-easycart' ),
+	'EE' => __( 'Estonia (EE)', 'wp-easycart' ),
+	'FI' => __( 'Finland (FI)', 'wp-easycart' ),
+	'FR' => __( 'France (FR)', 'wp-easycart' ),
+	'DE' => __( 'Germany (DE)', 'wp-easycart' ),
+	'GI' => __( 'Gibraltar (GI)', 'wp-easycart' ),
+	'GR' => __( 'Greece (GR)', 'wp-easycart' ),
+	'HK' => __( 'Hong Kong SAR China (HK)', 'wp-easycart' ),
+	'HU' => __( 'Hungary (HU)', 'wp-easycart' ),
+	'IN' => __( 'India (IN)', 'wp-easycart' ),
+	'IE' => __( 'Ireland (IE)', 'wp-easycart' ),
+	'IT' => __( 'Italy (IT)', 'wp-easycart' ),
+	'JP' => __( 'Japan (JP)', 'wp-easycart' ),
+	'LV' => __( 'Latvia (LV)', 'wp-easycart' ),
+	'LI' => __( 'Liechtenstein (LI)', 'wp-easycart' ),
+	'LT' => __( 'Lithuania (LT)', 'wp-easycart' ),
+	'LU' => __( 'Luxembourg (LU)', 'wp-easycart' ),
+	'MY' => __( 'Malaysia (MY)', 'wp-easycart' ),
+	'MT' => __( 'Malta (MT)', 'wp-easycart' ),
+	'MX' => __( 'Mexico (MX)', 'wp-easycart' ),
+	'NL' => __( 'Netherlands (NL)', 'wp-easycart' ),
+	'NZ' => __( 'New Zealand (NZ)', 'wp-easycart' ),
+	'NO' => __( 'Norway (NO)', 'wp-easycart' ),
+	'PL' => __( 'Poland (PL)', 'wp-easycart' ),
+	'PT' => __( 'Portugal (PT)', 'wp-easycart' ),
+	'RO' => __( 'Romania (RO)', 'wp-easycart' ),
+	'SG' => __( 'Singapore (SG)', 'wp-easycart' ),
+	'SK' => __( 'Slovakia (SK)', 'wp-easycart' ),
+	'SI' => __( 'Slovenia (SI)', 'wp-easycart' ),
+	'ES' => __( 'Spain (ES)', 'wp-easycart' ),
+	'SE' => __( 'Sweden (SE)', 'wp-easycart' ),
+	'CH' => __( 'Switzerland (CH)', 'wp-easycart' ),
+	'TH' => __( 'Thailand (TH)', 'wp-easycart' ),
+	'AE' => __( 'United Arab Emirates (AE)', 'wp-easycart' ),
+	'GB' => __( 'United Kingdom (GB)', 'wp-easycart' ),
+);
+if ( '' !== $ec_stripe_country && ! isset( $ec_stripe_countries[ $ec_stripe_country ] ) ) {
+	$ec_stripe_countries[ $ec_stripe_country ] = $ec_stripe_country;
+}
+
+/*
+ * Payment methods WP EasyCart PRO offers through Stripe, by family, with the currencies and business countries each one needs
+ * ( the rules payment.js applies as the currency or country changes: ec_admin_update_stripe_connect_display() ). Here they are
+ * locked: each family is one row naming the methods that fit this store, and every method's option is saved off.
+ */
+$ec_stripe_wide     = array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HU', 'IS', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' );
+$ec_stripe_families = array(
+	'stripe_more_wallets'      => array(
+		'title'   => __( 'Alipay, GrabPay and WeChat Pay', 'wp-easycart' ),
+		'desc'    => __( 'Wallets shoppers in Asia use.', 'wp-easycart' ),
+		'methods' => array(
+			'stripe_use_alipay'    => array( 'Alipay', array( 'CNY', 'AUD', 'CAD', 'EUR', 'GBP', 'HKD', 'JPY', 'SGD', 'MYR', 'NZD', 'USD' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HU', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MY', 'NL', 'NZ', 'NO', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ),
+			'stripe_use_grabpay'   => array( 'GrabPay', array( 'SGD', 'MYR' ), array( 'MY', 'SG' ) ),
+			'stripe_use_wechatpay' => array( 'WeChat Pay', array( 'CNY', 'AUD', 'CAD', 'EUR', 'GBP', 'HKD', 'JPY', 'SGD', 'USD', 'DKK', 'NOK', 'SEK', 'CHF' ), array( 'AU', 'AT', 'BE', 'CA', 'DK', 'FI', 'FR', 'DE', 'HK', 'IE', 'IT', 'JP', 'LU', 'NL', 'NO', 'PT', 'SG', 'ES', 'SE', 'CH', 'GB', 'US' ) ),
+		),
+	),
+	'stripe_buy_now_later'     => array(
+		'title'   => __( 'Buy now, pay later', 'wp-easycart' ),
+		'desc'    => __( 'Shoppers split the price into installments; you are paid in full.', 'wp-easycart' ),
+		'methods' => array(
+			'stripe_use_affirm'   => array( 'Affirm', array( 'USD' ), array( 'US' ) ),
+			'stripe_use_afterpay' => array( 'Afterpay', array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR' ), array( 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB', 'US' ) ),
+			'stripe_use_klarna'   => array( 'Klarna', array( 'EUR', 'USD', 'GBP', 'DKK', 'SEK', 'NOK' ), array( 'AT', 'BE', 'DK', 'EE', 'FI', 'FR', 'GR', 'DE', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'ES', 'SE', 'GB', 'US' ) ),
+		),
+	),
+	'stripe_bank_redirects'    => array(
+		'title'   => __( 'Bank payments', 'wp-easycart' ),
+		'desc'    => __( 'Shoppers approve the payment in their own bank\'s app or website.', 'wp-easycart' ),
+		'methods' => array(
+			'stripe_use_bancontact' => array( 'Bancontact', array( 'EUR' ), $ec_stripe_wide ),
+			'stripe_use_blik'       => array( 'BLIK', array( 'PLN' ), array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE' ) ),
+			'stripe_use_eps'        => array( 'EPS', array( 'EUR' ), $ec_stripe_wide ),
+			'stripe_use_fpx'        => array( 'FPX', array( 'MYR' ), array( 'MY' ) ),
+			'stripe_use_giropay'    => array( 'giropay', array( 'EUR' ), $ec_stripe_wide ),
+			'stripe_use_ideal'      => array( 'iDEAL', array( 'EUR' ), $ec_stripe_wide ),
+			'stripe_use_p24'        => array( 'Przelewy24', array( 'EUR', 'PLN' ), $ec_stripe_wide ),
+			'stripe_use_sofort'     => array( 'Sofort', array( 'EUR' ), $ec_stripe_wide ),
+		),
+	),
+	'stripe_bank_debits'       => array(
+		'title'   => __( 'Bank debits', 'wp-easycart' ),
+		'desc'    => __( 'Payment is taken straight from the shopper\'s bank account.', 'wp-easycart' ),
+		'methods' => array(
+			'stripe_use_bacs' => array( 'Bacs Direct Debit', array( 'GBP' ), array( 'GB' ) ),
+			'stripe_use_becs' => array( 'BECS Direct Debit', array( 'AUD' ), array( 'AU' ) ),
+			'stripe_use_sepa' => array( 'SEPA Direct Debit', array( 'EUR' ), $ec_stripe_wide ),
+		),
+	),
+	'stripe_realtime_payments' => array(
+		'title'   => __( 'Real-time payments', 'wp-easycart' ),
+		'desc'    => __( 'Shoppers pay by scanning a code with their banking app.', 'wp-easycart' ),
+		'methods' => array(
+			'stripe_use_pix'       => array( 'Pix', array( 'BRL' ), array( 'BR' ) ),
+			'stripe_use_paynow'    => array( 'PayNow', array( 'SGD' ), array( 'SG' ) ),
+			'stripe_use_promptpay' => array( 'PromptPay', array( 'THB' ), array( 'TH' ) ),
+		),
+	),
+);
+/* Every option ec_admin_save_stripe_connect_options() posts for a method: saved off here. */
+$ec_stripe_method_options = array( 'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_link', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay', 'ec_option_stripe_wechat', 'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps', 'ec_option_stripe_fpx', 'ec_option_stripe_giropay', 'ec_option_stripe_enable_ideal', 'ec_option_stripe_p24', 'ec_option_stripe_sofort', 'ec_option_stripe_bacs', 'ec_option_stripe_becs', 'ec_option_stripe_sepa', 'ec_option_stripe_pix', 'ec_option_stripe_paynow', 'ec_option_stripe_promptpay', 'ec_option_stripe_boleto', 'ec_option_stripe_konbini', 'ec_option_stripe_oxxo', 'ec_option_stripe_disable_wallet_first' );
+
+$ec_stripe_onepage = function_exists( 'wp_easycart_onepage_active' ) ? wp_easycart_onepage_active() : (bool) get_option( 'ec_option_onepage_checkout' );
 ?>
-<div class="ec_admin_stripe_row">
+<div class="ec_admin_stripe_row ecsq ecsc">
 	<div class="ec_admin_slider_row">
 		<?php wp_easycart_admin()->preloader->print_preloader( 'ec_admin_stripe_display_loader' ); ?>
-		<h3>
-			<?php esc_attr_e( 'Stripe', 'wp-easycart' ); ?>
-			<a href="<?php echo esc_url_raw( wp_easycart_admin( )->helpsystem->print_docs_url( 'settings', 'payment', 'stripe' ) ); ?>" target="_blank" class="ec_help_icon_link" title="<?php esc_attr_e( 'View Help?', 'wp-easycart' ); ?>" style="float:left; margin-left:0px;">
-				<div class="dashicons-before ec_help_icon dashicons-info"></div> <?php esc_attr_e( 'Help', 'wp-easycart' ); ?>
-			</a>
-		</h3>
 		<div class="ec_admin_slider_row_description">
-			<div style="float:left; width:100%; margin-bottom:15px;">
-				<?php esc_attr_e( 'Stripe offers the ability to pay with a credit card directly on your website. Adding Stripe gives your shopping cart a more professional look and increases conversions.', 'wp-easycart' ); ?>
-				<?php if ( '' != get_option( 'ec_option_stripe_connect_production_access_token' ) ) { ?>
-				<br />
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production"><?php esc_attr_e( 'Switch Production Account', 'wp-easycart' ); ?></a>
-				<?php }?>
-				<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) != '' ) { ?>
-				<br />
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox"><?php esc_attr_e( 'Switch Sandbox Account', 'wp-easycart' ); ?></a>
+			<div><?php esc_html_e( 'Stripe offers the ability to pay with a credit card directly on your website. Adding Stripe gives your shopping cart a more professional look and increases conversions.', 'wp-easycart' ); ?></div>
+			<?php if ( $ec_stripe_connected ) { ?>
+				<div class="ecsq-actions">
+					<?php if ( $ec_stripe_has_live ) { ?>
+						<a href="<?php echo esc_url( $ec_stripe_urls['live'] ); ?>"><?php esc_html_e( 'Switch live account', 'wp-easycart' ); ?></a>
+					<?php } ?>
+					<?php if ( $ec_stripe_has_test ) { ?>
+						<a href="<?php echo esc_url( $ec_stripe_urls['test'] ); ?>"><?php esc_html_e( 'Switch test account', 'wp-easycart' ); ?></a>
+					<?php } ?>
+					<a href="<?php echo esc_url( ( 'test' === $ec_stripe_env ) ? 'https://dashboard.stripe.com/test/dashboard' : 'https://dashboard.stripe.com/dashboard' ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Stripe dashboard', 'wp-easycart' ); ?> &#8599;</a>
+					<?php if ( '' !== $ec_stripe_disconnect ) { ?>
+						<a class="ecsq-danger" href="<?php echo esc_url( $ec_stripe_disconnect ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( ( 'test' === $ec_stripe_env ) ? __( 'Disconnect your Stripe test account? Stripe stops taking payments here until you connect again.', 'wp-easycart' ) : __( 'Disconnect your live Stripe account? Stripe stops taking payments here until you connect again.', 'wp-easycart' ) ) ); ?> );"><?php echo esc_html( ( 'test' === $ec_stripe_env ) ? __( 'Disconnect test account', 'wp-easycart' ) : __( 'Disconnect', 'wp-easycart' ) ); ?></a>
+					<?php } ?>
+				</div>
+			<?php } ?>
+			<input type="hidden" name="use_stripe_connect" id="use_stripe_connect" value="<?php echo $ec_stripe_active ? 1 : 0; ?>" />
+			<input type="hidden" name="ec_option_stripe_connect_use_sandbox" id="ec_option_stripe_connect_use_sandbox" value="<?php echo $ec_stripe_sandbox ? 1 : 0; ?>" />
+		</div>
+
+		<div class="ecsq-group">
+			<div class="ecsq-group-t"><?php esc_html_e( 'Payments', 'wp-easycart' ); ?></div>
+			<div class="ec_admin_toggles_wrap">
+				<div class="ec_admin_toggle">
+					<span><?php esc_html_e( 'Take live payments', 'wp-easycart' ); ?><small><?php echo esc_html( $ec_stripe_has_live ? __( 'Charges real cards through your connected Stripe account.', 'wp-easycart' ) : __( 'Connect your Stripe account to charge real cards.', 'wp-easycart' ) ); ?></small></span>
+					<?php if ( ! $ec_stripe_has_live ) { ?><a href="<?php echo esc_url( $ec_stripe_urls['live'] ); ?>" aria-label="<?php esc_attr_e( 'Connect your live Stripe account', 'wp-easycart' ); ?>"><span></span><?php } ?>
+					<label class="ec_admin_switch">
+						<input type="checkbox" onclick="return stripe_live_on_off();" class="ec_admin_slider_checkbox" value="1" id="ec_option_stripe_connect_enable_live"<?php checked( $ec_stripe_active && ! $ec_stripe_sandbox && $ec_stripe_has_live ); ?><?php echo $ec_stripe_has_live ? '' : ' tabindex="-1"'; ?> aria-label="<?php esc_attr_e( 'Take live payments', 'wp-easycart' ); ?>">
+						<span class="ec_admin_slider round"></span>
+					</label>
+					<?php if ( ! $ec_stripe_has_live ) { ?></a><?php } ?>
+				</div>
+				<div class="ec_admin_toggle">
+					<span><?php esc_html_e( 'Test mode', 'wp-easycart' ); ?><small><?php echo esc_html( $ec_stripe_has_test ? __( 'Uses your Stripe test account; no card is charged.', 'wp-easycart' ) : __( 'Connect a Stripe test account to try your checkout; no card is charged.', 'wp-easycart' ) ); ?></small></span>
+					<?php if ( ! $ec_stripe_has_test ) { ?><a href="<?php echo esc_url( $ec_stripe_urls['test'] ); ?>" aria-label="<?php esc_attr_e( 'Connect a Stripe test account', 'wp-easycart' ); ?>"><span></span><?php } ?>
+					<label class="ec_admin_switch">
+						<input type="checkbox" onclick="return stripe_sandbox_on_off();" class="ec_admin_slider_checkbox" value="1" id="ec_option_stripe_connect_enable_sandbox"<?php checked( $ec_stripe_active && $ec_stripe_sandbox && $ec_stripe_has_test ); ?><?php echo $ec_stripe_has_test ? '' : ' tabindex="-1"'; ?> aria-label="<?php esc_attr_e( 'Test mode', 'wp-easycart' ); ?>">
+						<span class="ec_admin_slider round"></span>
+					</label>
+					<?php if ( ! $ec_stripe_has_test ) { ?></a><?php } ?>
+				</div>
+			</div>
+			<?php if ( $ec_stripe_account ) { ?>
+				<div class="ec_admin_toggle_note ecsq-status">
+					<span class="ecsq-dot is-on" aria-hidden="true"></span>
+					<span>
+						<?php
+						if ( '' !== $ec_stripe_account_name ) {
+							/* translators: 1: Stripe account name, 2: Stripe account ID ( acct_… ). */
+							echo esc_html( sprintf( $ec_stripe_sandbox ? __( 'Test account: %1$s ( %2$s ).', 'wp-easycart' ) : __( 'Live account: %1$s ( %2$s ).', 'wp-easycart' ), $ec_stripe_account_name, $ec_stripe_account->id ) );
+						} else {
+							/* translators: %s: Stripe account ID ( acct_… ). */
+							echo esc_html( sprintf( $ec_stripe_sandbox ? __( 'Test account %s.', 'wp-easycart' ) : __( 'Live account %s.', 'wp-easycart' ), $ec_stripe_account->id ) );
+						}
+						?>
+					</span>
+				</div>
+			<?php } elseif ( '' !== $ec_stripe_account_err ) { ?>
+				<div class="ec_admin_toggle_note ecsq-status is-warn">
+					<span class="ecsq-dot" aria-hidden="true"></span>
+					<?php /* translators: %s: Stripe's reason. */ ?>
+					<span><?php echo esc_html( sprintf( __( 'Stripe did not accept this connection: %s Reconnect the account.', 'wp-easycart' ), $ec_stripe_account_err ) ); ?></span>
+				</div>
+			<?php } elseif ( ! $ec_stripe_connected ) { ?>
+				<div class="ec_admin_toggle_note"><?php esc_html_e( 'Once Stripe is connected, its currency, business country, payment methods and notifications are set here.', 'wp-easycart' ); ?></div>
+			<?php } ?>
+		</div>
+
+		<?php if ( $ec_stripe_connected ) { ?>
+			<div class="ecsq-group" id="ec_stripe_account">
+				<div class="ecsq-group-t"><?php esc_html_e( 'Currency and country', 'wp-easycart' ); ?></div>
+				<div class="ecsq-field">
+					<label for="ec_option_stripe_currency"><?php esc_html_e( 'Currency', 'wp-easycart' ); ?></label>
+					<select name="ec_option_stripe_currency" id="ec_option_stripe_currency" onchange="ec_admin_update_stripe_connect_display( this.value, jQuery( '#ec_option_stripe_company_country' ).val() );">
+						<?php foreach ( $ec_stripe_currencies as $ec_stripe_code => $ec_stripe_label ) { ?>
+							<option value="<?php echo esc_attr( $ec_stripe_code ); ?>"<?php selected( $ec_stripe_code, $ec_stripe_currency ); ?>><?php echo esc_html( $ec_stripe_label ); ?></option>
+						<?php } ?>
+					</select>
+					<small><?php esc_html_e( 'The currency your prices are charged in.', 'wp-easycart' ); ?></small>
+				</div>
+				<?php if ( '' !== $ec_stripe_account_currency ) { ?>
+					<div class="ec_method_deactivated" id="stripe_account_currency_note" data-currency="<?php echo esc_attr( $ec_stripe_account_currency ); ?>"<?php echo ( $ec_stripe_currency === $ec_stripe_account_currency ) ? ' style="display:none"' : ''; ?>>
+						<?php /* translators: %s: the Stripe account's default currency code, e.g. USD. */ ?>
+						<span><?php echo esc_html( sprintf( __( 'Your Stripe account\'s default currency is %s. Charging in another currency can limit the payment methods Stripe offers.', 'wp-easycart' ), $ec_stripe_account_currency ) ); ?></span>
+					</div>
+				<?php } ?>
+				<div class="ecsq-field">
+					<label for="ec_option_stripe_company_country"><?php esc_html_e( 'Business country', 'wp-easycart' ); ?></label>
+					<select name="ec_option_stripe_company_country" id="ec_option_stripe_company_country" onchange="ec_admin_update_stripe_connect_display( jQuery( '#ec_option_stripe_currency' ).val(), this.value );">
+						<?php foreach ( $ec_stripe_countries as $ec_stripe_code => $ec_stripe_label ) { ?>
+							<option value="<?php echo esc_attr( $ec_stripe_code ); ?>"<?php selected( $ec_stripe_code, $ec_stripe_country ); ?>><?php echo esc_html( $ec_stripe_label ); ?></option>
+						<?php } ?>
+					</select>
+					<small><?php esc_html_e( 'Where your business is registered with Stripe. It decides which local payment methods can be offered.', 'wp-easycart' ); ?></small>
+				</div>
+				<?php if ( '' !== $ec_stripe_account_country ) { ?>
+					<div class="ec_method_deactivated" id="stripe_account_country_note" data-country="<?php echo esc_attr( $ec_stripe_account_country ); ?>"<?php echo ( $ec_stripe_country === $ec_stripe_account_country ) ? ' style="display:none"' : ''; ?>>
+						<?php /* translators: %s: the Stripe account's country code, e.g. US. */ ?>
+						<span><?php echo esc_html( sprintf( __( 'Your Stripe account is registered in %s. A different business country here can hide or break local payment methods.', 'wp-easycart' ), $ec_stripe_account_country ) ); ?></span>
+					</div>
 				<?php } ?>
 			</div>
-			<?php if ( '' != get_option( 'ec_option_stripe_connect_sandbox_access_token' ) || '' != get_option( 'ec_option_stripe_connect_production_access_token' ) ) { ?>
-			<div class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
-				<label style="float:left; width:100%;"><?php esc_attr_e( 'Currency', 'wp-easycart' ); ?></label>
-				<select name="ec_option_stripe_currency" id="ec_option_stripe_currency" onchange="ec_admin_save_stripe_connect_options();">
-					<option value="USD" <?php if ( 'USD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>U.S. Dollar</option>
-					<option value="GBP" <?php if ( 'GBP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>British Pound</option>
-					<option value="CAD" <?php if ( 'CAD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Canadian Dollar</option>
-					<option value="EUR" <?php if ( 'EUR' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Euro</option>
-					<option value="DEM" <?php if ( 'DEM' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>German Mark</option>
-					<option value="CHF" <?php if ( 'CHF' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Swiss Franc</option>
 
-					<option value="AFN" <?php if ( 'AFN' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Afghanistan Afghani</option>
-					<option value="ALL" <?php if ( 'ALL' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Albanian Lek</option>
-					<option value="AMD" <?php if ( 'AMD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Armenian Dram</option>
-					<option value="AOA" <?php if ( 'AOA' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Angolan Kwanza</option>
-					<option value="ARS" <?php if ( 'ARS' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Argentine Peso</option>
-					<option value="AWG" <?php if ( 'AWG' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Aruban Florin</option>
-					<option value="AUD" <?php if ( 'AUD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Australian Dollar</option>
-					<option value="AZN" <?php if ( 'AZN' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Azerbaijani an Manat</option>
-
-					<option value="BSD" <?php if ( 'BSD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bahamanian Dollar</option>
-					<option value="BHD" <?php if ( 'BHD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bahraini Dinar</option>
-					<option value="BDT" <?php if ( 'BDT' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bangladeshi Taka</option>
-					<option value="BBD" <?php if ( 'BBD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Barbados Dollar</option>
-					<option value="BYR" <?php if ( 'BYR' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Belarussian Ruble</option>
-					<option value="BZD" <?php if ( 'BZD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Belize Dollar</option>
-					<option value="BMD" <?php if ( 'BMD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bermudian Dollar</option>
-					<option value="BOB" <?php if ( 'BOB' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bolivian Boliviano</option>
-					<option value="BWP" <?php if ( 'BWP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Botswana Pula</option>
-					<option value="BRL" <?php if ( 'BRL' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Brazilian Real</option>
-					<option value="BND" <?php if ( 'BND' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Brunei Dollar</option>
-					<option value="BGN" <?php if ( 'BGN' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Bulgarian Lev</option>
-					<option value="BIF" <?php if ( 'BIF' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Burundi Franc</option>
-
-					<option value="KHR" <?php if ( 'KHR' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Cambodian Riel</option>
-					<option value="CVE" <?php if ( 'CVE' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Cape Verde Escudo</option>
-					<option value="KYD" <?php if ( 'KYD' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Cayman Islands Dollar</option>
-					<option value="XAF" <?php if ( 'XAF' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Central African Republic Franc BCEAO</option>
-					<option value="XPF" <?php if ( 'XPF' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>CFP Franc</option>
-					<option value="CLP" <?php if ( 'CLP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Chilean Peso</option>
-					<option value="CNY" <?php if ( 'CNY' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Chinese Yuan Renminbi</option>
-					<option value="COP" <?php if ( 'COP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Colombian Peso</option>
-					<option value="KMF" <?php if ( 'KMF' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Comoros Franc</option>
-					<option value="BAM" <?php if ( 'BAM' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Convertible Marks</option>
-					<option value="CRC" <?php if ( 'CRC' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Costa Rican Colon</option>
-					<option value="HRK" <?php if ( 'HRK' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Croatian Kuna</option>
-					<option value="CUP" <?php if ( 'CUP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Cuban Peso</option>
-					<option value="CYP" <?php if ( 'CYP' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Cyprus Pound</option>
-					<option value="CZK" <?php if ( 'CZK' == get_option('ec_option_stripe_currency' ) ) { echo ' selected'; } ?>>Czech Republic Koruna</option>
-
-					<option value="DKK" <?php if ( get_option('ec_option_stripe_currency' ) == "DKK" ) echo ' selected'; ?>>Danish Krone</option>
-					<option value="DJF" <?php if ( get_option('ec_option_stripe_currency' ) == "DJF" ) echo ' selected'; ?>>Djibouti Franc</option>
-					<option value="DOP" <?php if ( get_option('ec_option_stripe_currency' ) == "DOP" ) echo ' selected'; ?>>Dominican Peso</option>
-
-					<option value="XCD" <?php if ( get_option('ec_option_stripe_currency' ) == "XCD" ) echo ' selected'; ?>>East Caribbean Dollar</option>
-					<option value="ECS" <?php if ( get_option('ec_option_stripe_currency' ) == "ECE" ) echo ' selected'; ?>>Ecuador Sucre</option>
-					<option value="EGP" <?php if ( get_option('ec_option_stripe_currency' ) == "EGP" ) echo ' selected'; ?>>Egyptian Pound</option>
-					<option value="SVC" <?php if ( get_option('ec_option_stripe_currency' ) == "SVC" ) echo ' selected'; ?>>El Salvador Colon</option>
-					<option value="ERN" <?php if ( get_option('ec_option_stripe_currency' ) == "ERN" ) echo ' selected'; ?>>Eritrea Nakfa</option>
-					<option value="EEK" <?php if ( get_option('ec_option_stripe_currency' ) == "EEK" ) echo ' selected'; ?>>Estonian Kroon</option>
-					<option value="ETB" <?php if ( get_option('ec_option_stripe_currency' ) == "ETB" ) echo ' selected'; ?>>Ethiopian Birr</option>
-
-					<option value="FKP" <?php if ( get_option('ec_option_stripe_currency' ) == "FKP" ) echo ' selected'; ?>>Falkland Islands Pound</option>
-					<option value="FJD" <?php if ( get_option('ec_option_stripe_currency' ) == "FJD" ) echo ' selected'; ?>>Fiji Dollar</option>
-					<option value="CDF" <?php if ( get_option('ec_option_stripe_currency' ) == "CDF" ) echo ' selected'; ?>>Franc Congolais</option>
-
-					<option value="GMD" <?php if ( get_option('ec_option_stripe_currency' ) == "GMD" ) echo ' selected'; ?>>Gambian Dalasi</option>
-					<option value="GEL" <?php if ( get_option('ec_option_stripe_currency' ) == "GEL" ) echo ' selected'; ?>>Georgian Lari</option>
-					<option value="GHS" <?php if ( get_option('ec_option_stripe_currency' ) == "GHS" ) echo ' selected'; ?>>Ghanaian Cedi</option>
-					<option value="GIP" <?php if ( get_option('ec_option_stripe_currency' ) == "GIP" ) echo ' selected'; ?>>Gibraltar Pound</option>
-					<option value="GTQ" <?php if ( get_option('ec_option_stripe_currency' ) == "GTQ" ) echo ' selected'; ?>>Guatemalan Quetzal</option>
-					<option value="GNF" <?php if ( get_option('ec_option_stripe_currency' ) == "GNF" ) echo ' selected'; ?>>Guinea Franc</option>
-					<option value="GWP" <?php if ( get_option('ec_option_stripe_currency' ) == "GWP" ) echo ' selected'; ?>>Guinea-Bissau Peso</option>
-					<option value="GYD" <?php if ( get_option('ec_option_stripe_currency' ) == "GYD" ) echo ' selected'; ?>>Guyanan Dollar</option>
-
-					<option value="HTG" <?php if ( get_option('ec_option_stripe_currency' ) == "HTG" ) echo ' selected'; ?>>Haitian Gourde</option>
-					<option value="HNL" <?php if ( get_option('ec_option_stripe_currency' ) == "HNL" ) echo ' selected'; ?>>Honduran Lempira</option>
-					<option value="HKD" <?php if ( get_option('ec_option_stripe_currency' ) == "HKD" ) echo ' selected'; ?>>Hong Kong Dollar</option>
-					<option value="HUF" <?php if ( get_option('ec_option_stripe_currency' ) == "HUF" ) echo ' selected'; ?>>Hungarian Forint</option>
-
-					<option value="ISK" <?php if ( get_option('ec_option_stripe_currency' ) == "ISK" ) echo ' selected'; ?>>Iceland Krona</option>
-					<option value="INR" <?php if ( get_option('ec_option_stripe_currency' ) == "INR" ) echo ' selected'; ?>>Indian Rupee</option>
-					<option value="IDR" <?php if ( get_option('ec_option_stripe_currency' ) == "IDR" ) echo ' selected'; ?>>Indonesian Rupiah</option>
-					<option value="IRR" <?php if ( get_option('ec_option_stripe_currency' ) == "IRR" ) echo ' selected'; ?>>Iranian Rial</option>
-					<option value="IQD" <?php if ( get_option('ec_option_stripe_currency' ) == "IQD" ) echo ' selected'; ?>>Iraqi Dinar</option>
-					<option value="ILS" <?php if ( get_option('ec_option_stripe_currency' ) == "ILS" ) echo ' selected'; ?>>Israeli New Shekel</option>
-
-					<option value="JMD" <?php if ( get_option('ec_option_stripe_currency' ) == "JMD" ) echo ' selected'; ?>>Jamaican Dollar</option>
-					<option value="JPY" <?php if ( get_option('ec_option_stripe_currency' ) == "JPY" ) echo ' selected'; ?>>Japanese Yen</option>
-					<option value="JOD" <?php if ( get_option('ec_option_stripe_currency' ) == "JOD" ) echo ' selected'; ?>>Jordanian Dinar</option>
-
-					<option value="KZT" <?php if ( get_option('ec_option_stripe_currency' ) == "KZT" ) echo ' selected'; ?>>Kazakhstan Tenge</option>
-					<option value="KES" <?php if ( get_option('ec_option_stripe_currency' ) == "KES" ) echo ' selected'; ?>>Kenyan Shilling</option>
-					<option value="KWD" <?php if ( get_option('ec_option_stripe_currency' ) == "KWD" ) echo ' selected'; ?>>Kuwaiti Dinar</option>
-					<option value="AOA" <?php if ( get_option('ec_option_stripe_currency' ) == "AOA" ) echo ' selected'; ?>>Kwanza</option>
-					<option value="GKS" <?php if ( get_option('ec_option_stripe_currency' ) == "GKS" ) echo ' selected'; ?>>Kyrgyzstan Som</option>
-
-					<option value="KIP" <?php if ( get_option('ec_option_stripe_currency' ) == "KIP" ) echo ' selected'; ?>>Laos Kip</option>
-					<option value="LAK" <?php if ( get_option('ec_option_stripe_currency' ) == "LAK" ) echo ' selected'; ?>>Laosian Kip</option>
-					<option value="LVL" <?php if ( get_option('ec_option_stripe_currency' ) == "LVL" ) echo ' selected'; ?>>Latvian Lat</option>
-					<option value="LBP" <?php if ( get_option('ec_option_stripe_currency' ) == "LBP" ) echo ' selected'; ?>>Lebanese Pound</option>
-					<option value="LRD" <?php if ( get_option('ec_option_stripe_currency' ) == "LRD" ) echo ' selected'; ?>>Liberian Dollar</option>
-					<option value="LYD" <?php if ( get_option('ec_option_stripe_currency' ) == "LYD" ) echo ' selected'; ?>>Libyan Dinar</option>
-					<option value="LTL" <?php if ( get_option('ec_option_stripe_currency' ) == "LTL" ) echo ' selected'; ?>>Lithuanian Litas</option>
-					<option value="LSL" <?php if ( get_option('ec_option_stripe_currency' ) == "LSL" ) echo ' selected'; ?>>Loti</option>
-
-					<option value="MOP" <?php if ( get_option('ec_option_stripe_currency' ) == "MOP" ) echo ' selected'; ?>>Macanese Pataca</option>
-					<option value="MOP" <?php if ( get_option('ec_option_stripe_currency' ) == "MOP" ) echo ' selected'; ?>>Macao</option>
-					<option value="MKD" <?php if ( get_option('ec_option_stripe_currency' ) == "MKD" ) echo ' selected'; ?>>Macedonian Denar</option>
-					<option value="MGF" <?php if ( get_option('ec_option_stripe_currency' ) == "MGF" ) echo ' selected'; ?>>Malagasy Franc</option>
-					<option value="MGA" <?php if ( get_option('ec_option_stripe_currency' ) == "MGA" ) echo ' selected'; ?>>Malagasy Ariary</option>
-					<option value="MWK" <?php if ( get_option('ec_option_stripe_currency' ) == "MWK" ) echo ' selected'; ?>>Malawi Kwacha</option>
-					<option value="MYR" <?php if ( get_option('ec_option_stripe_currency' ) == "MYR" ) echo ' selected'; ?>>Malaysian Ringgit</option>
-					<option value="MVR" <?php if ( get_option('ec_option_stripe_currency' ) == "MVR" ) echo ' selected'; ?>>Maldive Rufiyaa</option>
-					<option value="MTL" <?php if ( get_option('ec_option_stripe_currency' ) == "MRL" ) echo ' selected'; ?>>Maltese Lira</option>
-					<option value="MRO" <?php if ( get_option('ec_option_stripe_currency' ) == "MRO" ) echo ' selected'; ?>>Mauritanian Ouguiya</option>
-					<option value="MUR" <?php if ( get_option('ec_option_stripe_currency' ) == "MUR" ) echo ' selected'; ?>>Mauritius Rupee</option>
-					<option value="MXN" <?php if ( get_option('ec_option_stripe_currency' ) == "MXN" ) echo ' selected'; ?>>Mexican Peso</option>
-					<option value="MNT" <?php if ( get_option('ec_option_stripe_currency' ) == "MNT" ) echo ' selected'; ?>>Mongolian Tugrik</option>
-					<option value="MAD" <?php if ( get_option('ec_option_stripe_currency' ) == "MAD" ) echo ' selected'; ?>>Moroccan Dirham</option>
-					<option value="MZM" <?php if ( get_option('ec_option_stripe_currency' ) == "MZM" ) echo ' selected'; ?>>Mozambique Metical</option>
-					<option value="MMK" <?php if ( get_option('ec_option_stripe_currency' ) == "MMK" ) echo ' selected'; ?>>Myanmar Kyat</option>
-
-					<option value="NAD" <?php if ( get_option('ec_option_stripe_currency' ) == "NAD" ) echo ' selected'; ?>>Namibia Dollar</option>
-					<option value="NPR" <?php if ( get_option('ec_option_stripe_currency' ) == "NPR" ) echo ' selected'; ?>>Nepalese Rupee</option>
-					<option value="ANG" <?php if ( get_option('ec_option_stripe_currency' ) == "ANG" ) echo ' selected'; ?>>Netherlands Antillean Guilder</option>
-					<option value="PGK" <?php if ( get_option('ec_option_stripe_currency' ) == "PGK" ) echo ' selected'; ?>>New Guinea Kina</option>
-					<option value="TWD" <?php if ( get_option('ec_option_stripe_currency' ) == "TWD" ) echo ' selected'; ?>>New Taiwan Dollar</option>
-					<option value="TRY" <?php if ( get_option('ec_option_stripe_currency' ) == "TRY" ) echo ' selected'; ?>>New Turkish Lira</option>
-					<option value="NZD" <?php if ( get_option('ec_option_stripe_currency' ) == "NZD" ) echo ' selected'; ?>>New Zealand Dollar</option>
-					<option value="NIO" <?php if ( get_option('ec_option_stripe_currency' ) == "NIO" ) echo ' selected'; ?>>Nicaraguan Cordoba Oro</option>
-					<option value="NGN" <?php if ( get_option('ec_option_stripe_currency' ) == "NGN" ) echo ' selected'; ?>>Nigerian Naira</option>
-					<option value="KPW" <?php if ( get_option('ec_option_stripe_currency' ) == "KPW" ) echo ' selected'; ?>>North Korea Won</option>
-					<option value="NOK" <?php if ( get_option('ec_option_stripe_currency' ) == "NOK" ) echo ' selected'; ?>>Norwegian Kroner</option>
-
-					<option value="PKR" <?php if ( get_option('ec_option_stripe_currency' ) == "PKR" ) echo ' selected'; ?>>Pakistan Rupee</option>
-					<option value="PAB" <?php if ( get_option('ec_option_stripe_currency' ) == "PAB" ) echo ' selected'; ?>>Panamanian Balboa</option>
-					<option value="PYG" <?php if ( get_option('ec_option_stripe_currency' ) == "PYG" ) echo ' selected'; ?>>Paraguay Guarani</option>
-					<option value="PEN" <?php if ( get_option('ec_option_stripe_currency' ) == "PEN" ) echo ' selected'; ?>>Peruvian Nuevo Sol</option>
-					<option value="PHP" <?php if ( get_option('ec_option_stripe_currency' ) == "PHP" ) echo ' selected'; ?>>Philippine Peso</option>
-					<option value="PLN" <?php if ( get_option('ec_option_stripe_currency' ) == "PLN" ) echo ' selected'; ?>>Polish Zloty</option>
-
-					<option value="QAR" <?php if ( get_option('ec_option_stripe_currency' ) == "QAR" ) echo ' selected'; ?>>Qatari Rial</option>
-
-					<option value="OMR" <?php if ( get_option('ec_option_stripe_currency' ) == "OMR" ) echo ' selected'; ?>>Rial Omani</option>
-					<option value="RON" <?php if ( get_option('ec_option_stripe_currency' ) == "RON" ) echo ' selected'; ?>>Romanian Leu</option>
-					<option value="RUB" <?php if ( get_option('ec_option_stripe_currency' ) == "RUB" ) echo ' selected'; ?>>Russian Rouble</option>
-					<option value="RWF" <?php if ( get_option('ec_option_stripe_currency' ) == "RWF" ) echo ' selected'; ?>>Rwanda Franc</option>
-
-					<option value="WST" <?php if ( get_option('ec_option_stripe_currency' ) == "WST" ) echo ' selected'; ?>>Samoan Tala</option>
-					<option value="STD" <?php if ( get_option('ec_option_stripe_currency' ) == "STD" ) echo ' selected'; ?>>Sao Tome/Principe Dobra</option>
-					<option value="SAR" <?php if ( get_option('ec_option_stripe_currency' ) == "SAR" ) echo ' selected'; ?>>Saudi Riyal</option>
-					<option value="RSD" <?php if ( get_option('ec_option_stripe_currency' ) == "RSD" ) echo ' selected'; ?>>Serbian Dinar</option>
-					<option value="SCR" <?php if ( get_option('ec_option_stripe_currency' ) == "SCR" ) echo ' selected'; ?>>Seychelles Rupee</option>
-					<option value="SLL" <?php if ( get_option('ec_option_stripe_currency' ) == "SLL" ) echo ' selected'; ?>>Sierra Leone Leone</option>
-					<option value="SGD" <?php if ( get_option('ec_option_stripe_currency' ) == "SGD" ) echo ' selected'; ?>>Singapore Dollar</option>
-					<option value="SKK" <?php if ( get_option('ec_option_stripe_currency' ) == "SKK" ) echo ' selected'; ?>>Slovak Koruna</option>
-					<option value="SIT" <?php if ( get_option('ec_option_stripe_currency' ) == "SIT" ) echo ' selected'; ?>>Slovenian Tolar</option>
-					<option value="SBD" <?php if ( get_option('ec_option_stripe_currency' ) == "SBD" ) echo ' selected'; ?>>Solomon Islands Dollar</option>
-					<option value="SOS" <?php if ( get_option('ec_option_stripe_currency' ) == "SOS" ) echo ' selected'; ?>>Somalia Shilling</option>
-					<option value="ZAR" <?php if ( get_option('ec_option_stripe_currency' ) == "ZAR" ) echo ' selected'; ?>>South African Rand</option>
-					<option value="KRW" <?php if ( get_option('ec_option_stripe_currency' ) == "KRW" ) echo ' selected'; ?>>South-Korean Won</option>
-					<option value="LKR" <?php if ( get_option('ec_option_stripe_currency' ) == "LKR" ) echo ' selected'; ?>>Sri Lanka Rupee</option>
-					<option value="SHP" <?php if ( get_option('ec_option_stripe_currency' ) == "SHP" ) echo ' selected'; ?>>St. Helena Pound</option>
-					<option value="SDD" <?php if ( get_option('ec_option_stripe_currency' ) == "SDD" ) echo ' selected'; ?>>Sudanese Dollar</option>
-					<option value="SRD" <?php if ( get_option('ec_option_stripe_currency' ) == "SRD" ) echo ' selected'; ?>>Suriname Dollar</option>
-					<option value="SZL" <?php if ( get_option('ec_option_stripe_currency' ) == "SZL" ) echo ' selected'; ?>>Swaziland Lilangeni</option>
-					<option value="SEK" <?php if ( get_option('ec_option_stripe_currency' ) == "SEK" ) echo ' selected'; ?>>Swedish Krona</option>
-					<option value="CHF" <?php if ( get_option('ec_option_stripe_currency' ) == "CHF" ) echo ' selected'; ?>>Switzerland Franc</option>
-					<option value="SYP" <?php if ( get_option('ec_option_stripe_currency' ) == "SYP" ) echo ' selected'; ?>>Syrian Arab Republic Pound</option>
-
-					<option value="TJS" <?php if ( get_option('ec_option_stripe_currency' ) == "TJS" ) echo ' selected'; ?>>Tajikistani Somoni</option>
-					<option value="TZS" <?php if ( get_option('ec_option_stripe_currency' ) == "TZS" ) echo ' selected'; ?>>Tanzanian Shilling</option>
-					<option value="THB" <?php if ( get_option('ec_option_stripe_currency' ) == "THB" ) echo ' selected'; ?>>Thai Baht</option>
-					<option value="TOP" <?php if ( get_option('ec_option_stripe_currency' ) == "TOP" ) echo ' selected'; ?>>Tonga Pa'anga</option>
-					<option value="TTD" <?php if ( get_option('ec_option_stripe_currency' ) == "TTD" ) echo ' selected'; ?>>Trinidad/Tobago Dollar</option>
-					<option value="TND" <?php if ( get_option('ec_option_stripe_currency' ) == "TND" ) echo ' selected'; ?>>Tunisian Dinar</option>
-					<option value="TMM" <?php if ( get_option('ec_option_stripe_currency' ) == "TMM" ) echo ' selected'; ?>>Turkmenistan Manat</option>
-
-					<option value="UGX" <?php if ( get_option('ec_option_stripe_currency' ) == "UGX" ) echo ' selected'; ?>>Uganda Shilling</option>
-					<option value="UAH" <?php if ( get_option('ec_option_stripe_currency' ) == "UAH" ) echo ' selected'; ?>>Ukraine Hryvnia</option>
-					<option value="AED" <?php if ( get_option('ec_option_stripe_currency' ) == "AED" ) echo ' selected'; ?>>Utd. Arab Emir. Dirham</option>
-					<option value="UYU" <?php if ( get_option('ec_option_stripe_currency' ) == "UYU" ) echo ' selected'; ?>>Uruguayo Peso</option>
-					<option value="UZS" <?php if ( get_option('ec_option_stripe_currency' ) == "UZS" ) echo ' selected'; ?>>Uzbekistan Som</option>
-
-					<option value="VUV" <?php if ( get_option('ec_option_stripe_currency' ) == "VUV" ) echo ' selected'; ?>>Vanuatu Vatu</option>
-					<option value="VEF" <?php if ( get_option('ec_option_stripe_currency' ) == "VEF" ) echo ' selected'; ?>>Venezuelan Bolivar Fuerte</option>
-					<option value="VND" <?php if ( get_option('ec_option_stripe_currency' ) == "VND" ) echo ' selected'; ?>>Vietnamese Dong</option>
-					<option value="XOF" <?php if ( get_option('ec_option_stripe_currency' ) == "XOF" ) echo ' selected'; ?>>West African CFA Franc BCEAO</option>
-					<option value="YER" <?php if ( get_option('ec_option_stripe_currency' ) == "YER" ) echo ' selected'; ?>>Yemeni Rial</option>
-
-					<option value="YUM" <?php if ( get_option('ec_option_stripe_currency' ) == "YUm" ) echo ' selected'; ?>>Yugoslav New Dinar</option>
-					<option value="ZMK" <?php if ( get_option('ec_option_stripe_currency' ) == "ZMK" ) echo ' selected'; ?>>Zambian Kwacha</option>
-					<option value="ZWD" <?php if ( get_option('ec_option_stripe_currency' ) == "ZWD" ) echo ' selected'; ?>>Zimbabwean Dollar</option>
-				</select>
-			</div>
-			<div class="ec_method_deactivated" id="stripe_account_currency_note" data-currency="<?php echo esc_attr( $default_currency ); ?>"<?php if ( get_option( 'ec_option_stripe_currency' ) == $default_currency ) { ?> style="display:none"<?php }?>>
-				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The default currency listed in your account does not match your current selection. This may or may not cause problems with your checkout and typically depends on the payment types you activate below.', 'wp-easycart' ); ?></span>
-			</div>
-			<div class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
-				<label style="float:left; width:100%;"><?php esc_attr_e( 'Business Country', 'wp-easycart' ); ?></label>
-				<select name="ec_option_stripe_company_country" id="ec_option_stripe_company_country" onchange="ec_admin_save_stripe_connect_options();">
-					<option value="US" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'US' ) { echo ' selected'; }; ?>>United States (US)</option>
-					<option value="AU" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'AU' ) { echo ' selected'; }; ?>>Australia (AU)</option>
-					<option value="AT" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'AT' ) { echo ' selected'; }; ?>>Austria (AT)</option>
-					<option value="BE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'BE' ) { echo ' selected'; }; ?>>Belgium (BE)</option>
-					<option value="BR" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'BR' ) { echo ' selected'; }; ?>>Brazil (BR)</option>
-					<option value="CA" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'CA' ) { echo ' selected'; }; ?>>Canada (CA)</option>
-					<option value="HR" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'HR' ) { echo ' selected'; }; ?>>Croatia (HR)</option>
-					<option value="CY" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'CY' ) { echo ' selected'; }; ?>>Cyprus (CY)</option>
-					<option value="CZ" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'CZ' ) { echo ' selected'; }; ?>>Czech Republic (CZ)</option>
-					<option value="DK" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'DK' ) { echo ' selected'; }; ?>>Denmark (DK)</option>
-					<option value="EE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'EE' ) { echo ' selected'; }; ?>>Estonia (EE)</option>
-					<option value="FI" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'FI' ) { echo ' selected'; }; ?>>Finland (FI)</option>
-					<option value="FR" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'FR' ) { echo ' selected'; }; ?>>France (FR)</option>
-					<option value="DE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'DE' ) { echo ' selected'; }; ?>>Germany (DE)</option>
-					<option value="GI" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'GI' ) { echo ' selected'; }; ?>>Gibraltar (GI)</option>
-					<option value="GR" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'GR' ) { echo ' selected'; }; ?>>Greece (GR)</option>
-					<option value="HK" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'HK' ) { echo ' selected'; }; ?>>Hong Kong SAR China (HK)</option>
-					<option value="HU" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'HU' ) { echo ' selected'; }; ?>>Hungary (HU)</option>
-					<option value="IN" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'IN' ) { echo ' selected'; }; ?>>India (IN)</option>
-					<option value="IE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'IE' ) { echo ' selected'; }; ?>>Ireland (IE)</option>
-					<option value="IT" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'IT' ) { echo ' selected'; }; ?>>Italy (IT)</option>
-					<option value="JP" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'JP' ) { echo ' selected'; }; ?>>Japan (JP)</option>
-					<option value="LV" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'LV' ) { echo ' selected'; }; ?>>Latvia (LV)</option>
-					<option value="LI" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'LI' ) { echo ' selected'; }; ?>>Liechtenstein (LI)</option>
-					<option value="LT" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'LT' ) { echo ' selected'; }; ?>>Lithuania (LT)</option>
-					<option value="LU" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'LU' ) { echo ' selected'; }; ?>>Luxembourg (LU)</option>
-					<option value="MY" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'MY' ) { echo ' selected'; }; ?>>Malaysia (MY)</option>
-					<option value="MT" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'MT' ) { echo ' selected'; }; ?>>Malta (MT)</option>
-					<option value="MX" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'MX' ) { echo ' selected'; }; ?>>Mexico (MX)</option>
-					<option value="NL" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'NL' ) { echo ' selected'; }; ?>>Netherlands (NL)</option>
-					<option value="NZ" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'NZ' ) { echo ' selected'; }; ?>>New Zealand (NZ)</option>
-					<option value="NO" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'NO' ) { echo ' selected'; }; ?>>Norway (NO)</option>
-					<option value="PO" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'PL' ) { echo ' selected'; }; ?>>Poland (PO)</option>
-					<option value="PT" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'PT' ) { echo ' selected'; }; ?>>Portugal (PT)</option>
-					<option value="RO" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'RO' ) { echo ' selected'; }; ?>>Romania (RO)</option>
-					<option value="SG" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'SG' ) { echo ' selected'; }; ?>>Singapore (SG)</option>
-					<option value="SI" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'SK' ) { echo ' selected'; }; ?>>Slovakia (SK)</option>
-					<option value="SG" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'SI' ) { echo ' selected'; }; ?>>Slovenia (SI)</option>
-					<option value="ES" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'ES' ) { echo ' selected'; }; ?>>Spain (ES)</option>
-					<option value="SE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'SE' ) { echo ' selected'; }; ?>>Sweden (SE)</option>
-					<option value="CH" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'CH' ) { echo ' selected'; }; ?>>Switzerland (CH)</option>
-					<option value="TH" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'TH' ) { echo ' selected'; }; ?>>Thailand (TH)</option>
-					<option value="AE" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'AE' ) { echo ' selected'; }; ?>>United Arab Emirates (AE)</option>
-					<option value="GB" <?php if ( get_option( 'ec_option_stripe_company_country' ) == 'GB' ) { echo ' selected'; }; ?>>United Kingdom (GB)</option>
-				</select>
-			</div>
-			<div class="ec_method_deactivated" id="stripe_account_country_note" data-country="<?php echo esc_attr( $account_country ); ?>"<?php if ( get_option( 'ec_option_stripe_company_country' ) == $account_country ) { ?> style="display:none"<?php }?>>
-				<span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'The country listed in your account does not match your current selection. This may or may not cause problems with your checkout.', 'wp-easycart' ); ?></span>
-			</div>
-			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
-				<label><?php _e( 'Payment Theme', 'wp-easycart' ); ?></label>
-				<select name="ec_option_stripe_payment_theme" id="ec_option_stripe_payment_theme" onchange="ec_admin_save_stripe_connect_options( );">
-					<option value="stripe" selected="selected"><?php esc_attr_e( 'Stripe Theme', 'wp-easycart' ); ?></option>
-					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Night Theme ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Flat Theme ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-					<option value="stripe"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'None ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-				</select>
-			</div>
-			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
-				<label><?php _e( 'Payment Layout', 'wp-easycart' ); ?></label>
-				<select name="ec_option_stripe_payment_layout" id="ec_option_stripe_payment_layout" onchange="ec_admin_save_stripe_connect_options( );">
-					<option value="tabs" selected="selected"><?php esc_attr_e( 'Tabs', 'wp-easycart' ); ?></option>
-					<option value="tabs"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Accordion ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-				</select>
-			</div>
-			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
-				<label><?php _e( 'Subscription Notices', 'wp-easycart' ); ?></label>
-				<select name="ec_option_stripe_subscription_notices" id="ec_option_stripe_subscription_notices" onchange="ec_admin_save_stripe_connect_options( );">
-					<option value="0" selected="selected"><?php esc_attr_e( 'Disable Upcoming Payment Emails', 'wp-easycart' ); ?></option>
-					<option value="0"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Enable Upcoming Payment Emails ( %s only )', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-				</select>
-			</div>
-			<?php if ( get_option( 'ec_option_onepage_checkout' ) ) { ?>
-				<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show" style="padding:0px !important;">
-					<label><?php _e( 'Stripe Address Auto-Complete', 'wp-easycart' ); ?></label>
-					<select name="ec_option_stripe_address_autocomplete" id="ec_option_stripe_address_autocomplete" onchange="ec_admin_save_stripe_connect_options( );">
-						<option value="1"<?php echo ( '1' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Enable (Link Required)', 'wp-easycart' ); ?></option>
-						<option value="0"<?php echo ( '0' == get_option( 'ec_option_stripe_address_autocomplete' ) ) ? ' selected="selected"' : ''; ?>><?php esc_attr_e( 'Disabled', 'wp-easycart' ); ?></option>
-					</select>
+			<div class="ecsq-group" id="ec_stripe_methods">
+				<div class="ecsq-group-t"><?php esc_html_e( 'Payment methods', 'wp-easycart' ); ?></div>
+				<div class="ec_admin_toggles_wrap">
+					<div class="ec_admin_toggle">
+						<span><?php esc_html_e( 'Cards', 'wp-easycart' ); ?><small><?php esc_html_e( 'Visa, Mastercard, American Express and the other cards Stripe takes.', 'wp-easycart' ); ?></small></span>
+						<em class="ecsq-state"><?php esc_html_e( 'Always on', 'wp-easycart' ); ?></em>
+					</div>
+					<div class="ec_admin_toggle ecsq-locked" id="stripe_use_applepay">
+						<?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+						<span><?php esc_html_e( 'Apple Pay and Google Pay', 'wp-easycart' ); ?><small><?php echo esc_html( sprintf( __( 'Shoppers pay with the wallet on their phone or browser. Available with %s.', 'wp-easycart' ), $ec_stripe_plan ) ); ?></small></span>
+						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+					</div>
+					<div class="ec_admin_toggle ecsq-locked" id="stripe_use_link">
+						<?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+						<span><?php esc_html_e( 'Link', 'wp-easycart' ); ?><small><?php echo esc_html( sprintf( __( 'Returning shoppers pay with the details Stripe\'s Link saved for them. Available with %s.', 'wp-easycart' ), $ec_stripe_plan ) ); ?></small></span>
+						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+					</div>
+					<?php
+					foreach ( $ec_stripe_families as $ec_stripe_family_id => $ec_stripe_family ) {
+						$ec_stripe_family_cur = array();
+						$ec_stripe_family_cty = array();
+						$ec_stripe_family_on  = false;
+						foreach ( $ec_stripe_family['methods'] as $ec_stripe_method ) {
+							$ec_stripe_family_cur = array_merge( $ec_stripe_family_cur, $ec_stripe_method[1] );
+							$ec_stripe_family_cty = array_merge( $ec_stripe_family_cty, $ec_stripe_method[2] );
+							if ( in_array( $ec_stripe_currency, $ec_stripe_method[1], true ) && in_array( $ec_stripe_country, $ec_stripe_method[2], true ) ) {
+								$ec_stripe_family_on = true;
+							}
+						}
+						?>
+						<div id="<?php echo esc_attr( $ec_stripe_family_id ); ?>" class="ecsq-method ec_admin_stripe_section" data-currencies="<?php echo esc_attr( implode( ',', array_unique( $ec_stripe_family_cur ) ) ); ?>" data-countries="<?php echo esc_attr( implode( ',', array_unique( $ec_stripe_family_cty ) ) ); ?>"<?php echo $ec_stripe_family_on ? '' : ' style="display:none;"'; ?>>
+							<div class="ec_admin_toggle ecsq-locked">
+								<span>
+									<?php echo esc_html( $ec_stripe_family['title'] ); ?>
+									<?php /* translators: 1: what the payment methods do, 2: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+									<small><?php echo esc_html( sprintf( __( '%1$s Available with %2$s.', 'wp-easycart' ), $ec_stripe_family['desc'], $ec_stripe_plan ) ); ?></small>
+									<span class="ecsq-tags">
+										<?php foreach ( $ec_stripe_family['methods'] as $ec_stripe_row_id => $ec_stripe_method ) { ?>
+											<span id="<?php echo esc_attr( $ec_stripe_row_id ); ?>" class="ec_admin_stripe_settings_row" data-currencies="<?php echo esc_attr( implode( ',', $ec_stripe_method[1] ) ); ?>" data-countries="<?php echo esc_attr( implode( ',', $ec_stripe_method[2] ) ); ?>"<?php echo ( in_array( $ec_stripe_currency, $ec_stripe_method[1], true ) && in_array( $ec_stripe_country, $ec_stripe_method[2], true ) ) ? '' : ' style="display:none;"'; ?>><?php echo esc_html( $ec_stripe_method[0] ); ?></span>
+										<?php } ?>
+									</span>
+								</span>
+								<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+							</div>
+						</div>
+					<?php } ?>
 				</div>
-			<?php } else { ?>
-				<input type="hidden" name="ec_option_stripe_address_autocomplete" id="ec_option_stripe_address_autocomplete" value="<?php echo esc_attr( (int) get_option( 'ec_option_stripe_address_autocomplete' ) ); ?>" />
-			<?php } ?>
-			<div class="ec_admin_settings_input ec_admin_settings_third_party_section ec_admin_settings_show wp_easycart_admin_no_padding" style="padding:0px !important;">
-				<?php wp_easycart_admin( )->load_toggle_group_text( 'ec_option_stripe_connect_webhook_secret', 'ec_admin_save_stripe_connect_options', get_option( 'ec_option_stripe_connect_webhook_secret' ), __( 'Secure Your Webhook', 'wp-easycart' ), __( 'Enter the signing secret from your webhook to enhance security.', 'wp-easycart' ), '', true ); ?>
+				<?php foreach ( $ec_stripe_method_options as $ec_stripe_option ) { ?>
+					<input type="hidden" name="<?php echo esc_attr( $ec_stripe_option ); ?>" id="<?php echo esc_attr( $ec_stripe_option ); ?>" value="0" />
+				<?php } ?>
+				<input type="hidden" name="ec_option_stripe_pay_later_minimum" id="ec_option_stripe_pay_later_minimum" value="<?php echo esc_attr( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?>" />
 			</div>
 
-			<div id="stripe_buy_now_later" class="ec_admin_stripe_section" data-currencies="USD,CAD,GBP,AUD,NZD,EUR,DKK,SEK,NOK" data-countries="US,AU,CA,FR,NZ,ES,GB,AT,BE,DK,EE,FI,GR,DE,GR,IE,IT,LV,LT,NL,NO,SK,SI,SE"<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR', 'DKK', 'SEK', 'NOK' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US', 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB', 'AT', 'BE', 'DK', 'EE', 'FI', 'GR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'SE' ) ) ) { echo ' style="display:none;"'; } ?>>
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Buy Now, Pay Later', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_affirm" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="USD" data-countries="US" style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'USD' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Affirm', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_affirm" id="ec_option_stripe_affirm" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
+			<div class="ecsq-group" id="ec_stripe_checkout">
+				<div class="ecsq-group-t"><?php esc_html_e( 'Checkout', 'wp-easycart' ); ?></div>
+				<div class="ec_admin_toggles_wrap">
+					<?php if ( $ec_stripe_onepage ) { ?>
+						<div class="ec_admin_toggle">
+							<span><?php esc_html_e( 'Suggest addresses as shoppers type', 'wp-easycart' ); ?><small><?php esc_html_e( 'Stripe\'s address autocomplete on the one-page checkout. It works with Link.', 'wp-easycart' ); ?></small></span>
+							<label class="ec_admin_switch">
+								<input type="checkbox" onchange="this.value = this.checked ? '1' : '0'; ec_admin_save_stripe_connect_options();" class="ec_admin_slider_checkbox" value="<?php echo get_option( 'ec_option_stripe_address_autocomplete' ) ? '1' : '0'; ?>" id="ec_option_stripe_address_autocomplete" name="ec_option_stripe_address_autocomplete"<?php checked( (bool) get_option( 'ec_option_stripe_address_autocomplete' ) ); ?> aria-label="<?php esc_attr_e( 'Suggest addresses as shoppers type', 'wp-easycart' ); ?>">
+								<span class="ec_admin_slider round"></span>
+							</label>
 						</div>
-					</fieldset>
+					<?php } ?>
+					<div class="ec_admin_toggle ecsq-locked">
+						<?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+						<span><?php esc_html_e( 'Payment form style', 'wp-easycart' ); ?><small><?php echo esc_html( sprintf( __( 'Stripe\'s standard look. The night, flat and unstyled looks come with %s.', 'wp-easycart' ), $ec_stripe_plan ) ); ?></small></span>
+						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+					</div>
+					<div class="ec_admin_toggle ecsq-locked">
+						<?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+						<span><?php esc_html_e( 'Payment methods as a list', 'wp-easycart' ); ?><small><?php echo esc_html( sprintf( __( 'Payment methods show as tabs. The stacked accordion list comes with %s.', 'wp-easycart' ), $ec_stripe_plan ) ); ?></small></span>
+						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+					</div>
 				</div>
-				<?php $afterpay_rules = array(
-					'AU' => array( 'AUD' ),
-					'CA' => array( 'CAD' ),
-					'NZ' => array( 'NZD' ),
-					'GB' => array( 'GBP' ),
-					'US' => array( 'USD' ),
-					'FR' => array( 'EUR' ),
-					'ES' => array( 'EUR' ),
-				); ?>
-				<div id="stripe_use_afterpay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="USD,CAD,GBP,AUD,NZD,EUR" data-countries="AU,CA,FR,NZ,ES,GB,US" data-country-currency='{"AU": ["AUD"],"CA": ["CAD"],"NZ": ["NZD"],"GB": ["GBP"],"US": ["USD"],"FR": ["EUR"],"ES": ["EUR"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'USD', 'CAD', 'GBP', 'AUD', 'NZD', 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US', 'AU', 'CA', 'FR', 'NZ', 'ES', 'GB' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable AfterPay', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_afterpay" id="ec_option_stripe_afterpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-					<div class="ec_status_error" style="padding:5px 15px;<?php if ( isset( $afterpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) && in_array( get_option('ec_option_stripe_currency' ), $afterpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) ) { ?> display:none<?php }?>"><span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'This payment type requires your business country and currency to match local norms.', 'wp-easycart' ); ?></span></div>
-				</div>
-				<?php $klarna_rules = array(
-					'AT' => array( 'EUR' ),
-					'BE' => array( 'EUR' ),
-					'DK' => array( 'DKK' ),
-					'FI' => array( 'EUR' ),
-					'FR' => array( 'EUR' ),
-					'DE' => array( 'EUR' ),
-					'IE' => array( 'EUR' ),
-					'IT' => array( 'EUR' ),
-					'NL' => array( 'EUR' ),
-					'NO' => array( 'NOK' ),
-					'ES' => array( 'EUR' ),
-					'SE' => array( 'SEK' ),
-					'GB' => array( 'GBP' ),
-					'US' => array( 'USD' ),
-				); ?>
-				<div id="stripe_use_klarna" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR,USD,GBP,DKK,SEK,NOK" data-countries="AT,BE,DK,EE,FI,GR,DE,GR,IE,IT,LV,LT,NL,NO,SK,SI,ES,SE,GB,US" data-country-currency='{"AT": ["EUR"],"BE": ["EUR"],"DK": ["DKK"],"FI": ["EUR"],"FR": ["EUR"],"DE": ["EUR"],"IE": ["EUR"],"IT": ["EUR"],"NL": ["EUR"],"NO": ["NOK"],"ES": ["EUR"],"SE": ["SEK"],"GB": ["GBP"],"US": ["USD"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR', 'USD', 'GBP', 'DKK', 'SEK', 'NOK' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'US', 'ES', 'GB', 'AT', 'BE', 'DK', 'EE', 'FI', 'GR', 'DE', 'GR', 'IE', 'IT', 'LV', 'LT', 'NL', 'NO', 'SK', 'SI', 'SE' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Klarna', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_klarna" id="ec_option_stripe_klarna" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-					<div class="ec_status_error" style="padding:5px 15px;<?php if ( isset( $klarna_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) && in_array( get_option('ec_option_stripe_currency' ), $klarna_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) ) { ?> display:none<?php }?>"><span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'This payment type requires your business country and currency to match local norms.', 'wp-easycart' ); ?></span></div>
-				</div>
-				<input type="hidden" id="ec_option_stripe_pay_later_minimum" value="<?php echo esc_attr( get_option( 'ec_option_stripe_pay_later_minimum' ) ); ?>" />
+				<?php if ( ! $ec_stripe_onepage ) { ?>
+					<input type="hidden" name="ec_option_stripe_address_autocomplete" id="ec_option_stripe_address_autocomplete" value="<?php echo esc_attr( (int) get_option( 'ec_option_stripe_address_autocomplete' ) ); ?>" />
+				<?php } ?>
+				<input type="hidden" name="ec_option_stripe_payment_theme" id="ec_option_stripe_payment_theme" value="stripe" />
+				<input type="hidden" name="ec_option_stripe_payment_layout" id="ec_option_stripe_payment_layout" value="tabs" />
 			</div>
 
-			<div id="stripe_wallet_payments">
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Wallet Payments', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_applepay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Apple Pay and Google Pay', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_enable_apple_pay" id="ec_option_stripe_enable_apple_pay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" <?php if ( ! get_option('ec_option_stripe_enable_apple_pay' ) ) echo ' selected'; ?>><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
+			<div class="ecsq-group" id="ec_stripe_subscriptions">
+				<div class="ecsq-group-t"><?php esc_html_e( 'Subscriptions', 'wp-easycart' ); ?></div>
+				<div class="ec_admin_toggles_wrap">
+					<div class="ec_admin_toggle ecsq-locked">
+						<?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+						<span><?php esc_html_e( 'Email subscribers before each renewal', 'wp-easycart' ); ?><small><?php echo esc_html( sprintf( __( 'A reminder a few days before Stripe charges a renewal. Available with %s.', 'wp-easycart' ), $ec_stripe_plan ) ); ?></small></span>
+						<span class="ecsq-pro-chip"><?php echo esc_html( $ec_stripe_badge ); ?></span>
+					</div>
 				</div>
-				<?php $alipay_rules = array(
-					'AU' => array( 'AUD', 'CYN' ),
-					'CA' => array( 'CAD', 'CYN' ),
-					'AT' => array( 'EUR', 'CYN' ),
-					'BE' => array( 'EUR', 'CYN' ),
-					'BG' => array( 'EUR', 'CYN' ),
-					'CY' => array( 'EUR', 'CYN' ),
-					'CZ' => array( 'EUR', 'CYN' ),
-					'DK' => array( 'EUR', 'CYN' ),
-					'EE' => array( 'EUR', 'CYN' ),
-					'FI' => array( 'EUR', 'CYN' ),
-					'FR' => array( 'EUR', 'CYN' ),
-					'DE' => array( 'EUR', 'CYN' ),
-					'GR' => array( 'EUR', 'CYN' ),
-					'IE' => array( 'EUR', 'CYN' ),
-					'IT' => array( 'EUR', 'CYN' ),
-					'LV' => array( 'EUR', 'CYN' ),
-					'LT' => array( 'EUR', 'CYN' ),
-					'LU' => array( 'EUR', 'CYN' ),
-					'MT' => array( 'EUR', 'CYN' ),
-					'NL' => array( 'EUR', 'CYN' ),
-					'NO' => array( 'EUR', 'CYN' ),
-					'PT' => array( 'EUR', 'CYN' ),
-					'RO' => array( 'EUR', 'CYN' ),
-					'SK' => array( 'EUR', 'CYN' ),
-					'SI' => array( 'EUR', 'CYN' ),
-					'ES' => array( 'EUR', 'CYN' ),
-					'SE' => array( 'EUR', 'CYN' ),
-					'CH' => array( 'EUR', 'CYN' ),
-					'GB' => array( 'GBP', 'CYN' ),
-					'HK' => array( 'HKD', 'CYN' ),
-					'JP' => array( 'JPY', 'CYN' ),
-					'MY' => array( 'MYR', 'CYN' ),
-					'NZ' => array( 'NZD', 'CYN' ),
-					'SG' => array( 'SGD', 'CYN' ),
-					'US' => array( 'USD', 'CYN' ),
-				); ?>
-				<div id="stripe_use_alipay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="CNY,AUD,CAD,EUR,GBP,HKD,JPY,SGD,MYR,NZD,USD" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HU,IE,IT,JP,LV,LI,LT,LU,MY,LT,NL,NZ,NO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" data-country-currency='{"AU": ["AUD","CYN"],"CA": ["CAD","CYN"],"AT": ["EUR","CYN"],"BE": ["EUR","CYN"],"BG": ["EUR","CYN"],"CY": ["EUR","CYN"],"CZ": ["EUR","CYN"],"DK": ["EUR","CYN"],"EE": ["EUR","CYN"],"FI": ["EUR","CYN"],"FR": ["EUR","CYN"],"DE": ["EUR","CYN"],"GR": ["EUR","CYN"],"IE": ["EUR","CYN"],"IT": ["EUR","CYN"],"LV": ["EUR","CYN"],"LT": ["EUR","CYN"],"LU": ["EUR","CYN"],"MT": ["EUR","CYN"],"NL": ["EUR","CYN"],"NO": ["EUR","CYN"],"PT": ["EUR","CYN"],"RO": ["EUR","CYN"],"SK": ["EUR","CYN"],"SI": ["EUR","CYN"],"ES": ["EUR","CYN"],"SE": ["EUR","CYN"],"CH": ["EUR","CYN"],"GB": ["GBP","CYN"],"HK": ["HKD","CYN"],"JP": ["JPY","CYN"],"MY": ["MYR","CYN"],"NZ": ["NZD","CYN"],"SG": ["SGD","CYN"],"US": ["USD","CYN"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'CNY', 'AUD', 'CAD', 'EUR', 'GBP', 'HKD', 'JPY', 'SGD', 'MYR', 'NZD', 'USD' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( '' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Alipay', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_alipay" id="ec_option_stripe_alipay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-					<div class="ec_status_error" style="padding:5px 15px;<?php if ( isset( $alipay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) && in_array( get_option('ec_option_stripe_currency' ), $alipay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) ) { ?> display:none<?php }?>"><span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'This payment type requires your business country and currency to match local norms or process payments in CYN.', 'wp-easycart' ); ?></span></div>
-				</div>
-				<?php $grabpay_rules = array(
-					'MY' => array( 'MYR' ),
-					'SG' => array( 'SGD' ),
-				); ?>
-				<div id="stripe_use_grabpay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="SGD,MYR" data-countries="MY,SG" data-country-currency='{"MY": ["MYR"],"SG": ["SGD"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'SGD', 'MYR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( '' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable GrabPay (common in Southeast Asia)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_grabpay" id="ec_option_stripe_grabpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-					<div class="ec_status_error" style="padding:5px 15px;<?php if ( isset( $grabpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) && in_array( get_option('ec_option_stripe_currency' ), $grabpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) ) { ?> display:none<?php }?>"><span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'This payment type requires your business country and currency to match local norms.', 'wp-easycart' ); ?></span></div>
-				</div>
-				<?php $wechatpay_rules = array(
-					'AU' => array( 'AUD', 'CYN' ),
-					'CA' => array( 'CAD', 'CYN' ),
-					'AT' => array( 'EUR', 'CYN' ),
-					'BE' => array( 'EUR', 'CYN' ),
-					'DK' => array( 'EUR', 'DKK', 'CYN' ),
-					'FI' => array( 'EUR', 'CYN' ),
-					'FR' => array( 'EUR', 'CYN' ),
-					'DE' => array( 'EUR', 'CYN' ),
-					'IE' => array( 'EUR', 'CYN' ),
-					'IT' => array( 'EUR', 'CYN' ),
-					'LU' => array( 'EUR', 'CYN' ),
-					'NL' => array( 'EUR', 'CYN' ),
-					'NO' => array( 'EUR', 'NOK', 'CYN' ),
-					'PT' => array( 'EUR', 'CYN' ),
-					'ES' => array( 'EUR', 'CYN' ),
-					'SE' => array( 'EUR', 'SEK', 'CYN' ),
-					'CH' => array( 'EUR', 'CHF', 'CYN' ),
-					'GB' => array( 'GBP', 'CYN' ),
-					'HK' => array( 'HKD', 'CYN' ),
-					'JP' => array( 'JPY', 'CYN' ),
-					'SG' => array( 'SGD', 'CYN' ),
-					'US' => array( 'USD', 'CYN' ),
-				); ?>
-				<div id="stripe_use_wechatpay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="CNY,AUD,CAD,EUR,GBP,HKD,JPY,SGD,USD,DKK,NOK,SEK,CHF" data-countries="AU,AT,BE,CA,DK,FI,FR,DE,HK,IE,IT,JP,LU,NL,NO,PT,SG,ES,SE,CH,GB,US" data-country-currency='{"AU": ["AUD","CYN"],"CA": ["CAD","CYN"],"AT": ["EUR","CYN"],"BE": ["EUR","CYN"],"DK": ["EUR","DKK","CYN"],"FI": ["EUR","CYN"],"FR": ["EUR","CYN"],"DE": ["EUR","CYN"],"IE": ["EUR","CYN"],"IT": ["EUR","CYN"],"LU": ["EUR","CYN"],"NL": ["EUR","CYN"],"NO": ["EUR","NOK","CYN"],"PT": ["EUR","CYN"],"ES": ["EUR","CYN"],"SE": ["EUR","SEK","CYN"],"CH": ["EUR","CHF","CYN"],"GB": ["GBP","CYN"],"HK": ["HKD","CYN"],"JP": ["JPY","CYN"],"SG": ["SGD","CYN"],"US": ["USD","CYN"]}' style="padding:0px !important;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'CNY', 'AUD', 'CAD', 'EUR', 'GBP', 'HKD', 'JPY', 'SGD', 'USD', 'DKK', 'NOK', 'SEK', 'CHF' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( '' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable WeChat Pay', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_wechat" id="ec_option_stripe_wechat" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-					<div class="ec_status_error" style="padding:5px 15px;<?php if ( isset( $wechatpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) && in_array( get_option('ec_option_stripe_currency' ), $wechatpay_rules[ get_option( 'ec_option_stripe_company_country' ) ] ) ) { ?> display:none<?php }?>"><span class="ec_status_label" style="line-height:1.2em;"><?php esc_attr_e( 'This payment type requires your business country and currency to match local norms or process payments in CYN.', 'wp-easycart' ); ?></span></div>
-				</div>
-				<div id="stripe_use_link" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show" style="padding:0px !important;">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Link Payments', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_link" id="ec_option_stripe_link" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
+				<input type="hidden" name="ec_option_stripe_subscription_notices" id="ec_option_stripe_subscription_notices" value="0" />
 			</div>
 
-			<div id="stripe_bank_redirects" class="ec_admin_stripe_section" data-currencies="EUR,PLN,MYR" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HU,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US,MY"<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR', 'PLN', 'MYR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HU', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US', 'MY' ) ) ) { echo ' style="display:none;"'; } ?>>
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Bank Redirects', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_bancontact" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HU,IS,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HU', 'IS', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Bancontact (Common in Belgium)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_bancontact" id="ec_option_stripe_bancontact" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
+			<?php
+			global $wpdb;
+			$ec_stripe_heard = (bool) $wpdb->get_var( 'SELECT webhook_id FROM ec_webhook LIMIT 1' );
+			?>
+			<div class="ecsq-group" id="ec_stripe_webhooks">
+				<div class="ecsq-group-t"><?php esc_html_e( 'Notifications from Stripe', 'wp-easycart' ); ?></div>
+				<div class="ec_admin_toggle_note ecsq-status<?php echo $ec_stripe_heard ? '' : ' is-warn'; ?>">
+					<span class="ecsq-dot<?php echo $ec_stripe_heard ? ' is-on' : ''; ?>" aria-hidden="true"></span>
+					<span>
+						<?php
+						if ( $ec_stripe_heard ) {
+							esc_html_e( 'Stripe has sent this store notifications, so refunds, disputes and delayed payments reach your orders.', 'wp-easycart' );
+						} else {
+							esc_html_e( 'No notification from Stripe has arrived yet. Add the webhook address below to your Stripe account so refunds, disputes and delayed payments reach your orders.', 'wp-easycart' );
+						}
+						?>
+						<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'payment', 'stripe' ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'How to add it', 'wp-easycart' ); ?></a>
+					</span>
 				</div>
-				<div id="stripe_use_blik" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="PLN" data-countries="AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IS,IE,IT,LV,LI,LT,LU,MT,NL,NO,PO,PT,RO,SK,SI,ES,SE" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'PLN' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable BLIK (Common in Poland)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_blik" id="ec_option_stripe_blik" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
+				<div class="ecsq-field">
+					<label for="stripe_webhook_url"><?php esc_html_e( 'Webhook address', 'wp-easycart' ); ?></label>
+					<div class="ecsq-copy">
+						<input type="text" id="stripe_webhook_url" value="<?php echo esc_url( wp_easycart_hook_url( 'stripe-webhook' ) ); ?>" readonly="readonly" />
+						<button type="button" class="ecsq-copy-btn" onclick="ec_admin_copy_stripe_webhook(); return false;"><?php esc_html_e( 'Copy', 'wp-easycart' ); ?></button>
+					</div>
+					<small><?php esc_html_e( 'In Stripe, add it under Developers, Webhooks, for the events your store uses.', 'wp-easycart' ); ?></small>
+					<span class="ecsq-copied" id="stripe_webhook_copied" style="display:none;"><?php esc_html_e( 'Copied to your clipboard.', 'wp-easycart' ); ?></span>
 				</div>
-				<div id="stripe_use_eps" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HU,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HU', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable EPS (Common in Austria)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_eps" id="ec_option_stripe_eps" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
+				<div class="ecsq-field">
+					<label for="ec_option_stripe_connect_webhook_secret"><?php esc_html_e( 'Signing secret', 'wp-easycart' ); ?></label>
+					<input type="text" name="ec_option_stripe_connect_webhook_secret" id="ec_option_stripe_connect_webhook_secret" value="<?php echo esc_attr( get_option( 'ec_option_stripe_connect_webhook_secret' ) ); ?>" placeholder="whsec_..." autocomplete="off" spellcheck="false" />
+					<small><?php esc_html_e( 'From the webhook\'s page in Stripe. Once it is saved, a notification without Stripe\'s signature is refused.', 'wp-easycart' ); ?></small>
 				</div>
-				<div id="stripe_use_fpx" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="MYR" data-countries-future="MY" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'MYR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'MY' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable FPX (Common in Malaysia)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_fpx" id="ec_option_stripe_fpx" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_giropay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HG,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HG', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable giropay (Common in Germany)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_giropay" id="ec_option_stripe_giropay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_ideal" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR" data-countries="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,GH,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'GH', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable iDEAL (the most popular payment method in the Netherlands)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_enable_ideal" id="ec_option_stripe_enable_ideal" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_p24" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="EUR,PLN" data-countries="AU,AT,BE,BG,CA,HR,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HG,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR', 'PLN' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HG', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Przelewy24 (Common in Poland)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_p24" id="ec_option_stripe_p24" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_sofort" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="EUR" data-countries-future="AU,AT,BE,BG,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,GH,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( true|| ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'BG', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'GH', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Sofort (Common in Europe)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_sofort" id="ec_option_stripe_sofort" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
+				<?php /* The drawer's Save button runs this ( one ec_admin_save_ button = footer save ); hidden by the drawer. */ ?>
+				<input type="button" onclick="ec_admin_save_stripe_connect_options();" class="ecsq-save" value="<?php esc_attr_e( 'Save', 'wp-easycart' ); ?>" />
 			</div>
-
-			<div id="stripe_bank_debits" class="ec_admin_stripe_section" data-currencies="AUD" data-countries="AU" data-currencies-future="GBP,AUD,EUR" data-countries-future="GB,AU,AT,BE,GB,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HG,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,US"<?php /* future usage if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'GBP', 'AUD', 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'GB', 'AU', 'AT', 'BE', 'GB', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HG', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'US' ) ) ) { echo ' style="display:none;"'; } */if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'AUD' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU' ) ) ) { echo ' style="display:none;"'; } ?>>
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Bank Debits', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_bacs" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="GBP" data-countries-future="GB" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'GBP' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'GB' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Bacs Direct Debit in the UK', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_bacs" id="ec_option_stripe_bacs" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_becs" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="AUD" data-countries="AU" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'AUD' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable BECS Direct Debit in Australia', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_becs" id="ec_option_stripe_becs" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_sepa" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="EUR" data-countries-future="AU,AT,BE,GB,CA,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HK,HG,IE,IT,JP,LV,LI,LT,LU,MT,MX,NL,NZ,NO,PO,PT,RO,SG,SK,SI,ES,SE,CH,GB,US" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'EUR' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'AU', 'AT', 'BE', 'GB', 'CA', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GI', 'GR', 'HK', 'HG', 'IE', 'IT', 'JP', 'LV', 'LI', 'LT', 'LU', 'MT', 'MX', 'NL', 'NZ', 'NO', 'PL', 'PT', 'RO', 'SG', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'US' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable SEPA Direct Debit (Europe)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_sepa" id="ec_option_stripe_sepa" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-			</div>
-
-			<div id="stripe_realtime_payments" class="ec_admin_stripe_section" data-currencies="BRL,SGD,THB" data-countries="BR,SG,TH"<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'BRL', 'SGD', 'THB' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'BR', 'SG', 'TH' ) ) ) { echo ' style="display:none;"'; } ?>>
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Real Time Payments', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_pix" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="BRL" data-countries="BR" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'BRL' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'BR' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Pix (Brazil)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_pix" id="ec_option_stripe_pix" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_paynow" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="SGD" data-countries="SG" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'SGD' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'SG' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable PayNow (Singapore)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_paynow" id="ec_option_stripe_paynow" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_promptpay" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="THB" data-countries="TH" style="padding:0px !important; font-size:12px;<?php if ( ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'THB' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'TH' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable PromptPay (Thailand)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_promptpay" id="ec_option_stripe_promptpay" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-			</div>
-
-			<div id="stripe_realtime_payments" class="ec_admin_stripe_section" data-currencies="" data-countries="" data-currencies-future="BRL,JPY,MXN" data-countries-future="BR,JP,MX"<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'BRL', 'JPY', 'MXN' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'BR', 'JP', 'MX' ) ) ) { echo ' style="display:none;"'; } ?>>
-				<h3 style="float:left; width:100%; margin:25px 0 10px; border-bottom:1px solid #CCC; padding:0 0 5px;"><?php esc_attr_e( 'Vouchers', 'wp-easycart' ); ?></h3>
-				<div id="stripe_use_boleto" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="BRL" data-countries-future="BR" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'BRL' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'BR' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Boleto (Brazil)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_boleto" id="ec_option_stripe_boleto" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_konbini" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="JPY" data-countries-future="JP" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'JPY' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'JP' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable Konbini (Japan)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_konbini" id="ec_option_stripe_konbini" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-				<div id="stripe_use_oxxo" class="ec_admin_settings_input ec_admin_settings_advanced_payment_section ec_admin_settings_show ec_admin_stripe_settings_row" data-currencies="" data-countries="" data-currencies-future="MXN" data-countries-future="MX" style="padding:0px !important; font-size:12px;<?php if ( true || ! in_array( get_option( 'ec_option_stripe_currency' ), array( 'MXN' ) ) || ! in_array( get_option( 'ec_option_stripe_company_country' ), array( 'MX' ) ) ) { echo ' display:none;'; } ?>">
-					<label style="float:left; width:100%;"><?php echo wp_easycart_escape_html( apply_filters( 'wp_easycart_admin_lock_icon', ' <span class="dashicons dashicons-lock" style="color:#FC0; margin-top:0px;"></span>' ) ); ?><?php esc_attr_e( 'Enable OXXO (Mexico)', 'wp-easycart' ); ?></label>
-					<fieldset class="wp-easycart-admin-field-container">
-						<select name="ec_option_stripe_oxxo" id="ec_option_stripe_oxxo" onchange="ec_admin_update_stripe_connect_option( jQuery( this ) );" class="wp-easycart-admin-field">
-							<option value="0" selected="selected"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_attr( sprintf( __( 'Only available with %s', 'wp-easycart' ), $wpec_plan_name ) ); ?></option>
-						</select>
-						<div class="wp-easycart-admin-icons-container">
-							<div class="wp-easycart-admin-icon-close">
-								<div class="wp-easycart-admin-dual-ring wp_easycart_toggle_saving" style="display: none;"></div>
-								<div class="dashicons-before dashicons-yes-alt wp_easycart_toggle_saved" style="display: none;"></div>
-							</div>
-						</div>
-					</fieldset>
-				</div>
-			</div>
-			<?php }?>
-			<input type="hidden" name="use_stripe_connect" id="use_stripe_connect" value="<?php echo ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ? 1 : 0; ?>" />
-			<input type="hidden" name="ec_option_stripe_connect_use_sandbox" id="ec_option_stripe_connect_use_sandbox" value="<?php echo ( get_option( 'ec_option_stripe_connect_use_sandbox' ) ) ? 1 : 0; ?>" />
-		</div>
-		<div class="ec_admin_toggles_wrap">
-			<div class="ec_admin_toggle">
-				<span><?php esc_attr_e( 'Enable Live', 'wp-easycart' ); ?>:</span>
-				<?php if ( get_option( 'ec_option_stripe_connect_production_access_token' ) == '' ) { ?>
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=production&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=production">
-				<span></span>
-				<?php }?>
-				<label class="ec_admin_switch">
-					<input type="checkbox" onclick="return stripe_live_on_off();" class="ec_admin_slider_checkbox" value="1" id="ec_option_stripe_connect_enable_live"<?php if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && !get_option( 'ec_option_stripe_connect_use_sandbox' ) && get_option( 'ec_option_stripe_connect_production_access_token' ) != '' ) { ?> checked="checked"<?php }?>>
-					<span class="ec_admin_slider round"></span>
-				</label>
-			<?php if ( get_option( 'ec_option_stripe_connect_production_access_token' ) == '' ) { ?>
-				</a> 
-				<?php }?>
-			</div>
-			<div class="ec_admin_toggle">
-				<span><?php esc_attr_e( 'Enable Sandbox', 'wp-easycart' ); ?>:</span>
-				<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) == '' ) { ?>
-				<a href="<?php echo esc_url_raw( wp_easycart_admin()->get_available_url() ); ?>/connect/?step=start&redirect=<?php echo urlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_action=stripe_onboard&env=sandbox&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-stripe' ) ); ?>&env=sandbox">
-				<span></span>
-				<?php }?>
-				<label class="ec_admin_switch">
-					<input type="checkbox" onclick="return stripe_sandbox_on_off();" class="ec_admin_slider_checkbox" value="<1" id="ec_option_stripe_connect_enable_sandbox"<?php if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' && get_option( 'ec_option_stripe_connect_use_sandbox' ) && get_option( 'ec_option_stripe_connect_sandbox_access_token' ) != '' ) { ?> checked="checked"<?php }?>>
-					<span class="ec_admin_slider round"></span>
-				</label>
-				<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) == '' ) { ?>
-				</a>
-				<?php }?>
-			</div>
-		</div>
-		<input style="position:absolute; left:-1000px; top:-1000px;" type="text" id="stripe_webhook_url" value="<?php echo esc_url( get_site_url() . '?wpeasycarthook=stripe-webhook' ); ?>" />
-		<?php if ( get_option( 'ec_option_stripe_connect_sandbox_access_token' ) != '' || get_option( 'ec_option_stripe_connect_production_access_token' ) != '' ) { ?>
-		<div class="ec_admin_webhook">
-			<?php global $wpdb; $webhooks = $wpdb->get_results( "SELECT * FROM ec_webhook LIMIT 1" ); if ( $webhooks ) { ?>
-			<div class="dashicons dashicons-yes-alt"></div> <?php esc_attr_e( 'It looks like you have already added the Webhook URL to your Stripe account, but if you ever need the information again: ', 'wp-easycart' ); ?> 
-			<a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=stripe" target="_blank"><?php esc_attr_e( 'Click Here to Learn More', 'wp-easycart' ); ?></a>
-			<?php } else { ?>
-			<div class="dashicons dashicons-warning"></div> <strong><?php esc_attr_e( 'To Do', 'wp-easycart' ); ?>:</strong> <?php esc_attr_e( 'You must add the Webhook URL to your Stripe account for best results.', 'wp-easycart' ); ?> 
-			<a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=stripe" target="_blank"><?php esc_attr_e( 'Click Here to Learn More', 'wp-easycart' ); ?></a>
-			<?php }?>
-		</div>
-
-		<div class="ec_admin_webhook">
-			<strong><?php esc_attr_e( 'Webhook URL', 'wp-easycart' ); ?>:</strong> 
-			<a href="#" onclick="ec_admin_copy_stripe_webhook(); return false;"><?php esc_attr_e( 'Copy Webhook to Clipboard', 'wp-easycart' ); ?></a>
-		</div>
-		<div class="ec_admin_webhook_copy" id="stripe_webhook_copied" style="display:none;"><?php esc_attr_e( 'Webhook URL has been copied to your clipboard!', 'wp-easycart' ); ?></div>
-		<?php }?>
+		<?php } ?>
 	</div>
 </div>

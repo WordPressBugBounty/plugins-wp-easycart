@@ -98,7 +98,7 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 			if ( 'above' == $args['label_type'] ) {
 				echo '<label for="ec_account_personal_information_vat_registration_number">' . esc_html( $args['billing_vat_label'] ) . '</label>';
 			}
-			echo '<input type="text" name="ec_account_personal_information_vat_registration_number" id="ec_account_personal_information_vat_registration_number" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( $GLOBALS['ec_user']->vat_registration_number, ENT_QUOTES ) ) . '" placeholder="';
+			echo '<input type="text" name="ec_account_personal_information_vat_registration_number" id="ec_account_personal_information_vat_registration_number" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( (string) $GLOBALS['ec_user']->vat_registration_number, ENT_QUOTES ) ) . '" placeholder="';
 			if ( 'inside' == $args['label_type'] ) {
 				echo esc_html( $args['billing_vat_label'] );
 			} else if ( 'floating' == $args['label_type'] ) {
@@ -138,7 +138,7 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 			if ( 'above' == $args['label_type'] ) {
 				echo '<label for="ec_account_personal_information_email_other">' . esc_html( $args['extra_email_label'] ) . '</label>';
 			}
-			echo '<input type="text" name="ec_account_personal_information_email_other" id="ec_account_personal_information_email_other" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( $GLOBALS['ec_user']->email_other, ENT_QUOTES ) ) . '" placeholder="';
+			echo '<input type="text" name="ec_account_personal_information_email_other" id="ec_account_personal_information_email_other" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( (string) $GLOBALS['ec_user']->email_other, ENT_QUOTES ) ) . '" placeholder="';
 			if ( 'inside' == $args['label_type'] ) {
 				echo esc_html( $args['extra_email_label'] );
 			} else if ( 'floating' == $args['label_type'] ) {
@@ -152,11 +152,23 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 	}
 
 	if ( 'yes' == $args['show_subscriber'] ) {
+		/*
+		 * 6.0.2: the newsletter box under the name this form's handler reads, ticked the way the account template ticks it
+		 * ( ec_accountpage::display_account_personal_information_is_subscriber_input() ).
+		 */
+		$wpec_personal_db  = new ec_db();
+		$wpec_personal_sub = ! empty( $GLOBALS['ec_user']->is_subscriber ) || $wpec_personal_db->is_subscribed( (string) $GLOBALS['ec_user']->email );
 		echo '<div class="ec_cart_button_row">';
-			echo '<input type="checkbox" name="ec_account_register_is_subscriber" id="ec_account_register_is_subscriber" class="ec_account_input_field" />';
-			echo wp_easycart_language( )->get_text( 'account_register', 'account_register_subscribe' );
+			echo '<input type="checkbox" name="ec_account_personal_information_is_subscriber" id="ec_account_personal_information_is_subscriber" class="ec_account_input_field"' . ( $wpec_personal_sub ? ' checked="checked"' : '' ) . ' />';
+			echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_subscribe' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a language phrase, sanitized when saved ( as the account template prints it ).
 		echo '</div>';
+	} else {
+		/* 6.0.2: no newsletter box on this form, so saving it keeps the subscription as it is ( it unsubscribed the customer ). */
+		echo '<input type="hidden" name="ec_account_personal_information_keep_subscription" value="1" />';
 	}
+
+	/* 6.0.2: remembered checkout answers ( WP EasyCart PRO checkout fields ), as the account template; above the button row, which is a flex row. */
+	do_action( 'wpeasycart_account_personal_information_fields', null );
 
 	echo '<div class="wp-easycart-button-row">';
 		echo '<button type="submit" class="wp-easycart-button" onclick="return ec_account_personal_information_update_click();">' . esc_html( $args['button_text_personal'] ) . '</button>';

@@ -82,8 +82,17 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$this->apply_catalog_scope();
 			$this->set_inline_editable_columns( array( 'title', 'model_number' ) );
 
-			$this->set_list_columns( array(
-				array( 'name' => 'image1', 'label' => '', 'format' => 'product_image', 'width' => 50 ),
+			/**
+			 * Products list columns. An extension adds one ( e.g. before 'product_id' ) with its own 'format' and prints its
+			 * cells on wp_easycart_admin_product_list_cell_<format> ( $result, $col ). A column that is not an ec_product
+			 * field needs a 'select' ( an SQL expression AS its name ), which brings its data into $result; the header sorts
+			 * by that name.
+			 *
+			 * @since 6.0.2
+			 * @param array $columns Column definitions ( name, label, format, select, width, tablet_hide, laptop_hide ... ).
+			 */
+			$this->set_list_columns( apply_filters( 'wp_easycart_admin_product_list_columns', array(
+				array( 'name' => 'image1', 'label' => '', 'chooser_label' => __( 'Image', 'wp-easycart' ), 'format' => 'product_image', 'width' => 50 ),
 				array( 'name' => 'title', 'label' => __( 'Product', 'wp-easycart' ), 'format' => 'product_title', 'linked' => true ),
 				array( 'name' => 'model_number', 'label' => __( 'SKU', 'wp-easycart' ), 'format' => 'sku_chip', 'tablet_hide' => true ),
 				array( 'name' => 'price', 'label' => __( 'Price', 'wp-easycart' ), 'format' => 'product_price' ),
@@ -123,7 +132,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'name' => 'price_range_high', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => '(SELECT COUNT(*) FROM ec_pricetier WHERE ec_pricetier.product_id = ec_product.product_id) AS tier_count', 'name' => 'tier_count', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => '(SELECT COUNT(*) FROM ec_roleprice WHERE ec_roleprice.product_id = ec_product.product_id) AS roleprice_count', 'name' => 'roleprice_count', 'format' => 'hidden', 'label' => '' ),
-			) );
+			) ) );
 
 			$this->set_custom_select(
 				'(SELECT COUNT(*) FROM ec_categoryitem WHERE ec_categoryitem.product_id = ec_product.product_id) AS category_count'
@@ -264,7 +273,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				array( 'label' => __( 'Incomplete', 'wp-easycart' ), 'value' => $this->health_data['incomplete'], 'filter_value' => 'incomplete', 'color' => 'amber', 'group' => 'attention' ),
 			);
 			/* 6.0.1: only shown while some downloadable product is missing its file. */
-			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' )" );
+			$download_missing = (int) $this->wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' ) AND NOT ( is_amazon_download = 1 AND amazon_key IS NOT NULL AND amazon_key <> '' )" );
 			if ( $download_missing > 0 ) {
 				$health_stats[] = array( 'label' => __( 'Missing download file', 'wp-easycart' ), 'value' => $download_missing, 'filter_value' => 'download_missing', 'color' => 'red', 'group' => 'attention' );
 			}
@@ -440,7 +449,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					return 'ec_product.list_price > 0 AND ec_product.list_price > ec_product.price';
 				/* 6.0.1: downloadable products whose file name was lost ( the recovery notice links here ). */
 				case 'download_missing':
-					return "ec_product.is_download = 1 AND ( ec_product.download_file_name IS NULL OR ec_product.download_file_name = '' )";
+					return "ec_product.is_download = 1 AND ( ec_product.download_file_name IS NULL OR ec_product.download_file_name = '' ) AND NOT ( ec_product.is_amazon_download = 1 AND ec_product.amazon_key IS NOT NULL AND ec_product.amazon_key <> '' )";
 				case 'square_synced':
 					return "ec_product.square_id IS NOT NULL AND ec_product.square_id != ''";
 				default:
@@ -723,8 +732,10 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 				$extra_class .= ' ecv2-row-inactive';
 			}
 			$square_attr = $is_square ? ' data-square-synced="1"' : '';
+			/* 6.0.2: a product another service manages ( e.g. a fulfillment partner ): which fields it owns, for the row's editors. */
+			$square_attr .= class_exists( 'wp_easycart_product_lock' ) ? wp_easycart_product_lock::row_attributes( (int) $row_id ) : '';
 
-			echo '<tr class="ecv2-row' . esc_attr( $extra_class ) . '" data-id="' . esc_attr( $row_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_attr is a static literal attribute or ''.
+			echo '<tr class="ecv2-row' . esc_attr( $extra_class ) . '" data-id="' . esc_attr( $row_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_attr is a static literal attribute, attributes escaped by row_attributes(), or ''.
 
 			// Checkbox — always available for bulk actions (delete, activate, deactivate, export).
 			echo '<td class="ecv2-col-check"><input type="checkbox" name="bulk[]" value="' . esc_attr( $row_id ) . '" class="ecv2-row-check" /></td>';
@@ -792,6 +803,17 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					$this->print_status_toggle_sm( $result );
 					break;
 				default:
+					if ( isset( $col['format'] ) && '' !== (string) $col['format'] && has_action( 'wp_easycart_admin_product_list_cell_' . $col['format'] ) ) {
+						/**
+						 * Print the cell of a column added through wp_easycart_admin_product_list_columns ( escape the output ).
+						 *
+						 * @since 6.0.2
+						 * @param object $result The product row ( the list's SELECT, including the column's own 'select' ).
+						 * @param array  $col    The column definition.
+						 */
+						do_action( 'wp_easycart_admin_product_list_cell_' . $col['format'], $result, $col );
+						break;
+					}
 					parent::print_cell_content( $result, $col );
 					break;
 			}
@@ -1633,8 +1655,9 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			$is_square = self::is_square_locked( $result );
 			$square_class = $is_square ? ' ecv2-card-square-locked' : '';
 			$square_attr = $is_square ? ' data-square-synced="1"' : '';
+			$square_attr .= class_exists( 'wp_easycart_product_lock' ) ? wp_easycart_product_lock::row_attributes( (int) $result->product_id ) : ''; /* 6.0.2 */
 
-			echo '<div class="ecv2-card' . ( ! $checked ? ' ecv2-card-inactive' : '' ) . $square_class . '" data-id="' . esc_attr( $result->product_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_class and $square_attr are static literals or ''.
+			echo '<div class="ecv2-card' . ( ! $checked ? ' ecv2-card-inactive' : '' ) . $square_class . '" data-id="' . esc_attr( $result->product_id ) . '"' . $square_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $square_class and $square_attr are static literals, attributes escaped by row_attributes(), or ''.
 
 			// Image area.
 			echo '<div class="ecv2-card-image" data-product-id="' . esc_attr( $result->product_id ) . '">';
@@ -1917,6 +1940,10 @@ endif;
  * 2. Auto product sync OR auto inventory sync is enabled
  * 3. The product has a square_id
  *
+ * Since 6.0.2 a wrapper over wp_easycart_product_lock: the product is locked when its managing service is 'square'
+ * ( wp_easycart_product_lock::managed_by(), whose default for Square is this same three-part rule; filter
+ * wp_easycart_product_managed_by ).
+ *
  * @param int    $product_id Product ID.
  * @param string $field      Optional field name. 'activate_in_store' and 'categories' are always allowed.
  * @return bool True if the edit should be blocked.
@@ -1925,6 +1952,9 @@ function ecv2_is_square_locked( $product_id, $field = '' ) {
 	$always_editable = array( 'activate_in_store', 'categories' );
 	if ( $field && in_array( $field, $always_editable, true ) ) {
 		return false;
+	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		return 'square' === wp_easycart_product_lock::managed_by( (int) $product_id );
 	}
 	if ( 'square' !== get_option( 'ec_option_payment_process_method' ) ) {
 		return false;
@@ -1971,6 +2001,11 @@ function ecv2_product_inline_update() {
 
 	if ( ecv2_is_square_locked( $product_id, $field ) ) {
 		wp_send_json_error( array( 'message' => __( 'This product is synced with Square. Please make changes in your Square dashboard.', 'wp-easycart' ) ) );
+	}
+	/* 6.0.2: a field the product's managing service owns ( e.g. a fulfillment partner ) is not edited here. */
+	$wpec_lock_keys = array( 'title' => 'title', 'price' => 'price', 'list_price' => 'list_price', 'stock_quantity' => 'stock', 'model_number' => 'sku' );
+	if ( isset( $wpec_lock_keys[ $field ] ) && class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, $wpec_lock_keys[ $field ] );
 	}
 
 	$allowed_fields = array( 'title', 'price', 'list_price', 'stock_quantity', 'model_number' );
@@ -2124,6 +2159,9 @@ function ecv2_product_bulk_edit() {
 		$update_data = array();
 		$update_format = array();
 		$pid_is_square = ecv2_is_square_locked( $pid );
+		/* 6.0.2: price and stock the product's managing service owns ( e.g. a fulfillment partner ) are left as they are. */
+		$pid_price_locked = class_exists( 'wp_easycart_product_lock' ) && wp_easycart_product_lock::is_locked( $pid, 'price' );
+		$pid_stock_locked = class_exists( 'wp_easycart_product_lock' ) && wp_easycart_product_lock::is_locked( $pid, 'stock' );
 
 		if ( isset( $changes['activate_in_store'] ) && $changes['activate_in_store'] !== '' && ! ecv2_is_square_active_locked( $pid ) ) {
 			$update_data['activate_in_store'] = (int) $changes['activate_in_store'];
@@ -2133,7 +2171,7 @@ function ecv2_product_bulk_edit() {
 			$update_data['manufacturer_id'] = (int) $changes['manufacturer_id'];
 			$update_format[] = '%d';
 		}
-		if ( ! $pid_is_square && isset( $changes['price_mode'] ) && $changes['price_mode'] !== '' && isset( $changes['price_value'] ) ) {
+		if ( ! $pid_is_square && ! $pid_price_locked && isset( $changes['price_mode'] ) && $changes['price_mode'] !== '' && isset( $changes['price_value'] ) ) {
 			$price_val = (float) $changes['price_value'];
 			$current_price = (float) $wpdb->get_var( $wpdb->prepare( "SELECT price FROM ec_product WHERE product_id = %d", $pid ) );
 			switch ( sanitize_key( $changes['price_mode'] ) ) {
@@ -2148,7 +2186,7 @@ function ecv2_product_bulk_edit() {
 				$update_format[] = '%s';
 			}
 		}
-		if ( ! $pid_is_square && isset( $changes['stock_quantity_mode'] ) && $changes['stock_quantity_mode'] !== '' && isset( $changes['stock_quantity_value'] ) ) {
+		if ( ! $pid_is_square && ! $pid_stock_locked && isset( $changes['stock_quantity_mode'] ) && $changes['stock_quantity_mode'] !== '' && isset( $changes['stock_quantity_value'] ) ) {
 			$stock_val = (int) $changes['stock_quantity_value'];
 			$current_stock = (int) $wpdb->get_var( $wpdb->prepare( "SELECT stock_quantity FROM ec_product WHERE product_id = %d", $pid ) );
 			switch ( sanitize_key( $changes['stock_quantity_mode'] ) ) {
@@ -2364,7 +2402,7 @@ function ecv2_product_bulk_set_status( $new_status ) {
 	foreach ( $rows as $row ) {
 		$pid = (int) $row->product_id;
 		if ( ! empty( $row->model_number ) ) {
-			wp_cache_delete( 'wpeasycart-product-only-' . $row->model_number, 'wpeasycart-product-list' );
+			ec_db::product_cache_changed();
 		}
 		if ( $new_status ) {
 			do_action( 'wpeasycart_product_activated', $pid );
@@ -2474,6 +2512,9 @@ function ecv2_product_schedule_sale() {
 	if ( ecv2_is_square_locked( $product_id, 'price' ) ) {
 		wp_send_json_error( array( 'message' => __( 'This product is synced with Square. Please make changes in your Square dashboard.', 'wp-easycart' ) ) );
 	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, array( 'price', 'list_price' ) ); /* 6.0.2 */
+	}
 
 	global $wpdb;
 	$current_price = (float) $wpdb->get_var( $wpdb->prepare( "SELECT price FROM ec_product WHERE product_id = %d", $product_id ) );
@@ -2505,6 +2546,9 @@ function ecv2_product_remove_sale() {
 	}
 
 	$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, array( 'price', 'list_price' ) ); /* 6.0.2 */
+	}
 
 	global $wpdb;
 	$product = $wpdb->get_row( $wpdb->prepare( "SELECT price, list_price FROM ec_product WHERE product_id = %d", $product_id ) );
@@ -2545,6 +2589,9 @@ function ecv2_product_change_tracking_type() {
 
 	if ( ecv2_is_square_locked( $product_id, 'stock_quantity' ) ) {
 		wp_send_json_error( array( 'message' => __( 'This product is synced with Square. Stock tracking is managed by Square.', 'wp-easycart' ) ) );
+	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, 'stock' ); /* 6.0.2 */
 	}
 
 	global $wpdb;
@@ -2637,6 +2684,15 @@ function ecv2_product_save_prices() {
 	if ( $list_price < 0 ) {
 		$list_price = 0;
 	}
+	/* 6.0.2: a price the product's managing service owns ( e.g. a fulfillment partner ) keeps its stored value. */
+	if ( $old && class_exists( 'wp_easycart_product_lock' ) ) {
+		if ( wp_easycart_product_lock::is_locked( $product_id, 'price' ) ) {
+			$price = $old->price;
+		}
+		if ( wp_easycart_product_lock::is_locked( $product_id, 'list_price' ) ) {
+			$list_price = $old->list_price;
+		}
+	}
 
 	$update_fields  = array( 'price' => $price, 'list_price' => $list_price );
 	$update_formats = array( '%s', '%s' );
@@ -2716,7 +2772,7 @@ function ecv2_product_save_prices() {
 	// Bust the per-product cache that the storefront uses (mirrors save_product_details_pricing).
 	$model_number = $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 	if ( ! empty( $model_number ) ) {
-		wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
+		ec_db::product_cache_changed();
 	}
 	wp_cache_flush();
 
@@ -2835,6 +2891,9 @@ function ecv2_category_add() {
 	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-category-' . $product_id ) ) {
 		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
 	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, 'categories' ); /* 6.0.2 */
+	}
 
 	global $wpdb;
 
@@ -2884,6 +2943,9 @@ function ecv2_category_remove() {
 	// Verify per-product nonce.
 	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-category-' . $product_id ) ) {
 		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
+	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, 'categories' ); /* 6.0.2 */
 	}
 
 	global $wpdb;
@@ -3245,6 +3307,9 @@ function ecv2_save_product_images() {
 
 	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_easycart_nonce'] ) ), 'wp-easycart-ecv2-image-manager-' . $product_id ) ) {
 		wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wp-easycart' ) ) );
+	}
+	if ( class_exists( 'wp_easycart_product_lock' ) ) {
+		wp_easycart_product_lock::refuse( $product_id, 'images' ); /* 6.0.2 */
 	}
 
 	global $wpdb;

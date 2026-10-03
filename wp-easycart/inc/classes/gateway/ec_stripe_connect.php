@@ -49,52 +49,6 @@ class ec_stripe_connect extends ec_gateway {
 		}
 	}
 
-	function process_subscriptions() {
-		$has_subscriptions = false;
-		for ( $i = 0; $i < count( $this->cart->cart ); $i++ ) {
-			if ( $this->cart->cart[$i]->is_subscription_item ) {
-				$has_subscriptions = true;
-				break;
-			}
-		}
-
-		if ( $has_subscriptions ) {
-			if ( '' == $this->user->stripe_customer_id ) {
-				$customer_id = $this->insert_customer( $this->user );
-				$this->mysqli->update_user_stripe_id( $this->user->user_id, $customer_id );
-				$GLOBALS['ec_user']->stripe_customer_id = $this->user->user_id = $customer_id;
-			}
-
-			$coupon_code = NULL;
-			if ( $GLOBALS['ec_cart_data']->cart_data->coupon_code && '' != $GLOBALS['ec_cart_data']->cart_data->coupon_code ) {
-				$coupon_code = $GLOBALS['ec_cart_data']->cart_data->coupon_code;
-			}
-
-			foreach ( $this->cart->cart as $cart_item ) {
-				if ( ! $cart_item->stripe_plan_added ) {
-					$plan_added = $this->insert_plan( $cart_item );
-					$this->mysqli->update_product_stripe_added( $cart_item->product_id );
-				}
-
-				if ( $cart_item->is_subscription_item ) {
-					$start_date = time();
-					if ( 'W' == $cart_item->subscription_bill_period ) {
-						$sub_start_date = strtotime( '+' . $cart_item->subscription_bill_length . ' week', $start_date);
-
-					} else if ( 'M' == $cart_item->subscription_bill_period ) {
-						$sub_start_date = strtotime( '+' . $cart_item->subscription_bill_length . ' month', $start_date);
-
-					} else if ( 'Y' == $cart_item->subscription_bill_period ) {
-						$sub_start_date = strtotime( '+' . $cart_item->subscription_bill_length . ' year', $start_date);
-					}
-
-					$this->insert_subscription( $cart_item, $this->user, $this->credit_card, $coupon_code, $cart_item->prorate, $sub_start_date, $cart_item->quantity, $this->tax->get_tax_rate(), array(), $this->tax->get_stripe_tax_rates() );
-					die();
-				}
-			}
-		}
-	}
-
 	function get_gateway_url( $card = '' ) {
 		if ( is_string( $card ) && 'pm_' == substr( $card, 0, 3 ) ) {
 			return 'https://api.stripe.com/v1/payment_intents';
@@ -144,6 +98,25 @@ class ec_stripe_connect extends ec_gateway {
 		}
 	}
 
+	/**
+	 * An event as Stripe has it ( the webhook reads an unsigned event back before acting on it ).
+	 *
+	 * @since 6.0.2
+	 * @param string $event_id Event id.
+	 * @return object|false
+	 */
+	public function get_event( $event_id ) {
+		if ( ! is_string( $event_id ) || ! preg_match( '/^evt_[A-Za-z0-9_]+$/', $event_id ) ) {
+			return false;
+		}
+		$response = $this->call_stripe_get( 'https://api.stripe.com/v1/events/' . $event_id, array() );
+		$json = json_decode( $response );
+		if ( '' != $response && is_object( $json ) && ! isset( $json->error ) ) {
+			return $json;
+		}
+		return false;
+	}
+
 	public function refund_charge( $charge_id, $amount ) {
 		$data = $this->get_refund_charge_data( $charge_id, $amount );
 		$response = $this->call_stripe( 'https://api.stripe.com/v1/charges/' . $charge_id . '/refund', $data );
@@ -179,6 +152,27 @@ class ec_stripe_connect extends ec_gateway {
 		} else {
 			return false;
 		}
+	}
+
+	/**
+	 * A charge's refunds, newest first ( the webhook reads the reason Stripe records for a refund made outside WP EasyCart;
+	 * charges from API 2022-11-15 on no longer carry their refunds list ).
+	 *
+	 * @since 6.0.2
+	 * @param string $charge_id Charge id.
+	 * @param int    $limit     How many.
+	 * @return object|false Stripe list ( data[] ).
+	 */
+	public function get_charge_refunds( $charge_id, $limit = 3 ) {
+		if ( ! is_string( $charge_id ) || ! preg_match( '/^(ch|py)_[A-Za-z0-9_]+$/', $charge_id ) ) {
+			return false;
+		}
+		$response = $this->call_stripe_get( 'https://api.stripe.com/v1/refunds', array( 'charge' => $charge_id, 'limit' => max( 1, min( 10, (int) $limit ) ) ) );
+		$json     = json_decode( $response );
+		if ( '' != $response && is_object( $json ) && ! isset( $json->error ) ) {
+			return $json;
+		}
+		return false;
 	}
 
 	public function get_refund_list( $limit = 100, $starting_after = NULL ) {
@@ -966,7 +960,7 @@ class ec_stripe_connect extends ec_gateway {
 
 	/**
 	 * Re-create the Stripe customer for the current shopper and store the new
-	 * id on ec_user ( mirrors what process_subscriptions() does ). Returns the
+	 * id on ec_user. Returns the
 	 * new customer id, or '' when the shopper is a guest or Stripe refused, in
 	 * which case the caller should retry without the customer param.
 	 */
@@ -1048,12 +1042,11 @@ class ec_stripe_connect extends ec_gateway {
 				if ( apply_filters( 'wp_easycart_stripe_payment_methods_type_enabled', true ) ) {
 					$data['payment_method_types'] = array( 'card' );
 				}
-				$response2 = $this->call_stripe( "https://api.stripe.com/v1/payment_intents", $data );
-				if( '' != $response2 ) {
-					return json_decode( $response2 );
-				} else {
-					return false;
-				}
+				/* 6.0.2: the retry updates the same intent. It posted to the create endpoint, which left a new intent with no order
+				   description behind on every refused update ( and a pay link could hand that one to the shopper ). */
+				$response2 = $this->call_stripe( "https://api.stripe.com/v1/payment_intents/" . $id, $data );
+				$json2     = ( '' != $response2 ) ? json_decode( $response2 ) : null;
+				return ( is_object( $json2 ) && ! isset( $json2->error ) ) ? $json2 : false;
 			} else {
 				return $json;
 			}
@@ -1125,6 +1118,58 @@ class ec_stripe_connect extends ec_gateway {
 		} else {
 			return false;
 		}
+	}
+
+	/**
+	 * Cancel a payment intent, so a client secret already on a page can no longer confirm a card
+	 * ( checkout protection pauses a session this way ).
+	 *
+	 * @since 6.0.2
+	 * @param string $id Payment intent id.
+	 * @return bool Cancelled.
+	 */
+	public function cancel_payment_intent( $id ) {
+		if ( '' == (string) $id ) {
+			return false;
+		}
+		$response = $this->call_stripe( 'https://api.stripe.com/v1/payment_intents/' . rawurlencode( (string) $id ) . '/cancel', array( 'cancellation_reason' => 'abandoned' ) );
+		$json     = json_decode( $response );
+		if ( isset( $GLOBALS['ec_stripe_payment_intent'] ) && is_object( $GLOBALS['ec_stripe_payment_intent'] ) && isset( $GLOBALS['ec_stripe_payment_intent']->id ) && $GLOBALS['ec_stripe_payment_intent']->id == $id ) {
+			unset( $GLOBALS['ec_stripe_payment_intent'] );
+		}
+		return ( '' != $response && is_object( $json ) && ! isset( $json->error ) );
+	}
+
+	/**
+	 * Fetch a setup intent ( checkout protection reads its last_setup_error ).
+	 *
+	 * @since 6.0.2
+	 * @param string $id Setup intent id.
+	 * @return object|false
+	 */
+	public function get_setup_intent( $id ) {
+		if ( '' == (string) $id ) {
+			return false;
+		}
+		$response = $this->call_stripe_get( 'https://api.stripe.com/v1/setup_intents/' . rawurlencode( (string) $id ), array() );
+		$json     = json_decode( $response );
+		return ( '' != $response && is_object( $json ) && ! isset( $json->error ) ) ? $json : false;
+	}
+
+	/**
+	 * Cancel a setup intent, so a client secret already on the My Account card form can no longer check cards.
+	 *
+	 * @since 6.0.2
+	 * @param string $id Setup intent id.
+	 * @return bool Cancelled.
+	 */
+	public function cancel_setup_intent( $id ) {
+		if ( '' == (string) $id ) {
+			return false;
+		}
+		$response = $this->call_stripe( 'https://api.stripe.com/v1/setup_intents/' . rawurlencode( (string) $id ) . '/cancel', array( 'cancellation_reason' => 'abandoned' ) );
+		$json     = json_decode( $response );
+		return ( '' != $response && is_object( $json ) && ! isset( $json->error ) );
 	}
 
 	public function create_setup_intent( $customer_id = false ){
@@ -1916,7 +1961,7 @@ class ec_stripe_connect extends ec_gateway {
 		if( $coupon['is_amount_off'] ) {
 			$gateway_data['amount_off'] = number_format( $coupon['amount_off'], 0, '', '' );
 		} else {
-			$gateway_data['percent_off'] = number_format( $coupon['percent_off'], 0, '', '' );
+			$gateway_data['percent_off'] = rtrim( rtrim( number_format( (float) $coupon['percent_off'], 2, '.', '' ), '0' ), '.' ); /* 6.0.2: Stripe takes two decimals ( 12.5% was sent as 13% ); whole percents as before */
 		}
 
 		if( $coupon['redeem_by'] ) {
@@ -1927,6 +1972,10 @@ class ec_stripe_connect extends ec_gateway {
 		}
 		if( $coupon['duration'] == "repeating" ) {
 			$gateway_data[ "duration_in_months" ] = $coupon['duration_in_months'];
+		}
+		/* 6.0.2: what Stripe's invoices and receipts show ( a subscription's coupon id also carries a hash of its terms ). */
+		if ( ! empty( $coupon['name'] ) ) {
+			$gateway_data['name'] = substr( (string) $coupon['name'], 0, 40 );
 		}
 		return $gateway_data;
 	}

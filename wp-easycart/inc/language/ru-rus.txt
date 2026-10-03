@@ -1,4 +1,4 @@
-{"label":"Russian","options":{"sort_bar":{"label":"Product Page Sort Menu","options":{"sort_by_price_low":{"title":"Product Page Sort Box Item 1","value":"\u0426\u0435\u043d\u0430 \u043d\u0438\u0436\u0435-\u0432\u044b\u0448\u0435"},"sort_by_price_high":{"title":"Product Page Sort Box Item 2","value":"\u0426\u0435\u043d\u0430 \u0432\u044b\u0448\u0435-\u043d\u0438\u0436\u0435"},"sort_by_title_a":{"title":"Product Page Sort Box Item 3","value":"\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 \u0410 \u0434\u043e \u042f"},"sort_by_title_z":{"title":"Product Page Sort Box Item 4","value":"\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 \u042f \u0434\u043e \u0410"},"sort_by_newest":{"title":"Product Page Sort Box Item 5","value":"\u041d\u043e\u0432\u0438\u043d\u043a\u0438"},"sort_by_rating":{"title":"Product Page Sort Box Item 6","value":"\u0420\u0435\u0439\u0442\u0438\u043d\u0433\u043e\u0432\u044b\u0435"},"sort_by_most_viewed":{"title":"Product Page Sort Box Item 7","value":"\u041d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u043f\u0440\u043e\u0441\u043c\u0430\u0442\u0440\u0438\u0432\u0430\u0435\u043c\u044b\u0435"},"sort_default":{"title":"Product Page Sort Box Default","value":"\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e"},"sort_by_oldest":{"title":"Product Page Sort Box Item 8","value":"Oldest"}}},"product_page":{"label":"Product Page","options":{"product_quick_view":{"title":"Product Quick View Label","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440"},"product_design_now":{"title":"Product Design Now Label","value":"DESIGN NOW"},"product_no_results":{"title":"Product Page No Results","value":"\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e"},"product_items_per_page":{"title":"Product Page Items per Page","value":"\u041a\u043e\u043b-\u0432\u043e \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0443:"},"product_paging_page":{"title":"Product Page Page in Page a of b","value":"\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430"},"product_paging_of":{"title":"Product Page of in Page a of b","value":"of"},"product_showing":{"title":"Product Page Num Results Showing","value":"\u041f\u043e\u043a\u0430\u0437"},"product_all":{"title":"Product Page Num Results all","value":"\u0412\u0441\u0435"},"product_results":{"title":"Product Page Num Results","value":"\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b"},"product_view_cart":{"title":"Product Page View Cart","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440 \u043a\u043e\u0440\u0437\u0438\u043d\u044b"},"product_product_added_note":{"title":"Product Page Added to Cart Note","value":"\u0422\u043e\u0432\u0430\u0440 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u0432 \u043a\u043e\u0440\u0437\u0438\u043d\u0443"},"product_product_view_per_page":{"title":"Product Page View in Per Page","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440"},"product_page_restricted_line_1":{"title":"Restricted Product Line 1","value":"\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0439 \u0434\u043e\u0441\u0442\u0443\u043f \u043d\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043d \u0432 \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0435"},"product_page_restricted_line_2":{"title":"Restricted Product Line 2 Prior to Link","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u043e\u0439\u0434\u0438\u0442\u0435 \u0438\u043b\u0438 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u0443\u0439\u0442\u0435\u0441\u044c \u0441 \u043f\u043e\u043c\u043e\u0449\u044c\u044e"},"product_page_restricted_link_text":{"title":"Restricted Product Link Text","value":"\u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u0437\u0434\u0435\u0441\u044c"},"product_page_restricted_line_3":{"title":"Restricted Product Line 2 Post Link","value":"\u0412\u0430\u0448\u0430 \u0443\u0447\u0435\u0442\u043d\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c \u0434\u043e\u043b\u0436\u043d\u0430 \u0431\u044b\u0442\u044c \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u0430, \u043f\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043c \u0432\u044b \u0441\u043c\u043e\u0436\u0435\u0442\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0434\u043e\u0441\u0442\u0443\u043f \u043a \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0443."},"product_page_start_trial_1":{"title":"Start Your Trial Text Part 1","value":"\u041d\u0430\u0447\u043d\u0438\u0442\u0435"},
+{"label":"Russian","options":{"sort_bar":{"label":"Product Page Sort Menu","options":{"sort_by_price_low":{"title":"Product Page Sort Box Item 1","value":"\u0426\u0435\u043d\u0430 \u043d\u0438\u0436\u0435-\u0432\u044b\u0448\u0435"},"sort_by_price_high":{"title":"Product Page Sort Box Item 2","value":"\u0426\u0435\u043d\u0430 \u0432\u044b\u0448\u0435-\u043d\u0438\u0436\u0435"},"sort_by_title_a":{"title":"Product Page Sort Box Item 3","value":"\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 \u0410 \u0434\u043e \u042f"},"sort_by_title_z":{"title":"Product Page Sort Box Item 4","value":"\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 \u042f \u0434\u043e \u0410"},"sort_by_newest":{"title":"Product Page Sort Box Item 5","value":"\u041d\u043e\u0432\u0438\u043d\u043a\u0438"},"sort_by_rating":{"title":"Product Page Sort Box Item 6","value":"\u0420\u0435\u0439\u0442\u0438\u043d\u0433\u043e\u0432\u044b\u0435"},"sort_by_most_viewed":{"title":"Product Page Sort Box Item 7","value":"\u041d\u0430\u0438\u0431\u043e\u043b\u0435\u0435 \u043f\u0440\u043e\u0441\u043c\u0430\u0442\u0440\u0438\u0432\u0430\u0435\u043c\u044b\u0435"},"sort_default":{"title":"Product Page Sort Box Default","value":"\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e"},"sort_by_oldest":{"title":"Product Page Sort Box Item 8","value":"Oldest"}}},"elementor_shop":{"label":"Elementor Shop Widgets","options":{"shop_sale":{"title":"Shop Widgets, Sale Badge","value":"Sale"},"shop_percent_off":{"title":"Shop Widgets, Discount Badge ( [percent] is the discount )","value":"-[percent]%"},"shop_sold_out":{"title":"Shop Widgets, Sold Out Badge","value":"Sold out"},"shop_regular_price":{"title":"Shop Widgets, Regular Price ( screen readers )","value":"Regular price:"},"shop_sale_price":{"title":"Shop Widgets, Sale Price ( screen readers )","value":"Sale price:"},"shop_rated":{"title":"Shop Widgets, Rating ( [rating] is the average )","value":"Rated [rating] out of 5"},"shop_review_one":{"title":"Shop Widgets, One Review ( [count] )","value":"[count] review"},"shop_review_many":{"title":"Shop Widgets, Reviews ( [count] )","value":"[count] reviews"},"shop_options":{"title":"Shop Widgets, Colour Swatches ( screen readers )","value":"Available options"},"shop_more_options":{"title":"Shop Widgets, More Swatches ( [count] )","value":"+[count]"},"shop_adding":{"title":"Shop Widgets, Adding to Cart","value":"Adding\u2026"},"shop_added":{"title":"Shop Widgets, Added Button","value":"Added"},"shop_added_note":{"title":"Shop Widgets, Added to Cart ( [product] is the product name )","value":"[product] was added to your cart."},"shop_add_failed":{"title":"Shop Widgets, Could Not Add","value":"This product could not be added. Opening the product page."},"shop_quantity":{"title":"Shop Widgets, Quantity Label","value":"Quantity"},"shop_view_details":{"title":"Shop Widgets, Quick View Details Link","value":"View full details"},"shop_close":{"title":"Shop Widgets, Close Quick View","value":"Close"},"shop_loading":{"title":"Shop Widgets, Loading","value":"Loading\u2026"},"shop_load_more":{"title":"Shop Widgets, Load More Button","value":"Load more"},"shop_loaded":{"title":"Shop Widgets, More Products Loaded ( [count] )","value":"[count] more products loaded"},"shop_page_nav":{"title":"Shop Widgets, Page Numbers ( screen readers )","value":"Product pages"},"shop_page":{"title":"Shop Widgets, Page Number ( [page] )","value":"Page [page]"},"shop_previous":{"title":"Shop Widgets, Previous Page","value":"Previous page"},"shop_next":{"title":"Shop Widgets, Next Page","value":"Next page"},"shop_carousel_label":{"title":"Shop Widgets, Carousel Name","value":"Products"},"shop_carousel_prev":{"title":"Shop Widgets, Carousel Previous","value":"Previous products"},"shop_carousel_next":{"title":"Shop Widgets, Carousel Next","value":"Next products"},"shop_carousel_pause":{"title":"Shop Widgets, Carousel Pause","value":"Pause"},"shop_carousel_play":{"title":"Shop Widgets, Carousel Play","value":"Play"},"shop_carousel_slide":{"title":"Shop Widgets, Carousel Slide ( [index] of [total] )","value":"[index] of [total]"},"shop_carousel_go_to":{"title":"Shop Widgets, Carousel Dot ( [index] )","value":"Go to slide [index]"},"shop_result_count":{"title":"Shop Widgets, Results ( [start], [end], [total] )","value":"Showing [start]\u2013[end] of [total] products"},"shop_result_all":{"title":"Shop Widgets, All Results ( [total] )","value":"Showing all [total] products"},"shop_result_one":{"title":"Shop Widgets, One Result","value":"Showing 1 product"},"shop_sort_by":{"title":"Shop Widgets, Sort Label","value":"Sort by"},"shop_sort_apply":{"title":"Shop Widgets, Sort Button","value":"Sort"},"shop_active_filters":{"title":"Shop Widgets, Active Filters ( screen readers )","value":"Active filters"},"shop_remove_filter":{"title":"Shop Widgets, Remove Filter ( [filter] )","value":"Remove filter: [filter]"},"shop_clear_all":{"title":"Shop Widgets, Clear All Filters","value":"Clear all"},"shop_chip_search":{"title":"Shop Widgets, Search Filter ( [term] )","value":"Search: [term]"},"shop_price":{"title":"Shop Widgets, Price Filter Title","value":"Price"},"shop_sign_in":{"title":"Shop Widgets, Sign In Button","value":"Sign in"},"shop_category_count_one":{"title":"Shop Widgets, Category With One Product ( [count] )","value":"[count] product"},"shop_category_count_many":{"title":"Shop Widgets, Category Products ( [count] )","value":"[count] products"},"shop_search_label":{"title":"Shop Widgets, Search Label","value":"Search products"},"shop_search_placeholder":{"title":"Shop Widgets, Search Placeholder","value":"Search products\u2026"},"shop_search_button":{"title":"Shop Widgets, Search Button","value":"Search"},"shop_search_suggestions":{"title":"Shop Widgets, Suggestions ( screen readers )","value":"Product suggestions"},"shop_search_view_all":{"title":"Shop Widgets, View All Results ( [term] )","value":"View all results for \u201c[term]\u201d"},"shop_search_none":{"title":"Shop Widgets, No Suggestions ( [term] )","value":"No products match \u201c[term]\u201d."},"shop_search_result":{"title":"Shop Widgets, One Suggestion ( screen readers )","value":"1 product found. Use the down arrow to choose it."},"shop_search_results":{"title":"Shop Widgets, Suggestions Found ( [count], screen readers )","value":"[count] products found. Use the up and down arrows to choose one."},"shop_search_loading":{"title":"Shop Widgets, Searching","value":"Searching\u2026"}}},"product_page":{"label":"Product Page","options":{"product_quick_view":{"title":"Product Quick View Label","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440"},"product_design_now":{"title":"Product Design Now Label","value":"DESIGN NOW"},"product_no_results":{"title":"Product Page No Results","value":"\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e"},"product_items_per_page":{"title":"Product Page Items per Page","value":"\u041a\u043e\u043b-\u0432\u043e \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0443:"},"product_paging_page":{"title":"Product Page Page in Page a of b","value":"\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430"},"product_paging_of":{"title":"Product Page of in Page a of b","value":"of"},"product_showing":{"title":"Product Page Num Results Showing","value":"\u041f\u043e\u043a\u0430\u0437"},"product_all":{"title":"Product Page Num Results all","value":"\u0412\u0441\u0435"},"product_results":{"title":"Product Page Num Results","value":"\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b"},"product_view_cart":{"title":"Product Page View Cart","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440 \u043a\u043e\u0440\u0437\u0438\u043d\u044b"},"product_product_added_note":{"title":"Product Page Added to Cart Note","value":"\u0422\u043e\u0432\u0430\u0440 \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d \u0432 \u043a\u043e\u0440\u0437\u0438\u043d\u0443"},"product_product_view_per_page":{"title":"Product Page View in Per Page","value":"\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440"},"product_page_restricted_line_1":{"title":"Restricted Product Line 1","value":"\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0439 \u0434\u043e\u0441\u0442\u0443\u043f \u043d\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043d \u0432 \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0435"},"product_page_restricted_line_2":{"title":"Restricted Product Line 2 Prior to Link","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u043e\u0439\u0434\u0438\u0442\u0435 \u0438\u043b\u0438 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u0443\u0439\u0442\u0435\u0441\u044c \u0441 \u043f\u043e\u043c\u043e\u0449\u044c\u044e"},"product_page_restricted_link_text":{"title":"Restricted Product Link Text","value":"\u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u0437\u0434\u0435\u0441\u044c"},"product_page_restricted_line_3":{"title":"Restricted Product Line 2 Post Link","value":"\u0412\u0430\u0448\u0430 \u0443\u0447\u0435\u0442\u043d\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c \u0434\u043e\u043b\u0436\u043d\u0430 \u0431\u044b\u0442\u044c \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u0430, \u043f\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043c \u0432\u044b \u0441\u043c\u043e\u0436\u0435\u0442\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0434\u043e\u0441\u0442\u0443\u043f \u043a \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0443."},"product_page_restricted_signed_out":{"title":"Restricted Store, Signed Out Message","value":"\u0412\u043e\u0439\u0434\u0438\u0442\u0435, \u0447\u0442\u043e\u0431\u044b \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u043c\u0430\u0433\u0430\u0437\u0438\u043d."},"product_page_restricted_no_access":{"title":"Restricted Store, Signed In Without Access","value":"\u0423 \u0432\u0430\u0448\u0435\u0439 \u0443\u0447\u0451\u0442\u043d\u043e\u0439 \u0437\u0430\u043f\u0438\u0441\u0438 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u043a \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u0443."},"product_page_start_trial_1":{"title":"Start Your Trial Text Part 1","value":"\u041d\u0430\u0447\u043d\u0438\u0442\u0435"},
 				"product_page_start_trial_2":{
 					"title":"Start Your Trial Text Part 2",
 					"value":"\u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u0443\u044e \u043f\u0440\u043e\u0431\u043d\u0443\u044e \u0432\u0435\u0440\u0441\u0438\u044e \u0441\u0435\u0433\u043e\u0434\u043d\u044f!"
@@ -37,6 +37,7 @@
 				}
 			}
 		},
+		"elementor_templates":{"label":"Elementor - Category Widgets","options":{"category_product_count_one":{"title":"Subcategories Widget: One Product","value":"1 product"},"category_product_count":{"title":"Subcategories Widget: Product Count ( [count] is the number )","value":"[count] products"},"categories_label":{"title":"Subcategories Widget: List Name for Screen Readers","value":"Categories"}}},
 		"quick_view":{"label":"Quick View Panel","options":{"quick_view_gift_card_message":{"title":"Gift Card Message Title","value":"\u0421\u043f\u0435\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435"},"quick_view_gift_card_to_name":{"title":"Gift Card To Name Title","value":"\u041a\u043e\u043c\u0443"},"quick_view_gift_card_from_name":{"title":"Gift Card From Name Title","value":"\u041e\u0442 \u043a\u043e\u0433\u043e"},"quick_view_quantity":{"title":"Quantity Title","value":"\u041a\u043e\u043b-\u0432\u043e"},"quick_view_remaining":{"title":"label in x items remaining","value":"\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c"},"quick_view_add_to_cart":{"title":"Add to Cart Button","value":"\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0432 \u043a\u043e\u0440\u0437\u0438\u043d\u0443"},"quick_view_select_options":{"title":"Product details missing options error text","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0441\u0435 \u043e\u043f\u0446\u0438\u0438 \u0434\u043b\u044f \u0434\u0430\u043d\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430."},"quick_view_view_full_details":{"title":"Link Text View Full Product Details","value":"\u0414\u0435\u0442\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440 \u0442\u043e\u0432\u0430\u0440\u0430"}}},"product_details":{"label":"Product Details Page","options":{"product_details_donation_label":{"title":"Your Donation Label","value":"\u0412\u0430\u0448\u0435 \u043f\u043e\u0436\u0435\u0440\u0442\u0432\u043e\u0432\u0430\u043d\u0438\u0435: "},"product_details_minimum_donation":{"title":"Your Donation Minimum Label","value":"\u043c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u044b\u0439 \u0432\u0437\u043d\u043e\u0441:"},"product_details_gift_card_message":{"title":"Store Gift Card Message","value":"\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435"},"product_details_gift_card_to_name":{"title":"Gift Card To Name Title","value":"\u041a\u043e\u043c\u0443"},"product_details_gift_card_from_name":{"title":"Gift Card From Name Title","value":"\u041e\u0442 \u043a\u043e\u0433\u043e"},"product_details_quantity":{"title":"Quantity Label","value":"\u041a\u043e\u043b-\u0432\u043e"},"product_details_remaining":{"title":"x remaining","value":"\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c"},"product_details_x_of_y":{"title":"page text divider","value":"\u0438\u0437"},"product_details_model_number":{"title":"model number text","value":"\u041d\u043e\u043c\u0435\u0440 \u043c\u043e\u0434\u0435\u043b\u0438"},"product_details_reduced_price":{"title":"reduced price text","value":"\u0421\u043d\u0438\u0436\u0435\u043d\u043d\u0430\u044f \u0446\u0435\u043d\u0430, \u043a\u043e\u0442\u043e\u0440\u0443\u044e \u0412\u044b \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u043b\u0438"},"product_details_description":{"title":"Description Title","value":"\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u0430"},"product_details_customer_reviews":{"title":"Customer Reviews Title","value":"\u041e\u0442\u0437\u044b\u0432\u044b"},"product_details_specifications":{"title":"Specifications Title","value":"\u0421\u043f\u0435\u0446\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"},"product_details_customer_rating":{"title":"Customer Rating","value":"\u041e\u0431\u0449\u0430\u044f \u043e\u0446\u0435\u043d\u043a\u0430 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432"},"product_details_review_based_on":{"title":"Review Based ON","value":"\u043e\u0441\u043d\u043e\u0432\u0430\u043d \u043d\u0430"},"product_details_review":{"title":"Review","value":"\u043e\u0442\u0437\u044b\u0432"},"product_details_review_no_reviews":{"title":"Product Details, Customer Reviews, No Reviews","value":"\u041d\u0435\u0442 \u043e\u0442\u0437\u044b\u0432\u043e\u0432, \u043e\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0441\u0432\u043e\u0439 \u043e\u0442\u0437\u044b\u0432 \u0432 \u043f\u043e\u043b\u0435 \u0432\u044b\u0448\u0435"},
 				"product_details_add_to_cart":{
 					"title":"Add to Cart button text",
@@ -214,7 +215,8 @@
 				}
 			}
 		},
-		"customer_review":{"label":"Customer Review Panel","options":{"customer_review_title":{"title":"Product Details Rating Box Title","value":"\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"customer_review_choose_rating":{"title":"Product Details Rating Box Choose Rating","value":"\u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0440\u0435\u0439\u0442\u0438\u043d\u0433"},"customer_review_enter_title":{"title":"Product Details Rating Box Choose Title","value":"\u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442\u0437\u044b\u0432\u0430"},"customer_review_enter_description":{"title":"Product Details Rating Box Choose Description","value":"\u0432\u0432\u0435\u0441\u0442\u0438 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043e\u0442\u0437\u044b\u0432\u0430"},"customer_review_select_option":{"title":"Product Details Default Select Option Text","value":"\u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u043f\u0446\u0438\u044e"},"customer_review_close_button":{"title":"Product Details Rating Box Close Button","value":"\u0417\u0430\u043a\u0440\u044b\u0442\u044c"},"customer_review_submit_button":{"title":"Product Details Rating Box Submit Button","value":"\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"product_details_write_a_review":{"title":"Product Details Write a Review Button","value":"\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"product_details_add_a_review_for":{"title":"Store Add a Review","value":"\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0437\u044b\u0432 \u0434\u043b\u044f"},"product_details_your_review_title":{"title":"Store Review title","value":"\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u0432\u0430\u0448\u0435\u0433\u043e \u043e\u0442\u0437\u044b\u0432\u0430"},"product_details_your_review_rating":{"title":"Store Review Rating","value":" \u0412\u0430\u0448 \u0440\u0435\u0439\u0442\u0438\u043d\u0433"},"product_details_your_review_message":{"title":"Store Review Message","value":"\u0412\u0430\u0448 \u043e\u0431\u0437\u043e\u0440"},"product_details_your_review_submit":{"title":"Store Review Submit","value":"\u041e\u0422\u041f\u0420\u0410\u0412\u0418\u0422\u042c"},"product_details_review_submitted_button":{"title":"Product Details Review Submitted Button","value":"\u041e\u0411\u0417\u041e\u0420 \u041f\u0420\u0415\u0414\u0421\u0422\u0410\u0412\u041b\u0415\u041d"},"product_details_submitting_review":{"title":"Store Submitting Review","value":"\u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0412\u0430\u0448\u0435\u0433\u043e \u043e\u0442\u0437\u044b\u0432\u0430, \u043f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435"},"product_details_review_submitted":{"title":"Store Review Submitted","value":"\u0412\u0430\u0448 \u043e\u0442\u0437\u044b\u0432 \u0431\u044b\u043b \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d"},"product_details_review_log_in_first":{"title":"Log in to Review","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u043e\u0439\u0434\u0438\u0442\u0435 \u0438\u043b\u0438 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u0443\u0439\u0442\u0435\u0441\u044c, \u0447\u0442\u043e\u0431\u044b \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043e\u0431\u0437\u043e\u0440 \u0434\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430."},"product_details_review_anonymous_reviewer":{"title":"Anonymous Reviewer Name","value":"\u0410\u043d\u043e\u043d\u0438\u043c\u043d\u044b\u0439"},"review_error":{"title":"Store Review Error Missing Data","value":"\u0412\u044b \u0434\u043e\u043b\u0436\u043d\u044b \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435, \u0440\u0435\u0439\u0442\u0438\u043d\u0433, \u0438 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0432 \u0432\u0430\u0448\u0435\u043c \u043e\u0431\u0437\u043e\u0440\u0435."}}},"cart":{"label":"Cart","options":{"cart_title":{"title":"Checkout Cart Title","value":"\u041a\u041e\u0420\u0417\u0418\u041d\u0410"},"cart_checkout_details_title":{"title":"Checkout Details Title","value":"\u041e\u0444\u043e\u0440\u043c\u0438\u0442\u044c \u0414\u0415\u0422\u0410\u041b\u0418"},"cart_submit_payment_title":{"title":"Submit Payment Title","value":"\u041e\u041f\u041b\u0410\u0422\u0418\u0422\u0415"},"your_cart_title":{"title":"Your Cart Title","value":"\u0412\u0410\u0428\u0410 \u041f\u041e\u041a\u0423\u041f\u041a\u0410"},"cart_empty_cart":{"title":"Checkout, Empty Cart Message","value":"\u0412 \u043a\u043e\u0440\u0437\u0438\u043d\u0435 \u043d\u0435\u0442 \u043f\u043e\u043a\u0443\u043f\u043e\u043a."},"cart_checkout":{"title":"Checkout Page, Checkout Button","value":"\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c"},"cart_continue_shopping":{"title":"Checkout Page, Continue Shopping Link","value":"\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c \u0437\u0430\u043a\u0443\u043f\u043a\u0443"},"cart_header_column1":{"title":"Cart Header, Column 1","value":"\u0422\u043e\u0432\u0430\u0440"},"cart_header_column2":{"title":"Cart Header, Column 2","value":"\u0421\u043f\u0435\u0446\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"},"cart_header_column3":{"title":"Cart Header, Column 3","value":"\u0426\u0435\u043d\u0430"},"cart_header_column4":{"title":"Cart Header, Column 4","value":"\u041a\u043e\u043b-\u0432\u043e"},"cart_header_column5":{"title":"Cart Header, Column 5","value":"\u0412\u0441\u0435\u0433\u043e"},"cart_header_column6":{"title":"Cart Header, Column 6","value":"\u041c\u0435\u0440\u044b"},"cart_item_vat_text":{"title":"Cart Item, Included Vat","value":"\u041d\u0414\u0421 @"},"cart_item_update_button":{"title":"Cart Item, Update Button","value":"\u041e\u0411\u041d\u041e\u0412\u041b\u0415\u041d\u0418\u0415"},"cart_item_remove_button":{"title":"Cart Item, Remove Button","value":"\u0423\u0431\u0440\u0430\u0442\u044c"},"cart_item_adjustment":{"title":"Cart Item, Adjustment per Item","value":"\u0437\u0430 \u0435\u0434\u0438\u043d\u0438\u0446\u0443"},"cart_item_new_price_option":{"title":"Cart Item, Price Override Text","value":"\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0426\u0435\u043d\u044b"},"cart_menu_icon_label":{"title":"Cart in Menu, Item","value":"\u0415\u0434\u0438\u043d\u0438\u0446\u0430 \u0442\u043e\u0432\u0430\u0440\u0430"},"cart_menu_icon_label_plural":{"title":"Cart in Menu, Items","value":"\u0415\u0434\u0438\u043d\u0438\u0446\u044b \u0442\u043e\u0432\u0430\u0440\u043e\u0432"},"deconetwork_edit":{"title":"Deconetwork, Edit Design","value":"\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0414\u0438\u0437\u0430\u0439\u043d"},"cart_order_adjustment":{"title":"Cart Item, Adjustment per Order","value":"\u0437\u0430 \u043e\u0434\u0438\u043d \u0441\u0447\u0435\u0442"},"cart_return_to_store":{"title":"Empty Cart, Return to store","value":"\u0412\u0415\u0420\u041d\u0423\u0422\u042c\u0421\u042f \u0412 \u041c\u0410\u0413\u0410\u0417\u0418\u041d"},"cartitem_max_error":{"title":"Max Quantity Exceeded Error","value":"\u041c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043f\u0440\u0435\u0432\u044b\u0441\u0438\u043b\u043e"},"cartitem_min_error":{"title":"Min Quantity Required Error","value":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e, \u0442\u0440\u0435\u0431\u0443\u0435\u043c\u043e\u0435"},"cart_please_wait":{"title":"Cart Please Wait","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435"},
+		"elementor_product":{"label":"Elementor - Product Purchase Widgets","options":{"added_to_cart":{"title":"Add to Cart, Added Message","value":"Added to your cart."},"view_cart":{"title":"Add to Cart, View Cart Link","value":"View cart"},"buy_now":{"title":"Add to Cart, Buy Now Button","value":"Buy now"},"add_unconfirmed":{"title":"Add to Cart, Add Not Confirmed","value":"We could not confirm this was added. Please check your cart before you try again."},"quantity_label":{"title":"Add to Cart, Quantity Label ( screen readers )","value":"Quantity"},"decrease_quantity":{"title":"Add to Cart, Minus Button ( screen readers )","value":"Decrease quantity"},"increase_quantity":{"title":"Add to Cart, Plus Button ( screen readers )","value":"Increase quantity"},"in_stock":{"title":"Stock, In Stock","value":"In stock"},"stock_count":{"title":"Stock, Number in Stock ( [count] is the number )","value":"[count] in stock"},"low_stock":{"title":"Stock, Low Stock ( [count] is the number )","value":"Only [count] left"},"backorder":{"title":"Stock, Available on Backorder","value":"Available on backorder"},"sku_label":{"title":"SKU, Label","value":"SKU:"},"badge_sale":{"title":"Badges, On Sale","value":"Sale"},"badge_sale_percent":{"title":"Badges, Discount ( [percent] is the number )","value":"-[percent]%"},"badge_new":{"title":"Badges, New","value":"New"},"badge_low_stock":{"title":"Badges, Low Stock","value":"Low stock"},"badge_out_of_stock":{"title":"Badges, Sold Out","value":"Sold out"},"price_tiers_title":{"title":"Price, Quantity Discounts Title","value":"Buy more, save more"},"price_tiers_quantity":{"title":"Price, Quantity Discounts Quantity Column","value":"Quantity"},"price_tiers_price":{"title":"Price, Quantity Discounts Price Column","value":"Price each"},"gallery_label":{"title":"Gallery, Name ( screen readers, [product] is the product )","value":"[product] images"},"gallery_slide":{"title":"Gallery, Image Position ( screen readers )","value":"[number] of [count]"},"gallery_previous":{"title":"Gallery, Previous Image","value":"Previous image"},"gallery_next":{"title":"Gallery, Next Image","value":"Next image"},"gallery_open":{"title":"Gallery, Open Larger Image","value":"Open larger image"},"gallery_close":{"title":"Gallery, Close Larger Image","value":"Close"},"gallery_thumbnail":{"title":"Gallery, Thumbnail ( [number] is the image )","value":"Show image [number]"},"gallery_play":{"title":"Gallery, Play Video","value":"Play video"},"gallery_thumbs_previous":{"title":"Gallery, Thumbnail Strip Back Arrow ( screen readers )","value":"Earlier thumbnails"},"gallery_thumbs_next":{"title":"Gallery, Thumbnail Strip Forward Arrow ( screen readers )","value":"More thumbnails"},"gallery_pause":{"title":"Gallery, Pause Slideshow Button","value":"Pause the slideshow"},"gallery_resume":{"title":"Gallery, Play Slideshow Button","value":"Play the slideshow"},"price_you_save":{"title":"Product Price, You Save ( [amount] is the saving, [percent] the percentage )","value":"You save [amount] ([percent]%)"}}},
+		"customer_review":{"label":"Customer Review Panel","options":{"customer_review_title":{"title":"Product Details Rating Box Title","value":"\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"customer_review_choose_rating":{"title":"Product Details Rating Box Choose Rating","value":"\u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0440\u0435\u0439\u0442\u0438\u043d\u0433"},"customer_review_enter_title":{"title":"Product Details Rating Box Choose Title","value":"\u0432\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043e\u0442\u0437\u044b\u0432\u0430"},"customer_review_enter_description":{"title":"Product Details Rating Box Choose Description","value":"\u0432\u0432\u0435\u0441\u0442\u0438 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u043e\u0442\u0437\u044b\u0432\u0430"},"customer_review_select_option":{"title":"Product Details Default Select Option Text","value":"\u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u043f\u0446\u0438\u044e"},"customer_review_close_button":{"title":"Product Details Rating Box Close Button","value":"\u0417\u0430\u043a\u0440\u044b\u0442\u044c"},"customer_review_submit_button":{"title":"Product Details Rating Box Submit Button","value":"\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"product_details_write_a_review":{"title":"Product Details Write a Review Button","value":"\u041d\u0430\u043f\u0438\u0441\u0430\u0442\u044c \u043e\u0442\u0437\u044b\u0432"},"product_details_add_a_review_for":{"title":"Store Add a Review","value":"\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0437\u044b\u0432 \u0434\u043b\u044f"},"product_details_your_review_title":{"title":"Store Review title","value":"\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u0432\u0430\u0448\u0435\u0433\u043e \u043e\u0442\u0437\u044b\u0432\u0430"},"product_details_your_review_rating":{"title":"Store Review Rating","value":" \u0412\u0430\u0448 \u0440\u0435\u0439\u0442\u0438\u043d\u0433"},"product_details_your_review_message":{"title":"Store Review Message","value":"\u0412\u0430\u0448 \u043e\u0431\u0437\u043e\u0440"},"product_details_your_review_submit":{"title":"Store Review Submit","value":"\u041e\u0422\u041f\u0420\u0410\u0412\u0418\u0422\u042c"},"product_details_review_submitted_button":{"title":"Product Details Review Submitted Button","value":"\u041e\u0411\u0417\u041e\u0420 \u041f\u0420\u0415\u0414\u0421\u0422\u0410\u0412\u041b\u0415\u041d"},"product_details_submitting_review":{"title":"Store Submitting Review","value":"\u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430 \u0412\u0430\u0448\u0435\u0433\u043e \u043e\u0442\u0437\u044b\u0432\u0430, \u043f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435"},"product_details_review_submitted":{"title":"Store Review Submitted","value":"\u0412\u0430\u0448 \u043e\u0442\u0437\u044b\u0432 \u0431\u044b\u043b \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u043b\u0435\u043d"},"product_details_review_log_in_first":{"title":"Log in to Review","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u0432\u043e\u0439\u0434\u0438\u0442\u0435 \u0438\u043b\u0438 \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u0443\u0439\u0442\u0435\u0441\u044c, \u0447\u0442\u043e\u0431\u044b \u043f\u0440\u0435\u0434\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043e\u0431\u0437\u043e\u0440 \u0434\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430."},"product_details_review_anonymous_reviewer":{"title":"Anonymous Reviewer Name","value":"\u0410\u043d\u043e\u043d\u0438\u043c\u043d\u044b\u0439"},"review_error":{"title":"Store Review Error Missing Data","value":"\u0412\u044b \u0434\u043e\u043b\u0436\u043d\u044b \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435, \u0440\u0435\u0439\u0442\u0438\u043d\u0433, \u0438 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u0432 \u0432\u0430\u0448\u0435\u043c \u043e\u0431\u0437\u043e\u0440\u0435."},"customer_review_save_error":{"title":"Store Review Error Not Saved","value":"Your review could not be saved. Please refresh the page and try again."}}},"elementor_product_info":{"label":"Elementor - Product Information","options":{"rating_label":{"title":"Product Rating: Screen Reader Text ( [rating] is the average )","value":"Rated [rating] out of 5"},"review_count_one":{"title":"Product Rating: One Review","value":"1 review"},"review_count_many":{"title":"Product Rating: Reviews ( [count] is the number )","value":"[count] reviews"},"rating_none":{"title":"Product Rating: No Reviews","value":"No reviews yet"},"reviews_based_on_one":{"title":"Product Reviews: Summary, One Review","value":"Based on 1 review"},"reviews_based_on_many":{"title":"Product Reviews: Summary ( [count] is the number )","value":"Based on [count] reviews"},"reviews_filter_group":{"title":"Product Reviews: Star Filter Label","value":"Filter reviews by rating"},"reviews_filter_button":{"title":"Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )","value":"Show [rating]-star reviews ([count])"},"reviews_filter_showing":{"title":"Product Reviews: Filter On ( [rating] is the stars )","value":"Showing [rating]-star reviews."},"reviews_filter_clear":{"title":"Product Reviews: Show All Reviews","value":"Show all reviews"},"reviews_none":{"title":"Product Reviews: No Reviews ( no form shown )","value":"There are no reviews yet."},"reviews_sign_in":{"title":"Product Reviews: Sign In Link","value":"Sign in"},"review_star_one":{"title":"Product Reviews: Form, 1 Star","value":"1 star"},"review_star_many":{"title":"Product Reviews: Form, Stars ( [rating] is the number )","value":"[rating] stars"},"breadcrumbs_label":{"title":"Breadcrumbs: Screen Reader Label","value":"Breadcrumb"},"meta_sku":{"title":"Product Meta: SKU Label","value":"SKU:"},"meta_category":{"title":"Product Meta: One Category Label","value":"Category:"},"meta_brand":{"title":"Product Meta: Brand Label","value":"Brand:"},"meta_tag":{"title":"Product Meta: Tag Label","value":"Tag:"},"share_facebook":{"title":"Share Buttons: Facebook","value":"Share on Facebook"},"share_x":{"title":"Share Buttons: X","value":"Share on X"},"share_pinterest":{"title":"Share Buttons: Pinterest","value":"Pin on Pinterest"},"share_linkedin":{"title":"Share Buttons: LinkedIn","value":"Share on LinkedIn"},"share_email":{"title":"Share Buttons: Email","value":"Share by email"},"share_email_label":{"title":"Share Buttons: Email Button Text","value":"Email"},"share_copy":{"title":"Share Buttons: Copy Link","value":"Copy link"},"share_copied":{"title":"Share Buttons: Link Copied","value":"Link copied"},"share_whatsapp":{"title":"Share Buttons: WhatsApp ( screen readers )","value":"Share on WhatsApp"},"share_telegram":{"title":"Share Buttons: Telegram ( screen readers )","value":"Share on Telegram"},"share_reddit":{"title":"Share Buttons: Reddit ( screen readers )","value":"Share on Reddit"},"share_threads":{"title":"Share Buttons: Threads ( screen readers )","value":"Share on Threads"},"share_bluesky":{"title":"Share Buttons: Bluesky ( screen readers )","value":"Share on Bluesky"},"share_sms_label":{"title":"Share Buttons: Text Message Button","value":"Text message"},"share_sms":{"title":"Share Buttons: Text Message ( screen readers )","value":"Share by text message"},"share_print_label":{"title":"Share Buttons: Print Button","value":"Print"},"share_print":{"title":"Share Buttons: Print ( screen readers )","value":"Print this page"},"share_native_label":{"title":"Share Buttons: Device Share Menu Button","value":"Share"},"share_native":{"title":"Share Buttons: Device Share Menu ( screen readers )","value":"Share with an app on this device"},"meta_stock":{"title":"Product Meta: Stock Label","value":"Availability:"},"meta_in_stock":{"title":"Product Meta: In Stock","value":"In stock"},"meta_stock_count":{"title":"Product Meta: Units In Stock ( [count] is the number )","value":"[count] in stock"},"meta_backorder":{"title":"Product Meta: On Backorder","value":"Available on backorder"},"meta_weight":{"title":"Product Meta: Weight Label","value":"Weight:"},"meta_dimensions":{"title":"Product Meta: Dimensions Label","value":"Dimensions:"},"reviews_more":{"title":"Product Reviews: Show More Link","value":"Show more reviews"},"reviews_shown":{"title":"Product Reviews: How Many Show ( [shown] and [total] are numbers )","value":"Showing [shown] of [total] reviews."},"read_more":{"title":"Description: Read More Button","value":"Read more"},"read_less":{"title":"Description: Show Less Button","value":"Show less"}}},"cart":{"label":"Cart","options":{"cart_title":{"title":"Checkout Cart Title","value":"\u041a\u041e\u0420\u0417\u0418\u041d\u0410"},"cart_checkout_details_title":{"title":"Checkout Details Title","value":"\u041e\u0444\u043e\u0440\u043c\u0438\u0442\u044c \u0414\u0415\u0422\u0410\u041b\u0418"},"cart_submit_payment_title":{"title":"Submit Payment Title","value":"\u041e\u041f\u041b\u0410\u0422\u0418\u0422\u0415"},"your_cart_title":{"title":"Your Cart Title","value":"\u0412\u0410\u0428\u0410 \u041f\u041e\u041a\u0423\u041f\u041a\u0410"},"cart_empty_cart":{"title":"Checkout, Empty Cart Message","value":"\u0412 \u043a\u043e\u0440\u0437\u0438\u043d\u0435 \u043d\u0435\u0442 \u043f\u043e\u043a\u0443\u043f\u043e\u043a."},"cart_checkout":{"title":"Checkout Page, Checkout Button","value":"\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c"},"cart_continue_shopping":{"title":"Checkout Page, Continue Shopping Link","value":"\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c \u0437\u0430\u043a\u0443\u043f\u043a\u0443"},"cart_header_column1":{"title":"Cart Header, Column 1","value":"\u0422\u043e\u0432\u0430\u0440"},"cart_header_column2":{"title":"Cart Header, Column 2","value":"\u0421\u043f\u0435\u0446\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f"},"cart_header_column3":{"title":"Cart Header, Column 3","value":"\u0426\u0435\u043d\u0430"},"cart_header_column4":{"title":"Cart Header, Column 4","value":"\u041a\u043e\u043b-\u0432\u043e"},"cart_header_column5":{"title":"Cart Header, Column 5","value":"\u0412\u0441\u0435\u0433\u043e"},"cart_header_column6":{"title":"Cart Header, Column 6","value":"\u041c\u0435\u0440\u044b"},"cart_item_vat_text":{"title":"Cart Item, Included Vat","value":"\u041d\u0414\u0421 @"},"cart_item_update_button":{"title":"Cart Item, Update Button","value":"\u041e\u0411\u041d\u041e\u0412\u041b\u0415\u041d\u0418\u0415"},"cart_item_remove_button":{"title":"Cart Item, Remove Button","value":"\u0423\u0431\u0440\u0430\u0442\u044c"},"cart_item_adjustment":{"title":"Cart Item, Adjustment per Item","value":"\u0437\u0430 \u0435\u0434\u0438\u043d\u0438\u0446\u0443"},"cart_item_new_price_option":{"title":"Cart Item, Price Override Text","value":"\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0426\u0435\u043d\u044b"},"cart_menu_icon_label":{"title":"Cart in Menu, Item","value":"\u0415\u0434\u0438\u043d\u0438\u0446\u0430 \u0442\u043e\u0432\u0430\u0440\u0430"},"cart_menu_icon_label_plural":{"title":"Cart in Menu, Items","value":"\u0415\u0434\u0438\u043d\u0438\u0446\u044b \u0442\u043e\u0432\u0430\u0440\u043e\u0432"},"deconetwork_edit":{"title":"Deconetwork, Edit Design","value":"\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0414\u0438\u0437\u0430\u0439\u043d"},"cart_order_adjustment":{"title":"Cart Item, Adjustment per Order","value":"\u0437\u0430 \u043e\u0434\u0438\u043d \u0441\u0447\u0435\u0442"},"cart_return_to_store":{"title":"Empty Cart, Return to store","value":"\u0412\u0415\u0420\u041d\u0423\u0422\u042c\u0421\u042f \u0412 \u041c\u0410\u0413\u0410\u0417\u0418\u041d"},"cartitem_max_error":{"title":"Max Quantity Exceeded Error","value":"\u041c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u043f\u0440\u0435\u0432\u044b\u0441\u0438\u043b\u043e"},"cartitem_min_error":{"title":"Min Quantity Required Error","value":"\u041c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0435 \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e, \u0442\u0440\u0435\u0431\u0443\u0435\u043c\u043e\u0435"},"cart_please_wait":{"title":"Cart Please Wait","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435"},
 				"cart_item_adjustment_per_character":{
 					"title":"Cart Per Character Adjustment",
 					"value":"\u0437\u0430 \u0441\u0438\u043c\u0432\u043e\u043b"
@@ -478,6 +480,10 @@
 				"cart_subscription_already_purchased":{
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Вы уже приобрели этот товар. Пожалуйста, зайдите в свою учетную запись, чтобы просмотреть свои активные подписки."
+				},
+				"cart_subscription_unavailable":{
+					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
+					"value":"Эту подписку сейчас нельзя купить онлайн. Пожалуйста, свяжитесь с нами, чтобы оформить подписку."
 				}
 			}
 		},
@@ -796,6 +802,75 @@
 				}
 			}
 		},
+		"elementor_checkout":{
+			"label":"Elementor Cart and Checkout",
+			"options":{
+				"mini_cart_title":{
+					"title":"Mini Cart, Title",
+					"value":"Your cart"
+				},
+				"view_cart":{
+					"title":"Mini Cart, View Cart Button",
+					"value":"View cart"
+				},
+				"close":{
+					"title":"Mini Cart, Close Button ( screen readers )",
+					"value":"Close"
+				},
+				"cart_button_label":{
+					"title":"Menu Cart, Button Name ( screen readers; [count] is the number of items )",
+					"value":"Cart, [count] items"
+				},
+				"remove_item":{
+					"title":"Mini Cart, Remove Button ( screen readers; [title] is the product )",
+					"value":"Remove [title]"
+				},
+				"quantity_of":{
+					"title":"Side Cart, Quantity Box ( screen readers; [title] is the product )",
+					"value":"Quantity of [title]"
+				},
+				"increase_quantity":{
+					"title":"Side Cart, Plus Button ( screen readers; [title] is the product )",
+					"value":"Increase quantity of [title]"
+				},
+				"decrease_quantity":{
+					"title":"Side Cart, Minus Button ( screen readers; [title] is the product )",
+					"value":"Decrease quantity of [title]"
+				},
+				"cart_updated":{
+					"title":"Mini Cart, Cart Updated ( screen readers )",
+					"value":"Your cart was updated."
+				},
+				"item_added":{
+					"title":"Side Cart, Product Added ( screen readers; [title] is the product )",
+					"value":"[title] was added to your cart."
+				},
+				"free_shipping_remaining":{
+					"title":"Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
+					"value":"Spend [amount] more for free shipping"
+				},
+				"free_shipping_available":{
+					"title":"Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
+					"value":"Free shipping available"
+				},
+				"confirmation_items":{
+					"title":"Order Confirmation, Products Heading",
+					"value":"Your order"
+				},
+				"confirmation_payment":{
+					"title":"Order Confirmation, How to Pay Heading",
+					"value":"How to pay"
+				},
+				"confirmation_pay_link_note":{
+					"title":"Order Confirmation, Pay Online Note",
+					"value":"You can pay for this order online."
+				},
+				"confirmation_pay_now":{
+					"title":"Order Confirmation, Pay Now Button",
+					"value":"Pay now"
+				}
+			}
+		},
 		"subscription_trial":{
 			"label":"Subscription Trial Email",
 			"options":{
@@ -950,6 +1025,23 @@
 				}
 			}
 		},
+		"account_connect_order_email":{
+			"label":"Account - Connect Order Email",
+			"options":{
+				"account_connect_order_email_title":{
+					"title":"Connect Order Email Subject and Heading",
+					"value":"Add your order to your account"
+				},
+				"account_connect_order_email_message":{
+					"title":"Connect Order Email Message ( [order_id] is the order number )",
+					"value":"You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+				},
+				"account_connect_order_email_link":{
+					"title":"Connect Order Email Link",
+					"value":"Add the order to my account"
+				}
+			}
+		},
 		"account_validation_email":{"label":"Account - Validation Email","options":{"account_validation_email_message":{"title":"Account, Short Validate Email Message","value":"\u0427\u0442\u043e\u0431\u044b \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u0432\u043e\u0439 \u0430\u043a\u043a\u0430\u0443\u043d\u0442, \u043d\u0430\u0436\u043c\u0438\u0442\u0435 \u043d\u0430 \u0441\u0441\u044b\u043b\u043a\u0443 \u043d\u0438\u0436\u0435."},"account_validation_email_title":{"title":"Account, Activate Your Account Title","value":"\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430 \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u0443\u0435\u0442\u0435 \u0441\u0432\u043e\u0439 \u0430\u043a\u043a\u0430\u0443\u043d\u0442"},"account_validation_email_link":{"title":"Account, Activate Your Account Link","value":"\u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u0437\u0434\u0435\u0441\u044c, \u0447\u0442\u043e\u0431\u044b \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u0442\u044c"}}},"account_register":{"label":"Account - Register","options":{"account_register_title":{"title":"Account, Register Title","value":"\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442"},"account_register_first_name":{"title":"Account, Register, First Name Label","value":"\u0418\u043c\u044f"},"account_register_last_name":{"title":"Account, Register, Last Name Label","value":"\u0424\u0430\u043c\u0438\u043b\u0438\u044f"},"account_register_email":{"title":"Account, Register, Email Label","value":"\u0410\u0434\u0440\u0435\u0441 \u044d\u043b. \u043f\u043e\u0447\u0442\u044b"},"account_register_password":{"title":"Account, Register, Password Label","value":"\u041f\u0430\u0440\u043e\u043b\u044c"},"account_register_retype_password":{"title":"Account, Register, Re-type Password Label","value":"\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c"
 				},
 				"account_register_subscribe":{
@@ -960,7 +1052,7 @@
 					"title":"Account, Register, Agree Terms Text",
 					"value":"Согласны ли вы с условиями нашего веб-сайта, политикой данных и политикой cookies?"
 				},
-				"account_register_button":{"title":"Account, Register Button","value":"\u0417\u0410\u0420\u0415\u0413\u0418\u0421\u0422\u0420\u0418\u0420\u041e\u0412\u0410\u0422\u042c\u0421\u042f"},"account_billing_information_user_notes":{"title":"Account, Billing, User Notes","value":"\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u043e \u0432\u0430\u0448\u0435\u0439 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438"},"account_register_email_title":{"title":"Account, Register Email Title","value":"\u041d\u043e\u0432\u0430\u044f \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f EasyCart"},"account_register_email_message":{"title":"Account, Register Email Message","value":"\u041d\u043e\u0432\u0430\u044f \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f \u0441 \u044d\u043b.\u043f\u043e\u0447\u0442\u043e\u0439:"}}},"account_navigation":{"label":"Account - Navigation","options":{"account_navigation_title":{"title":"Account, Navigation Title","value":"\u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f \u043f\u043e \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0443"},"account_navigation_basic_inforamtion":{"title":"Account, Navigation, Basic Information Link","value":"\u041e\u0441\u043d\u043e\u0432\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f"},"account_navigation_orders":{"title":"Account, Navigation, View Orders Link","value":"\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b"},"account_navigation_password":{"title":"Account, Navigation, Change Password Link","value":"\u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c"},"account_navigation_subscriptions":{"title":"Account, Navigation, Subscriptions Link","value":"\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430\u043c\u0438"},"account_navigation_payment_methods":{"title":"Account, Navigation, Payments Link","value":"\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043f\u043e\u0441\u043e\u0431\u0430\u043c\u0438 \u043e\u043f\u043b\u0430\u0442\u044b"},"account_navigation_sign_out":{"title":"Account, Navigation, Sign Out Link","value":"\u0412\u044b\u0445\u043e\u0434"},"account_navigation_dashboard":{"title":"Account, Navigation, Dashboard Link","value":"\u041f\u0430\u043d\u0435\u043b\u044c \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u043e\u043c"},"account_navigation_billing_information":{"title":"Account, Navigation, Billing Link","value":"\u041f\u043b\u0430\u0442\u0435\u0436\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f"},"account_navigation_shipping_information":{"title":"Account, Navigation, Shipping Link","value":"\u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u043e \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435"}}},"account_dashboard":{"label":"Account - Dashboard","options":{"account_dashboard_recent_orders_title":{"title":"Account, Dashboard, Recent Orders Title","value":"\u041d\u0435\u0434\u0430\u0432\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u044b"},"account_dashboard_recent_orders_none":{"title":"Account, Dashboard, Recent Order, No Orders","value":"\u0417\u0430\u043a\u0430\u0437\u044b \u043d\u0435 \u0431\u044b\u043b\u0438 \u0440\u0430\u0437\u043c\u0435\u0449\u0435\u043d\u044b"},"account_dashboard_all_orders_linke":{"title":"Account, Dashboard, All Orders Link","value":"\u041f\u041e\u041a\u0410\u0417\u0410\u0422\u042c \u0412\u0421\u0415 \u0417\u0410\u041a\u0410\u0417\u042b"},"account_dashboard_preference_title":{"title":"Account, Dashboard, Preference Title","value":"\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430"},"account_dashboard_email_title":{"title":"Account, Dashboard, Email Title","value":"\u0412\u0430\u0448 \u041f\u0435\u0440\u0432\u0438\u0447\u043d\u044b\u0439 E-mail "},"account_dashboard_email_edit_link":{"title":"Account, Dashboard, Email Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c"},"account_dashboard_email_note":{"title":"Account, Dashboard, Email Note","value":"(\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u0434\u043b\u044f \u0432\u0445\u043e\u0434\u0430 \u0432 \u0430\u043a\u043a\u0430\u0443\u043d\u0442)"},"account_dashboard_billing_title":{"title":"Account, Dashboard, Billing Title","value":"\u0410\u0434\u0440\u0435\u0441 \u0434\u043b\u044f \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0447\u0435\u0442\u0430"},"account_dashboard_billing_link":{"title":"Account, Dashboard, Billing Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043b\u0430\u0442\u0435\u0436\u043d\u044b\u0439 \u0430\u0434\u0440\u0435\u0441"},"account_dashboard_shipping_title":{"title":"Account, Dashboard, Shipping Title","value":"\u0410\u0434\u0440\u0435\u0441 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},"account_dashboard_shipping_link":{"title":"Account, Dashboard, Shipping Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0430\u0434\u0440\u0435\u0441 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},"account_dashboard_order_placed":{"title":"Account, Dashboard, Order Placed Label","value":"ORDER PLACED"},"account_dashboard_order_total":{"title":"Account, Dashboard, Total Label","value":"TOTAL"},"account_dashboard_order_ship_to":{"title":"Account, Dashboard, Ship To Label","value":"SHIP TO"},"account_dashboard_order_order_label":{"title":"Account, Dashboard, Order Label","value":"ORDER"},"account_dashboard_order_view_details":{"title":"Account, Dashboard, View Details Link","value":"View Details"},"account_dashboard_order_buy_item_again":{"title":"Account, Dashboard, Buy Item Again","value":"Buy Item Again"}}},
+				"account_register_button":{"title":"Account, Register Button","value":"\u0417\u0410\u0420\u0415\u0413\u0418\u0421\u0422\u0420\u0418\u0420\u041e\u0412\u0410\u0422\u042c\u0421\u042f"},"account_billing_information_user_notes":{"title":"Account, Billing, User Notes","value":"\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u043e \u0432\u0430\u0448\u0435\u0439 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438"},"account_register_email_title":{"title":"Account, Register Email Title","value":"\u041d\u043e\u0432\u0430\u044f \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f EasyCart"},"account_register_email_message":{"title":"Account, Register Email Message","value":"\u041d\u043e\u0432\u0430\u044f \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f \u0441 \u044d\u043b.\u043f\u043e\u0447\u0442\u043e\u0439:"}}},"elementor_account":{"label":"Account - Elementor Widgets","options":{"nav_dashboard":{"title":"Account Widgets, Menu, Dashboard","value":"Dashboard"},"nav_orders":{"title":"Account Widgets, Menu, Orders","value":"Orders"},"nav_downloads":{"title":"Account Widgets, Menu, Downloads","value":"Downloads"},"nav_subscriptions":{"title":"Account Widgets, Menu, Subscriptions","value":"Subscriptions"},"nav_addresses":{"title":"Account Widgets, Menu, Addresses","value":"Addresses"},"nav_details":{"title":"Account Widgets, Menu, Account Details","value":"Account details"},"nav_payment_methods":{"title":"Account Widgets, Menu, Payment Methods","value":"Payment methods"},"nav_logout":{"title":"Account Widgets, Menu, Sign Out","value":"Sign out"},"nav_menu_label":{"title":"Account Widgets, Menu Name ( screen readers, phone dropdown )","value":"Account menu"},"back_to_orders":{"title":"Account Widgets, Back to Orders Link","value":"Back to orders"},"downloads_title":{"title":"Account Widgets, Downloads Title","value":"Downloads"},"downloads_none":{"title":"Account Widgets, No Downloads","value":"You have no downloads yet."},"downloads_order":{"title":"Account Widgets, Downloads, Order Link","value":"Order"},"downloads_expires":{"title":"Account Widgets, Downloads, Available Until","value":"Available until"},"downloads_expired":{"title":"Account Widgets, Downloads, Expired","value":"This download has expired."},"downloads_used_up":{"title":"Account Widgets, Downloads, Limit Reached","value":"No downloads left."},"payment_title":{"title":"Account Widgets, Payment Methods Title","value":"Payment methods"},"payment_card":{"title":"Account Widgets, Payment Methods, Card","value":"Card"},"payment_card_note":{"title":"Account Widgets, Payment Methods, Card Note","value":"Used for your subscriptions."},"payment_none":{"title":"Account Widgets, No Payment Method","value":"You have no saved payment method."},"signed_in_as":{"title":"Account Widgets, Signed In As ( [name] is the customer's name )","value":"You are signed in as [name]."},"my_account":{"title":"Account Widgets, My Account Button","value":"My account"}}},"account_navigation":{"label":"Account - Navigation","options":{"account_navigation_title":{"title":"Account, Navigation Title","value":"\u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f \u043f\u043e \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0443"},"account_navigation_basic_inforamtion":{"title":"Account, Navigation, Basic Information Link","value":"\u041e\u0441\u043d\u043e\u0432\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f"},"account_navigation_orders":{"title":"Account, Navigation, View Orders Link","value":"\u041c\u043e\u0438 \u0437\u0430\u043a\u0430\u0437\u044b"},"account_navigation_password":{"title":"Account, Navigation, Change Password Link","value":"\u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c"},"account_navigation_subscriptions":{"title":"Account, Navigation, Subscriptions Link","value":"\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430\u043c\u0438"},"account_navigation_payment_methods":{"title":"Account, Navigation, Payments Link","value":"\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0441\u043f\u043e\u0441\u043e\u0431\u0430\u043c\u0438 \u043e\u043f\u043b\u0430\u0442\u044b"},"account_navigation_sign_out":{"title":"Account, Navigation, Sign Out Link","value":"\u0412\u044b\u0445\u043e\u0434"},"account_navigation_dashboard":{"title":"Account, Navigation, Dashboard Link","value":"\u041f\u0430\u043d\u0435\u043b\u044c \u0443\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u043e\u043c"},"account_navigation_billing_information":{"title":"Account, Navigation, Billing Link","value":"\u041f\u043b\u0430\u0442\u0435\u0436\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f"},"account_navigation_shipping_information":{"title":"Account, Navigation, Shipping Link","value":"\u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u043e \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435"}}},"account_dashboard":{"label":"Account - Dashboard","options":{"account_dashboard_recent_orders_title":{"title":"Account, Dashboard, Recent Orders Title","value":"\u041d\u0435\u0434\u0430\u0432\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u044b"},"account_dashboard_recent_orders_none":{"title":"Account, Dashboard, Recent Order, No Orders","value":"\u0417\u0430\u043a\u0430\u0437\u044b \u043d\u0435 \u0431\u044b\u043b\u0438 \u0440\u0430\u0437\u043c\u0435\u0449\u0435\u043d\u044b"},"account_dashboard_all_orders_linke":{"title":"Account, Dashboard, All Orders Link","value":"\u041f\u041e\u041a\u0410\u0417\u0410\u0422\u042c \u0412\u0421\u0415 \u0417\u0410\u041a\u0410\u0417\u042b"},"account_dashboard_preference_title":{"title":"Account, Dashboard, Preference Title","value":"\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430"},"account_dashboard_email_title":{"title":"Account, Dashboard, Email Title","value":"\u0412\u0430\u0448 \u041f\u0435\u0440\u0432\u0438\u0447\u043d\u044b\u0439 E-mail "},"account_dashboard_email_edit_link":{"title":"Account, Dashboard, Email Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c"},"account_dashboard_email_note":{"title":"Account, Dashboard, Email Note","value":"(\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u0434\u043b\u044f \u0432\u0445\u043e\u0434\u0430 \u0432 \u0430\u043a\u043a\u0430\u0443\u043d\u0442)"},"account_dashboard_billing_title":{"title":"Account, Dashboard, Billing Title","value":"\u0410\u0434\u0440\u0435\u0441 \u0434\u043b\u044f \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0447\u0435\u0442\u0430"},"account_dashboard_billing_link":{"title":"Account, Dashboard, Billing Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043b\u0430\u0442\u0435\u0436\u043d\u044b\u0439 \u0430\u0434\u0440\u0435\u0441"},"account_dashboard_shipping_title":{"title":"Account, Dashboard, Shipping Title","value":"\u0410\u0434\u0440\u0435\u0441 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},"account_dashboard_shipping_link":{"title":"Account, Dashboard, Shipping Edit Link","value":"\u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0430\u0434\u0440\u0435\u0441 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438"},"account_dashboard_order_placed":{"title":"Account, Dashboard, Order Placed Label","value":"ORDER PLACED"},"account_dashboard_order_total":{"title":"Account, Dashboard, Total Label","value":"TOTAL"},"account_dashboard_order_ship_to":{"title":"Account, Dashboard, Ship To Label","value":"SHIP TO"},"account_dashboard_order_order_label":{"title":"Account, Dashboard, Order Label","value":"ORDER"},"account_dashboard_order_view_details":{"title":"Account, Dashboard, View Details Link","value":"View Details"},"account_dashboard_order_buy_item_again":{"title":"Account, Dashboard, Buy Item Again","value":"Buy Item Again"}}},
 		"account_personal_information":{
 			"label":"Account - Edit Personal Information",
 			"options":{
@@ -1111,6 +1203,8 @@
 				"subscription_details_last_payment":{"title":"Account, Subscription Details, Last Payment Date","value":"\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u043f\u043b\u0430\u0442\u0435\u0436  - \u0414\u0430\u0442\u0430"},
 				"subscription_details_current_billing":{"title":"Account, Subscription Details, Current Billing Title","value":"\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u043c\u0435\u0442\u043e\u0434 \u043f\u043b\u0430\u0442\u0435\u0436\u0430"},
 				"subscription_details_notice":{"title":"Account, Subscription Details, User Notice","value":"*\u0412\u041d\u0418\u041c\u0410\u041d\u0418\u0415: \u043b\u044e\u0431\u044b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0432 \u0441\u043f\u043e\u0441\u043e\u0431\u0435 \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0447\u0435\u0442\u043e\u0432 \u0438\u043b\u0438 \u043f\u043b\u0430\u043d\u0430 \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0438 \u0432\u0441\u0442\u0443\u043f\u044f\u0442 \u0432 \u0441\u0438\u043b\u0443 \u0432 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u043c \u0446\u0438\u043a\u043b\u0435 \u0432\u044b\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0447\u0435\u0442\u043e\u0432. \u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0446\u0435\u043d \u0431\u0443\u0434\u0435\u0442 \u043f\u0440\u043e\u043f\u043e\u0440\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e \u0438 \u0431\u0443\u0434\u0443\u0442 \u043e\u0442\u0440\u0430\u0436\u0435\u043d\u044b \u043d\u0430 \u0432\u0430\u0448\u0435\u043c \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u043c \u0441\u0447\u0435\u0442\u0435."},
+				"subscription_details_plan_notice":{"title":"Account, Subscription Details, Plan Change Notice","value":"\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0442\u0430\u0440\u0438\u0444\u0430 \u0432\u0441\u0442\u0443\u043f\u0430\u044e\u0442 \u0432 \u0441\u0438\u043b\u0443 \u0441\u0440\u0430\u0437\u0443. \u0412 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u043c \u0441\u0447\u0451\u0442\u0435 \u0431\u0443\u0434\u0435\u0442 \u043d\u043e\u0432\u0430\u044f \u0446\u0435\u043d\u0430, \u0430 \u0442\u0430\u043a\u0436\u0435 \u0434\u043e\u043f\u043b\u0430\u0442\u0430 \u0438\u043b\u0438 \u0432\u043e\u0437\u0432\u0440\u0430\u0442 \u0437\u0430 \u043e\u0441\u0442\u0430\u0432\u0448\u0443\u044e\u0441\u044f \u0447\u0430\u0441\u0442\u044c \u0442\u0435\u043a\u0443\u0449\u0435\u0433\u043e \u043f\u0435\u0440\u0438\u043e\u0434\u0430."},
+				"subscription_details_card_notice":{"title":"Account, Subscription Details, Card Change Notice","value":"\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u043f\u043b\u0430\u0442\u0451\u0436 \u0431\u0443\u0434\u0435\u0442 \u0441\u043f\u0438\u0441\u0430\u043d \u0441 \u043d\u043e\u0432\u043e\u0439 \u043a\u0430\u0440\u0442\u044b."},
 				"subscription_details_past_payments":{
 					"title":"Account, Subscription Details, Past Payments Title",
 					"value":"\u041f\u0440\u043e\u0448\u043b\u044b\u0435 \u043f\u043b\u0430\u0442\u0435\u0436\u0438"
@@ -1323,6 +1417,18 @@
 					"title":"Cart, Invalid Order ID",
 					"value":"Не удалось найти действительный заказ с указанным идентификатором и вашим адресом электронной почты."
 				},
+				"order_claim_invalid":{
+					"title":"Connect Order, Link Not Valid",
+					"value":"That link is not valid or has expired. Ask for a new one from your account."
+				},
+				"order_claim_sign_in":{
+					"title":"Connect Order, Sign In First",
+					"value":"Sign in to the account that asked for this link, then open the link again."
+				},
+				"order_claim_limit":{
+					"title":"Connect Order, Too Many Requests",
+					"value":"Too many requests. Please try again later."
+				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
 					"value":"Данная ссылка для сброса пароля недействительна или истекла. Пожалуйста, запросите новую ссылку."
@@ -1334,6 +1440,10 @@
 				"password_invalid":{
 					"title":"Reset Password Invalid",
 					"value":"Этот пароль недействителен. Пожалуйста, выберите другой."
+				},
+				"download_unavailable":{
+					"title":"Download Unavailable",
+					"value":"\u042d\u0442\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430. \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0438 \u043e\u0442\u043a\u0440\u044b\u0432\u0430\u044e\u0442\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u043e\u043f\u043b\u0430\u0442\u044b \u0437\u0430\u043a\u0430\u0437\u0430 \u0438 \u043f\u0440\u0435\u043a\u0440\u0430\u0449\u0430\u044e\u0442\u0441\u044f, \u0435\u0441\u043b\u0438 \u0437\u0430\u043a\u0430\u0437 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0451\u043d \u0438\u043b\u0438 \u043e\u0442\u043c\u0435\u043d\u0451\u043d."
 				}
 			}
 		},
@@ -1365,6 +1475,10 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Ваш заказ успешно подключен к вашей учетной записи!"
+				},
+				"order_claim_sent":{
+					"title":"Connect Order, Link Sent",
+					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -1471,9 +1585,130 @@
 				}
 			}
 		},
+		"checkout_fields":{
+			"label":"Checkout Fields",
+			"options":{
+				"details_title":{
+					"title":"Checkout Fields Answers Heading",
+					"value":"Additional details"
+				},
+				"optional":{
+					"title":"Optional Field Marker",
+					"value":"(optional)"
+				},
+				"select_placeholder":{
+					"title":"Dropdown First Choice",
+					"value":"Choose…"
+				},
+				"required_error":{
+					"title":"Required Field Error",
+					"value":"Please fill in this field."
+				},
+				"choose_error":{
+					"title":"Required Choice Error",
+					"value":"Please choose an option."
+				},
+				"email_error":{
+					"title":"Email Field Error",
+					"value":"Please enter a valid email address."
+				},
+				"phone_error":{
+					"title":"Phone Field Error",
+					"value":"Please enter a valid phone number."
+				},
+				"number_error":{
+					"title":"Number Field Error",
+					"value":"Please enter a number in the allowed range."
+				},
+				"date_error":{
+					"title":"Date Field Error",
+					"value":"Please choose an available date."
+				},
+				"format_error":{
+					"title":"Format Error",
+					"value":"Please check the format of this answer."
+				},
+				"length_error":{
+					"title":"Too Short Error",
+					"value":"Please enter a longer answer."
+				},
+				"consent_error":{
+					"title":"Consent Error",
+					"value":"Please accept to continue."
+				},
+				"checkout_error":{
+					"title":"Checkout Fields Notice",
+					"value":"Please check the highlighted checkout fields."
+				},
+				"yes":{
+					"title":"Checkbox Ticked Answer",
+					"value":"Yes"
+				},
+				"no":{
+					"title":"Checkbox Not Ticked Answer",
+					"value":"No"
+				},
+				"accepted":{
+					"title":"Consent Accepted Answer",
+					"value":"Accepted"
+				},
+				"after_payment_title":{
+					"title":"After Payment Heading",
+					"value":"A few more details"
+				},
+				"after_payment_intro":{
+					"title":"After Payment Introduction",
+					"value":"We still need a few details to complete your order."
+				},
+				"after_payment_button":{
+					"title":"After Payment Save Button",
+					"value":"Save details"
+				},
+				"after_payment_saved":{
+					"title":"After Payment Saved Message",
+					"value":"Thank you. We have your details."
+				},
+				"after_payment_failed":{
+					"title":"After Payment Save Failed Message",
+					"value":"Your details could not be saved. Reload the page and try again."
+				}
+			}
+		},
 		"documents":{
 			"label":"Order Documents",
 			"options":{
+				"shipment_package":{
+					"title":"Package Label (tracking)",
+					"value":"Package %d"
+				},
+				"shipment_packages_intro":{
+					"title":"Several Packages Intro",
+					"value":"Your order ships in %d packages. Each one has its own tracking number."
+				},
+				"tracking_label_created":{
+					"title":"Tracking: Label Created",
+					"value":"Label created"
+				},
+				"tracking_in_transit":{
+					"title":"Tracking: In Transit",
+					"value":"In transit"
+				},
+				"tracking_out_for_delivery":{
+					"title":"Tracking: Out for Delivery",
+					"value":"Out for delivery"
+				},
+				"tracking_delivered":{
+					"title":"Tracking: Delivered",
+					"value":"Delivered"
+				},
+				"tracking_problem":{
+					"title":"Tracking: Delivery Problem",
+					"value":"Delivery problem"
+				},
+				"tracking_returned":{
+					"title":"Tracking: Returned",
+					"value":"Returned to sender"
+				},
 				"packing_slip_title":{
 					"title":"Packing Slip Title",
 					"value":"Упаковочный лист"
@@ -1529,6 +1764,603 @@
 				"invoice_date":{
 					"title":"Invoice PDF Date Label",
 					"value":"Дата:"
+				},
+				"po_number_label":{
+					"title":"PO Number Label",
+					"value":"Номер заказа на закупку:"
+				},
+				"payment_terms_label":{
+					"title":"Payment Terms Label",
+					"value":"Условия оплаты:"
+				},
+				"due_date_label":{
+					"title":"Due Date Label",
+					"value":"Срок оплаты:"
+				},
+				"invoice_number_label":{
+					"title":"Invoice Number Label",
+					"value":"Номер счёта:"
+				},
+				"invoice_issued_label":{
+					"title":"Invoice Issue Date Label",
+					"value":"Выставлен:"
+				},
+				"invoice_email_subject":{
+					"title":"Invoice Email Subject",
+					"value":"Счёт"
+				},
+				"invoice_email_intro":{
+					"title":"Invoice Email Intro",
+					"value":"Ваш счёт приложен в формате PDF."
+				},
+				"invoice_email_intro_no_pdf":{
+					"title":"Invoice Email Intro ( No PDF )",
+					"value":"Вот данные вашего счёта."
+				},
+				"invoice_pay_button":{
+					"title":"Invoice Email Pay Button",
+					"value":"Оплатить счёт"
+				},
+				"gift_message_label":{
+					"title":"Gift Message Label",
+					"value":"Подарочное сообщение"
+				},
+				"gift_receipt_title":{
+					"title":"Gift Receipt Heading",
+					"value":"Подарочный чек"
+				},
+				"gift_receipt_intro":{
+					"title":"Gift Receipt Intro",
+					"value":"Кто-то отправил вам подарок. Вот что уже в пути."
+				},
+				"gift_from_label":{
+					"title":"Gift From Label",
+					"value":"От"
+				},
+				"gift_returns_note":{
+					"title":"Gift Receipt Exchanges Note",
+					"value":"Хотите что-то обменять? Свяжитесь с нами и укажите номер заказа выше."
+				},
+				"gift_returns_note_no_number":{
+					"title":"Gift Receipt Exchanges Note ( no order number )",
+					"value":"Хотите что-то обменять? Свяжитесь с нами, и мы поможем найти ваш подарок."
+				},
+				"pay_loading":{
+					"title":"Pay Page Loading Message",
+					"value":"Загрузка защищённой платёжной формы…"
+				},
+				"account_pay_waiting":{
+					"title":"My Account Order Waiting For Payment",
+					"value":"Этот заказ ожидает оплаты."
+				},
+				"gift_receipt_email_subject":{
+					"title":"Gift Receipt Email Subject",
+					"value":"К вам едет подарок"
+				},
+				"credit_note_title":{
+					"title":"Credit Note Heading",
+					"value":"Кредит-нота"
+				},
+				"credit_note_number_label":{
+					"title":"Credit Note Number Label",
+					"value":"Номер кредит-ноты:"
+				},
+				"credit_note_for_invoice":{
+					"title":"Credit Note Invoice Label",
+					"value":"К счёту:"
+				},
+				"credit_note_invoice_total":{
+					"title":"Credit Note Invoice Total Label",
+					"value":"Сумма счёта"
+				},
+				"amount_credited":{
+					"title":"Amount Credited Label",
+					"value":"Сумма возврата"
+				},
+				"document_links_title":{
+					"title":"Email Document Links Heading",
+					"value":"Ваши документы"
+				},
+				"document_links_expire":{
+					"title":"Email Document Links Expiry ( %d is the number of days )",
+					"value":"Эти ссылки действуют %d дн."
+				},
+				"document_link_invoice":{
+					"title":"Email Invoice PDF Link",
+					"value":"Счёт (PDF)"
+				},
+				"document_link_packing_slip":{
+					"title":"Email Packing Slip PDF Link",
+					"value":"Упаковочный лист (PDF)"
+				},
+				"account_download_receipt":{
+					"title":"My Account Receipt PDF Link",
+					"value":"Квитанция (PDF)"
+				},
+				"account_download_invoice":{
+					"title":"My Account Invoice PDF Link",
+					"value":"Счёт (PDF)"
+				},
+				"account_download_credit_note":{
+					"title":"My Account Credit Note PDF Link",
+					"value":"Кредит-нота (PDF)"
+				},
+				"account_download_packing_slip":{
+					"title":"My Account Packing Slip PDF Link",
+					"value":"Упаковочный лист (PDF)"
+				},
+				"account_download_gift_receipt":{
+					"title":"My Account Gift Receipt PDF Link",
+					"value":"Подарочный чек (PDF)"
+				},
+				"checkout_po_title":{
+					"title":"Checkout PO Number Heading",
+					"value":"Заказ на закупку"
+				},
+				"checkout_po_label":{
+					"title":"Checkout PO Number Label",
+					"value":"Номер заказа на закупку (необязательно)"
+				},
+				"checkout_po_label_required":{
+					"title":"Checkout PO Number Label ( Required )",
+					"value":"Номер заказа на закупку"
+				},
+				"checkout_po_error":{
+					"title":"Checkout PO Number Error",
+					"value":"Введите номер заказа на закупку."
+				},
+				"checkout_gift_title":{
+					"title":"Checkout Gift Heading",
+					"value":"Подарочные опции"
+				},
+				"checkout_gift_switch":{
+					"title":"Checkout Gift Switch",
+					"value":"Отправить этот заказ как подарок"
+				},
+				"checkout_gift_message_label":{
+					"title":"Checkout Gift Message Label",
+					"value":"Подарочное сообщение (необязательно)"
+				},
+				"checkout_gift_recipient_email":{
+					"title":"Checkout Gift Recipient Email Label",
+					"value":"Email получателя (необязательно)"
+				},
+				"checkout_gift_switch_help":{
+					"title":"Checkout Gift Switch Help",
+					"value":"Мы не вкладываем цены в посылку. В вашем собственном чеке по-прежнему указана сумма оплаты."
+				},
+				"checkout_gift_message_placeholder":{
+					"title":"Checkout Gift Message Placeholder",
+					"value":"Напишите несколько слов к подарку"
+				},
+				"checkout_gift_recipient_help":{
+					"title":"Checkout Gift Recipient Help",
+					"value":"При отправке мы вышлем ему подарочный чек без цен."
+				},
+				"checkout_gift_recipient_error":{
+					"title":"Checkout Gift Recipient Error",
+					"value":"Введите действительный адрес email или оставьте поле пустым."
+				},
+				"gift_summary_title":{
+					"title":"Gift Summary Heading",
+					"value":"Этот заказ — подарок"
+				},
+				"gift_summary_prices":{
+					"title":"Gift Summary: No Prices",
+					"value":"Цены в посылку не вкладываются."
+				},
+				"gift_summary_recipient":{
+					"title":"Gift Summary: Gift Receipt To",
+					"value":"Подарочный чек для"
+				},
+				"gift_summary_recipient_note":{
+					"title":"Gift Summary: Gift Receipt Timing",
+					"value":"Отправляется по email при отправке заказа, без цен."
+				},
+				"gift_summary_recipient_sent":{
+					"title":"Gift Summary: Gift Receipt Sent ( %s is the date )",
+					"value":"Отправлен %s."
+				},
+				"gift_summary_edit":{
+					"title":"Gift Summary: Change Link",
+					"value":"Изменить"
+				},
+				"gift_summary_short":{
+					"title":"Gift Summary: Order Summary Line",
+					"value":"Отправляется как подарок"
+				},
+				"pay_title":{
+					"title":"Pay Page Heading",
+					"value":"Оплата заказа"
+				},
+				"pay_paid_title":{
+					"title":"Pay Page Heading ( Paid )",
+					"value":"Спасибо"
+				},
+				"pay_amount_due":{
+					"title":"Pay Page Amount Due Label",
+					"value":"К оплате"
+				},
+				"pay_method_title":{
+					"title":"Pay Page Payment Heading",
+					"value":"Оплата"
+				},
+				"pay_card_tab":{
+					"title":"Pay Page Card Tab",
+					"value":"Карта"
+				},
+				"pay_paypal_tab":{
+					"title":"Pay Page PayPal Tab",
+					"value":"PayPal"
+				},
+				"pay_bank_tab":{
+					"title":"Pay Page Bank Transfer Tab",
+					"value":"Банковский перевод"
+				},
+				"pay_button":{
+					"title":"Pay Page Pay Button",
+					"value":"Оплатить"
+				},
+				"pay_processing":{
+					"title":"Pay Page Processing",
+					"value":"Обрабатываем ваш платёж…"
+				},
+				"pay_success":{
+					"title":"Pay Page Payment Received",
+					"value":"Спасибо! Мы получили ваш платёж и отправили квитанцию на вашу почту."
+				},
+				"pay_paid":{
+					"title":"Pay Page Already Paid",
+					"value":"Этот заказ оплачен. Спасибо!"
+				},
+				"pay_pending":{
+					"title":"Pay Page Payment Pending",
+					"value":"Ваш платёж обрабатывается. Мы сообщим по email, когда он будет подтверждён."
+				},
+				"pay_closed":{
+					"title":"Pay Page Order Closed",
+					"value":"Этот заказ больше нельзя оплатить онлайн. Если у вас есть вопросы, свяжитесь с нами."
+				},
+				"pay_not_found":{
+					"title":"Pay Page Order Not Found",
+					"value":"Мы не нашли этот заказ. Проверьте ссылку в письме или свяжитесь с нами."
+				},
+				"pay_unavailable":{
+					"title":"Pay Page No Online Payment",
+					"value":"Онлайн-оплата недоступна для этого заказа. Свяжитесь с нами, чтобы договориться об оплате."
+				},
+				"pay_error":{
+					"title":"Pay Page Payment Error",
+					"value":"Не удалось завершить оплату. Попробуйте ещё раз или выберите другой способ оплаты."
+				},
+				"pay_expired":{
+					"title":"Pay Page Expired",
+					"value":"Срок действия страницы истёк. Обновите её и попробуйте снова."
+				},
+				"pay_billing_error":{
+					"title":"Pay Page Billing Address Missing",
+					"value":"Заполните адрес для выставления счёта."
+				},
+				"pay_bank_intro":{
+					"title":"Pay Page Bank Transfer Intro",
+					"value":"Для оплаты банковским переводом используйте эти реквизиты и укажите номер заказа:"
+				},
+				"pay_shipping_title":{
+					"title":"Pay Page Shipping Heading",
+					"value":"Доставка по адресу"
+				},
+				"pay_view_order":{
+					"title":"Pay Page View Order Link",
+					"value":"Посмотреть заказ"
+				},
+				"pay_download_invoice":{
+					"title":"Pay Page Invoice PDF Link",
+					"value":"Скачать счёт (PDF)"
+				},
+				"account_pay_now":{
+					"title":"My Account Pay Now Button",
+					"value":"Оплатить"
+				},
+				"pay_paid_label":{
+					"title":"Pay Page, Invoice Email And PDF Paid Label ( an order changed after it was paid )",
+					"value":"Оплачено"
+				},
+				"pay_balance_label":{
+					"title":"Pay Page, Invoice Email And PDF Balance Due Label",
+					"value":"Остаток к оплате"
+				},
+				"account_pay_balance":{
+					"title":"My Account Order Balance Due Notice ( the amount follows )",
+					"value":"Этот заказ был изменён после оплаты. Остаток к оплате:"
+				}
+			}
+		},
+		"checkout_protection":{
+			"label":"Checkout Protection",
+			"options":{
+				"declined":{
+					"title":"Payment Declined (simple message)",
+					"value":"Your payment wasn't approved. Please check your card details or try a different card."
+				},
+				"paused_title":{
+					"title":"Paused: Title",
+					"value":"Payments are paused for a little while."
+				},
+				"paused":{
+					"title":"Paused: Message ([time] and [email] are filled in)",
+					"value":"For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+				},
+				"paused_soon":{
+					"title":"Paused: Message Without a Time",
+					"value":"For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+				},
+				"check_title":{
+					"title":"Human Check: Title",
+					"value":"Quick security check"
+				},
+				"check_needed":{
+					"title":"Human Check: Message",
+					"value":"Please complete the security check below, then place your order again."
+				},
+				"check_failed":{
+					"title":"Human Check: Failed",
+					"value":"The security check didn't work. Please try it again."
+				},
+				"checking":{
+					"title":"Human Check: Checking",
+					"value":"Checking…"
+				},
+				"reload":{
+					"title":"Reload Needed",
+					"value":"Please reload this page and try again."
+				},
+				"code_paused":{
+					"title":"Too Many Codes Tried",
+					"value":"Too many codes were tried. Please wait an hour before trying another code."
+				}
+			}
+		},
+		"fulfillment":{
+			"label":"Fulfillment Partners",
+			"options":{
+				"being_made":{
+					"title":"Package Status: Being Made by a Partner",
+					"value":"Being made"
+				}
+			}
+		},
+		"product_managed":{
+			"label":"Managed Products",
+			"options":{
+				"variant_unavailable":{
+					"title":"Cart: Variant Switched Off",
+					"value":"An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+				},
+				"line_unavailable":{
+					"title":"Cart: Item Cannot Be Ordered",
+					"value":"An item in your cart cannot be ordered right now. Please remove it or try again later."
+				},
+				"product_unavailable":{
+					"title":"Cart: Item Not Available To Order",
+					"value":"\u041e\u0434\u0438\u043d \u0438\u0437 \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0432 \u0432\u0430\u0448\u0435\u0439 \u043a\u043e\u0440\u0437\u0438\u043d\u0435 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d \u0434\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u0430. \u0423\u0434\u0430\u043b\u0438\u0442\u0435 \u0435\u0433\u043e, \u0447\u0442\u043e\u0431\u044b \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c."
+				}
+			}
+		},
+		"cart_onepage":{
+			"label":"One-page Checkout",
+			"options":{
+				"breadcrumb_cart":{
+					"title":"Steps: Cart",
+					"value":"Корзина"
+				},
+				"breadcrumb_information":{
+					"title":"Steps: Information",
+					"value":"Информация"
+				},
+				"breadcrumb_shipping":{
+					"title":"Steps: Shipping",
+					"value":"Доставка"
+				},
+				"breadcrumb_payment":{
+					"title":"Steps: Payment",
+					"value":"Оплата"
+				},
+				"show_order_summary":{
+					"title":"Show Order Summary ( Mobile )",
+					"value":"Показать сводку заказа"
+				},
+				"edit_cart":{
+					"title":"Edit Cart Link",
+					"value":"Изменить корзину"
+				},
+				"order_summary":{
+					"title":"Order Summary Heading",
+					"value":"Сводка заказа"
+				},
+				"express_checkout":{
+					"title":"Express Checkout Heading",
+					"value":"Быстрое оформление"
+				},
+				"express_or":{
+					"title":"Express Checkout Divider",
+					"value":"ИЛИ"
+				},
+				"contact":{
+					"title":"Contact Heading",
+					"value":"Контакты"
+				},
+				"create_account_link":{
+					"title":"Create Account Link",
+					"value":"Создать аккаунт"
+				},
+				"invalid_email":{
+					"title":"Invalid Email Error",
+					"value":"Введите корректный адрес электронной почты."
+				},
+				"email_has_account":{
+					"title":"Email Has Account Error",
+					"value":"Для этого адреса электронной почты уже есть аккаунт. Войдите, чтобы продолжить."
+				},
+				"billing_address":{
+					"title":"Billing Address Heading",
+					"value":"Адрес для выставления счета"
+				},
+				"billing_same":{
+					"title":"Billing Same As Shipping",
+					"value":"Совпадает с адресом доставки"
+				},
+				"billing_different":{
+					"title":"Billing Different Address",
+					"value":"Использовать другой адрес для счета"
+				},
+				"shipping_address_error":{
+					"title":"Shipping Address Error",
+					"value":"Исправьте ошибки в адресе доставки."
+				},
+				"billing_address_error":{
+					"title":"Billing Address Error",
+					"value":"Исправьте ошибки в адресе для выставления счета."
+				},
+				"no_shipping_method":{
+					"title":"No Shipping Method Error",
+					"value":"Способ доставки не выбран или недоступен. Введите корректный адрес доставки, чтобы продолжить."
+				},
+				"shipping_locked":{
+					"title":"Shipping Methods Waiting",
+					"value":"Мы покажем способы доставки, как только адрес доставки будет заполнен."
+				},
+				"payment_locked":{
+					"title":"Payment Methods Waiting",
+					"value":"Мы покажем способы оплаты, как только адрес доставки будет заполнен."
+				},
+				"review_ship_to":{
+					"title":"Review: Ship To",
+					"value":"Доставить по адресу"
+				},
+				"review_method":{
+					"title":"Review: Shipping Method",
+					"value":"Способ"
+				},
+				"review_billing":{
+					"title":"Review: Billing",
+					"value":"Оплата по счету"
+				},
+				"change":{
+					"title":"Review: Change Link",
+					"value":"Изменить"
+				},
+				"return_to_cart":{
+					"title":"Back to Cart Link",
+					"value":"Вернуться в корзину"
+				},
+				"return_to_information":{
+					"title":"Back to Information Link",
+					"value":"Вернуться к информации"
+				},
+				"return_to_shipping":{
+					"title":"Back to Shipping Link",
+					"value":"Вернуться к доставке"
+				},
+				"pickup_asap":{
+					"title":"Pickup: As Soon As Possible",
+					"value":"Как можно скорее"
+				},
+				"pickup_schedule":{
+					"title":"Pickup: Schedule for Later",
+					"value":"Запланировать на потом"
+				},
+				"remove":{
+					"title":"Remove Item Link",
+					"value":"Удалить"
+				},
+				"checkout_note":{
+					"title":"Cart: Calculated at Checkout Note",
+					"value":"Доставка, налоги и коды скидок рассчитываются при оформлении заказа."
+				},
+				"card_minimum":{
+					"title":"Card Payment Minimum ( %s is the amount )",
+					"value":"Для оплаты картой сумма заказа должна быть не меньше %s."
+				},
+				"place_order_error":{
+					"title":"Place Order: Could Not Continue",
+					"value":"Что-то пошло не так. Проверьте свои данные и попробуйте снова."
+				},
+				"total_changed":{
+					"title":"Place Order: Total Changed",
+					"value":"Сумма вашего заказа изменилась. Проверьте её и оформите заказ ещё раз."
+				},
+				"placing_title":{
+					"title":"Place Order: Working, Title",
+					"value":"Оформляем ваш заказ"
+				},
+				"placing_checking":{
+					"title":"Place Order: Working, Checking the Order",
+					"value":"Проверяем ваш заказ…"
+				},
+				"placing_payment":{
+					"title":"Place Order: Working, Processing the Payment",
+					"value":"Обрабатываем ваш платёж…"
+				},
+				"placing_finishing":{
+					"title":"Place Order: Working, Completing the Order",
+					"value":"Завершаем оформление заказа…"
+				},
+				"placing_slow":{
+					"title":"Place Order: Working, Taking Longer Than Usual",
+					"value":"Это занимает немного больше времени, чем обычно."
+				},
+				"placing_hint":{
+					"title":"Place Order: Working, Keep the Page Open",
+					"value":"Пожалуйста, не закрывайте эту страницу."
+				}
+			}
+		},
+		"shipping_groups":{
+			"label":"Checkout - Partner Shipping",
+			"options":{
+				"ships_separately":{
+					"title":"Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
+					"value":"[label] items ship separately ( [amount] )."
+				},
+				"delivery_estimate":{
+					"title":"Note: Delivery Estimate ([days] is the delivery time)",
+					"value":"Estimated delivery: [days]."
+				},
+				"delivery_days":{
+					"title":"Delivery Time ([days] is a number or a range)",
+					"value":"[days] business days"
+				},
+				"pending":{
+					"title":"Note: No Address Yet ([label] is the partner)",
+					"value":"[label] items ship separately. Their shipping is added once you enter your address."
+				},
+				"unavailable":{
+					"title":"Note: No Shipping for This Address ([label] is the partner)",
+					"value":"We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+				},
+				"totals_included":{
+					"title":"Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
+					"value":"Includes [label] shipping: [amount]"
+				},
+				"totals_pending":{
+					"title":"Totals: No Address Yet ([label] is the partner)",
+					"value":"[label] shipping is added once you enter your address"
+				},
+				"totals_unavailable":{
+					"title":"Totals: No Shipping for This Address ([label] is the partner)",
+					"value":"[label] shipping is unavailable for this address"
+				},
+				"free":{
+					"title":"Partner Shipping Covered by Free Shipping",
+					"value":"Free"
+				},
+				"checkout_error":{
+					"title":"Checkout Error: Partner Shipping Unavailable",
+					"value":"We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+				},
+				"method_name":{
+					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",
+					"value":"[label] - [service]"
 				}
 			}
 		},

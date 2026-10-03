@@ -6,6 +6,16 @@ class ec_db{
 	protected static $orderdetail_sql;
 	protected static $orderdetail_guest_sql;
 	
+	/**
+	 * Why the last add_to_cart() / quick_add_to_cart() added nothing: '' when it ran, else a code of
+	 * wp_easycart_storefront_access::can_add_to_cart() ( catalog_mode, login_for_pricing … ), donation_amount ( a donation below
+	 * the product's price, or not a number ) or product_missing. Callers send the shopper to the product page, which says why.
+	 *
+	 * @since 6.0.2
+	 * @var string
+	 */
+	public static $add_to_cart_refused = '';
+
 	function __construct(){
 		global $wpdb;
 		self::$mysqli =& $wpdb;
@@ -89,7 +99,7 @@ class ec_db{
 			
 		self::$orderdetail_sql .=	"
 				
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM ec_orderdetail
 				
@@ -101,12 +111,7 @@ class ec_db{
 				
 				LEFT JOIN ec_download
 				ON ec_download.download_id = ec_orderdetail.download_key
-				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_orderdetail'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_orderdetail.orderdetail_id, 
+				,
 				
 				ec_order, ec_user
 				
@@ -198,7 +203,7 @@ class ec_db{
 				
 		self::$orderdetail_guest_sql .=	"
 				
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM ec_orderdetail
 				
@@ -210,12 +215,7 @@ class ec_db{
 				
 				LEFT JOIN ec_download
 				ON ec_download.download_id = ec_orderdetail.download_key
-				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_orderdetail'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_orderdetail.orderdetail_id, 
+				,
 				
 				ec_order 
 				
@@ -370,8 +370,92 @@ class ec_db{
 		
 	}
 	
+	/**
+	 * The object cache key for a product lookup, made for the shopper who is looking.
+	 *
+	 * A product query answers differently per viewer: store managers also see inactive products on a
+	 * product page, a customer's user level joins its role prices ( price point filters ) and its role
+	 * id adds the products only that role may see. The key carries that viewer, the lookup's own query
+	 * and the product cache generation, so rows cached for one viewer are never served to another, and
+	 * one product change retires every cached lookup ( ec_db::product_cache_changed() ).
+	 *
+	 * @since 6.0.2
+	 * @param string $base  Readable start of the key, e.g. 'wpeasycart-product-only-' . $model_number.
+	 * @param mixed  $query Optional. Everything else the lookup depends on, such as its SQL parts.
+	 * @return string
+	 */
+	public static function product_cache_key( $base, $query = '' ) {
+		return $base . '-' . md5( maybe_serialize( array( self::product_cache_viewer(), $query, self::product_cache_generation() ) ) );
+	}
+
+	/**
+	 * Who is looking, as far as product lookups are concerned.
+	 *
+	 * @since 6.0.2
+	 * @return array manager ( 1 when inactive products show ), user_level ( role prices ), role_id ( role-only products ).
+	 */
+	public static function product_cache_viewer() {
+		$user   = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) ) ? $GLOBALS['ec_user'] : null;
+		$viewer = array(
+			'manager'    => ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) ? 1 : 0, // phpcs:ignore WordPress.WP.Capabilities.Unknown -- EasyCart's own roles register this capability.
+			'user_level' => ( $user && isset( $user->user_level ) ) ? (string) $user->user_level : '',
+			'role_id'    => ( $user && isset( $user->role_id ) ) ? (int) $user->role_id : 0,
+		);
+		/**
+		 * Filter the viewer context product lookups are cached under. Add to it when code of your own makes
+		 * product queries answer differently per shopper.
+		 *
+		 * @since 6.0.2
+		 * @param array $viewer manager, user_level, role_id.
+		 */
+		return apply_filters( 'wp_easycart_product_cache_viewer', $viewer );
+	}
+
+	/**
+	 * The product cache generation, part of every product lookup key.
+	 *
+	 * A time, not a counter: if the cache loses it, the new one still matches no older key.
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	public static function product_cache_generation() {
+		$generation = wp_cache_get( 'last_changed', 'wpeasycart-product-list' );
+		if ( ! $generation ) {
+			$generation = microtime();
+			wp_cache_set( 'last_changed', $generation, 'wpeasycart-product-list' );
+		}
+		return $generation;
+	}
+
+	/**
+	 * Retire every cached product lookup, for every viewer, after products change.
+	 *
+	 * Lookups are cached per viewer and per query ( ec_db::product_cache_key() ), so there is no single key
+	 * left to delete: a new generation makes them all miss, and the old entries expire. Flushing the
+	 * wpeasycart-product-list group, or the whole cache, does the same.
+	 *
+	 * @since 6.0.2
+	 * @return void
+	 */
+	public static function product_cache_changed() {
+		wp_cache_set( 'last_changed', microtime(), 'wpeasycart-product-list' );
+	}
+
 	public static function get_product_list( $where_query, $order_query, $limit_query, $session_id, $cache_key = "", $optionitem_filter = '', $extra_joins = '' ) {
 		if ( '' != $cache_key ) {
+			/* 6.0.2: a caller's key is only a base; the stored key also names this viewer and this query. */
+			$cache_key   = self::product_cache_key(
+				$cache_key,
+				array(
+					$where_query,
+					$order_query,
+					$limit_query,
+					$optionitem_filter,
+					$extra_joins,
+					isset( $_GET['ec_optionitem_id'] ) ? (int) $_GET['ec_optionitem_id'] : 0, // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only storefront filter, it narrows the query below.
+				)
+			);
 			$cached_list = wp_cache_get( $cache_key, 'wpeasycart-product-list' );
 			if ( $cached_list ) {
 				return $cached_list;
@@ -726,7 +810,8 @@ class ec_db{
 		}
 
 		if ( '' != $cache_key ) {
-			wp_cache_set( $cache_key, $product_list, 'wpeasycart-product-list' );
+			/* A day at most: a product change leaves the previous generation's entries behind. */
+			wp_cache_set( $cache_key, $product_list, 'wpeasycart-product-list', DAY_IN_SECONDS );
 		}
 
 		return $product_list;
@@ -1283,9 +1368,18 @@ class ec_db{
         return $valid_items;
     }
 	
-	public static function get_temp_cart( $session_id ){
-		self::update_temp_cart_inventory( $session_id );
-		$sql = "SELECT 
+	/**
+	 * The cart's lines as ec_cartitem objects.
+	 *
+	 * @param string $session_id      Cart session.
+	 * @param bool   $check_inventory 6.0.2: false only reads the cart ( abandoned cart snapshots price another shopper's
+	 *                                lines without trimming them to the stock held for carts ).
+	 */
+	public static function get_temp_cart( $session_id, $check_inventory = true ){
+		if ( $check_inventory ) {
+			self::update_temp_cart_inventory( $session_id );
+		}
+		$sql = "SELECT
 				product.*,
 				" . self::$mysqli->prefix . "posts.guid,
 
@@ -1482,19 +1576,28 @@ class ec_db{
         if( $user_id != 0 ){
             $reviewer_name = $GLOBALS['ec_user']->first_name . ' ' . $GLOBALS['ec_user']->last_name;
         }
-		self::$mysqli->insert( 	
-			'ec_review', 
-			array( 	'product_id' => $product_id, 
-					'user_id' => $user_id, 
-					'rating' => $rating, 
-					'title' => $title, 
+		$inserted = self::$mysqli->insert(
+			'ec_review',
+			array( 	'product_id' => $product_id,
+					'user_id' => $user_id,
+					'rating' => $rating,
+					'title' => $title,
 					'description' => $description,
                     'reviewer_name' => $reviewer_name
-			), 
+			),
 			array( '%d', '%d', '%d', '%s', '%s', '%s' )
 		);
-		$review_id = self::$mysqli->insert_id;
-		do_action( 'wpeasycart_review_added', $review_id ); 
+		$review_id = (int) self::$mysqli->insert_id;
+		/* 6.0.2: a failed insert leaves insert_id at an earlier insert's id, so the result decides; the form then says the review was not saved. */
+		if ( false === $inserted || ! $review_id ) {
+			return false;
+		}
+		/* 6.0.2: the reviews engine ( ec_reviews::on_review_submitted() ) claims the review request link that brought the shopper,
+		 * marks a verified purchase and applies the moderation rules. Fired once per new review, here only ( every storefront review
+		 * form posts to ec_ajax_insert_customer_review ), and before wpeasycart_review_added, so the cache flush and the store
+		 * notification below see the review as it was saved. */
+		do_action( 'wpeasycart_review_submitted', $review_id );
+		do_action( 'wpeasycart_review_added', $review_id );
 		
 		if( get_option( 'ec_option_customer_review_notification' ) ){
 			$headers   = array();
@@ -1883,9 +1986,11 @@ class ec_db{
 	public static function add_to_cart( $product_id, $session_id, $quantity, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5, $gift_card_message="", $gift_card_to_name="", $gift_card_from_name="", $donation_price=0.00, $use_advanced_optionset=false, $return_tempcart=0, $gift_card_email="", $option_vals = null, &$was_merged = false ) {
 		$was_merged = false;
 		$tempcart_id = false;
+		self::$add_to_cart_refused = '';
 		// Get the limit on this product
 		$hours = ( get_option( 'ec_option_tempcart_stock_hours' ) ) ? get_option( 'ec_option_tempcart_stock_hours' ) : 1;
-		$product_sql = "SELECT stock_quantity, use_optionitem_quantity_tracking, show_stock_quantity, allow_backorders, max_purchase_quantity, min_purchase_quantity, is_donation FROM ec_product WHERE product_id = %d";
+		/* 6.0.2: plus the columns the add to cart rule and the donation minimum read ( wp_easycart_storefront_access::ACCESS_COLUMNS ). */
+		$product_sql = "SELECT product_id, model_number, post_id, price, stock_quantity, use_optionitem_quantity_tracking, show_stock_quantity, allow_backorders, max_purchase_quantity, min_purchase_quantity, is_donation, activate_in_store, role_id, login_for_pricing, login_for_pricing_user_level, catalog_mode, inquiry_mode FROM ec_product WHERE product_id = %d";
 		$optionitem_sql = "SELECT * FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$tempcart_optionitem_sql = "SELECT quantity FROM ec_tempcart WHERE session_id = '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d";
 		$tempcart_optionitem_other_sql = "SELECT quantity FROM ec_tempcart WHERE session_id != '%s' AND product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d AND last_changed_date >= NOW( ) - INTERVAL %d " . get_option( 'ec_option_tempcart_stock_timeframe' );
@@ -1897,6 +2002,32 @@ class ec_db{
 
 		//Get this product stock quantity and use_optionitem_quantity tracking
 		$product = self::$mysqli->get_row( self::$mysqli->prepare( $product_sql, $product_id ) );
+
+		/* 6.0.2: every add follows the product page's rules ( catalog and inquiry mode, login for pricing, customer role, a store
+		 * closed to this shopper, the store shown as a catalog ): the AJAX adds and the older form post took any product id. */
+		if ( ! $product ) {
+			self::$add_to_cart_refused = 'product_missing';
+			return false;
+		}
+		if ( function_exists( 'wp_easycart_product_can_add_to_cart' ) ) {
+			$can_add = wp_easycart_product_can_add_to_cart( $product );
+			if ( true !== $can_add ) {
+				self::$add_to_cart_refused = is_wp_error( $can_add ) ? (string) $can_add->get_error_code() : 'product_refused';
+				return false;
+			}
+		}
+		/* 6.0.2: a donation is a number above 0 and at least the product's price ( the product page checked it only in the browser,
+		 * so a negative amount lowered the order total ). */
+		if ( $product->is_donation ) {
+			$donation_amount = class_exists( 'wp_easycart_storefront_access' ) ? wp_easycart_storefront_access::donation_price( $donation_price, $product->price ) : (float) $donation_price;
+			if ( is_wp_error( $donation_amount ) ) {
+				self::$add_to_cart_refused = 'donation_amount';
+				return false;
+			}
+			$donation_price = number_format( $donation_amount, 3, '.', '' );
+		} else {
+			$donation_price = '0.000';
+		}
 
 		//Get this tempcart item quantity
 		$tempcart_optionitem = self::$mysqli->get_row( self::$mysqli->prepare( $tempcart_optionitem_sql, $session_id, $product_id, $optionitem_id_1, $optionitem_id_2, $optionitem_id_3, $optionitem_id_4, $optionitem_id_5 ) );
@@ -2393,7 +2524,39 @@ class ec_db{
 	}
 	
 	public static function get_shipping_method_name( $ship_id ){
-		return self::$mysqli->get_var( self::$mysqli->prepare( "SELECT shipping_label FROM ec_shippingrate WHERE shippingrate_id = '%s'", $ship_id ) );	
+		$ship_id = trim( (string) $ship_id );
+		if ( '' !== $ship_id && ! is_numeric( $ship_id ) ) {
+			/* 6.0.2: a live rate from an extension ( "optimalship", "shippo_<group>", "shipstation_<carrier>__<service>" ) has no
+			 * ec_shippingrate row; MySQL read its id as 0 and the order was saved with no shipping method. */
+			$name = self::live_rate_label( $ship_id );
+		} else {
+			$name = self::$mysqli->get_var( self::$mysqli->prepare( "SELECT shipping_label FROM ec_shippingrate WHERE shippingrate_id = '%s'", $ship_id ) );
+		}
+		/**
+		 * Filter the name saved on an order for the shipping method chosen at checkout.
+		 *
+		 * @since 6.0.2
+		 * @param string|null $name    The rate's label, or null when none was found.
+		 * @param string      $ship_id The chosen method's id.
+		 */
+		return apply_filters( 'wpeasycart_shipping_method_name', $name, $ship_id );
+	}
+
+	/**
+	 * The label of a live rate row an extension adds ( wpeasycart_live_based_codes; WP EasyCart PRO's rate providers add
+	 * theirs there too ), by the row's id.
+	 *
+	 * @since 6.0.2
+	 * @param string $ship_id Row id.
+	 * @return string|null
+	 */
+	public static function live_rate_label( $ship_id ) {
+		foreach ( (array) apply_filters( 'wpeasycart_live_based_codes', array() ) as $row ) {
+			if ( is_array( $row ) && isset( $row[1], $row[2] ) && (string) $row[2] === (string) $ship_id ) {
+				return (string) $row[1];
+			}
+		}
+		return null;
 	}
 	
 	public static function do_quantity_check( $cart ){
@@ -2496,7 +2659,7 @@ class ec_db{
 		// Gift Card and Coupon Code
 		$coupon = $GLOBALS['ec_coupons']->redeem_coupon_code( $GLOBALS['ec_cart_data']->cart_data->coupon_code );
 		if( $coupon && !$coupon->coupon_expired && ( $coupon->max_redemptions == 999 || $coupon->times_redeemed < $coupon->max_redemptions ) ){
-			$coupon_code = $GLOBALS['ec_cart_data']->cart_data->coupon_code;
+			$coupon_code = $coupon->promocode_id; /* 6.0.2: the saved code, so the count below updates its row */
 			$coupon_code_message = $coupon->message;
 		}else{
 			$coupon_code = '';
@@ -2617,8 +2780,30 @@ class ec_db{
 		) );
 		$order_id = self::$mysqli->insert_id;
 
+		if ( class_exists( 'wp_easycart_order_source' ) ) {
+			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
+		}
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
+		}
+
+		if ( class_exists( 'wp_easycart_shipping_groups' ) ) {
+			wp_easycart_shipping_groups::record( $order_id, $shipping, $order_totals ); /* 6.0.2: the shipping chosen for a fulfillment partner's lines */
+		}
+
 		if ( get_option( 'ec_option_pickup_enable_locations' ) && isset( $GLOBALS['ec_cart_data']->cart_data->pickup_location ) && (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location > 0 ) {
 			self::$mysqli->query( self::$mysqli->prepare( 'UPDATE ec_order SET location_id = %d WHERE order_id = %d', (int) $GLOBALS['ec_cart_data']->cart_data->pickup_location, $order_id ) );
+		}
+
+		// 6.0.2: the gift card redeemed ( a payment, kept apart from discount_total, which also holds it ) and whether prices
+		// included VAT, for accounting. Written after the insert so a store whose database upgrade has not run yet still checks out.
+		if ( $order_id && self::order_accounting_columns_ready() ) {
+			self::$mysqli->query( self::$mysqli->prepare( 'UPDATE ec_order SET giftcard_total = %s, vat_included = %d WHERE order_id = %d', round( (float) ( isset( $discount->giftcard_discount ) ? $discount->giftcard_discount : 0 ), 3 ), ( ! empty( $tax->vat_included ) ) ? 1 : 0, $order_id ) );
+		}
+		// 6.0.2: what the order has been paid ( nothing yet, or its total when it is placed with a paid status ); the payment is
+		// recorded when its status counts as paid ( wp_easycart_order_payments ).
+		if ( $order_id && class_exists( 'wp_easycart_order_payments' ) ) {
+			wp_easycart_order_payments::stamp( $order_id );
 		}
 
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
@@ -2642,7 +2827,28 @@ class ec_db{
 		
 	}
 	
-	public static function update_order_status( $order_id, $orderstatus_id ){
+	/**
+	 * Are the 6.0.2 accounting columns on ec_order ( giftcard_total, vat_included )? Read once per request.
+	 *
+	 * @since 6.0.2
+	 * @return bool
+	 */
+	public static function order_accounting_columns_ready() {
+		global $wpdb;
+		static $ready = null;
+		if ( null === $ready ) {
+			$ready = (bool) $wpdb->get_var( "SHOW COLUMNS FROM ec_order LIKE 'vat_included'" );
+		}
+		return $ready;
+	}
+
+	/**
+	 * Set an order's status and log it; fires wpeasycart_order_status_update unless $announce is false ( 6.0.2: a caller holding a
+	 * lock writes the status inside it and fires the hook itself once the lock is released ).
+	 * 6.0.2: the hook's third argument is the status before ( read before the write ).
+	 */
+	public static function update_order_status( $order_id, $orderstatus_id, $announce = true ){
+		$previous_status_id = (int) self::$mysqli->get_var( self::$mysqli->prepare( 'SELECT orderstatus_id FROM ec_order WHERE order_id = %d', $order_id ) );
 		self::$mysqli->update(
 			'ec_order',
 			array( 'orderstatus_id' => $orderstatus_id ),
@@ -2652,7 +2858,9 @@ class ec_db{
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-status-update" )', $order_id ) );
 		$order_log_id = self::$mysqli->insert_id;
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "orderstatus_id", %s )', $order_log_id, $order_id, $orderstatus_id ) );
-		do_action( 'wpeasycart_order_status_update', (int) $order_id, (int) $orderstatus_id );
+		if ( $announce ) {
+			do_action( 'wpeasycart_order_status_update', (int) $order_id, (int) $orderstatus_id, $previous_status_id );
+		}
 	}
 	
 	public static function get_order_id_from_temp_id( $temp_order_id ){
@@ -2679,6 +2887,9 @@ class ec_db{
 		self::$mysqli->query( self::$mysqli->prepare( "DELETE FROM ec_order WHERE order_id = %d", $order_id ) );
 		
 		$coupon_code = $GLOBALS['ec_cart_data']->cart_data->coupon_code;
+		if( $coupon_code != "" && isset( $GLOBALS['ec_coupons'] ) && method_exists( $GLOBALS['ec_coupons'], 'stored_code' ) ){
+			$coupon_code = $GLOBALS['ec_coupons']->stored_code( $coupon_code ); /* 6.0.2 */
+		}
 		
 		// If coupon used, update usage numbers
 		if( $coupon_code != "" ){
@@ -2714,11 +2925,17 @@ class ec_db{
 	}
 	
 	public static function insert_user( $email, $password, $first_name, $last_name, $billing_id, $shipping_id, $user_level, $is_subscriber, $user_notes = "", $vat_registration_number = "" ){
-		if( $is_subscriber )
+		/*
+		 * 6.0.2: a ticked box subscribes, an unticked one leaves the list alone ( not opting in is not an unsubscribe ). An
+		 * address already on the list ( newsletter widget, popup, an earlier checkout ) stays subscribed and the new account
+		 * says so, so My Account and the customer screen show the box ticked before anyone can untick it.
+		 */
+		if ( $is_subscriber ) {
 			self::insert_subscriber( $email, $first_name, $last_name );
-		else
-			self::remove_subscriber( $email );
-		
+		} elseif ( self::is_subscribed( $email ) ) {
+			$is_subscriber = 1;
+		}
+
 		$inserted = self::$mysqli->insert(	
 			'ec_user',
 			array(	"email"							=> $email,
@@ -2745,12 +2962,46 @@ class ec_db{
 	
 	public static function insert_subscriber( $email, $first_name, $last_name ){
 		do_action( 'wpeasycart_insert_subscriber', $email, $first_name, $last_name );
-		self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_subscriber( email, first_name, last_name ) VALUES( %s, %s, %s ) ON DUPLICATE KEY UPDATE first_name = %s, last_name = %s", $email, $first_name, $last_name, $first_name, $last_name ) );
+		if ( class_exists( 'wp_easycart_subscribers' ) && wp_easycart_subscribers::columns_ready() ) {
+			/* 6.0.2: the consent record ( when, where, the visitor's address, the account ) is written on the first insert only; a later sign-up changes the names ( and links an account created since ). */
+			$consent = wp_easycart_subscribers::consent( $email );
+			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_subscriber( email, first_name, last_name, date_added, source, ip_address, user_id ) VALUES( %s, %s, %s, NOW(), %s, %s, %d ) ON DUPLICATE KEY UPDATE first_name = %s, last_name = %s, user_id = IF( user_id = 0, %d, user_id )", $email, $first_name, $last_name, $consent['source'], $consent['ip_address'], $consent['user_id'], $first_name, $last_name, $consent['user_id'] ) );
+		} else {
+			self::$mysqli->query( self::$mysqli->prepare( "INSERT INTO ec_subscriber( email, first_name, last_name ) VALUES( %s, %s, %s ) ON DUPLICATE KEY UPDATE first_name = %s, last_name = %s", $email, $first_name, $last_name, $first_name, $last_name ) );
+		}
+		if ( class_exists( 'wp_easycart_subscribers' ) ) {
+			wp_easycart_subscribers::fire( $email, 'subscribed', array( 'first_name' => (string) $first_name, 'last_name' => (string) $last_name ) );
+		}
 	}
 	
 	public static function remove_subscriber( $email ){
 		do_action( 'wpeasycart_remove_subscriber', $email );
-		self::$mysqli->query( self::$mysqli->prepare( "DELETE FROM ec_subscriber WHERE email = '%s'", $email ) );
+		$row = class_exists( 'wp_easycart_subscribers' ) ? wp_easycart_subscribers::get( $email ) : null;
+		$removed = self::$mysqli->query( self::$mysqli->prepare( "DELETE FROM ec_subscriber WHERE email = %s", $email ) );
+		if ( $row ) {
+			if ( ! $removed ) {
+				$removed = self::$mysqli->query( self::$mysqli->prepare( "DELETE FROM ec_subscriber WHERE subscriber_id = %d", (int) $row->subscriber_id ) );
+			}
+			/* 6.0.2: announced only when a subscription was actually removed. */
+			if ( $removed ) {
+				wp_easycart_subscribers::fire( $email, 'unsubscribed', array( 'subscriber_id' => (int) $row->subscriber_id, 'first_name' => (string) $row->first_name, 'last_name' => (string) $row->last_name ) );
+			}
+		}
+	}
+
+	/**
+	 * Whether an email address is on the store's newsletter list ( ec_subscriber ).
+	 *
+	 * @since 6.0.2
+	 *
+	 * @param string $email Email address.
+	 * @return bool
+	 */
+	public static function is_subscribed( $email ) {
+		if ( ! is_string( $email ) || '' === $email ) {
+			return false;
+		}
+		return (bool) self::$mysqli->get_var( self::$mysqli->prepare( 'SELECT subscriber_id FROM ec_subscriber WHERE email = %s LIMIT 1', $email ) );
 	}
 
 	public static function update_address_user_id( $address_id, $user_id ){
@@ -3040,6 +3291,16 @@ class ec_db{
 		}
 	}
 
+	/**
+	 * 6.0.2: SQL that leaves out a draft order ( built in the admin, not sent to the customer yet ).
+	 *
+	 * @return string
+	 */
+	private static function hide_draft_sql() {
+		$draft = (int) get_option( 'ec_option_orderstatus_draft', 0 );
+		return ( $draft > 0 ) ? ' AND ec_order.orderstatus_id != ' . $draft . ' ' : '';
+	}
+
 	public static function get_order_list( $user_id ){
 		$orders = wp_cache_get( 'wpeasycart-order-list-'.$user_id, 'wpeasycart-orders' );
 		if( !$orders ){
@@ -3139,7 +3400,7 @@ class ec_db{
 					
 					WHERE 
 					ec_order.user_id = %d AND 
-					ec_user.user_id = ec_order.user_id
+					ec_user.user_id = ec_order.user_id" . self::hide_draft_sql() . "
 					
 					ORDER BY 
 					ec_order.order_date DESC";
@@ -3244,7 +3505,7 @@ class ec_db{
 				ec_order.pickup_time,
 				ec_order.location_id,
 
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM 
 				ec_order
@@ -3261,17 +3522,12 @@ class ec_db{
 				LEFT JOIN ec_user ON
 				ec_user.user_id = ec_order.user_id
 				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_order'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_order.order_id
 				
 				WHERE 
 				
 				ec_order.order_id = %d AND
 				ec_order.guest_key = %s AND 
-				ec_order.guest_key != ''
+				ec_order.guest_key != ''" . self::hide_draft_sql() . "
 				
 				GROUP BY
 				ec_order.order_id";
@@ -3378,7 +3634,7 @@ class ec_db{
 				ec_order.pickup_time,
 				ec_order.location_id,
 
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data 
+				'' as customfield_data 
 				
 				FROM 
 				ec_order
@@ -3391,16 +3647,11 @@ class ec_db{
 				
 				LEFT JOIN ec_orderstatus ON
 				ec_order.orderstatus_id = ec_orderstatus.status_id
-				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_order'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_order.order_id, 
+				,
 				
 				ec_user
 				
-				WHERE ec_user.user_id = '%s' AND ec_user.user_id = ec_order.user_id AND ec_order.order_id = %d
+				WHERE ec_user.user_id = '%s' AND ec_user.user_id = ec_order.user_id AND ec_order.order_id = %d" . self::hide_draft_sql() . "
 				
 				GROUP BY ec_order.order_id";
 				
@@ -3484,18 +3735,13 @@ class ec_db{
 			
 		$row_sql .=	"
 				
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM ec_orderdetail
 				
 				LEFT JOIN ec_download
 				ON ec_download.download_id = ec_orderdetail.download_key
-				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_orderdetail'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_orderdetail.orderdetail_id, 
+				,
 				
 				ec_order, ec_user
 				
@@ -3569,15 +3815,10 @@ class ec_db{
 			
 		$row_sql .=	"
 				
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM ec_orderdetail
-				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_orderdetail'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_orderdetail.orderdetail_id, 
+				,
 				
 				ec_order
 				
@@ -3623,7 +3864,7 @@ class ec_db{
 					shipping.phone as shipping_phone,
 					shipping.company_name as shipping_company_name,
 
-					GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+					'' as customfield_data
 					
 					FROM 
 					ec_user 
@@ -3637,11 +3878,6 @@ class ec_db{
 					LEFT JOIN ec_role
 					ON ec_role.role_label = ec_user.user_level
 
-					LEFT JOIN ec_customfield
-					ON ec_customfield.table_name = 'ec_user'
-
-					LEFT JOIN ec_customfielddata
-					ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_user.user_id
 
 					WHERE 
 					ec_user.user_id = %s AND
@@ -3696,7 +3932,7 @@ class ec_db{
 				shipping.phone as shipping_phone,
 				shipping.company_name as shipping_company_name,
 				
-				GROUP_CONCAT(DISTINCT CONCAT_WS('***', ec_customfield.field_name, ec_customfield.field_label, ec_customfielddata.data) ORDER BY ec_customfield.field_name ASC SEPARATOR '---') as customfield_data
+				'' as customfield_data
 				
 				FROM 
 				ec_user 
@@ -3707,11 +3943,6 @@ class ec_db{
 				LEFT JOIN ec_address as shipping 
 				ON ( ec_user.default_shipping_address_id = shipping.address_id AND shipping.user_id = ec_user.user_id )
 				
-				LEFT JOIN ec_customfield
-				ON ec_customfield.table_name = 'ec_user'
-				
-				LEFT JOIN ec_customfielddata
-				ON ec_customfielddata.customfield_id = ec_customfield.customfield_id AND ec_customfielddata.table_id = ec_user.user_id
 				
 				WHERE 
 				ec_user.email = %s
@@ -3770,10 +4001,40 @@ class ec_db{
 		if ( $email_error ) {
 			return false; //return email exists error
 		} else {
-			if ( $is_subscriber ) {
+			$email_changed = ( '' !== trim( (string) $old_email ) && strtolower( trim( (string) $old_email ) ) !== strtolower( trim( (string) $email ) ) );
+
+			/*
+			 * 6.0.2: null = the form had no newsletter box ( subscriber feature off, or an Elementor account form without it ):
+			 * the subscription stays as it is. The account's flag is kept, and nothing on the list changes unless the email
+			 * changed; then a subscription moves to the new address as with the box ticked.
+			 */
+			$keep_subscription = ( null === $is_subscriber );
+			if ( $keep_subscription ) {
+				$is_subscriber = (int) self::$mysqli->get_var( self::$mysqli->prepare( 'SELECT is_subscriber FROM ec_user WHERE user_id = %d', $user_id ) );
+				if ( $email_changed && ! $is_subscriber && self::is_subscribed( $old_email ) ) {
+					$is_subscriber = 1;
+				}
+			}
+			$list_may_change = ( ! $keep_subscription || $email_changed );
+			if ( $list_may_change && $is_subscriber ) {
+				if ( $email_changed ) {
+					/* 6.0.2: the subscription ( and its consent record ) follows the new address, so the old one stops getting the newsletter. */
+					$moved = class_exists( 'wp_easycart_subscribers' ) && wp_easycart_subscribers::change_email( $old_email, $email );
+					if ( ! $moved && self::is_subscribed( $old_email ) ) {
+						self::remove_subscriber( $old_email );
+					}
+				}
 				self::insert_subscriber( $email, $first_name, $last_name );
-			} else {
-				self::remove_subscriber( $email );
+			} elseif ( $list_may_change && ( (int) self::$mysqli->get_var( self::$mysqli->prepare( 'SELECT is_subscriber FROM ec_user WHERE user_id = %d', $user_id ) ) || self::is_subscribed( $old_email ) ) ) {
+				/*
+				 * 6.0.2: only an account the form showed as subscribed is unsubscribed ( the box is ticked for either,
+				 * ec_accountpage::display_account_personal_information_is_subscriber_input() ). The address on the list is
+				 * the one the account had, so remove it, and the new one as well when the email changed.
+				 */
+				self::remove_subscriber( $old_email );
+				if ( $email_changed && self::is_subscribed( $email ) ) {
+					self::remove_subscriber( $email );
+				}
 			}
 			return self::$mysqli->update(
 				'ec_user',
@@ -4186,6 +4447,12 @@ class ec_db{
 		if( $option_val["optionitem_value"] != "" ){
 			$sql = "INSERT INTO ec_tempcart_optionitem(tempcart_id, session_id, option_id, optionitem_id, optionitem_value, optionitem_model_number) VALUES(%d, %s, %d, %d, %s, %s)";
 			self::$mysqli->query( self::$mysqli->prepare( $sql, $tempcart_id, $session_id, $option_val["option_id"], $option_val["optionitem_id"], $option_val["optionitem_value"], $option_val["optionitem_model_number"] ) ); 
+			/* 6.0.2: the session's option rows were read when the request started; a cart built later in this request
+			   ( wpeasycart_cart_updated: live carrier quotes, tax services ) reads them again, so the new line is weighed
+			   and priced with its options. */
+			if ( isset( $GLOBALS['ec_cart_data'] ) && is_object( $GLOBALS['ec_cart_data'] ) && property_exists( $GLOBALS['ec_cart_data'], 'advanced_cart_options_stale' ) && isset( $GLOBALS['ec_cart_data']->ec_cart_id ) && (string) $session_id === (string) $GLOBALS['ec_cart_data']->ec_cart_id ) {
+				$GLOBALS['ec_cart_data']->advanced_cart_options_stale = true;
+			}
 		}
 	}
 	
@@ -4302,6 +4569,35 @@ class ec_db{
 		return self::$mysqli->insert_id;
 	}
 	
+	/**
+	 * A line of a subscription order or renewal was inserted: wp_easycart_order_detail_inserted fires for it as it does for a
+	 * checkout line, with the stored line in place of the cart line ( plus the subscription's option item ids as
+	 * optionitem1_id..5 when they come from the checkout session ), so the line records its variant, fulfillment partner and
+	 * cost ( wp_easycart_fulfillment ).
+	 *
+	 * @since 6.0.2
+	 * @param int   $orderdetail_id Line.
+	 * @param bool  $from_session   Read the subscription's option items from the checkout session ( first orders ).
+	 * @param array $extra          Properties to set on the line passed along ( e.g. a renewal's optionitemquantity_id ).
+	 */
+	public static function announce_subscription_line( $orderdetail_id, $from_session = true, $extra = array() ) {
+		if ( (int) $orderdetail_id <= 0 ) {
+			return;
+		}
+		$line = self::$mysqli->get_row( self::$mysqli->prepare( 'SELECT * FROM ec_orderdetail WHERE orderdetail_id = %d', (int) $orderdetail_id ) );
+		if ( ! $line ) {
+			return;
+		}
+		$cart_data = ( $from_session && isset( $GLOBALS['ec_cart_data'] ) && is_object( $GLOBALS['ec_cart_data'] ) && isset( $GLOBALS['ec_cart_data']->cart_data ) && is_object( $GLOBALS['ec_cart_data']->cart_data ) ) ? $GLOBALS['ec_cart_data']->cart_data : null;
+		for ( $slot = 1; $slot <= 5; $slot++ ) {
+			$line->{'optionitem' . $slot . '_id'} = ( $cart_data && isset( $cart_data->{'subscription_option' . $slot} ) ) ? (int) $cart_data->{'subscription_option' . $slot} : (int) $line->{'optionitem_id_' . $slot};
+		}
+		foreach ( (array) $extra as $key => $value ) {
+			$line->{$key} = $value;
+		}
+		do_action( 'wp_easycart_order_detail_inserted', (int) $orderdetail_id, $line );
+	}
+
 	public static function insert_subscription_order( $product, $user, $card, $subscription_id, $coupon_code, $order_notes, $option1_name, $option2_name, $option3_name, $option4_name, $option5_name, $option1_label, $option2_label, $option3_label, $option4_label, $option5_label, $quantity, $order_totals, $shipping_method, $tax, $discount_total, $stripe_charge_id = '', $paymentintent_id = '', $option_onetime_adjustment = 0 ){
 		$order_gateway = get_option( 'ec_option_payment_process_method' );
 		
@@ -4355,6 +4651,12 @@ class ec_db{
 		) );
 		
 		$order_id = self::$mysqli->insert_id;
+		if ( class_exists( 'wp_easycart_order_source' ) ) {
+			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
+		}
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
+		}
 		$image1 = $product->images->get_single_image( );
 		
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
@@ -4396,11 +4698,15 @@ class ec_db{
 			$product->is_download, $product->is_giftcard, $product->is_taxable, $product->is_shippable, $product->exclude_shippable_calculation,
 			$product->download_file_name, $download_key, $product->maximum_downloads_allowed, $product->download_timelimit_seconds, $product->is_amazon_download, $product->amazon_key
 		) );
-		
+
 		$orderdetail_id = self::$mysqli->insert_id;
-		
+		self::announce_subscription_line( $orderdetail_id );
+
 		// If coupon used, update usage numbers
 		if( $coupon_code != "" ){
+			if( isset( $GLOBALS['ec_coupons'] ) && method_exists( $GLOBALS['ec_coupons'], 'stored_code' ) ){
+				$coupon_code = $GLOBALS['ec_coupons']->stored_code( $coupon_code ); /* 6.0.2 */
+			}
 			self::$mysqli->query( self::$mysqli->prepare( "UPDATE ec_promocode SET times_redeemed = times_redeemed + 1 WHERE ec_promocode.promocode_id = %s", $coupon_code ) );
 		}
 		
@@ -4493,6 +4799,12 @@ class ec_db{
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $user->user_id, $user->email, ( ( isset( $user->email_other ) ) ? $user->email_other : '' ), $user->user_level, 8, ( $product->price * $quantity ) + $product->subscription_signup_fee, ( $product->price * $quantity ) + $product->subscription_signup_fee, $coupon_code, $user->billing->first_name, $user->billing->last_name, $user->billing->address_line_1, $user->billing->city, $user->billing->state, $user->billing->country, $user->billing->zip, $user->billing->phone, $user->shipping->first_name, $user->shipping->last_name, $user->shipping->address_line_1, $user->shipping->city, $user->shipping->state, $user->shipping->country, $user->shipping->zip, $user->shipping->phone, 'PayPal', $order_notes, $user->billing->company_name, $user->shipping->company_name, $user->billing->address_line_2, $user->shipping->address_line_2 ) );
 		
 		$order_id = self::$mysqli->insert_id;
+		if ( class_exists( 'wp_easycart_order_source' ) ) {
+			wp_easycart_order_source::stamp( $order_id ); /* 6.0.2: where the order came from */
+		}
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			wp_easycart_order_ledger::order_inserted( $order_id ); /* 6.0.2: customer key and device, for Reports */
+		}
 		$image1 = $product->images->get_single_image( );
 		
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
@@ -4503,9 +4815,10 @@ class ec_db{
 		
 		$sql = "INSERT INTO ec_orderdetail( order_id, product_id, title, model_number, order_date, unit_price, total_price, quantity, image1, optionitem_name_1, optionitem_name_2, optionitem_name_3, optionitem_name_4, optionitem_name_5, optionitem_label_1, optionitem_label_2, optionitem_label_3, optionitem_label_4, optionitem_label_5, use_advanced_optionset, subscription_signup_fee ) VALUES( %d, %d, %s, %s, NOW( ), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s )";
 		self::$mysqli->query( self::$mysqli->prepare( $sql, $order_id, $product->product_id, $product->title, $product->model_number, $product->price, ( $product->price * $quantity ), $quantity, $image1, $option1_name, $option2_name, $option3_name, $option4_name, $option5_name, $option1_label, $option2_label, $option3_label, $option4_label, $option5_label, $product->use_advanced_optionset, $product->subscription_signup_fee ) );
-		
+
 		$orderdetail_id = self::$mysqli->insert_id;
-		
+		self::announce_subscription_line( $orderdetail_id );
+
 		if( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option ) && $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option != "" ){
 			$advanced_options = json_decode( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option, true );
 			foreach( $advanced_options as $advanced_option ){
@@ -4519,6 +4832,10 @@ class ec_db{
 	}
 	
 	public static function get_subscriptions( $user_id ){
+		/* 6.0.2: no customer, no subscriptions ( user 0 matched rows that belong to nobody ). */
+		if ( (int) $user_id <= 0 ) {
+			return array();
+		}
 		$subscriptions = wp_cache_get( 'wpeasycart-subscriptions-'.$user_id, 'wpeasycart-subscriptions' );
 		if( !$subscriptions ){
 			$sql = "SELECT ec_subscription.subscription_id, ec_subscription.num_failed_payment, ec_subscription.subscription_type, ec_subscription.subscription_status, ec_subscription.title, ec_subscription.user_id, ec_subscription.email, ec_subscription.first_name, ec_subscription.last_name, ec_subscription.user_country, ec_subscription.product_id, ec_subscription.model_number, ec_subscription.price, ec_subscription.payment_length, ec_subscription.payment_period, ec_subscription.start_date, ec_subscription.last_payment_date, ec_subscription.next_payment_date, ec_subscription.number_payments_completed, ec_subscription.paypal_txn_id, ec_subscription.paypal_txn_type, ec_subscription.paypal_subscr_id, ec_subscription.paypal_username, ec_subscription.paypal_password, ec_subscription.stripe_subscription_id, ec_subscription.payment_duration, ec_subscription.quantity, ec_product.trial_period_days, ec_product.membership_page, ec_product.min_purchase_quantity FROM ec_subscription LEFT JOIN ec_product ON ec_subscription.product_id = ec_product.product_id WHERE ec_subscription.user_id = %d";
@@ -4578,6 +4895,9 @@ class ec_db{
 
 	public static function activate_user( $email, $key ) {
 		$user = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_user.user_id, ec_user.email, ec_user.user_level FROM ec_user WHERE ec_user.email = %s", $email ) );
+		if ( ! $user ) {
+			return false;
+		}
 		if ( 'pending' != $user->user_level ) {
 			return true;
 		} else {
@@ -4730,6 +5050,12 @@ class ec_db{
 						$first_order->shipping_phone, $user->default_card_type, $user->default_card_last4, $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
 					
 			$order_id = self::$mysqli->insert_id;
+			if ( class_exists( 'wp_easycart_order_source' ) ) {
+				wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+			}
+			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
+			}
 		
 			self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 			$order_log_id = self::$mysqli->insert_id;
@@ -4773,6 +5099,12 @@ class ec_db{
 						$user->shipping_phone, $user->default_card_type, $user->default_card_last4, $webhook_data->charge, $subscription->subscription_id, $order_gateway ) );
 					
 			$order_id = self::$mysqli->insert_id;
+			if ( class_exists( 'wp_easycart_order_source' ) ) {
+				wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+			}
+			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+				wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
+			}
 		
 			self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 			$order_log_id = self::$mysqli->insert_id;
@@ -4806,7 +5138,7 @@ class ec_db{
 					'total_price'	=> ( $sub_row->amount / 100 ),
 					'quantity'		=> 1,
 					'image1'		=> ( $first_orderdetail_row && isset( $first_orderdetail_row->image1 ) ) ? $first_orderdetail_row->image1 : $subscription->image1,
-					'is_shippable'	=> ( $subscription->is_shippable ) ? $subscription->is_shippable : 0,
+					'is_shippable'	=> ( $subscription->is_shippable && 'invoiceitem' != $sub_row->type ) ? $subscription->is_shippable : 0, /* 6.0.2: an invoice item ( a fee, a proration ) is never shipped. */
 					
 					'optionitem_id_1' => ( $first_orderdetail_row && $sub_row->type != 'invoiceitem' ) ? $first_orderdetail_row->optionitem_id_1 : 0,
 					'optionitem_id_2' => ( $first_orderdetail_row && $sub_row->type != 'invoiceitem' ) ? $first_orderdetail_row->optionitem_id_2 : 0,
@@ -4845,6 +5177,11 @@ class ec_db{
 				)
 			);
 			$orderdetail_id = self::$mysqli->insert_id;
+			/* 6.0.2: the renewal's product line records its variant, partner and cost like a checkout line ( an invoice item,
+			   such as a one-time fee, is not the product and stays the store's ). */
+			if ( 'invoiceitem' !== (string) $sub_row->type ) {
+				self::announce_subscription_line( $orderdetail_id, false, ( $first_orderdetail_row && ! empty( $first_orderdetail_row->optionitemquantity_id ) ) ? array( 'optionitemquantity_id' => (int) $first_orderdetail_row->optionitemquantity_id ) : array() );
+			}
 			if( $first_orderdetail_row && $sub_row->type != 'invoiceitem' && $first_orderdetail_row->use_advanced_optionset ) {
 				$first_orderdetail_advanced_options = self::$mysqli->get_results( self::$mysqli->prepare( 'SELECT * FROM ec_order_option WHERE orderdetail_id = %d', $first_orderdetail_row->orderdetail_id ) );
 				foreach( $first_orderdetail_advanced_options as $first_orderdetail_advanced_option ) {
@@ -4893,9 +5230,15 @@ class ec_db{
 				}
 			}
 		}
-		
+
+		/* 6.0.2: a renewal is packed and, being paid, released to its fulfillment partners like a checkout order ( renewals
+		   never fire wpeasycart_order_inserted: its listeners count referrals, redemptions and purchase events once per checkout ). */
+		if ( class_exists( 'wp_easycart_fulfillment' ) ) {
+			wp_easycart_fulfillment::order_created( (int) $order_id );
+		}
+
 		return $order_id;
-		
+
 	}
 	
 	public static function insert_stripe_failed_order( $subscription, $webhook_data ){
@@ -4936,6 +5279,12 @@ class ec_db{
 						array( '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d' ) );
 		
 		$order_id = self::$mysqli->insert_id;
+		if ( class_exists( 'wp_easycart_order_source' ) ) {
+			wp_easycart_order_source::stamp( $order_id, 'renewal' ); /* 6.0.2: renewals are their own source */
+		}
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			wp_easycart_order_ledger::order_inserted( $order_id, 'renewal' ); /* 6.0.2: customer key and the renewal's payment, for Reports */
+		}
 		
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-new" )', $order_id ) );
 		$order_log_id = self::$mysqli->insert_id;
@@ -4943,7 +5292,7 @@ class ec_db{
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "first_name", %s )', $order_log_id, $order_id, $first_name ) );
 		self::$mysqli->query( self::$mysqli->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "last_name", %s )', $order_log_id, $order_id, $last_name ) );
 		
-		self::$mysqli->insert( 	'ec_orderdetail',
+		$failed_line = self::$mysqli->insert( 	'ec_orderdetail',
 						array(	'order_id'		=> $order_id,
 								'product_id'	=> $subscription->product_id,
 								'title'			=> $subscription->title,
@@ -4954,6 +5303,10 @@ class ec_db{
 								'quantity'		=> 1,
 								'image1'		=> ( $subscription->image1 ) ? $subscription->image1 : '' ),
 						array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ) );
+		/* 6.0.2: the line records its fulfillment partner and cost like every other subscription line. */
+		if ( $failed_line ) {
+			self::announce_subscription_line( (int) self::$mysqli->insert_id, false );
+		}
 		
 		return $order_id;
 		
@@ -5103,6 +5456,11 @@ class ec_db{
 	}
 	
 	public static function has_membership_product_ids( $product_id_list ){
+		/* 6.0.2: one membership rule ( D5 ) for the shortcodes and the page lock: a subscription counts while Active ( or once an
+		 * installment plan is paid in full ), not through its first order after it was cancelled. */
+		if ( function_exists( 'wp_easycart_user_has_membership' ) ) {
+			return wp_easycart_user_has_membership( ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) ) ? (int) $GLOBALS['ec_user']->user_id : 0, $product_id_list );
+		}
 		
 		if( $GLOBALS['ec_cart_data']->cart_data->user_id != "" && $GLOBALS['ec_cart_data']->cart_data->user_id != 0 ){
 			$products = explode( ',', $product_id_list );
@@ -5785,17 +6143,19 @@ class ec_db{
 		// First check if this is already in the cart
 		$sql = "SELECT tempcart_id FROM ec_tempcart WHERE ec_tempcart.deconetwork_id = %s AND ec_tempcart.session_id = %s";
 		$cartrow = self::$mysqli->get_row( self::$mysqli->prepare( $sql, (int) $_GET['id'], sanitize_text_field( $GLOBALS['ec_cart_data']->ec_cart_id ) ) );
-		
-		if( $cartrow->tempcart_id ){
+
+		if( $cartrow && $cartrow->tempcart_id ){ /* 6.0.2: no row yet is a new design, not a PHP warning */
 			
 			$sql = "UPDATE ec_tempcart SET ec_tempcart.quantity = %d, ec_tempcart.deconetwork_name = %s, ec_tempcart.deconetwork_product_code = %s, ec_tempcart.deconetwork_options = %s, ec_tempcart.deconetwork_edit_link = %s, ec_tempcart.deconetwork_color_code = %s, ec_tempcart.deconetwork_product_id = %s, ec_tempcart.deconetwork_image_link = %s, ec_tempcart.deconetwork_discount = %s, ec_tempcart.deconetwork_tax = %s, ec_tempcart.deconetwork_total = %s, ec_tempcart.deconetwork_version = ec_tempcart.deconetwork_version+1 WHERE ec_tempcart.tempcart_id = %d AND ec_tempcart.session_id = %s";
 			self::$mysqli->query( self::$mysqli->prepare( $sql, (int) $_GET['qty'], sanitize_title( $_GET['name'] ), sanitize_title( $_GET['product_code'] ), sanitize_text_field( $_GET['options'] ), sanitize_text_field( $_GET['edit_link'] ), sanitize_text_field( $_GET['color'] ), sanitize_text_field( $_GET['product_id'] ), sanitize_text_field( $_GET['tn'] ), sanitize_text_field( $_GET['discount'] ), sanitize_text_field( $_GET['tax'] ), sanitize_text_field( $_GET['line_total'] ), $cartrow->tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id ) );
 			do_action( 'wpeasycart_cartitem_updated', $cartrow->tempcart_id );
+			return (int) $cartrow->tempcart_id; /* 6.0.2: the cart line, for wpeasycart_cart_item_added */
 		}else{
 			$sql = "INSERT INTO ec_tempcart( session_id, product_id, quantity, is_deconetwork, deconetwork_id, deconetwork_name, deconetwork_product_code, deconetwork_options, deconetwork_edit_link, deconetwork_color_code, deconetwork_product_id, deconetwork_image_link, deconetwork_discount, deconetwork_tax, deconetwork_total ) VALUES( %s, %d, %d, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )";
 			self::$mysqli->query( self::$mysqli->prepare( $sql, $GLOBALS['ec_cart_data']->ec_cart_id, sanitize_text_field( $_GET['ec_product_id'] ), sanitize_text_field( $_GET['qty'] ), 1, sanitize_text_field( $_GET['id'] ), sanitize_text_field( $_GET['name'] ), sanitize_text_field( $_GET['product_code'] ), sanitize_text_field( $_GET['options'] ), sanitize_text_field( $_GET['edit_link'] ), sanitize_text_field( $_GET['color'] ), sanitize_text_field( $_GET['product_id'] ), sanitize_text_field( $_GET['tn'] ), sanitize_text_field( $_GET['discount'] ), sanitize_text_field( $_GET['tax'] ), sanitize_text_field( $_GET['line_total'] ) ) );
 			$tempcart_id = self::$mysqli->insert_id;
 			do_action( 'wpeasycart_cartitem_added', $tempcart_id );
+			return (int) $tempcart_id;
 		}
 	}
 	
@@ -5809,15 +6169,20 @@ class ec_db{
 		
 		$results_array = array( );
 		
+		/* 6.0.2: products kept for other customer roles are never suggested ( the role rule of get_product_list() ), inside the query so they
+		 * cannot fill the 10 suggestions and push out products this shopper can see. */
+		$role_id = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) && ! empty( $GLOBALS['ec_user']->role_id ) ) ? (int) $GLOBALS['ec_user']->role_id : -1;
+		$role_sql = self::$mysqli->prepare( ' AND ( ec_product.role_id = 0 OR ec_product.role_id = %d )', $role_id );
+		
 		if( get_option( 'ec_option_search_title' ) || get_option( 'ec_option_search_model_number' ) ){
 			if( get_option( 'ec_option_search_title' ) && get_option( 'ec_option_search_model_number' ) ){
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s OR ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1 LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s OR ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%', '%' . $search_val . '%' ) );
 			}else if( get_option( 'ec_option_search_title' ) ){
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s ) AND ec_product.activate_in_store = 1 LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%' ) );
 			}else{
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1 LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%' ) );
 			}
 			$results_array = array_merge( $results_array, $products );
@@ -5914,9 +6279,24 @@ class ec_db{
 
 	public static function quick_add_to_cart( $model_number, $optionitem_ids = null, $option_vals = null, &$was_merged = false, $quantity = 1 ){
 		$was_merged = false;
+		self::$add_to_cart_refused = '';
 		$quantity = max( 1, (int) $quantity );
 		$product = self::$mysqli->get_row( self::$mysqli->prepare( "SELECT ec_product.* FROM ec_product WHERE ec_product.model_number = %s", $model_number ) );
 		if ( ! $product ) {
+			self::$add_to_cart_refused = 'product_missing';
+			return false;
+		}
+		/* 6.0.2: the add to cart rules every path follows ( see add_to_cart() ). A link carries no donation amount, so a donation
+		 * is chosen on its product page ( it was added at 0.00 ); callers send the shopper there when this answers false. */
+		if ( function_exists( 'wp_easycart_product_can_add_to_cart' ) ) {
+			$can_add = wp_easycart_product_can_add_to_cart( $product );
+			if ( true !== $can_add ) {
+				self::$add_to_cart_refused = is_wp_error( $can_add ) ? (string) $can_add->get_error_code() : 'product_refused';
+				return false;
+			}
+		}
+		if ( ! empty( $product->is_donation ) ) {
+			self::$add_to_cart_refused = 'donation_amount';
 			return false;
 		}
 		if ( ! is_array( $optionitem_ids ) ) {
@@ -5980,7 +6360,11 @@ class ec_db{
 	}
 
 	public static function get_download_list( $user_id ){
-		return self::$mysqli->get_results( self::$mysqli->prepare( "SELECT 
+		/* 6.0.2: no customer, no downloads ( user 0 listed every guest order's downloads on a visitor's account page ). */
+		if ( (int) $user_id <= 0 ) {
+			return array();
+		}
+		return self::$mysqli->get_results( self::$mysqli->prepare( "SELECT
 				ec_download.*, ec_orderdetail.title, ec_orderdetail.orderdetail_id, ec_orderdetail.is_download, ec_orderstatus.is_approved
 			FROM 
 				ec_download, ec_order 

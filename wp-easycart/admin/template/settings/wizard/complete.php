@@ -44,7 +44,7 @@ $has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
 			<?php if ( $has_woo ) { ?>
 			<div class="ecwz-ncard">
 				<h4><?php esc_html_e( 'Import from WooCommerce', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-blue"><?php esc_html_e( 'Detected', 'wp-easycart' ); ?></span></h4>
-				<p><?php esc_html_e( 'We noticed WooCommerce on this site. Bring products, categories and customers across automatically.', 'wp-easycart' ); ?></p>
+				<p><?php esc_html_e( 'We noticed WooCommerce on this site. Bring products and categories across automatically.', 'wp-easycart' ); ?></p>
 				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
 			</div>
 			<?php } ?>
@@ -61,7 +61,7 @@ $has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
 			<div class="ecwz-ncard">
 				<h4><?php esc_html_e( 'Try Pro free for 14 days', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-amber">PRO</span></h4>
 				<p><?php esc_html_e( 'Live shipping rates, 30+ gateways with no EasyCart fees, subscriptions, gift cards and more.', 'wp-easycart' ); ?></p>
-				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_html_e( 'Start trial', 'wp-easycart' ); ?></a>
+				<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( wp_easycart_admin()->pro_install_url( 'trial' ) ); ?>" target="_blank"><?php esc_html_e( 'Start trial', 'wp-easycart' ); ?></a>
 			</div>
 			<?php } ?>
 		</div>

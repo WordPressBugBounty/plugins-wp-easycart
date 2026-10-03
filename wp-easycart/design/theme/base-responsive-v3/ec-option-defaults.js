@@ -21,6 +21,13 @@
  *
  * It lives in its own file, enqueued ahead of ec-store.js, so that stores running the minified
  * build or a theme copy of ec-store.js in wp-easycart-data still receive the fix.
+ *
+ * 6.0.2: window.wpeasycart_option_defaults( container ) does the same for one part of the page, so
+ * product widgets drawn after the page loaded ( Elementor's editor, popups, Loop Grid "load more",
+ * quick views ) get their default selections too. ec-store.js calls it at the start of
+ * wpeasycart_init( container ), before that sets the swatches up. Every option block is looked at
+ * once ( a flag on the element ), so the page's own pass on ready and those later calls never
+ * apply a block twice; on a normal page the ready pass below runs first and nothing changes.
  */
 ( function() {
 	'use strict';
@@ -32,8 +39,6 @@
 	/* Levels two and up wait for their stock request to come back before being selected. */
 	var wpeasycart_option_defaults_retries  = 40;
 	var wpeasycart_option_defaults_interval = 125;
-
-	var wpeasycart_option_defaults_list = [];
 
 	/**
 	 * Option item quantity tracking decides whether picking a level triggers a stock request.
@@ -57,10 +62,17 @@
 
 	/**
 	 * Record the option item each level was rendered with, before ec-store.js gets a chance to
-	 * rewrite the swatch classes. Blocks without a default on level one are skipped.
+	 * rewrite the swatch classes. Blocks without a default on level one are skipped. 6.0.2: only
+	 * the blocks inside container ( and container itself ) not looked at before; returns their entries.
 	 */
-	function wpeasycart_option_defaults_snapshot( ) {
-		jQuery( '.ec_details_options_basic' ).each( function( ) {
+	function wpeasycart_option_defaults_snapshot( container ) {
+		var list  = [];
+		var scope = jQuery( container || document );
+		scope.find( '.ec_details_options_basic' ).add( scope.filter( '.ec_details_options_basic' ) ).each( function( ) {
+			if ( this.wpeasycartOptionDefaults ) {
+				return;
+			}
+			this.wpeasycartOptionDefaults = true;
 			var block      = jQuery( this );
 			var product_id = block.attr( 'data-product-id' );
 			var rand_id    = block.attr( 'data-rand-id' );
@@ -87,7 +99,7 @@
 			}
 
 			if ( levels[1] ) {
-				wpeasycart_option_defaults_list.push( {
+				list.push( {
 					block: block,
 					product_id: product_id,
 					rand_id: rand_id,
@@ -97,6 +109,7 @@
 				} );
 			}
 		} );
+		return list;
 	}
 
 	/**
@@ -199,6 +212,11 @@
 		if ( entry.cancelled || level > 5 || ! entry.levels[ level ] ) {
 			return;
 		}
+		/* 6.0.2: a block redrawn away meanwhile ( the Elementor editor draws a widget again ) is left alone. */
+		if ( ! jQuery.contains( document.documentElement, entry.block[0] ) ) {
+			entry.cancelled = true;
+			return;
+		}
 
 		var element = wpeasycart_option_defaults_element( entry, level );
 		if ( ! element ) {
@@ -238,18 +256,29 @@
 		} );
 	}
 
-	jQuery( document ).ready( function( ) {
-		wpeasycart_option_defaults_snapshot( );
-		if ( ! wpeasycart_option_defaults_list.length ) {
+	/**
+	 * 6.0.2: snapshot the option blocks inside container now, and select their defaults once the
+	 * code running now ( the ready handlers, or the wpeasycart_init() call that asked ) has finished.
+	 *
+	 * @param {Element|jQuery|Document} container Where to look ( default: the page ).
+	 */
+	function wpeasycart_option_defaults( container ) {
+		var list = wpeasycart_option_defaults_snapshot( container );
+		if ( ! list.length ) {
 			return;
 		}
 
-		/* Runs once every other ready handler, ec-store.js included, has finished. */
+		/* Runs once every other ready handler ( or the rest of wpeasycart_init() ), ec-store.js included, has finished. */
 		window.setTimeout( function( ) {
-			for ( var i = 0; i < wpeasycart_option_defaults_list.length; i++ ) {
-				wpeasycart_option_defaults_watch( wpeasycart_option_defaults_list[ i ] );
-				wpeasycart_option_defaults_apply( wpeasycart_option_defaults_list[ i ], 1, 0 );
+			for ( var i = 0; i < list.length; i++ ) {
+				wpeasycart_option_defaults_watch( list[ i ] );
+				wpeasycart_option_defaults_apply( list[ i ], 1, 0 );
 			}
 		}, 0 );
+	}
+	window.wpeasycart_option_defaults = wpeasycart_option_defaults;
+
+	jQuery( document ).ready( function( ) {
+		wpeasycart_option_defaults( document );
 	} );
 }( ) );

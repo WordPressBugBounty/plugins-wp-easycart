@@ -38,6 +38,13 @@ class ec_orderdisplay {
 	public $shipping_method;  					// VARCHAR 255
 	public $shipping_carrier;  					// VARCHAR 64
 	public $tracking_number;  					// VARCHAR 100
+	/**
+	 * The packages the customer sees ( wp_easycart_shipments::customer_rows() ), read once.
+	 *
+	 * @since 6.0.2
+	 * @var array|null
+	 */
+	private $customer_package_rows = null;
 
 	public $user_email;  						// VARCHAR 255
 	public $email_other;  						// VARCHAR 255
@@ -461,12 +468,68 @@ class ec_orderdisplay {
 	public function has_tracking_number( ){
 		if( $this->tracking_number )
 			return true;
-		else
-			return false;
+		/* 6.0.2: a fulfillment partner's package still being made is shown too ( "Being made" ), before any tracking exists. */
+		foreach ( $this->customer_package_rows( true ) as $package ) {
+			if ( '' !== (string) $package['partner'] ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The packages the customer sees ( wp_easycart_shipments::customer_rows(): every package with a tracking number, then
+	 * each fulfillment partner's package still being made ).
+	 *
+	 * @since 6.0.2
+	 * @param bool $partner_only Only when the order has a fulfillment partner's package ( one quick look for other orders ).
+	 * @return array
+	 */
+	private function customer_package_rows( $partner_only = false ) {
+		global $wpdb;
+		if ( null !== $this->customer_package_rows ) {
+			return $this->customer_package_rows;
+		}
+		if ( ! class_exists( 'wp_easycart_shipments' ) || ! wp_easycart_shipments::ready() ) {
+			return array();
+		}
+		if ( $partner_only && ! $wpdb->get_var( $wpdb->prepare( "SELECT shipment_id FROM ec_order_shipment WHERE order_id = %d AND is_return = 0 AND provider <> '' AND status <> 'voided' LIMIT 1", (int) $this->order_id ) ) ) {
+			return array();
+		}
+		$this->customer_package_rows = method_exists( 'wp_easycart_shipments', 'customer_rows' ) ? wp_easycart_shipments::customer_rows( (int) $this->order_id ) : wp_easycart_shipments::tracking_rows( (int) $this->order_id );
+		return $this->customer_package_rows;
 	}
 
 	public function display_order_tracking_number( ){
-		if ( 'fedex' == strtolower( $this->shipping_carrier ) ) {
+		// 6.0.2: every package with its own link and delivery status, and a fulfillment partner's package still being made
+		// ( shown even before any package has a tracking number ).
+		$packages = $this->customer_package_rows();
+		if ( $packages ) {
+			$lines = array();
+			foreach ( $packages as $i => $package ) {
+				$line = '';
+				if ( count( $packages ) > 1 && class_exists( 'wp_easycart_documents' ) ) {
+					/* 6.0.2: str_replace(), not sprintf(): the phrase is editable, and a stray % or a second %d would be a fatal error. */
+					/* translators: %d: package number ( 1, 2, 3 … ). */
+					$line .= esc_html( str_replace( array( '%1$d', '%d' ), (string) ( $i + 1 ), wp_strip_all_tags( wp_easycart_documents::text( 'shipment_package', __( 'Package %d', 'wp-easycart' ) ) ) ) ) . ': ';
+				}
+				$line .= '' !== $package['carrier'] ? esc_html( $package['carrier'] ) . ' ' : '';
+				$line .= '' !== $package['url'] ? '<a href="' . esc_url( $package['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $package['tracking'] ) . '</a>' : esc_html( $package['tracking'] );
+				$words = wp_easycart_shipments::customer_status( $package );
+				if ( '' !== $words && '' === (string) $package['tracking'] ) {
+					$line .= '<span class="ec_account_order_tracking_status">' . esc_html( $words ) . '</span>'; /* 6.0.2: no tracking yet ( being made ) */
+				} elseif ( '' !== $words ) {
+					$line .= ' <span class="ec_account_order_tracking_status">( ' . esc_html( $words ) . ' )</span>';
+				}
+				$lines[] = $line;
+			}
+			echo implode( '<br />', $lines ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+			return;
+		}
+		$url = ( class_exists( 'wp_easycart_email_design' ) && method_exists( 'wp_easycart_email_design', 'tracking_url' ) ) ? wp_easycart_email_design::tracking_url( (string) $this->shipping_carrier, (string) $this->tracking_number ) : '';
+		if ( '' !== $url ) {
+			echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $this->tracking_number ) . '</a>';
+		} else if ( 'fedex' == strtolower( $this->shipping_carrier ) ) {
 			echo '<a href="https://www.fedex.com/fedextrack/summary?trknbr=' . esc_attr( $this->tracking_number ) . '" target="_blank">' . esc_attr( $this->tracking_number ) . '</a>';
 		} else if ( 'usps' == strtolower( $this->shipping_carrier ) ) {
 			echo '<a href="https://tools.usps.com/go/TrackConfirmAction?tRef=fullpage&tLc=3&text28777=&tLabels=' . esc_attr( $this->tracking_number ) . '" target="_blank">' . esc_attr( $this->tracking_number ) . '</a>';
@@ -659,7 +722,7 @@ class ec_orderdisplay {
 		extract( $this->receipt_template_vars() ); // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- the receipt template reads these as plain variables.
 		$is_admin = (bool) $is_admin;
 		if ( null === $document_fields && class_exists( 'wp_easycart_documents' ) ) {
-			$document_fields = wp_easycart_documents::resolve( 'receipt' );
+			$document_fields = wp_easycart_documents::resolve( 'receipt', '', array(), (int) $this->order_id ); /* 6.0.2: a document rule or the gift profile may pick it */
 		}
 		ob_start();
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_email_receipt.php' ) ) {
@@ -783,42 +846,132 @@ class ec_orderdisplay {
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 
+		/* 6.0.2: each copy goes only to addresses that can take mail. A copy with none is not sent ( the email log shows one
+		   "not sent" row, where a blank or invalid store address used to fail and retry five times ); the log types the
+		   customer's copy and the store's apart. */
+		$customer_to = ( $admin_only ) ? '' : $this->email_recipients( $this->user_email, 'order_receipt', $customer_title );
+		$other_to    = ( $admin_only || '' == $this->email_other ) ? '' : $this->email_recipients( $this->email_other, 'order_receipt', $customer_title );
+		$admin_to    = $this->email_recipients( $admin_email, 'order_receipt_store', $admin_title, false );
+
 		if( $email_send_method == "1" ){
-			if( ! $admin_only ){
-				wp_mail( $this->user_email, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
-				if ( '' != $this->email_other ) {
-					wp_mail( $this->email_other, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
-				}
+			$log = $this->email_log_as( 'order_receipt' );
+			if ( '' !== $customer_to ) {
+				wp_mail( $customer_to, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
 			}
+			if ( '' !== $other_to ) {
+				wp_mail( $other_to, $customer_title, $message, implode("\r\n", $headers), $customer_attachments );
+			}
+			$this->email_log_done( $log );
 			$headers   = array();
 			$headers[] = "MIME-Version: 1.0";
 			$headers[] = "Content-Type: text/html; charset=utf-8";
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
-			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
-			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $admin_attachments );
-		}else if( $email_send_method == "0" ){
-			$to = $this->user_email;
-			$mailer = new wpeasycart_mailer( );
-			if( ! $admin_only ) {
-				$mailer->send_order_email( $to, $customer_title, $message, $customer_attachments );
-				if ( '' != $this->email_other ) {
-					$mailer->send_order_email( $this->email_other, $customer_title, $message, $customer_attachments );
-				}
+			if ( '' !== $admin_to ) {
+				$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
+				$log = $this->email_log_as( 'order_receipt_store' );
+				wp_mail( $admin_to, $admin_title, $admin_message, implode("\r\n", $headers), $admin_attachments );
+				$this->email_log_done( $log );
 			}
-			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
-			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message, $admin_attachments );
+		}else if( $email_send_method == "0" ){
+			$mailer = new wpeasycart_mailer( );
+			$log = $this->email_log_as( 'order_receipt' );
+			if ( '' !== $customer_to ) {
+				$mailer->send_order_email( $customer_to, $customer_title, $message, $customer_attachments );
+			}
+			if ( '' !== $other_to ) {
+				$mailer->send_order_email( $other_to, $customer_title, $message, $customer_attachments );
+			}
+			$this->email_log_done( $log );
+			if ( '' !== $admin_to ) {
+				$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'receipt', $args );
+				$log = $this->email_log_as( 'order_receipt_store' );
+				$mailer->send_order_email( $admin_to, $admin_title, $admin_message, $admin_attachments );
+				$this->email_log_done( $log );
+			}
 		}else{
-			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message, $customer_attachments );
-			if ( '' != $this->email_other ) {
-				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( $admin_email ), $customer_title, $message, $customer_attachments );
+			/* A custom sender has always been handed the customer's address, also for the store copy alone. */
+			$custom_to = ( $admin_only && class_exists( 'ec_email' ) && method_exists( 'ec_email', 'valid_recipients' ) ) ? implode( ',', ec_email::valid_recipients( stripslashes( (string) $this->user_email ) ) ) : $customer_to;
+			if ( '' !== $custom_to || '' !== $admin_to ) {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $custom_to, $admin_to, $customer_title, $message, $customer_attachments );
+			}
+			if ( '' !== $other_to ) {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $other_to, $admin_to, $customer_title, $message, $customer_attachments );
 			}
 		}
 
 	}
 
+	/**
+	 * The addresses one copy of an order email goes to ( comma list ), '' when none of them can take mail. That copy is then
+	 * not sent: ec_email logs one "not sent" row naming the value, instead of a failure that retries.
+	 *
+	 * @since 6.0.2
+	 * @param string $raw       Address list as stored ( the order's email, its second email, the store notification addresses ).
+	 * @param string $type      Email log type of the copy ( a store copy ends in _store ).
+	 * @param string $subject   Subject, for the log row.
+	 * @param bool   $log_blank Log a blank list too ( false for the store list: blank means the store wants no copies ).
+	 * @return string
+	 */
+	private function email_recipients( $raw, $type, $subject, $log_blank = true ) {
+		$raw = trim( stripslashes( (string) $raw ) );
+		if ( ! class_exists( 'ec_email' ) || ! method_exists( 'ec_email', 'send_to' ) ) {
+			return $raw;
+		}
+		return ec_email::send_to( $raw, $type, $this->email_log_order( $type ), $subject, $log_blank );
+	}
+
+	/**
+	 * The order an email log row names: the store's copies name none, as before 6.0.2, so a failing copy to the store never
+	 * marks the order as one whose customer missed an email.
+	 *
+	 * @since 6.0.2
+	 * @param string $type Email log type.
+	 * @return int
+	 */
+	private function email_log_order( $type ) {
+		return ( '_store' === substr( (string) $type, -6 ) ) ? 0 : (int) $this->order_id;
+	}
+
+	/**
+	 * Log the sends that follow under $type ( ec_email::push_context(); a test context the caller set wins ).
+	 *
+	 * @since 6.0.2
+	 * @param string $type Email log type.
+	 * @return array|null What email_log_done() puts back.
+	 */
+	private function email_log_as( $type ) {
+		if ( ! class_exists( 'ec_email' ) || ! method_exists( 'ec_email', 'push_context' ) ) {
+			return null;
+		}
+		return ec_email::push_context( $type, $this->email_log_order( $type ) );
+	}
+
+	/**
+	 * Put back the email log context email_log_as() replaced.
+	 *
+	 * @since 6.0.2
+	 * @param array|null $outer What email_log_as() returned.
+	 */
+	private function email_log_done( $outer ) {
+		if ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'pop_context' ) ) {
+			ec_email::pop_context( $outer );
+		}
+	}
+
 	public function send_invoice( $admin_only = false ){
+
+		// 6.0.2: the pay link opens an order by its id and guest key together. Orders duplicated in the admin have no key, so give this one its own before the link is built.
+		if ( '' === (string) $this->guest_key && (int) $this->order_id > 0 ) {
+			global $wpdb;
+			$new_guest_key = '';
+			for ( $i = 0; $i < 30; $i++ ) {
+				$new_guest_key .= chr( 65 + wp_rand( 0, 25 ) );
+			}
+			$wpdb->query( $wpdb->prepare( "UPDATE ec_order SET guest_key = %s WHERE order_id = %d AND ( guest_key = '' OR guest_key IS NULL )", $new_guest_key, (int) $this->order_id ) );
+			$this->guest_key = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT guest_key FROM ec_order WHERE order_id = %d', (int) $this->order_id ) );
+		}
 
 		$tax_struct = new ec_tax( 0,0,0, "", "");
 		$total = $GLOBALS['currency']->get_currency_display( $this->grand_total );
@@ -894,38 +1047,57 @@ class ec_orderdisplay {
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 
+		/* 6.0.2: only addresses that can take mail ( see send_email_receipt() ). */
+		$subject     = "New Invoice Available";
+		$customer_to = ( $admin_only ) ? '' : $this->email_recipients( $this->user_email, 'invoice', $subject );
+		$other_to    = ( $admin_only || '' == $this->email_other ) ? '' : $this->email_recipients( $this->email_other, 'invoice', $subject );
+		$admin_to    = $this->email_recipients( get_option( 'ec_option_bcc_email_addresses' ), 'invoice_store', $subject, false );
+
 		if( $email_send_method == "1" ){
-			if( ! $admin_only ){
-				wp_mail( $this->user_email, "New Invoice Available", $message, implode("\r\n", $headers), $customer_attachments );
-				if ( '' != $this->email_other ) {
-					wp_mail( $this->email_other, "New Invoice Available", $message, implode("\r\n", $headers), $customer_attachments );
-				}
+			$log = $this->email_log_as( 'invoice' );
+			if ( '' !== $customer_to ) {
+				wp_mail( $customer_to, $subject, $message, implode("\r\n", $headers), $customer_attachments );
 			}
+			if ( '' !== $other_to ) {
+				wp_mail( $other_to, $subject, $message, implode("\r\n", $headers), $customer_attachments );
+			}
+			$this->email_log_done( $log );
 			$headers = array();
 			$headers[] = "MIME-Version: 1.0";
 			$headers[] = "Content-Type: text/html; charset=utf-8";
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
-			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
-			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $admin_message, implode("\r\n", $headers), $admin_attachments );
-		}else if( $email_send_method == "0" ){
-			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
-			$to = $this->user_email;
-			$subject = "New Invoice Available";
-			$mailer = new wpeasycart_mailer( );
-			if( ! $admin_only ) {
-				$mailer->send_order_email( $to, $subject, $message, $customer_attachments );
-				if ( '' != $this->email_other ) {
-					$mailer->send_order_email( $this->email_other, $subject, $message, $customer_attachments );
-				}
+			if ( '' !== $admin_to ) {
+				$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
+				$log = $this->email_log_as( 'invoice_store' );
+				wp_mail( $admin_to, $subject, $admin_message, implode("\r\n", $headers), $admin_attachments );
+				$this->email_log_done( $log );
 			}
-			$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
-			$mailer->send_order_email( $admin_email, $subject, $admin_message, $admin_attachments );
+		}else if( $email_send_method == "0" ){
+			$mailer = new wpeasycart_mailer( );
+			$log = $this->email_log_as( 'invoice' );
+			if ( '' !== $customer_to ) {
+				$mailer->send_order_email( $customer_to, $subject, $message, $customer_attachments );
+			}
+			if ( '' !== $other_to ) {
+				$mailer->send_order_email( $other_to, $subject, $message, $customer_attachments );
+			}
+			$this->email_log_done( $log );
+			if ( '' !== $admin_to ) {
+				$admin_attachments = $this->get_email_attachments( $attachments, 'admin', 'invoice' );
+				$log = $this->email_log_as( 'invoice_store' );
+				$mailer->send_order_email( $admin_to, $subject, $admin_message, $admin_attachments );
+				$this->email_log_done( $log );
+			}
 		}else{
-			do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message, $customer_attachments );
-			if ( '' != $this->email_other ) {
-				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), "New Invoice Available", $message, $customer_attachments );
+			/* A custom sender has always been handed the customer's address, also for the store copy alone. */
+			$custom_to = ( $admin_only && class_exists( 'ec_email' ) && method_exists( 'ec_email', 'valid_recipients' ) ) ? implode( ',', ec_email::valid_recipients( stripslashes( (string) $this->user_email ) ) ) : $customer_to;
+			if ( '' !== $custom_to || '' !== $admin_to ) {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $custom_to, $admin_to, $subject, $message, $customer_attachments );
+			}
+			if ( '' !== $other_to ) {
+				do_action( 'wpeasycart_custom_order_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $other_to, $admin_to, $subject, $message, $customer_attachments );
 			}
 		}
 	}
@@ -1062,34 +1234,54 @@ class ec_orderdisplay {
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 
+		/* 6.0.2: only addresses that can take mail ( see send_email_receipt() ). */
+		$customer_to = ( $admin_only ) ? '' : $this->email_recipients( $this->user_email, 'order_refund', $customer_title );
+		$other_to    = ( $admin_only || '' == $this->email_other ) ? '' : $this->email_recipients( $this->email_other, 'order_refund', $customer_title );
+		$admin_to    = $this->email_recipients( $admin_email, 'order_refund_store', $admin_title, false );
+
 		if( $email_send_method == "1" ){
-			if( ! $admin_only ){
-				wp_mail( $this->user_email, $customer_title, $message, implode("\r\n", $headers), $attachments );
-				if ( '' != $this->email_other ) {
-					wp_mail( $this->email_other, $customer_title, $message, implode("\r\n", $headers), $attachments );
-				}
+			$log = $this->email_log_as( 'order_refund' );
+			if ( '' !== $customer_to ) {
+				wp_mail( $customer_to, $customer_title, $message, implode("\r\n", $headers), $attachments );
 			}
+			if ( '' !== $other_to ) {
+				wp_mail( $other_to, $customer_title, $message, implode("\r\n", $headers), $attachments );
+			}
+			$this->email_log_done( $log );
 			$headers   = array();
 			$headers[] = "MIME-Version: 1.0";
 			$headers[] = "Content-Type: text/html; charset=utf-8";
 			$headers[] = "From: " . stripslashes( get_option( 'ec_option_order_from_email' ) );
 			$headers[] = "Reply-To: " . stripslashes( $this->user_email );
 			$headers[] = "X-Mailer: PHP/".phpversion();
-			wp_mail( stripslashes( $admin_email ), $admin_title, $admin_message, implode("\r\n", $headers), $attachments );
-		}else if( $email_send_method == "0" ){
-			$to = $this->user_email;
-			$mailer = new wpeasycart_mailer( );
-			if( ! $admin_only ) {
-				$mailer->send_order_email( $to, $customer_title, $message );
-				if ( '' != $this->email_other ) {
-					$mailer->send_order_email( $this->email_other, $customer_title, $message );
-				}
+			if ( '' !== $admin_to ) {
+				$log = $this->email_log_as( 'order_refund_store' );
+				wp_mail( $admin_to, $admin_title, $admin_message, implode("\r\n", $headers), $attachments );
+				$this->email_log_done( $log );
 			}
-			$mailer->send_order_email( stripslashes( $admin_email ), $admin_title, $admin_message );
+		}else if( $email_send_method == "0" ){
+			$mailer = new wpeasycart_mailer( );
+			$log = $this->email_log_as( 'order_refund' );
+			if ( '' !== $customer_to ) {
+				$mailer->send_order_email( $customer_to, $customer_title, $message );
+			}
+			if ( '' !== $other_to ) {
+				$mailer->send_order_email( $other_to, $customer_title, $message );
+			}
+			$this->email_log_done( $log );
+			if ( '' !== $admin_to ) {
+				$log = $this->email_log_as( 'order_refund_store' );
+				$mailer->send_order_email( $admin_to, $admin_title, $admin_message );
+				$this->email_log_done( $log );
+			}
 		}else{
-			do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->user_email, stripslashes( $admin_email ), $customer_title, $message );
-			if ( '' != $this->email_other ) {
-				do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $this->email_other, stripslashes( $admin_email ), $customer_title, $message );
+			/* A custom sender has always been handed the customer's address, also for the store copy alone. */
+			$custom_to = ( $admin_only && class_exists( 'ec_email' ) && method_exists( 'ec_email', 'valid_recipients' ) ) ? implode( ',', ec_email::valid_recipients( stripslashes( (string) $this->user_email ) ) ) : $customer_to;
+			if ( '' !== $custom_to || '' !== $admin_to ) {
+				do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $custom_to, $admin_to, $customer_title, $message );
+			}
+			if ( '' !== $other_to ) {
+				do_action( 'wpeasycart_custom_refund_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $other_to, $admin_to, $customer_title, $message );
 			}
 		}
 	}
@@ -1129,22 +1321,41 @@ class ec_orderdisplay {
 		}
 		$message = ob_get_clean();
 
+		/* 6.0.2: only addresses that can take mail ( see send_email_receipt() ). */
+		$subject     = wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" );
+		$customer_to = $this->email_recipients( $this->user_email, 'payment_failed', $subject );
+		$other_to    = ( '' == $this->email_other ) ? '' : $this->email_recipients( $this->email_other, 'payment_failed', $subject );
+		$admin_to    = $this->email_recipients( get_option( 'ec_option_bcc_email_addresses' ), 'payment_failed_store', $subject, false );
+
 		if ( get_option( 'ec_option_use_wp_mail' ) ) {
-			wp_mail( $this->user_email, wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
-			if ( '' != $this->email_other ) {
-				wp_mail( $this->email_other, wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
+			$log = $this->email_log_as( 'payment_failed' );
+			if ( '' !== $customer_to ) {
+				wp_mail( $customer_to, $subject, $message, implode("\r\n", $headers) );
 			}
-			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" ), $message, implode("\r\n", $headers) );
+			if ( '' !== $other_to ) {
+				wp_mail( $other_to, $subject, $message, implode("\r\n", $headers) );
+			}
+			$this->email_log_done( $log );
+			if ( '' !== $admin_to ) {
+				$log = $this->email_log_as( 'payment_failed_store' );
+				wp_mail( $admin_to, $subject, $message, implode("\r\n", $headers) );
+				$this->email_log_done( $log );
+			}
 		} else {
-			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
-			$to = $this->user_email;
-			$subject = wp_easycart_language( )->get_text( "ec_errors", "subscription_payment_failed_title" );
 			$mailer = new wpeasycart_mailer( );
-			$mailer->send_order_email( $to, $subject, $message );
-			if ( '' != $this->email_other ) {
-				$mailer->send_order_email( $this->email_other, $subject, $message );
+			$log = $this->email_log_as( 'payment_failed' );
+			if ( '' !== $customer_to ) {
+				$mailer->send_order_email( $customer_to, $subject, $message );
 			}
-			$mailer->send_order_email( $admin_email, $subject, $message );
+			if ( '' !== $other_to ) {
+				$mailer->send_order_email( $other_to, $subject, $message );
+			}
+			$this->email_log_done( $log );
+			if ( '' !== $admin_to ) {
+				$log = $this->email_log_as( 'payment_failed_store' );
+				$mailer->send_order_email( $admin_to, $subject, $message );
+				$this->email_log_done( $log );
+			}
 		}
 	}
 
@@ -1174,16 +1385,34 @@ class ec_orderdisplay {
 
 				$message = ob_get_clean();
 
+				/* 6.0.2: only addresses that can take mail ( see send_email_receipt() ). */
+				$subject  = wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" );
+				$to       = $this->email_recipients( $cart_item->gift_card_email, 'giftcard', $subject );
+				$admin_to = $this->email_recipients( get_option( 'ec_option_bcc_email_addresses' ), 'giftcard_store', $subject, false );
+
 				if( get_option( 'ec_option_use_wp_mail' ) ){
-					wp_mail( $cart_item->gift_card_email, wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" ), $message, implode("\r\n", $headers) );
-					wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" ), $message, implode("\r\n", $headers) );
+					if ( '' !== $to ) {
+						$log = $this->email_log_as( 'giftcard' );
+						wp_mail( $to, $subject, $message, implode("\r\n", $headers) );
+						$this->email_log_done( $log );
+					}
+					if ( '' !== $admin_to ) {
+						$log = $this->email_log_as( 'giftcard_store' );
+						wp_mail( $admin_to, $subject, $message, implode("\r\n", $headers) );
+						$this->email_log_done( $log );
+					}
 				}else{
-					$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
-					$to = $cart_item->gift_card_email;
-					$subject = wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" );
 					$mailer = new wpeasycart_mailer( );
-					$mailer->send_order_email( $to, $subject, $message );
-					$mailer->send_order_email( $admin_email, $subject, $message );
+					if ( '' !== $to ) {
+						$log = $this->email_log_as( 'giftcard' );
+						$mailer->send_order_email( $to, $subject, $message );
+						$this->email_log_done( $log );
+					}
+					if ( '' !== $admin_to ) {
+						$log = $this->email_log_as( 'giftcard_store' );
+						$mailer->send_order_email( $admin_to, $subject, $message );
+						$this->email_log_done( $log );
+					}
 				}
 
 			}

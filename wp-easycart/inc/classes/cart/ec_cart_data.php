@@ -7,6 +7,15 @@ class ec_cart_data {
 	public $advanced_cart_options;							// Array of Cart Option Rows
 	public $product_quantities;								// Array of Cart Product Quantities
 
+	/**
+	 * Set when a cart line's advanced options were saved during this request ( ec_db::add_option_to_cart() ): the rows
+	 * above were read when the request started, so the next read loads them again.
+	 *
+	 * @since 6.0.2
+	 * @var bool
+	 */
+	public $advanced_cart_options_stale = false;
+
 	function __construct( $ec_cart_id ) {
 		$this->mysqli = new ec_db( );
 		$this->ec_cart_id = $ec_cart_id;
@@ -245,7 +254,29 @@ class ec_cart_data {
 		}
 	}
 
+	/**
+	 * Load the session's advanced option rows again ( after a line's options were saved in this request ).
+	 *
+	 * @since 6.0.2
+	 */
+	public function refresh_advanced_cart_options() {
+		$this->advanced_cart_options_stale = false;
+		$this->advanced_cart_options       = $this->mysqli->get_advanced_cart_options( $this->ec_cart_id );
+		if ( ! is_array( $this->advanced_cart_options ) ) {
+			$this->advanced_cart_options = array();
+		}
+		if ( isset( $GLOBALS['ec_advanced_optionsets'] ) && is_object( $GLOBALS['ec_advanced_optionsets'] ) ) {
+			$this->init_advanced_cart_options();
+		}
+	}
+
 	public function get_advanced_cart_options( $tempcart_id ) {
+		/* 6.0.2: a line added in this request is read with the options just saved for it. The cart built in the same
+		   request ( live carrier quotes, tax services, the Stripe amount on wpeasycart_cart_updated ) otherwise weighed and
+		   priced it without them. */
+		if ( $this->advanced_cart_options_stale ) {
+			$this->refresh_advanced_cart_options();
+		}
 		$cartitem_optionitems = array();
 		for ( $i = 0; $i < count( $this->advanced_cart_options ); $i++ ) {
 			if ( $this->advanced_cart_options[$i]->tempcart_id == $tempcart_id ) {

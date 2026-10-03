@@ -1,297 +1,267 @@
-===Shopping Cart & eCommerce Store===
+=== WP EasyCart: Shopping Cart and eCommerce Store ===
 Contributors: levelfourdevelopment, ecommercecart
-Tags: shopping cart, ecommerce, e-commerce, store, paypal, stripe, square, facebook, apple pay
+Tags: shopping cart, store, e-commerce, paypal, square
+Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 6.0.1
-License: WP EasyCart License
-License URI: http://www.wpeasycart.com/terms-and-conditions/
-Donate Link: http://www.wpeasycart.com
+Stable tag: 6.0.2
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A FREE WordPress eCommerce & WordPress Shopping Cart plugin that can sell products, subscriptions, downloads, services, donations, and much more online with only a few clicks!
+Run your whole shop from your WordPress site: products, checkout, orders, shipping and tax, with Stripe, Square and PayPal built in.
 
 == Description ==
 
-WP EasyCart is a powerful FREE WordPress eCommerce store & WordPress Shopping Cart plugin that installs into new or existing websites. 
+**Run your whole shop from your WordPress site.**
 
-Get a fast WordPress eCommerce shopping cart store within minutes! Sell retail products, subscriptions, digital downloadable goods, gift cards, donations, services and more!  
+WP EasyCart adds a complete store to the WordPress site you already have. Products, checkout, orders, shipping, tax and reports are built in, not bolted on, so there is no stack of add-ons to buy and keep in step. Start free with unlimited products and orders, and move up to Pro when your store needs more.
 
-EasyCart is a full Stripe cart, Square cart, and PayPal cart in one! Use Stripe payments to sell subscription and recurring billing products as well as offer Apple Pay, Google Pay, and Microsoft Pay.  
+It suits online shops that ship, restaurants, cafés and bakeries taking pickup orders, wholesalers billing trade customers, and makers and local producers who sell several ways at once.
 
-Sell your products on social media with our Facebook and Instagram premium extension.  WP EasyCart makes it easy to sell on Facebook and Instagram with your WordPress cart.
+= Sell and get paid =
 
-WP EasyCart offers 30+ payment solutions that are SCA compliant (Stripe, Square, and PayPal Express) as well as GDPR compliant options.  International ecommerce cart is no problem for EasyCart.
+* Unlimited products and orders, with options, variations and stock tracking.
+* Stripe, Square and PayPal checkout, including Apple Pay and Google Pay.
+* Checkout protection, on by default, that stops bots from testing stolen cards at your checkout.
+* Catalog mode to show products without selling them.
 
-= ecommerce shopping cart editions =
+= Ship, fulfill and tax =
 
-WP EasyCart comes in 3 different shopping cart editions to cover every online store need.
+* An order screen built for speed: see where each order stands, tick items off as you pack, and ship in one step with tracking and an email to the customer.
+* Save the boxes you ship in and have new orders packed into them automatically.
+* Shipping rates by price, weight, quantity or percentage, and tracking for every package through to delivery.
+* Tax rates by country, state and province, and VAT with VAT number checks.
 
-__FREE eCommerce Edition__ - Unlimited Products, Unlimited Orders, and sell with PayPal Express, Square, and Stripe.
-__Professional eCommerce Edition__ - No Fees, 30+ Additional Payment Gateways, Live Shipping Calculators, Coupons, Promotions, Order Editing, Digital Wallet Payments (Apple Pay & Google Pay), Subscription products, and More!
-__Premium eCommerce Edition__ - Everything in the Professional Edition plus apps for Desktop, Tablet, iPhone, and Android plus 10+ Premium Extensions!  Facebook & Instragram, ShipStation, Stamps.com, Quickbooks for Desktops, and others!
+= Grow your store =
 
+* Reports with your sales, orders and taxes, and a weekly summary email.
+* See where each order came from, including AI assistants such as ChatGPT, Perplexity, Gemini and Copilot.
+* Product pages that tell Google, Bing and AI assistants your prices, stock, reviews, return policy and shipping.
+* Meta Pixel and Google Analytics, with support for your cookie banner.
+* Customer reviews with review request emails.
 
+= Design it your way =
 
-[youtube https://www.youtube.com/watch?v=Pc3bCSgR-xM&feature=youtu.be]
+* Works with any theme, with store, cart and account pages created for you.
+* Elementor widgets and templates for product, category, shop, cart, checkout and account pages, plus blocks and shortcodes.
+* Change any wording your store shows, in any language.
 
-= popular links =
+= Privacy built in =
 
-* [WP EasyCart website]( http://www.wpeasycart.com "WP EasyCart Shopping Cart Plugin") 
-* [What's in the Professional Edition?]( https://www.wpeasycart.com/professional-edition-ecommerce/ "What's in the Professional Edition?")
-* [What's in the Premium Edition?]( https://www.wpeasycart.com/wordpress-ecommerce-premium-edition/ "What's in Premium Edition?") 
-* [Online eCommerce Demos and Themes]( http://www.wpeasycart.com/wordpress-shopping-cart-demos/ "WP EasyCart eCommerce Themes") 
-* [Need Online Support?]( http://support.wpeasycart.com "Need Online Support?") 
-* [Compare eCommerce Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Side by Side comparison of the EasyCart editions") 
-* [Compare Competition Shopping Carts]( http://www.wpeasycart.com/wordpress-shopping-cart-comparison/ "Compare EasyCart to leading competitors") 
+* Works with Complianz, CookieYes, Cookiebot, the WP Consent API and Google Consent Mode.
+* Customers are included in WordPress's personal data export and erase tools.
+* Card details are entered in your payment provider's own secure fields.
 
+= Pro: everything in Free, plus =
 
-= ecommerce store for every theme =
-The WordPress Shopping Cart plugin will automatically create 3 new pages in WordPress for the store, cart and account.  Customize with all our basic design features, utilize multi-currency & multi-language features, even add one of our dozen widgets to a sidebar to help you start selling your products.
+* No WP EasyCart fee on your sales, and 30+ more payment gateways.
+* One-page checkout, your own checkout questions, and gift orders.
+* Subscriptions, digital downloads and gift cards.
+* Live shipping rates from UPS, FedEx, USPS, DHL, Canada Post and Australia Post, plus store schedules and pickup locations.
+* Automatic sales tax from TaxCloud or TaxJar.
+* Coupons, promotions and abandoned cart emails.
+* Order editing and refunds, invoices and credit notes, payment terms, and orders you create for phone customers.
+* Full reports on products, customers, profit, carts and more, a Google product feed, and MailerLite, Kit and ActiveCampaign sync.
+* One-to-one support and 12 months of updates. Try Pro free for 14 days from WP EasyCart › Registration; no card needed.
 
-WP EasyCart is a full Stripe cart, Square cart, and PayPal cart in one system.  The shopping cart allows you to utilize Stripe, Square, and PayPal payments all in one cart.
+= Premium: everything in Pro, plus =
 
+* Store manager apps for iPhone, iPad, Android and desktop.
+* Premium extensions, installed in one click: Facebook & Instagram, Shippo, ShipStation, Stamps.com, QuickBooks Desktop, Avalara AvaTax, AffiliateWP, Email Marketing for Mailchimp and Klaviyo, Zapier and more.
 
-= Go FREE or Go PRO/Premium =
-WP EasyCart is a FREE eCommerce plugin that lets you sell unlimited products, manage orders, create basic shipping & taxes, and collect payments using PayPal Express as well Square or Stripe within your cart!
+[Compare plans and pricing](https://www.wpeasycart.com/wordpress-shopping-cart-pricing/)
 
-Upgrade to the Professional or Premium shopping cart and unlock order editing, subscriptions, recurring payments, membership content, Apple Pay, Google Pay, Microsoft Pay, 30+ additional payment processors, coupons, promotions and other awesome features.  
+= Helpful links =
 
-With the Premium edition cart, you get all the great features of a Professional edition, plus access to 10+ extensions.
-* Facebook & Instragram Feed
-* ShipStation
-* Quickbooks for Desktops
-* Stamps.com
-* Groupon importer
-* And many more...
-
-Premium edition users can also use our external apps for PC/Mac computers, iPad/Android tablets, and iPhone/Android phones.  Not only can you sell with mobile ecommerce, but you can manage your store on mobile devices.
-
-__Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
-
-= Payment Options =
-WP EasyCart's FREE shopping cart edition comes with PayPal Express, Square, and Stripe to collect payment from nearly any country in the world securely and quickly.
-
-The Professional & Premium editions come with 30+ live payment processors such as Square, Stripe, Authorize.net, FirstData, Payment Express, PayPal Pro, Intuit, and many others.  
-
-Professional & Premium users can use the Stripe payment system's extensive payment system which offers subscriptions, Digital Wallet Payments, Apple Pay, Google Pay, Microsoft Pay, and some of the best fraud protection tools in the industry.
-
-Unlock ALL the payment gateways we offer in either of these popular editions.  View a complete list of all free and paid edition payment gateways:  [View All Payment Gateways Here]( http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment "eCommerce Shopping Cart Payment Gateways") 
-
-= Shipping & Taxes =
-WP EasyCart's FREE shopping cart edition comes with extensive table rate shipping for price, weight, quantity and percentage based systems.  Setup standard taxes based on states/provinces & countries.
-
-The Professional & Premium shopping cart editions include all our live shipping integrations with USPS, UPS, FedEx, DHL, Canada Post, and Australia Post.  For taxes, you can utilize TaxCloud API for accurate city by city tax rates.
-
-__Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
-
-= Order Management =
-WP EasyCart's FREE shopping cart edition lets you manage orders from within WordPress.  Print sales receipts & packing slips, add shipping notes, email customers, and view order information in one easy location.
-
-The Professional & Premium shopping cart editions allow you to edit line items, add new line items, and edit all the customers order data for a complete business solution.
-
-__Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
-
-= Marketing =
-All EasyCart eCommerce plugins come with SEO editing for every product, menu and category you create to help selling your goods.  Social sharing also lets your visitors immediately link to products that you sell.
-
-With the Professional & Premium editions, you unlock all the eCommerce marketing options available in EasyCart; including coupons, promotions, gift cards, and abandoned cart systems.
-
-Connect your store with Facebook and Instagram with our Premium extension. Manage feed info and automatically push latest stock and product information to Facebook and Instagram hourly, daily, or weekly.
-
-__Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
-
-= How to get started with the eCommerce plugin? =
-
-Simply install the WordPress Shopping Cart plugin, activate, and walk through the settings to get your cart up and running..  Configure your cart to use PayPal Express, Square, or Stripe for a quick and easy way to get your eCommerce platform running and sell your items quickly.
-
-Unlock your WordPress shopping cart when you are ready with more powerful features by visting [WP EasyCart](http://www.wpeasycart.com "WP EasyCart"). 
-
-__Compare all shopping cart store editions:__  [Compare Shopping Cart Editions]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/ "Compare eCommerce Editions") 
-
-**We have a full eCommerce support center at [WP EasyCart](http://support.wpeasycart.com/ "WP EasyCart website") including an online users manual, video tutorials, and community forums.**
-
-= Watch our Installation Video =
-[youtube https://www.youtube.com/watch?v=Pc3bCSgR-xM&feature=youtu.be]
-
-Our popular eCommerce shopping cart videos series:
-
-* [Video 1: Installing WP EasyCart]( https://www.youtube.com/watch?v=Pc3bCSgR-xM&feature=youtu.be "WP EasyCart Installing Free Edition") 
-* [Video 2: Install 14 day PRO trial!]( https://www.youtube.com/watch?v=58S78jhdito&feature=youtu.be "Install 14 day PRO shopping cart trial!") 
-* [Video 3: Creating your First Product]( https://www.youtube.com/watch?v=XZmXGI02i6Y&feature=youtu.be "Creating your First Product")
-* [Video 4: Creating a Product Option]( https://www.youtube.com/watch?v=T0dByKX67iY&feature=youtu.be "Creating a Product Option") 
-* [Video 5: Creating Product Categories]( https://www.youtube.com/watch?v=rRHm0XvqXto&feature=youtu.be "Creating Product Categories") 
-* [Video 6: Basic Design Customization]( https://www.youtube.com/watch?v=5rhbgYNuyOs&feature=youtu.be "Basic Design Customization") 
-* [Video 7: Setting up Payment Gateway]( https://www.youtube.com/watch?v=_PqRz4SVCTQ&feature=youtu.be "Setting up Payment Gateway") 
-* [Video 8: Setting up Taxes]( https://www.youtube.com/watch?v=Mg4IM2jQwl4&feature=youtu.be "Setting up Taxes") 
-* [Video 9: Setting up Shipping]( https://www.youtube.com/watch?v=_Bm7gtf8RCU&feature=youtu.be "Setting up Shipping") 
-* [Video 10: Testing and Launching your Site]( https://www.youtube.com/watch?v=1375hHNensY&feature=youtu.be "Testing and Launching your Site") 
-
-More videos can be found in our [Video Library](https://support.wpeasycart.com/video-tutorials/ "WP EasyCart Video Library")!
+* [WP EasyCart website](https://www.wpeasycart.com/)
+* [Documentation](https://docs.wpeasycart.com/)
+* [Support](https://support.wpeasycart.com/)
+* [Plans and pricing](https://www.wpeasycart.com/wordpress-shopping-cart-pricing/)
 
 == Installation ==
 
-Install a full WordPress Shopping Cart & eCommerce plugin in less than 5 minutes!  Harness the most powerful Stripe cart, Square cart, & PayPal cart for WordPress in a few easy steps!
+1. In your WordPress admin, go to Plugins › Add New, search for "WP EasyCart", then install and activate it.
+2. Follow the setup wizard to create your store pages and choose how you take payments, charge tax and ship.
+3. Add your products under WP EasyCart › Products.
+4. Connect Stripe, Square or PayPal under WP EasyCart › Settings › Payments.
 
-1.  Install and Activate the WordPress Shopping Cart plugin.  Just log into your wordpress admin, visit plugins -> add new and search for 'EasyCart'.
-
-2.  Once you Install and Activate, we recommend you walk through our simple 5 step wizard to setup the intial pages, payment, taxes, and shipping.  It only takes 1 minute and you can always change these settings via the WP EasyCart -> settings page.
-
-3.  Start adding your store products using the products menu!
-
-= Watch our Installation Video =
-[youtube https://www.youtube.com/watch?v=Pc3bCSgR-xM&feature=youtu.be]
-
-= Popular eCommerce shopping cart installation videos =
-
-* [Video 1: Installing WP EasyCart]( https://www.youtube.com/watch?v=Pc3bCSgR-xM&feature=youtu.be "WP EasyCart Installing Free Edition") 
-* [Video 2: Install 14 day PRO trial!]( https://www.youtube.com/watch?v=58S78jhdito&feature=youtu.be "Install 14 day PRO shopping cart trial!") 
-* [Video 3: Creating your First Product]( https://www.youtube.com/watch?v=XZmXGI02i6Y&feature=youtu.be "Creating your First Product")
-* [Video 4: Creating a Product Option]( https://www.youtube.com/watch?v=T0dByKX67iY&feature=youtu.be "Creating a Product Option") 
-* [Video 5: Creating Product Categories]( https://www.youtube.com/watch?v=rRHm0XvqXto&feature=youtu.be "Creating Product Categories") 
-* [Video 6: Basic Design Customization]( https://www.youtube.com/watch?v=5rhbgYNuyOs&feature=youtu.be "Basic Design Customization") 
-* [Video 7: Setting up Payment Gateway]( https://www.youtube.com/watch?v=_PqRz4SVCTQ&feature=youtu.be "Setting up Payment Gateway") 
-* [Video 8: Setting up Taxes]( https://www.youtube.com/watch?v=Mg4IM2jQwl4&feature=youtu.be "Setting up Taxes") 
-* [Video 9: Setting up Shipping]( https://www.youtube.com/watch?v=_Bm7gtf8RCU&feature=youtu.be "Setting up Shipping") 
-* [Video 10: Testing and Launching your Site]( https://www.youtube.com/watch?v=1375hHNensY&feature=youtu.be "Testing and Launching your Site") 
-
-More videos can be found in our [Video Library](https://support.wpeasycart.com/video-tutorials/ "WP EasyCart Video Library")!
-
-= Installation Documentation =
-
-Users will love our full online documentation and free resources include online help documentation, full video tutorial library, and a community forum and knowledge base.  Premium and Professional users will love the extra suppor they purchase with a license and one-on-one technical support with our 5 star tech team.  JUST READ OUR REVIEWS!
-
-Online Documentation: [WP EasyCart Documentation]( https://docs.wpeasycart.com/ "Shopping Cart Documentation")
-Online Video Tutorials: [WP EasyCart Video Tutorials]( https://support.wpeasycart.com/video-tutorials/ "eCommerce Video Tutorials")
-Online Forums: [WP EasyCart Forums]( https://support.wpeasycart.com/video-tutorials/ "EasyCart Store Forums")
-Need Technical Support? [Compare Professional & Premium Pricing]( https://www.wpeasycart.com/wordpress-shopping-cart-pricing/#pricing "EasyCart Shopping Cart Pricing")
-
+To try Pro, open WP EasyCart › Registration and choose Start free trial.
 
 == Frequently Asked Questions ==
 
-= Where can I get documentation or shopping cart demos? =
-We offer a full service website with online documentation, video tutorials, community support forums as well as demonstration sites running our various templates at [WP EasyCart](http://www.wpeasycart.com/ "WP EasyCart website") .
+= Is WP EasyCart really free? =
 
-= Can I use your eCommerce software to display, but not sell products? =
-Absolutely! If you do not need to sell anything, but would like to leverage our software to display products, please feel free to do just that!  You can just put the store into catalog mode and it removes the ability to add to cart the products.
+Yes. The free plugin has unlimited products and orders and no time limit. On the free plan, payments taken through Stripe, Square or PayPal connected with WP EasyCart carry a 2% WP EasyCart fee; Pro and Premium have no WP EasyCart fee. Your payment provider's own processing fees always apply.
 
-= Can I sell my products on Facebook & Instagram? =
-Yes! With our Premium edition, you can use our Facebook & Instagram feed to publish your products into a Facebook Catalog.  This lets you setup a catalog of products on Facebook, create compelling carousal ads across social media, and more!
+= What is the difference between Free, Pro and Premium? =
 
-= What are the PRO and Premium eCommerce Versions? =
-The FREE version comes right here on WordPress and offers limited features for you including the abiliyt to have a PayPal cart, Square cart, Stripe cart, manual payments, unlimited products, product variations, order management, and so much more. Features such as coupons, live shipping rates, promotions, order editing, 30+ gateways, live shipping carriers, and many more are not included in the FREE version. Upgrading to Professional or Premium will unlock ALL core features and gets you updates and support for a year. Upgrading to Premium will get you everything in Professional cart plus access to our 10+ extensions and iPad, Android, and Desktop applications.
+Free is a complete store. Pro adds the features a growing store needs, such as 30+ more payment gateways, live shipping rates, subscriptions, coupons, invoicing and full reports, with no WP EasyCart fee. Premium adds the store manager apps and the Premium extensions. Pro and Premium both use the WP EasyCart PRO plugin. See [plans and pricing](https://www.wpeasycart.com/wordpress-shopping-cart-pricing/).
 
-= What extensions are in your Premium Edition? =
-Facebook & Instagram allows you to sell across social media.  Quickbooks offers automated syncing down to your desktop quickbooks version.  ShipStation offers order syncing for easy shipping management, labels, and email tracking.  Stamps.com allows buying and paying for postage.  Groupon, extra tabs, mandrill email, optimal logistics, affiliate WP Rates, and Bluecheck offer a variety of third party integration extensions that you get as part of our premium edition.  Visit our website for full Premium benefits, including our mobile apps and push notification systems.
+= Can I try Pro before I buy? =
 
-= How does an eCommerce license work with your software? =
-The FREE plugin is the full WordPress eCommerce shopping cart software version; however, the PRO and administrative software that is downloaded from our website is licensed software. The PRO software will add all core features and the Premium version will allow access to our administrative software, apps, and extensions. You may continue to run the FREE WordPress plugin, but must purchase a license to use our PRO or administrative software.
-Each license is good for one website URL or WordPress installation. You may transfer a license from a development environment to a production environment at any time; it is your license once you purchase one.
-Licensing gives you features such as coupons, promotions, live shipping rate calculators and more. Plus you will receive support from our staff individually rather than through our community open support systems. For more information on licensing, you can view our website.
+Yes. Start a 14-day free trial of Pro from WP EasyCart › Registration. No card is needed, and WP EasyCart installs everything for you.
 
-= Do I have to pay monthly? =
-No, there are no monthly fees to pay with EasyCart. WP EasyCart allows you to utilize the plugin on one WordPress website for 12 months with upgrades and support. The Free edition has 2% EasyCart fees per transaction. The professional/premium edition have 0% EasyCart fees per transaction. *Normal payment processing fees always apply.
+= How do licenses work? =
 
-= Will it work in my Theme? =
-Yes!  EasyCart works on 3 WordPress pages, which are automatically created on installation.  Our installer walks you through the steps quickly and if you have any theme issues, your theme developer or our staff can assist.
+A Pro or Premium license covers one website and includes 12 months of updates and support. Licenses never renew on their own; renew from your account at wpeasycart.com whenever you choose. You can move a license from a development site to your live site.
 
-= What Ecommerce payment gateways do you have? =
-We offer over 30 different gateways.  Popular ones include Square, SquareUp, PayPal Standard, PayPal Pro, PayPal Payflow, Authorize.net, Stripe.com, FirstData, eWay, Payment Express, Sagepay, 2Checkout, Dwolla, Nets Nexaxept, Payfort, Realex, Redsys, Skrill, beanstream, braintree, Chronopay, Virtual merchant, Geomerchant, intuit, MIGS, Moneris Canada, Moneris US, NMI, Payline, Paypoint, Secure Pay, WorldPay and others.  Check our [documentation]( http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment "Online Documentation")  for a full up to date listing.
+= Will it work with my theme? =
 
-= Where do I report security bugs found in this plugin? =
-Please report security bugs found in the source code of the WP EasyCart plugin through the [Patchstack Vulnerability Disclosure Program](patchstack.com/database/vdp/671ca790-0ba3-4d49-809a-c02f0323bb0a). The Patchstack team will assist you with verification, CVE assignment, and notify the developers of this plugin.
+Yes. WP EasyCart works with any WordPress theme and creates its store, cart and account pages for you. You can also design your store pages with Elementor or the block editor.
+
+= Can I show products without selling them? =
+
+Yes. Turn on catalog mode to show your products without the Add to Cart button.
+
+= Which payment gateways can I use? =
+
+The free plugin takes payments through Stripe, Square and PayPal, including Apple Pay and Google Pay, and can take manual payments such as bank transfer. Pro adds 30+ more, including Authorize.net, Braintree, NMI, PayTrace, Intuit Payments, Moneris, eWAY and Global Payments.
+
+= Can I sell on Facebook and Instagram? =
+
+Yes, with the Facebook & Instagram extension that comes with Premium. It keeps your Facebook and Instagram catalog in step with your store.
+
+= Does WP EasyCart help with privacy laws such as GDPR? =
+
+Yes. It works with the leading cookie banners and Google Consent Mode, so tracking waits for each shopper's consent, and your customers are included in WordPress's personal data export and erase tools.
+
+= Where can I get help? =
+
+Start with the [documentation](https://docs.wpeasycart.com/). Pro and Premium stores get one-to-one support from our team at [support.wpeasycart.com](https://support.wpeasycart.com/).
+
+= Where do I report a security issue? =
+
+Please report security issues through the [Patchstack Vulnerability Disclosure Program](https://patchstack.com/database/vdp/671ca790-0ba3-4d49-809a-c02f0323bb0a). The Patchstack team will help verify the issue and let us know.
 
 == Screenshots ==
 
-1. Professionally eCommerce shopping cart fits in nearly any theme!
-2. Beautiful product detail displays!
-3. Tile products in 1,2,3,4 or 5 column layouts!
-4. Utilize dark background or light background themes!
-5. Use our Widgets in sidebars!
-6. Beautiful Storefront displays and related product!
-7. Choose from several pre-designed layouts!
-8. Manage all of your product details from our administrative console!
-9. Responsive Design for mobile, tablet, and desktop!
-10. Beautiful Layouts with responsive image areas!
-11. Streamlined powerful checkout with 30+ gateways already integrated!
-12. Administrative Wizard for 5 step setup process!
-13. Manage all your store products with ease!
-14. Store order management is easier then ever and very powerful!
+1. Your store in nearly any theme.
+2. A product details page.
+3. Product grids in one to five columns.
+4. Light and dark store designs.
+5. Store widgets in your sidebars.
+6. A storefront with related products.
+7. Built-in store layouts.
+8. Managing a product's details in the admin.
+9. Responsive on phones, tablets and computers.
+10. Product layouts with responsive images.
+11. A streamlined checkout.
+12. The setup wizard.
+13. Managing your products.
+14. Managing your orders.
+
+== External services ==
+
+WP EasyCart connects to these services only when you use the feature that needs them.
+
+* **WP EasyCart Connect** ( connect.wpeasycart.com ) connects your Stripe, Square and PayPal accounts and passes their payment notifications to your store, installs WP EasyCart PRO when you start a trial or add a license, and, only if you choose to share anonymous usage data, receives it. [Privacy policy](https://www.wpeasycart.com/privacy-policy/), [terms](https://www.wpeasycart.com/terms-and-conditions/).
+* **WP EasyCart demo data** ( support.wpeasycart.com ) supplies sample products and images when you install demo data from the setup wizard.
+* **Stripe** processes card and wallet payments when you connect Stripe. It receives the order total and the customer's payment and billing details. [Privacy policy](https://stripe.com/privacy), [terms](https://stripe.com/legal).
+* **Square** processes payments when you connect Square. It receives the order total and the customer's payment and billing details. [Privacy policy](https://squareup.com/legal/general/privacy), [terms](https://squareup.com/legal/general/ua).
+* **PayPal** processes payments when you connect PayPal. It receives the order and the customer's details needed for payment. [Privacy policy](https://www.paypal.com/webapps/mpp/ua/privacy-full), [terms](https://www.paypal.com/webapps/mpp/ua/useragreement-full).
+* **Google reCAPTCHA** and **Cloudflare Turnstile** check that a shopper is a person, only when you turn them on. [Google privacy policy](https://policies.google.com/privacy), [Cloudflare privacy policy](https://www.cloudflare.com/privacypolicy/).
+* **Google Analytics** and the **Meta Pixel** receive store events, such as product views and purchases, only when you add their IDs, and only after the shopper consents when your store asks for consent. [Google privacy policy](https://policies.google.com/privacy), [Meta privacy policy](https://www.facebook.com/privacy/policy/).
+* **Vatlayer** receives the VAT number a customer enters, when you turn on VAT number checks. **TaxCloud** receives the order's address and items when you turn it on with WP EasyCart PRO.
+* **Amazon S3** serves download files you choose to store there.
 
 == Changelog ==
+= 6.0.2 =
+* New Feature - Redesigned order screen: see where every order stands, ship it in one step with tracking and an email to the customer, tick off items as you pack, and move between orders with search and keyboard shortcuts.
+* New Feature - Boxes and packages: save the boxes you ship in, have new orders packed automatically, and track every package through to a new Delivered status.
+* New Feature - Checkout protection: stops card-testing bots at your checkout, on by default, with automatic extra checks during an attack and support for Cloudflare Turnstile and reCAPTCHA.
+* New Feature - Checkout fields: add your own questions to the checkout, show them only when they apply, and keep the answers on the order, in emails and on documents.
+* New Feature - Gift orders: shoppers can send an order as a gift with a personal message, and the recipient can get a gift receipt without prices.
+* New Feature - Invoicing for business customers: numbered invoices and credit notes, PO numbers, payment terms such as Net 30, rules that pick the right documents for each order, and invoices and receipts customers can download from My Account.
+* New Feature - Pay links: send customers a secure link to pay an order, or its remaining balance, by card, PayPal or bank transfer.
+* New Feature - Create orders in the admin for phone orders and quotes, then save a draft or email the invoice with its pay link.
+* New Feature - Order payments: every order keeps what the customer actually paid, so an edited order shows the balance or refund due, and a refund can be split across several payments.
+* New Feature - Order sources: see where every order came from, such as search, ads, email, social media or AI assistants like ChatGPT, Perplexity, Gemini and Copilot.
+* New Feature - Rebuilt Reports: accurate totals in your time zone, comparisons with earlier periods, reports for products, customers, codes, carts, sources, profit, fulfillment, searches and subscriptions, CSV exports and a weekly summary email.
+* New Feature - Search & AI: product pages tell Google, Bing and AI assistants your prices, stock, variants, reviews, returns and shipping, with a checklist on every product.
+* New Feature - Google product feed: a feed that keeps itself up to date for Google Merchant Center, Microsoft Merchant Center and Pinterest, with a one-step connection to Google Merchant Center.
+* New Feature - Meta Conversions API: send your store's events from your server as well as the Meta Pixel, counted once by Meta.
+* New Feature - Privacy: works with Complianz, CookieYes, Cookiebot, the WP Consent API and Google Consent Mode so tracking waits for each shopper's consent, and WordPress's personal data export and erase tools now cover your customers.
+* New Feature - Email marketing: sync subscribers, orders and abandoned carts with MailerLite, Kit and ActiveCampaign, or with Mailchimp and Klaviyo through the Email Marketing extension.
+* New Feature - Offer codes in bulk: import, generate up to 10,000 at a time and export codes, use offer codes on subscriptions, and test any code against a product.
+* New Feature - Tax services: choose TaxCloud, TaxJar or an extension such as Avalara AvaTax to calculate tax across your store, with built-in connection tests.
+* New Feature - Elementor: design product and category pages with templates and ready-made layouts, and build your shop, cart, checkout and account pages with dozens of new widgets, including a side cart.
+* New Feature - Fulfillment partners: sell products made and shipped by a print-on-demand partner, with the partner's shipping added at checkout ( Printful and Printify extensions coming soon ).
+* New Feature - Extensions page: every WP EasyCart extension in one place, with what is installed and what needs an update.
+* New Feature - Choose and reorder the columns on every admin list.
+* New Feature - PayTrace payment gateway.
+* Improvement - One-page checkout is out of beta and works with every payment method, including 3-D Secure, PayPal, Affirm, Amazon Pay, Apple Pay and Google Pay.
+* Improvement - Placing an order shows its progress and locks the checkout, so an order can never be sent twice.
+* Improvement - Variations keep their SKU, price and stock when you change a product's options, and can have their own weight and cost.
+* Improvement - DHL live rates use DHL's current MyDHL API.
+* Improvement - Card fees set in Flex-Fees now also apply to Apple Pay, Google Pay and Link.
+* Improvement - Tracking links work with more carriers, including DHL, Canada Post, Australia Post and Royal Mail.
+* Improvement - Faster pages for stores with many coupons, and faster Reports and order screens on large stores.
+* Improvement - Declined cards show shoppers a simple message instead of the bank's reason.
+* Improvement - Payment notifications from Stripe, PayPal and other gateways are confirmed before they change an order.
+* Improvement - WordPress User Sync: customers are signed in to your store and WordPress right away, and accounts stay linked when an email or password changes.
+* Improvement - The WooCommerce import can pick up where it stopped, keeps your category tree and brings in draft and private products as inactive.
+* Improvement - Store Status warns about payment methods left in test mode, a missing store page and search engines blocked by robots.txt.
+* Improvement - Every abandoned cart reminder is sent from your Account emails address and shows in the email log.
+* Improvement - Bill later can be offered to chosen customer roles, and membership content can be limited by user role.
+* Improvement - Subscription products say clearly when they can't be sold because Stripe isn't connected.
+* Improvement - Intuit Payments connections renew reliably and show the connected company.
+* Bug Fix - Orders paid through Stripe, Square, PayPal, Amazon Pay, Realex, Redsys, SagePay and NMI are marked paid only once the payment is confirmed for the right amount, and returning from 3-D Secure finishes the order.
+* Bug Fix - Apple Pay and Google Pay charge the shipping and tax for the address and shipping option chosen in the wallet.
+* Bug Fix - Refunds made in your Stripe or PayPal account are recorded on the order.
+* Bug Fix - One-page checkout saves VAT numbers, billing addresses, order notes and last-moment changes, and shows any change to the total before payment.
+* Bug Fix - TaxCloud and TaxJar no longer tax non-taxable products or lower the tax for gift cards, and report orders and refunds correctly.
+* Bug Fix - Live shipping rates include the weight of chosen options, USPS quotes carts shipped in several boxes correctly, heavy Australia Post carts are quoted, and older USPS services show again.
+* Bug Fix - Shipping rates from extensions such as Shippo, ShipStation and OptimalShip work with shipping classes and are named on the order.
+* Bug Fix - Free and discounted shipping offers come off live rates and the shipping actually charged, coupon codes with a dash work, and savings on each line show with offers again.
+* Bug Fix - Subscriptions: coupons and offer codes give the same discount on the subscription page and at Stripe, and the subscription checkout no longer stops with an error on PHP 8.
+* Bug Fix - Status changes from the orders list take stock and notify extensions without running twice, and fulfilling never marks an unpaid or refunded order as shipped.
+* Bug Fix - Reports count unique customers, VAT, refunds and abandoned carts correctly.
+* Bug Fix - Store emails sent through another plugin, such as Mandrill, are no longer lost.
+* Bug Fix - Installs and database updates now finish on MySQL 8 and MySQL 5.5 servers where they could not complete before.
+* Bug Fix - Creating an account or saving account details without ticking the newsletter box no longer unsubscribes an existing subscriber, and MailerLite, Kit and ActiveCampaign update the right contacts.
+* Bug Fix - Search engines get accurate star ratings, stock and prices, and Google product feed variants carry the right prices.
+* Bug Fix - Stores using Redis or Memcached show every shopper their own prices and availability.
+* Bug Fix - Store rules apply everywhere: add to cart follows catalog mode, inquiry mode, login for pricing and customer roles, downloads need a paid order, and memberships follow one clear rule.
+* Bug Fix - Elementor widgets work on PHP 8, with page caches and in popups, and keep their settings, styles and account form details.
+* Bug Fix - Review request emails open the review form with the chosen rating, and new reviews are marked as verified purchases.
+* Bug Fix - The Membership, Store Table and Category Grid blocks work again.
+* Bug Fix - Payment notifications reach stores installed in a subfolder.
+* Bug Fix - Cart, product image, menu and category links follow your store page after it is renamed, and Fix product permalinks updates the old saved links.
+* Bug Fix - A mistyped license key is reported as not accepted, with a link to find your key, instead of asking you to try again later.
+* Bug Fix - The setup wizard no longer offers the free trial to Pro and Premium stores, and shows the payment fee that applies to your store.
+* Bug Fix - Diagnostics checks for PHP 7.3, the version WP EasyCart needs, instead of PHP 5.3.
+* Bug Fix - Passwords with special characters work for sign-in and password resets.
+
 = 6.0.1 =
-* New Feature - Inventory can be filtered to one product and its variants.
-* New Feature - Email settings: the logo in every email has its own width, height limit and left / center / right position.
-* New Feature - Deleting an order or a product can be taken back: a bar above the list offers to put it, and everything it owned, back for fifteen minutes.
-* New Feature - Settings › Documents: choose what the order receipt, the order shipped email and the packing slip show, with a live preview built from one of your own orders. The packing slip settings moved here from Settings › Shipping.
-* New Feature - Document profiles: keep more than one version of each document, such as a packing slip without prices for gifts or a drop-ship slip with SKUs and no images, and choose which one each document uses by default.
-* New Feature - Email attachments: attach the invoice or the packing slip as a PDF to the order receipt, the store's copy of it, the order shipped email and the packing slip email, each with its own profile.
-* New Feature - Order details: one Send Email window for the order receipt, the order shipped email and the packing slip. Preview the email before it goes out and, for that one send, change its content, its attachments and which items are in the box; items left out are listed as to follow. The order activity records what was attached.
-* New Feature - Order details: email the packing slip, or download it as a PDF.
-* New Feature - Settings › Documents: give any profile of the receipt, the shipped email or the packing slip its own logo and footer image, with its own size and position, from Logo & footer beside Edit wording. The store logo and footer image stay on Settings › Email.
-* New Feature - Settings › Documents: the receipt, the shipped email and the packing slip can print your store address in their footer. Set the address once on Settings › Email; the switch on each profile links to it.
-* New Feature - Settings › Documents: the invoice or receipt PDF is now a document with profiles and a live preview. Each profile chooses what the PDF shows, whether it is headed Invoice or Receipt, and its own logo, and Email attachments or the order screen picks the profile for each email. Its business details, file name and paper size moved here from Settings › Email.
-* New Feature - Order details: download the invoice PDF at any time, not only when PDFs are attached to emails.
-* Improvement - Bulk actions: Delete is always the last choice in the menu, on every list.
-* Improvement - The notice about downloadable products with no file now links to a filtered product list showing exactly those products.
-* Improvement - Payments: a gateway nothing has been entered for now says Connect rather than Finish setup.
-* Improvement - Shipping settings: "Use FedEx account discounts" moved from the live carrier rates advanced settings into the FedEx block, where the rest of its settings are.
-* Improvement - Cart Links: the link name opens the editor, like the title column on other lists.
-* Improvement - Email settings: the email logo and signature image are chosen from the Media Library, with a thumbnail, instead of asking for a pasted URL.
-* Improvement - Checkout settings: the terms and privacy fields can write a starting draft page and fill in its address.
-* Improvement - Countries & Regions: a region can be deleted straight from the expanded list, and the counts above the list follow region changes.
-* Improvement - Store Status: a carrier with shipping rates but no working connection now offers to open its settings or remove those rates.
-* Improvement - Order details: an email sent with Email Customer is recorded in the order activity, with who it went to and its subject, and appears without a reload.
-* Improvement - Deleting from a row menu now asks in the admin's own confirmation box rather than the browser's.
-* Improvement - Newsletter subscribers: deleting one, or a selection, now asks first, and the list refreshes once they are gone.
-* Improvement - Countries & Regions: a region row now carries the same "..." menu as every other list, with Edit and Delete inside it, instead of text links in the Regions column.
-* Improvement - Deleting a customer can now be undone for 15 minutes, the same as orders and products.
-* Improvement - Deleting a customer now asks what should happen to the orders they placed: move them to another customer, or turn them back into guest checkouts. Orders are never deleted, and the whole thing can be undone from Store Status.
-* Improvement - Square: inventory notifications are now checked against a key registered by your store, recorded in a log you can see on the Square panel, and ignored if the same event arrives twice.
-* Improvement - A database change that cannot be applied on your host can now be passed over, so the rest of the update finishes instead of retrying forever. The statement that failed is shown so it can be run by hand, Store Status lists anything skipped, and you can put it back in the queue at any time.
-* Improvement - Free local pickup orders are fulfilled by marking them picked up. The orders list offers "Mark picked up" and the order screen "Mark Picked Up", with no carrier, tracking number or shipped email, and the order reads "Picked up" afterwards. Fulfilling several orders at once does the same for any pickup orders among them.
-* Improvement - Product editor: removing, reordering or adding an option set now asks in the admin's own window and lists what the change means for that product: its variations and their own settings, stock tracked per variation, and the per-option image galleries.
-* Improvement - Packing slip: rebuilt on the same design as the store's emails. It can show the shipping method, carrier and tracking number, and on a new store it starts without prices.
-* Improvement - Order receipt and order shipped email: the addresses, the customer's email address, product images, SKUs, options, prices and order notes can each be switched off.
-* Improvement - A store that keeps its own copy of the receipt, shipped email or packing slip template is told on Settings › Documents that its copy keeps working but new switches do not reach it.
-* Improvement - Settings › Documents: Edit wording opens the headings and phrases a document prints, in your store's language, beside the preview, so they can be changed without leaving the page.
-* Improvement - Payments: Square's settings are laid out in groups ( payments, sync, checkout ) with every option in view instead of behind Advanced Options, and saving shows a small indicator instead of covering the form.
-* Improvement - Payments: Square's card says what syncs from Square and when the last webhook notification arrived.
-* Improvement - Order details: Email Customer is now part of Send Email, as a Message choice beside the receipt, the shipped email and the packing slip.
-* Improvement - Square: when webhook notifications are on but not signed yet, the Square settings say so and offer a one-click Secure notifications, and the Square card on Settings › Payments shows it.
-* Bug Fix - Shipping settings: choosing Live carrier rates ( or Fraktjakt ) for the first time reported "Could not save" although the choice was valid; it now saves on the first try.
-* Bug Fix - Customers list: View Orders in the row menu now filters the orders list by that customer instead of searching their email address.
-* Bug Fix - Reports and dashboard figures now pick up a change to the currency format straight away instead of showing the old format until the cache expired.
-* Bug Fix - Products: an add-new link now opens the product list with the quick-add panel, instead of an editor that cannot save a new product.
-* Bug Fix - The counts beside a list, such as "Roles 6", now go down as rows are deleted instead of holding the old number.
-* Bug Fix - Variations: changing a variation's stock, or switching one off, now updates the product's own stock total straight away, so the inventory list, the out of stock filter and the store front stop showing the old number.
-* Bug Fix - Variations: the total above the variations table now counts an enabled but untracked variation the same way the product's stored total does, so the two figures agree.
-* Bug Fix - Square: syncing an item that has more than one variation no longer replaces the product's SKU with the first variation's SKU.
-* Bug Fix - Square: when a sync does change a product's SKU, its store page now follows it, so the link to the product keeps working.
-* Bug Fix - Saving a settings page could fail with a server error instead of storing the change.
-* Bug Fix - Inventory: products whose picture sits in the gallery or in one of the older image slots now show their thumbnail, instead of a placeholder, matching the product list.
-* Bug Fix - Settings: the section menu on the left of a settings panel no longer slides up behind the page header as you scroll, hiding its first entries.
-* Bug Fix - Settings: "Show N advanced settings" now counts a setting that only appears once another advanced setting is switched on, so the number matches what opens.
-* Bug Fix - Deleting a single order, product or customer now explains what the delete does, instead of asking over an empty box.
-* Bug Fix - The warning about downloadable products with no file now appears as soon as such a product is saved, rather than waiting for a cached count to expire.
-* Bug Fix - Undo after a deletion no longer reports that the deletion can no longer be undone. The saved copy is kept somewhere a cache clear cannot reach, which affected subscribers most often.
-* Bug Fix - Square: turning Webhook Sync on when the connection cannot be registered now leaves the switch off and says why, instead of appearing to succeed. Turning it off tells the forwarder to stop as well.
-* Bug Fix - Orders: printing several receipts or packing slips at once now starts each one on its own page instead of running them together.
-* Bug Fix - Store managers with settings access can now use the Log Entries, Countries & Regions, Price points, Per page and email delivery screens fully. The pages opened for them but every action answered "Permission denied".
-* Bug Fix - USPS live rates: a thin product was measured as a full inch tall for every unit in the cart, so a large quantity was described to USPS as a far bigger parcel than it is and priced on dimensional weight. Quotes for stacks of small items are much closer now.
-* Bug Fix - USPS live rates: every parcel was reported as at least 10 x 10 x 5 inches, so small orders were quoted against a carton far bigger than what is being sent. The real size is used, and a store that does ship everything in one carton can set its own minimum.
-* Bug Fix - Live carrier rates: the parcel measured for UPS, FedEx, DHL and the other carriers ignored how many of each item were in the cart, lost any dimension under half an inch, and reported the longest side as the width.
-* Bug Fix - A database update could stop on a table whose index was built before the column changed type, leaving the store reporting "database upgrade in progress" indefinitely. The index is moved aside and put back, so the update completes.
-* Bug Fix - Customers list: the Orders, Spend and Last order columns now update when an order is moved to another customer, turned into a guest checkout, deleted, put back, or when two customers are merged. Both the customer losing the order and the one gaining it are recalculated.
-* Bug Fix - Lists: after a bulk print or an export, the next bulk action, search or filter did nothing until the page was reloaded. On the orders list this stopped a second bulk print, such as packing slips after receipts.
-* Bug Fix - Product editor: removing one option set, or dragging the sets into a new order, removed every option set and every variation from the product. Only the set you remove is taken off now, and a new order is kept.
-* Bug Fix - An order email that failed and was sent again from the email queue went out without its PDF. The attachments are now built again for every retry.
-* Bug Fix - Product page with images per option and stock per variant: when every option was out of stock, the page showed the "image not found" picture instead of the product's default images.
-* Bug Fix - Product page with images per option: the page opened on the default images and then jumped to an option's images. It now opens on the option selected by default when it can be bought, otherwise on the default images, and without default images on the first option that can be bought (or the first option).
-* Bug Fix - The order shipped email ignored an email method chosen by another plugin and was listed as a general order email in email delivery. It now goes out like the receipt and is listed as Order shipped.
-* Bug Fix - Log Entries: a new entry could read "1 hour ago" when the database server keeps a different time zone from the store.
-* Bug Fix - Square: changing whether products you switch off stay off after a sync also made Square the live payment gateway.
-* Bug Fix - Square: saving Square's location or merchant name while another gateway took live payments could switch that gateway off.
-* Bug Fix - Product pages: adding to the cart no longer fails with "Maximum quantity exceeded" when a related or featured product with quick view has less stock than the quantity chosen.
+* New Feature - Order documents: choose what the order receipt, shipped email, packing slip and invoice PDF show, keep several versions of each ( such as a packing slip without prices ) with its own logo, and preview them with your own orders.
+* New Feature - Attach the invoice or packing slip as a PDF to order emails.
+* New Feature - Send Email on the order screen: send the receipt, shipped email, packing slip or your own message, preview it first and change what it includes for that one send.
+* New Feature - Undo deletes: a deleted order, product or customer can be put back for 15 minutes.
+* New Feature - Deleting a customer lets you move their orders to another customer or keep them as guest orders.
+* Improvement - Local pickup orders are marked picked up instead of going through shipping.
+* Improvement - The packing slip matches your store's emails and can show the shipping method, carrier and tracking number.
+* Improvement - Choose the email logo and signature image from the Media Library and set their size and position.
+* Improvement - Square: inventory notifications are verified and logged, and the Square settings show what syncs and when the last notification arrived.
+* Improvement - The setup wizard and Store Status support stores that ship nothing or charge no tax.
+* Improvement - Checkout settings can create starting drafts of your terms and privacy pages.
+* Improvement - A database change your host can't apply can be skipped, so the rest of the update finishes.
+* Improvement - Inventory can be filtered to one product and its variations.
+* Improvement - Packing slip and invoice PDF wording now comes in Chinese, Danish, Dutch, French, German, Greek, Hungarian, Latvian, Russian and Spanish.
+* Bug Fix - Live shipping rates measure parcels correctly, so USPS, UPS, FedEx and DHL quotes are much closer to the real cost.
+* Bug Fix - Removing or reordering one option set in the product editor no longer removes every option set and variation.
+* Bug Fix - Changing a variation's stock updates the product's total stock right away.
+* Bug Fix - Square sync keeps your product SKUs and links, no longer stops on newer PHP versions, and saving Square settings no longer switches off other payment gateways.
+* Bug Fix - Order emails resent from the email queue keep their PDF attachments.
+* Bug Fix - Database updates no longer get stuck on "database upgrade in progress".
+* Bug Fix - Customer order counts and spend stay correct when orders move between customers or customers are merged.
+* Bug Fix - Undo works after deleting subscribers, roles, subscription plans and subscriptions.
+* Bug Fix - Store managers can use every settings screen they can open.
+* Bug Fix - Product pages with images per option open on the right images.
+* Bug Fix - Printing several receipts or packing slips puts each on its own page, and list actions keep working after a print or export.
+* Bug Fix - Adding to the cart no longer fails with "Maximum quantity exceeded" because of a related product's quick view.
+* Bug Fix - Settings save reliably, including the first time you choose live carrier rates.
+* Bug Fix - The order shipped email uses the email method set by another plugin.
+
 = 6.0.0 =
 * New Feature - Settings redesigned: a Settings home with search across every setting, pages organized into sections with a jump list and clearer wording throughout.
 * New Feature - Flex-Fees: a percentage fee can now be calculated on the order total (subtotal + shipping + tax - discounts) instead of the subtotal only, so a card-processing fee such as 2.9% covers the whole charged amount.
@@ -350,7 +320,25 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 * Improvement - Inquiries are rate limited per visitor, per email address and per product, with merchant-set hourly limits under Settings > Products > Inquiry form protection.
 * Improvement - Inquiry messages are now checked for length, excessive links and a merchant-editable list of blocked words and domains, and forged or mismatched form fields are rejected.
 * Improvement - Hardened the inquiry submit handler: the form nonce is checked before any field is read, and every posted field is sanitized once.
+* Improvement - The product editor is now always the redesigned editor; the setting that switched between the classic and new editors has been removed.
+* Improvement - Legacy admin screens that had been replaced by the redesigned lists, editors and settings pages have been removed from the plugin, along with their scripts and handlers, for a smaller and faster admin.
+* Improvement - Store schedule and store locations are now one Settings page with a tab for each, and locations are added and edited in a side panel that also shows where each location is used and which schedules apply there.
+* Improvement - When an active extension plugin is on a version that does not match this release, the WP EasyCart admin shows a page to update or deactivate it instead of failing to load.
+* Improvement - Feature labels, license and renewal notices, upgrade prompts and locked-feature messages now name the plan your store is on (Pro or Premium) instead of one label for every paid plan.
+* Improvement - Shipping settings: carrier accounts are shown one carrier at a time in tabs, starting with USPS, and each carrier's connection status updates as soon as a detail is saved, naming any missing details (such as the origin country) or explaining why the carrier did not accept them.
+* Improvement - Order statuses on new and existing stores get default colors (green for completed, amber for in progress, red for problems) where a status was left white; colors you have chosen are kept.
+* Improvement - Shipping settings: Australia Post, Canada Post and DHL each have an on/off switch, and turning a carrier off clears its saved details; USPS now shows as simply on or off instead of asking for the retired Web Tools username.
+* Improvement - Settings > Schedule & Locations: the Locations tab says when Multiple pickup locations is turned off and links straight to that setting.
+* Improvement - Order details: Resend order receipt and Send order shipped email open a send panel with To, Cc and Bcc, starting from the order's current email address (including one just changed on the order), instead of a browser prompt.
+* Improvement - On phones, the product, option set, category, customer and role editors keep their section list and health panel in a slide-out behind a menu button, so the screen starts on the settings you came to change.
+* Improvement - Page headers redesigned: every admin screen now opens with a card that matches the panels below it, an icon, the page name and a line of context such as the record count, with Help, Import and Add grouped at the right.
+* Improvement - Tax rates by state and by country: a saved row reads as text with Edit and Delete, editing happens in the row itself, deleting asks in the table instead of a browser box, and adding happens in the last row of the table.
+* Improvement - Mobile admin pass: page headers keep the page name and the full "Add" wording on a phone — the title and its count sit on one row and the actions on the next, with the Add button across the row and Help or Import as tap-sized icon buttons — notices with a button stack instead of squeezing into a column, tables that sit in a card scroll sideways so the Actions column is reachable, the order screen keeps its status and actions on screen under 600px, and the settings save bar stays above the bottom tab bar.
+* Bug Fix - On a phone, list screens showed a centred page title with an unlabelled button beneath it instead of the page name and its actions.
 * Bug Fix - Settings > Admin > Quick add panel: the four toggles had no effect on the Add product panel since the settings redesign.
+* Bug Fix - Choosing the card or spreadsheet view on one list left other lists ( Abandoned Carts, Gift Cards, Flex-Fees, Countries & Regions, Store Schedule, Locations, Downloads, Subscriptions ) stuck in a view they do not offer, with no way back to the table.
+* Bug Fix - Reviews > Requests & rules: the Help link was unstyled.
+* Bug Fix - A settings section whose advanced rows all sit behind a switch that is off no longer shows a "Show 0 advanced settings" line.
 * Bug Fix - Order details: an order with nothing to ship showed as unfulfilled on the order screen while the list showed "No shipping".
 * Bug Fix - Log entries search now matches each word across the response and source, finds order numbers and transaction ids reliably, returns to page 1 on a new search, and keeps special characters when paging and exporting.
 * Bug Fix - Subscription checkout saved an option's download settings as a file name, creating download records that could not be downloaded; option override files on subscriptions are now read correctly too.
@@ -398,6 +386,7 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 * Bug Fix - Customer file uploads (file upload option) can no longer be downloaded by guessing their address.
 * Bug Fix - Paid digital download files can no longer be downloaded by direct address without buying them. 
 * Bug Fix - Built-in order statuses (1-19) can no longer be deleted or have their paid setting changed by a direct admin request; previously only the settings screen prevented it.
+* Bug Fix - The Duplicate Order link on the order details screen now opens the duplicate drawer on the Orders list instead of doing nothing.
 = 5.9.4 =
 * New Feature - Updated admin design, modernized shell.
 * New Feature - Inventory management screen upgraded.
@@ -1623,6 +1612,5 @@ Please report security bugs found in the source code of the WP EasyCart plugin t
 
 == Upgrade Notice ==
 
-= 1.*.* =
-Be sure to backup all files and database before completing an upgrade of any kind.  In the event an upgrade causes a conflict, you may revert back to this backup.
-
+= 6.0.2 =
+A large update with a redesigned order screen, checkout protection and rebuilt reports. Requires WordPress 6.5 or newer. Back up your site first, and update WP EasyCart PRO to 6.0.2 at the same time if you use it.

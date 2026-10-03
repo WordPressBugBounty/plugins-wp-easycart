@@ -39,9 +39,11 @@ $ectr_email_act = self_admin_url( 'admin.php?page=wp-easycart-registration&subpa
 			<?php endif; ?>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'none' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'none' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 		</div>
 	</div>
+
+	<?php include __DIR__ . '/registration-notice-v2.php'; /* 6.0.2: a key entered here showed no result before */ ?>
 
 	<?php if ( $ectr_ended ) : ?>
 	<div class="ecreg-notice is-ended">

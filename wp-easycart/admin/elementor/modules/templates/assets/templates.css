@@ -1,0 +1,121 @@
+/* WP EasyCart Elementor: category and manufacturer widgets ( 6.0.2, templates module ). */
+
+.wpec-el-category-title,
+.wpec-el-manufacturer-title {
+	margin: 0;
+}
+
+.wpec-el-category-title a,
+.wpec-el-manufacturer-title a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-el-category-description > :last-child,
+.wpec-el-manufacturer-description > :last-child,
+.wpec-el-subcategory-description > :last-child {
+	margin-bottom: 0;
+}
+
+.wpec-el-category-image img,
+.wpec-el-manufacturer-logo img {
+	display: inline-block;
+	max-width: 100%;
+	height: auto;
+	vertical-align: middle;
+}
+
+/* Subcategories */
+.wpec-el-subcategories {
+	display: grid;
+	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	gap: var( --wpec-gap, 16px );
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-el-subcategory {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	text-align: center;
+	border-radius: var( --wpec-radius, 6px );
+	transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.wpec-el-subcategory-link {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-el-subcategory-link:focus-visible {
+	outline: 2px solid var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	outline-offset: 3px;
+	border-radius: var( --wpec-radius, 6px );
+}
+
+.wpec-el-subcategory-media {
+	display: block;
+	overflow: hidden;
+	aspect-ratio: 1 / 1;
+	margin-bottom: 8px;
+	border-radius: var( --wpec-radius, 6px );
+	background: rgba( 0, 0, 0, .04 );
+}
+
+.wpec-el-subcategory-media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform .3s ease;
+}
+
+.wpec-el-subcategory-link:hover .wpec-el-subcategory-media img {
+	transform: scale( 1.04 );
+}
+
+.wpec-el-subcategory-name {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.wpec-el-subcategory-count {
+	font-size: .875em;
+	color: var( --wpec-muted-color, #6b6b6b );
+}
+
+.wpec-el-subcategory-description {
+	margin-top: 6px;
+	font-size: .9375em;
+	color: var( --wpec-muted-color, #6b6b6b );
+}
+
+@media ( max-width: 1024px ) {
+	.wpec-el-subcategories {
+		grid-template-columns: repeat( 3, minmax( 0, 1fr ) );
+	}
+}
+
+@media ( max-width: 767px ) {
+	.wpec-el-subcategories {
+		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wpec-el-subcategory,
+	.wpec-el-subcategory-media img {
+		transition: none;
+	}
+
+	.wpec-el-subcategory-link:hover .wpec-el-subcategory-media img {
+		transform: none;
+	}
+}

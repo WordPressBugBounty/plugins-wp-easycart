@@ -1,0 +1,99 @@
+/* WP EasyCart — Settings › Checkout protection ( 6.0.2 ). Status card, explanations, lists and activity.
+   Colours come from the V2 admin tokens; the accent follows the admin colourizer ( --ec-brand ). */
+
+.ecpt-status { display: grid; grid-template-columns: 150px minmax( 0, 1fr ); gap: 14px 18px; align-items: center; padding: 4px 0 12px; }
+.ecpt-shield { display: grid; justify-items: center; gap: 3px; text-align: center; }
+.ecpt-shield svg { width: 62px; height: 62px; }
+.ecpt-shield b { font-size: 15px; color: var( --ecv2-g900, #111827 ); }
+.ecpt-shield small { font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpt-shield.is-ok { color: #16a34a; }
+.ecpt-shield.is-bad { color: #dc2626; }
+.ecpt-shield.is-warn { color: #d97706; }
+.ecpt-shield.is-off { color: var( --ecv2-g400, #9ca3af ); }
+
+.ecpt-kpis { display: grid; grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); gap: 8px; }
+.ecpt-kpi { border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 6px; padding: 9px 11px; display: grid; gap: 1px; min-width: 0; }
+.ecpt-kpi b { font-size: 19px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var( --ecv2-g900, #111827 ); }
+.ecpt-kpi span { font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); line-height: 1.35; }
+.ecpt-kpi.is-ok b { color: #15803d; }
+.ecpt-kpi.is-warn b { color: #b45309; }
+
+.ecpt-spark-wrap { grid-column: 2; display: grid; gap: 4px; }
+.ecpt-spark-label { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpt-spark-label i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 4px 0 8px; vertical-align: -1px; }
+.ecpt-spark-label i:first-child { margin-left: 0; }
+.ecpt-spark-label i.is-stop, .ecpt-spark .is-stop { background: var( --ecv2-g900, #111827 ); }
+.ecpt-spark-label i.is-dec, .ecpt-spark .is-dec { background: #f59e0b; }
+.ecpt-spark { display: flex; align-items: flex-end; gap: 4px; height: 54px; border-bottom: 1px solid var( --ecv2-g200, #e5e7eb ); }
+.ecpt-spark > div { flex: 1; display: flex; flex-direction: column-reverse; height: 100%; min-width: 0; }
+.ecpt-spark span { display: block; width: 100%; }
+.ecpt-spark .is-stop { border-radius: 2px 2px 0 0; }
+
+.ecpt-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 12px; }
+
+.ecpt-3col { display: grid; grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); gap: 12px; padding-top: 12px; border-top: 1px dashed var( --ecv2-g200, #e5e7eb ); }
+.ecpt-3col > div { display: grid; gap: 4px; align-content: start; font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g600, #4b5563 ); }
+.ecpt-3col b { font-size: 12.5px; color: var( --ecv2-g900, #111827 ); }
+
+.ecpt-note { padding: 10px 12px; border-radius: 6px; border: 1px solid var( --ecv2-g200, #e5e7eb ); background: var( --ecv2-g50, #f9fafb ); font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g700, #374151 ); }
+.ecpt-note b { color: var( --ecv2-g900, #111827 ); }
+.ecpt-note ul { margin: 6px 0 0; padding-left: 18px; list-style: disc; }
+.ecpt-note li { margin: 3px 0; }
+.ecpt-note.is-ok { background: #f0fdf4; border-color: #bbf7d0; }
+.ecpt-note.is-warn { background: #fffbeb; border-color: #fde68a; }
+.ecpt-note.is-bad { background: #fef2f2; border-color: #fecaca; color: #7f1d1d; }
+#ecpt-level-explain { padding: 2px 0 6px; }
+
+.ecpt-inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var( --ecv2-g600, #4b5563 ); }
+.ecpt-myip { padding: 4px 0 10px; }
+.ecpt-done { font-size: 12px; font-weight: 600; color: #15803d; }
+
+.ecpt-test { display: grid; grid-template-columns: minmax( 0, 1fr ) auto; gap: 8px 14px; align-items: center; margin-top: 12px; padding: 12px; border-radius: 6px; border: 1px solid var( --ecv2-g200, #e5e7eb ); }
+.ecpt-test > div:first-child { display: grid; gap: 2px; font-size: 12.5px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpt-test > div:first-child b { color: var( --ecv2-g900, #111827 ); font-size: 13px; }
+#ecpt-test-widget, .ecpt-test-result { grid-column: 1 / -1; }
+.ecpt-test-result { font-size: 12.5px; }
+.ecpt-test-result.is-ok { color: #15803d; font-weight: 600; }
+.ecpt-test-result.is-bad { color: #b91c1c; }
+
+.ecpt-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0 6px; border-top: 1px solid var( --ecv2-g100, #f3f4f6 ); }
+.ecpt-sub b { font-size: 13px; color: var( --ecv2-g900, #111827 ); }
+.ecpt-hint { font-size: 12px; color: var( --ecv2-g500, #6b7280 ); }
+.ecpt-empty { font-size: 12.5px; color: var( --ecv2-g500, #6b7280 ); margin: 4px 0; text-align: center; padding: 12px; }
+
+.ecpt-tablewrap { overflow-x: auto; }
+.ecpt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ecpt-table th { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var( --ecv2-g500, #6b7280 ); padding: 8px 10px; border-bottom: 1px solid var( --ecv2-g200, #e5e7eb ); text-align: left; white-space: nowrap; }
+.ecpt-table td { padding: 8px 10px; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g700, #374151 ); vertical-align: middle; }
+.ecpt-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: var( --ecv2-g600, #4b5563 ); }
+.ecpt-right { text-align: right; }
+.ecpt-nowrap { white-space: nowrap; }
+.ecpt-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; margin-right: 4px; }
+.ecpt-tag.is-stop { background: var( --ecv2-g900, #111827 ); color: #fff; }
+.ecpt-tag.is-dec { background: #fef3c7; color: #92400e; }
+.ecpt-tag.is-pass { background: #dcfce7; color: #166534; }
+.ecpt-tag.is-att { background: #fee2e2; color: #991b1b; }
+.ecpt-tag.is-pause { background: #e0e7ff; color: #3730a3; }
+.ecpt-tag.is-watch { background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g600, #4b5563 ); }
+
+.ecpt-filter { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; }
+.ecpt-fbtn { font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; /* 6.0.2: the shorthand with inherit was dropped */ padding: 6px 10px; border-radius: 999px; border: 1px solid var( --ecv2-g300, #d1d5db ); background: #fff; color: var( --ecv2-g600, #4b5563 ); cursor: pointer; }
+.ecpt-fbtn[aria-pressed="true"] { background: var( --ec-brand-softer, #f3f4f6 ); border-color: var( --ec-brand, #111827 ); color: var( --ecv2-g900, #111827 ); }
+.ecpt-fbtn:focus-visible { outline: 2px solid var( --ec-brand, var( --ecv2-primary, #22c55e ) ); outline-offset: 2px; }
+.ecpt-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 8px; font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); }
+
+.ecpt-tips { display: grid; }
+.ecpt-tip { display: grid; grid-template-columns: 110px minmax( 0, 1fr ) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); font-size: 12.5px; color: var( --ecv2-g700, #374151 ); }
+.ecpt-tip:last-child { border-bottom: 0; }
+.ecpt-tip b { color: var( --ecv2-g900, #111827 ); }
+
+/* 6.0.2: the protection banner uses the shell notice card ( .wpec-pro-notice in shell-v2.css ). */
+
+@media ( max-width: 900px ) {
+	.ecpt-status { grid-template-columns: 1fr; }
+	.ecpt-spark-wrap { grid-column: 1; }
+	.ecpt-kpis { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); }
+	.ecpt-3col { grid-template-columns: 1fr; }
+	.ecpt-tip { grid-template-columns: 1fr; gap: 4px; }
+}
+.ecpt-test[hidden] { display: none !important; }

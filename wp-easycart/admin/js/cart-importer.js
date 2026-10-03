@@ -155,6 +155,11 @@ function wpeasycart_continue_square_import( cursor, curr_count ){
 	} } );
 }
 
+/* 6.0.2: nonce for the Shopify import calls ( localized by settings/integrations.php ). */
+function wpeasycart_shopify_import_nonce( ){
+    return ( typeof wp_easycart_cart_importer !== 'undefined' && wp_easycart_cart_importer.shopify_nonce ) ? wp_easycart_cart_importer.shopify_nonce : '';
+}
+
 function wpeasycart_start_shopify_import( ){
     jQuery( document.getElementById( 'wpeasycart_shopify_processing_button' ) ).show( );
     jQuery( document.getElementById( 'wpeasycart_shopify_start_button' ) ).hide( );
@@ -168,6 +173,7 @@ function wpeasycart_start_shopify_import( ){
 function wpeasycart_continue_shopify_products_import( cursor, curr_count ){
     var data = {
 		action: 'ec_admin_ajax_shopify_import_products',
+        wp_easycart_nonce: wpeasycart_shopify_import_nonce( ),
         cursor: cursor,
         curr_count: curr_count,
         wpeasycart_shopify_api_key: jQuery( document.getElementById( 'wpeasycart_shopify_api_key' ) ).val( ),
@@ -200,6 +206,7 @@ function wpeasycart_continue_shopify_products_import( cursor, curr_count ){
 function wpeasycart_continue_shopify_categories_import( cursor, curr_count ){
     var data = {
 		action: 'ec_admin_ajax_shopify_import_categories',
+        wp_easycart_nonce: wpeasycart_shopify_import_nonce( ),
         cursor: cursor,
         curr_count: curr_count,
         wpeasycart_shopify_api_key: jQuery( document.getElementById( 'wpeasycart_shopify_api_key' ) ).val( ),
@@ -233,6 +240,7 @@ function wpeasycart_continue_shopify_users_import( cursor, curr_count ){
     jQuery( document.getElementById( 'wpeasycart_shopify_import_progress_bar' ) ).show( );
     var data = {
 		action: 'ec_admin_ajax_shopify_import_users',
+        wp_easycart_nonce: wpeasycart_shopify_import_nonce( ),
         cursor: cursor,
         curr_count: curr_count,
         wpeasycart_shopify_api_key: jQuery( document.getElementById( 'wpeasycart_shopify_api_key' ) ).val( ),
@@ -300,7 +308,8 @@ function wpeasycart_continue_woo_import( stage, cursor ) {
 		$bar.find( '.ec_admin_process_status > span' ).text( d.processed + ' / ' + d.total + ' ' + $bar.data( 'l-products' ) );
 		if ( d.done ) {
 			$bar.find( '.ec_admin_progress_bar > div' ).width( '100%' ).addClass( 'done' );
-			$bar.find( '.ec_admin_process_status > span' ).text( $bar.data( 'l-done' ) );
+			/* 6.0.2: a run after an earlier one says how many products it left as they were. */
+			$bar.find( '.ec_admin_process_status > span' ).text( $bar.data( 'l-done' ) + ( ( d.skipped > 0 && $bar.data( 'l-skipped' ) ) ? ' ' + String( $bar.data( 'l-skipped' ) ).replace( '%d', d.skipped ) : '' ) );
 			jQuery( '#wpeasycart_woo_processing_button' ).hide();
 			jQuery( '#wpeasycart_woo_import_done' ).show();
 		} else {

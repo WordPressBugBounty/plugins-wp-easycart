@@ -72,6 +72,26 @@ if ( ! function_exists( 'ecst_payment_render_more' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_payment_render_subscriptions' ) ) {
+	/**
+	 * Row: subscription products are for sale, but subscriptions need Stripe ( 6.0.2 ). Prints nothing otherwise, and
+	 * settings-payment-v2.css hides the empty row.
+	 *
+	 * @param array $field Field.
+	 * @param array $page  Declaration.
+	 */
+	function ecst_payment_render_subscriptions( $field = array(), $page = array() ) {
+		if ( ! class_exists( 'wp_easycart_subscription_gateway' ) ) {
+			return;
+		}
+		$count = wp_easycart_subscription_gateway::stranded_products();
+		if ( $count > 0 ) {
+			/* Already on Settings › Payments: the gateway cards below are the way to fix it. */
+			echo wp_easycart_subscription_gateway::notice_html( 'payments', array( 'count' => $count, 'link' => false ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part.
+		}
+	}
+}
+
 if ( ! function_exists( 'ecst_payment_test_mode_off' ) ) {
 	/** Declared action: switch every active gateway that is in test mode back to live. */
 	function ecst_payment_test_mode_off( $action, $page ) {
@@ -89,7 +109,8 @@ return array(
 	'slug'        => 'payment',
 	'title'       => __( 'Payment', 'wp-easycart' ),
 	'description' => __( 'What shoppers can pay with, whether each gateway is connected, and whether it is live or in test mode.', 'wp-easycart' ),
-	'group'       => 'financial',
+	'group'       => 'payments-taxes',
+	'order'       => 10,
 	'icon'        => 'money-alt',
 	'docs'        => array( 'settings', 'payment', 'live-gateway' ),
 	'legacy'      => array( 'payment' ),
@@ -100,7 +121,17 @@ return array(
 		'active' => array(
 			'title'   => __( 'Active gateways', 'wp-easycart' ),
 			'hint'    => __( 'One live gateway, one third-party checkout and Bill later can all be on at the same time', 'wp-easycart' ),
-			'fields'  => array(),
+			'fields'  => array(
+				/* 6.0.2: subscriptions are billed through Stripe only; shown while subscription products are for sale and can't be bought. */
+				'ecst_payment_subscriptions' => array(
+					'type'     => 'html',
+					'label'    => __( 'Subscriptions need Stripe', 'wp-easycart' ),
+					'desc'     => __( 'Subscription products can only be bought while Stripe takes your card payments.', 'wp-easycart' ),
+					'render'   => 'ecst_payment_render_subscriptions',
+					'keywords' => array( 'subscription', 'subscriptions', 'recurring', 'membership', 'stripe', 'square' ),
+					'legacy'   => array( 'page' => 'payment', 'section' => 'Active gateways', 'label' => 'New in 6.0.2' ),
+				),
+			),
 			'render'  => 'ecst_payment_render_active',
 			'actions' => array(
 				array(

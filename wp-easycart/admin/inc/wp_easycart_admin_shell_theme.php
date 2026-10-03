@@ -228,9 +228,12 @@ function wp_easycart_shell_search_index() {
 		$items[] = array( 'label' => __( 'eCommerce Goals', 'wp-easycart' ), 'url' => $sec( $s, __( 'eCommerce Goals', 'wp-easycart' ) ), 'group' => $g . ' › ' . __( 'Initial Setup', 'wp-easycart' ), 'kw' => 'monthly goal sales target' );
 
 		$items[] = array( 'label' => __( 'Products Settings', 'wp-easycart' ), 'url' => $s . '&subpage=products', 'group' => $g, 'kw' => 'product display options' );
+		$items[] = array( 'label' => __( 'Search & AI', 'wp-easycart' ), 'url' => $s . '&subpage=search-ai', 'group' => $g, 'kw' => 'google chatgpt gemini seo structured data schema product feed merchant center' ); /* 6.0.2 */
 		$items[] = array( 'label' => __( 'Checkout Settings', 'wp-easycart' ), 'url' => $s . '&subpage=checkout', 'group' => $g, 'kw' => 'guest checkout terms' );
+		$items[] = array( 'label' => __( 'Checkout fields', 'wp-easycart' ), 'url' => $s . '&subpage=checkout-fields', 'group' => $g, 'kw' => 'custom fields questions form' ); /* 6.0.2 */
 		$items[] = array( 'label' => __( 'Accounts Settings', 'wp-easycart' ), 'url' => $s . '&subpage=account', 'group' => $g, 'kw' => 'registration login' );
 		$items[] = array( 'label' => __( 'Payment', 'wp-easycart' ), 'url' => $s . '&subpage=payment', 'group' => $g, 'kw' => 'stripe paypal square gateway credit card' );
+		$items[] = array( 'label' => __( 'Checkout protection', 'wp-easycart' ), 'url' => $s . '&subpage=checkout-protection', 'group' => $g, 'kw' => 'card testing fraud captcha turnstile bots declines' ); /* 6.0.2 */
 		$items[] = array( 'label' => __( 'Taxes', 'wp-easycart' ), 'url' => $s . '&subpage=tax', 'group' => $g, 'kw' => 'vat tax rates taxcloud' );
 		$items[] = array( 'label' => __( 'Flex-Fees', 'wp-easycart' ), 'url' => $s . '&subpage=fee', 'group' => $g, 'kw' => 'fees surcharge' );
 		$items[] = array( 'label' => __( 'Shipping Settings', 'wp-easycart' ), 'url' => $s . '&subpage=shipping-settings', 'group' => $g, 'kw' => 'ups usps fedex delivery' );
@@ -246,6 +249,7 @@ function wp_easycart_shell_search_index() {
 		$items[] = array( 'label' => __( 'Store Schedule', 'wp-easycart' ), 'url' => $s . '&subpage=schedule', 'group' => $g, 'kw' => 'hours open closed' );
 		$items[] = array( 'label' => __( 'Third Party', 'wp-easycart' ), 'url' => $s . '&subpage=third-party', 'group' => $g, 'kw' => 'integrations facebook google tiktok mailchimp' );
 		$items[] = array( 'label' => __( 'Cart Importer', 'wp-easycart' ), 'url' => $s . '&subpage=cart-importer', 'group' => $g, 'kw' => 'import woocommerce shopify migrate' );
+		$items[] = array( 'label' => __( 'Email marketing', 'wp-easycart' ), 'url' => $s . '&subpage=newsletter-services', 'group' => $g, 'kw' => 'mailerlite kit convertkit activecampaign newsletter lists' ); /* 6.0.2 */
 		$items[] = array( 'label' => __( 'Log Entries', 'wp-easycart' ), 'url' => $s . '&subpage=logs', 'group' => $g, 'kw' => 'gateway log errors debug' );
 
 		$m  = $s . '&subpage=miscellaneous';
@@ -256,6 +260,16 @@ function wp_easycart_shell_search_index() {
 		$items[] = array( 'label' => __( 'Product Quick Add Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Product Quick Add Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'quick creation stock shipping tax variants' );
 		$items[] = array( 'label' => __( 'Additional Admin Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Additional Admin Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'records per page refunds product editor v2 pickup' );
 		$items[] = array( 'label' => __( 'Search Options', 'wp-easycart' ), 'url' => $sec( $m, __( 'Search Options', 'wp-easycart' ) ), 'group' => $mg, 'kw' => 'store search' );
+	}
+	/* 6.0.2: EasyCart › Extensions and each extension in it. */
+	if ( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && class_exists( 'wp_easycart_admin_extensions' ) ) {
+		$items[] = array( 'label' => __( 'Extensions', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-extensions', 'group' => '', 'kw' => 'premium add-ons addons plugins integrations apps' );
+		foreach ( wp_easycart_admin_extensions::catalog() as $ecsh_ext_slug => $ecsh_ext ) {
+			if ( 'available' !== wp_easycart_admin_extensions::status( $ecsh_ext ) ) {
+				continue;
+			}
+			$items[] = array( 'label' => $ecsh_ext['name'], 'url' => 'admin.php?page=wp-easycart-extensions&subpage=' . $ecsh_ext_slug, 'group' => __( 'Extensions', 'wp-easycart' ), 'kw' => strtolower( $ecsh_ext['summary'] ) );
+		}
 	}
 	if ( $can( 'wpec_diagnostics' ) ) {
 		$items[] = array( 'label' => __( 'Diagnostics', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-status&subpage=store-status', 'group' => '', 'kw' => 'troubleshoot system status' );
@@ -297,6 +311,7 @@ function wp_easycart_shell_breadcrumb() {
 		'wp-easycart-settings'       => __( 'Settings', 'wp-easycart' ),
 		'wp-easycart-status'         => __( 'Diagnostics', 'wp-easycart' ),
 		'wp-easycart-registration'   => __( 'Registration', 'wp-easycart' ),
+		'wp-easycart-extensions'     => __( 'Extensions', 'wp-easycart' ),
 	);
 
 	/* Aliases: alternate subpage slugs that belong to a parent entry. */
@@ -363,10 +378,22 @@ function wp_easycart_shell_breadcrumb() {
 		),
 	);
 
+	/* 6.0.2: EasyCart › Extensions › <extension>. */
+	if ( class_exists( 'wp_easycart_admin_extensions' ) ) {
+		foreach ( wp_easycart_admin_extensions::catalog() as $ecsh_ext_slug => $ecsh_ext ) {
+			$subpages['wp-easycart-extensions'][ $ecsh_ext_slug ] = $ecsh_ext['name'];
+		}
+	}
+
 	$crumb = array( 'trail' => array(), 'here' => '' );
 
 	if ( isset( $pages[ $page ] ) ) {
 		$sub_label = isset( $subpages[ $page ] ) && isset( $subpages[ $page ][ $subpage ] ) ? $subpages[ $page ][ $subpage ] : '';
+		/* 6.0.2: any other settings page names itself from its declaration ( Search & AI, Checkout protection, Email marketing ... ). */
+		if ( '' === $sub_label && 'wp-easycart-settings' === $page && '' !== $subpage && class_exists( 'wp_easycart_admin_settings_registry' ) ) {
+			$decl      = wp_easycart_admin_settings_registry::page( $subpage );
+			$sub_label = ( $decl && 'settings' === $decl['host'] && ! empty( $decl['title'] ) ) ? (string) $decl['title'] : '';
+		}
 		/* Same-named default subpages (products/products, orders/orders) collapse to two levels. */
 		if ( '' !== $sub_label && $sub_label !== $pages[ $page ] ) {
 			$crumb['trail'][] = array( 'label' => $pages[ $page ], 'url' => 'admin.php?page=' . $page );

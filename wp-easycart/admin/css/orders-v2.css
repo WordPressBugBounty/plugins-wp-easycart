@@ -108,6 +108,9 @@
 .ecv2-order-badge-repeat { background:#ecfdf5; color:#047857; }
 .ecv2-order-badge-refund { background:#fef2f2; color:#b91c1c; }
 .ecv2-order-badge-promo { background:#eff6ff; color:#1d4ed8; }
+.ecv2-order-badge-due { background:#fff7ed; color:#9a3412; } /* 6.0.2: changed after it was paid */
+.ecv2-order-badge-over { background:#eff6ff; color:#1d4ed8; box-shadow:inset 0 0 0 1px #bfdbfe; }
+.ecv2-order-badge-cardtest { background:#fef2f2; color:#b91c1c; box-shadow:inset 0 0 0 1px #fecaca; }
 .ecv2-order-badge-flag { background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g600, #4b5563); }
 
 /* ------------------------------------------------------------------ */
@@ -343,3 +346,28 @@ body.ecv2-qe-open { overflow:hidden; }
 /* Fulfilled without a tracking number ( status Order Shipped / Picked Up ). @since 6.0.0 */
 .ecv2-order-fulfill-done { background:#ecfdf3; color:#067647; cursor:default; }
 .ecv2-order-fulfill-done .dashicons { color:#12b76a; }
+
+/* ------------------------------------------------------------------ */
+/* 6.0.2: the row's Fulfill / Mark picked up ( free, the order screen's Ship order ) and the order screen's Packed ticks. */
+/* ------------------------------------------------------------------ */
+.ecv2-order-fulfill-state { gap:4px; flex-wrap:wrap; }
+.ecv2-order-pack-chip { background:#f2f4f7; color:#344054; }
+.ecv2-order-pack-chip.ecv2-order-pack-done { background:#ecfdf3; color:#067647; }
+.ecv2-order-pack-chip.ecv2-order-pack-done .dashicons { color:#12b76a; }
+.ecv2-order-ship-pop { position:fixed; z-index:100006; width:300px; max-width:calc(100vw - 16px); box-sizing:border-box; background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-r, 8px); box-shadow:var(--ecv2-shlg, 0 10px 30px rgba(0,0,0,.15)); padding:12px 14px; }
+.ecv2-order-ship-pop[hidden] { display:none !important; }
+.ecv2-order-ship-title { margin:0 0 10px; font-size:14px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecv2-order-ship-pop .ecv2-modal-field { margin:0 0 10px; }
+.ecv2-order-ship-pop .ecv2-input,
+.ecv2-order-ship-pop .ecv2-select { width:100%; max-width:100%; box-sizing:border-box; }
+.ecv2-order-ship-meta { margin:0 0 10px; font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecv2-order-ship-body p { margin:0 0 10px; font-size:13px; line-height:1.5; color:var(--ecv2-g700, #374151); }
+.ecv2-order-ship-check { display:flex; align-items:center; gap:6px; margin:0 0 6px; font-size:13px; cursor:pointer; }
+.ecv2-order-ship-error { margin:4px 0 8px; font-size:12px; color:#b42318; }
+.ecv2-order-ship-actions { display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:10px; }
+.ecv2-order-ship-actions .dashicons { font-size:14px; width:14px; height:14px; vertical-align:middle; }
+/* The dialogs that ask first sit over the popover and the Quick edit drawer. */
+.ecv2-layer#ecv2-confirm-dialog { z-index:100020; }
+@media screen and ( max-width: 600px ) {
+	.ecv2-order-ship-pop { top:auto !important; right:8px !important; bottom:8px !important; left:8px !important; width:auto; }
+}

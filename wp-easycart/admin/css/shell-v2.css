@@ -95,13 +95,13 @@
 	z-index:20;
 }
 
-/* Brand header — reuses the existing admin-logo.png (174x70 box, white
-   artwork designed to sit on the brand-colored surface). Swap for an
-   SVG/2x asset later without touching markup. */
+/* Brand header — admin-logo.png is the WP EasyCart logo ( v4.3, white
+   text for the brand-colored surface ), 342x82, drawn 190px wide so it
+   stays sharp on high-resolution screens. */
 .ecsh-brand { display:block; padding:8px 8px 2px; }
 .ecsh-brand-logo {
 	height:70px;
-	background:url(../images/admin-logo.png) center 5px no-repeat;
+	background:url(../images/admin-logo.png?v=6.0.2) center / 190px auto no-repeat;
 	filter:drop-shadow(0 1px 2px rgba(0,0,0,.2));
 }
 
@@ -164,10 +164,13 @@
 .ecsh-sb-item .dashicons-lock, .ecsh-sb-sub .dashicons-lock { font-size:14px; width:14px; height:14px; margin-left:auto; }
 .ecsh-sb-sub .dashicons-lock { float:right; }
 
-/* Submenu accordion — identical on desktop and in the mobile drawer */
-.ecsh-sb-sub { overflow:hidden; max-height:0; transition:max-height 220ms ease; }
-.ecsh-sb-sub.ecsh-open { max-height:900px; }
-.ecsh-sb-sub-inner { margin:2px 0 6px; padding:6px 0; border-radius:var(--ecsh-r); background:var(--sb-panel); }
+/* Submenu accordion — identical on desktop and in the mobile drawer. 6.0.2: a panel opens to its own height ( a grid row
+   going from 0fr to 1fr ) rather than to a fixed max-height, which cut off the end of a long menu ( Settings › Log entries ),
+   and a closed panel is out of the keyboard order too. */
+.ecsh-sb-sub { display:grid; grid-template-rows:0fr; visibility:hidden; transition:grid-template-rows 220ms ease, margin 220ms ease, visibility 0s linear 220ms; }
+.ecsh-sb-sub.ecsh-open { grid-template-rows:1fr; visibility:visible; margin:2px 0 6px; transition:grid-template-rows 220ms ease, margin 220ms ease, visibility 0s; }
+.ecsh-sb-sub-inner { min-height:0; overflow:hidden; border-radius:var(--ecsh-r); background:var(--sb-panel); }
+.ecsh-sb-sub-inner::before, .ecsh-sb-sub-inner::after { content:""; display:block; height:6px; }
 .ecsh-sb-sub a {
 	display:block; padding:6px 14px 6px 38px; font-size:12.5px; color:var(--sb-item);
 	transition:color var(--ecsh-tr), background var(--ecsh-tr);
@@ -179,6 +182,24 @@
 	width:5px; height:5px; border-radius:50%; background:var(--ec-on-brand);
 }
 .ecsh-sb-sub-head { padding:9px 14px 3px 24px; font-size:10.5px; font-weight:700; color:var(--sb-head); }
+
+/* 6.0.2: the Settings menu's groups ( wp_easycart_admin_settings_home::navigation() ): the group holding the page is open, a
+   click opens another and closes the rest. */
+.ecsh-sb-group-head {
+	display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+	padding:6px 12px 6px 24px; border:0; background:transparent; cursor:pointer; text-align:left;
+	font:inherit; font-size:12.5px; font-weight:600; color:var(--sb-item);
+	transition:color var(--ecsh-tr), background var(--ecsh-tr);
+}
+.ecsh-sb-group-head:hover, .ecsh-sb-group.ecsh-open > .ecsh-sb-group-head { color:var(--ec-on-brand); }
+.ecsh-sb-group-head:hover { background:rgba(255,255,255,.06); }
+.ecsh-sb-group-head:focus-visible { outline:2px solid var(--ec-on-brand); outline-offset:-2px; }
+.ecsh-sb-group-head svg { width:12px; height:12px; flex-shrink:0; opacity:.7; transition:transform var(--ecsh-tr); }
+.ecsh-sb-group-head[aria-expanded="true"] svg { transform:rotate(90deg); }
+.ecsh-sb-group-pages { display:grid; grid-template-rows:0fr; visibility:hidden; transition:grid-template-rows 200ms ease, visibility 0s linear 200ms; }
+.ecsh-sb-group.ecsh-open > .ecsh-sb-group-pages { grid-template-rows:1fr; visibility:visible; transition:grid-template-rows 200ms ease, visibility 0s; }
+.ecsh-sb-group-inner { min-height:0; overflow:hidden; }
+.ecsh-sb-group-inner::after { content:""; display:block; height:4px; }
 
 /* Footer: trial/license + powered-by */
 .ecsh-sb-foot { padding:10px 14px 14px; border-top:1px solid rgba(255,255,255,.12); }
@@ -441,8 +462,8 @@
 	/* Compact brand chip: the white PNG needs a brand-colored backdrop
 	   to stay visible on the white top bar */
 	.ecsh-tb-logo {
-		display:block; width:96px; height:34px; border-radius:7px; flex-shrink:0;
-		background:var(--ec-brand) url(../images/admin-logo.png) center / auto 26px no-repeat;
+		display:block; width:112px; height:34px; border-radius:7px; flex-shrink:0;
+		background:var(--ec-brand) url(../images/admin-logo.png?v=6.0.2) center / auto 22px no-repeat;
 	}
 	.ecsh-tb-crumb .ecsh-trail { display:none; }
 
@@ -479,7 +500,7 @@
 }
 
 @media (prefers-reduced-motion: reduce){
-	.ecsh-app *, .ecsh-sidebar, .ecsh-scrim, .ecsh-sb-sub { transition:none !important; }
+	.ecsh-app *, .ecsh-sidebar, .ecsh-scrim, .ecsh-sb-sub, .ecsh-sb-group-pages { transition:none !important; }
 }
 
 /* =========================================================
@@ -492,13 +513,59 @@
 .ecv2-wrap .ecv2-btn-primary { background:var(--ec-brand); border-color:var(--ec-brand); color:var(--ec-on-brand); }
 .ecv2-wrap .ecv2-btn-primary:hover { background:var(--ec-brand-hover); border-color:var(--ec-brand-hover); color:var(--ec-on-brand); }
 
+/* 6.0.2: every primary action on an EasyCart screen follows the admin colour, not only those inside .ecv2-wrap: the order
+   screen and product editor ( .ecdv2-wrap ), in-shell notices, the upsell / Premium popups and the dialogs and drawers put on
+   <body>. Semantic greens ( switches that are on, paid / success chips ) stay green. */
+.ecsh-app .ecv2-btn-primary,
+#ec_admin_upsell_popup .ecv2-btn-primary,
+#ec_admin_premium_popup .ecv2-btn-primary,
+.ecv2-modal-overlay .ecv2-btn-primary,
+.ecpk-modal .ecv2-btn-primary,
+.ecst-drawer .ecv2-btn-primary,
+.ecodv2-drawer .ecv2-btn-primary,
+.ecodv2-label-popup .ecv2-btn-primary,
+.ecodv2-line-modal .ecv2-btn-primary,
+.ecsh-app .ecdv2-tier-add-btn,
+.ecsh-app .ecodv2-icon-btn-ok,
+.ecsh-app .ecdv2-legacy-pro .ec_admin_product_image_input_group button,
+.ecsh-app .ecdv2-legacy-pro .wp-easycart-pro-option-modal-add-button,
+.ecsh-app .ecdv2-wrap .ec_admin_product_image_input_group > button,
+.ecsh-app .ecdv2-legacy-pro .ec_admin_stock_notification_view h4 > a { background:var(--ec-brand); border-color:var(--ec-brand); color:var(--ec-on-brand); }
+.ecsh-app .ecv2-btn-primary:hover,
+#ec_admin_upsell_popup .ecv2-btn-primary:hover,
+#ec_admin_premium_popup .ecv2-btn-primary:hover,
+.ecv2-modal-overlay .ecv2-btn-primary:hover,
+.ecpk-modal .ecv2-btn-primary:hover,
+.ecst-drawer .ecv2-btn-primary:hover,
+.ecodv2-drawer .ecv2-btn-primary:hover,
+.ecodv2-label-popup .ecv2-btn-primary:hover,
+.ecodv2-line-modal .ecv2-btn-primary:hover,
+.ecsh-app .ecdv2-tier-add-btn:hover,
+.ecsh-app .ecodv2-icon-btn-ok:hover { background:var(--ec-brand-hover); border-color:var(--ec-brand-hover); color:var(--ec-on-brand); }
+.ecsh-app .ecdv2-legacy-pro .ec_admin_stock_notification_view .ec_admin_stock_notification_add_new input[type=button],
+.ecsh-app .ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row input[type=button],
+.ecsh-app #ecdv2_gm_body input[type="submit"] { background:var(--ec-brand) !important; color:var(--ec-on-brand) !important; }
+
 .ecv2-wrap .ecv2-stat-card:hover { border-color:var(--ec-brand); }
 .ecv2-wrap .ecv2-stat-active { border-color:var(--ec-brand); background:var(--ec-brand-softer); }
 
 .ecv2-wrap .ecv2-btn:focus-visible,
 .ecv2-wrap a:focus-visible,
 .ecv2-wrap input:focus-visible,
-.ecv2-wrap select:focus-visible { outline:2px solid var(--ec-brand); outline-offset:2px; }
+.ecv2-wrap select:focus-visible,
+.ecv2-layer .ecv2-btn:focus-visible,
+.ecv2-layer a:focus-visible,
+.ecv2-layer input:focus-visible,
+.ecv2-layer select:focus-visible { outline:2px solid var(--ec-brand); outline-offset:2px; }
+
+/* 6.0.2: list dialogs, toasts and the undo bar that shell-v2.js moves to <body> ( out of the .ecv2-wrap size container,
+   which positioned them against the whole list ) keep the list's type, colour and box sizing. */
+.ecv2-layer { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; color:var(--ecv2-g800); }
+.ecv2-layer *, .ecv2-layer *::before, .ecv2-layer *::after { box-sizing:border-box; }
+.ecv2-layer .select2-container { float:none !important; min-width:0 !important; }
+.ecv2-layer .select2-container--default .select2-selection--single { border-color:var(--ecv2-g300); border-radius:var(--ecv2-rs); height:34px; }
+.ecv2-layer .select2-container--default .select2-selection--single .select2-selection__rendered { line-height:34px; padding-left:10px; font-size:13px; color:var(--ecv2-g700); }
+.ecv2-layer .select2-container--default .select2-selection--single .select2-selection__arrow { height:34px; }
 
 .ecv2-wrap .ecv2-stat-toggle-btn:hover,
 .ecv2-wrap .ecv2-stat-toggle-btn[aria-expanded="true"] { border-color:var(--ec-brand); color:var(--ec-brand); }
@@ -580,11 +647,18 @@
 
 /* Variants: a tinted left accent + icon color; backgrounds stay calm so
    stacked notices don't shout. */
-.wpec-pro-notice--brand { border-left: 4px solid #2ebd59; }
-.wpec-pro-notice--brand .wpec-pro-notice-icon.dashicons { color: #2ebd59; }
-.wpec-pro-notice--brand .wpec-pro-notice-button { background: #2ebd59; }
+/* 6.0.2: the admin colour ( --ec-brand from the colorizer ), not a fixed green. */
+.wpec-pro-notice--brand { border-left: 4px solid var(--ec-brand, #2ebd59); }
+.wpec-pro-notice--brand .wpec-pro-notice-icon.dashicons { color: var(--ec-brand, #2ebd59); }
+.wpec-pro-notice--brand .wpec-pro-notice-button { background: var(--ec-brand, #2ebd59); }
 .wpec-pro-notice--brand .wpec-pro-notice-button:hover,
-.wpec-pro-notice--brand .wpec-pro-notice-button:focus { background: #219a47; }
+.wpec-pro-notice--brand .wpec-pro-notice-button:focus { background: var(--ec-brand-hover, #219a47); }
+
+/* 6.0.2: a second action beside the main one ( e.g. "Got it", "Keep on for 24 hours" ). */
+.wpec-pro-notice-actions { flex: 0 0 auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wpec-pro-notice-button.is-secondary { background: #fff; color: #1d2327 !important; border: 1px solid #c3c4c7; padding: 7px 15px; }
+.wpec-pro-notice-button.is-secondary:hover,
+.wpec-pro-notice-button.is-secondary:focus { background: #f6f7f7; color: #1d2327 !important; }
 
 .wpec-pro-notice--danger { border-left: 4px solid #d63638; background: #fdf5f5; }
 .wpec-pro-notice--danger .wpec-pro-notice-icon.dashicons { color: #d63638; }
@@ -605,6 +679,8 @@
 @media ( max-width: 600px ) {
 	.wpec-pro-notice { flex-wrap: wrap; }
 	.wpec-pro-notice-button { margin-left: 34px; }
+	.wpec-pro-notice-actions { margin-left: 34px; }
+	.wpec-pro-notice-actions .wpec-pro-notice-button { margin-left: 0; }
 }
 
 /* =========================================================

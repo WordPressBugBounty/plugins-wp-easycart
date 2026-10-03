@@ -192,7 +192,7 @@ if( isset( $elementor ) && $elementor && isset( $sorting ) ){
 // DISPLAY OPTIONS //
 
 // Check for iPhone/iPad/Admin
-$ipad = (bool) strpos( sanitize_text_field( $_SERVER['HTTP_USER_AGENT'] ), 'iPad' );
+$ipad = (bool) strpos( ( isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '' ), 'iPad' ); /* 6.0.2: no warning without a User-Agent */
 
 $is_admin = ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) );
 
@@ -573,10 +573,20 @@ function ec_admin_reorder_products( ids ){
 
 		<?php if( isset( $sidebar_include_search ) && $sidebar_include_search ){ ?>
 		<div class="ec_product_sidebar_group ec_product_sidebar_search">
-			<form action="<?php esc_attr( $this->store_page . $this->permalink_divider ); ?>" method="GET">
+			<?php
+			/* 6.0.2: the action printed nothing ( a missing echo ), so the search went to this page with its query dropped, which on
+			 * plain permalinks ( ?page_id= ) or WPML's ?lang= meant the front page or the default language. It still searches this
+			 * page, now through its permalink, with that permalink's own query kept as hidden inputs. */
+			$wpec_sidebar_search_url = ( is_singular() && get_queried_object_id() ) ? get_permalink( get_queried_object_id() ) : '';
+			if ( ! is_string( $wpec_sidebar_search_url ) ) {
+				$wpec_sidebar_search_url = '';
+			}
+			?>
+			<form action="<?php echo esc_url( $wpec_sidebar_search_url ); ?>" method="GET">
+				<?php if ( '' !== $wpec_sidebar_search_url && function_exists( 'wp_easycart_print_form_query_inputs' ) ) { wp_easycart_print_form_query_inputs( $wpec_sidebar_search_url ); } ?>
 				<input type="text" value="<?php echo esc_attr( ( ( isset( $_GET['ec_search'] ) ) ? preg_replace( '/[^a-zA-Z0-9\-\_\s]/', '', $_GET['ec_search'] ) : '' ) ); ?>" name="ec_search" placeholder="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_search' ); ?>" />
 				<button type="submit"><span class="dashicons dashicons-search"></span></button>
-				<a href="<?php echo esc_attr( $this->get_current_url( ) ); ?>" class="dashicons dashicons-no<?php echo ( isset( $_GET['ec_search'] ) && '' != $_GET['ec_search'] ) ? '' : ' ec_product_sidebar_search_clear_hide'; ?>"></a>
+				<a href="<?php echo ( '' !== $wpec_sidebar_search_url ) ? esc_url( $wpec_sidebar_search_url ) : esc_attr( $this->get_current_url( ) ); ?>" class="dashicons dashicons-no<?php echo ( isset( $_GET['ec_search'] ) && '' != $_GET['ec_search'] ) ? '' : ' ec_product_sidebar_search_clear_hide'; ?>"></a>
 			</form>
 		</div>
 		<?php }?>
@@ -660,8 +670,11 @@ function ec_admin_reorder_products( ids ){
 			<?php 
 			$sidebar_option_filters = explode( ',', $sidebar_option_filters );
 			$selected_sidebar_filters = explode( ',', $this->product_list->filter->get_optionitems_filters( ) );
-			foreach( $sidebar_option_filters as $sidebar_option_id ){ 
+			foreach( $sidebar_option_filters as $sidebar_option_id ){
 				$optionset = new ec_optionset( $sidebar_option_id );
+				if ( empty( $optionset->option_id ) ) {
+					continue; /* 6.0.2: no option sets chosen ( '' ) or one since deleted drew an empty group. */
+				}
 			?>
 
 				<div class="ec_product_sidebar_group ec_product_sidebar_option_group">
@@ -748,8 +761,11 @@ function ec_admin_reorder_products( ids ){
 				<?php 
 					$sidebar_manufacturers = explode( ',', $sidebar_manufacturers );
 					if ( is_array( $sidebar_manufacturers ) ) {
-						foreach( $sidebar_manufacturers as $sidebar_manufacturer_id ){ 
+						foreach( $sidebar_manufacturers as $sidebar_manufacturer_id ){
 							$sidebar_manufacturer = $GLOBALS['ec_manufacturers']->get_manufacturer( $sidebar_manufacturer_id );
+							if ( ! $sidebar_manufacturer ) {
+								continue; /* 6.0.2: no manufacturers chosen ( '' ) or one since deleted: PHP warnings and an empty link. */
+							}
 					?>
 						<li class="ec_product_sidebar_link_item ec_product_sidebar_link_item_manufacturer"><a href="<?php echo esc_url_raw( $this->get_manufacturer_link( $sidebar_manufacturer ) ); ?>"><?php echo esc_attr( $sidebar_manufacturer->name ); ?></a></li>
 					<?php }

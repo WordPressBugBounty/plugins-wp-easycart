@@ -266,12 +266,14 @@ function ec_admin_process_order_info( ){
 	var data = {
 		action: 'ec_admin_ajax_edit_order_info',
 		order_id: ec_admin_get_value( 'order_id', 'text' ),
-		order_weight: ec_admin_get_value( 'order_weight', 'text' ),
-		giftcard_id: ec_admin_get_value( 'giftcard_id', 'text' ),
-		promo_code: ec_admin_get_value( 'promo_code', 'text' ),
-		order_notes: ec_admin_get_value( 'order_notes', 'text' ),
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_order_details_nonce', 'text' )
 	};
+	/* 6.0.2: only the fields on the page ( a missing one was posted empty and blanked the order's weight ). */
+	jQuery.each( [ 'order_weight', 'giftcard_id', 'promo_code', 'order_notes' ], function( i, key ) {
+		if ( document.getElementById( key ) ) {
+			data[ key ] = ec_admin_get_value( key, 'text' );
+		}
+	} );
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_order_management' );

@@ -30,7 +30,7 @@ if( $is_payment_page && get_option( 'ec_option_paypal_enable_credit' ) == '0' ){
 	jQuery( document.getElementById( 'paypal-success-cover' ) ).appendTo( document.body );
 	function wpeasycart_paypal_render_button( ){
 		paypal.Buttons( {<?php
-			if ( ( ! $is_payment_page || get_option( 'ec_option_onepage_checkout' ) ) && get_option( 'ec_option_use_shipping' ) && $this->cart->shippable_total_items > 0 ) { ?>
+			if ( ( ! $is_payment_page || wp_easycart_onepage_active() ) && get_option( 'ec_option_use_shipping' ) && $this->cart->shippable_total_items > 0 ) { ?>
 			onShippingChange( data, actions ) {
 				var allowed_countries = [<?php
 				$first_country = true;

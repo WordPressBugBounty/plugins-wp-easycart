@@ -17,6 +17,10 @@
  * and attaches it; without PRO its Standard profile shows read only, with its preview. It replaced the printable receipt
  * as the PDF; Print receipt in My Account and on the order screen still prints ec_account_print_receipt.php.
  *
+ * The Invoice email ( 6.0.2, type 'invoice_email', template ec_invoice_email.php ) is the email WP EasyCart PRO sends from an
+ * order's Send Email dialog ( Invoice ): its profiles pick what the email shows ( the Pay button, items, bank details ); the
+ * PDF it carries is the Invoice PDF, with its own profile. Render args: pdf ( bool, the Invoice PDF goes with it ).
+ *
  * The Standard profile of the packing slip and of the order receipt also reads and writes the options those documents
  * used before 6.0.1 ( ec_option_packing_slip_show_*, ec_option_show_image_on_receipt, ec_option_show_email_on_receipt ),
  * so a template copied into the data folder keeps following the switches. A field with 'legacy' but no 'sync' only
@@ -87,6 +91,26 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'outputs' => array( 'pdf' ),
 					'pro'     => true,
 				),
+				/* 6.0.2: the email WP EasyCart PRO sends from an order's Send Email dialog ( Invoice ), with the Pay button. */
+				'invoice_email' => array(
+					'label'   => __( 'Invoice email', 'wp-easycart' ),
+					'desc'    => __( 'The email you send from an order with its invoice, and a Pay button while the order is unpaid.', 'wp-easycart' ),
+					'outputs' => array( 'email' ),
+					'pro'     => true,
+				),
+				/* 6.0.2: what a gift recipient gets ( no prices ), and the credit note a refund on an invoiced order issues. */
+				'gift_receipt' => array(
+					'label'   => __( 'Gift receipt', 'wp-easycart' ),
+					'desc'    => __( 'Emailed to the person receiving a gift order: what they are getting, without prices.', 'wp-easycart' ),
+					'outputs' => array( 'email', 'pdf' ),
+					'pro'     => true,
+				),
+				'credit_note'  => array(
+					'label'   => __( 'Credit note', 'wp-easycart' ),
+					'desc'    => __( 'Issued when an invoiced order is refunded, with its own number and a link to the invoice.', 'wp-easycart' ),
+					'outputs' => array( 'pdf' ),
+					'pro'     => true,
+				),
 			);
 			return (array) apply_filters( 'wp_easycart_document_types', $types );
 		}
@@ -124,6 +148,8 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				'people'   => __( 'Customer', 'wp-easycart' ),
 				'items'    => __( 'Items', 'wp-easycart' ),
 				'prices'   => __( 'Prices', 'wp-easycart' ),
+				/* 6.0.2: the invoice email's Pay button and bank transfer details. */
+				'payment'  => __( 'Payment', 'wp-easycart' ),
 				'text'     => __( 'Notes', 'wp-easycart' ),
 			);
 		}
@@ -134,7 +160,8 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 		 * Each field: label, desc ( optional ), group, default ( 0|1 for a new store ), legacy ( option read for the
 		 * Standard profile ), sync ( write that option back when Standard is saved ), parent ( a field that must also be on ),
 		 * master ( true: its children are hidden in the editor while it is off ), edit ( array( page, option ): the setting the
-		 * switch prints, linked from the editor ).
+		 * switch prints, linked from the editor ), pro ( 6.0.2: prints data only WP EasyCart PRO records, such as the PO
+		 * number or the gift message; locked in the editor without PRO ).
 		 *
 		 * @param string $type Document type.
 		 * @return array key => field
@@ -154,6 +181,10 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				'options'     => array( 'group' => 'items', 'label' => __( 'Product options', 'wp-easycart' ), 'default' => 1 ),
 				'prices'      => array( 'group' => 'prices', 'label' => __( 'Show prices', 'wp-easycart' ), 'desc' => __( 'Unit prices, line totals and the order totals.', 'wp-easycart' ), 'default' => 1, 'master' => true ),
 				'order_notes' => array( 'group' => 'text', 'label' => __( 'Customer’s order notes', 'wp-easycart' ), 'default' => 1 ),
+				/* 6.0.2 */
+				'checkout_fields' => array( 'group' => 'text', 'label' => __( 'Checkout field answers', 'wp-easycart' ), 'desc' => __( 'Answers to your own checkout questions, where each field shows them ( Settings › Checkout fields ).', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+				/* 6.0.2: wp_easycart_order_gift::print_email_section() */
+				'gift'            => array( 'group' => 'text', 'label' => __( 'Gift details', 'wp-easycart' ), 'desc' => __( 'On gift orders: that it is a gift, the gift message and who gets the gift receipt.', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
 			);
 			$fields = array();
 			if ( 'receipt' === $type ) {
@@ -164,6 +195,9 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				$fields['email']['desc']   = __( 'Also used on refund emails.', 'wp-easycart' );
 				$fields['image']['sync']   = true;
 				$fields['image']['desc']   = __( 'Also used on invoice, gift card and refund emails and the printed receipt.', 'wp-easycart' );
+				/* 6.0.2: invoicing details, printed when the order has them. */
+				$fields['po_number']       = array( 'group' => 'order', 'label' => __( 'PO number', 'wp-easycart' ), 'desc' => __( 'When the customer or you added one.', 'wp-easycart' ), 'default' => 1, 'pro' => true );
+				$fields['due_date']        = array( 'group' => 'order', 'label' => __( 'Payment terms and due date', 'wp-easycart' ), 'desc' => __( 'Manual-payment orders with payment terms.', 'wp-easycart' ), 'default' => 1, 'pro' => true );
 			} elseif ( 'shipping' === $type ) {
 				$fields = $email;
 			} elseif ( 'packing_slip' === $type ) {
@@ -191,6 +225,11 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'tip'            => array( 'group' => 'prices', 'label' => __( 'Tip', 'wp-easycart' ), 'default' => 1, 'parent' => 'prices', 'legacy' => $ps . 'tiptotal', 'sync' => true ),
 					'grand_total'    => array( 'group' => 'prices', 'label' => __( 'Grand total', 'wp-easycart' ), 'default' => 1, 'parent' => 'prices', 'legacy' => $ps . 'grandtotal', 'sync' => true ),
 					'order_notes'    => array( 'group' => 'text', 'label' => __( 'Customer’s order notes', 'wp-easycart' ), 'default' => 1, 'legacy' => $ps . 'order_notes', 'sync' => true ),
+					/* 6.0.2 */
+					'po_number'      => array( 'group' => 'order', 'label' => __( 'PO number', 'wp-easycart' ), 'desc' => __( 'When the customer or you added one.', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+					'gift_message'   => array( 'group' => 'text', 'label' => __( 'Gift message', 'wp-easycart' ), 'desc' => __( 'On gift orders, the message the shopper wrote.', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+					/* 6.0.2 */
+					'checkout_fields' => array( 'group' => 'text', 'label' => __( 'Checkout field answers', 'wp-easycart' ), 'desc' => __( 'Answers to your own checkout questions, where each field shows them ( Settings › Checkout fields ).', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
 				);
 			} elseif ( 'invoice' === $type ) {
 				/* 6.0.1: every default is what the PDF showed before it became a document, so nothing changes until a switch does. */
@@ -200,6 +239,9 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'footer_image'  => array( 'group' => 'branding', 'label' => __( 'Footer image', 'wp-easycart' ), 'desc' => __( 'The store’s signature image, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 0 ),
 					'store_address' => array( 'group' => 'branding', 'label' => __( 'Store address', 'wp-easycart' ), 'desc' => __( 'Your store’s address, in the footer.', 'wp-easycart' ), 'default' => 0, 'edit' => array( 'page' => 'email-setup', 'option' => 'ec_option_store_address' ) ),
 					'heading'       => array( 'group' => 'order', 'label' => __( 'Heading, order number and date', 'wp-easycart' ), 'desc' => __( 'Top right: this profile’s heading ( Invoice or Receipt ), the order number and the date.', 'wp-easycart' ), 'default' => 1 ),
+					/* 6.0.2: printed when the order has an invoice number, a PO number or payment terms. */
+					'invoice_details' => array( 'group' => 'order', 'label' => __( 'Invoice number, terms and due date', 'wp-easycart' ), 'desc' => __( 'When the order has been invoiced ( Invoices settings ).', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+					'po_number'     => array( 'group' => 'order', 'label' => __( 'PO number', 'wp-easycart' ), 'desc' => __( 'When the customer or you added one.', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
 					'intro'         => array( 'group' => 'order', 'label' => __( 'Greeting and thank-you lines', 'wp-easycart' ), 'desc' => __( 'The receipt email’s lines above the addresses and below the totals.', 'wp-easycart' ), 'default' => 1 ),
 					'shipping'      => array( 'group' => 'people', 'label' => __( 'Shipping address', 'wp-easycart' ), 'default' => 1 ),
 					'billing'       => array( 'group' => 'people', 'label' => __( 'Billing address', 'wp-easycart' ), 'default' => 1 ),
@@ -210,6 +252,54 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'options'       => array( 'group' => 'items', 'label' => __( 'Product options', 'wp-easycart' ), 'default' => 1 ),
 					'prices'        => array( 'group' => 'prices', 'label' => __( 'Show prices', 'wp-easycart' ), 'desc' => __( 'Unit prices, line totals and the order totals.', 'wp-easycart' ), 'default' => 1, 'master' => true ),
 					'order_notes'   => array( 'group' => 'text', 'label' => __( 'Customer’s order notes', 'wp-easycart' ), 'default' => 1 ),
+					/* 6.0.2 */
+					'checkout_fields' => array( 'group' => 'text', 'label' => __( 'Checkout field answers', 'wp-easycart' ), 'desc' => __( 'Answers to your own checkout questions, where each field shows them ( Settings › Checkout fields ).', 'wp-easycart' ), 'default' => 1, 'pro' => true ),
+				);
+			} elseif ( 'invoice_email' === $type ) {
+				/* 6.0.2: every default is what the invoice email showed before it had profiles, so nothing changes until a switch does. */
+				$fields = array(
+					'logo'          => array( 'group' => 'branding', 'label' => __( 'Logo', 'wp-easycart' ), 'desc' => __( 'The store’s logo, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
+					'footer_image'  => array( 'group' => 'branding', 'label' => __( 'Footer image', 'wp-easycart' ), 'desc' => __( 'The store’s signature image, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
+					'store_address' => array( 'group' => 'branding', 'label' => __( 'Store address', 'wp-easycart' ), 'desc' => __( 'Your store’s address, in the footer.', 'wp-easycart' ), 'default' => 0, 'edit' => array( 'page' => 'email-setup', 'option' => 'ec_option_store_address' ) ),
+					'order_number'  => array( 'group' => 'order', 'label' => __( 'Order number', 'wp-easycart' ), 'default' => 1 ),
+					'order_date'    => array( 'group' => 'order', 'label' => __( 'Order date', 'wp-easycart' ), 'default' => 0 ),
+					'total'         => array( 'group' => 'order', 'label' => __( 'Order total', 'wp-easycart' ), 'default' => 1 ),
+					'due_date'      => array( 'group' => 'order', 'label' => __( 'Payment terms and due date', 'wp-easycart' ), 'desc' => __( 'The due date shows while the order is unpaid.', 'wp-easycart' ), 'default' => 1 ),
+					'po_number'     => array( 'group' => 'order', 'label' => __( 'PO number', 'wp-easycart' ), 'desc' => __( 'When the customer or you added one.', 'wp-easycart' ), 'default' => 1 ),
+					'billing'       => array( 'group' => 'people', 'label' => __( 'Billing address', 'wp-easycart' ), 'default' => 0 ),
+					'items'         => array( 'group' => 'items', 'label' => __( 'Items and totals', 'wp-easycart' ), 'desc' => __( 'The order’s items, prices and totals in the email itself, for sending it without the PDF.', 'wp-easycart' ), 'default' => 0, 'master' => true ),
+					'image'         => array( 'group' => 'items', 'label' => __( 'Product images', 'wp-easycart' ), 'default' => 0, 'parent' => 'items' ),
+					'sku'           => array( 'group' => 'items', 'label' => __( 'SKU / model number', 'wp-easycart' ), 'default' => 1, 'parent' => 'items' ),
+					'options'       => array( 'group' => 'items', 'label' => __( 'Product options', 'wp-easycart' ), 'default' => 1, 'parent' => 'items' ),
+					'pay_button'    => array( 'group' => 'payment', 'label' => __( 'Pay button', 'wp-easycart' ), 'desc' => __( 'While the order is unpaid, a button to its pay link ( Pay links, below ).', 'wp-easycart' ), 'default' => 1 ),
+					'bank_details'  => array( 'group' => 'payment', 'label' => __( 'Bank transfer details', 'wp-easycart' ), 'desc' => __( 'While the order is unpaid and has no Pay button, your bank transfer instructions ( Settings › Payment ).', 'wp-easycart' ), 'default' => 1 ),
+				);
+			} elseif ( 'gift_receipt' === $type ) {
+				/* 6.0.2: never prices; the gift message and what is in the parcel. */
+				$fields = array(
+					'logo'          => array( 'group' => 'branding', 'label' => __( 'Logo', 'wp-easycart' ), 'desc' => __( 'The store’s logo, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
+					'footer_image'  => array( 'group' => 'branding', 'label' => __( 'Footer image', 'wp-easycart' ), 'desc' => __( 'The store’s signature image, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
+					'store_address' => array( 'group' => 'branding', 'label' => __( 'Store address', 'wp-easycart' ), 'desc' => __( 'Your store’s address, in the footer.', 'wp-easycart' ), 'default' => 0, 'edit' => array( 'page' => 'email-setup', 'option' => 'ec_option_store_address' ) ),
+					'order_number'  => array( 'group' => 'order', 'label' => __( 'Order number and date', 'wp-easycart' ), 'desc' => __( 'What the recipient quotes for an exchange.', 'wp-easycart' ), 'default' => 1 ),
+					'from'          => array( 'group' => 'people', 'label' => __( 'Who it is from', 'wp-easycart' ), 'desc' => __( 'The buyer’s first name.', 'wp-easycart' ), 'default' => 1 ),
+					'shipping'      => array( 'group' => 'people', 'label' => __( 'Shipping address', 'wp-easycart' ), 'default' => 0 ),
+					'image'         => array( 'group' => 'items', 'label' => __( 'Product images', 'wp-easycart' ), 'default' => 1 ),
+					'sku'           => array( 'group' => 'items', 'label' => __( 'SKU / model number', 'wp-easycart' ), 'default' => 0 ),
+					'options'       => array( 'group' => 'items', 'label' => __( 'Product options', 'wp-easycart' ), 'default' => 1 ),
+					'gift_message'  => array( 'group' => 'text', 'label' => __( 'Gift message', 'wp-easycart' ), 'desc' => __( 'The message the buyer wrote at checkout.', 'wp-easycart' ), 'default' => 1 ),
+					'returns_note'  => array( 'group' => 'text', 'label' => __( 'Exchanges note', 'wp-easycart' ), 'desc' => __( 'A line on how to exchange an item ( Edit wording ).', 'wp-easycart' ), 'default' => 1 ),
+				);
+			} elseif ( 'credit_note' === $type ) {
+				$fields = array(
+					'seller'        => array( 'group' => 'branding', 'label' => __( 'Business details', 'wp-easycart' ), 'desc' => __( 'The same details as the Invoice PDF.', 'wp-easycart' ), 'default' => 1 ),
+					'logo'          => array( 'group' => 'branding', 'label' => __( 'Logo', 'wp-easycart' ), 'desc' => __( 'The store’s logo, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 1 ),
+					'footer_image'  => array( 'group' => 'branding', 'label' => __( 'Footer image', 'wp-easycart' ), 'desc' => __( 'The store’s signature image, or this profile’s own from Logo & footer.', 'wp-easycart' ), 'default' => 0 ),
+					'store_address' => array( 'group' => 'branding', 'label' => __( 'Store address', 'wp-easycart' ), 'desc' => __( 'Your store’s address, in the footer.', 'wp-easycart' ), 'default' => 0, 'edit' => array( 'page' => 'email-setup', 'option' => 'ec_option_store_address' ) ),
+					'heading'       => array( 'group' => 'order', 'label' => __( 'Credit note number, date and invoice', 'wp-easycart' ), 'desc' => __( 'Top right, with the invoice it corrects.', 'wp-easycart' ), 'default' => 1 ),
+					'po_number'     => array( 'group' => 'order', 'label' => __( 'PO number', 'wp-easycart' ), 'desc' => __( 'When the order has one.', 'wp-easycart' ), 'default' => 1 ),
+					'billing'       => array( 'group' => 'people', 'label' => __( 'Billing address', 'wp-easycart' ), 'default' => 1 ),
+					'vat_number'    => array( 'group' => 'people', 'label' => __( 'Customer VAT number', 'wp-easycart' ), 'default' => 1 ),
+					'items'         => array( 'group' => 'items', 'label' => __( 'The order’s items, for reference', 'wp-easycart' ), 'default' => 0 ),
 				);
 			}
 			return (array) apply_filters( 'wp_easycart_document_fields', $fields, $type );
@@ -267,6 +357,20 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 					'desc'    => __( 'An invoice without the greeting, thank-you lines or product images.', 'wp-easycart' ),
 					'fields'  => array( 'intro' => 0, 'image' => 0 ),
 					'options' => array( 'heading' => 'invoice' ),
+				);
+				/* 6.0.2 */
+				$builtins['b2b']         = array(
+					'name'    => __( 'B2B', 'wp-easycart' ),
+					'desc'    => __( 'For business customers: invoice number, PO, terms and due date, no greeting or product images.', 'wp-easycart' ),
+					'fields'  => array( 'intro' => 0, 'image' => 0, 'invoice_details' => 1, 'po_number' => 1, 'vat_number' => 1 ),
+					'options' => array( 'heading' => 'invoice' ),
+				);
+			} elseif ( 'invoice_email' === $type ) {
+				/* 6.0.2 */
+				$builtins['itemized'] = array(
+					'name'   => __( 'Itemized', 'wp-easycart' ),
+					'desc'   => __( 'The items, totals and billing address in the email too, for sending it without the PDF.', 'wp-easycart' ),
+					'fields' => array( 'items' => 1, 'billing' => 1, 'order_date' => 1 ),
 				);
 			}
 			return (array) apply_filters( 'wp_easycart_document_builtins', $builtins, $type );
@@ -731,9 +835,14 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 		 * @param string $type      Document type.
 		 * @param string $profile   Profile id ( '' = default ).
 		 * @param array  $overrides key => 0|1.
+		 * @param int    $order_id  6.0.2: the order being rendered. With no profile chosen, filter
+		 *                          wp_easycart_document_order_profile may pick one for it ( rules, gift orders: PRO ).
 		 * @return array key => 0|1, plus '_profile' ( the profile used, for its logo and footer image: open_args() ).
 		 */
-		public static function resolve( $type, $profile = '', $overrides = array() ) {
+		public static function resolve( $type, $profile = '', $overrides = array(), $order_id = 0 ) {
+			if ( '' === (string) $profile && (int) $order_id > 0 ) {
+				$profile = (string) apply_filters( 'wp_easycart_document_order_profile', '', $type, (int) $order_id );
+			}
 			$resolved = self::profile( $type, $profile );
 			$fields   = $resolved ? $resolved['fields'] : array();
 			foreach ( (array) $overrides as $key => $value ) {
@@ -966,6 +1075,9 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				'shipping'     => 'ec_shipping_email.php',
 				'packing_slip' => 'ec_admin_packaging_slip.php',
 				'invoice'      => 'ec_invoice_pdf.php',
+				'invoice_email' => 'ec_invoice_email.php', /* 6.0.2 */
+				'gift_receipt' => 'ec_gift_receipt.php',
+				'credit_note'  => 'ec_credit_note_pdf.php',
 			);
 			return isset( $files[ $type ] ) ? $files[ $type ] : '';
 		}
@@ -991,13 +1103,110 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 				),
 				(array) $args
 			);
-			$fields = self::resolve( $type, $args['profile'], $args['overrides'] );
-			if ( 'packing_slip' === $type || 'invoice' === $type ) {
+			$fields = self::resolve( $type, $args['profile'], $args['overrides'], (int) $order_id );
+			/* 6.0.2: an order that has been invoiced prints its invoice as it was issued ( number, terms, frozen content ).
+			   Only the Invoice heading is frozen: the same PDF headed Receipt shows the order as it is now ( refunds, later
+			   edits ), as it did before invoice numbers. Callers may also pass 'snapshot' => false. */
+			if ( 'invoice' === $type && ! isset( $args['invoice'] ) ) {
+				$record = self::invoice_for_order( (int) $order_id );
+				if ( $record ) {
+					$args['invoice'] = $record;
+					if ( ! isset( $args['snapshot'] ) && '' !== (string) $record->snapshot && 'receipt' !== self::render_heading( $fields, $args ) ) {
+						$snapshot = self::snapshot_from_json( $record->snapshot );
+						if ( $snapshot ) {
+							$args['snapshot'] = $snapshot;
+						}
+					}
+				}
+			}
+			/* 6.0.2: a credit note prints from its own record and snapshot, with the invoice it corrects. */
+			if ( 'credit_note' === $type ) {
+				if ( ! isset( $args['credit_note'] ) ) {
+					$args['credit_note'] = self::invoice_for_order( (int) $order_id, 'credit_note' );
+				}
+				if ( is_object( $args['credit_note'] ) ) {
+					if ( ! isset( $args['invoice'] ) && (int) $args['credit_note']->parent_invoice_id > 0 ) {
+						$args['invoice'] = self::invoice_by_id( (int) $args['credit_note']->parent_invoice_id );
+					}
+					if ( ! isset( $args['snapshot'] ) && '' !== (string) $args['credit_note']->snapshot ) {
+						$snapshot = self::snapshot_from_json( $args['credit_note']->snapshot );
+						if ( $snapshot ) {
+							$args['snapshot'] = $snapshot;
+						}
+					}
+				}
+				if ( ! isset( $args['invoice'] ) ) {
+					$args['invoice'] = self::invoice_for_order( (int) $order_id );
+				}
+			}
+			if ( in_array( $type, array( 'packing_slip', 'invoice', 'invoice_email', 'gift_receipt', 'credit_note' ), true ) ) {
 				$doc = new wp_easycart_document( $type, $order_id, $fields, $args );
 				return $doc->order ? $doc->capture( self::locate( self::template_file( $type ) ) ) : '';
 			}
 			/* The receipt and shipped emails render through their senders ( ec_orderdisplay, wp_easycart_admin_orders ). */
 			return (string) apply_filters( 'wp_easycart_document_render_' . $type, '', (int) $order_id, $fields, $args );
+		}
+
+		/**
+		 * The Invoice PDF heading a render will print ( invoice | receipt ): the render's own choice, else the profile's.
+		 * Same rule as wp_easycart_document::option( 'heading' ).
+		 *
+		 * @since 6.0.2
+		 * @param array $fields Resolved switches ( with _profile ).
+		 * @param array $args   Render arguments.
+		 * @return string
+		 */
+		public static function render_heading( $fields, $args ) {
+			$defs = self::options( 'invoice' );
+			if ( isset( $args['options']['heading'] ) && is_scalar( $args['options']['heading'] ) && isset( $defs['heading']['choices'][ (string) $args['options']['heading'] ] ) ) {
+				return (string) $args['options']['heading'];
+			}
+			$options = self::profile_options( 'invoice', isset( $fields['_profile'] ) ? (string) $fields['_profile'] : '' );
+			return isset( $options['heading'] ) ? (string) $options['heading'] : 'invoice';
+		}
+
+		/**
+		 * Customer downloads ( Settings › Documents › Customer downloads ): what a customer can open for an order, and the
+		 * switch that is each one's store-wide default.
+		 *
+		 * @since 6.0.2
+		 * @return array key => array( option, default, label ).
+		 */
+		public static function customer_downloads() {
+			return array(
+				'print_receipt'         => array( 'ec_option_account_print_receipt', 1, __( 'Print receipt link in My Account', 'wp-easycart' ) ),
+				'success_print_receipt' => array( 'ec_option_success_print_receipt', 1, __( 'Print receipt on the order confirmation page', 'wp-easycart' ) ),
+				'receipt_pdf'           => array( 'ec_option_account_receipt_pdf', 0, __( 'Receipt PDF', 'wp-easycart' ) ),
+				'invoice_pdf'           => array( 'ec_option_account_invoice_pdf', 0, __( 'Invoice PDF', 'wp-easycart' ) ),
+				'packing_slip'          => array( 'ec_option_account_packing_slip', 0, __( 'Packing slip', 'wp-easycart' ) ),
+				'gift_receipt'          => array( 'ec_option_account_gift_receipt', 0, __( 'Gift receipt', 'wp-easycart' ) ),
+			);
+		}
+
+		/**
+		 * May the customer open this document for this order? The Customer downloads switch answers for the store; a
+		 * document rule ( WP EasyCart PRO ) can show or hide it for the orders it matches through the filter.
+		 *
+		 * @since 6.0.2
+		 * @param string $key      A customer_downloads() key.
+		 * @param int    $order_id Order ( 0: the store default ).
+		 * @return bool
+		 */
+		public static function customer_download( $key, $order_id = 0 ) {
+			$list = self::customer_downloads();
+			if ( ! isset( $list[ $key ] ) ) {
+				return false;
+			}
+			$on = (bool) get_option( $list[ $key ][0], $list[ $key ][1] );
+			/**
+			 * Whether an order's customer can open a document ( My Account links, the order confirmation page ).
+			 *
+			 * @since 6.0.2
+			 * @param bool   $on       The store's Customer downloads switch.
+			 * @param string $key      print_receipt | success_print_receipt | receipt_pdf | invoice_pdf | packing_slip | gift_receipt.
+			 * @param int    $order_id Order.
+			 */
+			return (bool) apply_filters( 'wp_easycart_customer_download', $on, $key, (int) $order_id );
 		}
 
 		/**
@@ -1011,6 +1220,176 @@ if ( ! class_exists( 'wp_easycart_documents' ) ) :
 		public static function text( $key, $fallback ) {
 			$text = function_exists( 'wp_easycart_language' ) ? wp_easycart_language()->get_text( 'documents', $key ) : '';
 			return ( null === $text || '' === trim( (string) $text ) ) ? esc_html( $fallback ) : wp_kses_post( $text );
+		}
+
+		/* ------------------------------------------------------------------ */
+		/* Invoices ( 6.0.2: ec_invoice holds invoices and credit notes, written by WP EasyCart PRO ) */
+		/* ------------------------------------------------------------------ */
+
+		/**
+		 * Are the 6.0.2 ec_order columns there ( gift, PO number, payment terms )? Read once per request.
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public static function order_columns_ready() {
+			global $wpdb;
+			static $ready = null;
+			if ( null === $ready ) {
+				$ready = (bool) $wpdb->get_var( "SHOW COLUMNS FROM ec_order LIKE 'po_number'" );
+			}
+			return $ready;
+		}
+
+		/**
+		 * Is the ec_invoice table there ( the 6.0.2 database upgrade has run )? Read once per request.
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public static function invoices_ready() {
+			global $wpdb;
+			static $ready = null;
+			if ( null === $ready ) {
+				$ready = ( 'ec_invoice' === $wpdb->get_var( "SHOW TABLES LIKE 'ec_invoice'" ) );
+			}
+			return $ready;
+		}
+
+		/**
+		 * The newest invoice ( or credit note ) of an order.
+		 *
+		 * @since 6.0.2
+		 * @param int    $order_id Order.
+		 * @param string $type     invoice | credit_note.
+		 * @return object|null ec_invoice row.
+		 */
+		public static function invoice_for_order( $order_id, $type = 'invoice' ) {
+			global $wpdb;
+			if ( (int) $order_id <= 0 || ! self::invoices_ready() ) {
+				return null;
+			}
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_invoice WHERE order_id = %d AND invoice_type = %s ORDER BY invoice_id DESC LIMIT 1', (int) $order_id, (string) $type ) );
+			return $row ? $row : null;
+		}
+
+		/**
+		 * One invoice or credit note by its id.
+		 *
+		 * @since 6.0.2
+		 * @param int $invoice_id ec_invoice.invoice_id.
+		 * @return object|null
+		 */
+		public static function invoice_by_id( $invoice_id ) {
+			global $wpdb;
+			if ( (int) $invoice_id <= 0 || ! self::invoices_ready() ) {
+				return null;
+			}
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_invoice WHERE invoice_id = %d', (int) $invoice_id ) );
+			return $row ? $row : null;
+		}
+
+		/**
+		 * What an invoice is issued from: the order row, its lines ( with their chosen options ), fees and offer markers,
+		 * frozen so later edits to the order never rewrite an issued invoice.
+		 *
+		 * @since 6.0.2
+		 * @param int $order_id Order.
+		 * @return array|null order, lines, options ( orderdetail_id => rows ), fees, flags ( orderdetail_id => row ), taken.
+		 */
+		public static function snapshot( $order_id ) {
+			global $wpdb;
+			$doc = new wp_easycart_document( 'invoice', (int) $order_id, array() );
+			if ( ! $doc->order ) {
+				return null;
+			}
+			$db      = class_exists( 'ec_db_admin' ) ? new ec_db_admin() : null;
+			$lines   = ( $db && method_exists( $db, 'get_order_details_admin' ) ) ? (array) $db->get_order_details_admin( (int) $order_id ) : $doc->lines;
+			$options = array();
+			foreach ( $lines as $line ) {
+				$options[ (int) $line->orderdetail_id ] = ( $db && method_exists( $db, 'get_order_options' ) ) ? (array) $db->get_order_options( $line->orderdetail_id ) : array();
+			}
+			$flags = array();
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', (int) $order_id ) ) as $row ) {
+				$flags[ (int) $row->orderdetail_id ] = $row;
+			}
+			return array(
+				'order'   => $doc->order,
+				'lines'   => $lines,
+				'options' => $options,
+				'fees'    => ( $db && method_exists( $db, 'get_order_fees' ) ) ? (array) $db->get_order_fees( (int) $order_id ) : array(),
+				'flags'   => $flags,
+				'taken'   => time(),
+				/* 6.0.2: checkout field answers, frozen with the invoice as its lines are. */
+				'checkout_fields' => class_exists( 'wp_easycart_order_fields' ) ? wp_easycart_order_fields::snapshot_rows( (int) $order_id ) : array(),
+			);
+		}
+
+		/**
+		 * A snapshot stored as JSON ( ec_invoice.snapshot ), back in the shape snapshot() returns.
+		 *
+		 * @since 6.0.2
+		 * @param string $json Stored snapshot.
+		 * @return array|null
+		 */
+		public static function snapshot_from_json( $json ) {
+			$data = json_decode( (string) $json );
+			if ( ! is_object( $data ) || ! isset( $data->order ) || ! is_object( $data->order ) ) {
+				return null;
+			}
+			$options = array();
+			foreach ( ( isset( $data->options ) ? (array) $data->options : array() ) as $id => $rows ) {
+				$options[ (int) $id ] = (array) $rows;
+			}
+			$flags = array();
+			foreach ( ( isset( $data->flags ) ? (array) $data->flags : array() ) as $id => $row ) {
+				$flags[ (int) $id ] = $row;
+			}
+			return array(
+				'order'   => $data->order,
+				'lines'   => isset( $data->lines ) ? (array) $data->lines : array(),
+				'options' => $options,
+				'fees'    => isset( $data->fees ) ? (array) $data->fees : array(),
+				'flags'   => $flags,
+				'taken'   => isset( $data->taken ) ? (int) $data->taken : 0,
+				/* 6.0.2: absent from invoices issued before 6.0.2, which then show the order's current answers. */
+				'checkout_fields' => isset( $data->checkout_fields ) ? (array) $data->checkout_fields : null,
+			);
+		}
+
+		/**
+		 * The order's 6.0.2 details ( written by WP EasyCart PRO ): gift flag and message, the gift recipient's email, PO
+		 * number, payment terms and due date. Empty before the 6.0.2 database upgrade or when not used.
+		 *
+		 * @since 6.0.2
+		 * @param int|object $order   Order id, or an ec_order row that may already carry the columns.
+		 * @param bool       $refresh Read the order again ( after writing its columns in this request ).
+		 * @return object is_gift ( bool ), gift_message, gift_recipient_email, po_number, payment_terms, payment_due_date
+		 *                ( 'Y-m-d H:i:s' or '' ).
+		 */
+		public static function order_extras( $order, $refresh = false ) {
+			global $wpdb;
+			static $cache = array();
+			$row = is_object( $order ) ? $order : null;
+			$id  = $row ? ( isset( $row->order_id ) ? (int) $row->order_id : 0 ) : (int) $order;
+			if ( ( ! $row || ! property_exists( $row, 'po_number' ) ) && $id > 0 ) {
+				if ( $refresh || ! isset( $cache[ $id ] ) ) {
+					$cache[ $id ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE order_id = %d', $id ) );
+				}
+				$row = $cache[ $id ];
+			}
+			$get = function ( $key ) use ( $row ) {
+				return ( $row && isset( $row->{$key} ) && null !== $row->{$key} ) ? trim( (string) $row->{$key} ) : '';
+			};
+			$due = $get( 'payment_due_date' );
+			return (object) array(
+				'is_gift'              => '' !== $get( 'is_gift' ) && '0' !== $get( 'is_gift' ),
+				'gift_message'         => $get( 'gift_message' ),
+				'gift_recipient_email' => $get( 'gift_recipient_email' ),
+				'po_number'            => $get( 'po_number' ),
+				'payment_terms'        => $get( 'payment_terms' ),
+				'payment_due_date'     => ( '' !== $due && 0 !== strpos( $due, '0000' ) ) ? $due : '',
+			);
 		}
 
 		/**
@@ -1068,6 +1447,9 @@ if ( ! class_exists( 'wp_easycart_document' ) ) :
 		/** @var array Render arguments. */
 		public $args = array();
 
+		/** @var array|null 6.0.2: what an issued invoice was issued from ( wp_easycart_documents::snapshot() ). */
+		public $snapshot = null;
+
 		/**
 		 * @param string $type     Document type.
 		 * @param int    $order_id Order.
@@ -1081,11 +1463,18 @@ if ( ! class_exists( 'wp_easycart_document' ) ) :
 			$this->fields   = (array) $fields;
 			$this->args     = (array) $args;
 			$this->output   = isset( $args['output'] ) ? (string) $args['output'] : 'print';
-			$this->order    = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name FROM ec_order LEFT JOIN ec_country AS billing_country ON billing_country.iso2_cnt = ec_order.billing_country LEFT JOIN ec_country AS shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country WHERE order_id = %d', $this->order_id ) );
-			if ( ! $this->order ) {
-				return;
+			if ( isset( $args['snapshot']['order'] ) && is_object( $args['snapshot']['order'] ) ) {
+				/* An issued invoice: everything from the snapshot, nothing from the order as it is now. */
+				$this->snapshot = $args['snapshot'];
+				$this->order    = $args['snapshot']['order'];
+				$lines          = isset( $args['snapshot']['lines'] ) ? (array) $args['snapshot']['lines'] : array();
+			} else {
+				$this->order = $wpdb->get_row( $wpdb->prepare( 'SELECT ec_order.*, billing_country.name_cnt AS billing_country_name, shipping_country.name_cnt AS shipping_country_name FROM ec_order LEFT JOIN ec_country AS billing_country ON billing_country.iso2_cnt = ec_order.billing_country LEFT JOIN ec_country AS shipping_country ON shipping_country.iso2_cnt = ec_order.shipping_country WHERE order_id = %d', $this->order_id ) );
+				if ( ! $this->order ) {
+					return;
+				}
+				$lines = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d ORDER BY orderdetail_id ASC', $this->order_id ) );
 			}
-			$lines = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d ORDER BY orderdetail_id ASC', $this->order_id ) );
 			$pick  = array_filter( array_map( 'intval', isset( $args['items'] ) ? (array) $args['items'] : array() ) );
 			foreach ( $lines as $line ) {
 				if ( $pick && ! in_array( (int) $line->orderdetail_id, $pick, true ) ) {
@@ -1121,6 +1510,57 @@ if ( ! class_exists( 'wp_easycart_document' ) ) :
 			}
 			$options = wp_easycart_documents::profile_options( $this->type, isset( $this->fields['_profile'] ) ? (string) $this->fields['_profile'] : '' );
 			return isset( $options[ $key ] ) ? $options[ $key ] : '';
+		}
+
+		/**
+		 * A line's advanced ( option set ) choices, ec_order_option rows: from the snapshot of an issued invoice, else the
+		 * database.
+		 *
+		 * @since 6.0.2
+		 * @param object $line ec_orderdetail row.
+		 * @return array
+		 */
+		public function advanced_options( $line ) {
+			$id = isset( $line->orderdetail_id ) ? (int) $line->orderdetail_id : 0;
+			if ( $this->snapshot ) {
+				return isset( $this->snapshot['options'][ $id ] ) ? (array) $this->snapshot['options'][ $id ] : array();
+			}
+			$db = class_exists( 'ec_db_admin' ) ? new ec_db_admin() : null;
+			return ( $db && method_exists( $db, 'get_order_options' ) ) ? (array) $db->get_order_options( $id ) : array();
+		}
+
+		/**
+		 * The order's fees ( ec_order_fee rows ), from the snapshot of an issued invoice, else the database.
+		 *
+		 * @since 6.0.2
+		 * @return array
+		 */
+		public function fees() {
+			if ( $this->snapshot ) {
+				return isset( $this->snapshot['fees'] ) ? (array) $this->snapshot['fees'] : array();
+			}
+			$db = class_exists( 'ec_db_admin' ) ? new ec_db_admin() : null;
+			return ( $db && method_exists( $db, 'get_order_fees' ) ) ? (array) $db->get_order_fees( $this->order_id ) : array();
+		}
+
+		/**
+		 * Offers v2 markers per line ( free gift, bundle, applied offers ), keyed by orderdetail_id.
+		 *
+		 * @since 6.0.2
+		 * @return array
+		 */
+		public function offer_flags() {
+			global $wpdb;
+			if ( $this->snapshot ) {
+				return isset( $this->snapshot['flags'] ) ? (array) $this->snapshot['flags'] : array();
+			}
+			$flags = array();
+			if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
+				foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT orderdetail_id, product_id, is_free_gift, bundle_group_key, bundle_product_id, applied_offers FROM ec_orderdetail WHERE order_id = %d', $this->order_id ) ) as $row ) {
+					$flags[ (int) $row->orderdetail_id ] = $row;
+				}
+			}
+			return $flags;
 		}
 
 		/** Only some items are on this document. @return bool */
@@ -1220,7 +1660,11 @@ if ( ! class_exists( 'wp_easycart_document' ) ) :
 			$db      = class_exists( 'ec_db_admin' ) ? new ec_db_admin() : null;
 			$curr    = $GLOBALS['currency'];
 			$store   = get_permalink( get_option( 'ec_option_storepage' ) );
-			$details = ( $db && method_exists( $db, 'get_order_details_admin' ) ) ? $db->get_order_details_admin( $this->order_id ) : $this->lines;
+			if ( $this->snapshot ) {
+				$details = isset( $this->snapshot['lines'] ) ? (array) $this->snapshot['lines'] : $this->lines;
+			} else {
+				$details = ( $db && method_exists( $db, 'get_order_details_admin' ) ) ? $db->get_order_details_admin( $this->order_id ) : $this->lines;
+			}
 			if ( $this->is_partial() && is_array( $details ) ) {
 				$keep    = wp_list_pluck( $this->lines, 'orderdetail_id' );
 				$details = array_values(

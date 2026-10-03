@@ -1,0 +1,161 @@
+/* EasyCart › Reports ( 6.0.2 ). The strip, toolbar and range button keep their .ecrp- rules in admin-v2.css. */
+
+.ecrp3 { --ecrp-accent: var(--ec-brand, #2563eb); --ecrp-good: #15803d; --ecrp-bad: #b91c1c; --ecrp-line: var(--ecv2-g200, #e5e7eb); }
+.ecrp3 .ecrp-header-tools { flex-wrap: wrap; }
+.ecrp3 .ecrp-header-tools .ecv2-btn .dashicons { font-size: 15px; width: 15px; height: 15px; line-height: 1.3; margin-right: 2px; }
+
+/* Toolbar */
+.ecrp3-toolbar { align-items: flex-end; }
+.ecrp3-toolbar .ecrp-ranges { align-items: flex-end; }
+.ecrp3-field { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.ecrp3-field .ecrp-range-label { margin: 0 0 2px; }
+/* Lines / bars: the icon is a span inside each button ( the shell's button { font:inherit } took the icon font off a
+   button that carried the dashicons class itself, leaving an empty box ). */
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ecv2-g500, #6b7280); cursor: pointer; }
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type .dashicons { width: 16px; height: 16px; font-size: 16px; line-height: 16px; margin: 0 !important; border-radius: 0; background: transparent; color: inherit; cursor: inherit; }
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type .dashicons::before { color: inherit; } /* admin.css greys the older icons' glyphs */
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type:hover { background: var(--ecv2-g100, #f3f4f6); color: var(--ecv2-g700, #374151); }
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type.selected, .ecrp3 .ecrp-chart-types .ecrp3-chart-type[aria-pressed="true"] { background: var(--ecv2-primary-light, #eef2ff); color: var(--ecv2-primary-hover, #1d4ed8); }
+.ecrp3 .ecrp-chart-types .ecrp3-chart-type:focus-visible { outline: 2px solid var(--ecrp-accent); outline-offset: 1px; }
+.ecrp3 #daily_filter { max-width: 120px !important; }
+
+/* Tabs */
+.ecrp3-tabs { display: flex; gap: 2px; margin: 0 0 14px; border-bottom: 1px solid var(--ecrp-line); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.ecrp3-tab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; margin: 0 0 -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ecv2-g600, #4b5563); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.ecrp3-tab:hover { color: var(--ecv2-g900, #111827); }
+.ecrp3-tab[aria-selected="true"] { color: var(--ecv2-g900, #111827); border-bottom-color: var(--ecrp-accent); }
+.ecrp3-tab:focus-visible { outline: 2px solid var(--ecrp-accent); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+.ecrp3-tab.is-locked { color: var(--ecv2-g500, #6b7280); }
+.ecrp3-chip { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 5px; background: var(--ecv2-amber, #d97706); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; line-height: 1.5; text-transform: uppercase; }
+.ecrp3-chip.is-update { background: var(--ecv2-blue, #2563eb); }
+
+/* Notes, offer */
+.ecrp3-offer, .ecrp3-note { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin: 0 0 14px; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); background: #fff; font-size: 13px; color: var(--ecv2-g700, #374151); }
+.ecrp3-offer { background: linear-gradient( 90deg, var(--ec-brand-softer, #f5f8ff ), #fff ); }
+.ecrp3-offer .dashicons, .ecrp3-note .dashicons { color: var(--ecrp-accent); }
+.ecrp3-offer-text { flex: 1 1 260px; }
+.ecrp3-note.is-info { background: var(--ecv2-blue-light, #eff6ff); border-color: #bfdbfe; }
+.ecrp3-note.is-warn { align-items: flex-start; background: #fffbeb; border-color: #fde68a; }
+.ecrp3-note.is-warn .dashicons { color: #b45309; }
+.ecrp3-note-text { flex: 1 1 260px; min-width: 0; }
+.ecrp3-note a { font-weight: 600; }
+
+/* Panel */
+.ecrp3-panel { position: relative; min-height: 240px; }
+.ecrp3-panel.is-loading { opacity: .55; pointer-events: none; transition: opacity .15s; }
+.ecrp3-panel.is-loading::after { content: ""; position: absolute; top: 60px; left: 50%; width: 26px; height: 26px; margin-left: -13px; border: 3px solid var(--ecrp-line); border-top-color: var(--ecrp-accent); border-radius: 50%; animation: ecrp3spin .8s linear infinite; }
+@keyframes ecrp3spin { to { transform: rotate( 360deg ); } }
+@media ( prefers-reduced-motion: reduce ) { .ecrp3-panel.is-loading::after { animation: none; } }
+
+.ecrp3-insights { list-style: none; margin: 0 0 14px; padding: 12px 16px; background: #fff; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); display: flex; flex-direction: column; gap: 6px; }
+.ecrp3-insights li { margin: 0; padding-left: 16px; position: relative; font-size: 13.5px; color: var(--ecv2-g700, #374151); }
+.ecrp3-insights li::before { content: ""; position: absolute; left: 0; top: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--ecv2-g300, #d1d5db); }
+.ecrp3-insights li.is-good::before { background: var(--ecrp-good); }
+.ecrp3-insights li.is-bad::before { background: var(--ecrp-bad); }
+
+/* KPIs */
+.ecrp3-kpis { display: grid; grid-template-columns: repeat( auto-fill, minmax( 190px, 1fr ) ); gap: 12px; margin: 0 0 14px; }
+.ecrp3-kpi { padding: 14px 16px; background: #fff; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ecrp3-kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ecv2-g500, #6b7280); }
+.ecrp3-kpi-value { font-size: 22px; font-weight: 600; color: var(--ecv2-g900, #111827); line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ecrp3-kpis .ecrp3-kpi:first-child .ecrp3-kpi-value { font-size: 26px; }
+.ecrp3-kpi-compare { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.ecrp3-change { display: inline-flex; align-items: center; gap: 1px; font-weight: 700; }
+.ecrp3-change .dashicons { font-size: 14px; width: 14px; height: 14px; }
+.ecrp3-change.is-good { color: var(--ecrp-good); }
+.ecrp3-change.is-bad { color: var(--ecrp-bad); }
+.ecrp3-change.is-flat { color: var(--ecv2-g500, #6b7280); }
+.ecrp3-kpi-prev { color: var(--ecv2-g500, #6b7280); }
+.ecrp3-kpi-hint { font-size: 11.5px; line-height: 1.4; color: var(--ecv2-g500, #6b7280); }
+
+/* Cards, charts */
+.ecrp3-card { background: #fff; border: 1px solid var(--ecrp-line); border-radius: var(--ecv2-rl, 10px); padding: 14px 16px; margin: 0 0 14px; min-width: 0; }
+.ecrp3-card h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--ecv2-g900, #111827); }
+.ecrp3-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 6px; }
+.ecrp3-card-head h3 { margin: 0; }
+.ecrp3-card-note { margin: 0 0 10px; font-size: 12px; color: var(--ecv2-g500, #6b7280); }
+.ecrp3-charts { display: grid; grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); gap: 12px; margin: 0 0 14px; }
+.ecrp3-charts .ecrp3-card { margin: 0; }
+.ecrp3-chart.is-wide, .ecrp3-charts.is-n1 .ecrp3-chart { grid-column: 1 / -1; }
+.ecrp3-charts.is-n2 { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); }
+.ecrp3-more { margin: 10px 0 0; }
+.ecrp3-canvas { position: relative; height: 220px; }
+
+/* Tables */
+.ecrp3-table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+/* One frame, the card line colour, on all four sides. admin.css frames every table in the content area ( #c1c1c1 ); with
+   collapsed borders each row's own bottom line won at the table's foot, so the bottom looked lighter than the rest. Rows
+   are now split by a line on top of each body row ( the header's line is the stronger one ), so nothing competes with the
+   frame at the bottom, also when rows past the first ten are hidden. */
+.ecrp3 .ecrp3-table { width: 100%; border: 1px solid var(--ecrp-line); border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ecrp3-table th, .ecrp3-table td { padding: 8px 10px; border: 0; text-align: left; vertical-align: middle; }
+.ecrp3-table thead th { border-bottom: 1px solid var(--ecrp-line); }
+.ecrp3-table tbody td { border-top: 1px solid var(--ecv2-g100, #f3f4f6); }
+.ecrp3-table th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; color: var(--ecv2-g500, #6b7280); white-space: nowrap; }
+.ecrp3-table th button { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+.ecrp3-table th[aria-sort] button { color: var(--ecv2-g900, #111827); }
+.ecrp3-table .is-right { text-align: right; }
+.ecrp3-table tbody tr:hover td { background: var(--ecv2-g50, #f9fafb); }
+.ecrp3-table td a { font-weight: 500; }
+.ecrp3-bar { display: inline-block; vertical-align: middle; width: 60px; height: 6px; margin-right: 8px; border-radius: 3px; background: var(--ecv2-g100, #f3f4f6); overflow: hidden; }
+.ecrp3-bar i { display: block; height: 100%; background: var(--ecrp-accent); border-radius: 3px; }
+.ecrp3-empty { padding: 28px 12px; text-align: center; color: var(--ecv2-g500, #6b7280); font-size: 13px; }
+.ecrp3-empty.is-error { color: var(--ecrp-bad); }
+.ecrp3-foot { margin: 0 0 10px; font-size: 12px; color: var(--ecv2-g500, #6b7280); }
+
+/* Locked tabs: the store's own top row, the rest blurred, a lock over it */
+.ecrp3-locked { position: relative; }
+.ecrp3-teaser { position: relative; padding-bottom: 150px; overflow: hidden; }
+.ecrp3-teaser tr.is-real td { font-weight: 600; color: var(--ecv2-g900, #111827); background: var(--ec-brand-softer, #f5f8ff); }
+.ecrp3-teaser tr.is-fake td span { display: inline-block; height: 10px; border-radius: 5px; background: var(--ecv2-g200, #e5e7eb); filter: blur( 1.5px ); }
+.ecrp3-teaser-more { margin: 10px 0 0; font-size: 12.5px; color: var(--ecv2-g600, #4b5563); }
+.ecrp3-lock { position: absolute; left: 50%; bottom: 16px; transform: translateX( -50% ); width: min( 460px, calc( 100% - 32px ) ); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 18px; text-align: center; background: #fff; border: 1px solid var(--ecrp-line); border-radius: 12px; box-shadow: 0 10px 30px rgba( 17, 24, 39, .10 ); }
+.ecrp3-lock .dashicons { color: var(--ecv2-amber, #d97706); font-size: 20px; width: 20px; height: 20px; }
+.ecrp3-lock strong { font-size: 14px; color: var(--ecv2-g900, #111827); }
+.ecrp3-lock span { font-size: 12.5px; color: var(--ecv2-g600, #4b5563); }
+.ecrp3-lock .ecv2-btn { margin-top: 4px; }
+
+/* Menus */
+.ecrp3-menu { position: relative; }
+.ecrp3-menu-list { position: absolute; top: calc( 100% + 4px ); left: 0; z-index: 50; width: 300px; max-width: calc( 100vw - 32px ); padding: 6px; background: #fff; border: 1px solid var(--ecrp-line); border-radius: 10px; box-shadow: 0 12px 30px rgba( 17, 24, 39, .14 ); }
+.ecrp3-menu-list.is-right { left: auto; right: 0; }
+.ecrp3-menu-list > button, .ecrp3-view-row > button:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; cursor: pointer; font-size: 13px; color: var(--ecv2-g800, #1f2937); }
+.ecrp3-menu-list > button span { font-size: 12px; color: var(--ecv2-g500, #6b7280); font-weight: 400; }
+.ecrp3-menu-list > button strong { display: inline-flex; align-items: center; gap: 6px; }
+.ecrp3-menu-list > button:hover, .ecrp3-menu-list > button:focus-visible, .ecrp3-view-row > button:first-child:hover { background: var(--ecv2-g50, #f9fafb); outline: none; }
+.ecrp3-menu-list > button.is-add { flex-direction: row; align-items: center; color: var(--ecrp-accent); font-weight: 600; }
+.ecrp3-view-row { display: flex; align-items: center; }
+.ecrp3-view-x { border: 0; background: transparent; color: var(--ecv2-g400, #9ca3af); font-size: 18px; line-height: 1; padding: 4px 8px; cursor: pointer; border-radius: 6px; }
+.ecrp3-view-x:hover { color: var(--ecrp-bad); background: var(--ecv2-g50, #f9fafb); }
+.ecrp3-menu-empty { margin: 6px 10px; font-size: 12.5px; color: var(--ecv2-g500, #6b7280); }
+
+/* Dialog fields */
+.ecrp3-row { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 0; border: 0; padding: 0; }
+.ecrp3-row > span, .ecrp3-row legend { font-size: 12px; font-weight: 600; color: var(--ecv2-g700, #374151); }
+.ecrp3-row textarea { width: 100%; }
+.ecrp3-check { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 13px; }
+.ecrp3-hint { margin: 4px 0 0; font-size: 12px; color: var(--ecv2-g500, #6b7280); }
+/* The summary dialog's result line ( a test sent, or why a test or a save failed ). */
+.ecrp3-summary-message { margin: 14px 0 0; padding: 8px 10px; border-radius: 7px; font-size: 12.5px; line-height: 1.45; }
+.ecrp3-summary-message.is-good { background: #f0fdf4; color: var(--ecrp-good, #15803d); }
+.ecrp3-summary-message.is-error { background: #fef2f2; color: var(--ecrp-bad, #b91c1c); }
+.ecrp-dl .ecv2-btn.is-busy { cursor: progress; }
+.ecrp3-link { border: 0; background: transparent; padding: 0; color: var(--ecrp-accent); text-decoration: underline; cursor: pointer; font: inherit; }
+.ecrp3-progress { font-weight: 600; }
+.ecrp3-sources-card { margin: 0 0 14px; }
+
+@media screen and ( max-width: 1200px ) {
+	.ecrp3-charts { grid-template-columns: 1fr 1fr; }
+}
+@media screen and ( max-width: 782px ) {
+	.ecrp3-charts { grid-template-columns: 1fr; }
+	.ecrp3-kpis { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); gap: 8px; }
+	.ecrp3-kpi { padding: 12px; }
+	.ecrp3-kpi-value, .ecrp3-kpis .ecrp3-kpi:first-child .ecrp3-kpi-value { font-size: 19px; }
+	.ecrp3 .ecrp-toolbar { padding: 10px; }
+	.ecrp3-field, .ecrp3-field select { width: 100%; max-width: none !important; }
+	.ecrp3 .ecrp-ranges { width: 100%; }
+	.ecrp3-canvas { height: 200px; }
+	.ecrp3-teaser { padding-bottom: 190px; }
+	.ecrp3-lock { width: calc( 100% - 24px ); }
+}

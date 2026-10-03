@@ -74,22 +74,37 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 						$totals,
 						array( 'cart_payment_complete_bottom_line_1', 'cart_payment_complete_bottom_line_2' )
 					),
+					'documents'    => array( 'po_number_label', 'payment_terms_label', 'due_date_label', 'gift_summary_title', 'gift_summary_prices', 'gift_message_label', 'gift_summary_recipient', 'gift_summary_recipient_note', 'document_links_title' ),
 				),
 				'shipping'     => array(
 					'ec_shipping_email' => array( 'shipping_email_title', 'shipping_dear', 'shipping_subtitle1', 'shipping_subtitle2', 'shipping_description', 'shipping_billing_label', 'shipping_shipping_label', 'shipping_carrier', 'shipping_tracking', 'shipping_product', 'shipping_quantity', 'shipping_unit_price', 'shipping_total_price', 'shipping_final_note1', 'shipping_final_note2' ),
-					'documents'         => array( 'items_to_follow' ),
+					'documents'         => array( 'items_to_follow', 'gift_summary_title', 'gift_message_label', 'gift_summary_recipient' ),
 				),
 				'packing_slip' => array(
-					'documents'    => array( 'packing_slip_title', 'order_number', 'order_date', 'ship_to', 'bill_to', 'shipping_method', 'carrier', 'tracking', 'items_to_follow', 'packing_slip_email_subject' ),
+					'documents'    => array( 'packing_slip_title', 'order_number', 'order_date', 'po_number_label', 'ship_to', 'bill_to', 'shipping_method', 'carrier', 'tracking', 'items_to_follow', 'gift_message_label', 'packing_slip_email_subject' ),
 					'cart_success' => array_merge( array( 'cart_payment_complete_details_header_1', 'cart_payment_complete_details_header_2', 'cart_payment_complete_details_header_3', 'cart_payment_complete_details_header_4' ), $totals ),
 				),
 				'invoice'      => array(
-					'documents'    => array( 'invoice_title', 'receipt_title', 'invoice_order_number', 'invoice_date' ),
+					'documents'    => array( 'invoice_title', 'receipt_title', 'invoice_order_number', 'invoice_date', 'invoice_number_label', 'invoice_issued_label', 'payment_terms_label', 'due_date_label', 'po_number_label' ),
 					'cart_success' => array_merge(
 						array( 'cart_payment_complete_line_1', 'cart_payment_complete_line_2', 'cart_payment_complete_line_3', 'cart_payment_complete_line_4', 'cart_payment_complete_shipping_label', 'cart_payment_complete_billing_label', 'cart_payment_complete_details_header_1', 'cart_payment_complete_details_header_2', 'cart_payment_complete_details_header_3', 'cart_payment_complete_details_header_4' ),
 						$totals,
 						array( 'cart_payment_complete_bottom_line_1', 'cart_payment_complete_bottom_line_2' )
 					),
+				),
+				/* 6.0.2: the invoice email's subject, heading, first line ( with or without the PDF ) and Pay button. */
+				'invoice_email' => array(
+					'documents'    => array( 'invoice_email_subject', 'invoice_title', 'invoice_email_intro', 'invoice_email_intro_no_pdf', 'invoice_order_number', 'invoice_date', 'payment_terms_label', 'due_date_label', 'po_number_label', 'invoice_pay_button', 'pay_bank_tab', 'bill_to' ),
+					'cart_success' => array_merge( array( 'cart_payment_complete_details_header_1', 'cart_payment_complete_details_header_2', 'cart_payment_complete_details_header_3', 'cart_payment_complete_details_header_4' ), $totals ),
+				),
+				/* 6.0.2 */
+				'gift_receipt' => array(
+					'documents'    => array( 'gift_receipt_title', 'gift_receipt_intro', 'gift_from_label', 'order_number', 'order_date', 'gift_message_label', 'ship_to', 'items_to_follow', 'gift_returns_note', 'gift_receipt_email_subject' ),
+					'cart_success' => array( 'cart_payment_complete_details_header_1', 'cart_payment_complete_details_header_2' ),
+				),
+				'credit_note'  => array(
+					'documents'    => array( 'credit_note_title', 'credit_note_number_label', 'invoice_date', 'credit_note_for_invoice', 'invoice_order_number', 'po_number_label', 'credit_note_invoice_total', 'amount_credited' ),
+					'cart_success' => array( 'cart_payment_complete_billing_label', 'cart_payment_complete_details_header_1', 'cart_payment_complete_details_header_2' ),
 				),
 			);
 			return (array) apply_filters( 'wp_easycart_document_wording_keys', isset( $keys[ $type ] ) ? $keys[ $type ] : array(), $type );
@@ -379,6 +394,8 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 						'brand_center'   => __( 'Center', 'wp-easycart' ),
 						'brand_right'    => __( 'Right', 'wp-easycart' ),
 						'brand_pdf'      => __( 'This changes the receipt email. The PDF attached to it is the Invoice PDF, which has its own profiles and logo.', 'wp-easycart' ),
+						/* 6.0.2 */
+						'brand_pdf_inv'  => __( 'This changes the invoice email. The PDF attached to it is the Invoice PDF, which has its own profiles and logo.', 'wp-easycart' ),
 						'brand_need_url' => __( 'Choose an image, or use the store’s.', 'wp-easycart' ),
 						'brand_custom'   => __( 'This profile has its own logo or footer image', 'wp-easycart' ),
 						'brand_locked'   => self::needs_update() ? __( 'A logo and footer image for each profile comes with the WP EasyCart PRO plugin already on this site. Update the plugin to use it.', 'wp-easycart' ) : ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::requires_text( __( 'A logo and footer image for each profile', 'wp-easycart' ) ) : __( 'A logo and footer image for each profile needs WP EasyCart PRO.', 'wp-easycart' ) ),
@@ -456,12 +473,16 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 				return;
 			}
 			$pro      = wp_easycart_documents::pro_enabled();
+			/* 6.0.2: the Gift receipt and Credit note and the new Pro switches need WP EasyCart PRO 6.0.2. An older licensed PRO
+			   unlocks this page but never sends those documents or records those fields, so they stay locked under Update. */
+			$pro_602  = $pro && self::pro_supports( '6.0.2' );
+			$type_pro = self::is_602_type( $type ) ? $pro_602 : $pro;
 			/* 6.0.1: a PRO document ( the Invoice PDF ) shows its Standard profile without PRO, read only, as a preview of it. */
-			$doc_lock = wp_easycart_documents::is_pro_type( $type ) && ! $pro;
+			$doc_lock = wp_easycart_documents::is_pro_type( $type ) && ! $type_pro;
 			$default  = wp_easycart_documents::default_id( $type );
 			$profiles = array();
 			foreach ( wp_easycart_documents::profile_list( $type ) as $id => $info ) {
-				$locked          = $info['pro'] && ! $pro;
+				$locked          = $info['pro'] && ! $type_pro;
 				$resolved        = $locked ? null : wp_easycart_documents::profile( $type, $id );
 				$profiles[ $id ] = array(
 					'id'       => $id,
@@ -483,14 +504,22 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			$fields = wp_easycart_documents::fields( $type );
 			$groups  = wp_easycart_documents::groups();
 			$choices = wp_easycart_documents::options( $type );
-			$upsell  = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::onclick( 'documents', $doc_lock ? 'invoice' : 'profiles' ) : 'return false;';
+			/* 6.0.2: the upsell opens on the feature the locked document ( or switch, below ) belongs to. */
+			$doc_features = array(
+				'invoice'       => 'invoice',
+				'invoice_email' => 'invoice_email',
+				'gift_receipt'  => 'gifts',
+				'credit_note'   => 'invoicing',
+			);
+			$lock_feature = ( $doc_lock && isset( $doc_features[ $type ] ) ) ? $doc_features[ $type ] : '';
+			$upsell       = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::onclick( 'documents', '' !== $lock_feature ? $lock_feature : 'profiles' ) : 'return false;';
 			?>
 			<div class="ecdoc<?php echo $doc_lock ? ' is-locked' : ''; ?>" id="ecdoc_<?php echo esc_attr( $type ); ?>" data-type="<?php echo esc_attr( $type ); ?>"<?php echo $doc_lock ? ' data-locked="1"' : ''; ?>>
 				<script type="application/json" class="ecdoc-data"><?php echo wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
 				<div class="ecdoc-profiles" role="tablist" aria-label="<?php esc_attr_e( 'Profiles', 'wp-easycart' ); ?>">
 					<?php foreach ( $profiles as $id => $profile ) : ?>
 						<?php if ( $profile['locked'] ) : ?>
-							<button type="button" class="ecdoc-tab is-locked" onclick="<?php echo esc_attr( $upsell ); ?>" title="<?php echo esc_attr( $profile['desc'] ); ?>"><?php echo esc_html( $profile['name'] ); ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge() ); ?></span></button>
+							<button type="button" class="ecdoc-tab is-locked" onclick="<?php echo esc_attr( $upsell ); ?>" title="<?php echo esc_attr( $profile['desc'] ); ?>"><?php echo esc_html( $profile['name'] ); ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge( $lock_feature ) ); ?></span></button>
 						<?php else : ?>
 							<button type="button" class="ecdoc-tab<?php echo ( $id === $default ) ? ' is-active' : ''; ?>" role="tab" aria-selected="<?php echo ( $id === $default ) ? 'true' : 'false'; ?>" data-profile="<?php echo esc_attr( $id ); ?>"><span class="ecdoc-tab-name"><?php echo esc_html( $profile['name'] ); ?></span><?php if ( $id === $default ) : ?> <span class="ecdoc-default"><?php esc_html_e( 'Default', 'wp-easycart' ); ?></span><?php endif; ?></button>
 						<?php endif; ?>
@@ -498,7 +527,7 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 					<?php if ( $pro ) : ?>
 						<button type="button" class="ecdoc-tab ecdoc-add" data-add="1">+ <?php esc_html_e( 'New profile', 'wp-easycart' ); ?></button>
 					<?php else : ?>
-						<button type="button" class="ecdoc-tab ecdoc-add is-locked" onclick="<?php echo esc_attr( $upsell ); ?>">+ <?php esc_html_e( 'New profile', 'wp-easycart' ); ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge() ); ?></span></button>
+						<button type="button" class="ecdoc-tab ecdoc-add is-locked" onclick="<?php echo esc_attr( $upsell ); ?>">+ <?php esc_html_e( 'New profile', 'wp-easycart' ); ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge( $lock_feature ) ); ?></span></button>
 					<?php endif; ?>
 				</div>
 				<?php
@@ -566,10 +595,16 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 							<div class="ecdoc-group">
 								<div class="ecdoc-group-t"><?php echo esc_html( $group_label ); ?></div>
 								<?php foreach ( $in_group as $key => $def ) : ?>
-									<?php $input_id = 'ecdoc_' . $type . '_' . $key; ?>
-									<label class="ecdoc-sw<?php echo ! empty( $def['master'] ) ? ' is-master' : ''; ?><?php echo ! empty( $def['parent'] ) ? ' is-child' : ''; ?>" for="<?php echo esc_attr( $input_id ); ?>"<?php if ( ! empty( $def['parent'] ) ) : ?> data-parent="<?php echo esc_attr( $def['parent'] ); ?>"<?php endif; ?>>
-										<span class="ecdoc-sw-text"><b><?php echo esc_html( $def['label'] ); ?></b><?php if ( ! empty( $def['desc'] ) ) : ?><small><?php echo esc_html( $def['desc'] ); ?><?php self::print_edit_link( $def ); ?></small><?php endif; ?></span>
-										<input type="checkbox" id="<?php echo esc_attr( $input_id ); ?>" data-key="<?php echo esc_attr( $key ); ?>"<?php disabled( $doc_lock ); ?>>
+									<?php
+									$input_id = 'ecdoc_' . $type . '_' . $key;
+									/* 6.0.2: a switch for something only WP EasyCart PRO records ( PO number, terms, gift message ) is shown locked. */
+									$sw_lock = ! $doc_lock && ! empty( $def['pro'] ) && ! $pro_602;
+									$sw_feat = in_array( $key, array( 'gift_message', 'gift' ), true ) ? 'gifts' : 'b2b';
+									$sw_up   = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::onclick( 'documents', $sw_feat ) : 'return false;';
+									?>
+									<label class="ecdoc-sw<?php echo ! empty( $def['master'] ) ? ' is-master' : ''; ?><?php echo ! empty( $def['parent'] ) ? ' is-child' : ''; ?><?php echo $sw_lock ? ' is-locked' : ''; ?>" for="<?php echo esc_attr( $input_id ); ?>"<?php if ( ! empty( $def['parent'] ) ) : ?> data-parent="<?php echo esc_attr( $def['parent'] ); ?>"<?php endif; ?><?php if ( $sw_lock ) : ?> onclick="<?php echo esc_attr( $sw_up ); ?>" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"<?php endif; ?>>
+										<span class="ecdoc-sw-text"><b><?php echo esc_html( $def['label'] ); ?><?php if ( $sw_lock ) : ?> <span class="ecst-pro-chip"><?php echo esc_html( self::lock_badge( $sw_feat ) ); ?></span><?php endif; ?></b><?php if ( ! empty( $def['desc'] ) ) : ?><small><?php echo esc_html( $def['desc'] ); ?><?php self::print_edit_link( $def ); ?></small><?php endif; ?></span>
+										<input type="checkbox" id="<?php echo esc_attr( $input_id ); ?>" data-key="<?php echo esc_attr( $key ); ?>"<?php disabled( $doc_lock || $sw_lock ); ?>>
 										<span class="ecdoc-knob" aria-hidden="true"></span>
 									</label>
 								<?php endforeach; ?>
@@ -578,7 +613,7 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 						<div class="ecdoc-actions">
 							<span class="ecdoc-status" role="status" aria-live="polite"></span>
 							<span class="ecdoc-grow"></span>
-							<?php if ( $pro ) : ?>
+							<?php if ( $type_pro ) : ?>
 								<button type="button" class="ecv2-btn ecv2-btn-sm" data-op="default"><?php esc_html_e( 'Make default', 'wp-easycart' ); ?></button>
 								<button type="button" class="ecv2-btn ecv2-btn-sm" data-op="rename"><?php esc_html_e( 'Rename', 'wp-easycart' ); ?></button>
 								<button type="button" class="ecv2-btn ecv2-btn-sm ecst-btn-danger" data-op="delete"><?php esc_html_e( 'Delete', 'wp-easycart' ); ?></button>
@@ -629,12 +664,6 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 		}
 
 		/**
-		 * Section 'render' callable without PRO: the grid, locked, so the merchant sees what it does.
-		 *
-		 * @param array $page    Declaration.
-		 * @param array $section Section.
-		 */
-		/**
 		 * Whether the Documents features only need a newer WP EasyCart PRO ( 6.0.1: they said Pro / Premium and offered
 		 * the plans to stores that already have one ).
 		 *
@@ -646,18 +675,67 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 		}
 
 		/**
-		 * Chip text on locked profiles: Update when only a newer WP EasyCart PRO is missing, otherwise the store's plan.
+		 * Chip text on locked profiles, documents and switches: Update when only a newer WP EasyCart PRO is missing,
+		 * otherwise the store's plan.
 		 *
 		 * @since 6.0.1
+		 * @param string $feature Optional feature of the upsell catalog's documents entry ( 6.0.2 features need PRO 6.0.2 ).
 		 * @return string
 		 */
-		private static function lock_badge() {
+		private static function lock_badge( $feature = '' ) {
 			if ( class_exists( 'wp_easycart_admin_upsell' ) ) {
-				return wp_easycart_admin_upsell::badge_for( 'documents' );
+				return wp_easycart_admin_upsell::badge_for( 'documents', 'pro', $feature );
 			}
 			return class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : 'Pro';
 		}
 
+		/**
+		 * Whether the running WP EasyCart PRO is at least a version.
+		 *
+		 * @since 6.0.2
+		 * @param string $version Version.
+		 * @return bool
+		 */
+		private static function pro_supports( $version ) {
+			if ( defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ) {
+				return version_compare( WP_EASYCART_ADMIN_PRO_VERSION, $version, '>=' );
+			}
+			if ( class_exists( 'wp_easycart_admin_pro_gate' ) ) {
+				$status = wp_easycart_admin_pro_gate::pro_status();
+				return ! empty( $status['version'] ) && version_compare( $status['version'], $version, '>=' );
+			}
+			return false;
+		}
+
+		/**
+		 * Document types that arrived in 6.0.2 ( and need WP EasyCart PRO 6.0.2 to be sent ).
+		 *
+		 * @since 6.0.2
+		 * @param string $type Document type.
+		 * @return bool
+		 */
+		private static function is_602_type( $type ) {
+			return in_array( $type, array( 'invoice_email', 'gift_receipt', 'credit_note' ), true );
+		}
+
+		/**
+		 * Refuse a change to a 6.0.2 document while WP EasyCart PRO is older than 6.0.2 ( ends the request ).
+		 *
+		 * @since 6.0.2
+		 * @param string $type Document type.
+		 */
+		private static function refuse_old_pro( $type ) {
+			if ( self::is_602_type( $type ) && ! self::pro_supports( '6.0.2' ) ) {
+				wp_send_json_error( array( 'message' => __( 'This document needs the latest WP EasyCart PRO. Update it on the Plugins screen.', 'wp-easycart' ) ) );
+			}
+		}
+
+		/**
+		 * Section 'render' callable without PRO: the grid, locked, so the merchant sees what it does.
+		 *
+		 * @param array $page    Declaration.
+		 * @param array $section Section.
+		 */
 		public static function render_attachments_locked( $page, $section ) {
 			$grid = self::attachment_grid();
 			?>
@@ -682,7 +760,41 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 					</tbody>
 				</table>
 			</div>
-			<p class="ecdoc-grid-note"><?php esc_html_e( 'Attach the invoice or the packing slip as a PDF to any of these emails, each with its own profile, so the buyer’s invoice can show prices while the slip in a gift box does not.', 'wp-easycart' ); ?></p>
+			<p class="ecdoc-grid-note"><?php esc_html_e( 'Attach the invoice or the packing slip as a PDF to any of these emails, or send a download link instead, each with its own profile, so the buyer’s invoice can show prices while the slip in a gift box does not.', 'wp-easycart' ); ?></p>
+			<?php
+		}
+
+		/**
+		 * Section 'render' callable without WP EasyCart PRO 6.0.2: document rules, as an example list under a soft lock.
+		 *
+		 * @since 6.0.2
+		 * @param array $page    Declaration.
+		 * @param array $section Section.
+		 */
+		public static function render_rules_locked( $page, $section ) {
+			$onclick = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::onclick( 'documents', 'rules' ) : 'return false;';
+			$rows    = array(
+				array( __( 'Customer role is Wholesale', 'wp-easycart' ), __( 'Invoice PDF: B2B · Packing slip: Drop-ship · Terms: Net 30', 'wp-easycart' ) ),
+				array( __( 'Shipping is local pickup', 'wp-easycart' ), __( 'Packing slip: Standard · No PDF on the shipped email', 'wp-easycart' ) ),
+				array( __( 'Order is a gift', 'wp-easycart' ), __( 'Customer downloads: gift receipt only, no receipt PDF', 'wp-easycart' ) ),
+				array( __( 'Payment is manual and total is over 1,000', 'wp-easycart' ), __( 'Attach the Invoice PDF to the receipt · Terms: Net 15', 'wp-easycart' ) ),
+			);
+			?>
+			<div class="ecdoc-lock-click" role="button" tabindex="0" onclick="<?php echo esc_attr( $onclick ); ?>" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="<?php esc_attr_e( 'Learn about document rules', 'wp-easycart' ); ?>">
+			<div class="ecdoc-grid-wrap is-locked" aria-disabled="true">
+				<table class="ecdoc-grid ecdoc-rules-mock">
+					<thead>
+						<tr><th>#</th><th><?php esc_html_e( 'When the order matches', 'wp-easycart' ); ?></th><th><?php esc_html_e( 'Then use', 'wp-easycart' ); ?></th></tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $rows as $n => $row ) : ?>
+							<tr><td><?php echo (int) $n + 1; ?></td><td><?php echo esc_html( $row[0] ); ?></td><td><?php echo esc_html( $row[1] ); ?></td></tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+			</div>
+			<p class="ecdoc-grid-note"><?php esc_html_e( 'Rules are checked top to bottom and the first one that matches decides the profiles, attachments, customer downloads and payment terms for that order. Gift orders and your choices when you send an email still come first.', 'wp-easycart' ); ?></p>
 			<?php
 		}
 
@@ -719,6 +831,7 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			ecv2_documents_guard();
 			$type    = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : '';
 			$profile = isset( $_POST['profile'] ) ? sanitize_key( wp_unslash( $_POST['profile'] ) ) : '';
+			self::refuse_old_pro( $type );
 			$raw     = isset( $_POST['values'] ) && is_string( $_POST['values'] ) ? json_decode( wp_unslash( $_POST['values'] ), true ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON; wp_easycart_documents::save_branding() keeps known keys only and cleans each ( esc_url_raw, ranges, lists ).
 			if ( ! is_array( $raw ) ) {
 				wp_send_json_error( array( 'message' => __( 'Nothing to save.', 'wp-easycart' ) ) );
@@ -749,6 +862,7 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			ecv2_documents_guard();
 			$type    = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : '';
 			$profile = isset( $_POST['profile'] ) ? sanitize_key( wp_unslash( $_POST['profile'] ) ) : '';
+			self::refuse_old_pro( $type );
 			$result  = wp_easycart_documents::save_profile( $type, $profile, self::posted_fields() );
 			if ( is_wp_error( $result ) ) {
 				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
@@ -807,8 +921,16 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			if ( $order_id <= 0 ) {
 				return '';
 			}
-			if ( 'packing_slip' === $type || 'invoice' === $type ) {
-				$doc = new wp_easycart_document( $type, $order_id, $fields, array( 'output' => 'preview' ) );
+			if ( in_array( $type, array( 'packing_slip', 'invoice', 'invoice_email', 'gift_receipt', 'credit_note' ), true ) ) {
+				$args = array( 'output' => 'preview' );
+				/* 6.0.2: the order's invoice number and credit note, when it has them ( the live order, so profile changes show ). */
+				if ( 'invoice' === $type || 'invoice_email' === $type || 'credit_note' === $type ) {
+					$args['invoice'] = wp_easycart_documents::invoice_for_order( $order_id );
+				}
+				if ( 'credit_note' === $type ) {
+					$args['credit_note'] = wp_easycart_documents::invoice_for_order( $order_id, 'credit_note' );
+				}
+				$doc = new wp_easycart_document( $type, $order_id, $fields, $args );
 				return $doc->order ? $doc->capture( wp_easycart_documents::locate( wp_easycart_documents::template_file( $type ) ) ) : '';
 			}
 			if ( 'receipt' === $type ) {
@@ -837,6 +959,7 @@ if ( ! class_exists( 'wp_easycart_admin_documents' ) ) :
 			$profile = isset( $_POST['profile'] ) ? sanitize_key( wp_unslash( $_POST['profile'] ) ) : '';
 			$op      = isset( $_POST['op'] ) ? sanitize_key( wp_unslash( $_POST['op'] ) ) : '';
 			$name    = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+			self::refuse_old_pro( $type );
 			switch ( $op ) {
 				case 'create':
 					$result = wp_easycart_documents::create_profile( $type, $name, $profile );

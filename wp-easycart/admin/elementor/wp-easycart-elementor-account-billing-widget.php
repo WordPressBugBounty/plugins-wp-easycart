@@ -8,10 +8,10 @@
 $args = shortcode_atts(
 	array(
 		'address_first_name_label' => wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_first_name' ),
-		'address_first_name_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_contact_information', 'account_billing_information_first_name' ),
+		'address_first_name_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_first_name' ),
 
 		'address_last_name_label' => wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_last_name' ),
-		'address_last_name_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_contact_information', 'account_billing_information_last_name' ),
+		'address_last_name_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_last_name' ),
 
 		'company_name_label' => wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_company_name' ),
 		'company_name_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_company_name' ),
@@ -19,7 +19,8 @@ $args = shortcode_atts(
 		'country_label' => wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_country' ),
 		'country_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_country' ),
 
-		'vat_label' => wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_vat_registration_number' ),
+		/* 6.0.2: a phrase that exists ( the Account Billing group has none for VAT, so the label was empty ). */
+		'vat_label' => wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_vat_registration_number' ),
 
 		'address_label' => wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_address' ),
 		'address_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'account_billing_information', 'account_billing_information_address' ),
@@ -115,12 +116,13 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 		echo '</div>';
 	}
 
+	/* 6.0.2: the first name's own label and error ( the label printed the error text, and floating labels read a setting this form does not have ). */
 	if ( 'floating' == $args['label_type'] ) {
-		echo '<div class="ec_cart_error_row" id="ec_account_billing_information_first_name_error">' . esc_html( $args['first_name_error'] ) . '</div>';
+		echo '<div class="ec_cart_error_row" id="ec_account_billing_information_first_name_error">' . esc_html( $args['address_first_name_error'] ) . '</div>';
 	}
 	echo '<div class="ec_cart_input_row">';
 		if ( 'above' == $args['label_type'] ) {
-			echo '<label for="ec_account_billing_information_first_name">' . esc_html( $args['address_first_name_error'] ) . '</label>';
+			echo '<label for="ec_account_billing_information_first_name">' . esc_html( $args['address_first_name_label'] ) . '</label>';
 		}
 		echo '<input type="text" name="ec_account_billing_information_first_name" id="ec_account_billing_information_first_name" class="ec_account_input_field" value="'. esc_attr( htmlspecialchars( $GLOBALS['ec_user']->billing->first_name, ENT_QUOTES ) ) .'" placeholder="';
 		if ( 'inside' == $args['label_type'] ) {
@@ -192,7 +194,8 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 			if ( 'above' == $args['label_type'] ) {
 				echo '<label for="ec_account_billing_vat_registration_number">' . esc_html( $args['vat_label'] ) . '</label>';
 			}
-			echo '<input type="text" name="ec_account_billing_vat_registration_number" id="ec_account_billing_vat_registration_number" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( $GLOBALS['ec_user']->vat_registration_number, ENT_QUOTES ) ) . '" placeholder="';
+			/* 6.0.2: posted under the name the billing handler reads; under the old name every save erased the customer's VAT number. */
+			echo '<input type="text" name="ec_account_billing_information_vat_registration_number" id="ec_account_billing_vat_registration_number" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( (string) $GLOBALS['ec_user']->vat_registration_number, ENT_QUOTES ) ) . '" placeholder="';
 			if ( 'inside' == $args['label_type'] ) {
 				echo esc_html( $args['vat_label'] );
 			} else if ( 'floating' == $args['label_type'] ) {
@@ -325,7 +328,8 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 			}
 			echo '</select>';
 
-			echo '<input type="text" name="ec_account_input_field" id="ec_account_billing_information_state" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( $selected_state, ENT_QUOTES ) ) . '" placeholder="';
+			/* 6.0.2: named for the billing handler ( as ec_account_input_field, a state typed for a country without a state list was erased ). */
+			echo '<input type="text" name="ec_account_billing_information_state" id="ec_account_billing_information_state" class="ec_account_input_field" value="' . esc_attr( htmlspecialchars( (string) $selected_state, ENT_QUOTES ) ) . '" placeholder="';
 			if ( 'inside' == $args['label_type'] ) {
 				echo esc_html( $args['state_label'] );
 			} else if ( 'floating' == $args['label_type'] ) {
@@ -394,17 +398,12 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 			if ( 'above' == $args['label_type'] ) {
 				echo '<label for="ec_account_billing_information_country">' . esc_html( $args['country_label'] ) . '</label>';
 			}
-			echo '<input type="text" name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field" placeholder="';
-			if ( 'inside' == $args['label_type'] ) {
-				echo esc_html( $args['country_label'] );
-			} else if ( 'floating' == $args['label_type'] ) {
-				echo ' ';
-			}
-			echo '">';
+			/*
+			 * 6.0.2: one country field, preselected with the customer's country ( $selected_country, above ). An empty text box
+			 * with the same name and id came first, so the form could not be submitted until something was typed into it, and
+			 * the select below was reset to the store's default country.
+			 */
 			if ( get_option( 'ec_option_use_country_dropdown' ) ) {
-				$countries = $GLOBALS['ec_countries']->countries;
-				$selected_country = get_option( 'ec_option_default_country' );
-
 				echo '<select name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field">';
 					echo '<option value="0">' . wp_easycart_language()->get_text( "account_billing_information", "account_billing_information_default_no_country" ) . '</option>';
 					foreach ( $countries as $country ) {
@@ -416,7 +415,7 @@ echo '<form action="' . esc_attr( $account_page ) . '" method="POST">';
 					}
 				echo '</select>';
 			} else {
-				echo '<input type="text" name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field" value="" placeholder="';
+				echo '<input type="text" name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field" value="' .  esc_attr( htmlspecialchars( (string) $GLOBALS['ec_user']->billing->country, ENT_QUOTES ) ) . '" placeholder="';
 				if ( 'inside' == $args['label_type'] ) {
 					echo esc_html( $args['country_label'] );
 				} else if ( 'floating' == $args['label_type'] ) {

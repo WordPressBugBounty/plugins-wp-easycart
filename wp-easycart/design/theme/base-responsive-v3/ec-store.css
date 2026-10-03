@@ -134,13 +134,13 @@ input[type="radio"]{ -webkit-appearance:radio; }
 /* Product Shortcode Spacing */
 .ec_productlist_ul.sp-0{ width:100%; margin-left:0px; margin-right:0px; }
 .ec_productlist_ul.sp-0 > .ec_product_li{ padding:0px; }
-.ec_productlist_ul.sp-1{ width:calc(100% + 1px); margin-left:.5px; margin-right:.5px; }
+.ec_productlist_ul.sp-1{ width:calc(100% + 1px); margin-left:-.5px; margin-right:-.5px; }
 .ec_productlist_ul.sp-1 > .ec_product_li{ padding:.5px; }
-.ec_productlist_ul.sp-2{ width:calc(100% + 2px); margin-left:1px; margin-right:1px; }
+.ec_productlist_ul.sp-2{ width:calc(100% + 2px); margin-left:-1px; margin-right:-1px; }
 .ec_productlist_ul.sp-2 > .ec_product_li{ padding:1px; }
-.ec_productlist_ul.sp-3{ width:calc(100% + 3px); margin-left:1.5px; margin-right:1.5px; }
+.ec_productlist_ul.sp-3{ width:calc(100% + 3px); margin-left:-1.5px; margin-right:-1.5px; }
 .ec_productlist_ul.sp-3 > .ec_product_li{ padding:1.5px; }
-.ec_productlist_ul.sp-4{ width:calc(100% + 4px); margin-left:2px; margin-right:2px; }
+.ec_productlist_ul.sp-4{ width:calc(100% + 4px); margin-left:-2px; margin-right:-2px; }
 .ec_productlist_ul.sp-4 > .ec_product_li{ padding:2px; }
 .ec_productlist_ul.sp-5{ width:calc(100% + 5px); margin-left:-2.5px; margin-right:-2.5px; }
 .ec_productlist_ul.sp-5 > .ec_product_li{ padding:2.5px; }
@@ -1184,6 +1184,7 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .ec_details_tab{ font-family: 'Lato', Arial, sans-serif !important; font-size:14px !important; list-style:none; display:inline-block; margin:0 35px 0 0 !important; margin-left:0 !important; border-top:solid 3px #222222; line-height:2.6em; text-transform:uppercase; font-weight:bold; cursor:pointer; }
 .ec_details_tab:before{ content:''; }
 .ec_details_tab.ec_active{ border-top:solid 3px #222222; }
+.ec_details_tab:focus-visible{ outline:2px solid; outline-offset:2px; }
 .ec_details_description_content{ float:left; width:100%; }
 .ec_details_edit_buttons{ float:left; width:100%; margin:5px 0 15px; }
 .ec_details_edit_button > input{ font-family:'Lato', Arial, sans-serif !important; padding:12px 20px !important; background-color:#666; float:left; color:#FFF; cursor:pointer !important; border:none !important; text-decoration:none; text-shadow:none; font-size:13px; line-height:1.1em; float:left; width:inherit !important; height:inherit !important; border-radius:0px !important; margin:0 5px 0 0; }
@@ -1529,7 +1530,7 @@ input[type="radio"]{ -webkit-appearance:radio; }
 
 /* CART PAGE */
 .ec_cart_page *{ box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; text-shadow:none; font-weight:normal; }
-.ec_cart_page input[type='text'], .ec_cart_page input[type='input'], .ec_cart_page input[type='password'], .ec_cart_page input[type='email'], .ec_cart_page input[type='number'], .ec_cart_page input[type='url'], .ec_cart_page input[type='tel'], .ec_cart_page input[type='search'], .ec_cart_page textarea, .ec_cart_page select{ color:#222 !important; -webkit-appearance:none;outline:none; font:15px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; margin:0; display:block; max-width:100%; background:#FFF; line-height:1.1em; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; border:1px solid rgb(230,230,230); box-shadow:0px 1px 1px rgb(0 0 0 / 3%), 0px 3px 6px rgb(0 0 0 / 2%); transition:background 0.15s ease, border 0.15s ease, box-shadow 0.15s ease, color 0.15s ease; border-radius:5px; padding:.75rem; height:auto !important; }
+.ec_cart_page input[type='text'], .ec_cart_page input[type='input'], .ec_cart_page input[type='date'], .ec_cart_page input[type='password'], .ec_cart_page input[type='email'], .ec_cart_page input[type='number'], .ec_cart_page input[type='url'], .ec_cart_page input[type='tel'], .ec_cart_page input[type='search'], .ec_cart_page textarea, .ec_cart_page select{ color:#222 !important; -webkit-appearance:none;outline:none; font:15px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; margin:0; display:block; max-width:100%; background:#FFF; line-height:1.1em; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; border:1px solid rgb(230,230,230); box-shadow:0px 1px 1px rgb(0 0 0 / 3%), 0px 3px 6px rgb(0 0 0 / 2%); transition:background 0.15s ease, border 0.15s ease, box-shadow 0.15s ease, color 0.15s ease; border-radius:5px; padding:.75rem; height:auto !important; }
 .ec_cart_page form{ margin:0 0 0 0 !important; }
 .ec_cart_empty{ float:left; width:100%; text-align:center; font-size:18px; font-family:'Lato', Arial, sans-serif !important; color:#222222; font-weight:bold; }
 .ec_cart_empty_button_row{ float:left; width:100%; text-align:center; }
@@ -1783,6 +1784,43 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_cart_bottom_nav_back{ font-size:15px !important; font-weight:normal; color:#444; font-family:'Lato', Arial, sans-serif !important; text-decoration:none; }
 .ec_cart_bottom_nav_back:hover{ color:#222; }
 
+/* 6.0.2: checkout protection notice ( ec-checkout-protection.js ), full width above Place order, in the store's colours
+   ( head_content.php sets the variables ). */
+.wpec-protect-mount{ float:left; width:100%; }
+.wpec-protect{ float:left; clear:both; width:100%; box-sizing:border-box; margin:12px 0; padding:14px 16px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-left:4px solid var(--wpec-main-color, #222222); border-radius:8px; background:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); font-family:var(--wpec-font-main, inherit); font-size:.975rem; line-height:1.5; text-align:left; }
+.wpec-protect.is-paused{ border-color:rgb(240,215,140); border-left-color:rgb(122,65,0); background:rgb(255,245,204); color:rgb(122,65,0); }
+.wpec-protect-title{ display:block; font-weight:600; margin:0 0 2px; }
+.wpec-protect-widget{ margin-top:10px; min-height:10px; max-width:100%; }
+.wpec-protect-error{ color:var(--wpec-error-color, rgb(122,9,22)); margin-top:6px; }
+.wpec-protect.is-paused .wpec-protect-error{ color:rgb(122,9,22); }
+.wpec-protect-blocked{ opacity:.55; pointer-events:none; cursor:not-allowed; }
+
+/* 6.0.2: Place order's busy state ( ec-checkout-busy.js ): a status card over the page from the click until the page moves on,
+   the checkout behind it locked ( inert ). It sits under the payment services' own windows ( 3-D Secure, Square's
+   verification, PayPal ), and the payment scripts' older dark covers are hidden while it shows. The spinner takes the
+   store's button colour. */
+.wpec-busy{ position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990; display:flex; align-items:center; justify-content:center; padding:16px; box-sizing:border-box; background:rgba(17,24,39,.42); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); cursor:progress; animation:wpec-busy-in .16s ease-out; }
+.wpec-busy[hidden]{ display:none !important; }
+.wpec-busy-card{ display:flex; flex-direction:column; align-items:center; width:340px; max-width:100%; box-sizing:border-box; padding:28px 28px 24px; border-radius:16px; background:#FFFFFF; color:#111827; box-shadow:0 24px 60px rgba(15,23,42,.28), 0 2px 6px rgba(15,23,42,.12); font-family:var(--wpec-font-main, inherit); text-align:center; outline:none; }
+.wpec-busy-spinner{ display:block; width:44px; height:44px; margin:0 0 16px; box-sizing:border-box; border-radius:50%; border:3px solid rgba(17,24,39,.1); border-top-color:var(--wpec-main-color, #222222); animation:wpec-busy-spin .75s linear infinite; }
+.wpec-busy-title{ display:block; margin:0 0 4px; font-size:17px; font-weight:600; line-height:1.35; text-transform:none; letter-spacing:0; }
+.wpec-busy-live{ display:block; width:100%; }
+.wpec-busy-status{ display:block; min-height:1.45em; font-size:15px; line-height:1.45; color:#374151; }
+.wpec-busy-hint{ display:block; margin-top:6px; font-size:13px; line-height:1.45; color:#6B7280; }
+.wpec-checkout-locked{ pointer-events:none; -webkit-user-select:none; user-select:none; }
+html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-success-cover, html.wpec-checkout-busy #manual-success-cover, html.wpec-checkout-busy [id^="paypal-success-cover"]{ display:none !important; }
+@keyframes wpec-busy-spin{ to{ transform:rotate(360deg); } }
+@keyframes wpec-busy-in{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes wpec-busy-pulse{ 0%, 100%{ opacity:1; } 50%{ opacity:.35; } }
+@media ( prefers-reduced-motion: reduce ){
+	.wpec-busy{ animation:none; }
+	.wpec-busy-spinner{ animation:wpec-busy-pulse 2s ease-in-out infinite; }
+}
+@media ( forced-colors: active ){
+	.wpec-busy-card{ border:1px solid CanvasText; }
+	.wpec-busy-spinner{ border-color:CanvasText; border-top-color:Highlight; }
+}
+
 .ec_cart_express_button_container{ display:flex; width:100%; flex-direction:row; justify-content:space-between; column-gap:10px; }
 .ec_cart_express_button_container > div{ width:50% !important; margin:0px !important; }
 .ec_cart_express_button_container.ec_cart_express_button_container_single > div{ width:100% !important; }
@@ -1951,7 +1989,8 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_account_success{ width:100%; float:left; text-align:center; background-color:#E6FFE6; color:#333333; font-size:14px; font-weight:bold; font-family:'Lato', Arial, sans-serif; margin-bottom:5px; border:thin solid #6FFF47; }
 .ec_account_success div{ padding:15px; }
 .ec_account_page{ max-width:100%; }
-.ec_account_page input[type='text'], .ec_account_page input[type='input'], .ec_account_page input[type='password'], .ec_account_page input[type='email'], .ec_account_page input[type='number'], .ec_account_page input[type='url'], .ec_account_page input[type='tel'], .ec_account_page input[type='search'], .ec_account_page textarea, .ec_account_page select{ border-color:#e1e1e1; background-color:#f8f8f8; color:#919191; -webkit-appearance:none; border:1px solid #e1e1e1; outline:none; font:13px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; color:#777; margin:0; display:block; max-width:100%; background:#FFF; padding:8px 6px; line-height:1.1em; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; height:39px; }
+.ec_account_page input[type='text'], .ec_account_page input[type='input'], .ec_account_page input[type='date'], .ec_account_page input[type='password'], .ec_account_page input[type='email'], .ec_account_page input[type='number'], .ec_account_page input[type='url'], .ec_account_page input[type='tel'], .ec_account_page input[type='search'], .ec_account_page textarea, .ec_account_page select{ border-color:#e1e1e1; background-color:#f8f8f8; color:#919191; -webkit-appearance:none; border:1px solid #e1e1e1; outline:none; font:13px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; color:#777; margin:0; display:block; max-width:100%; background:#FFF; padding:8px 6px; line-height:1.1em; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; height:39px; }
+.ec_account_page textarea{ height:auto; min-height:80px; } /* 6.0.2: a text box ( a remembered checkout answer ) is taller than one line */
 
 /* Account Login */
 .ec_account_mobile{ display:none !important; float:left; width:100%; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; display:block; margin-bottom:25px; }
@@ -2184,7 +2223,22 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_account_order_details_left{ width:25%; margin-right:5%; float:left; }
 .ec_account_order_details_title{ width:100%; float:left; padding-top:15px; padding-bottom:7px; margin-bottom:7px; border-bottom:3px solid #222222; color:#222222; font-size:20px; text-align:left; font-family:'Lato', Arial, sans-serif; }
 .ec_account_order_details_title .left{ float:left; }
-#ec_account_order_details .right{ float:right; position:absolute; top:9px; right:0px; z-index:9; }
+/* 6.0.2: the order's actions ( Pay now, document links, print ) sit in a row of their own above the order, not in a
+   corner box over it. */
+#ec_account_order_details .right{ position:static; float:none; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px 14px; width:100%; margin:0 0 12px 0; z-index:auto; }
+#ec_account_order_details .right img{ display:block; }
+#ec_account_order_details a.ec_account_order_pay_now{ display:inline-flex; align-items:center; padding:8px 16px; border-radius:6px; background-color:var(--wpec-main-color, #222222); color:#FFFFFF; font-weight:600; line-height:1.2; text-decoration:none; }
+#ec_account_order_details a.ec_account_order_pay_now:hover, #ec_account_order_details a.ec_account_order_pay_now:focus{ background-color:var(--wpec-second-color, #666666); color:#FFFFFF; }
+/* 6.0.2: the order's PDFs ( receipt, invoice, credit note, packing slip, gift receipt ) as a row of document buttons. */
+#ec_account_order_details .ec_account_order_documents{ display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; margin:0; font-size:13px; line-height:1.25; }
+#ec_account_order_details a.ec_account_order_document{ display:inline-flex; align-items:center; gap:7px; padding:7px 12px 7px 10px; border:1px solid var(--wpec-border-color, rgba(0,0,0,.12)); border-radius:6px; background-color:var(--wpec-panel-color, #FFFFFF); color:var(--wpec-text-color, #222222); font-weight:600; text-decoration:none; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.05); transition:border-color .15s ease, background-color .15s ease; }
+#ec_account_order_details a.ec_account_order_document:hover, #ec_account_order_details a.ec_account_order_document:focus{ border-color:var(--wpec-main-color, #222222); background-color:rgba(127,127,127,.08); color:var(--wpec-text-color, #222222); text-decoration:none; }
+#ec_account_order_details a.ec_account_order_document:focus-visible{ outline:2px solid var(--wpec-main-color, #222222); outline-offset:2px; }
+#ec_account_order_details .ec_account_order_document_icon{ display:block; flex:0 0 auto; width:16px; height:16px; color:var(--wpec-main-color, #222222); }
+@media only screen and ( max-width:600px ){
+	#ec_account_order_details .ec_account_order_documents{ flex:1 1 100%; justify-content:flex-start; }
+	#ec_account_order_details a.ec_account_order_document{ flex:1 1 calc(50% - 4px); justify-content:center; white-space:normal; text-align:center; }
+}
 .ec_account_order_details_item_display_option{ font-size:11px; font-weight:bold; }
 .ec_account_line_optionitem_pricing{ font-size:11px; color:#999; }
 

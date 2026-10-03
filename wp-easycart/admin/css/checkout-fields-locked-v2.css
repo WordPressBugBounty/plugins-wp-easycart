@@ -1,0 +1,13 @@
+/* Settings › Checkout fields without WP EasyCart PRO 6.0.2: an example of the builder under a soft lock ( 6.0.2,
+   wp_easycart_admin_checkout_fields::render_locked() ). */
+.eccf-lock { display: grid; gap: 10px; margin-top: 16px; cursor: pointer; opacity: .78; filter: saturate( .8 ); transition: opacity .15s; }
+.eccf-lock:hover, .eccf-lock:focus-visible { opacity: 1; }
+.eccf-lock:focus-visible { outline: 2px solid var( --ec-brand, #2271b1 ); outline-offset: 3px; border-radius: 8px; }
+.eccf-lock-place { background: #fff; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 8px; overflow: hidden; }
+.eccf-lock-head { padding: 7px 12px; background: var( --ecv2-g50, #f9fafb ); border-bottom: 1px solid var( --ecv2-g200, #e5e7eb ); font-size: 12px; font-weight: 600; color: var( --ecv2-g900, #111827 ); }
+.eccf-lock-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var( --ecv2-g100, #f0f0f1 ); font-size: 13px; color: var( --ecv2-g800, #1f2937 ); }
+.eccf-lock-row:last-child { border-bottom: 0; }
+.eccf-lock-label em { font-style: normal; font-size: 11px; color: var( --ecv2-g500, #6b7280 ); margin-left: 6px; }
+.eccf-lock-tag { font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g700, #374151 ); white-space: nowrap; }
+.eccf-lock-note { margin: 12px 0 0; font-size: 13px; color: var( --ecv2-g500, #6b7280 ); max-width: 70ch; }
+@media ( prefers-reduced-motion: reduce ) { .eccf-lock { transition: none; } }

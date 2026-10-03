@@ -22,6 +22,11 @@ class ec_cart{
 	public $total_items;
 	public $shippable_total_items;
 	public $excluded_shippable_total_items;
+	public $partner_shippable_items = 0; // 6.0.2: units a fulfillment partner ships ( still in shippable_total_items ).
+	public $store_shippable_items = 0; // 6.0.2: units the store ships ( what its rates are worked out on ).
+
+	/** 6.0.2: lines a fulfillment partner ships, index => provider ( wp_easycart_shipping_groups::claimed() ). */
+	private $claimed_lines = array();
 
 	public $cart_promo_discount;
 	public $cart_total_promotion;
@@ -128,8 +133,14 @@ class ec_cart{
 		$this->total_items = 0;
 		$this->shippable_total_items = 0;
 		$this->excluded_shippable_total_items = 0;
+		$this->partner_shippable_items = 0;
+		$this->store_shippable_items = 0;
+		/* 6.0.2: a fulfillment partner's lines leave the store's shipping subtotal, weight and parcel, and still count as
+		 * shippable, so checkout asks for the address they ship to. */
+		$this->claimed_lines = ( class_exists( 'wp_easycart_shipping_groups' ) ) ? wp_easycart_shipping_groups::claimed( $this->cart ) : array();
 
 		for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+			$is_claimed = isset( $this->claimed_lines[ $i ] );
 			$this->subtotal = $this->subtotal + $this->cart[$i]->total_price;
 
 			if ( $this->cart[$i]->exclude_shippable_calculation ) {
@@ -138,19 +149,24 @@ class ec_cart{
 			if ( $this->cart[$i]->is_taxable ) {
 				$this->taxable_subtotal = $this->taxable_subtotal + $this->cart[$i]->total_price;
 			}
-			if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation ) {
+			if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation && ! $is_claimed ) {
 				$this->shipping_subtotal = $this->shipping_subtotal + $this->cart[$i]->total_price;
 			}
 			if ( $this->cart[$i]->vat_enabled ) {
 				$this->vat_subtotal = $this->vat_subtotal + $this->cart[$i]->total_price;
 			}
-			if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation ) {
+			if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation && ! $is_claimed ) {
 				$this->weight = $this->weight + $this->cart[$i]->get_weight();
 			}
 			$this->total_items = $this->total_items + $this->cart[$i]->quantity;
-			
-			if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation ) {
+
+			if ( $this->cart[$i]->is_shippable && ( !$this->cart[$i]->exclude_shippable_calculation || $is_claimed ) ) {
 				$this->shippable_total_items = $this->shippable_total_items + $this->cart[$i]->quantity;
+			}
+			if ( $is_claimed ) {
+				$this->partner_shippable_items = $this->partner_shippable_items + $this->cart[$i]->quantity;
+			} else if ( $this->cart[$i]->is_shippable && !$this->cart[$i]->exclude_shippable_calculation ) {
+				$this->store_shippable_items = $this->store_shippable_items + $this->cart[$i]->quantity;
 			}
 			$this->discountable_subtotal = $this->discountable_subtotal + $this->cart[$i]->total_price;
 		}
@@ -439,6 +455,9 @@ class ec_cart{
 		$handling_total = 0;
 		$handling_added_ids = array( );
 		for( $i=0; $i<count( $this->cart ); $i++ ){
+			if ( isset( $this->claimed_lines[ $i ] ) ) {
+				continue; // 6.0.2: no store handling on a line a fulfillment partner ships.
+			}
 			if( !in_array( $this->cart[$i]->product_id, $handling_added_ids ) ){
 				$handling_total = $handling_total + $this->cart[$i]->handling_price;
 				$handling_added_ids[] = $this->cart[$i]->product_id;
@@ -478,10 +497,13 @@ class ec_cart{
 		$package_dimensions = array( 0, 0, 0 );
 
 		// Step through each product
-		foreach( $this->cart as $cart_item ){
+		foreach( $this->cart as $cart_index => $cart_item ){
 
 			if ( isset( $cart_item->is_shippable ) && ! $cart_item->is_shippable ) {
 				continue;
+			}
+			if ( isset( $this->claimed_lines[ $cart_index ] ) ) {
+				continue; // 6.0.2: a fulfillment partner ships it in its own parcel.
 			}
 			if ( ! empty( $cart_item->exclude_shippable_calculation ) ) {
 				continue;

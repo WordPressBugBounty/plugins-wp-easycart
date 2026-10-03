@@ -363,6 +363,8 @@ if ( ! class_exists( 'wp_easycart_admin_option_editor_v2' ) ) :
 				'i18n'       => array(
 					'saved'         => __( 'Saved', 'wp-easycart' ),
 					'saving'        => __( 'Saving…', 'wp-easycart' ),
+					/* translators: %d: number of products. */
+					'rebuild_left'  => __( '%d more products get their new variants when each is next opened or saved.', 'wp-easycart' ),
 					'unsaved'       => __( 'Unsaved changes', 'wp-easycart' ),
 					'error'         => __( 'Something went wrong. Please try again.', 'wp-easycart' ),
 					'name_required' => __( 'Give the option set a name.', 'wp-easycart' ),
@@ -544,6 +546,19 @@ function ecv2_option_save() {
 		}
 	}
 
+	// 6.0.2: every product that uses the set as a variation set gets a variant row for each new choice; its other rows keep
+	// their id, SKU, price and stock ( wp_easycart_variants::rebuild() ). Before, new choices had no rows until the product
+	// was opened in its editor. Only when choices were added ( or the set just became a variation set ): a rename, a new
+	// price or a new order changes no combination, and removed choices already took their rows above. At most
+	// wp_easycart_variant_rebuild_limit products per save; the rest get their rows when next opened or saved.
+	$added_ids    = array_diff( $kept_ids, $existing_ids );
+	$rebuild_left = 0;
+	if ( $is_basic && ( ! empty( $added_ids ) || ! $was_basic ) && class_exists( 'wp_easycart_variants' ) ) {
+		$stock_deleted += wp_easycart_variants::rebuild_for_options( array( $option_id ) );
+		$batch          = method_exists( 'wp_easycart_variants', 'last_batch' ) ? wp_easycart_variants::last_batch() : array();
+		$rebuild_left   = isset( $batch['left'] ) ? (int) $batch['left'] : 0;
+	}
+
 	do_action( 'wp_easycart_optionset_updated', $option_id );
 	wp_cache_delete( 'wpeasycart-settings', 'wpeasycart-settings' );
 
@@ -555,6 +570,7 @@ function ecv2_option_save() {
 		'choices'       => $models,
 		'id_map'        => $id_map,
 		'stock_deleted' => $stock_deleted,
+		'rebuild_left'  => $rebuild_left,
 		'health'        => $editor->health(),
 		'usage'         => $editor->usage_total,
 		'stock_rows'    => $editor->stock_rows,
@@ -607,10 +623,22 @@ function ecv2_option_assign_search() {
 	$where = $wpdb->prepare( 'WHERE NOT ( p.option_id_1 = %d OR p.option_id_2 = %d OR p.option_id_3 = %d OR p.option_id_4 = %d OR p.option_id_5 = %d ) AND NOT EXISTS ( SELECT 1 FROM ec_option_to_product otp WHERE otp.product_id = p.product_id AND otp.option_id = %d )', $option_id, $option_id, $option_id, $option_id, $option_id, $option_id );
 	if ( '' !== $q ) { $where .= $wpdb->prepare( ' AND ( p.title LIKE %s OR p.model_number LIKE %s )', '%' . $wpdb->esc_like( $q ) . '%', '%' . $wpdb->esc_like( $q ) . '%' ); }
 	if ( $cat ) { $where .= $wpdb->prepare( ' AND EXISTS ( SELECT 1 FROM ec_categoryitem ci WHERE ci.product_id = p.product_id AND ci.category_id = %d )', $cat ); }
-	$rows = $wpdb->get_results( "SELECT p.product_id, p.title, p.model_number, p.activate_in_store, " . wp_easycart_admin_catalog_v2_thumb_select( "p" ) . ", p.option_id_1, p.option_id_2, p.option_id_3, p.option_id_4, p.option_id_5 FROM ec_product p $where ORDER BY p.title ASC LIMIT 40" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- thumb_select() is a static column list; $where is assembled entirely from $wpdb->prepare() calls above.
-	$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product p $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is assembled entirely from $wpdb->prepare() calls above.
-	$out = array();
+	// 6.0.2: a product whose option sets or variants its managing service owns ( e.g. a fulfillment partner ) is left out:
+	// a new variation set would add a slot and replace every variant the service made. More rows are read so the list
+	// still fills up.
+	$lockable = ! $modifier && class_exists( 'wp_easycart_product_lock' ) && wp_easycart_product_lock::any();
+	$rows     = $wpdb->get_results( 'SELECT p.product_id, p.title, p.model_number, p.activate_in_store, ' . wp_easycart_admin_catalog_v2_thumb_select( 'p' ) . ", p.option_id_1, p.option_id_2, p.option_id_3, p.option_id_4, p.option_id_5 FROM ec_product p $where ORDER BY p.title ASC LIMIT " . ( $lockable ? 120 : 40 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- thumb_select() is a static column list; $where is assembled entirely from $wpdb->prepare() calls above; the limit is a literal.
+	$total    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product p $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is assembled entirely from $wpdb->prepare() calls above.
+	$out      = array();
+	$managed  = 0;
 	foreach ( $rows as $r ) {
+		if ( $lockable && wp_easycart_product_lock::is_locked( (int) $r->product_id, array( 'options', 'variants' ) ) ) {
+			++$managed;
+			continue;
+		}
+		if ( count( $out ) >= 40 ) {
+			continue;
+		}
 		$used = 0; $names = array();
 		for ( $n = 1; $n <= $limit; $n++ ) { if ( (int) $r->{ 'option_id_' . $n } ) { $used++; $names[] = (int) $r->{ 'option_id_' . $n }; } }
 		$set_names = $names ? $wpdb->get_col( 'SELECT option_name FROM ec_option WHERE option_id IN ( ' . implode( ',', $names ) . ' )' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $names only holds (int)-cast option ids from the loop above.
@@ -621,7 +649,14 @@ function ecv2_option_assign_search() {
 		);
 	}
 	/* Modifiers don't use the variation slots: they are added to the product's modifier list, which has no limit. */
-	wp_send_json_success( array( 'items' => $out, 'total' => $total, 'slots' => $limit, 'advanced' => $modifier ) );
+	wp_send_json_success(
+		array(
+			'items'    => $out,
+			'total'    => max( count( $out ), $total - $managed ), /* 6.0.2: managed products left out */
+			'slots'    => $limit,
+			'advanced' => $modifier,
+		)
+	);
 }
 
 /**
@@ -671,19 +706,49 @@ function ecv2_option_assign() {
 	$limit = wp_easycart_admin_option_editor_v2::is_pro() ? 5 : (int) apply_filters( 'wp_easycart_admin_free_option_set_limit', 2 );
 	$items = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT optionitem_id FROM ec_optionitem WHERE option_id = %d ORDER BY optionitem_order', $option_id ) ) );
 	$assigned = 0; $skipped = 0; $stock_created = 0;
+	// 6.0.2: products whose option sets or variants their managing service owns are skipped, and so are products the set
+	// would give more variations than the store allows ( both said in the reply ).
+	$lockable   = class_exists( 'wp_easycart_product_lock' ) && wp_easycart_product_lock::any();
+	$managed_by = array();
+	$managed    = 0;
+	$too_many   = 0;
 	foreach ( $pids as $pid ) {
 		$p = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, use_optionitem_quantity_tracking FROM ec_product WHERE product_id = %d', $pid ) );
 		if ( ! $p ) { continue; }
+		if ( $lockable && wp_easycart_product_lock::is_locked( (int) $pid, array( 'options', 'variants' ) ) ) {
+			++$skipped;
+			++$managed;
+			$managed_by[ wp_easycart_product_lock::label( wp_easycart_product_lock::managed_by( (int) $pid ) ) ] = true;
+			continue;
+		}
 		$slot = 0;
 		for ( $n = 1; $n <= $limit; $n++ ) {
 			if ( (int) $p->{ 'option_id_' . $n } === $option_id ) { $slot = -1; break; }
 			if ( ! $slot && ! (int) $p->{ 'option_id_' . $n } ) { $slot = $n; }
 		}
 		if ( $slot <= 0 ) { $skipped++; continue; }
+		$slots = array();
+		if ( $items && class_exists( 'wp_easycart_variants' ) ) {
+			$slots          = wp_easycart_variants::option_ids( $pid );
+			$slots[ $slot ] = $option_id;
+			if ( is_wp_error( wp_easycart_variants::plan( $pid, $slots ) ) ) {
+				++$skipped;
+				++$too_many;
+				continue;
+			}
+		}
 		$wpdb->update( 'ec_product', array( 'option_id_' . $slot => $option_id ), array( 'product_id' => $pid ) );
 		$assigned++;
-		/* Build the cartesian stock rows for this product ( existing rows × new choices ) */
-		if ( $items ) {
+		// 6.0.2: the variant rows follow the product's sets ( wp_easycart_variants::rebuild(): rows that are still a valid
+		// combination keep their settings, missing combinations are added, and a combination that extends a row takes
+		// its on / off and, as Assign always did, its stock; the product's stock follows its variants ).
+		if ( $items && class_exists( 'wp_easycart_variants' ) ) {
+			if ( true === wp_easycart_variants::rebuild( $pid, $slots, array( 'inherit_stock' => true ) ) ) {
+				$rebuilt        = wp_easycart_variants::last();
+				$stock_created += count( $rebuilt['added'] );
+			}
+		} else if ( $items ) {
+			/* Build the cartesian stock rows for this product ( existing rows × new choices ) */
 			$existing = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_optionitemquantity WHERE product_id = %d', $pid ), ARRAY_A );
 			if ( empty( $existing ) ) {
 				foreach ( $items as $iid ) {
@@ -705,5 +770,21 @@ function ecv2_option_assign() {
 		do_action( 'wp_easycart_product_updated', $pid );
 	}
 	do_action( 'wp_easycart_optionset_updated', $option_id );
-	wp_send_json_success( array( 'assigned' => $assigned, 'skipped' => $skipped, 'stock_created' => $stock_created ) );
+	$notes = array();
+	if ( $managed ) {
+		/* translators: 1: number of products, 2: the services that manage them ( e.g. Printful ). */
+		$notes[] = sprintf( _n( '%1$d product was skipped: its options are managed by %2$s.', '%1$d products were skipped: their options are managed by %2$s.', $managed, 'wp-easycart' ), $managed, implode( ', ', array_keys( $managed_by ) ) );
+	}
+	if ( $too_many ) {
+		/* translators: %d: number of products. */
+		$notes[] = sprintf( _n( '%d product was skipped: this set would give it more variations than the store allows.', '%d products were skipped: this set would give them more variations than the store allows.', $too_many, 'wp-easycart' ), $too_many );
+	}
+	wp_send_json_success(
+		array(
+			'assigned'      => $assigned,
+			'skipped'       => $skipped,
+			'stock_created' => $stock_created,
+			'message'       => implode( ' ', $notes ), /* 6.0.2: why products were skipped */
+		)
+	);
 }

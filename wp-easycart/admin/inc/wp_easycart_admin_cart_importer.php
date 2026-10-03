@@ -39,8 +39,13 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 		   The last batch wires cross-sells and clears the option.
 
 		   Model numbers: one "WHERE model_number IN (...)" per batch replaces
-		   the old per-product SELECT loop; collisions ( repeated SKUs, re-runs )
+		   the old per-product SELECT loop; collisions ( repeated SKUs )
 		   still get the "-N" suffix the old loop produced.
+
+		   6.0.2: the WooCommerce => EasyCart ids are kept ( WOO_MAP ), so a run
+		   that stopped continues and a later run skips what it imported ( it
+		   made every option set, category, the manufacturer and every product
+		   again, the products as "SKU-1" ).
 
 		   @since 6.0.0
 		   ===================================================================== */
@@ -49,29 +54,86 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 		const WOO_STATE = 'ec_option_woo_import_state';
 
 		/**
+		 * WooCommerce ID => EasyCart ID for everything the importer made, kept after a run ( non-autoloaded ): optionsets
+		 * ( 'pa_<attribute>' => ec_option.option_id ), categories ( term_id => category_id ), manufacturer_id, products
+		 * ( post ID => product_id ). A later run reuses what still exists instead of making it again.
+		 *
+		 * @since 6.0.2
+		 */
+		const WOO_MAP = 'ec_option_woo_import_map';
+
+		/**
+		 * The product statuses imported ( and counted ): everything but the trash and auto-drafts. Only published products
+		 * that are not hidden from the catalog arrive active; the rest arrive inactive.
+		 *
+		 * @since 6.0.2
+		 * @return string[]
+		 */
+		private function woo_statuses() {
+			return array( 'publish', 'future', 'draft', 'pending', 'private' );
+		}
+
+		/**
+		 * The WooCommerce => EasyCart id map ( WOO_MAP ), with every key present.
+		 *
+		 * @since 6.0.2
+		 * @return array
+		 */
+		private function woo_map() {
+			$map = get_option( self::WOO_MAP );
+			$map = is_array( $map ) ? $map : array();
+			foreach ( array( 'optionsets', 'categories', 'products' ) as $key ) {
+				if ( ! isset( $map[ $key ] ) || ! is_array( $map[ $key ] ) ) {
+					$map[ $key ] = array();
+				}
+			}
+			$map['manufacturer_id'] = isset( $map['manufacturer_id'] ) ? (int) $map['manufacturer_id'] : 0;
+			return $map;
+		}
+
+		/**
+		 * Keep the WooCommerce => EasyCart id map.
+		 *
+		 * @since 6.0.2
+		 * @param array $map From woo_map().
+		 */
+		private function woo_save_map( $map ) {
+			update_option( self::WOO_MAP, $map, false );
+		}
+
+		/**
 		 * Stage 1: option sets, categories and the manufacturer. Stores the id maps
 		 * the product batches need and counts the products to convert.
 		 *
+		 * 6.0.2: runs again safely. Option sets, categories and the manufacturer a run made before are reused while they
+		 * still exist ( found through the map, or by name for runs made before the map ), and only new ones are made.
+		 * Categories get their parent. A run that stopped continues where it stopped ( the product batches skip every
+		 * product already imported anyway ).
+		 *
 		 * @since 6.0.0
-		 * @return array { done, next, processed, total }
+		 * @return array { done, next, processed, total, resumed }
 		 */
 		public function woo_import_begin() {
 			global $wpdb;
 			$prefix = $wpdb->prefix;
-			$state  = array(
-				'optionsets'      => array(), /* 'pa_<attribute>' => ec_option.option_id */
-				'categories'      => array(), /* woo term_id => ec_category.category_id */
-				'manufacturer_id' => 0,
-				'products'        => array(), /* woo post ID => ec_product.product_id ( for cross-sells ) */
-				'crosssale'       => array(), /* ec product_id => [ woo post IDs ] */
-				'total'           => 0,
-				'processed'       => 0,
-				'started'         => time(),
-			);
+			$map    = $this->woo_map();
+			$state  = get_option( self::WOO_STATE );
+			$resume = ( is_array( $state ) && isset( $state['products'] ) && isset( $state['processed'] ) );
+			if ( ! $resume ) {
+				$state = array(
+					'products'  => array(), /* woo post ID => ec_product.product_id ( for cross-sells ) */
+					'crosssale' => array(), /* ec product_id => [ woo post IDs ] */
+					'total'     => 0,
+					'processed' => 0,
+					'imported'  => 0,
+					'skipped'   => 0,
+					'started'   => time(),
+				);
+			}
 
 			$optionsets = $wpdb->get_results( 'SELECT * FROM ' . $prefix . 'woocommerce_attribute_taxonomies' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; the table name is a literal.
 
-			foreach ( $optionsets as $optionset ) {
+			foreach ( (array) $optionsets as $optionset ) {
 				$option_name  = $optionset->attribute_name;
 				$option_label = $optionset->attribute_label;
 				$option_type  = $optionset->attribute_type;
@@ -82,85 +144,198 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 
 				$optionitems = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $prefix . 'terms.* FROM ' . $prefix . 'term_taxonomy LEFT JOIN ' . $prefix . 'terms ON (' . $prefix . 'terms.term_id = ' . $prefix . 'term_taxonomy.term_id ) WHERE ' . $prefix . 'term_taxonomy.taxonomy = %s', 'pa_' . $option_name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; table names are literals; the value goes through prepare().
 
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option( option_name, option_label, option_type, option_required ) VALUES( %s, %s, %s, 0 )', $option_name, $option_label, $option_type ) );
-				$option_id = $wpdb->insert_id;
-				$state['optionsets'][ 'pa_' . $option_name ] = (int) $option_id;
+				$key       = 'pa_' . $option_name;
+				$option_id = isset( $map['optionsets'][ $key ] ) ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT option_id FROM ec_option WHERE option_id = %d', (int) $map['optionsets'][ $key ] ) ) : 0;
+				if ( ! $option_id && ! isset( $map['optionsets'][ $key ] ) ) {
+					/* A set an earlier run made before the map existed: the same name and label. */
+					$option_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT option_id FROM ec_option WHERE option_name = %s AND option_label = %s ORDER BY option_id ASC LIMIT 1', $option_name, $option_label ) );
+				}
+				if ( $option_id ) {
+					/* Reused: add only the terms it does not have yet. */
+					$have      = array_map( 'strtolower', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT optionitem_name FROM ec_optionitem WHERE option_id = %d', $option_id ) ) );
+					$order_num = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_optionitem WHERE option_id = %d', $option_id ) );
+					foreach ( (array) $optionitems as $optionitem ) {
+						if ( in_array( strtolower( (string) $optionitem->name ), $have, true ) ) {
+							continue;
+						}
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitem( option_id, optionitem_name, optionitem_order ) VALUES( %d, %s, %d )', $option_id, $optionitem->name, $order_num ) );
+						$have[] = strtolower( (string) $optionitem->name );
+						++$order_num;
+					}
+				} else {
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option( option_name, option_label, option_type, option_required ) VALUES( %s, %s, %s, 0 )', $option_name, $option_label, $option_type ) );
+					$option_id = (int) $wpdb->insert_id;
 
-				$order_num = 0;
-				foreach ( $optionitems as $optionitem ) {
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitem( option_id, optionitem_name, optionitem_order ) VALUES( %d, %s, %d )', $option_id, $optionitem->name, $order_num ) );
-					$order_num++;
+					$order_num = 0;
+					foreach ( (array) $optionitems as $optionitem ) {
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_optionitem( option_id, optionitem_name, optionitem_order ) VALUES( %d, %s, %d )', $option_id, $optionitem->name, $order_num ) );
+						$order_num++;
+					}
+				}
+				if ( $option_id ) {
+					$map['optionsets'][ $key ] = $option_id;
 				}
 			}
 
-			$categories = $wpdb->get_results( 'SELECT ' . $prefix . 'terms.* FROM ' . $prefix . 'term_taxonomy LEFT JOIN ' . $prefix . 'terms ON (' . $prefix . 'terms.term_id = ' . $prefix . 'term_taxonomy.term_id ) WHERE ' . $prefix . 'term_taxonomy.taxonomy = "product_cat"' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; table names are literals.
+			/* 6.0.2: with the parent term, so the categories keep WooCommerce's tree ( they all arrived at the top level ). */
+			$categories = $wpdb->get_results( 'SELECT ' . $prefix . 'terms.term_id, ' . $prefix . 'terms.name, ' . $prefix . 'term_taxonomy.parent FROM ' . $prefix . 'term_taxonomy LEFT JOIN ' . $prefix . 'terms ON (' . $prefix . 'terms.term_id = ' . $prefix . 'term_taxonomy.term_id ) WHERE ' . $prefix . 'term_taxonomy.taxonomy = "product_cat"' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; table names are literals.
 
-			foreach ( $categories as $category ) {
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_category( category_name ) VALUES( %s )', $category->name ) );
-				$category_id = $wpdb->insert_id;
-				$state['categories'][ (int) $category->term_id ] = (int) $category_id;
+			$made = array(); /* term_id => parent term_id, for the categories this run makes */
+			foreach ( (array) $categories as $category ) {
+				$term_id     = (int) $category->term_id;
+				$category_id = isset( $map['categories'][ $term_id ] ) ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT category_id FROM ec_category WHERE category_id = %d', (int) $map['categories'][ $term_id ] ) ) : 0;
+				if ( ! $category_id && ! isset( $map['categories'][ $term_id ] ) ) {
+					/* A category an earlier run made before the map existed ( or the store's own ) with the same name. Never one
+					 * another WooCommerce category already has ( two "Accessories" under different parents stay two ). */
+					$taken       = array_filter( array_map( 'intval', array_values( $map['categories'] ) ) );
+					$category_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT category_id FROM ec_category WHERE category_name = %s' . ( $taken ? ' AND category_id NOT IN ( ' . implode( ',', $taken ) . ' )' : '' ) . ' ORDER BY category_id ASC LIMIT 1', $category->name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $taken is an intval()-mapped id list.
+				}
+				if ( ! $category_id ) {
+					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_category( category_name ) VALUES( %s )', $category->name ) );
+					$category_id = (int) $wpdb->insert_id;
+					if ( ! $category_id ) {
+						continue;
+					}
+					$made[ $term_id ] = (int) $category->parent;
 
-				$post = array(
-					'post_content' => '[ec_store groupid="' . $category_id . '"]',
-					'post_status'  => 'publish',
-					'post_title'   => $category->name,
-					'post_type'    => 'ec_store',
-				);
-				wp_easycart_post_sync()->insert( 'category', $category_id, $post );
+					$post = array(
+						'post_content' => '[ec_store groupid="' . $category_id . '"]',
+						'post_status'  => 'publish',
+						'post_title'   => $category->name,
+						'post_type'    => 'ec_store',
+					);
+					wp_easycart_post_sync()->insert( 'category', $category_id, $post );
+				}
+				$map['categories'][ $term_id ] = $category_id;
+			}
+			/* Second pass, once every category has its EasyCart id: the categories made now sit under their parent. */
+			foreach ( $made as $term_id => $parent_term ) {
+				if ( $parent_term && ! empty( $map['categories'][ $parent_term ] ) && (int) $map['categories'][ $parent_term ] !== (int) $map['categories'][ $term_id ] ) {
+					$wpdb->query( $wpdb->prepare( 'UPDATE ec_category SET parent_id = %d WHERE category_id = %d', (int) $map['categories'][ $parent_term ], (int) $map['categories'][ $term_id ] ) );
+				}
+			}
+			if ( $made ) {
+				wp_cache_delete( 'wpeasycart-all-categories', 'wpeasycart-categories' );
 			}
 
-			$wpdb->query( 'INSERT INTO ec_manufacturer( `name` ) VALUES( "Woo Products" )' );
-			$manufacturer_id          = $wpdb->insert_id;
-			$state['manufacturer_id'] = (int) $manufacturer_id;
+			$manufacturer_id = $map['manufacturer_id'] ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT manufacturer_id FROM ec_manufacturer WHERE manufacturer_id = %d', $map['manufacturer_id'] ) ) : 0;
+			if ( ! $manufacturer_id ) {
+				$manufacturer_id = (int) $wpdb->get_var( 'SELECT manufacturer_id FROM ec_manufacturer WHERE `name` = "Woo Products" ORDER BY manufacturer_id ASC LIMIT 1' );
+			}
+			if ( ! $manufacturer_id ) {
+				$wpdb->query( 'INSERT INTO ec_manufacturer( `name` ) VALUES( "Woo Products" )' );
+				$manufacturer_id = (int) $wpdb->insert_id;
 
-			$post = array(
-				'post_content' => '[ec_store manufacturerid="' . $manufacturer_id . '"]',
-				'post_status'  => 'publish',
-				'post_title'   => 'WOO Products',
-				'post_type'    => 'ec_store',
-			);
-			wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_id, $post );
+				$post = array(
+					'post_content' => '[ec_store manufacturerid="' . $manufacturer_id . '"]',
+					'post_status'  => 'publish',
+					'post_title'   => 'WOO Products',
+					'post_type'    => 'ec_store',
+				);
+				wp_easycart_post_sync()->insert( 'manufacturer', $manufacturer_id, $post );
+			}
+			$map['manufacturer_id'] = $manufacturer_id;
+			$this->woo_save_map( $map );
 
-			/* Same status rules get_posts() applies in the batches ( no post_status given ), so the total matches what gets imported. */
-			$count          = new WP_Query( array( 'post_type' => 'product', 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => false, 'suppress_filters' => true ) );
+			/* 6.0.2: the same statuses the batches import ( get_posts() read only published products while this counted every status ). */
+			$count          = new WP_Query( array( 'post_type' => 'product', 'post_status' => $this->woo_statuses(), 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => false, 'suppress_filters' => true ) );
 			$state['total'] = (int) $count->found_posts;
 
 			update_option( self::WOO_STATE, $state, false );
 
-			return array( 'done' => false, 'next' => 0, 'processed' => 0, 'total' => $state['total'] );
+			return array(
+				'done'      => false,
+				'next'      => (int) $state['processed'],
+				'processed' => (int) $state['processed'],
+				'total'     => max( (int) $state['total'], (int) $state['processed'] ),
+				'resumed'   => $resume,
+			);
 		}
 
 		/**
 		 * Stage 2: convert one batch of products starting at $cursor ( post offset,
 		 * ordered by ID so paging stays stable while rows are added to ec_product ).
 		 *
+		 * 6.0.2: a product already imported ( in the map, or an earlier run's product with the same SKU ) is skipped, so
+		 * running the import again adds only what is new in WooCommerce.
+		 *
 		 * @since 6.0.0
 		 * @param int $cursor Offset into the WooCommerce product list.
-		 * @return array { done, next, processed, total, error? }
+		 * @return array { done, next, processed, total, imported, skipped, error? }
 		 */
 		public function woo_import_batch( $cursor ) {
+			global $wpdb;
 			$state = get_option( self::WOO_STATE );
 			if ( ! is_array( $state ) || ! isset( $state['products'] ) ) {
 				return array( 'done' => true, 'next' => 0, 'processed' => 0, 'total' => 0, 'error' => __( 'The import has not been started. Click Import WooCommerce data to begin.', 'wp-easycart' ) );
 			}
-			$cursor = max( 0, (int) $cursor );
+			$state['imported'] = isset( $state['imported'] ) ? (int) $state['imported'] : 0;
+			$state['skipped']  = isset( $state['skipped'] ) ? (int) $state['skipped'] : 0;
+			$cursor            = max( 0, (int) $cursor );
+			$map               = $this->woo_map();
 
 			$posts = get_posts( array(
-				'posts_per_page' => self::WOO_BATCH,
-				'offset'         => $cursor,
-				'post_type'      => 'product',
-				'orderby'        => 'ID',
-				'order'          => 'ASC',
+				'posts_per_page'   => self::WOO_BATCH,
+				'offset'           => $cursor,
+				'post_type'        => 'product',
+				'post_status'      => $this->woo_statuses(),
+				'orderby'          => 'ID',
+				'order'            => 'ASC',
+				'suppress_filters' => true,
 			) );
 
 			if ( empty( $posts ) ) {
 				return $this->woo_import_finish( $state );
 			}
 
-			$model_numbers = $this->woo_unique_model_numbers( $posts );
+			/* Already imported: the map says so and the product is still in the store. */
+			$mapped = array();
 			foreach ( $posts as $product ) {
-				$this->woo_import_product( $product, $model_numbers[ $product->ID ], $state );
+				if ( ! empty( $map['products'][ (int) $product->ID ] ) ) {
+					$mapped[] = (int) $map['products'][ (int) $product->ID ];
+				}
 			}
+			$existing = array();
+			if ( $mapped ) {
+				foreach ( (array) $wpdb->get_col( 'SELECT product_id FROM ec_product WHERE product_id IN ( ' . implode( ',', array_map( 'intval', $mapped ) ) . ' )' ) as $id ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- an intval()-mapped id list.
+					$existing[ (int) $id ] = true;
+				}
+			}
+
+			$todo = array();
+			foreach ( $posts as $product ) {
+				$woo_id = (int) $product->ID;
+				$pid    = ! empty( $map['products'][ $woo_id ] ) ? (int) $map['products'][ $woo_id ] : 0;
+				if ( $pid && isset( $existing[ $pid ] ) ) {
+					$state['products'][ $woo_id ] = $pid;
+					++$state['skipped'];
+					continue;
+				}
+				if ( ! $pid ) {
+					/* Imported by a run made before the map existed: its SKU is already a model number in the store. */
+					$sku = trim( (string) get_post_meta( $woo_id, '_sku', true ) );
+					$pid = ( '' !== $sku ) ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_product WHERE model_number = %s ORDER BY product_id ASC LIMIT 1', $sku ) ) : 0;
+					if ( $pid ) {
+						$map['products'][ $woo_id ]   = $pid;
+						$state['products'][ $woo_id ] = $pid;
+						++$state['skipped'];
+						continue;
+					}
+				}
+				$todo[] = $product;
+			}
+
+			if ( $todo ) {
+				$model_numbers = $this->woo_unique_model_numbers( $todo );
+				foreach ( $todo as $product ) {
+					$product_id = $this->woo_import_product( $product, $model_numbers[ $product->ID ], $state, $map );
+					if ( $product_id ) {
+						$map['products'][ (int) $product->ID ] = (int) $product_id;
+						++$state['imported'];
+					}
+				}
+			}
+			$this->woo_save_map( $map );
 
 			$state['processed'] += count( $posts );
 			update_option( self::WOO_STATE, $state, false );
@@ -174,12 +349,15 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 				'next'      => $cursor + count( $posts ),
 				'processed' => (int) $state['processed'],
 				'total'     => max( (int) $state['total'], (int) $state['processed'] ),
+				'imported'  => (int) $state['imported'],
+				'skipped'   => (int) $state['skipped'],
 			);
 		}
 
 		/** Stage 3: cross-sells need every product id, so they are wired once all batches are in. */
 		private function woo_import_finish( $state ) {
 			global $wpdb;
+			$map = $this->woo_map();
 			foreach ( $state['crosssale'] as $product_id => $woo_ids ) {
 				$featured = array( 0, 0, 0, 0 );
 				$k        = 0;
@@ -187,8 +365,10 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 					if ( $k >= 4 ) {
 						break;
 					}
-					if ( isset( $state['products'][ (int) $woo_id ] ) ) {
-						$featured[ $k ] = (int) $state['products'][ (int) $woo_id ];
+					/* 6.0.2: a cross-sell imported by an earlier run counts too ( the map ). */
+					$target = isset( $state['products'][ (int) $woo_id ] ) ? (int) $state['products'][ (int) $woo_id ] : ( isset( $map['products'][ (int) $woo_id ] ) ? (int) $map['products'][ (int) $woo_id ] : 0 );
+					if ( $target ) {
+						$featured[ $k ] = $target;
 						$k++;
 					}
 				}
@@ -199,7 +379,14 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 			update_option( 'ec_option_cart_importer_woo_imported', time(), false );
 			delete_option( self::WOO_STATE );
 
-			return array( 'done' => true, 'next' => (int) $state['processed'], 'processed' => (int) $state['processed'], 'total' => (int) $state['processed'] );
+			return array(
+				'done'      => true,
+				'next'      => (int) $state['processed'],
+				'processed' => (int) $state['processed'],
+				'total'     => (int) $state['processed'],
+				'imported'  => isset( $state['imported'] ) ? (int) $state['imported'] : 0,
+				'skipped'   => isset( $state['skipped'] ) ? (int) $state['skipped'] : 0,
+			);
 		}
 
 		/**
@@ -249,8 +436,16 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 			return ( isset( $post_meta[ $key ][0] ) ) ? $post_meta[ $key ][0] : '';
 		}
 
-		/** Convert one WooCommerce product ( same field rules as the original single-request importer ). */
-		private function woo_import_product( $product, $model_number, &$state ) {
+		/**
+		 * Convert one WooCommerce product ( same field rules as the original single-request importer ).
+		 *
+		 * @param WP_Post $product      The WooCommerce product.
+		 * @param string  $model_number Its model number.
+		 * @param array   $state        The run ( products, crosssale ).
+		 * @param array   $map          6.0.2: WooCommerce => EasyCart ids ( woo_map() ).
+		 * @return int The new product_id, 0 when it could not be added.
+		 */
+		private function woo_import_product( $product, $model_number, &$state, $map = array() ) {
 			global $wpdb;
 			$prefix    = $wpdb->prefix;
 			$post_meta = get_post_meta( $product->ID );
@@ -259,9 +454,17 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 			$description       = $product->post_content;
 			$short_description = $product->post_excerpt;
 
-			$visibility        = $this->woo_meta( $post_meta, '_visibility' );
+			/* 6.0.2: WooCommerce 3.0 moved catalog visibility from the _visibility meta to taxonomy terms, so every product
+			 * arrived inactive. Active = published and not hidden from the catalog ( visible, catalog or search ). */
+			$visibility = $this->woo_meta( $post_meta, '_visibility' );
+			if ( function_exists( 'wc_get_product' ) ) {
+				$wc_product = wc_get_product( $product->ID );
+				if ( $wc_product && is_callable( array( $wc_product, 'get_catalog_visibility' ) ) ) {
+					$visibility = (string) $wc_product->get_catalog_visibility();
+				}
+			}
 			$is_active         = ( 'publish' == $product->post_status ) ? true : false;
-			$activate_in_store = ( $is_active && 'visible' == $visibility ) ? true : false;
+			$activate_in_store = ( $is_active && 'hidden' !== $visibility ) ? true : false;
 
 			$regular_price = $this->woo_meta( $post_meta, '_regular_price' );
 			$sale_price    = $this->woo_meta( $post_meta, '_sale_price' );
@@ -363,34 +566,38 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 
 			$product_attributes = maybe_unserialize( $this->woo_meta( $post_meta, '_product_attributes' ) );
 			$product_options    = array();
+			$optionsets         = ( isset( $map['optionsets'] ) && is_array( $map['optionsets'] ) ) ? $map['optionsets'] : array();
 			if ( is_array( $product_attributes ) ) {
 				foreach ( $product_attributes as $key => $value ) {
-					if ( isset( $state['optionsets'][ $key ] ) ) {
-						$product_options[] = $state['optionsets'][ $key ];
+					if ( isset( $optionsets[ $key ] ) ) {
+						$product_options[] = $optionsets[ $key ];
 					}
 				}
 			}
 
-			$product_cats = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $prefix . 'term_relationships.term_taxonomy_id FROM ' . $prefix . 'term_relationships, ' . $prefix . 'terms, ' . $prefix . 'term_taxonomy WHERE ' . $prefix . 'term_taxonomy.taxonomy = "product_cat" AND ' . $prefix . 'term_taxonomy.term_id = ' . $prefix . 'terms.term_id AND ' . $prefix . 'terms.term_id = ' . $prefix . 'term_relationships.term_taxonomy_id AND ' . $prefix . 'term_relationships.object_id = %d', $product->ID ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; table names are literals; the id goes through prepare().
+			/* 6.0.2: term_relationships holds the term_taxonomy_id; join through term_taxonomy to the term ( this compared
+			 * term_id with term_taxonomy_id, which only matched while the two numbers happened to be equal ). */
+			$product_cats = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $prefix . 'term_taxonomy.term_id FROM ' . $prefix . 'term_relationships INNER JOIN ' . $prefix . 'term_taxonomy ON ( ' . $prefix . 'term_taxonomy.term_taxonomy_id = ' . $prefix . 'term_relationships.term_taxonomy_id ) WHERE ' . $prefix . 'term_taxonomy.taxonomy = "product_cat" AND ' . $prefix . 'term_relationships.object_id = %d', $product->ID ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prefix is $wpdb->prefix; table names are literals; the id goes through prepare().
 
+			$category_map       = ( isset( $map['categories'] ) && is_array( $map['categories'] ) ) ? $map['categories'] : array();
 			$product_categories = array();
-			foreach ( $product_cats as $value ) {
-				if ( isset( $state['categories'][ (int) $value->term_taxonomy_id ] ) ) {
-					$product_categories[] = $state['categories'][ (int) $value->term_taxonomy_id ];
+			foreach ( (array) $product_cats as $value ) {
+				if ( ! empty( $category_map[ (int) $value->term_id ] ) && ! in_array( (int) $category_map[ (int) $value->term_id ], $product_categories, true ) ) {
+					$product_categories[] = (int) $category_map[ (int) $value->term_id ];
 				}
 			}
 
 			$crosssell_ids   = maybe_unserialize( $this->woo_meta( $post_meta, '_crosssell_ids' ) );
 			$show_on_startup = true;
-			$is_shippable    = true;
-			if ( $is_download || $weight <= 0 ) {
-				$is_shippable = false;
-			}
+			/* 6.0.2: WooCommerce's own rule: a product ships unless it is virtual ( a physical product with no weight, or
+			 * one that also had a download, was made unshippable ). */
+			$is_shippable = ( 'yes' !== $virtual );
 
-			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( model_number, activate_in_store, title, description, price, list_price, stock_quantity, weight, width, height, length, use_customer_reviews, manufacturer_id, download_file_name, image1, image2, image3, image4, image5,  use_advanced_optionset, featured_product_id_1, featured_product_id_2, featured_product_id_3, featured_product_id_4, is_download, is_taxable, is_shippable, show_on_startup, show_stock_quantity, maximum_downloads_allowed, download_timelimit_seconds ) VALUES( %s, %d, %s, %s, %s, %s, %d, %s, %s, %s, %s, %d, %d, %s, %s, %s, %s, %s, %s, 1, 0, 0, 0, 0, %d, %d, %d, %d, %d, %s, %s )', $model_number, $activate_in_store, $title, $description, $price, $list_price, $stock_quantity, $weight, $width, $height, $length, $use_customer_reviews, $state['manufacturer_id'], $download_file_name, $image1, $image2, $image3, $image4, $image5, $is_download, $is_taxable, $is_shippable, $show_on_startup, $show_stock_quantity, $maximum_downloads_allowed, $download_timelimit_seconds ) );
+			$manufacturer_id = isset( $map['manufacturer_id'] ) ? (int) $map['manufacturer_id'] : 0;
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( model_number, activate_in_store, title, description, price, list_price, stock_quantity, weight, width, height, length, use_customer_reviews, manufacturer_id, download_file_name, image1, image2, image3, image4, image5,  use_advanced_optionset, featured_product_id_1, featured_product_id_2, featured_product_id_3, featured_product_id_4, is_download, is_taxable, is_shippable, show_on_startup, show_stock_quantity, maximum_downloads_allowed, download_timelimit_seconds ) VALUES( %s, %d, %s, %s, %s, %s, %d, %s, %s, %s, %s, %d, %d, %s, %s, %s, %s, %s, %s, 1, 0, 0, 0, 0, %d, %d, %d, %d, %d, %s, %s )', $model_number, $activate_in_store, $title, $description, $price, $list_price, $stock_quantity, $weight, $width, $height, $length, $use_customer_reviews, $manufacturer_id, $download_file_name, $image1, $image2, $image3, $image4, $image5, $is_download, $is_taxable, $is_shippable, $show_on_startup, $show_stock_quantity, $maximum_downloads_allowed, $download_timelimit_seconds ) );
 			$product_id = (int) $wpdb->insert_id;
 			if ( ! $product_id ) {
-				return;
+				return 0;
 			}
 			$state['products'][ (int) $product->ID ] = $product_id;
 			if ( is_array( $crosssell_ids ) && ! empty( $crosssell_ids ) ) {
@@ -422,6 +629,7 @@ if ( ! class_exists( 'wp_easycart_admin_cart_importer' ) ) :
 				$date_submitted      = $review->comment_date;
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_review( product_id, approved, rating, title, description, date_submitted ) VALUES( %d, %d, %d, %s, %s, %s )', $product_id, $approved, $rating, $comment_title, $comment_description, $date_submitted ) );
 			}
+			return $product_id;
 		}
 
 		public function square_import_modifiers( $cursor, $curr_count ){ // These are our option items
@@ -563,6 +771,36 @@ function wp_easycart_admin_cart_importer( ){
 	return wp_easycart_admin_cart_importer::instance( );
 }
 wp_easycart_admin_cart_importer( );
+
+if ( ! function_exists( 'ecv2_shopify_import_precheck' ) ) {
+	/**
+	 * Shopify import requests, answered by WP EasyCart PRO ( ec_admin_ajax_shopify_import_* ). This runs first and ends
+	 * any request from a user who cannot manage settings or without the Integrations page's nonce, so a store still on a
+	 * PRO older than 6.0.2 is covered too. The answer is the { has_errors } admin/js/cart-importer.js reads.
+	 *
+	 * @since 6.0.2
+	 * @return void
+	 */
+	function ecv2_shopify_import_precheck() {
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_settings' ) ) { // phpcs:ignore WordPress.WP.Capabilities.Unknown -- EasyCart's own roles register this capability.
+			$error = __( 'Permission denied.', 'wp-easycart' );
+		} elseif ( ! check_ajax_referer( 'wp-easycart-shopify-import', 'wp_easycart_nonce', false ) ) {
+			$error = __( 'Your session has expired. Reload the page and try again.', 'wp-easycart' );
+		} else {
+			return;
+		}
+		echo wp_json_encode(
+			array(
+				'has_errors' => true,
+				'message'    => $error,
+			)
+		);
+		die();
+	}
+}
+add_action( 'wp_ajax_ec_admin_ajax_shopify_import_products', 'ecv2_shopify_import_precheck', 1 );
+add_action( 'wp_ajax_ec_admin_ajax_shopify_import_users', 'ecv2_shopify_import_precheck', 1 );
+add_action( 'wp_ajax_ec_admin_ajax_shopify_import_categories', 'ecv2_shopify_import_precheck', 1 );
 
 add_action( 'wp_ajax_ec_admin_ajax_square_modifier_import', 'ec_admin_ajax_square_modifier_import' );
 function ec_admin_ajax_square_modifier_import( ){

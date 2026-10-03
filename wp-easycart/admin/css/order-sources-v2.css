@@ -1,0 +1,56 @@
+/*
+ * Order sources ( 6.0.2 ): the source chip ( orders list, order screen, Reports ) and the locked Source and
+ * Sales by source cards. Loaded on the Orders and Reports screens by wp_easycart_order_source::admin_assets().
+ * WP EasyCart PRO's full cards reuse the chip and the .ecrp-sources frame.
+ */
+
+.ecv2-order-source-chip { --ecos-c:#a0a8b6; display:inline-flex; align-items:center; gap:6px; max-width:100%; font-size:12px; line-height:1.3; padding:3px 9px 3px 8px; border-radius:999px; background:var(--ecv2-g100, #f3f4f6); color:var(--ecv2-g800, #1f2937); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:middle; }
+.ecv2-order-source-chip i { flex:none; width:8px; height:8px; border-radius:2px; background:var(--ecos-c); }
+.ecv2-order-source-chip.is-none { color:var(--ecv2-g400, #9ca3af); background:transparent; padding-left:0; }
+.ecv2-order-source-chip.is-ai, .ecrp-sources .is-ai { --ecos-c:#7447d1; }
+.ecv2-order-source-chip.is-search, .ecrp-sources .is-search { --ecos-c:#2b74cf; }
+.ecv2-order-source-chip.is-paid, .ecrp-sources .is-paid { --ecos-c:#b8770e; }
+.ecv2-order-source-chip.is-social, .ecrp-sources .is-social { --ecos-c:#c63f72; }
+.ecv2-order-source-chip.is-email, .ecrp-sources .is-email { --ecos-c:#23885a; }
+.ecv2-order-source-chip.is-campaign, .ecrp-sources .is-campaign { --ecos-c:#0e8585; }
+.ecv2-order-source-chip.is-referral, .ecrp-sources .is-referral { --ecos-c:#6f7a8c; }
+.ecv2-order-source-chip.is-direct, .ecrp-sources .is-direct { --ecos-c:#a0a8b6; }
+.ecv2-order-source-chip.is-staff, .ecrp-sources .is-staff { --ecos-c:#8a6645; }
+.ecv2-order-source-chip.is-renewal, .ecrp-sources .is-renewal { --ecos-c:#4f6d8f; }
+.ecv2-order-source-chip.is-ai { background:#f1ecfb; color:#4b2a94; }
+
+/* Order screen: the Source card without WP EasyCart PRO. */
+.ecodv2-card-source .ecdv2-card-header { display:flex; align-items:center; gap:8px; }
+.ecodv2-source-lead { margin:0 0 10px; }
+.ecodv2-source-lead .ecv2-order-source-chip { font-size:13px; padding:4px 11px 4px 9px; }
+.ecodv2-source-locked { display:grid; gap:10px; width:100%; margin:0; padding:10px 12px; text-align:left; font:inherit; color:inherit; background:var(--ecv2-g50, #f9fafb); border:1px dashed var(--ecv2-g300, #d1d5db); border-radius:var(--ecv2-r, 8px); cursor:pointer; }
+.ecodv2-source-locked:hover, .ecodv2-source-locked:focus-visible { border-color:var(--ec-brand, var(--ecv2-primary, #2271b1)); }
+.ecodv2-source-mock { display:grid; gap:7px; filter:blur(0.4px); opacity:0.7; }
+.ecodv2-source-mock > span { display:grid; grid-template-columns:96px 1fr; gap:10px; align-items:center; font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecodv2-source-mock b { font-weight:500; }
+.ecodv2-source-mock i { display:block; height:8px; border-radius:4px; background:var(--ecv2-g200, #e5e7eb); }
+.ecodv2-source-mock > span:nth-child(2) i { width:70%; }
+.ecodv2-source-mock > span:nth-child(3) i { width:24%; }
+.ecodv2-source-mock > span:nth-child(4) i { width:85%; }
+.ecodv2-source-cta { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ec-brand, var(--ecv2-primary, #2271b1)); }
+.ecodv2-source-cta .dashicons { font-size:15px; width:15px; height:15px; }
+
+/* Reports: the Sales by source frame ( WP EasyCart PRO fills it ) and its locked example. */
+.ecrp-sources { clear:both; margin:0 0 18px; padding:14px 16px 16px; background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-rl, 12px); }
+.ecrp-sources-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0 0 12px; }
+.ecrp-sources-head h3 { margin:0; font-size:15px; font-weight:600; color:var(--ecv2-g900, #111827); }
+.ecrp-sources-head .ecrp-sources-tools { margin-left:auto; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ecrp-sources-locked { display:grid; grid-template-columns:minmax(0, 1.4fr) minmax(0, 1fr); gap:18px; align-items:center; width:100%; margin:0; padding:12px 14px; text-align:left; font:inherit; color:inherit; background:var(--ecv2-g50, #f9fafb); border:1px dashed var(--ecv2-g300, #d1d5db); border-radius:var(--ecv2-r, 8px); cursor:pointer; }
+.ecrp-sources-locked:hover, .ecrp-sources-locked:focus-visible { border-color:var(--ec-brand, var(--ecv2-primary, #2271b1)); }
+.ecrp-sources-example { display:grid; gap:8px; opacity:0.75; filter:saturate(0.8); }
+.ecrp-sources-row { display:grid; grid-template-columns:130px 1fr 34px; gap:10px; align-items:center; font-size:12px; font-variant-numeric:tabular-nums; }
+.ecrp-sources-bar { display:block; height:8px; background:var(--ecv2-g100, #f3f4f6); border-radius:2px; overflow:hidden; }
+.ecrp-sources-bar i { display:block; height:100%; border-radius:2px; background:var(--ecos-c, #a0a8b6); }
+.ecrp-sources-num { text-align:right; color:var(--ecv2-g600, #4b5563); }
+.ecrp-sources-cta { display:grid; gap:6px; font-size:13px; color:var(--ecv2-g600, #4b5563); }
+.ecrp-sources-cta strong { font-size:14px; color:var(--ecv2-g900, #111827); }
+.ecrp-sources-cta .dashicons { color:var(--ec-brand, var(--ecv2-primary, #2271b1)); }
+@media screen and (max-width:782px) {
+	.ecrp-sources-locked { grid-template-columns:1fr; }
+	.ecrp-sources-row { grid-template-columns:100px 1fr 30px; }
+}

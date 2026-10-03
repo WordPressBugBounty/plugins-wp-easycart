@@ -82,6 +82,16 @@
 			$btn.attr( 'aria-expanded', open ? 'true' : 'false' );
 		} );
 
+		/* 6.0.2: the Settings menu's groups: opening one closes the others. */
+		$( document ).on( 'click', '.ecsh-sb-group-head', function( e ) {
+			e.preventDefault();
+			var $group = $( this ).closest( '.ecsh-sb-group' );
+			var open = ! $group.hasClass( 'ecsh-open' );
+			$group.siblings( '.ecsh-sb-group.ecsh-open' ).removeClass( 'ecsh-open' ).children( '.ecsh-sb-group-head' ).attr( 'aria-expanded', 'false' );
+			$group.toggleClass( 'ecsh-open', open );
+			$( this ).attr( 'aria-expanded', open ? 'true' : 'false' );
+		} );
+
 		/* ---------- Help dropdown ---------- */
 		$( document ).on( 'click', '.ecsh-tb-menu > .ecsh-tb-btn', function( e ) {
 			e.preventDefault();
@@ -665,6 +675,20 @@
 				$scrim.prop( 'hidden', true );
 				$toggle.attr( 'aria-expanded', 'false' );
 			}
+		} );
+	} );
+} )( jQuery );
+
+/* ---------- List dialogs on <body> ( 6.0.2 ) ----------
+   .ecv2-wrap is a CSS size container, and a container is the containing block for position:fixed children: the list
+   pages' dialogs, toasts and undo bar ( printed inside it, after the list form ) were centred on the whole list, so on
+   a long list the Change Order Status dialog opened below the view. They move to <body> and take the class ecv2-layer,
+   which carries the wrapper's font, colour and box sizing. Only direct children of the wrapper move ( never anything
+   inside a form ); a PRO or extension panel opts in with data-ecv2-layer. */
+( function( $ ) {
+	$( function() {
+		$( '.ecv2-wrap' ).each( function() {
+			$( this ).children( '.ecv2-modal-overlay, #ecv2-toast-container, #ecv2-undo-bar, [data-ecv2-layer]' ).addClass( 'ecv2-layer' ).appendTo( 'body' );
 		} );
 	} );
 } )( jQuery );

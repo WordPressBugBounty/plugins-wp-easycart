@@ -158,6 +158,50 @@
 .ecv2-view-btn .dashicons { font-size:18px; width:18px; height:18px; }
 .ecv2-filter-badge { background:var(--ecv2-primary); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:10px; margin-left:2px; }
 
+/* Columns chooser ( 6.0.2 ): the toolbar's Columns button and panel ( wp_easycart_admin_table_v2::print_columns_control(),
+   list-columns-v2.js ). It only changes the table view, so it steps aside in the card and spreadsheet views ( the
+   spreadsheet has its own Columns picker ). Accent follows the admin colorizer. */
+.ecv2-cols { position:relative; display:inline-flex; }
+.ecv2-wrap[data-view-mode="card"] .ecv2-cols, .ecv2-wrap[data-view-mode="spreadsheet"] .ecv2-cols { display:none; }
+.ecv2-cols-btn { min-height:34px; padding:6px 12px; }
+.ecv2-cols-btn .dashicons { color:var(--ecv2-g500); }
+.ecv2-cols-btn[aria-expanded="true"] { border-color:var(--ec-brand, var(--ecv2-primary)); color:var(--ec-brand-deep, var(--ecv2-g800)); background:var(--ec-brand-softer, var(--ecv2-primary-light)); }
+.ecv2-cols-btn[aria-expanded="true"] .dashicons { color:var(--ec-brand, var(--ecv2-primary)); }
+.ecv2-cols-btn:focus-visible { outline:2px solid var(--ec-brand, var(--ecv2-primary)); outline-offset:2px; }
+.ecv2-cols-badge { display:inline-block; min-width:18px; padding:1px 6px; border-radius:10px; background:var(--ec-brand, var(--ecv2-primary)); color:var(--ec-on-brand, #fff); font-size:10px; font-weight:700; line-height:1.5; text-align:center; }
+.ecv2-cols-panel { position:absolute; top:calc(100% + 6px); right:0; z-index:120; width:320px; max-width:calc(100vw - 32px); background:#fff; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); box-shadow:var(--ecv2-shlg); text-align:left; color:var(--ecv2-g800); }
+.ecv2-cols-panel[hidden] { display:none; }
+.ecv2-cols-head { padding:12px 14px 6px; }
+.ecv2-wrap .ecv2-cols-title { margin:0; padding:0; font-size:13px; font-weight:600; line-height:1.4; color:var(--ecv2-g900); }
+.ecv2-cols-sub { margin:2px 0 0; font-size:12px; line-height:1.4; color:var(--ecv2-g500); }
+.ecv2-cols-panel button { font-family:inherit; }
+.ecv2-cols-list { list-style:none; margin:0; padding:2px 6px 6px; max-height:min(60vh, 460px); overflow-y:auto; overscroll-behavior:contain; }
+.ecv2-cols-item { display:flex; align-items:center; gap:6px; margin:0; padding:1px 2px 1px 8px; border-radius:6px; }
+.ecv2-cols-item:hover, .ecv2-cols-item:focus-within { background:var(--ecv2-g50); }
+.ecv2-cols-check { flex:1 1 auto; display:flex; align-items:center; gap:9px; min-width:0; min-height:36px; margin:0; font-size:13px; color:var(--ecv2-g700); cursor:pointer; }
+.ecv2-cols-check input[type="checkbox"] { flex:0 0 auto; margin:0; accent-color:var(--ec-brand, var(--ecv2-primary)); }
+.ecv2-cols-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ecv2-cols-item.is-locked .ecv2-cols-check { cursor:default; color:var(--ecv2-g800); }
+.ecv2-cols-lock { flex:0 0 auto; font-size:11px; color:var(--ecv2-g400); white-space:nowrap; }
+.ecv2-cols-move { flex:0 0 auto; display:inline-flex; gap:2px; }
+.ecv2-cols-move button { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin:0; padding:0; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--ecv2-g500); cursor:pointer; }
+.ecv2-cols-move button:hover:not(:disabled) { background:var(--ecv2-g100); color:var(--ecv2-g800); }
+.ecv2-cols-move button:disabled { opacity:.3; cursor:default; }
+.ecv2-cols-move .dashicons { font-size:16px; width:16px; height:16px; line-height:16px; }
+.ecv2-cols-panel button:focus-visible, .ecv2-cols-panel input:focus-visible { outline:2px solid var(--ec-brand, var(--ecv2-primary)); outline-offset:1px; box-shadow:none; }
+.ecv2-cols-status { margin:0; padding:0 14px 8px; font-size:12px; line-height:1.4; color:var(--ecv2-g600); }
+.ecv2-cols-status:empty { display:none; }
+.ecv2-cols-status.is-error { color:var(--ecv2-danger); }
+.ecv2-cols-foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:10px 12px; border-top:1px solid var(--ecv2-g100); }
+.ecv2-cols-foot-right { display:inline-flex; gap:6px; margin-left:auto; }
+.ecv2-cols-foot .ecv2-btn:disabled, .ecv2-cols-store .ecv2-btn:disabled { opacity:.5; cursor:default; }
+.ecv2-cols-store { padding:10px 12px 12px; border-top:1px solid var(--ecv2-g100); border-radius:0 0 var(--ecv2-r) var(--ecv2-r); background:var(--ecv2-g50); }
+.ecv2-cols-store .ecv2-btn { width:100%; justify-content:center; }
+.ecv2-cols-hint { margin:6px 0 0; font-size:12px; line-height:1.4; color:var(--ecv2-g500); }
+.ecv2-cols-link { margin:6px 0 0; padding:0; border:0; background:none; font-size:12px; color:var(--ecv2-g600); text-decoration:underline; cursor:pointer; }
+.ecv2-cols-link:hover { color:var(--ecv2-danger); }
+.ecv2-cols.is-busy .ecv2-cols-panel { cursor:progress; }
+
 /* Filter Panel → Slide-out Drawer */
 .ecv2-drawer-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:99999; transition:opacity 0.25s ease; opacity:0; }
 .ecv2-drawer-backdrop.ecv2-drawer-open { display:block; opacity:1; }
@@ -551,6 +595,11 @@
 	@media screen and (max-width:1024px) { .ecv2-hide-tablet { display:none !important; } .ecv2-health-dashboard { flex-wrap:wrap; } .ecv2-stat-card { min-width:80px; } }
 }
 @media screen and (max-width:768px) { .ecv2-toolbar { flex-direction:column; align-items:stretch; } .ecv2-toolbar-right { justify-content:space-between; } .ecv2-search input { width:100%; } .ecv2-card-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); } .ecv2-pagination { flex-direction:column; align-items:center; } .ecv2-keyboard-hint { display:none; } }
+/* Columns chooser on a narrow list: the panel spans the toolbar instead of hanging off the button. */
+@container ecv2 (max-width:640px) { .ecv2-toolbar { position:relative; } .ecv2-cols { position:static; } .ecv2-cols-panel { left:0; right:0; width:auto; max-width:none; } }
+@supports not (container-type:inline-size) {
+	@media screen and (max-width:640px) { .ecv2-toolbar { position:relative; } .ecv2-cols { position:static; } .ecv2-cols-panel { left:0; right:0; width:auto; max-width:none; } }
+}
 
 /* Sale tag in price column */
 .ecv2-sale-tag { display:inline-block; padding:1px 7px; border-radius:4px; font-size:10px; font-weight:700; background:#ecfeff; color:#06b6d4; white-space:nowrap; letter-spacing:.02em; vertical-align:middle; }
@@ -1555,6 +1604,12 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecds .ec_status_success .dashicons-yes { background:var(--ecv2-primary-light); }
 .ecds .ec_status_error .dashicons-no { background:var(--ecv2-danger-light); }
 .ecds .ec_status_error { background:#fff7f7 !important; }
+/* 6.0.2: a warning row ( works, but needs attention: a payment gateway in test mode ). */
+.ecds .ec_status_warning { display:flex; align-items:flex-start; gap:10px; float:none; width:auto; margin:0; padding:10px 16px; background:#fffbeb !important; border:0 !important; border-bottom:1px solid var(--ecv2-g100) !important; }
+.ecds .ec_status_warning:last-child { border-bottom:0 !important; }
+.ecds .ec_status_warning .dashicons-warning { margin:0; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; background:var(--ecv2-amber-light); }
+.ecds .ec_status_warning .dashicons-warning:before { width:auto; max-width:none; float:none; font-size:15px; padding:0; color:#d97706; }
+.ecds .ec_status_warning .ec_status_label { color:#78350f; }
 .ecds .ec_status_label { float:none; width:auto; flex:1 1 auto; min-width:0; line-height:1.55 !important; }
 .ecds .ec_status_label a { color:var(--ecv2-primary-hover); font-weight:600; }
 .ecds .ec_status_error .ec_status_label { color:#7f1d1d; }
@@ -1796,6 +1851,9 @@ body.ecv2-gate-open { overflow:hidden; }
 .ecss-carrier-fix .ec_status_label { flex:1 1 320px; min-width:0; }
 .ecss-carrier-acts { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
 .ecss-carrier-acts .ecv2-btn { white-space:nowrap; text-decoration:none; }
+/* 6.0.2: an advisory carrier row ( DHL still on XML Services ). */
+.ecds .ecss-carrier-note .dashicons-info { margin:0; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; background:var(--ecv2-g100); }
+.ecds .ecss-carrier-note .dashicons-info:before { width:auto; max-width:none; float:none; font-size:16px; padding:0; color:var(--ecv2-g700); }
 
 /* 6.0.1: the bar above a list after a page-load delete, offering the rows back for 15 minutes. */
 .ecv2-undo-strip { display:flex; align-items:center; gap:10px; margin:0 0 14px; padding:10px 14px; background:#fff; border:1px solid var(--ecv2-g200); border-left:3px solid var(--ec-brand,#16a34a); border-radius:var(--ecv2-r); box-shadow:var(--ecv2-sh); font-size:13px; color:var(--ecv2-g700); }

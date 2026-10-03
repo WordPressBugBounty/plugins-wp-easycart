@@ -20,6 +20,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 		add_action( 'wp_easycart_admin_product_details_categories_fields', array( $this, 'categories_fields' ) );
 		add_action( 'wp_easycart_admin_product_details_quantity_fields', array( $this, 'quantity_fields' ) );
 		add_action( 'wp_easycart_admin_product_details_packaging_fields', array( $this, 'packaging_fields' ) );
+		add_action( 'wp_easycart_admin_product_details_customs_fields', array( $this, 'customs_fields' ) );
 		add_action( 'wp_easycart_admin_product_details_pricing_fields', array( $this, 'pricing_fields' ) );
 		add_action( 'wp_easycart_admin_product_details_advanced_pricing_fields', array( $this, 'advanced_pricing_fields' ) );
 		add_action( 'wp_easycart_admin_product_details_shipping_fields', array( $this, 'shipping_fields' ) );
@@ -735,6 +736,79 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 		$this->print_fields( $fields );
 	}
 
+	/**
+	 * 6.0.2: how the product packs ( automatic, its own box, or one box from Settings › Shipping › Boxes ) and its customs
+	 * details. Saved by ec_admin_ajax_save_product_details_customs.
+	 */
+	public function customs_fields() {
+		global $wpdb;
+		$packs = array(
+			(object) array(
+				'id'    => '-1',
+				'value' => __( 'Ships in its own box ( one per item )', 'wp-easycart' ),
+			),
+		);
+		if ( class_exists( 'wp_easycart_packages' ) ) {
+			foreach ( wp_easycart_packages::boxes( false ) as $box ) {
+				/* translators: %s: box name. */
+				$packs[] = (object) array(
+					'id'    => (string) (int) $box->package_id,
+					'value' => sprintf( __( 'Always in: %s', 'wp-easycart' ), $box->label ),
+				);
+			}
+		}
+		$countries = array();
+		foreach ( (array) $wpdb->get_results( 'SELECT iso2_cnt AS id, name_cnt AS value FROM ec_country ORDER BY sort_order ASC, name_cnt ASC' ) as $country ) {
+			$countries[] = $country;
+		}
+		$packs_value = ! empty( $this->product->ships_separately ) ? '-1' : ( isset( $this->product->package_id ) ? (string) (int) $this->product->package_id : '0' );
+		$fields      = apply_filters(
+			'wp_easycart_admin_product_details_customs_fields_list',
+			array(
+				array(
+					'name'          => 'packs_in',
+					'type'          => 'select',
+					'label'         => __( 'Packs in', 'wp-easycart' ),
+					'data_label'    => __( 'The best box for the order ( automatic )', 'wp-easycart' ),
+					'default_value' => '0',
+					'required'      => false,
+					'data'          => $packs,
+					'value'         => $packs_value,
+				),
+				array(
+					'name'        => 'hs_code',
+					'type'        => 'text',
+					'label'       => __( 'HS tariff code', 'wp-easycart' ),
+					'required'    => false,
+					'maxlength'   => 20,
+					'placeholder' => __( 'e.g. 6109.10', 'wp-easycart' ),
+					'value'       => isset( $this->product->hs_code ) ? $this->product->hs_code : '',
+				),
+				array(
+					'name'          => 'country_of_origin',
+					'type'          => 'select',
+					'label'         => __( 'Country of origin', 'wp-easycart' ),
+					'data_label'    => __( 'Not set ( use the store default )', 'wp-easycart' ),
+					'default_value' => '',
+					'required'      => false,
+					'data'          => $countries,
+					'value'         => isset( $this->product->country_of_origin ) ? $this->product->country_of_origin : '',
+				),
+				array(
+					'name'        => 'customs_description',
+					'type'        => 'text',
+					'label'       => __( 'Customs description', 'wp-easycart' ),
+					'required'    => false,
+					'maxlength'   => 255,
+					'placeholder' => __( 'What it is and what it is made of, e.g. Cotton t-shirt', 'wp-easycart' ),
+					'value'       => isset( $this->product->customs_description ) ? $this->product->customs_description : '',
+				),
+			),
+			$this->product
+		);
+		$this->print_fields( $fields );
+	}
+
 	public function pricing_fields() {
 		global $wpdb;
 		$user_roles = $wpdb->get_results( "SELECT ec_role.role_label AS id, ec_role.role_label AS value FROM ec_role ORDER BY role_label ASC" );
@@ -1195,7 +1269,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_donation",
 				"type"				=> "checkbox",
 				"label"				=> __( "Donation/Invoice Product", 'wp-easycart' ),
-				"description"		=> __( "The customer types in the amount to pay — great for donations or letting someone pay an invoice. Your set price is ignored.", 'wp-easycart' ),
+				"description"		=> __( "The customer types the amount to pay. Your price is the starting amount and the lowest they can pay.", 'wp-easycart' ),
 				"required" 			=> false,
 				"validation_type" 	=> 'checkbox',
 				"onclick"			=> 'show_pro_required',
@@ -1207,7 +1281,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "is_giftcard",
 				"type"				=> "checkbox",
 				"label"				=> __( "Gift Card Product", 'wp-easycart' ),
-				"description"		=> __( "Sells a store gift card. A unique card code is generated and emailed to the buyer, ready to spend at checkout.", 'wp-easycart' ),
+				"description"		=> __( "The code is emailed to the recipient the buyer names, with a copy to your store notification addresses. The buyer's receipt links to a printable card.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,
@@ -1219,7 +1293,7 @@ class wp_easycart_admin_details_products extends wp_easycart_admin_details {
 				"name"				=> "inquiry_mode",
 				"type"				=> "checkbox",
 				"label"				=> __( "Inquiry Mode", 'wp-easycart' ),
-				"description"		=> __( "Swaps Add to Cart for a contact button — for quote-based or made-to-order items. Point it at your contact page below.", 'wp-easycart' ),
+				"description"		=> __( "Shows your store's inquiry form. To send shoppers to your own page instead, add its URL below and turn off Settings › Admin › Built-in inquiry form on inquiry-mode products.", 'wp-easycart' ),
 				"required" 			=> false,
 				"onclick"			=> 'show_pro_required',
 				"read-only"			=> true,

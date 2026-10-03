@@ -56,7 +56,7 @@ $args = shortcode_atts(
 		'billing_phone_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_phone' ),
 
 		'billing_user_notes_label' => wp_easycart_language( )->get_text( 'account_register', 'account_billing_information_user_notes' ),
-		'billing_user_notes_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'cart_billing_information', 'account_billing_information_user_notes' ),
+		'billing_user_notes_error' => wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ) . ' ' . wp_easycart_language( )->get_text( 'account_register', 'account_billing_information_user_notes' ),
 
 		'billing_title_text' => wp_easycart_language( )->get_text( 'cart_billing_information', 'cart_billing_information_title' ),
 		'billing_title_tag' => 'div',
@@ -234,13 +234,7 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 				if ( 'above' == $args['label_type'] ) {
 					echo '<label for="ec_account_billing_information_country">' . esc_html( $args['billing_country_label'] ) . '</label>';
 				}
-				echo '<input type="text" name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field" placeholder="';
-				if ( 'inside' == $args['label_type'] ) {
-					echo esc_html( $args['billing_country_label'] );
-				} else if ( 'floating' == $args['label_type'] ) {
-					echo ' ';
-				}
-				echo '">';
+				/* 6.0.2: a second, empty country text box ( same name and id ) was printed here, ahead of the real field. */
 				if ( get_option( 'ec_option_use_country_dropdown' ) ) {
 					$countries = $GLOBALS['ec_countries']->countries;
 					$selected_country = get_option( 'ec_option_default_country' );
@@ -409,6 +403,7 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 			}
 			$db = new ec_db();
 			$states = $db->get_states();
+			$selected_state = ''; /* 6.0.2: a new account has no state yet ( this was undefined: a warning per state ). */
 			if ( get_option( 'ec_option_use_smart_states' ) ) {
 				$selected_country = '';
 				$current_country = '';
@@ -522,13 +517,7 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 				if ( 'above' == $args['label_type'] ) {
 					echo '<label for="ec_account_billing_information_country">' . esc_html( $args['billing_country_label'] ) . '</label>';
 				}
-				echo '<input type="text" name="ec_account_billing_information_country" id="ec_account_billing_information_country" class="ec_account_input_field" placeholder="';
-				if ( 'inside' == $args['label_type'] ) {
-					echo esc_html( $args['billing_country_label'] );
-				} else if ( 'floating' == $args['label_type'] ) {
-					echo ' ';
-				}
-				echo '">';
+				/* 6.0.2: a second, empty country text box ( same name and id ) was printed here, ahead of the real field. */
 				if ( get_option( 'ec_option_use_country_dropdown' ) ) {
 					$countries = $GLOBALS['ec_countries']->countries;
 					$selected_country = get_option( 'ec_option_default_country' );
@@ -587,7 +576,8 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 			if ( 'above' == $args['label_type'] ) {
 				echo '<label for="ec_account_billing_information_user_notes">' . esc_html( $args['billing_user_notes_label'] ) . '</label>';
 			}
-			echo '<input type="text" name="ec_account_billing_information_user_notes" id="ec_account_billing_information_user_notes" class="ec_account_input_field" placeholder="';
+			/* 6.0.2: posted as ec_account_register_user_notes, the name the register handler reads ( the notes were never saved ). */
+			echo '<input type="text" name="ec_account_register_user_notes" id="ec_account_billing_information_user_notes" class="ec_account_input_field" placeholder="';
 			if ( 'inside' == $args['label_type'] ) {
 				echo esc_html( $args['billing_user_notes_label'] );
 			} else if ( 'floating' == $args['label_type'] ) {
@@ -613,7 +603,9 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 		echo '</div>';
 	}
 
-	if ( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ) {
+	if ( wp_easycart_recaptcha_ready() ) {
+		/* 6.0.2: Google's script ( registered by wp_easycart_register_grecaptcha_js() ); it only loaded on pages whose content holds [ec_account], so with reCAPTCHA on nobody could register here. */
+		wp_enqueue_script( 'wpeasycart_google_recaptcha_js' );
 		echo '<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />';
 		echo '<input type="hidden" id="ec_grecaptcha_site_key" value="' . esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ) . '" />';
 		echo '<div class="ec_cart_input_row" data-sitekey="' . esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ) . '" id="ec_account_register_recaptcha"></div>';
@@ -627,7 +619,8 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 	}
 
 	echo '<div class="wp-easycart-button-row">';
-		echo '<button type="submit" class="wp-easycart-button" onclick="return ec_account_register_button_click();">' . esc_html( $args['button_text_register'] ) . '</button>';
+		/* 6.0.2: the register template's check ( click2 also validates the billing address when the form has one ) and its filter, which password rule extensions use. */
+		echo '<button type="submit" class="wp-easycart-button" onclick="' . esc_attr( apply_filters( 'wpeasycart_register_js_function', 'return ec_account_register_button_click2( );' ) ) . '">' . esc_html( $args['button_text_register'] ) . '</button>';
 	echo '</div>';
 	echo '<input type="hidden" name="ec_account_page_id" id="ec_account_page_id" value="' . esc_attr( get_queried_object_id() ) . '" />';
 	echo '<input type="hidden" name="ec_account_form_action" value="register"/>';
@@ -639,17 +632,10 @@ if ( get_option( 'ec_option_cache_prevent' ) ) {
 		wpeasycart_account_shipping_country_update( );
 		jQuery( document.getElementById( 'ec_account_billing_information_country' ) ).change( function( ){ wpeasycart_account_billing_country_update( ); } );
 		jQuery( document.getElementById( 'ec_account_shipping_information_country' ) ).change( function( ){ wpeasycart_account_shipping_country_update( ); } );
-		if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
-			var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
-				'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
-				'callback' : wpeasycart_login_recaptcha_callback
-			});
-		}
-		if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
-			var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
-				'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val( ),
-				'callback' : wpeasycart_register_recaptcha_callback
-			});
-		}
 	</script>";
+	/*
+	 * 6.0.2: no inline reCAPTCHA render. This form is on the page when it loads, so Google's onload callback
+	 * ( wpeasycart_recaptcha_onload in ec-store.js ) renders it; the inline call ran before Google's script and threw, or
+	 * rendered the box twice.
+	 */
 }

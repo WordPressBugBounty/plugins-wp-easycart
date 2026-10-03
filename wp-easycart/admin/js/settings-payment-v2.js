@@ -118,13 +118,27 @@
 	function legacyFields() {
 		return $( '#ecpay_drawer_body' ).find( 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea' );
 	}
+	var LEGACY_SEP = '\u0001';
+	function legacyParts() {
+		return legacyFields().map( function() { return $( this ).is( ':checkbox, :radio' ) ? ( this.checked ? '1' : '0' ) : String( $( this ).val() ); } ).get();
+	}
 	function snapshot() {
 		if ( drawer.mode === 'v2' ) { return JSON.stringify( collect() ); }
-		if ( drawer.mode === 'manual' ) { return String( $( '#ecpay_manual_title' ).val() ) + '' + String( $( '#ecpay_manual_message' ).val() ); }
-		if ( drawer.mode === 'legacy-single' ) {
-			return legacyFields().map( function() { return $( this ).is( ':checkbox, :radio' ) ? ( this.checked ? '1' : '0' ) : String( $( this ).val() ); } ).get().join( '' );
-		}
+		if ( drawer.mode === 'manual' ) { return String( $( '#ecpay_manual_title' ).val() ) + '' + String( $( '#ecpay_manual_message' ).val() ) + '' + manualRoles().join( ',' ); }
+		if ( drawer.mode === 'legacy-single' ) { return legacyParts().join( LEGACY_SEP ); }
 		return '';
+	}
+	/* 6.0.2: a one-option save ( ec_admin_update_stripe_connect_option() posts update_var ) marks only that field as saved, so a
+	   Stripe payment method switch no longer hides an unsaved currency or signing secret beside it. The other saves post the
+	   whole partial and mark it all saved, as before. */
+	function savedSnapshot( posted ) {
+		var m = /(?:^|&)update_var=([^&]*)/.exec( String( posted || '' ) );
+		if ( drawer.mode !== 'legacy-single' || ! m ) { return snapshot(); }
+		var id = '', before = String( drawer.initial ).split( LEGACY_SEP ), now = legacyParts();
+		try { id = decodeURIComponent( m[1].replace( /\+/g, ' ' ) ); } catch ( err ) { return snapshot(); }
+		if ( before.length !== now.length ) { return now.join( LEGACY_SEP ); }
+		legacyFields().each( function( i ) { if ( this.id === id ) { before[ i ] = now[ i ]; } } );
+		return before.join( LEGACY_SEP );
 	}
 	function isDirty() {
 		return drawer.open && ( drawer.mode === 'v2' || drawer.mode === 'manual' || drawer.mode === 'legacy-single' ) && snapshot() !== drawer.initial;
@@ -316,9 +330,14 @@
 		} ).always( function() { setBusy( false ); } );
 	}
 
+	/* 6.0.2: the roles Bill later is offered to ( none ticked = everyone ). */
+	function manualRoles() {
+		return $( '#ecpay_manual_roles .ecpay-manual-role:checked' ).map( function() { return String( this.value ); } ).get();
+	}
+
 	function saveManual( $button ) {
 		setBusy( true, $button );
-		post( 'ecv2_payment_manual_save', { title: $( '#ecpay_manual_title' ).val(), message: $( '#ecpay_manual_message' ).val() }, function( d ) {
+		post( 'ecv2_payment_manual_save', { title: $( '#ecpay_manual_title' ).val(), message: $( '#ecpay_manual_message' ).val(), roles: manualRoles(), roles_sent: 1 }, function( d ) {
 			setBusy( false );
 			toast( d.message || T.saved, 'success' );
 			drawer.initial = snapshot();
@@ -380,6 +399,10 @@
 	} );
 	$( document ).on( 'submit.ecpay', '#ecpay_gwform', function( e ) { e.preventDefault(); } );
 	$( document ).on( 'input.ecpay', '#ecpay_manual_title, #ecpay_manual_message', updateDirty );
+	$( document ).on( 'change.ecpay', '#ecpay_manual_roles .ecpay-manual-role', function() {
+		$( this ).closest( '.ecst-pill' ).toggleClass( 'is-on', this.checked );
+		updateDirty();
+	} );
 
 	/* Any legacy save from inside the drawer: report the footer save, refresh the cards in place. */
 	$( document ).on( 'ajaxComplete.ecpay', function( e, xhr, settings ) {
@@ -398,8 +421,8 @@
 			if ( ok ) { toast( T.saved, 'success' ); }
 		}
 		if ( ok ) {
-			/* The legacy save functions post the whole partial ( also when a select saves on change ). */
-			drawer.initial = snapshot();
+			/* The legacy save functions post the whole partial ( also when a select saves on change ), except a one-option save. */
+			drawer.initial = savedSnapshot( data );
 			refreshState();
 		}
 		updateDirty();
@@ -448,6 +471,13 @@
 		e.preventDefault();
 		var href = $( this ).attr( 'href' ), text = $( this ).data( 'ecpay-confirm' );
 		confirmBox( text, '' ).then( function( ok ) { if ( ok ) { toast( T.working, 'info' ); window.location.href = href; } } );
+	} );
+	/* 6.0.2: the same inside the drawer, which sits on body outside $wrap ( the PayPal panel's Disconnect ). */
+	$( document ).on( 'click.ecpay', '.ecpay-drawer [data-ecpay-confirm]', function( e ) {
+		e.preventDefault();
+		var href = $( this ).attr( 'href' ), text = $( this ).data( 'ecpay-confirm' );
+		drawer.confirming = true;
+		confirmBox( text, '' ).then( function( ok ) { drawer.confirming = false; if ( ok ) { toast( T.working, 'info' ); window.location.href = href; } } );
 	} );
 	$wrap.on( 'click', '[data-ecpay-nav]', function() { toast( T.working, 'info' ); } );
 	$wrap.on( 'click', '[data-ecpay-choose]', function() {

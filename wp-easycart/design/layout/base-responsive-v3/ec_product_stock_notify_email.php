@@ -108,6 +108,9 @@ $product->display_product_description();
 $ec_notify_description = trim( wp_trim_words( wp_strip_all_tags( (string) ob_get_clean() ), 40 ) );
 
 $ec_notify_link = $product->get_product_link();
+if ( class_exists( 'wp_easycart_order_source' ) ) {
+	$ec_notify_link = wp_easycart_order_source::tag_url( $ec_notify_link, 'back-in-stock' ); /* 6.0.2: orders from this email show it as their source */
+}
 
 $ed::open(
 	array(

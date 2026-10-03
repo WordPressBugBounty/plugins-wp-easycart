@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Scheme_Color;
 use Elementor\Group_Control_Typography;
@@ -28,6 +30,8 @@ use Elementor\Wp_Easycart_Controls_Manager;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Product_Details_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
 
 	/**
 	 * Get product details widget name.
@@ -68,17 +72,15 @@ class Wp_Easycart_Elementor_Product_Details_Widget extends \Elementor\Widget_Bas
 	 * Enqueue product details widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js' ) );
 	}
 
 	/**
 	 * Setup product details widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 
 		$this->start_controls_section(
 			'section_products',
@@ -189,7 +191,7 @@ class Wp_Easycart_Elementor_Product_Details_Widget extends \Elementor\Widget_Bas
 			array(
 				'type'  => Controls_Manager::SWITCHER,
 				'label' => esc_attr__( 'Display Image Thumbnails', 'wp-easycart' ),
-				'default' => true,
+				'default' => 'yes', /* 6.0.2: was true, which rendered on but showed off in the panel */
 			)
 		);
 

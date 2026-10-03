@@ -26,6 +26,15 @@ $args = shortcode_atts(
 	$atts
 );
 
+/* 6.0.2: the [ec_search] equivalent, saved as the page's plain content ( this call draws nothing ). */
+if ( function_exists( 'wp_easycart_elementor_plain_shortcode' ) ) {
+	$wpec_search_plain = array( 'label' => is_scalar( $args['label'] ) ? (string) $args['label'] : '' );
+	if ( is_scalar( $args['postid'] ) && (int) $args['postid'] > 0 ) {
+		$wpec_search_plain['postid'] = (int) $args['postid'];
+	}
+	wp_easycart_elementor_plain_shortcode( '[ec_search' . wp_easycart_elementor_shortcode_atts( $wpec_search_plain ) . ']' );
+}
+
 // Translate if needed
 if ( function_exists( 'wp_easycart_language' ) ) {
 	$args['label'] = wp_easycart_language()->convert_text( $args['label'] );
@@ -56,6 +65,9 @@ if ( 'enable' === $args['enable_live_search'] ) {
 
 $live_search_nonce = wp_create_nonce( 'wp-easycart-live-search' );
 $max_results = (int) $args['live_search_max_results'];
+if ( $max_results < 1 ) {
+	$max_results = 8; /* 6.0.2: an emptied "Max Suggestions" showed an empty box; use the control's default. */
+}
 
 // Layout class
 $layout = $args['search_layout'];
@@ -72,6 +84,12 @@ $widget_id = 'ec_search_ele_' . $this->get_id();
 ?>
 <div class="ec_search_ele_wrapper" id="<?php echo esc_attr( $widget_id ); ?>">
 	<form action="<?php echo esc_url( $store_page ); ?>" method="GET" class="ec_search_ele_form <?php echo esc_attr( $layout_class ); ?>">
+		<?php
+		/* 6.0.2: the store page's own query ( plain permalinks' page_id, WPML's lang ), which a GET form would drop. */
+		if ( function_exists( 'wp_easycart_print_form_query_inputs' ) ) {
+			wp_easycart_print_form_query_inputs( $store_page );
+		}
+		?>
 
 		<div class="ec_search_ele_input_wrap<?php echo $show_input_icon ? ' ec_search_ele_has_icon' : ''; ?>">
 			<?php if ( $show_input_icon ) : ?>
@@ -125,6 +143,7 @@ $widget_id = 'ec_search_ele_' . $this->get_id();
 	var nonce      = '<?php echo esc_js( $live_search_nonce ); ?>';
 	var ajaxUrl    = '<?php echo esc_js( admin_url( "admin-ajax.php" ) ); ?>';
 	var maxResults = <?php echo (int) $max_results; ?>;
+	var noResultsText = <?php echo wp_json_encode( __( 'No results found', 'wp-easycart' ) ); ?>;
 	var debounce   = null;
 
 	if ( ! input || ! dropdown ) return;
@@ -184,7 +203,7 @@ $widget_id = 'ec_search_ele_' . $this->get_id();
 		if ( ! results || results.length === 0 ) {
 			var empty = document.createElement('div');
 			empty.className = 'ec_search_ele_dropdown_empty';
-			empty.textContent = 'No results found';
+			empty.textContent = noResultsText;
 			dropdown.appendChild( empty );
 			dropdown.style.display = 'block';
 			return;

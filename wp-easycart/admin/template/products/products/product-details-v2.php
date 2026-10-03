@@ -97,8 +97,9 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php if ( ! $is_new ) { ?>
 					<span id="ecdv2_header_sku"><?php echo esc_html( wp_unslash( $product->model_number ) ); ?></span>
 					&middot; <span id="ecdv2_header_price"><?php echo esc_html( $this->format_price( $product->price ) ); ?></span>
-					<?php if ( $product->show_stock_quantity || $product->use_optionitem_quantity_tracking ) { ?>
-						&middot; <span class="<?php echo ( (int) $product->stock_quantity > 0 || $product->use_optionitem_quantity_tracking ) ? 'ecdv2-instock' : 'ecdv2-outstock'; ?>" id="ecdv2_header_stock"><?php
+					<?php /* 6.0.2: always printed ( hidden while stock is not tracked ), so the header follows a saved Track Quantity change. */ ?>
+					<span id="ecdv2_header_stock_wrap"<?php echo ( $product->show_stock_quantity || $product->use_optionitem_quantity_tracking ) ? '' : ' style="display:none;"'; ?>>
+						&middot; <span class="<?php echo ( (int) $product->stock_quantity > 0 || $product->use_optionitem_quantity_tracking ) ? 'ecdv2-instock' : 'ecdv2-outstock'; ?>" id="ecdv2_header_stock" data-text-variant="<?php esc_attr_e( 'Variant stock', 'wp-easycart' ); ?>" data-text-in="<?php /* translators: %d: units in stock. */ esc_attr_e( '%d in stock', 'wp-easycart' ); ?>" data-text-out="<?php esc_attr_e( 'Out of stock', 'wp-easycart' ); ?>"><?php
 							if ( $product->use_optionitem_quantity_tracking ) {
 								esc_attr_e( 'Variant stock', 'wp-easycart' );
 							} else if ( (int) $product->stock_quantity > 0 ) {
@@ -107,7 +108,7 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 								esc_attr_e( 'Out of stock', 'wp-easycart' );
 							}
 						?></span>
-					<?php } ?>
+					</span>
 				<?php } else { ?>
 					<?php esc_attr_e( 'Fill in the essentials, then save to unlock all sections', 'wp-easycart' ); ?>
 				<?php } ?>
@@ -255,6 +256,9 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 					<?php $this->section_open( 'specifications', __( 'Specifications', 'wp-easycart' ), __( 'Optional specs tab on the product page', 'wp-easycart' ) ); ?>
 						<?php do_action( 'wp_easycart_admin_product_details_specifications_fields' ); ?>
 					<?php $this->section_close(); ?>
+
+					<?php /* 6.0.2: the Tabs extension ( Premium ): its tabs for this product, or what Premium adds. */ ?>
+					<?php if ( ! $is_new && class_exists( 'wp_easycart_admin_extensions' ) ) { wp_easycart_admin_extensions::print_product_tabs_card( $product ); } ?>
 				</div>
 			</div>
 
@@ -375,6 +379,13 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php $this->section_open( 'packaging', __( 'Packaging Dimensions', 'wp-easycart' ), __( 'Used by live shipping rate calculators', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_packaging_fields' ); ?>
 				<?php $this->section_close(); ?>
+
+				<?php if ( class_exists( 'wp_easycart_packages' ) && wp_easycart_packages::ready() ) { ?>
+					<?php /* 6.0.2: how the product packs, and what customs forms say about it. */ ?>
+					<?php $this->section_open( 'customs', __( 'Customs and packing', 'wp-easycart' ), __( 'Used to split orders into boxes and on customs forms for labels', 'wp-easycart' ) ); ?>
+						<?php do_action( 'wp_easycart_admin_product_details_customs_fields' ); ?>
+					<?php $this->section_close(); ?>
+				<?php } ?>
 			</div>
 
 			<!-- ===== OPTIONS & VARIANTS ===== -->
@@ -431,12 +442,25 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php $this->section_open( 'deconetwork', __( 'Deconetwork', 'wp-easycart' ), __( 'Custom decorated product integration', 'wp-easycart' ) ); ?>
 					<?php do_action( 'wp_easycart_admin_product_details_deconetwork_fields' ); ?>
 				<?php $this->section_close(); ?>
+				<?php
+				/**
+				 * More purchase-rule cards at the end of Type & Behavior ( e.g. WP EasyCart for BlueCheck's age restriction ).
+				 * They save with the editor's Save button like the marketing cards: a .ecdv2-card with
+				 * data-ecdv2-section="<key>", registered with ecdv2.register_section( '<key>', payload_fn )
+				 * ( admin/js/products-details-v2.js ).
+				 *
+				 * @since 6.0.2
+				 * @param object $product The product being edited ( no product_id yet for a new one ).
+				 */
+				do_action( 'wp_easycart_admin_product_details_v2_behavior_cards', $product );
+				?>
 			</div>
 
 			<!-- ===== SEO & MARKETING ===== -->
 			<div class="ecdv2-panel ecdv2-requires-save" data-ecdv2-panel="seo" role="tabpanel">
 				<?php $ecdv2_intro( 'seo' ); ?>
-				<?php if ( get_option( 'ec_option_enable_mailerlite' ) && ! $is_new ) { ?>
+				<?php /* 6.0.2: PRO 6.0.2 prints its own Email marketing card ( every connected service ) through wp_easycart_admin_product_details_v2_marketing_cards; this one stays for an older PRO. */ ?>
+				<?php if ( get_option( 'ec_option_enable_mailerlite' ) && ! $is_new && ( ! defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) || version_compare( WP_EASYCART_ADMIN_PRO_VERSION, '6.0.2', '<' ) ) ) { ?>
 					<?php $this->section_open( 'general_options_marketing', __( 'Email Marketing', 'wp-easycart' ), __( 'Add buyers of this product to a Mailer Lite subscriber group', 'wp-easycart' ), array( 'only' => array( 'mailerlite_group_name' ) ) ); ?>
 						<?php do_action( 'wp_easycart_admin_product_details_general_options_fields' ); ?>
 					<?php $this->section_close(); ?>
@@ -474,6 +498,14 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 				<?php } ?>
 
 				<?php
+				/* 6.0.2: Search & AI: barcode, part number and condition ( shared with the Google Merchant attributes ), a
+				 * checklist and a preview of the product data search engines and AI assistants read. */
+				if ( ! $is_new && class_exists( 'wp_easycart_admin_search_ai' ) ) {
+					wp_easycart_admin_search_ai::print_product_card( $this );
+				}
+				?>
+
+				<?php
 				/* Google Merchant: capture the PRO field list and render it as a
 				 * native v2 section — same grid, dirty tracking, and global Save
 				 * as every other panel. Falls back to the CSS-reskinned legacy
@@ -503,6 +535,17 @@ $tab_groups = apply_filters( 'wp_easycart_admin_product_details_v2_tab_groups', 
 						?>
 					</div></div>
 				<?php } ?>
+				<?php
+				/**
+				 * More marketing cards after Google Merchant ( e.g. the Facebook & Instagram card ). A card that saves with the
+				 * editor's Save button is a .ecdv2-card with data-ecdv2-section="<key>", and its script calls
+				 * ecdv2.register_section( '<key>', payload_fn ) ( admin/js/products-details-v2.js ).
+				 *
+				 * @since 6.0.2
+				 * @param object $product The product being edited ( no product_id yet for a new one ).
+				 */
+				do_action( 'wp_easycart_admin_product_details_v2_marketing_cards', $product );
+				?>
 			</div>
 
 			<!-- ===== ORDER MESSAGING ===== -->

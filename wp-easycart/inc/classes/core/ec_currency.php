@@ -285,6 +285,11 @@ class ec_currency{
 	public static function get_grouping_symbol( ){
 		return self::$static_grouping_symbol;
 	}
+	/**
+	 * The shopper's display currency ( ec_convert_to cookie ). Cart, order and analytics amounts are in the base currency: wp_easycart_base_currency_code().
+	 *
+	 * @return string
+	 */
 	public static function get_currency_code( ){
 		return self::$static_currency_code;
 	}
@@ -293,6 +298,22 @@ class ec_currency{
 	}
 	public static function get_conversion_rate( ){
 		return self::$static_conversion_rate;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_base_currency_code' ) ) {
+	/**
+	 * ISO 4217 code of the store's base currency ( ec_option_base_currency ), the currency every cart and order amount is in.
+	 *
+	 * Analytics events send it with those amounts. ec_currency::get_currency_code() is the shopper's display currency, and
+	 * ec_option_currency is the symbol, never the code.
+	 *
+	 * @since 6.0.2
+	 * @return string Three upper case letters, USD when the option holds anything else.
+	 */
+	function wp_easycart_base_currency_code() {
+		$code = strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', (string) get_option( 'ec_option_base_currency', 'USD' ) ), 0, 3 ) );
+		return ( 3 === strlen( $code ) ) ? $code : 'USD';
 	}
 }
 

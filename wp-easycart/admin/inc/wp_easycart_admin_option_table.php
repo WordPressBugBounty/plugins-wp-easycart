@@ -83,6 +83,10 @@ if ( ! class_exists( 'wp_easycart_admin_option_table' ) ) :
 
 		public function setup() {
 			$this->set_table( 'ec_option', 'option_id' );
+			/* 6.0.2: sets that belong to one product ( a fulfillment partner's sizes and colours ) are edited with it, not here. */
+			if ( class_exists( 'wp_easycart_product_writer' ) ) {
+				$this->set_custom_where( wp_easycart_product_writer::shared_sets_sql() );
+			}
 			$this->set_table_id( 'ec_admin_option_list_v2' );
 			$this->set_default_sort( 'option_name', 'ASC' );
 			$this->set_header( __( 'Option Sets', 'wp-easycart' ) );
@@ -211,17 +215,18 @@ if ( ! class_exists( 'wp_easycart_admin_option_table' ) ) :
 		private function compute_health_data() {
 			global $wpdb;
 			$used = $this->used_sql();
+			$own  = class_exists( 'wp_easycart_product_writer' ) ? wp_easycart_product_writer::shared_sets_sql() : ''; /* 6.0.2: shared sets only */
+			// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- family_sql() / list_types_sql() build IN-lists only from the fixed keys of self::types(); used_sql() is a static fragment; $own is a literal condition.
 			$this->health_data = array(
-				'total'          => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option' ),
-				// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- family_sql() / list_types_sql() build IN-lists only from the fixed keys of self::types(); used_sql() is a static fragment.
-				'variation'      => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->family_sql( 'variation' ) ),
-				'modifier'       => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->family_sql( 'modifier' ) ),
-				'used'           => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $used ),
-				'unused'         => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE NOT ( ' . $used . ' )' ),
-				'empty'          => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->list_types_sql() . ' AND NOT EXISTS ( SELECT 1 FROM ec_optionitem oi WHERE oi.option_id = ec_option.option_id )' ),
-				// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
-				'missing_swatch' => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_option WHERE option_type IN ('basic-swatch','swatch') AND EXISTS ( SELECT 1 FROM ec_optionitem oi WHERE oi.option_id = ec_option.option_id AND ( oi.optionitem_icon IS NULL OR oi.optionitem_icon = '' ) )" ),
+				'total'          => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE 1=1' . $own ),
+				'variation'      => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->family_sql( 'variation' ) . $own ),
+				'modifier'       => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->family_sql( 'modifier' ) . $own ),
+				'used'           => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ( ' . $used . ' )' . $own ),
+				'unused'         => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE NOT ( ' . $used . ' )' . $own ),
+				'empty'          => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_option WHERE ' . $this->list_types_sql() . ' AND NOT EXISTS ( SELECT 1 FROM ec_optionitem oi WHERE oi.option_id = ec_option.option_id )' . $own ),
+				'missing_swatch' => (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_option WHERE option_type IN ('basic-swatch','swatch') AND EXISTS ( SELECT 1 FROM ec_optionitem oi WHERE oi.option_id = ec_option.option_id AND ( oi.optionitem_icon IS NULL OR oi.optionitem_icon = '' ) )" . $own ),
 			);
+			// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 		}
 
 		protected function get_health_filter_where( $filter_key ) {

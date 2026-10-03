@@ -110,6 +110,8 @@ class ec_payment {
 			$gateway = new ec_paypal_pro();
 		} else if( 'paypoint' == $this->process_method ) {
 			$gateway = new ec_paypoint();
+		} else if( 'paytrace' == $this->process_method && class_exists( 'ec_paytrace' ) ) { /* 6.0.2: the class ships in WP EasyCart PRO 6.0.2; an older PRO falls through to the setup message */
+			$gateway = new ec_paytrace();
 		} else if( 'psigate' == $this->process_method ) {
 			$gateway = new ec_psigate();
 		} else if( 'realex' == $this->process_method ) {

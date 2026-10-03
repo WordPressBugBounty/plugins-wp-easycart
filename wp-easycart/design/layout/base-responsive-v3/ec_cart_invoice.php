@@ -1,14 +1,6 @@
 <?php
-if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
-	echo "<script>
-		fbq('track', 'AddPaymentInfo', {value: " . esc_js( number_format( $invoice->grand_total, 2, '.', '' ) ) . ", currency: '" . esc_js( $GLOBALS['currency']->get_currency_code( ) ) . "', contents: [";
-		for( $i=0; $i<count( $invoice_items ); $i++ ){
-			if( $i > 0 )
-				echo ", ";
-			echo "{ id: '" . esc_js( $invoice_items[$i]->product_id ) . "', quantity: " . esc_js( $invoice_items[$i]->quantity ) . ", price: " . esc_js( $invoice_items[$i]->unit_price ) . " }";
-		}		
-		echo "]});
-	</script>";
+if ( function_exists( 'wp_easycart_meta_order_payment_info' ) && isset( $invoice ) && is_object( $invoice ) && ! empty( $invoice->order_id ) ) {
+	wp_easycart_meta_order_payment_info( $invoice->order_id, $invoice->grand_total ); /* 6.0.2: Meta AddPaymentInfo with event ID and catalog content IDs */
 }
 ?>
 <?php if( isset( $_GET['ideal'] ) && isset( $_GET['client_secret'] ) && isset( $_GET['source'] ) && $_GET['ideal'] == 'returning' ){ ?>
@@ -884,7 +876,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 										}
 									};
 									jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
-										jQuery( location ).attr( 'href', result );
+										wpeasycart_checkout_goto( result );
 									} } );
 								}
 							} );

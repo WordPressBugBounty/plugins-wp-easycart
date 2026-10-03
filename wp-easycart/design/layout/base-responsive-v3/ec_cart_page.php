@@ -134,7 +134,7 @@ $GLOBALS['ec_live_editor_loaded'] = true;
 
 <?php $this->display_cart_error( ); ?>
 
-<?php if( (float) apply_filters( 'wpeasycart_minimum_order_total', get_option( 'ec_option_minimum_order_total' ) ) > 0 ){ ?>
+<?php if( $this->cart->total_items > 0 && (float) apply_filters( 'wpeasycart_minimum_order_total', get_option( 'ec_option_minimum_order_total' ) ) > 0 ){ /* 6.0.2: never for an empty cart ( as display_cart_contents() ) */ ?>
 <div class="ec_minimum_purchase_box" data-min-cart="<?php echo esc_attr( (float) apply_filters( 'wpeasycart_minimum_order_total', get_option( 'ec_option_minimum_order_total' ) ) ); ?>"<?php if( (float) apply_filters( 'wpeasycart_minimum_order_total', get_option( 'ec_option_minimum_order_total' ) ) <= $this->cart->subtotal ){ ?> style="display:none;"<?php }?>><p><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_minimum_purchase_amount1' ); ?> <?php echo esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wpeasycart_minimum_order_total', get_option( 'ec_option_minimum_order_total' ) ) ) ); ?> <?php echo wp_easycart_language( )->get_text( 'cart', 'cart_minimum_purchase_amount2' ); ?></p></div>
 <?php }?>
 

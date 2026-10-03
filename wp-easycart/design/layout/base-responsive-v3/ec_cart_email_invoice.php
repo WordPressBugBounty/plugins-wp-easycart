@@ -41,6 +41,11 @@ $ec_invoice_pay_url  = wpeasycart_links()->get_cart_page(
 		'ec_guest_key' => ( ( '' != $this->guest_key ) ? $this->guest_key : null ), // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- link code kept as is.
 	)
 );
+/* 6.0.2: the order's pay link ( wp_easycart_order_pay gives keyless admin-built orders a key ), shown only while it can take a payment. */
+if ( class_exists( 'wp_easycart_order_pay' ) ) {
+	$ec_invoice_pay_url = wp_easycart_order_pay::url( (int) $this->order_id );
+}
+$ec_invoice_pay_on   = ! class_exists( 'wp_easycart_order_pay' ) || wp_easycart_order_pay::available();
 $ec_invoice_pay_text = wp_strip_all_tags( $ec_invoice_lang->get_text( 'cart_success', 'cart_payment_complete_click_here' ) . ' ' . $ec_invoice_lang->get_text( 'cart_success', 'cart_invoice_pay_online' ) );
 
 /* Offers v2: line-level flags keyed by orderdetail_id and the order-level applied-offers snapshot. */
@@ -100,30 +105,44 @@ if ( '' !== $ec_invoice_address ) {
 $ed::section_start( array( 'top' => 20 ) );
 $ed::paragraph( wp_kses_post( $ec_invoice_lang->get_text( 'cart_success', 'cart_invoice_line_1' ) ) );
 $ed::card_start();
-$ed::key_values(
+$ec_invoice_rows = array(
 	array(
-		array(
-			'label' => wp_kses_post( rtrim( trim( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_order_number' ) ), ':' ) ),
-			'value' => $ed::ltr( $this->order_id ),
-		),
-		array(
-			'label' => wp_kses_post( rtrim( trim( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_order_date' ) ), ':' ) ),
-			'value' => ( '' !== (string) $this->order_date ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $this->order_date ) ) ) : '',
-		),
-		array(
-			'label' => wp_kses_post( $ec_invoice_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ),
-			'value' => $ed::ltr( $total ),
-		),
-	)
-);
-$ed::button(
-	$ec_invoice_pay_url,
-	$ec_invoice_pay_text,
+		'label' => wp_kses_post( rtrim( trim( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_order_number' ) ), ':' ) ),
+		'value' => $ed::ltr( $this->order_id ),
+	),
 	array(
-		'margin' => '14px 0 0 0',
-		'arrow'  => true,
-	)
+		'label' => wp_kses_post( rtrim( trim( $ec_invoice_lang->get_text( 'account_order_details', 'account_orders_details_order_date' ) ), ':' ) ),
+		'value' => ( '' !== (string) $this->order_date ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $this->order_date ) ) ) : '',
+	),
+	array(
+		'label' => wp_kses_post( $ec_invoice_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ),
+		'value' => $ed::ltr( $total ),
+	),
 );
+/* 6.0.2: an order changed after it was paid: what was paid and the balance the Pay button takes. */
+$ec_invoice_paid = ( $ec_invoice_order > 0 && class_exists( 'wp_easycart_order_payments' ) ) ? wp_easycart_order_payments::summary( $ec_invoice_order ) : null;
+if ( $ec_invoice_paid && $ec_invoice_paid['recorded'] && $ec_invoice_paid['paid'] >= 0.005 && $ec_invoice_paid['due'] >= 0.005 ) {
+	$ec_invoice_rows[] = array(
+		'label' => class_exists( 'wp_easycart_order_pay' ) ? wp_easycart_order_pay::text( 'pay_paid_label', __( 'Paid', 'wp-easycart' ) ) : esc_html__( 'Paid', 'wp-easycart' ),
+		'value' => $ed::ltr( '-' . $ec_invoice_cur->get_currency_display( $ec_invoice_paid['paid'] - $ec_invoice_paid['overpaid_refunded'] ) ),
+	);
+	$ec_invoice_rows[] = array(
+		'label' => class_exists( 'wp_easycart_order_pay' ) ? wp_easycart_order_pay::text( 'pay_balance_label', __( 'Balance due', 'wp-easycart' ) ) : esc_html__( 'Balance due', 'wp-easycart' ),
+		'value' => $ed::money( $ec_invoice_paid['due'] ),
+	);
+}
+$ed::key_values( $ec_invoice_rows, array( 'per_row' => 3 ) );
+/* 6.0.2: the Pay button only when the order's pay link can take a payment ( Settings › Documents › Pay links ). */
+if ( $ec_invoice_pay_on ) {
+	$ed::button(
+		$ec_invoice_pay_url,
+		$ec_invoice_pay_text,
+		array(
+			'margin' => '14px 0 0 0',
+			'arrow'  => true,
+		)
+	);
+}
 $ed::card_end();
 if ( $is_admin && $ec_invoice_order > 0 ) {
 	$ed::button(
@@ -360,13 +379,15 @@ if ( isset( $this->order_fees ) && is_array( $this->order_fees ) ) {
 $ed::totals( $ec_invoice_totals, array( wp_kses_post( $ec_invoice_lang->get_text( 'cart_success', 'cart_payment_complete_order_totals_grand_total' ) ), $ed::ltr( $total ) ) );
 
 /* Second pay button under the totals */
-$ed::button_row(
-	$ec_invoice_pay_url,
-	$ec_invoice_pay_text,
-	array(
-		'top'    => 16,
-		'bottom' => 8,
-		'align'  => 'end',
-	)
-);
+if ( $ec_invoice_pay_on ) {
+	$ed::button_row(
+		$ec_invoice_pay_url,
+		$ec_invoice_pay_text,
+		array(
+			'top'    => 16,
+			'bottom' => 8,
+			'align'  => 'end',
+		)
+	);
+}
 $ed::close();

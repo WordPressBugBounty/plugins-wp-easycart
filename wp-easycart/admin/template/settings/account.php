@@ -12,11 +12,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! function_exists( 'ecst_account_render_recaptcha_note' ) ) {
+	/**
+	 * reCAPTCHA stays off until both keys are saved ( wp_easycart_recaptcha_ready() ): says so under the switch while a key
+	 * is missing. data-ecst-needs lets the page hide it once both keys are typed.
+	 *
+	 * @since 6.0.2
+	 * @param array $field Field declaration.
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function ecst_account_render_recaptcha_note( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		$missing = ( '' === trim( (string) get_option( 'ec_option_recaptcha_site_key' ) ) || '' === trim( (string) get_option( 'ec_option_recaptcha_secret_key' ) ) );
+		echo '<p class="ecst-needs-note" data-ecst-needs="ec_option_recaptcha_site_key ec_option_recaptcha_secret_key"' . ( $missing ? '' : ' hidden' ) . '>' . esc_html__( 'reCAPTCHA stays off until both keys are saved. Until then the forms show no challenge and nobody is asked for one.', 'wp-easycart' ) . '</p>';
+	}
+}
+
 return array(
 	'slug'        => 'account',
 	'title'       => __( 'Accounts', 'wp-easycart' ),
 	'description' => __( 'What shoppers must provide to register, what they can do from their account, and spam protection.', 'wp-easycart' ),
-	'group'       => 'store-setup',
+	'group'       => 'store',
+	'order'       => 30,
 	'icon'        => 'admin-users',
 	'docs'        => array( 'settings', 'accounts', 'settings' ),
 	'legacy'      => array( 'account' ),
@@ -96,6 +113,16 @@ return array(
 					'desc'     => __( 'Adds a reCAPTCHA challenge to registration and login. Needs a site key and secret key from your Google reCAPTCHA account.', 'wp-easycart' ),
 					'keywords' => array( 'captcha', 'bots', 'spam', 'google' ),
 					'legacy'   => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Google Recaptcha V2' ),
+				),
+				/* 6.0.2: switched on without both keys, reCAPTCHA does nothing ( it used to refuse every sign-in ) */
+				'ecst_recaptcha_keys_note' => array(
+					'type'      => 'html',
+					'label'     => __( 'reCAPTCHA keys missing', 'wp-easycart' ),
+					'parent'    => 'ec_option_enable_recaptcha',
+					'show_when' => '1',
+					'render'    => 'ecst_account_render_recaptcha_note',
+					'keywords'  => array( 'captcha', 'keys' ),
+					'legacy'    => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'New in 6.0.2' ),
 				),
 				'ec_option_recaptcha_site_key' => array(
 					'type'        => 'text',

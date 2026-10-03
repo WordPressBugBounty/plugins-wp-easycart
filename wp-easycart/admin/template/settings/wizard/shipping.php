@@ -79,7 +79,7 @@ $fmt = function( $n ) use ( $symbol ) {
 				<p><?php esc_html_e( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ); ?></p>
 				<div class="ecwz-ccard-act">
 					<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
-					<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank"><?php esc_html_e( 'Try free for 14 days', 'wp-easycart' ); ?></a>
+					<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( wp_easycart_admin()->pro_install_url( 'trial' ) ); ?>" target="_blank"><?php esc_html_e( 'Try free for 14 days', 'wp-easycart' ); ?></a>
 				</div>
 			</div>
 			<?php } ?>

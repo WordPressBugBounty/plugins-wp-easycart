@@ -1,0 +1,26 @@
+/* Settings › Elementor: the status card ( 6.0.2 ). Accent follows the admin colorizer ( --ec-brand ). */
+.ecst-elementor-status { font-size: 13px; line-height: 1.5; }
+.ecst-elementor-status .ecst-el-intro { margin: 0 0 12px; }
+.ecst-el-list { margin: 0; padding: 0; list-style: none; }
+.ecst-el-row { display: grid; grid-template-columns: minmax(140px, 200px) auto 1fr; gap: 4px 14px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--ecv2-g200, #e5e7eb); }
+.ecst-el-row:first-child { border-top: 0; padding-top: 0; }
+.ecst-el-label { font-weight: 600; color: var(--ecv2-g900, #111827); }
+.ecst-el-value { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--ecv2-g100, #f3f4f6); color: var(--ecv2-g700, #374151); }
+.ecst-el-value.is-ok { background: #dcfce7; color: #166534; }
+.ecst-el-value.is-warn { background: #fef3c7; color: #92400e; }
+.ecst-el-value.is-off { background: var(--ecv2-g100, #f3f4f6); color: var(--ecv2-g600, #4b5563); }
+.ecst-el-detail { color: var(--ecv2-g600, #4b5563); }
+.ecst-el-links { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 14px 0 0; }
+.ecst-el-button { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border: 1px solid var(--ec-brand, #2271b1); border-radius: 6px; color: var(--ec-brand, #2271b1); font-weight: 600; text-decoration: none; }
+.ecst-el-button:hover, .ecst-el-button:focus { background: var(--ec-brand, #2271b1); color: #fff; }
+.ecst-el-button:focus-visible, .ecst-el-links a:focus-visible, .ecst-el-detail a:focus-visible, .ecst-el-guides a:focus-visible { outline: 2px solid var(--ec-brand, #2271b1); outline-offset: 2px; }
+/* The Elementor how-to guides ( round 11 ). */
+.ecst-el-guides { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--ecv2-g200, #e5e7eb); }
+.ecst-el-guides-label { font-weight: 600; color: var(--ecv2-g900, #111827); }
+.ecst-el-guides ul { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.ecst-el-guides li { margin: 0; }
+.ecst-el-guides a { color: var(--ec-brand, #2271b1); }
+@media ( max-width: 782px ) {
+	.ecst-el-row { grid-template-columns: 1fr auto; }
+	.ecst-el-detail { grid-column: 1 / -1; }
+}

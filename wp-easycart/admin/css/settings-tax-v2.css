@@ -109,11 +109,12 @@
    hover; editing swaps the fields into the same columns; delete asks
    in the table; adding happens in the last row.
 ================================================================== */
-.ectx-rates .ectx-row .ectx-edit, .ectx-rates .ectx-row .ectx-in, .ectx-rates .ectx-row .ectx-edit-actions { display:none; }
-.ectx-rates .ectx-row.is-editing .ectx-edit, .ectx-rates .ectx-row.is-editing .ectx-in { display:inline-flex; }
-.ectx-rates .ectx-row.is-editing select.ectx-edit { display:block; width:100%; max-width:320px; }
-.ectx-rates .ectx-row.is-editing .ectx-edit-actions { display:inline-flex; align-items:center; gap:6px; }
-.ectx-rates .ectx-row.is-editing .ectx-view, .ectx-rates .ectx-row.is-editing .ectx-row-actions { display:none; }
+/* 6.0.2: only the state and country tables have the resting view; the VAT per country rows keep their fields and ✓ */
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row .ectx-edit, .ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row .ectx-in, .ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row .ectx-edit-actions { display:none; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing .ectx-edit, .ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing .ectx-in { display:inline-flex; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing select.ectx-edit { display:block; width:100%; max-width:320px; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing .ectx-edit-actions { display:inline-flex; align-items:center; gap:6px; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing .ectx-view, .ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing .ectx-row-actions { display:none; }
 
 .ectx-rates .ectx-view { font-size:13.5px; color:var(--ecv2-g900); cursor:text; }
 .ectx-rates .ectx-view-rate { font-variant-numeric:tabular-nums; }
@@ -130,10 +131,10 @@
 .ectx-icon-btn .dashicons { font-size:17px; width:17px; height:17px; }
 
 /* the editing row: a marker bar instead of a fully amber row */
-.ectx-rates .ectx-row.is-dirty > td { background:transparent; }
-.ectx-rates .ectx-row.is-editing > td { background:#fffdf7; }
-.ectx-rates .ectx-row.is-editing > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
-.ectx-rates .ectx-row.is-editing.is-dirty > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-dirty > td { background:transparent; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing > td { background:#fffdf7; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
+.ectx-rates:where([data-kind="state"],[data-kind="country"]) .ectx-row.is-editing.is-dirty > td:first-child { box-shadow:inset 3px 0 0 0 #d97706; }
 .ectx-rates .ectx-save.ectx-save-text { visibility:visible; width:auto; height:32px; padding:0 14px !important; margin:0; }
 .ectx-rates .ectx-save.ectx-save-text .dashicons { display:none; }
 

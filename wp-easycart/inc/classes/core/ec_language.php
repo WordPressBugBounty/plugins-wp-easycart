@@ -199,10 +199,21 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 		}
 
 		public function get_text( $lang_section, $lang_var ) {
-			if ( isset( self::$language_data->{self::$selected_language} ) && 
-				isset( self::$language_data->{self::$selected_language}->options->{$lang_section} ) && 
+			$text = null;
+			if ( isset( self::$language_data->{self::$selected_language} ) &&
+				isset( self::$language_data->{self::$selected_language}->options->{$lang_section} ) &&
 				isset( self::$language_data->{self::$selected_language}->options->{$lang_section}->options->{$lang_var} ) )
-				return str_replace( "[terms]", "<a href=\"" . esc_url_raw( stripslashes( get_option( 'ec_option_terms_link' ) ) ) . "\" target=\"_blank\">", str_replace( "[/terms]", "</a>", str_replace( "[privacy]", "<a href=\"" . esc_url_raw( stripslashes( get_option( 'ec_option_privacy_link' ) ) ) . "\" target=\"_blank\">", str_replace( "[/privacy]", "</a>", wp_easycart_escape_html( self::$language_data->{self::$selected_language}->options->{$lang_section}->options->{$lang_var}->value ) ) ) ) );
+				$text = str_replace( "[terms]", "<a href=\"" . esc_url_raw( stripslashes( get_option( 'ec_option_terms_link' ) ) ) . "\" target=\"_blank\">", str_replace( "[/terms]", "</a>", str_replace( "[privacy]", "<a href=\"" . esc_url_raw( stripslashes( get_option( 'ec_option_privacy_link' ) ) ) . "\" target=\"_blank\">", str_replace( "[/privacy]", "</a>", wp_easycart_escape_html( self::$language_data->{self::$selected_language}->options->{$lang_section}->options->{$lang_var}->value ) ) ) ) );
+			/**
+			 * The store's wording for one phrase, as templates print it ( HTML ). The Elementor cart, checkout and account widgets
+			 * answer their own "Texts" settings here while they draw; a callback returns HTML that is safe to print.
+			 *
+			 * @since 6.0.2
+			 * @param string|null $text         The phrase ( null when the language file has none ).
+			 * @param string      $lang_section Language section.
+			 * @param string      $lang_var     Phrase key.
+			 */
+			return apply_filters( 'wp_easycart_language_text', $text, $lang_section, $lang_var );
 		}
 
 		public function convert_text( $text ) {

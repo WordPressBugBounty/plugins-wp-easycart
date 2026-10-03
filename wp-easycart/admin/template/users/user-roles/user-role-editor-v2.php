@@ -43,14 +43,30 @@ ecv2_lite_header( array(
 		 * selected prices, "Every active product" is the separate bulk action, and the list pages 50 at a time.
 		 * Driven by admin/js/user-role-editor-v2.js; element ids are ecrl_rp_* so the older bindings in
 		 * settings-lists-v2.js stay inert.
+		 *
+		 * 6.0.2: role prices are Pro ( wp_easycart_admin_pro_gate::price_rules() ). Without it the card stays, locked: the prices saved
+		 * earlier are listed ( they keep applying at checkout ) and can be removed; adding, editing and the % off tools open the upsell,
+		 * or ask for the WP EasyCart PRO update / activation / license the store is missing.
 		 */
-		ecv2_lite_card_open( 'rlv2-prices', __( 'Role prices', 'wp-easycart' ), __( 'Customers in this role see these prices instead of the regular price', 'wp-easycart' ), '<a href="' . esc_url( $this->docs_link ) . '" target="_blank" class="ecdv2-help-link"><span class="dashicons dashicons-editor-help"></span>' . esc_html__( 'Help', 'wp-easycart' ) . '</a>' ); ?>
+		$rp_gate   = method_exists( 'wp_easycart_admin_pro_gate', 'price_rules' ) ? wp_easycart_admin_pro_gate::price_rules() : array( 'state' => 'enabled', 'desc' => '', 'url' => '' );
+		$rp_locked = ( 'enabled' !== $rp_gate['state'] );
+		$rp_badge  = $rp_locked ? ' <span class="ecv2-chip ecv2-chip-blue ecrl-rp-lock-chip"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px"></span> ' . esc_html( 'upsell' === $rp_gate['state'] ? wp_easycart_admin_upsell::badge_for( 'products', 'pro', 'b2b' ) : __( 'Update', 'wp-easycart' ) ) . '</span>' : '';
+		if ( $rp_locked && ! in_array( $rp_gate['state'], array( 'upsell', 'update' ), true ) ) {
+			$rp_badge = ' <span class="ecv2-chip ecv2-chip-blue ecrl-rp-lock-chip"><span class="dashicons dashicons-lock" style="font-size:12px;width:12px;height:12px"></span> ' . esc_html( wp_easycart_admin_edition::badge( 'pro' ) ) . '</span>';
+		}
+		ecv2_lite_card_open( 'rlv2-prices', __( 'Role prices', 'wp-easycart' ), __( 'Customers in this role see these prices instead of the regular price', 'wp-easycart' ), $rp_badge . '<a href="' . esc_url( $this->docs_link ) . '" target="_blank" class="ecdv2-help-link"><span class="dashicons dashicons-editor-help"></span>' . esc_html__( 'Help', 'wp-easycart' ) . '</a>' ); ?>
+		<?php if ( $rp_locked ) { ?>
+		<div class="ecos-note info ecrl-rp-locked" id="ecrl_rp_locked" style="margin:0 0 12px"><span class="dashicons dashicons-lock"></span><div><?php echo esc_html( wp_easycart_admin_pro_gate::price_rules_message( 'roles' ) ); ?> <?php esc_html_e( 'Role prices saved earlier keep applying at checkout, and you can remove them here.', 'wp-easycart' ); ?>
+			<?php if ( 'upsell' === $rp_gate['state'] ) { ?><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" style="margin-top:8px" onclick="<?php echo esc_attr( wp_easycart_admin_upsell::onclick( 'products', 'b2b' ) ); ?>"><?php esc_html_e( 'See what\'s included', 'wp-easycart' ); ?></button><?php } elseif ( '' !== $rp_gate['url'] ) { ?><a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" style="margin-top:8px" href="<?php echo esc_url( $rp_gate['url'] ); ?>"><?php echo esc_html( $rp_gate['desc'] ); ?></a><?php } ?>
+		</div></div>
+		<?php } else { ?>
 		<div class="ecrl-add ecrl-rp-add"><input type="search" class="ecv2-input" id="ecrl_rp_add" placeholder="<?php esc_attr_e( 'Add a product: search by name or SKU…', 'wp-easycart' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Add a product', 'wp-easycart' ); ?>"><div class="ecrl-results" id="ecrl_rp_add_results" style="display:none"></div></div>
+		<?php } ?>
 		<div class="ecrl-rp-toolbar" id="ecrl_rp_toolbar">
 			<input type="search" class="ecv2-input ecrl-rp-q" id="ecrl_rp_q" placeholder="<?php esc_attr_e( 'Filter role prices…', 'wp-easycart' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Filter role prices', 'wp-easycart' ); ?>">
-			<div class="ecrl-rp-sel" id="ecrl_rp_sel" style="display:none"><span id="ecrl_rp_sel_count"></span><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-rp="pct-selected"><?php esc_html_e( 'Apply % off to selected…', 'wp-easycart' ); ?></button><button type="button" class="ecv2-btn ecv2-btn-sm" data-rp="remove-selected"><?php esc_html_e( 'Remove selected', 'wp-easycart' ); ?></button></div>
+			<div class="ecrl-rp-sel" id="ecrl_rp_sel" style="display:none"><span id="ecrl_rp_sel_count"></span><?php if ( ! $rp_locked ) { ?><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-rp="pct-selected"><?php esc_html_e( 'Apply % off to selected…', 'wp-easycart' ); ?></button><?php } ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-rp="remove-selected"><?php esc_html_e( 'Remove selected', 'wp-easycart' ); ?></button></div>
 			<span class="ecos-grow"></span>
-			<div class="ecrl-rp-actions"><button type="button" class="ecv2-btn ecv2-btn-sm" data-rp="pct"><?php esc_html_e( 'Apply % off…', 'wp-easycart' ); ?></button><span class="ecrl-rp-divider" aria-hidden="true"></span><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" data-rp="pct-all" title="<?php esc_attr_e( 'Bulk action: creates or overwrites a role price for every active product in the catalog', 'wp-easycart' ); ?>"><span class="dashicons dashicons-database"></span><?php esc_html_e( 'Every active product…', 'wp-easycart' ); ?></button></div>
+			<?php if ( ! $rp_locked ) { ?><div class="ecrl-rp-actions"><button type="button" class="ecv2-btn ecv2-btn-sm" data-rp="pct"><?php esc_html_e( 'Apply % off…', 'wp-easycart' ); ?></button><span class="ecrl-rp-divider" aria-hidden="true"></span><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" data-rp="pct-all" title="<?php esc_attr_e( 'Bulk action: creates or overwrites a role price for every active product in the catalog', 'wp-easycart' ); ?>"><span class="dashicons dashicons-database"></span><?php esc_html_e( 'Every active product…', 'wp-easycart' ); ?></button></div><?php } ?>
 		</div>
 		<div class="ecrl-rp-list" id="ecrl_rp_list">
 			<div class="ecrl-rp-head"><span><input type="checkbox" id="ecrl_rp_all" title="<?php esc_attr_e( 'Select all on this page', 'wp-easycart' ); ?>"></span><span><?php esc_html_e( 'Product', 'wp-easycart' ); ?></span><span><?php esc_html_e( 'Regular', 'wp-easycart' ); ?></span><span class="ecrl-rp-role"><?php echo esc_html( wp_unslash( $r->role_label ) ); ?></span><span><?php esc_html_e( 'Off', 'wp-easycart' ); ?></span><span></span></div>
@@ -60,8 +76,12 @@ ecv2_lite_header( array(
 		<div class="ecrl-rp-empty" id="ecrl_rp_empty" style="display:none">
 			<span class="dashicons dashicons-tag"></span>
 			<b><?php esc_html_e( 'No role prices yet', 'wp-easycart' ); ?></b>
+			<?php if ( $rp_locked ) { ?>
+			<p><?php echo esc_html( wp_easycart_admin_pro_gate::price_rules_message( 'roles' ) ); ?></p>
+			<?php } else { ?>
 			<p><?php esc_html_e( 'Search for a product above, or apply a percentage to every product.', 'wp-easycart' ); ?></p>
 			<div class="ecrl-rp-empty-actions"><button type="button" class="ecv2-btn ecv2-btn-sm" data-rp="focus-add"><span class="dashicons dashicons-search"></span><?php esc_html_e( 'Search for a product', 'wp-easycart' ); ?></button><button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-rp="pct-all"><?php esc_html_e( 'Apply % off to every product…', 'wp-easycart' ); ?></button></div>
+			<?php } ?>
 		</div>
 		<?php ecv2_lite_card_close(); ?>
 
@@ -90,6 +110,7 @@ $rp_data = array(
 	'per'             => wp_easycart_admin_user_role_editor_v2::PRICE_PER_PAGE,
 	'active_products' => (int) $this->active_products,
 	'label'           => wp_unslash( $r->role_label ),
+	'locked'          => $rp_locked, /* 6.0.2: role prices are read-only ( Remove stays ) without Pro */
 	'i18n'            => array(
 		'inactive'        => __( 'Inactive', 'wp-easycart' ),
 		'same'            => __( 'Same as regular', 'wp-easycart' ),

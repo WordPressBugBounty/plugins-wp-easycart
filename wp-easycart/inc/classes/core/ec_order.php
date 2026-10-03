@@ -62,8 +62,6 @@ class ec_order{
 		if( substr_count( $this->cart_page, '?' ) )					$this->permalink_divider = "&";
 		else														$this->permalink_divider = "?";
 		
-		add_action( 'wpeasycart_order_inserted', array( $this, 'add_affiliatewp_order' ), 10, 5 );
-		
 	}
 
 	public function verify_stock() {
@@ -185,6 +183,8 @@ class ec_order{
 			$order_gateway = "braintree";
 		else if( $payment_type == "credit_card" && get_option( 'ec_option_payment_process_method' ) == "cardpointe" )
 			$order_gateway = "cardpointe";
+		else if( $payment_type == "credit_card" && get_option( 'ec_option_payment_process_method' ) == "paytrace" )
+			$order_gateway = "paytrace";
 		else if( $payment_type == "amazonpay" )
 			$order_gateway = "amazonpay";
 		// End order gateway section
@@ -307,10 +307,21 @@ class ec_order{
 					
 					$this->process_result = "1";
 					
-				}else{ // CC Payment Failed, Void GC if applicable 
+				}else{ // CC Payment Failed, Void GC if applicable
 					if( $this->discount->giftcard_discount > 0 ){
 						do_action( 'wpeasycart_void_gift_card_redemption', $this->discount->giftcard_code, $this->order_id );
 					}
+					/**
+					 * A card payment was refused ( every direct card gateway, FREE and PRO, passes here ).
+					 * Checkout protection counts it; the order row is removed right after.
+					 *
+					 * @since 6.0.2
+					 * @param int      $order_id Order about to be removed.
+					 * @param string   $message  The gateway's answer.
+					 * @param string   $gateway  Gateway.
+					 * @param ec_order $order    This order.
+					 */
+					do_action( 'wpeasycart_payment_failed', $this->order_id, (string) $this->process_result, $order_gateway, $this );
 					$this->mysqli->remove_order( $this->order_id );
 				}
 			}else{ //Gift Card failed to process
@@ -432,21 +443,53 @@ class ec_order{
 		$email_send_method = get_option( 'ec_option_use_wp_mail' );
 		$email_send_method = apply_filters( 'wpeasycart_email_method', $email_send_method );
 		
+		/* 6.0.2: only addresses that can take mail. A copy with none is not sent: the email log shows one "not sent" row, where
+		   a blank or invalid store address used to fail and retry five times. */
+		$subject  = wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" );
+		$to       = trim( stripslashes( (string) $cart_item->gift_card_email ) );
+		$admin_to = trim( stripslashes( (string) get_option( 'ec_option_bcc_email_addresses' ) ) );
+		$log      = class_exists( 'ec_email' ) && method_exists( 'ec_email', 'send_to' );
+		if ( $log ) {
+			$to       = ec_email::send_to( $to, 'giftcard', (int) $this->order_id, $subject );
+			$admin_to = ec_email::send_to( $admin_to, 'giftcard_store', 0, $subject, false );
+		}
+
 		if( $email_send_method == "1" ){
-			wp_mail( $cart_item->gift_card_email, wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" ), $message, implode("\r\n", $headers) );
-			wp_mail( stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" ), $message, implode("\r\n", $headers) );
-		
+			if ( '' !== $to ) {
+				$outer = $log ? ec_email::push_context( 'giftcard', (int) $this->order_id ) : null;
+				wp_mail( $to, $subject, $message, implode("\r\n", $headers) );
+				if ( $log ) {
+					ec_email::pop_context( $outer );
+				}
+			}
+			if ( '' !== $admin_to ) {
+				$outer = $log ? ec_email::push_context( 'giftcard_store', 0 ) : null;
+				wp_mail( $admin_to, $subject, $message, implode("\r\n", $headers) );
+				if ( $log ) {
+					ec_email::pop_context( $outer );
+				}
+			}
+
 		}else if( $email_send_method == "0" ){
-			$admin_email = stripslashes( get_option( 'ec_option_bcc_email_addresses' ) );
-			$to = $cart_item->gift_card_email;
-			$subject = wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" );
 			$mailer = new wpeasycart_mailer( );
-			$mailer->send_order_email( $to, $subject, $message );
-			$mailer->send_order_email( $admin_email, $subject, $message );
-			
-		}else{
-			do_action( 'wpeasycart_custom_gift_card_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $cart_item->gift_card_email, stripslashes( get_option( 'ec_option_bcc_email_addresses' ) ), wp_easycart_language( )->get_text( "cart_success", "cart_giftcard_receipt_title" ), $message );
-			
+			if ( '' !== $to ) {
+				$outer = $log ? ec_email::push_context( 'giftcard', (int) $this->order_id ) : null;
+				$mailer->send_order_email( $to, $subject, $message );
+				if ( $log ) {
+					ec_email::pop_context( $outer );
+				}
+			}
+			if ( '' !== $admin_to ) {
+				$outer = $log ? ec_email::push_context( 'giftcard_store', 0 ) : null;
+				$mailer->send_order_email( $admin_to, $subject, $message );
+				if ( $log ) {
+					ec_email::pop_context( $outer );
+				}
+			}
+
+		}else if ( '' !== $to || '' !== $admin_to ) {
+			do_action( 'wpeasycart_custom_gift_card_email', stripslashes( get_option( 'ec_option_order_from_email' ) ), $to, $admin_to, $subject, $message );
+
 		}
 		
 	}
@@ -518,61 +561,6 @@ class ec_order{
 			
 		}
 	
-	}
-	
-	public function add_affiliatewp_order( $order_id, $cart, $order_totals, $user, $payment_type ){
-		
-		/*if( class_exists( "Affiliate_WP" ) && 
-			affiliate_wp( )->tracking->was_referred( ) && 
-			affwp_get_affiliate_email( affiliate_wp( )->tracking->get_affiliate_id( ) ) != $user->email ){
-			
-			$affiliate_id = affiliate_wp( )->tracking->get_affiliate_id( );
-			$exclude_shipping = affiliate_wp( )->settings->get( 'exclude_shipping' );
-			$exclude_tax = affiliate_wp( )->settings->get( 'exclude_tax' );
-			$default_rate = affwp_get_affiliate_rate( $affiliate_id );
-			$total_earned = 0;
-				
-			if( !$exclude_shipping )
-				$total_earned += ( $order_totals->shipping_total * $default_rate );
-			
-			if( !$exclude_tax )
-				$total_earned += ( $order_totals->tax_total * $default_rate );
-			
-			foreach( $cart->cart as $cart_item ){
-				
-				if( $cart_item->has_affiliate_rule ){
-					if( $cart_item->affiliate_rule->rule_type == "percentage" ){
-						if( $cart_item->affiliate_rule->rule_limit > 0 && $cart_item->affiliate_rule->rule_limit < $cart_item->quantity )
-							$total_earned += ( $cart_item->unit_price * $cart_item->affiliate_rule->rule_limit * ( $cart_item->affiliate_rule->rule_amount / 100 ) );
-						else
-							$total_earned += ( $cart_item->total_price * ( $cart_item->affiliate_rule->rule_amount / 100 ) );
-							
-					}else if( $cart_item->affiliate_rule->rule_type == "amount" ){
-						if( $cart_item->affiliate_rule->rule_limit > 0 && $cart_item->affiliate_rule->rule_limit < $cart_item->quantity )
-							$total_earned += $cart_item->affiliate_rule->rule_amount * $cart_item->affiliate_rule->rule_limit;
-						else
-							$total_earned += $cart_item->affiliate_rule->rule_amount * $cart_item->quantity;
-							
-					}
-					
-				}else{
-					$total_earned += ( $cart_item->total_price * $default_rate );
-				}
-			
-			}
-			
-			$data = array(
-				'affiliate_id' => $affiliate_id,
-				'visit_id'     => affiliate_wp()->tracking->get_visit_id( ),
-				'amount'       => $total_earned,
-				'description'  => $user->billing->first_name . " " . $user->billing->last_name,
-				'reference'    => $order_id,
-				'context'      => 'WP EasyCart',
-			);
-			$result = affiliate_wp()->referrals->add( $data );
-
-		}*/
-		
 	}
 	
 	public function get_shipping_method_name( ){

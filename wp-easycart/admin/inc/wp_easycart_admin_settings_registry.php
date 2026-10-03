@@ -9,11 +9,20 @@
  *     'slug'        => 'account',
  *     'title'       => __( 'Accounts', 'wp-easycart' ),
  *     'description' => __( 'Registration, guest checkout and the account page.', 'wp-easycart' ),
- *     'group'       => 'store-setup',            // see groups()
+ *     'group'       => 'store',                  // see groups() ( the groups from before 6.0.2 map to today's )
+ *     'order'       => 30,                       // 6.0.2: place in its group ( sidebar and Settings home ), lowest first
+ *     'plan'        => '',                       // 6.0.2: 'pro' | 'premium': the plan the page needs ( a lock in the sidebar, a chip
+ *                                                // on the Settings home ); its rows still lock through their own 'pro'
  *     'icon'        => 'admin-users',            // dashicon name for the home page card
  *     'docs'        => array( 'settings', 'account-settings', 'account' ), // helpsystem->print_docs_url() args
  *     'legacy'      => array( 'account' ),       // old subpage slugs that now land here
  *     'upsell'      => 'default',                // wp_easycart_admin_upsell context for locked rows
+ *     'host'        => 'settings',               // 6.0.2: 'extensions' serves the page at EasyCart › Extensions
+ *                                                // ( admin.php?page=wp-easycart-extensions&subpage=<slug> ) and keeps it off
+ *                                                // the Settings home; an extension's settings declaration uses it with
+ *                                                // 'group' => 'extensions', 'upsell' => 'ext_<slug>' and 'pro' => 'premium'
+ *                                                // on its sections, so a store without a current Premium license sees the
+ *                                                // rows locked ( Renew on a lapsed one ).
  *     'sections'    => array(
  *       'registration' => array(
  *         'title'  => __( 'Registration', 'wp-easycart' ),
@@ -32,11 +41,15 @@
  *             'parent'    => '',                 // key of the toggle this row depends on
  *             'show_when' => '1',                // parent value that reveals this row
  *             'options'   => array(),            // select / pills / multiselect: value => label, OR a callable( $field ) returning
- *                                                // that array ( a Closure or a function name ). A callable is resolved only when
+ *                                                // that array ( a Closure, a function name, or from 6.0.2 a class-method pair such
+ *                                                // as array( __CLASS__, 'my_options' ); see is_lazy() ). A callable is resolved only when
  *                                                // needed: for the page being rendered, for the field being saved, and for the
  *                                                // chosen values when a search result is described. Settings search never runs it,
  *                                                // and neither does the migration-map generator. Put every database or WP_Query
- *                                                // read behind a callable; keep literal arrays for fixed lists.
+ *                                                // read behind a callable; keep literal arrays for fixed lists. The same three forms
+ *                                                // work for 'search_callback', 'validate_callback', 'option_hints' and 'current'.
+ *                                                // Before 6.0.2 a class-method pair was read as a literal two-item list, so code
+ *                                                // that must also run on an older FREE passes a Closure.
  *             'search_callback' => null,         // callable( $term, $field, $limit ) → value => label ( or rows with value / label / hint ).
  *                                                // Declaring it makes the row a search-as-you-type picker: nothing but the chosen
  *                                                // values is printed and ecv2_settings_option_search asks this for matches ( ≤ 50 ).
@@ -60,14 +73,22 @@
  *             'sanitize'  => null,               // callable( $value, $field ) → value, replaces the type default
  *             'validate'  => null,               // callable( $value, $field ) → '' | warning string ( non-blocking )
  *             'on_save'   => null,               // callable( $value, $old, $field ) for legacy side effects
+ *             'drawer'    => '',                 // 6.0.2: the row opens in a side drawer of its section instead of inline; an html row
+ *                                                // opens it with a button carrying data-ecst-drawer-open="<drawer id>"
+ *                                                // 6.0.2: an html row's button with data-ecst-set="<select or pills key>"
+ *                                                // data-ecst-value="<value>" picks that choice and saves it ( Cookie consent )
  *             'keywords'  => array(),            // extra search terms
  *             'legacy'    => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Require Terms' ),
  *           ),
  *         ),
  *         'actions' => array(                    // store-wide / destructive buttons, rendered after the fields
  *           array( 'id' => 'reset', 'label' => __( 'Reset colors', 'wp-easycart' ), 'desc' => '', 'button' => __( 'Reset', 'wp-easycart' ), 'confirm' => __( 'Really?', 'wp-easycart' ), 'danger' => true, 'callback' => 'some_function' ),
+ *           // 6.0.2: 'drawer' => '<drawer id>' draws the action in that drawer, under its rows ( Taxes › TaxJar › Test connection ).
+ *           // 6.0.2: 'input' => array( 'label' => '', 'placeholder' => '' ) puts a text box beside the button; what is typed
+ *           // reaches the callback as its third argument ( Taxes › VAT › Test Vatlayer: a VAT number ).
  *         ),
  *         'render' => null,                      // callable printing custom HTML inside the card ( legacy embeds )
+ *         'drawers' => array( 'taxjar' => array( 'title' => 'TaxJar', 'hint' => '' ) ), // 6.0.2: titles of the section's drawers
  *       ),
  *     ),
  *   );
@@ -111,15 +132,81 @@ class wp_easycart_admin_settings_registry {
 		return EC_PLUGIN_DIRECTORY . '/admin/template/settings/';
 	}
 
-	/** Sidebar groups, in display order. */
+	/**
+	 * The settings groups, in display order: the sidebar's Settings menu and the Settings home both list the pages by group
+	 * ( wp_easycart_admin_settings_home::navigation() ). 6.0.2: eight groups, so a new page joins a group instead of growing
+	 * one long list; a page names its group with 'group' and its place in it with 'order'.
+	 *
+	 * @return array slug => array( label, hint )
+	 */
 	public static function groups() {
-		return array(
-			'store-setup'  => array( 'label' => __( 'Store setup', 'wp-easycart' ), 'hint' => __( 'What you sell and how shoppers buy it', 'wp-easycart' ) ),
-			'financial'    => array( 'label' => __( 'Financial', 'wp-easycart' ), 'hint' => __( 'Getting paid, taxes and shipping costs', 'wp-easycart' ) ),
-			'customize'    => array( 'label' => __( 'Customize', 'wp-easycart' ), 'hint' => __( 'Look, wording, emails and regional lists', 'wp-easycart' ) ),
-			'integrations' => array( 'label' => __( 'Integrations', 'wp-easycart' ), 'hint' => __( 'Other services your store talks to', 'wp-easycart' ) ),
-			'troubleshoot' => array( 'label' => __( 'Troubleshoot', 'wp-easycart' ), 'hint' => __( 'Logs and diagnostics', 'wp-easycart' ) ),
+		$groups = array(
+			'store'            => array( 'label' => __( 'Store', 'wp-easycart' ), 'hint' => __( 'What you sell, who buys it and where', 'wp-easycart' ) ),
+			'cart-checkout'    => array( 'label' => __( 'Cart & Checkout', 'wp-easycart' ), 'hint' => __( 'How shoppers buy and check out', 'wp-easycart' ) ),
+			/* 6.0.2: shipping has its own group ( it sat in Cart & Checkout; owner bug round 4, item 16 ). */
+			'shipping'         => array( 'label' => __( 'Shipping', 'wp-easycart' ), 'hint' => __( 'Rates, carriers, boxes and delivery', 'wp-easycart' ) ),
+			'payments-taxes'   => array( 'label' => __( 'Payments & Taxes', 'wp-easycart' ), 'hint' => __( 'Getting paid, taxes and fees', 'wp-easycart' ) ),
+			'marketing'        => array( 'label' => __( 'Marketing', 'wp-easycart' ), 'hint' => __( 'Getting found, and bringing shoppers back', 'wp-easycart' ) ),
+			'emails-documents' => array( 'label' => __( 'Emails & Documents', 'wp-easycart' ), 'hint' => __( 'What customers receive after they buy', 'wp-easycart' ) ),
+			'appearance'       => array( 'label' => __( 'Appearance', 'wp-easycart' ), 'hint' => __( 'How the store looks and reads', 'wp-easycart' ) ),
+			'advanced'         => array( 'label' => __( 'Advanced', 'wp-easycart' ), 'hint' => __( 'Admin tools, connected services and logs', 'wp-easycart' ) ),
 		);
+		/**
+		 * The settings groups, in display order ( slug => array( label, hint ) ).
+		 *
+		 * @since 6.0.2
+		 * @param array $groups Groups.
+		 */
+		$groups = (array) apply_filters( 'wp_easycart_settings_groups', $groups );
+		foreach ( $groups as $slug => $group ) {
+			$groups[ $slug ] = wp_parse_args(
+				(array) $group,
+				array(
+					'label' => (string) $slug,
+					'hint'  => '',
+				)
+			);
+		}
+		return $groups;
+	}
+
+	/**
+	 * The group a page belongs in ( 6.0.2 ): a group from before 6.0.2 maps to today's, and a group nobody declared lands in
+	 * Advanced ( the last one when a filter took Advanced away ).
+	 *
+	 * @param string $group Group slug.
+	 * @return string
+	 */
+	public static function group_for( $group ) {
+		$renamed = array(
+			'store-setup'  => 'store',
+			'financial'    => 'payments-taxes',
+			'customize'    => 'appearance',
+			'integrations' => 'advanced',
+			'troubleshoot' => 'advanced',
+		);
+		$group   = sanitize_key( (string) $group );
+		$groups  = self::groups();
+		if ( ! isset( $groups[ $group ] ) && isset( $renamed[ $group ] ) ) {
+			$group = $renamed[ $group ];
+		}
+		if ( isset( $groups[ $group ] ) ) {
+			return $group;
+		}
+		if ( isset( $groups['advanced'] ) ) {
+			return 'advanced';
+		}
+		$slugs = array_keys( $groups );
+		return $slugs ? (string) end( $slugs ) : 'advanced';
+	}
+
+	/**
+	 * Have the declarations been read in this request ( 6.0.2: the sidebar reuses them instead of its saved copy )?
+	 *
+	 * @return bool
+	 */
+	public static function loaded() {
+		return null !== self::$pages;
 	}
 
 	/** All declared ( converted ) pages, keyed by slug, normalised and filtered. */
@@ -146,6 +233,14 @@ class wp_easycart_admin_settings_registry {
 			}
 		}
 		self::$pages = apply_filters( 'wp_easycart_settings_pages', self::$pages );
+		/* 6.0.2: a page a plugin added raw through the filter gets the same defaults ( host, url, counts ) as a declaration. */
+		foreach ( (array) self::$pages as $slug => $decl ) {
+			if ( ! is_array( $decl ) ) {
+				unset( self::$pages[ $slug ] );
+			} elseif ( ! isset( $decl['url'], $decl['host'], $decl['count'] ) ) {
+				self::$pages[ $slug ] = self::normalize_page( array_merge( array( 'slug' => $slug ), $decl ) );
+			}
+		}
 		return self::$pages;
 	}
 
@@ -183,8 +278,19 @@ class wp_easycart_admin_settings_registry {
 		return false;
 	}
 
-	public static function page_url( $slug, $field_key = '' ) {
-		$url = admin_url( 'admin.php?page=wp-easycart-settings&subpage=' . rawurlencode( $slug ) );
+	/**
+	 * A declared page's URL ( optionally deep-linked to a field ).
+	 *
+	 * @param string $slug      Page slug.
+	 * @param string $field_key Field to highlight, or ''.
+	 * @param string $host      6.0.2: 'settings' or 'extensions'; '' looks it up on the declared page.
+	 * @return string
+	 */
+	public static function page_url( $slug, $field_key = '', $host = '' ) {
+		if ( '' === $host ) {
+			$host = ( null !== self::$pages && isset( self::$pages[ $slug ]['host'] ) ) ? self::$pages[ $slug ]['host'] : 'settings';
+		}
+		$url = admin_url( 'admin.php?page=' . ( 'extensions' === $host ? 'wp-easycart-extensions' : 'wp-easycart-settings' ) . '&subpage=' . rawurlencode( $slug ) );
 		if ( '' !== $field_key ) {
 			$url .= '&highlight=' . rawurlencode( $field_key ) . '#ecst-' . rawurlencode( $field_key );
 		}
@@ -215,16 +321,31 @@ class wp_easycart_admin_settings_registry {
 	/* ------------------------------------------------------------------ */
 
 	/**
-	 * Is this declaration value a deferred callable? Only Closures and the names of
-	 * existing functions count, so an ordinary options array is never mistaken for one.
+	 * Is this declaration value a deferred callable? A Closure, the name of an existing
+	 * function, or ( 6.0.2 ) a class-method pair such as array( __CLASS__, 'weight_options' )
+	 * or array( $this, 'options' ), as extensions declare them. An ordinary options array is
+	 * never mistaken for one: a pair counts only with keys 0 and 1, a loaded class ( or an
+	 * object ) first and a method PHP can call second, so a two-label list such as
+	 * array( 'No', 'Yes' ) is still a list, and never reaches a class autoloader.
 	 *
 	 * @since 6.0.0
+	 * @param mixed $thing A declaration value ( 'options', 'option_hints', 'current', 'search_callback', 'validate_callback' ).
+	 * @return bool
 	 */
 	public static function is_lazy( $thing ) {
 		if ( $thing instanceof Closure ) {
 			return true;
 		}
-		return is_string( $thing ) && '' !== $thing && function_exists( $thing );
+		if ( is_string( $thing ) ) {
+			return '' !== $thing && function_exists( $thing );
+		}
+		if ( ! is_array( $thing ) || 2 !== count( $thing ) || ! isset( $thing[0], $thing[1] ) || ! is_string( $thing[1] ) ) {
+			return false;
+		}
+		if ( ! is_object( $thing[0] ) && ! ( is_string( $thing[0] ) && class_exists( $thing[0], false ) ) ) {
+			return false;
+		}
+		return is_callable( $thing );
 	}
 
 	/**
@@ -666,16 +787,23 @@ class wp_easycart_admin_settings_registry {
 			'slug'        => '',
 			'title'       => '',
 			'description' => '',
-			'group'       => 'customize',
+			'group'       => 'advanced',
+			'order'       => 100,
+			'plan'        => '',
 			'icon'        => 'admin-generic',
 			'docs'        => array(),
 			'legacy'      => array(),
 			'upsell'      => 'default',
+			'host'        => 'settings',
 			'sections'    => array(),
 		) );
 		$page['slug']   = sanitize_key( $page['slug'] );
 		$page['legacy'] = array_values( array_map( 'sanitize_key', (array) $page['legacy'] ) );
-		$page['url']    = self::page_url( $page['slug'] );
+		$page['host']   = ( 'extensions' === $page['host'] ) ? 'extensions' : 'settings';
+		$page['group']  = ( 'extensions' === $page['host'] ) ? sanitize_key( (string) $page['group'] ) : self::group_for( $page['group'] );
+		$page['order']  = (int) $page['order'];
+		$page['plan']   = in_array( $page['plan'], array( 'pro', 'premium' ), true ) ? $page['plan'] : '';
+		$page['url']    = self::page_url( $page['slug'], '', $page['host'] );
 		$total = 0;
 		$sections = array();
 		foreach ( $page['sections'] as $section_slug => $section ) {
@@ -687,6 +815,7 @@ class wp_easycart_admin_settings_registry {
 				'fields'  => array(),
 				'actions' => array(),
 				'render'  => null,
+				'drawers' => array(),              // 6.0.2: drawer id => array( 'title', 'hint' ) for rows declared with 'drawer'
 			) );
 			$section['slug'] = $section_slug;
 			$fields = array();
@@ -702,8 +831,11 @@ class wp_easycart_admin_settings_registry {
 			$section['count']  = count( array_filter( $fields, function( $f ) { return 'html' !== $f['type']; } ) );
 			$actions = array();
 			foreach ( (array) $section['actions'] as $action ) {
-				$action = wp_parse_args( $action, array( 'id' => '', 'label' => '', 'desc' => '', 'button' => '', 'confirm' => '', 'danger' => false, 'callback' => null, 'pro' => false ) );
-				$action['id'] = sanitize_key( $action['id'] );
+				$action = wp_parse_args( $action, array( 'id' => '', 'label' => '', 'desc' => '', 'button' => '', 'confirm' => '', 'danger' => false, 'callback' => null, 'pro' => false, 'drawer' => '', 'input' => '' ) );
+
+				$action['input']  = is_array( $action['input'] ) ? wp_parse_args( $action['input'], array( 'label' => '', 'placeholder' => '' ) ) : '';
+				$action['id']     = sanitize_key( $action['id'] );
+				$action['drawer'] = sanitize_key( (string) $action['drawer'] );
 				if ( '' !== $action['id'] ) {
 					$actions[ $action['id'] ] = $action;
 				}
@@ -753,6 +885,7 @@ class wp_easycart_admin_settings_registry {
 			'legacy'      => array(),
 			'help'        => '',
 			'render'      => null,
+			'drawer'      => '',               // 6.0.2: id of the section drawer this row opens in ( see the section's 'drawers' )
 		) );
 		$field['key']  = $key;
 		$field['type'] = sanitize_key( $field['type'] );

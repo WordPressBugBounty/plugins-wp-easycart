@@ -31,6 +31,35 @@ if ( ! class_exists( 'wp_easycart_admin_review_table' ) ) :
 			return admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&ec_admin_form_action=edit&review_id=' . $id );
 		}
 
+		/**
+		 * The customer screen of a store account, as the customers list links it. @since 6.0.2
+		 *
+		 * @param int $user_id ec_user.user_id.
+		 * @return string
+		 */
+		public static function account_url( $user_id ) {
+			return admin_url( 'admin.php?page=wp-easycart-users&subpage=accounts&user_id=' . (int) $user_id . '&ec_admin_form_action=edit&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-action-edit' ) );
+		}
+
+		/**
+		 * Who wrote a review, for the admin: the name on the review, else its store account's name, else the reviewer's email.
+		 * ec_review.user_id is a store account ( ec_user ) id, never a WordPress user id. @since 6.0.2
+		 *
+		 * @param object $review An ec_review row ( reviewer_name, user_id, reviewer_email when the column exists ).
+		 * @return string
+		 */
+		public static function reviewer_label( $review ) {
+			$who     = isset( $review->reviewer_name ) ? trim( wp_unslash( (string) $review->reviewer_name ) ) : '';
+			$account = ( '' === $who && ! empty( $review->user_id ) ) ? ec_reviews::account( $review->user_id ) : null;
+			if ( '' === $who && $account ) {
+				$who = '' !== $account->name ? $account->name : $account->email;
+			}
+			if ( '' === $who && ! empty( $review->reviewer_email ) ) {
+				$who = trim( (string) $review->reviewer_email );
+			}
+			return $who;
+		}
+
 		public static function stars_html( $rating, $small = true ) {
 			$rating = max( 0, min( 5, (int) $rating ) );
 			$out = '<span class="ecv2-stars' . ( $small ? ' ecv2-stars-sm' : '' ) . '" title="' . esc_attr( sprintf( __( '%d of 5', 'wp-easycart' ), $rating ) ) . '" aria-label="' . esc_attr( sprintf( __( '%d of 5 stars', 'wp-easycart' ), $rating ) ) . '">';
@@ -71,6 +100,7 @@ if ( ! class_exists( 'wp_easycart_admin_review_table' ) ) :
 				array( 'select' => ( self::native_available() ? 'ec_review.reply_text' : '"" AS reply_text' ), 'name' => 'reply_text', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => ( self::native_available() ? 'ec_review.reply_date' : 'NULL AS reply_date' ), 'name' => 'reply_date', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => ( self::native_available() ? 'ec_review.held_reason' : '"" AS held_reason' ), 'name' => 'held_reason', 'format' => 'hidden', 'label' => '' ),
+				array( 'select' => ( self::native_available() ? 'ec_review.reviewer_email' : '"" AS reviewer_email' ), 'name' => 'reviewer_email', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'user_id', 'format' => 'hidden', 'label' => '' ),
 				array( 'name' => 'product_id', 'format' => 'hidden', 'label' => '' ),
 				array( 'select' => 'ec_product.image1', 'name' => 'image1', 'format' => 'hidden', 'label' => '' ),
@@ -174,8 +204,7 @@ if ( ! class_exists( 'wp_easycart_admin_review_table' ) ) :
 					if ( ! $result->approved && ! empty( $result->held_reason ) ) { $reasons = array( 'duplicate' => __( 'Duplicate', 'wp-easycart' ), 'links' => __( 'Contains a link', 'wp-easycart' ), 'blocked_word' => __( 'Blocked word', 'wp-easycart' ), 'unverified' => __( 'Not a verified buyer', 'wp-easycart' ) ); echo ' <span class="ecv2-chip ecv2-chip-amber" title="' . esc_attr__( 'Held by a moderation rule', 'wp-easycart' ) . '">' . esc_html( isset( $reasons[ $result->held_reason ] ) ? $reasons[ $result->held_reason ] : $result->held_reason ) . '</span>'; }
 					$excerpt = wp_strip_all_tags( wp_unslash( (string) $result->description ) );
 					if ( strlen( $excerpt ) > 110 ) { $excerpt = substr( $excerpt, 0, 108 ) . '…'; }
-					$who = trim( (string) $result->reviewer_name );
-					if ( '' === $who && $result->user_id ) { $u = get_userdata( (int) $result->user_id ); $who = $u ? $u->display_name : ''; }
+					$who = self::reviewer_label( $result );
 					echo '<span class="ecv2-sub">' . ( $who ? '<b>' . esc_html( $who ) . '</b> · ' : '' ) . esc_html( $excerpt ) . '</span>';
 					break;
 				case 'rv_product':
@@ -209,7 +238,7 @@ if ( ! class_exists( 'wp_easycart_admin_review_table' ) ) :
 			echo '<div class="ecv2-os-card-head">' . self::stars_html( $result->rating, false ) . ( $result->approved ? '<span class="ecv2-chip ecv2-chip-green">' . esc_html__( 'Approved', 'wp-easycart' ) . '</span>' : '<span class="ecv2-chip ecv2-chip-amber">' . esc_html__( 'Pending', 'wp-easycart' ) . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- stars_html() returns markup built from esc_attr() and literals with an int-clamped rating.
 			echo '<h3 class="ecv2-card-title"><a href="' . esc_url( self::editor_url( $result->review_id ) ) . '">' . esc_html( wp_unslash( $result->title ) ? wp_unslash( $result->title ) : __( '(no title)', 'wp-easycart' ) ) . '</a></h3>';
 			echo '<p class="ecv2-rv-text">' . esc_html( wp_strip_all_tags( wp_unslash( (string) $result->description ) ) ) . '</p>';
-			echo '<span class="ecv2-sub">' . esc_html( trim( (string) $result->reviewer_name ) ) . ( $result->product_title ? ' · ' . esc_html( wp_unslash( $result->product_title ) ) : '' ) . ' · ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( $result->date_submitted ) ) ) . '</span>';
+			echo '<span class="ecv2-sub">' . esc_html( self::reviewer_label( $result ) ) . ( $result->product_title ? ' · ' . esc_html( wp_unslash( $result->product_title ) ) : '' ) . ' · ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( $result->date_submitted ) ) ) . '</span>';
 			echo '</div><div class="ecv2-card-footer"><input type="checkbox" name="bulk[]" value="' . esc_attr( $result->review_id ) . '" class="ecv2-row-check" /> <label class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" class="ecv2-review-toggle" data-id="' . esc_attr( $result->review_id ) . '"' . ( $result->approved ? ' checked' : '' ) . ' /><span class="ecv2-toggle-slider"></span></label>';
 			$this->print_row_actions( $result );
 			echo '</div></div>';
@@ -226,7 +255,14 @@ if ( ! class_exists( 'wp_easycart_admin_review_table' ) ) :
 			if ( ! $this->r ) { return false; }
 			$this->product = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, title, model_number, price, activate_in_store, post_id, ' . wp_easycart_admin_catalog_v2_thumb_select( 'ec_product' ) . ' FROM ec_product WHERE product_id = %d', $this->r->product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- wp_easycart_admin_catalog_v2_thumb_select() returns a static column list; the id goes through prepare().
 			if ( $this->product ) { $this->product_stats = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) AS n, ROUND( AVG( rating ), 1 ) AS avg, SUM( approved = 0 ) AS pending FROM ec_review WHERE product_id = %d', $this->r->product_id ) ); }
-			$this->user = $this->r->user_id ? get_userdata( (int) $this->r->user_id ) : null;
+			/* 6.0.2: the store account ( ec_review.user_id is an ec_user id ); display_name and user_email keep the template's shape. */
+			$account    = ec_reviews::account( $this->r->user_id );
+			$this->user = $account ? (object) array(
+				'user_id'      => $account->user_id,
+				'display_name' => $account->name,
+				'user_email'   => $account->email,
+				'edit_url'     => wp_easycart_admin_review_table::account_url( $account->user_id ),
+			) : null;
 			if ( $this->r->user_id || '' !== trim( (string) $this->r->reviewer_name ) ) {
 				$this->other_reviews = $wpdb->get_results( $wpdb->prepare( 'SELECT r.review_id, r.title, r.rating, r.approved, r.date_submitted, p.title AS product_title FROM ec_review r LEFT JOIN ec_product p ON p.product_id = r.product_id WHERE r.review_id != %d AND ( ( %d > 0 AND r.user_id = %d ) OR ( %s != "" AND r.reviewer_name = %s ) ) ORDER BY r.date_submitted DESC LIMIT 10', $id, (int) $this->r->user_id, (int) $this->r->user_id, (string) $this->r->reviewer_name, (string) $this->r->reviewer_name ) );
 			}

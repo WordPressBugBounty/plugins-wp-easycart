@@ -379,7 +379,7 @@ function ec_admin_save_cart_options() {
 
 		<?php $this->display_subscription_form_start( $product->model_number ); ?>
 
-		<?php if( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+		<?php if( wp_easycart_recaptcha_ready() ){ ?>
 			<input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
 		<?php }?>
 
@@ -447,7 +447,7 @@ function ec_admin_save_cart_options() {
 				</div>
 			</div>
 
-			<?php if( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( wp_easycart_recaptcha_ready() ){ ?>
 				<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
 				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
 			<?php }?>
@@ -457,7 +457,7 @@ function ec_admin_save_cart_options() {
 				<div class="ec_cart_button_working" id="ec_address_save_working"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
 			</div>
 
-			<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready() ){ ?>
 				<script type="text/javascript">
 					if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
 						var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
@@ -503,7 +503,7 @@ function ec_admin_save_cart_options() {
 				<?php echo wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language()->get_text( 'cart_login', 'cart_login_password_label' ); ?>
 			</div>
 
-			<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 				<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />
 				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_recaptcha"></div>
 			<?php }?>
@@ -517,7 +517,7 @@ function ec_admin_save_cart_options() {
 				<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language()->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
 			</div>
 
-			<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ){ ?>
+			<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 				<script type="text/javascript">
 					if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
 						var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
@@ -811,6 +811,8 @@ function ec_admin_save_cart_options() {
 				<textarea name="ec_order_notes" id="ec_order_notes"><?php if ( $GLOBALS['ec_cart_data']->cart_data->order_notes != "" ) { echo esc_textarea( $GLOBALS['ec_cart_data']->cart_data->order_notes ); } ?></textarea>
 			</div>
 			<?php }?>
+
+			<?php do_action( 'wpeasycart_checkout_fields', 'subscription', $this, $product ); /* 6.0.2: extensions ( e.g. an age check ); the server asks wpeasycart_subscription_checkout_errors before charging */ ?>
 
 			<?php if( get_option( 'ec_option_collect_shipping_for_subscriptions' ) && get_option( 'ec_option_use_shipping' ) && $product->is_shippable ){ ?>
 			<div id="ec_cart_subscription_shipping_methods_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
@@ -1159,7 +1161,7 @@ function ec_admin_save_cart_options() {
 																nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-subscription-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
 															};
 															jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ) {
-																jQuery( location ).attr( 'href', result );
+																wpeasycart_checkout_goto( result );
 															} } );
 														}
 													} );
@@ -1187,7 +1189,7 @@ function ec_admin_save_cart_options() {
 														nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-get-stripe-complete-payment-subscription-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
 													};
 													jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ) {
-														jQuery( location ).attr( 'href', result );
+														wpeasycart_checkout_goto( result );
 													} } );	
 												}
 											}

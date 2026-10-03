@@ -22,6 +22,13 @@ class ec_accountpage {
 
 	private $reset_password_key = '';
 
+	/**
+	 * Whether the personal information form printed its newsletter box ( 6.0.2 ).
+	 *
+	 * @var bool
+	 */
+	private $personal_subscriber_input_shown = false;
+
 	function __construct( $redirect_login = false ) {
 		$this->user =& $GLOBALS['ec_user'];
 		$this->mysqli = new ec_db();
@@ -268,9 +275,11 @@ class ec_accountpage {
 	}
 
 	public function display_account_error( $error_code = '' ) {
-		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed' );
+		/* 6.0.2: plus the Connect Order answers ( order_claim_*, invalid_order_id ), for a claim link that returns to this page, and
+		 * download_unavailable ( a download refused by ec_custom_headers(): an unpaid, refunded or cancelled order ). */
+		$valid_error_codes = array( 'not_activated', 'login_failed', 'register_email_error', 'register_invalid', 'no_reset_email_found', 'reset_link_invalid', 'password_too_short', 'password_invalid', 'personal_information_update_error', 'password_no_match', 'password_wrong_current', 'billing_information_error', 'shipping_information_error', 'subscription_update_failed', 'subscription_cancel_failed', 'invalid_order_id', 'order_claim_invalid', 'order_claim_sign_in', 'order_claim_limit', 'download_unavailable' );
 		if ( isset( $_GET['account_error'] ) && in_array( $_GET['account_error'], $valid_error_codes ) ) {
-			$error_text = wp_easycart_language()->get_text( "ec_errors", sanitize_key( $_GET['account_error'] ) );
+			$error_text = self::account_message_text( 'ec_errors', sanitize_key( $_GET['account_error'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a message code for display, checked against the list above.
 			$error_text = apply_filters( 'wpeasycart_account_error', $error_text, sanitize_key( $_GET['account_error'] ) );
 			if ( $error_text ) {
 				echo "<div class=\"ec_account_error\"><div>" . esc_attr( $error_text ) . " ";
@@ -284,7 +293,7 @@ class ec_accountpage {
 			}
 
 		} else if ( $error_code != '' && in_array( $error_code, $valid_error_codes ) ) {
-			$error_text = wp_easycart_language()->get_text( "ec_errors", $error_code );
+			$error_text = self::account_message_text( 'ec_errors', $error_code );
 			$error_text = apply_filters( 'wpeasycart_account_error', $error_text, $error_code );
 			if ( $error_text ) {
 				echo "<div class=\"ec_account_error\"><div>" . esc_attr( $error_text ) . " ";
@@ -297,19 +306,20 @@ class ec_accountpage {
 	}
 
 	public function display_account_success( $success_code = '' ) {
-		$valid_success_codes = array( 'validation_required', 'reset_email_sent', 'password_reset_success', 'resend_activation_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated' );
+		/* 6.0.2: plus the Connect Order answers ( order_claim_sent, order_connected ), for a claim link that returns to this page. */
+		$valid_success_codes = array( 'validation_required', 'reset_email_sent', 'password_reset_success', 'resend_activation_sent', 'personal_information_updated', 'billing_information_updated', 'billing_information_updated', 'shipping_information_updated', 'shipping_information_updated', 'subscription_updated', 'subscription_updated', 'subscription_canceled', 'cart_account_created', 'activation_success', 'password_updated', 'order_connected', 'order_claim_sent' );
 		if ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) {
 			$success_code = sanitize_key( $_GET['account_success'] );
 			if ( 'reset_email_sent' == $success_code ) { // Custom for upgraded reset email text.
 				$success_code = 'reset_email_sent_new';
 			}
-			$success_text = wp_easycart_language()->get_text( "ec_success", $success_code );
+			$success_text = self::account_message_text( 'ec_success', $success_code );
 			$success_text = apply_filters( 'wpeasycart_account_success', $success_text, $success_code );
 			if ( $success_text )
 				echo "<div class=\"ec_account_success\"><div>" . esc_attr( $success_text ) . "</div></div>";
 
 		} else if ( $success_code != '' && in_array( $success_code, $valid_success_codes ) ) {
-			$success_text = wp_easycart_language()->get_text( "ec_success", $success_code );
+			$success_text = self::account_message_text( 'ec_success', $success_code );
 			$success_text = apply_filters( 'wpeasycart_account_success', $success_text, $success_code );
 			if ( $success_text )
 				echo "<div class=\"ec_account_success\"><div>" . esc_attr( $success_text ) . "</div></div>";
@@ -703,6 +713,14 @@ class ec_accountpage {
 	}
 
 	public function display_account_personal_information_form_end() {
+		/* 6.0.2: a store's copy of the template from before 6.0.2 has no fields hook; the fields then go at the end of its form. */
+		if ( ! did_action( 'wpeasycart_account_personal_information_fields' ) ) {
+			do_action( 'wpeasycart_account_personal_information_fields', $this );
+		}
+		/* 6.0.2: a form without the newsletter box ( Settings: subscriber feature off ) keeps the subscription as it is when saved; it unsubscribed the customer. */
+		if ( ! $this->personal_subscriber_input_shown ) {
+			echo '<input type="hidden" name="ec_account_personal_information_keep_subscription" value="1" />';
+		}
 		echo "</form>";
 	}
 
@@ -731,9 +749,12 @@ class ec_accountpage {
 	}
 
 	public function display_account_personal_information_is_subscriber_input() {
+		$this->personal_subscriber_input_shown = true;
 		echo "<input type=\"checkbox\" name=\"ec_account_personal_information_is_subscriber\" id=\"ec_account_personal_information_is_subscriber\" class=\"ec_account_personal_information_input_field\"";
-		if ( $GLOBALS['ec_user']->is_subscriber )
-		echo " checked=\"checked\"";
+		/* 6.0.2: also ticked when the address joined the list another way ( newsletter widget, popup, checkout ), so saving this form never unsubscribes someone who saw an empty box. */
+		if ( $GLOBALS['ec_user']->is_subscriber || $this->mysqli->is_subscribed( $GLOBALS['ec_user']->email ) ) {
+			echo ' checked="checked"';
+		}
 		echo "/>";
 	}
 
@@ -1255,8 +1276,6 @@ class ec_accountpage {
 			$this->process_update_subscription();
 		} else if ( $action == "cancel_subscription" ) {
 			$this->process_cancel_subscription();
-		} else if ( $action == "order_create_account" ) {
-			$this->process_order_create_account();
 		} else if ( $action == "connect_order" ) {
 			$this->process_connect_order();
 		}
@@ -1270,7 +1289,7 @@ class ec_accountpage {
 		}
 
 		$recaptcha_valid = true;
-		if ( get_option( 'ec_option_enable_recaptcha' ) ) {
+		if ( wp_easycart_recaptcha_ready() ) { // 6.0.2: only once both keys are saved, as the form shows it
 			if ( ! isset( $_POST['ec_grecaptcha_response_login'] ) || $_POST['ec_grecaptcha_response_login'] == '' ) {
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'login_failed' ) ) ) );
 				die();
@@ -1312,16 +1331,30 @@ class ec_accountpage {
 			}
 
 			if ( isset( $_POST['ec_account_login_password_widget'] ) ) {
-				$password = sanitize_text_field( $_POST['ec_account_login_password_widget'] );
+				$password_typed = (string) $_POST['ec_account_login_password_widget']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 			} else {
-				$password = sanitize_text_field( $_POST['ec_account_login_password'] );
+				$password_typed = (string) $_POST['ec_account_login_password']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 			}
 
+			/* 6.0.2: the password as typed ( sign-up and the checkout login use it that way ), then the sanitized form this form
+			   compared before, so passwords with < or extra spaces sign in here too. */
+			$password = $password_typed;
 			$password_hash = wp_easycart_hash_password( $password );
 			$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $password );
 
 			do_action( 'wpeasycart_pre_login_attempt', $email );
 			$user = $this->mysqli->get_user_login( $email, $password, $password_hash );
+			if ( ! $user && sanitize_text_field( $password_typed ) !== $password_typed ) {
+				$password = sanitize_text_field( $password_typed );
+				$password_hash = apply_filters( 'wpeasycart_password_hash', wp_easycart_hash_password( $password ), $password );
+				$user = $this->mysqli->get_user_login( $email, $password, $password_hash );
+			}
+			/* 6.0.2: a password reset before 6.0.2 was saved without WordPress's slashes; one with ' " or \ still signs in. */
+			if ( ! $user && wp_unslash( $password_typed ) !== $password_typed ) {
+				$password = wp_unslash( $password_typed );
+				$password_hash = apply_filters( 'wpeasycart_password_hash', wp_easycart_hash_password( $password ), $password );
+				$user = $this->mysqli->get_user_login( $email, $password, $password_hash );
+			}
 
 			if ( $user && $user->user_level == "pending" ) {
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_error' => 'not_activated' ) ) ) );
@@ -1372,9 +1405,8 @@ class ec_accountpage {
 
 				$GLOBALS['ec_cart_data']->save_session_to_db();
 
-				if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-					$wp_user = wp_signon( array( 'user_login' => $email, 'user_password' => sanitize_text_field( $_POST['ec_account_login_password'] ) ), true );
-				}
+				// WordPress User Sync 1.x: sign in to the linked WordPress user ( 2.0 does it on wpeasycart_login_success ).
+				wp_easycart_wordpress_users::legacy_store_login( $user, $email, $password );
 
 				wp_cache_flush();
 				do_action( 'wpeasycart_login_success', $email );
@@ -1383,10 +1415,20 @@ class ec_accountpage {
 					header( "location: " . esc_url_raw( $this->store_page ) );
 					die();
 				} else if ( isset( $_POST['ec_custom_login_redirect'] ) ) {
-					if ( substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 7 ) == "http://" || substr( esc_url_raw( $_POST['ec_custom_login_redirect'] ), 0, 8 ) == "https://" ) {
-						$redirect_url = htmlspecialchars( esc_url_raw( $_POST['ec_custom_login_redirect'] ), ENT_QUOTES );
-					} else {
-						$redirect_url = get_page_link( esc_url_raw( $_POST['ec_custom_login_redirect'] ) );
+					/*
+					 * 6.0.2: only an address on this site ( or a host added with the allowed_redirect_hosts filter ); the form field
+					 * could send a customer anywhere after signing in. A page ID still works. Anything else, or nothing, goes to the
+					 * account dashboard. The address is no longer HTML-escaped first ( & became &amp; in the redirect ).
+					 */
+					$redirect_raw = trim( (string) wp_unslash( $_POST['ec_custom_login_redirect'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized below by esc_url_raw() / wp_validate_redirect(); the login nonce is verified at the top of this method.
+					$redirect_url = '';
+					if ( '' !== $redirect_raw && ctype_digit( $redirect_raw ) ) {
+						$redirect_url = (string) get_page_link( (int) $redirect_raw );
+					} else if ( '' !== $redirect_raw ) {
+						$redirect_url = wp_validate_redirect( esc_url_raw( $redirect_raw ), '' );
+					}
+					if ( '' === $redirect_url ) {
+						$redirect_url = wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'login_success' ) );
 					}
 					header( "location: " . esc_url_raw( $redirect_url ) );
 					die();
@@ -1401,9 +1443,9 @@ class ec_accountpage {
 					$goto = wpeasycart_links()->get_account_page( htmlspecialchars( sanitize_key( $_POST['ec_goto_page'] ) ), $atts );
 					header( "location: " . esc_url_raw( $goto ) );
 				} else {
-					$page_id = (int) $_POST['ec_account_page_id'];
-					$page_content = get_post( $page_id );
-					if ( preg_match( "/\[ec_account redirect\=[\'\\\"](.*)[\'\\\"]\]/", $page_content->post_content, $matches ) ) {
+					$page_id = ( isset( $_POST['ec_account_page_id'] ) ) ? (int) $_POST['ec_account_page_id'] : 0;
+					$page_content = get_post( $page_id ); /* 6.0.2: 0 ( no field ) is the page posted to, as before; no warning when there is no post. */
+					if ( $page_content && preg_match( "/\[ec_account redirect\=[\'\\\"](.*)[\'\\\"]\]/", (string) $page_content->post_content, $matches ) ) {
 						header( "location: " . esc_url_raw( $matches[1] ) );
 					} else {
 						header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'login_success' ) ) ) );
@@ -1445,7 +1487,7 @@ class ec_accountpage {
 
 		if ( isset( $_POST['ec_account_register_email'] ) && isset( $_POST['ec_account_register_password'] ) && $_POST['ec_account_register_email'] != "" && $_POST['ec_account_register_password'] != "" ) {
 			$recaptcha_valid = true;
-			if ( get_option( 'ec_option_enable_recaptcha' ) ) {
+			if ( wp_easycart_recaptcha_ready() ) { // 6.0.2: only once both keys are saved, as the form shows it
 				if ( !isset( $_POST['ec_grecaptcha_response_register'] ) || $_POST['ec_grecaptcha_response_register'] == '' ) {
 					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_invalid' ) ) ) );
 					die();
@@ -1493,7 +1535,7 @@ class ec_accountpage {
 				$password = apply_filters( 'wpeasycart_password_hash', $password, sanitize_text_field( $_POST['ec_account_register_password'] ) );
 
 				// Check if account already exists
-				if ( $this->mysqli->does_user_exist( sanitize_email( $_POST['ec_account_register_email'] ) ) ) {
+				if ( wp_easycart_wordpress_users::email_taken( sanitize_email( $_POST['ec_account_register_email'] ) ) ) {
 					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'register', array( 'account_error' => 'register_email_error' ) ) ) );
 					die();
 				}
@@ -1569,8 +1611,8 @@ class ec_accountpage {
 					$this->mysqli->update_address_user_id( $billing_id, $user_id );
 				}
 
-				// MyMail Hook
-				if ( function_exists( 'mailster' ) ) {
+				// MyMail Hook. 6.0.2: only with the newsletter box ticked ( it added every new account before ).
+				if ( $is_subscriber && function_exists( 'mailster' ) ) {
 					$subscriber_id = mailster('subscribers')->add(array(
 						'firstname' => $first_name,
 						'lastname' => $last_name,
@@ -1579,23 +1621,11 @@ class ec_accountpage {
 					), false );
 				}
 
-				// Maybe insert WP user
-				if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-					$user_name_first = preg_replace( '/[^a-z]/', '', strtolower( $first_name ) );
-					$user_name_last = preg_replace( '/[^a-z]/', '', strtolower( $last_name ) );
-					$user_name = $user_name_first . '_' . $user_name_last . '_' . $user_id;
-					$wp_user_id = wp_insert_user( (object) array(
-						'user_pass' => $_POST['ec_account_register_password'],
-						'user_login' => $user_name,
-						'user_email' => $email,
-						'nickname' => $first_name . ' ' . $last_name,
-						'first_name' => $first_name,
-						'last_name' => $last_name,
-					) );
-					add_user_meta( $wp_user_id, 'wpeasycart_user_id', $user_id, true );
-				}
+				/* 6.0.2: the password as typed, the way it was hashed above, and where the account came from. */
+				do_action( 'wpeasycart_account_added', $user_id, $email, $_POST['ec_account_register_password'], 'register' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
-				do_action( 'wpeasycart_account_added', $user_id, $email, sanitize_text_field( $_POST['ec_account_register_password'] ) );
+				// WordPress User Sync 1.x: the WordPress user ( not while the account waits for email confirmation ).
+				wp_easycart_wordpress_users::legacy_account_created( $user_id, $email, $_POST['ec_account_register_password'], $first_name, $last_name ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
 				// Send registration email if needed
 				if ( get_option( 'ec_option_send_signup_email' ) ) {
@@ -1700,21 +1730,20 @@ class ec_accountpage {
 			die();
 		}
 
-		$password_hash = wp_easycart_hash_password( $new_password );
-		$password_hash = apply_filters( 'wpeasycart_password_hash', $password_hash, $new_password );
+		/* 6.0.2: one rule for every store password: it is hashed as WordPress posts it ( slashed ), as sign-up, the password
+		   change and both logins do. The reset hashed it unslashed, so a password with ' " or \ never signed in again. */
+		$slashed_password = wp_slash( $new_password );
+		$password_hash    = wp_easycart_hash_password( $slashed_password );
+		$password_hash    = apply_filters( 'wpeasycart_password_hash', $password_hash, $slashed_password );
 		$this->mysqli->reset_password( $user->email, $password_hash );
 		do_action( 'wpeasycart_password_reset_complete', $user->user_id );
 
-		if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-			$wp_user = get_user_by( 'email', $user->email );
-			if ( $wp_user ) {
-				wp_set_password( $new_password, $wp_user->ID );
-			}
-		}
+		/* 6.0.2: WordPress User Sync takes it to the linked WordPress user ( slashed, the way WordPress's own forms post it ). */
+		wp_easycart_wordpress_users::password_set( $user->user_id, $slashed_password, 'reset' );
 
 		do_action( 'wpeasycart_password_changed', $user->user_id, $password_hash );
 		if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
-			wp_easycart_maintain_admin_password_backup( $user->user_id, $new_password );
+			wp_easycart_maintain_admin_password_backup( $user->user_id, $slashed_password );
 		}
 
 		header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'login', array( 'account_success' => 'password_reset_success' ) ) ) );
@@ -1785,32 +1814,40 @@ class ec_accountpage {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
+		$this->require_signed_in();
 		$old_email = $GLOBALS['ec_cart_data']->cart_data->email;
 		$user_id = $GLOBALS['ec_cart_data']->cart_data->user_id;
 		$first_name = sanitize_text_field( $_POST['ec_account_personal_information_first_name'] );
 		$last_name = sanitize_text_field( $_POST['ec_account_personal_information_last_name'] );
 		$email = sanitize_email( $_POST['ec_account_personal_information_email'] );
-		$email_other = sanitize_email( ( ( isset( $_POST['ec_account_personal_information_email_other'] ) ) ? $_POST['ec_account_personal_information_email_other'] : '' ) );
+		/* 6.0.2: a form without the extra email or VAT field ( a setting turned off, or an Elementor account form ) keeps the saved value; it erased it. */
+		if ( isset( $_POST['ec_account_personal_information_email_other'] ) ) {
+			$email_other = sanitize_email( wp_unslash( $_POST['ec_account_personal_information_email_other'] ) );
+		} else {
+			$email_other = (string) $GLOBALS['ec_user']->email_other;
+		}
 		if ( isset( $_POST['ec_account_personal_information_vat_registration_number'] ) ) {
 			$vat_registration_number = sanitize_text_field( $_POST['ec_account_personal_information_vat_registration_number'] );
 		} else {
-			$vat_registration_number = "";
+			$vat_registration_number = (string) $GLOBALS['ec_user']->vat_registration_number;
 		}
 		$is_subscriber = ( isset( $_POST['ec_account_personal_information_is_subscriber'] ) && (bool) $_POST['ec_account_personal_information_is_subscriber'] ) ? 1 : 0;
+		/*
+		 * 6.0.2: a form that had no newsletter box says so ( keep_subscription ): the subscription stays as it is ( null for
+		 * ec_db::update_personal_information() ). Without it, saving such a form unsubscribed the customer.
+		 */
+		if ( ! isset( $_POST['ec_account_personal_information_is_subscriber'] ) && isset( $_POST['ec_account_personal_information_keep_subscription'] ) ) {
+			$is_subscriber = null;
+		}
+
+		/* 6.0.2: WordPress User Sync refuses an email another WordPress account already uses. */
+		if ( '' !== wp_easycart_wordpress_users::email_change_error( $user_id, $email, $old_email ) ) {
+			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'personal_information_update_error' ) ) ) );
+			die();
+		}
+
+		/* Subscribes or unsubscribes too; its insert_subscriber() / remove_subscriber() fire the subscriber hooks ( 6.0.2: no second fire here ). */
 		$success = $this->mysqli->update_personal_information( $old_email, $user_id, $first_name, $last_name, $email, $is_subscriber, $vat_registration_number, $email_other );
-
-		//Update Custom Fields if They Exist
-		if ( count( $GLOBALS['ec_user']->customfields ) > 0 ) {
-			for ( $i = 0; $i<count( $GLOBALS['ec_user']->customfields ); $i++ ) {
-				$this->mysqli->update_customfield_data( $GLOBALS['ec_user']->customfields[$i][0], sanitize_text_field( $_POST['ec_user_custom_field_' . $GLOBALS['ec_user']->customfields[$i][0]] ) );
-			}
-		}
-
-		if ( $is_subscriber ) {
-			do_action( 'wpeasycart_insert_subscriber', sanitize_email( $email ), $first_name, $last_name );
-		} else { 
-			do_action( 'wpeasycart_remove_subscriber', $email );
-		}
 
 		if ( $success !== false ) {
 			$GLOBALS['ec_cart_data']->cart_data->email = $email;
@@ -1818,12 +1855,8 @@ class ec_accountpage {
 			$GLOBALS['ec_cart_data']->cart_data->first_name = $first_name;
 			$GLOBALS['ec_cart_data']->cart_data->last_name = $last_name;
 			$GLOBALS['ec_cart_data']->save_session_to_db();
-			if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-				$wp_user = get_user_by( 'email', $GLOBALS['ec_user']->email );
-				if ( $wp_user ) {
-					wp_update_user( array( 'ID' => $wp_user->ID, 'user_email' => $email ) );
-				}
-			}
+			// WordPress User Sync 1.x: the linked WordPress user takes the new email ( 2.0 follows wpeasycart_account_updated ).
+			wp_easycart_wordpress_users::legacy_email_changed( $user_id, $email );
 			do_action( 'wpeasycart_account_updated', $user_id );
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'personal_information_updated' ) ) ) );
 			die();
@@ -1838,6 +1871,7 @@ class ec_accountpage {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'password', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
+		$this->require_signed_in();
 		$user_id = $GLOBALS['ec_user']->user_id;
 		if ( apply_filters( 'wpeasycart_custom_verify_new_password', false, $_POST['ec_account_password_new_password'] ) ) { // XSS OK, Password Should not be sanitized
 			do_action( 'wpeasycart_custom_verify_new_password_failed', $_POST['ec_account_password_new_password'] ); // XSS OK, Password Should not be sanitized
@@ -1850,14 +1884,10 @@ class ec_accountpage {
 				$_POST['ec_account_password_retype_new_password'] // XSS OK, Password Should not be sanitized
 			);
 
-			if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-				$wp_user = get_user_by( 'email', $GLOBALS['ec_user']->email );
-				if ( $wp_user ) {
-					wp_set_password( $_POST['ec_account_password_retype_new_password'], $wp_user->ID ); // XSS OK, Password Should not be sanitized
-				}
-			}
-
 			if ( $success ) {
+				/* 6.0.2: only once the current password was right. WordPress User Sync sets the WordPress password and keeps the
+				   customer signed in. */
+				wp_easycart_wordpress_users::password_set( $user_id, $_POST['ec_account_password_retype_new_password'], 'change' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 				do_action( 'wpeasycart_password_updated', $user_id );
 				$GLOBALS['ec_cart_data']->save_session_to_db();
 				header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'password_updated' ) ) ) );
@@ -1874,6 +1904,7 @@ class ec_accountpage {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'billing_information', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
+		$this->require_signed_in();
 		$country = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_country'] ) );
 		$first_name = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_first_name'] ) );
 		$last_name = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_last_name'] ) );
@@ -1885,7 +1916,8 @@ class ec_accountpage {
 		if ( isset( $_POST['ec_account_billing_information_vat_registration_number'] ) ) {
 			$vat_registration_number = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_vat_registration_number'] ) );
 		} else {
-			$vat_registration_number = "";
+			/* 6.0.2: a form without the VAT field keeps the saved number ( it was erased on every save ). */
+			$vat_registration_number = (string) $GLOBALS['ec_user']->vat_registration_number;
 		}
 		$address = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_address'] ) );
 		if ( isset( $_POST['ec_account_billing_information_address2'] ) ) {
@@ -1900,7 +1932,8 @@ class ec_accountpage {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_state'] ) );
 		}
 		$zip = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_zip'] ) );
-		$phone = stripslashes( sanitize_text_field( $_POST['ec_account_billing_information_phone'] ) );
+		/* 6.0.2: phone collection off, no phone field: keep the saved phone ( an undefined index, and the phone was erased ). */
+		$phone = ( isset( $_POST['ec_account_billing_information_phone'] ) ) ? sanitize_text_field( wp_unslash( $_POST['ec_account_billing_information_phone'] ) ) : (string) $GLOBALS['ec_user']->billing->phone;
 
 		$GLOBALS['ec_cart_data']->cart_data->billing_first_name = $first_name;
 		$GLOBALS['ec_cart_data']->cart_data->billing_last_name = $last_name;
@@ -1953,6 +1986,7 @@ class ec_accountpage {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'shipping_information', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
+		$this->require_signed_in();
 		$country = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_country'] ) );
 		$first_name = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_first_name'] ) );
 		$last_name = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_last_name'] ) );
@@ -1974,7 +2008,17 @@ class ec_accountpage {
 			$state = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_state'] ) );
 		}
 		$zip = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_zip'] ) );
-		$phone = stripslashes( sanitize_text_field( $_POST['ec_account_shipping_information_phone'] ) );
+		/* 6.0.2: phone collection off, no phone field: keep the saved phone ( an undefined index, and the phone was erased ). */
+		$phone = ( isset( $_POST['ec_account_shipping_information_phone'] ) ) ? sanitize_text_field( wp_unslash( $_POST['ec_account_shipping_information_phone'] ) ) : (string) $GLOBALS['ec_user']->shipping->phone;
+		/* 6.0.2: the Elementor Shipping Address form shows the account's VAT number; a change there is saved ( it was dropped ). */
+		$vat_changed = false;
+		if ( isset( $_POST['ec_account_shipping_vat_registration_number'] ) ) {
+			$vat_registration_number = sanitize_text_field( wp_unslash( $_POST['ec_account_shipping_vat_registration_number'] ) );
+			if ( $vat_registration_number !== (string) $GLOBALS['ec_user']->vat_registration_number ) {
+				$this->mysqli->update_user( $GLOBALS['ec_user']->user_id, $vat_registration_number );
+				$vat_changed = true;
+			}
+		}
 
 		$GLOBALS['ec_cart_data']->cart_data->shipping_first_name = $first_name;
 		$GLOBALS['ec_cart_data']->cart_data->shipping_last_name = $last_name;
@@ -1986,8 +2030,9 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->shipping_zip = $zip;
 		$GLOBALS['ec_cart_data']->cart_data->shipping_country = $country;
 		$GLOBALS['ec_cart_data']->cart_data->shipping_phone = $phone;
-		if ( $first_name == $GLOBALS['ec_user']->shipping->first_name && 
-			$last_name == $GLOBALS['ec_user']->shipping->last_name && 
+		if ( ! $vat_changed &&
+			$first_name == $GLOBALS['ec_user']->shipping->first_name &&
+			$last_name == $GLOBALS['ec_user']->shipping->last_name &&
 			$company_name == $GLOBALS['ec_user']->shipping->company_name && 
 			$address == $GLOBALS['ec_user']->shipping->address_line_1 && 
 			$address2 == $GLOBALS['ec_user']->shipping->address_line_2 && 
@@ -2062,9 +2107,7 @@ class ec_accountpage {
 		$GLOBALS['ec_cart_data']->cart_data->stripe_pi_client_secret = "";
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		wp_cache_flush();
-		if ( apply_filters( 'wp_easycart_sync_wordpress_users', false ) ) {
-			wp_logout();
-		}
+		wp_easycart_wordpress_users::store_logout(); /* 6.0.2: ends a Login as Customer, else signs out of WordPress for User Sync 1.x */
 		header( "location: " . esc_url_raw( $account_logout_url ) );
 	}
 
@@ -2197,90 +2240,350 @@ class ec_accountpage {
 		}
 	}
 
-	private function process_order_create_account() {
-		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-order-create-account' ) ) {
+	/**
+	 * Connect Order ( the Elementor account form ): a guest order placed with this account's email joins the account.
+	 *
+	 * 6.0.2: only through a signed link emailed to the order's address, opened while signed in to this account
+	 * ( self::process_order_claim() ). The form used to attach the order at once, and an account's email is never proven
+	 * ( it can be changed to any unused address ), so anyone who knew a guest's email and order number could take that
+	 * order with its addresses and downloads. The answer is the same whether or not an order matched, so the form cannot
+	 * be used to find orders, and requests are limited per account and per visitor address.
+	 */
+	public function process_connect_order() {
+		if ( ! isset( $_POST['ec_account_form_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ec_account_form_nonce'] ) ), 'wp-easycart-account-connect-order' ) ) {
 			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
 			die();
 		}
+		$this->require_signed_in();
 
-		$order_id = (int) $_POST['order_id'];
-		$email = sanitize_email( $_POST['email_address'] );
-		$password = $_POST['ec_password']; // XSS OK. Password Hashed, not sanitized.
+		$user_id  = (int) $GLOBALS['ec_cart_data']->cart_data->user_id;
+		$page_id  = self::order_claim_page( ( isset( $_POST['ec_account_page_id'] ) ) ? (int) $_POST['ec_account_page_id'] : 0 );
+		$order_id = ( isset( $_POST['ec_account_connect_order_id'] ) ) ? (int) $_POST['ec_account_connect_order_id'] : 0;
 
-		$ec_db_admin = new ec_db_admin();
-		$order_row = $ec_db_admin->get_order_row( $order_id );
+		if ( $order_id <= 0 ) {
+			self::order_claim_redirect( $page_id, 'account_error', 'invalid_order_id' );
+		}
+		if ( ! self::order_claim_allowed( $user_id ) ) {
+			self::order_claim_redirect( $page_id, 'account_error', 'order_claim_limit' );
+		}
 
-		if ( $this->mysqli->does_user_exist( $email ) ) {
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id, 'ec_cart_error' => 'email_exists' ) ) ) );
-		} else if ( $order_row->user_id == 0 ) {
-			$billing_id = $this->mysqli->insert_address( $order_row->billing_first_name, $order_row->billing_last_name, $order_row->billing_address_line_1, $order_row->billing_address_line_2, $order_row->billing_city, $order_row->billing_state, $order_row->billing_zip, $order_row->billing_country, $order_row->billing_phone );
-			$shipping_id = $this->mysqli->insert_address( $order_row->shipping_first_name, $order_row->shipping_last_name, $order_row->shipping_address_line_1, $order_row->shipping_address_line_2, $order_row->shipping_city, $order_row->shipping_state, $order_row->shipping_zip, $order_row->shipping_country, $order_row->shipping_phone );
-
-			$user_id = $this->mysqli->insert_user( $email, $password, $order_row->billing_first_name, $order_row->billing_last_name, $billing_id, $shipping_id, "shopper", 0 );
-			$this->mysqli->update_order_user( $user_id, $order_id );
-
-			// MyMail Hook
-			if ( function_exists( 'mailster' ) ) {
-				$subscriber_id = mailster('subscribers')->add(array(
-					'firstname' => $order_row->billing_first_name,
-					'lastname' => $order_row->billing_last_name,
-					'email' => $email,
-					'status' => 1,
-				), false );
+		global $wpdb;
+		$email     = (string) $GLOBALS['ec_user']->email;
+		$order_row = null;
+		if ( '' !== $email ) {
+			$draft_status = (int) get_option( 'ec_option_orderstatus_draft', 0 );
+			if ( $draft_status > 0 ) {
+				$order_row = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, user_email FROM ec_order WHERE ec_order.user_email = %s AND ec_order.order_id = %d AND ec_order.user_id = 0 AND ec_order.orderstatus_id != %d', $email, $order_id, $draft_status ) );
+			} else {
+				$order_row = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, user_email FROM ec_order WHERE ec_order.user_email = %s AND ec_order.order_id = %d AND ec_order.user_id = 0', $email, $order_id ) );
 			}
+		}
+		if ( $order_row ) {
+			$claim_order = (int) $order_row->order_id;
+			$claim_email = (string) $order_row->user_email;
+			if ( function_exists( 'fastcgi_finish_request' ) ) {
+				/* Sent once the answer has gone out ( PHP-FPM ), so it takes as long whether or not an order matched. */
+				add_action(
+					'shutdown',
+					function () use ( $claim_order, $claim_email, $user_id, $page_id ) {
+						fastcgi_finish_request();
+						self::send_order_claim_email( $claim_order, $claim_email, $user_id, $page_id );
+					},
+					0
+				);
+			} else {
+				self::send_order_claim_email( $claim_order, $claim_email, $user_id, $page_id );
+			}
+		}
+		self::order_claim_redirect( $page_id, 'account_success', 'order_claim_sent' );
+	}
 
-			do_action( 'wpeasycart_account_added', $user_id, $email, $password );
+	/**
+	 * Opens a Connect Order link ( template_redirect, wp_easycart_account_claim_link() in wpeasycart.php ).
+	 *
+	 * The link must be signed, not expired, for an order still without an account, and opened by the account that asked
+	 * for it. Opening it again once the order is connected just says so.
+	 *
+	 * @since 6.0.2
+	 */
+	public static function process_order_claim() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- the link carries its own HMAC signature, checked below.
+		if ( ! isset( $_GET['ec_claim_sig'], $_GET['ec_claim_order'], $_GET['ec_claim_user'], $_GET['ec_claim_expires'] ) ) {
+			return;
+		}
+		$order_id = (int) $_GET['ec_claim_order'];
+		$user_id  = (int) $_GET['ec_claim_user'];
+		$page_id  = ( isset( $_GET['ec_claim_page'] ) ) ? (int) $_GET['ec_claim_page'] : 0;
+		$expires  = (int) $_GET['ec_claim_expires'];
+		$sig      = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( $_GET['ec_claim_sig'] ) ) ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-			$GLOBALS['ec_cart_data']->cart_data->user_id = $user_id;
-			$GLOBALS['ec_cart_data']->cart_data->email = $email;
-			$GLOBALS['ec_cart_data']->cart_data->username = $order_row->billing_first_name . " " . $order_row->billing_last_name;
-			$GLOBALS['ec_cart_data']->cart_data->first_name = $order_row->billing_first_name;
-			$GLOBALS['ec_cart_data']->cart_data->last_name = $order_row->billing_last_name;
+		/* The link's page is only trusted once its signature checks out; until then errors go to the account page. */
+		if ( $order_id <= 0 || $user_id <= 0 || $expires < time() || 64 !== strlen( $sig ) ) {
+			self::order_claim_redirect( 0, 'account_error', 'order_claim_invalid' );
+		}
 
-			$GLOBALS['ec_cart_data']->save_session_to_db();
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order_id, 'account_success' => 'cart_account_created' ) ) ) );
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id, user_id, user_email FROM ec_order WHERE ec_order.order_id = %d', $order_id ) );
+		if ( ! $order || ! hash_equals( self::order_claim_signature( $order_id, $user_id, $page_id, $expires, (string) $order->user_email ), $sig ) ) {
+			self::order_claim_redirect( 0, 'account_error', 'order_claim_invalid' );
+		}
+		$page_id = self::order_claim_page( $page_id );
+
+		$signed_in = ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0;
+		if ( $signed_in !== $user_id ) {
+			self::order_claim_redirect( $page_id, 'account_error', 'order_claim_sign_in' );
+		}
+
+		if ( (int) $order->user_id !== $user_id ) {
+			if ( 0 !== (int) $order->user_id ) {
+				self::order_claim_redirect( $page_id, 'account_error', 'order_claim_invalid' );
+			}
+			$updated = $wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE ec_order.order_id = %d AND ec_order.user_id = 0', $user_id, $order_id ) );
+			if ( ! $updated ) {
+				self::order_claim_redirect( $page_id, 'account_error', 'order_claim_invalid' );
+			}
+			/* The account's order list is cached for an hour ( ec_db::get_order_list() ). */
+			wp_cache_delete( 'wpeasycart-order-list-' . $user_id, 'wpeasycart-orders' );
+
+			/**
+			 * A guest order was connected to a customer's account from the storefront ( Connect Order link ).
+			 *
+			 * @since 6.0.2
+			 * @param int $order_id Order.
+			 * @param int $user_id  Store account ( ec_user ) the order now belongs to.
+			 */
+			do_action( 'wp_easycart_order_connected', $order_id, $user_id );
+
+			/* What moving an order to an account on the order screen does: the account's stored totals ( orders, spend, last
+			 * order ), the order's timeline entry and the hooks accounting extensions follow. */
+			if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+				wp_easycart_order_ledger::customer_totals( array( $user_id ) );
+			}
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log( order_id, order_log_key ) VALUES( %d, "order-user-update" )', $order_id ) );
+			$order_log_id = (int) $wpdb->insert_id;
+			if ( $order_log_id ) {
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_order_log_meta( order_log_id, order_id, order_log_meta_key, order_log_meta_value ) VALUES( %d, %d, "user_id", %s )', $order_log_id, $order_id, $user_id ) );
+			}
+			/** This action is documented in admin/inc/wp_easycart_admin_orders.php */
+			do_action( 'wp_easycart_admin_order_user_changed', $order_id, $user_id, 0 );
+			do_action( 'wpeasycart_order_updated', $order_id );
+		}
+		self::order_claim_redirect( $page_id, 'account_success', 'order_connected' );
+	}
+
+	/**
+	 * Signature of a Connect Order link ( the order's email is part of it, so a changed order address ends the link ).
+	 *
+	 * @since 6.0.2
+	 * @param int    $order_id    Order.
+	 * @param int    $user_id     Account that asked.
+	 * @param int    $page_id     Page the customer returns to.
+	 * @param int    $expires     Unix time.
+	 * @param string $order_email The order's email address.
+	 * @return string
+	 */
+	private static function order_claim_signature( $order_id, $user_id, $page_id, $expires, $order_email ) {
+		return hash_hmac( 'sha256', 'wpec-order-claim|' . (int) $order_id . '|' . (int) $user_id . '|' . (int) $page_id . '|' . (int) $expires . '|' . strtolower( trim( (string) $order_email ) ), wpeasycart_session()->get_secret_key() );
+	}
+
+	/**
+	 * Sends a Connect Order link to the order's email address ( the store's account email settings, like the activation email ).
+	 *
+	 * @since 6.0.2
+	 * @param int    $order_id    Order.
+	 * @param string $order_email The order's email address.
+	 * @param int    $user_id     Account that asked.
+	 * @param int    $page_id     Page the customer returns to.
+	 */
+	private static function send_order_claim_email( $order_id, $order_email, $user_id, $page_id ) {
+		$expires = time() + DAY_IN_SECONDS;
+		$page    = ( $page_id > 0 ) ? get_permalink( $page_id ) : false;
+		$base    = ( $page ) ? $page : wpeasycart_links()->get_account_page();
+		$url     = add_query_arg(
+			array(
+				'ec_claim_order'   => (int) $order_id,
+				'ec_claim_user'    => (int) $user_id,
+				'ec_claim_page'    => ( $page ) ? (int) $page_id : 0,
+				'ec_claim_expires' => $expires,
+				'ec_claim_sig'     => self::order_claim_signature( $order_id, $user_id, ( $page ) ? $page_id : 0, $expires, $order_email ),
+			),
+			$base
+		);
+
+		$title   = (string) self::account_message_text( 'account_connect_order_email', 'account_connect_order_email_title' );
+		$intro   = str_replace( '[order_id]', (string) (int) $order_id, (string) self::account_message_text( 'account_connect_order_email', 'account_connect_order_email_message' ) );
+		$button  = (string) self::account_message_text( 'account_connect_order_email', 'account_connect_order_email_link' );
+		$message = wp_kses_post( $intro ) . '<br /><a href="' . esc_url( $url ) . '" target="_blank">' . esc_html( $button ) . '</a>';
+		if ( class_exists( 'wp_easycart_email_design' ) ) {
+			$ed      = 'wp_easycart_email_design';
+			$body    = $ed::get_paragraph( wp_kses_post( $intro ) );
+			$body   .= $ed::get_button( $url, $button, array( 'margin' => '4px 0 20px 0' ) );
+			$body   .= $ed::get_paragraph(
+				esc_html__( 'If the button does not work, copy this link into your browser:', 'wp-easycart' ) . '<br /><a href="' . esc_url( $url ) . '" target="_blank" style="' . esc_attr( $ed::css( 'link' ) ) . 'word-break:break-all;">' . esc_html( $url ) . '</a>',
+				array(
+					'tone'   => 'small',
+					'margin' => '0',
+				)
+			);
+			$message = $ed::wrap(
+				$body,
+				array(
+					'title'     => $title,
+					'heading'   => $title,
+					'preheader' => wp_strip_all_tags( $intro ),
+				)
+			);
+		}
+
+		$headers   = array();
+		$headers[] = 'MIME-Version: 1.0';
+		$headers[] = 'Content-Type: text/html; charset=utf-8';
+		$headers[] = 'From: ' . stripslashes( get_option( 'ec_option_password_from_email' ) );
+		$headers[] = 'Reply-To: ' . stripslashes( get_option( 'ec_option_password_from_email' ) );
+		$headers[] = 'X-Mailer: PHP/' . phpversion();
+
+		$email_send_method = (string) apply_filters( 'wpeasycart_email_method', get_option( 'ec_option_use_wp_mail' ) );
+		if ( '1' === $email_send_method ) {
+			wp_mail( $order_email, $title, $message, implode( "\r\n", $headers ) );
+		} elseif ( '0' === $email_send_method || '' === $email_send_method ) {
+			$mailer = new wpeasycart_mailer();
+			$mailer->send_customer_email( $order_email, $title, $message );
+		} else {
+			/**
+			 * The store sends its own emails ( wpeasycart_email_method ): the Connect Order link email.
+			 *
+			 * @since 6.0.2
+			 */
+			do_action( 'wpeasycart_custom_order_claim_email', stripslashes( get_option( 'ec_option_password_from_email' ) ), $order_email, '', $title, $message );
+		}
+	}
+
+	/**
+	 * Connect Order request limit: 5 an hour per account, 10 an hour per visitor address.
+	 *
+	 * Each counter keeps a fixed hour from its first request ( the window start is stored with the count; a request does not
+	 * restart the hour ), and the check and count happen under a MySQL named lock so parallel requests cannot all slip
+	 * through. No lock within 3 seconds counts as over the limit.
+	 *
+	 * @since 6.0.2
+	 * @param int $user_id Account.
+	 * @return bool Whether this request may go ahead ( and it is counted ).
+	 */
+	private static function order_claim_allowed( $user_id ) {
+		global $wpdb;
+		$ip = '';
+		if ( class_exists( 'wp_easycart_checkout_guard' ) && method_exists( 'wp_easycart_checkout_guard', 'client_ip' ) ) {
+			$ip = (string) wp_easycart_checkout_guard::client_ip();
+		} elseif ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
+			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+		}
+		$limits = array( 'wpec_order_claim_u_' . (int) $user_id => 5 );
+		if ( '' !== $ip ) {
+			$limits[ 'wpec_order_claim_ip_' . md5( $ip ) ] = 10;
+		}
+
+		if ( 1 !== (int) $wpdb->get_var( "SELECT GET_LOCK( 'wpec_order_claim', 3 )" ) ) {
+			return false;
+		}
+		$now     = time();
+		$allowed = true;
+		$windows = array();
+		foreach ( $limits as $key => $limit ) {
+			$window = get_transient( $key );
+			if ( ! is_array( $window ) || ! isset( $window['start'], $window['count'] ) || $now - (int) $window['start'] >= HOUR_IN_SECONDS ) {
+				$window = array(
+					'start' => $now,
+					'count' => 0,
+				);
+			}
+			if ( (int) $window['count'] >= $limit ) {
+				$allowed = false;
+				break;
+			}
+			$windows[ $key ] = $window;
+		}
+		if ( $allowed ) {
+			foreach ( $windows as $key => $window ) {
+				$window['count'] = (int) $window['count'] + 1;
+				set_transient( $key, $window, max( 1, HOUR_IN_SECONDS - ( $now - (int) $window['start'] ) ) );
+			}
+		}
+		$wpdb->query( "SELECT RELEASE_LOCK( 'wpec_order_claim' )" );
+		return $allowed;
+	}
+
+	/**
+	 * A page a Connect Order answer may return to: published only ( a draft or private post's address would give away its
+	 * slug ), else 0 ( the account page ).
+	 *
+	 * @since 6.0.2
+	 * @param int $page_id Post ID from the form or a signed link.
+	 * @return int
+	 */
+	private static function order_claim_page( $page_id ) {
+		$page_id = (int) $page_id;
+		return ( $page_id > 0 && 'publish' === get_post_status( $page_id ) ) ? $page_id : 0;
+	}
+
+	/**
+	 * Back to the page the Connect Order form was on ( else the account dashboard ) with a message code.
+	 *
+	 * @since 6.0.2
+	 * @param int    $page_id Page.
+	 * @param string $key     account_success | account_error.
+	 * @param string $code    Message code.
+	 */
+	private static function order_claim_redirect( $page_id, $key, $code ) {
+		$page_id = self::order_claim_page( $page_id );
+		$page    = ( $page_id > 0 ) ? get_permalink( $page_id ) : false;
+		$url     = ( $page ) ? add_query_arg( $key, $code, $page ) : wpeasycart_links()->get_account_page( 'dashboard', array( $key => $code ) );
+		header( 'location: ' . esc_url_raw( $url ) );
+		die();
+	}
+
+	/**
+	 * Stops an account update from a visitor who is not signed in ( 6.0.2: the Elementor account forms print these forms to
+	 * every visitor; an anonymous post created stray addresses and ran the account-updated hooks for no account ).
+	 */
+	private function require_signed_in() {
+		if ( ! isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) || (int) $GLOBALS['ec_cart_data']->cart_data->user_id <= 0 ) {
+			header( 'location: ' . esc_url_raw( wpeasycart_links()->get_account_page( 'login' ) ) );
 			die();
 		}
 	}
-	
-	public function process_connect_order() {
-		if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_account_form_nonce'] ), 'wp-easycart-account-connect-order' ) ) {
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_nonce' ) ) ) );
-			die();
-		}
-		
-		if ( ! isset( $_POST['ec_account_connect_order_id'] ) ) {
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_order_id' ) ) ) );
-			die();
-		}
 
-		$order_id = (int) $_POST['ec_account_connect_order_id'];
-		
-		global $wpdb;
-		$order_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_order WHERE ec_order.user_email = %s AND ec_order.order_id = %d AND ec_order.user_id = 0', $GLOBALS['ec_user']->email, $order_id ) );
-		
-		if ( ! $order_row ) {
-			header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'dashboard', array( 'account_error' => 'invalid_order_id' ) ) ) );
-			die();
+	/**
+	 * An account message or email phrase from the language file, with an English default for the phrases added in 6.0.2
+	 * ( a store's saved language data gets them on its next language update ).
+	 *
+	 * @since 6.0.2
+	 * @param string $section Language section.
+	 * @param string $key     Phrase key.
+	 * @return string|null The phrase ( null when neither exists, as get_text() ).
+	 */
+	public static function account_message_text( $section, $key ) {
+		$text = wp_easycart_language()->get_text( $section, $key );
+		if ( null !== $text && '' !== $text ) {
+			return $text;
 		}
-		
-		$wpdb->query( $wpdb->prepare( 'UPDATE ec_order SET user_id = %d WHERE ec_order.user_email = %s AND ec_order.order_id = %d', $GLOBALS['ec_user']->user_id, $GLOBALS['ec_user']->email, $order_id ) );
-		
-		if ( isset( $_POST['ec_account_page_id'] ) ) {
-			$page_id = (int) $_POST['ec_account_page_id'];
-			$account_page = get_permalink( $page_id );
-			if ( substr_count( $store_page, '?' ) ) {
-				$permalink_divider = "&";
-			} else {
-				$permalink_divider = "?";
-			}
-			$account_page .= $permalink_divider . 'account_success=order_connected';
-		} else {
-			$account_page = wpeasycart_links()->get_account_page( 'dashboard', array( 'account_success' => 'order_connected' ) );
-		}
-		
-		header( "location: " . esc_url_raw( $account_page ) );
-		die();
+		$defaults = array(
+			'ec_success'                  => array(
+				'order_claim_sent' => __( 'If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account.', 'wp-easycart' ),
+			),
+			'ec_errors'                   => array(
+				'order_claim_invalid'  => __( 'That link is not valid or has expired. Ask for a new one from your account.', 'wp-easycart' ),
+				'order_claim_sign_in'  => __( 'Sign in to the account that asked for this link, then open the link again.', 'wp-easycart' ),
+				'order_claim_limit'    => __( 'Too many requests. Please try again later.', 'wp-easycart' ),
+				'download_unavailable' => __( 'This download is not available. Downloads open once an order is paid, and end if it is refunded or cancelled.', 'wp-easycart' ),
+			),
+			'account_connect_order_email' => array(
+				'account_connect_order_email_title'   => __( 'Add your order to your account', 'wp-easycart' ),
+				'account_connect_order_email_message' => __( 'You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email.', 'wp-easycart' ),
+				'account_connect_order_email_link'    => __( 'Add the order to my account', 'wp-easycart' ),
+			),
+		);
+		return ( isset( $defaults[ $section ][ $key ] ) ) ? $defaults[ $section ][ $key ] : $text;
 	}
 
 	/* END FORM ACTION FUNCTIONS */
@@ -2493,6 +2796,11 @@ class ec_accountpage {
 	}
 
 	public function get_stripe_intent_client_secret() {
+		/* 6.0.2: checkout protection. A paused customer, or one owing a human check, gets no setup intent ( Stripe
+		   would check every card typed into it ); the protection script shows the pause or the check instead. */
+		if ( class_exists( 'wp_easycart_checkout_guard' ) && ! wp_easycart_checkout_guard::card_update_allowed() ) {
+			return '';
+		}
 		if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
 			$stripe = new ec_stripe();
 		} else {
@@ -2500,6 +2808,9 @@ class ec_accountpage {
 		}
 
 		$response = $stripe->create_setup_intent( $GLOBALS['ec_user']->stripe_customer_id );
+		if ( isset( $response ) && is_object( $response ) && isset( $response->id ) && class_exists( 'wp_easycart_checkout_guard' ) ) {
+			wp_easycart_checkout_guard::map_setup_intent( $response->id );
+		}
 		return ( isset( $response ) && is_object( $response ) && isset( $response->client_secret ) ) ? $response->client_secret : '';
 	}
 

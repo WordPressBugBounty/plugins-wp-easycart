@@ -8,6 +8,11 @@
 .ecst-header .ecv2-page-title { margin:0; line-height:1.2; }
 .ecst-desc { font-size:12.5px; line-height:1.45; color:var(--ecv2-g500); margin:0; max-width:80ch; }
 .ecst-docs { color:var(--ecst-accent); font-weight:600; text-decoration:none; white-space:nowrap; }
+/* 6.0.2: Settings › group, above a page's title */
+.ecst-crumb { font-size:12px; line-height:1.3; color:var(--ecv2-g500); }
+.ecst-crumb a { color:inherit; text-decoration:none; }
+.ecst-crumb a:hover, .ecst-crumb a:focus-visible { color:var(--ecst-accent); text-decoration:underline; }
+.ecst-home .ecst-group { scroll-margin-top:90px; }
 .ecst-docs:hover { text-decoration:underline; }
 .ecst-header-right { flex:0 0 auto; display:flex; align-items:center; gap:10px; flex-wrap:nowrap; justify-content:flex-end; }
 .ecst-status { white-space:nowrap; }
@@ -168,14 +173,23 @@
 .ecst-textarea.is-dirty { border-color:var(--ecv2-amber); }
 /* admin-v2.css caps .ecv2-select at 200px !important, which clipped long option labels */
 .ecst-row-control .ecv2-select { min-width:140px; }
-.ecst-pills { display:inline-flex; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); overflow:hidden; }
-.ecst-pill { padding:6px 12px; font-size:12.5px; cursor:pointer; border-left:1px solid var(--ecv2-g300); color:var(--ecv2-g700); background:#fff; user-select:none; }
-.ecst-pill:first-child { border-left:0; }
+/* 6.0.2: pills wrap instead of clipping their last choice ( Checkout protection's Level at 760–950px ); the separators are
+   shadows, so a pill that starts a second line draws no stray edge and the wrapped rows still read as one control */
+.ecst-row.ecst-type-pills { --ecst-control-w:min(560px, 60%); }
+.ecst-pills { display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); overflow:hidden; }
+.ecst-pill { padding:6px 12px; font-size:12.5px; cursor:pointer; box-shadow:-1px 0 0 var(--ecv2-g300), 0 -1px 0 var(--ecv2-g300); color:var(--ecv2-g700); background:#fff; user-select:none; }
+.ecst-pills:not(.ecst-multi) > .ecst-pill { flex:1 0 auto; text-align:center; } /* 6.0.2: wrapped rows fill the box */
 .ecst-pill.is-on { background:var(--ecst-accent-soft); color:var(--ecv2-g900); font-weight:600; }
 .ecst-pill input { position:absolute; opacity:0; pointer-events:none; }
 .ecst-multi { flex-wrap:wrap; gap:6px; padding:8px; border-radius:var(--ecv2-r); border:1px solid var(--ecv2-g200); background:var(--ecv2-g50); width:100%; max-width:560px; max-height:200px; overflow-y:auto; justify-content:flex-start; align-content:flex-start; }
 .ecst-multi .ecst-pill { background:#fff; }
-.ecst-multi .ecst-pill { border:1px solid var(--ecv2-g300); border-radius:999px; padding:3px 10px; font-size:12px; }
+.ecst-multi .ecst-pill { border:1px solid var(--ecv2-g300); border-radius:999px; padding:3px 10px; font-size:12px; box-shadow:none; }
+/* 6.0.2: multi-choice pills wait for Save changes while the switches around them save at once */
+.ecst-multi-hint { flex:1 1 100%; font-size:11.5px; color:var(--ecv2-g500); }
+/* 6.0.2: a note shown while a field it names is empty ( data-ecst-needs, e.g. reCAPTCHA without its keys ); its row takes no room once it hides */
+.ecst-needs-note { margin:0; padding:8px 12px; border-radius:var(--ecv2-rs, 6px); background:var(--ecv2-amber-light, #fef3c7); color:#92400e; font-size:12.5px; line-height:1.45; }
+.ecst-needs-note[hidden] { display:none; }
+.ecst-row.ecst-type-html:has( > .ecst-row-html > [data-ecst-needs][hidden]:only-child ) { display:none; }
 .ecst-multi .ecst-pill.is-on { border-color:var(--ecst-accent); }
 .ecst-type-multiselect .ecst-row-control { align-items:flex-start; }
 /* pairs ( key=value list editor, e.g. exchange rates ) */
@@ -253,6 +267,11 @@
 .ecst-action .ecst-action-text .ecst-action-result.is-bad { color:#b91c1c; }
 .ecst-action .ecst-action-text .ecst-action-result.is-bad::before { content:"\2715\00a0"; }
 .ecst-action .ecv2-btn.is-busy { opacity:.7; cursor:progress; }
+/* 6.0.2: an action in a drawer ( under its rows ) and an action's text box ( Test Vatlayer ). */
+.ecst-action.is-in-drawer { padding:14px 20px; }
+.ecst-action-input { flex:0 1 200px; min-width:0; margin-left:auto; }
+.ecst-action-input + .ecv2-btn { flex:none; }
+@media ( max-width:600px ) { .ecst-action:has( .ecst-action-input ) { flex-wrap:wrap; } .ecst-action-input { flex:1 1 100%; margin-left:0; } }
 .ecst-btn-danger { border-color:#fca5a5; color:#b91c1c; background:#fff; }
 .ecst-btn-danger:hover { background:#fee2e2; }
 .ecst-btn-ghost { border-color:transparent; background:transparent; color:#e5e7eb; }
@@ -263,6 +282,35 @@
 /* save bar */
 .ecst-savebar { position:sticky; bottom:0; z-index:30; margin:8px -2px 0; padding:10px 18px; background:var(--ecv2-g900); color:#fff; display:flex; align-items:center; gap:12px; border-radius:var(--ecv2-r) var(--ecv2-r) 0 0; box-shadow:0 -6px 20px -8px rgba(0,0,0,.35); }
 .ecst-savebar[hidden] { display:none; }
+
+/* 6.0.2: side drawers for rows declared with 'drawer' ( the Payments drawer's look ) */
+.ecst-drawer-backdrop { position:fixed; inset:0; background:rgba(17,24,39,.35); z-index:100000; }
+.ecst-drawer { position:fixed; top:0; right:0; bottom:0; width:560px; max-width:100vw; background:#fff; z-index:100001; display:flex; flex-direction:column; box-shadow:-10px 0 30px rgba(17,24,39,.18); }
+.ecst-drawer[hidden], .ecst-drawer-backdrop[hidden] { display:none; }
+body.admin-bar .ecst-drawer { top:32px; }
+.ecst-drawer-h { display:flex; align-items:flex-start; gap:10px; padding:14px 18px; border-bottom:1px solid var(--ecv2-g200); }
+.ecst-drawer-titles { flex:1; min-width:0; display:grid; gap:2px; }
+.ecst-drawer-titles h3 { margin:0; font-size:16px; color:var(--ecv2-g900); }
+.ecst-drawer-titles span { font-size:12.5px; color:var(--ecv2-g500); }
+.ecst-drawer-x { border:0; background:transparent; font-size:22px; line-height:1; color:var(--ecv2-g400); cursor:pointer; padding:2px 6px; border-radius:var(--ecv2-rs, 6px); }
+.ecst-drawer-x:hover { color:var(--ecv2-g700); background:var(--ecv2-g100); }
+.ecst-drawer-b { flex:1; overflow:auto; }
+.ecst-drawer-b .ecst-row { --ecst-control-w:min(280px, 50%); }
+.ecst-drawer .ecst-row.is-advanced:not(.is-shown) { display:grid; }
+.ecst-drawer .ecst-row.is-advanced[hidden] { display:none; }
+.ecst-drawer-f { display:flex; gap:8px; align-items:center; padding:12px 18px; border-top:1px solid var(--ecv2-g200); background:var(--ecv2-g50); }
+body.ecst-drawer-open { overflow:hidden; }
+/* A service row that opens a drawer: name, what it does, its state, Edit. */
+.ecst-svc { display:flex; align-items:center; gap:12px; width:100%; }
+.ecst-svc-text { flex:1; min-width:0; display:grid; gap:2px; }
+.ecst-svc-text b { font-size:13.5px; color:var(--ecv2-g900); }
+.ecst-svc-text span { font-size:12.5px; color:var(--ecv2-g500); }
+.ecst-svc .ecv2-chip { flex:0 0 auto; }
+@media (max-width:782px) {
+	body.admin-bar .ecst-drawer { top:46px; }
+	.ecst-drawer { width:100vw; }
+	.ecst-drawer-b .ecst-row { --ecst-control-w:100%; }
+}
 .ecst-savebar b { font-weight:600; white-space:nowrap; }
 .ecst-savebar-names { color:#9ca3af; font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ecst-savebar .ecv2-btn { height:30px; }

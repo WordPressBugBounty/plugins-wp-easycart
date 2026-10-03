@@ -58,10 +58,13 @@ class ec_categories {
 		if ( isset( $categories ) && is_array( $categories ) ) {
 			for( $i = 0; $i < count( $categories ); $i++ ) {
 				if ( $categories[ $i ]->category_id == $parent_id ) {
-					return $categories[$i]->children;
+					/* 6.0.2: a category without subcategories has no children property: answer an empty list. */
+					return ( isset( $categories[ $i ]->children ) && is_array( $categories[ $i ]->children ) ) ? $categories[ $i ]->children : array();
 				} else if ( isset( $categories[ $i ]->children ) ) {
-					$subtest = $this->get_recursive_categories( $categories[ $i ]->children, $categories[$i]->parent_id );
-					if ( $subtest ) {
+					/* 6.0.2: look for the same category further down. This passed the child's own parent id, so only the
+					 * children of a top-level category were ever found. */
+					$subtest = $this->get_recursive_categories( $categories[ $i ]->children, $parent_id );
+					if ( false !== $subtest ) {
 						return $subtest;
 					}
 				}
@@ -95,6 +98,9 @@ class ec_categories {
 	}
 
 	public function print_widget_list( $categories, $depth = 0, $selected_id = 0, $store_page = '', $permalink_divider = '' ) {
+		if ( 0 == $depth && is_array( $this->all_categories ) ) {
+			wp_easycart_prime_store_posts( wp_list_pluck( $this->all_categories, 'post_id' ) ); /* 6.0.2: their links, one query */
+		}
 		if ( isset( $categories ) && is_array( $categories ) ) {
 			for ( $i = 0; $i < count( $categories ); $i++ ) {
 				$this->print_widget_item( $categories[ $i ], $depth, $selected_id, $store_page, $permalink_divider );
@@ -109,10 +115,12 @@ class ec_categories {
 	public function print_widget_item( $category, $depth, $selected_id, $store_page, $permalink_divider ) {
 		$padding = 20;
 		echo '<div style="padding-left:' . esc_attr( ( $padding * $depth ) ) . 'px;"><a href="';
+		$classic = $store_page . $permalink_divider . 'group_id=' . $category->category_id;
 		if ( ! get_option( 'ec_option_use_old_linking_style' ) ) {
-			echo esc_attr( $category->guid );
+			/* 6.0.2: the live permalink ( the stored guid keeps a renamed store page's old slug ). */
+			echo esc_attr( wp_easycart_store_post_link( $category->post_id, $classic ) );
 		} else {
-			echo esc_attr( $store_page . $permalink_divider ) . 'group_id=' . esc_attr( $category->category_id );
+			echo esc_attr( $classic );
 		}
 		echo '" class="menu_link">';
 		if ( $selected_id == $category->category_id ) {

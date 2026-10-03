@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Scheme_Color;
 use Elementor\Group_Control_Typography;
@@ -28,6 +30,9 @@ use Elementor\Wp_Easycart_Controls_Manager;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Product_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
+
 	/**
 	 * Get product widget name.
 	 */
@@ -67,18 +72,24 @@ class Wp_Easycart_Elementor_Product_Widget extends \Elementor\Widget_Base {
 	 * Enqueue product widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'owl-carousel', 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-			$scripts[] = 'wpeasycart_owl_carousel_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js', 'wpeasycart_owl_carousel_js' ) );
+	}
+
+	/**
+	 * The store stylesheet and the slider's ( 6.0.2 ).
+	 *
+	 * @return array
+	 */
+	public function get_style_depends() {
+		return $this->ec_legacy_assets( 'css', array( 'wpeasycart_css', 'wpeasycart_owl_carousel_css' ) );
 	}
 
 	/**
 	 * Setup product widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 
 		$this->start_controls_section(
 			'section_products',
@@ -503,8 +514,10 @@ class Wp_Easycart_Elementor_Product_Widget extends \Elementor\Widget_Base {
 				'label'   => esc_attr__( 'Type', 'wp-easycart' ),
 				'type'    => Controls_Manager::SELECT,
 				'default' => '',
+				/* 6.0.2: labels only ( values unchanged ). The first choice always draws Grid Type 1, centred, whatever the store's
+				 * design settings say; it was labelled "Theme Options". */
 				'options' => array(
-					''       => esc_attr__( 'Theme Options', 'wp-easycart' ),
+					''       => esc_attr__( 'Standard (Grid Type 1)', 'wp-easycart' ),
 					'custom' => esc_attr__( 'Custom', 'wp-easycart' ),
 				),
 			)
@@ -516,7 +529,9 @@ class Wp_Easycart_Elementor_Product_Widget extends \Elementor\Widget_Base {
 				'label'     => esc_attr__( 'Product Type', 'wp-easycart' ),
 				'type'      => Controls_Manager::SELECT,
 				'default'   => 'default',
+				/* 6.0.2: 'default' ( the stored default, which uses the store's product type ) had no label, so the editor showed Grid Type 1. */
 				'options'   => array(
+					'default' => esc_attr__( 'Store Default', 'wp-easycart' ),
 					'1'     => esc_attr__( 'Grid Type 1', 'wp-easycart' ),
 					'2'     => esc_attr__( 'Grid Type 2', 'wp-easycart' ),
 					'3'     => esc_attr__( 'Grid Type 3', 'wp-easycart' ),

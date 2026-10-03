@@ -1376,8 +1376,9 @@ jQuery( function( $ ) {
 				$( this ).prop( 'disabled', true );
 				catalog_ajax( { action: 'ecv2_option_assign', nonce: NONCES.osv2, option_id: option_id, product_ids: Object.keys( selected ) }, function( d ) {
 					close_modal();
-					ecv2_toast( _t( 'assigned', 'Assigned to %d products.' ).replace( '%d', d.assigned ) + ( d.stock_created ? ' ' + _t( 'stock_created', '%d variant stock rows created.' ).replace( '%d', d.stock_created ) : '' ), 'success' );
-					setTimeout( function() { window.location.reload(); }, 900 );
+					/* 6.0.2: d.message says why products were skipped ( managed by a fulfillment partner, too many variations ). */
+					ecv2_toast( _t( 'assigned', 'Assigned to %d products.' ).replace( '%d', d.assigned ) + ( d.stock_created ? ' ' + _t( 'stock_created', '%d variant stock rows created.' ).replace( '%d', d.stock_created ) : '' ) + ( d.message ? ' ' + d.message : '' ), d.message ? 'info' : 'success' );
+					setTimeout( function() { window.location.reload(); }, d.message ? 2400 : 900 );
 				}, function( msg ) { $( '#ecv2_as_go' ).prop( 'disabled', false ); ecv2_toast( msg, 'error' ); } );
 			} );
 			load();

@@ -455,3 +455,47 @@
 		$( '.ectx-canada' ).each( function() { initCanada( $( this ) ); } );
 	} );
 } )( jQuery );
+
+/* 6.0.2: Automated tax services — each service row ( TaxCloud, TaxJar ) follows what its drawer just saved. */
+( function( $ ) {
+	'use strict';
+	function value( key ) {
+		var $row = $( '#ecst-' + key );
+		if ( ! $row.length ) { return ''; }
+		if ( 'toggle' === $row.data( 'type' ) ) { return $row.find( '.ecst-input' ).is( ':checked' ) ? '1' : ''; }
+		return $.trim( String( $row.find( '.ecst-input' ).val() || '' ) );
+	}
+	function setUp( service ) {
+		if ( 'taxcloud' === service ) {
+			var id = value( 'ec_option_tax_cloud_api_id' ), key = value( 'ec_option_tax_cloud_api_key' );
+			return ( id && key ) ? 'on' : ( ( id || key ) ? 'incomplete' : 'off' );
+		}
+		if ( 'taxjar' === service ) {
+			if ( ! value( 'ec_option_tax_jar_enable' ) ) { return 'off'; }
+			return value( value( 'ec_option_tax_jar_sandbox' ) ? 'ec_option_tax_jar_sandbox_token' : 'ec_option_tax_jar_live_token' ) ? 'on' : 'incomplete';
+		}
+		return '';
+	}
+	/* 6.0.2: the service Tax service in use points at ( automatic: TaxCloud when set up, then TaxJar ), as
+	   wp_easycart_tax_providers::active_id() works it out. Without the select ( FREE only ) nothing is waiting. */
+	function inUse() {
+		if ( ! $( '#ecst-ec_option_tax_provider' ).length ) { return null; }
+		var choice = value( 'ec_option_tax_provider' );
+		if ( '' === choice ) { return 'on' === setUp( 'taxcloud' ) ? 'taxcloud' : ( 'on' === setUp( 'taxjar' ) ? 'taxjar' : 'other' ); }
+		return 'none' === choice ? '' : choice;
+	}
+	function state( service ) {
+		var s = setUp( service ), active = inUse();
+		return ( 'on' === s && null !== active && active !== service ) ? 'standby' : s;
+	}
+	$( document ).on( 'ecst:saved', function() {
+		$( '.ectx-svc[data-service]' ).each( function() {
+			var $svc = $( this ), s = state( String( $svc.data( 'service' ) ) ), texts = $svc.data( 'texts' ) || {};
+			if ( ! s || ! texts.chips || ! texts.chips[ s ] ) { return; }
+			$svc.attr( 'data-state', s );
+			$svc.find( '.ectx-svc-chip' ).attr( 'class', 'ecv2-chip ' + texts.chips[ s ][0] + ' ectx-svc-chip' ).text( texts.chips[ s ][1] );
+			$svc.find( '.ectx-svc-line' ).text( texts.chips[ s ][2] );
+			$svc.find( '[data-ecst-drawer-open]' ).text( 'off' === s ? texts.set_up : texts.edit );
+		} );
+	} );
+} )( jQuery );

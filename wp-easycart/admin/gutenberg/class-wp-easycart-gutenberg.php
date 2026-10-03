@@ -219,6 +219,7 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 					'background-type1' => __( 'Yes, Add in Background', 'wp-easycart' ),
 					'purchase-required-1' => __( 'Purchase Required for Access (only one neeeded for access if multiple selected)', 'wp-easycart' ),
 					'purchase-required-2' => __( 'Purchase Required for Access - Enter Product IDs (Comma Separated)', 'wp-easycart' ),
+					'membership-roles' => __( 'User Roles with Access (optional, any one gives access)', 'wp-easycart' ),
 					'add-to-cart' => __( 'Add to Cart', 'wp-easycart' ),
 					'no-categories' => __( 'No Categories found.', 'wp-easycart' ),
 					'categories-selected' => __( '%d categories selected', 'wp-easycart' ),
@@ -243,6 +244,7 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_menulevel3', $this->get_menu_level3_cdata() );
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_products', $this->get_products_cdata() );
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_products_model', $this->get_products_model_cdata() );
+				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_user_roles', $this->get_user_roles_cdata() );
 
 				wp_register_style( 'wp_easycart_block_css', plugins_url( 'wp-easycart/admin/gutenberg/assets/css/block.css', EC_PLUGIN_DIRECTORY ), array(), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_block_css' );
@@ -295,6 +297,17 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 		private function get_products_cdata() {
 			global $wpdb;
 			return $wpdb->get_results( 'SELECT product_id AS value, ec_product.`title` AS label FROM ec_product ORDER BY ec_product.`title` ASC LIMIT 2000' );
+		}
+
+		/**
+		 * User roles for the Membership block's roles picker ( [ec_membership userroles] compares ec_user.user_level, the role label ).
+		 *
+		 * @since 6.0.2
+		 */
+		private function get_user_roles_cdata() {
+			global $wpdb;
+			$roles = $wpdb->get_results( 'SELECT role_label AS value, role_label AS label FROM ec_role ORDER BY role_label ASC LIMIT 500' );
+			return is_array( $roles ) ? $roles : array();
 		}
 
 		/**

@@ -601,6 +601,11 @@ if ( ! function_exists( 'wp_easycart_refresh_user_history' ) ) {
 	 */
 	function wp_easycart_refresh_user_history( $user_ids ) {
 		global $wpdb;
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			/* 6.0.2: one rule everywhere ( paid orders, less refunds ), shared with checkout, refunds and Reports. */
+			wp_easycart_order_ledger::customer_totals( $user_ids );
+			return;
+		}
 		$ids = array();
 		foreach ( (array) $user_ids as $user_id ) {
 			$user_id = (int) $user_id;
@@ -653,21 +658,28 @@ function ecv2_user_backfill() {
 
 	if ( ! empty( $batch_ids ) ) {
 		$id_list = implode( ',', array_map( 'intval', $batch_ids ) );
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list is an implode of intval() ids built on the line above.
-		$wpdb->query(
-			"UPDATE ec_user u
-			 LEFT JOIN (
-				SELECT user_id, COUNT(*) AS order_count, SUM( grand_total ) AS spend, MAX( order_date ) AS last_order, MIN( order_date ) AS first_order
-				FROM ec_order WHERE user_id IN ( {$id_list} ) GROUP BY user_id
-			 ) o ON o.user_id = u.user_id
-			 SET u.completed_order_count = COALESCE( o.order_count, 0 ),
-			     u.lifetime_spend = COALESCE( o.spend, 0 ),
-			     u.last_order_date = o.last_order,
-			     u.date_created = COALESCE( u.date_created, o.first_order ),
-			     u.history_aggregates_built = 1
-			 WHERE u.user_id IN ( {$id_list} )"
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			/* 6.0.2: the totals follow the ledger's rule ( paid orders, less refunds ); this batch only adds the join dates. */
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list is an implode of intval() ids.
+			$wpdb->query( "UPDATE ec_user u INNER JOIN ( SELECT user_id, MIN( order_date ) AS first_order FROM ec_order WHERE user_id IN ( {$id_list} ) GROUP BY user_id ) o ON o.user_id = u.user_id SET u.date_created = COALESCE( u.date_created, o.first_order ) WHERE u.user_id IN ( {$id_list} )" );
+			wp_easycart_order_ledger::customer_totals( $batch_ids );
+		} else {
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $id_list is an implode of intval() ids built on the line above.
+			$wpdb->query(
+				"UPDATE ec_user u
+				 LEFT JOIN (
+					SELECT user_id, COUNT(*) AS order_count, SUM( grand_total ) AS spend, MAX( order_date ) AS last_order, MIN( order_date ) AS first_order
+					FROM ec_order WHERE user_id IN ( {$id_list} ) GROUP BY user_id
+				 ) o ON o.user_id = u.user_id
+				 SET u.completed_order_count = COALESCE( o.order_count, 0 ),
+				     u.lifetime_spend = COALESCE( o.spend, 0 ),
+				     u.last_order_date = o.last_order,
+				     u.date_created = COALESCE( u.date_created, o.first_order ),
+				     u.history_aggregates_built = 1
+				 WHERE u.user_id IN ( {$id_list} )"
+			);
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
 		wp_cache_flush();
 	}
 
@@ -793,11 +805,23 @@ function ecv2_user_bulk_edit() {
 		wp_send_json_error( array( 'message' => __( 'No changes selected.', 'wp-easycart' ) ) );
 	}
 
+	/* 6.0.2: the newsletter box before the change, so the list follows only the accounts whose box changes. */
+	$before = array();
+	if ( isset( $data['is_subscriber'] ) && class_exists( 'wp_easycart_subscribers' ) ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ids is an intval()-mapped list built above.
+		foreach ( (array) $wpdb->get_results( 'SELECT user_id, email, first_name, last_name, is_subscriber FROM ec_user WHERE user_id IN ( ' . implode( ',', $ids ) . ' )' ) as $row ) {
+			$before[ (int) $row->user_id ] = $row;
+		}
+	}
+
 	$updated = 0;
 	foreach ( $ids as $id ) {
 		$result = $wpdb->update( 'ec_user', $data, array( 'user_id' => $id ) );
 		if ( false !== $result ) {
 			$updated++;
+			if ( isset( $before[ $id ] ) && (int) $before[ $id ]->is_subscriber !== (int) $data['is_subscriber'] ) {
+				wp_easycart_subscribers::sync_account( $before[ $id ]->email, $data['is_subscriber'], wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->first_name ), ENT_QUOTES ), wp_specialchars_decode( wp_unslash( (string) $before[ $id ]->last_name ), ENT_QUOTES ), (bool) $before[ $id ]->is_subscriber );
+			}
 			do_action( 'wpeasycart_admin_user_updated', $id, $data );
 		}
 	}
@@ -853,7 +877,7 @@ function ecv2_user_quick_save() {
 	}
 
 	global $wpdb;
-	$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE user_id = %d', $user_id ) );
+	$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, email, is_subscriber FROM ec_user WHERE user_id = %d', $user_id ) );
 	if ( ! $existing ) {
 		wp_send_json_error( array( 'message' => __( 'Customer not found.', 'wp-easycart' ) ) );
 	}
@@ -894,6 +918,10 @@ function ecv2_user_quick_save() {
 	);
 	if ( false === $updated ) {
 		wp_send_json_error( array( 'message' => __( 'Could not save. Please try again.', 'wp-easycart' ) ) );
+	}
+	/* 6.0.2: the newsletter list follows the box ( and a changed email ) through ec_db, so every newsletter hook hears it. */
+	if ( class_exists( 'wp_easycart_subscribers' ) ) {
+		wp_easycart_subscribers::sync_account( $email, $data['is_subscriber'], wp_specialchars_decode( $data['first_name'], ENT_QUOTES ), wp_specialchars_decode( $data['last_name'], ENT_QUOTES ), (bool) $existing->is_subscriber, (string) $existing->email );
 	}
 	do_action( 'wpeasycart_admin_user_updated', $user_id, $data );
 	wp_cache_flush();

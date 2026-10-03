@@ -37,69 +37,98 @@ class ec_user{
 	function __construct( $email = "" ) {
 		$this->mysqli = new ec_db();
 		if ( apply_filters( 'wp_easycart_use_wordpress_user', false ) ) {
-			add_action( 'init', array( $this, 'init_wp_user' ) );
+			/* 6.0.2: made after init ( a sign-up swaps in a fresh ec_user ) it sets itself up now; before, at init priority 1. */
+			if ( did_action( 'init' ) ) {
+				$this->init_wp_user();
+			} else {
+				add_action( 'init', array( $this, 'init_wp_user' ), 1 );
+			}
 		} else {
 			$this->user_id = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0 );
 			$this->email = ( ( isset( $GLOBALS['ec_cart_data']->cart_data->email ) ) ? $GLOBALS['ec_cart_data']->cart_data->email : '' );
 			$this->init_wp_easycart_user();
+			if ( ! did_action( 'init' ) ) {
+				/* 6.0.2: an extension that loads after WP EasyCart can still turn the WordPress login on. */
+				add_action( 'init', array( $this, 'maybe_use_wp_user' ), 1 );
+			}
 		}
 	}
 
+	/**
+	 * Switches to the WordPress login when wp_easycart_use_wordpress_user was added after this object was made.
+	 *
+	 * @since 6.0.2
+	 */
+	public function maybe_use_wp_user() {
+		if ( apply_filters( 'wp_easycart_use_wordpress_user', false ) ) {
+			$this->customfields = array();
+			$this->init_wp_user();
+		}
+	}
+
+	/**
+	 * The WordPress login decides who the customer is ( WordPress User Sync ). The store account comes from
+	 * wp_easycart_wordpress_users::resolve_store_account(): the link, else the same email, else a new account, each step
+	 * filterable. An admin's Login as Customer shows that customer instead. A store account waiting for email
+	 * confirmation is not signed in.
+	 */
 	function init_wp_user() {
 		global $wpdb;
-		if ( ! is_user_logged_in() ) {
+		$cart_data = ( isset( $GLOBALS['ec_cart_data'] ) && is_object( $GLOBALS['ec_cart_data'] ) && isset( $GLOBALS['ec_cart_data']->cart_data ) && is_object( $GLOBALS['ec_cart_data']->cart_data ) ) ? $GLOBALS['ec_cart_data']->cart_data : null;
+		$previous_cart_user_id = ( $cart_data && isset( $cart_data->user_id ) ) ? (int) $cart_data->user_id : 0;
+		$wpec_user_id = 0;
+		$row = null;
+		if ( is_user_logged_in() && class_exists( 'wp_easycart_wordpress_users' ) ) {
+			$wp_user = wp_get_current_user();
+			$wpec_user_id = wp_easycart_wordpress_users::impersonating();
+			if ( ! $wpec_user_id ) {
+				$wpec_user_id = wp_easycart_wordpress_users::resolve_store_account( $wp_user );
+			}
+			if ( $wpec_user_id ) {
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, email, first_name, last_name, user_level FROM ec_user WHERE user_id = %d', (int) $wpec_user_id ) );
+				if ( ! $row || 'pending' == $row->user_level ) {
+					$wpec_user_id = 0;
+					$row = null;
+				}
+			}
+		}
+
+		if ( ! $wpec_user_id ) {
 			$this->user_id = 0;
 			$this->email = '';
-			$user = false;
-		} else {
-			$wp_user_id = get_current_user_id();
-			$wp_user = get_userdata( $wp_user_id );
-			$this->email = $wp_user->user_email;
-			$this->first_name = $wp_user->first_name;
-			$this->last_name = $wp_user->last_name;
-			$wpec_user_id = get_user_meta( $wp_user_id, 'wp_easycart_user_id', true ) ?: 0;
-			if ( ! $wpec_user_id ) {
-				$wpec_user_id = $wpdb->get_var( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s', $this->email ) );
-				if ( ! $wpec_user_id ) {
-					$this->password = bin2hex( random_bytes(16) );
-					$this->billing = new ec_address( $wp_user->first_name, $wp_user->last_name, '', '', '', '', '', '', '', '' );
-					$this->shipping = new ec_address( $wp_user->first_name, $wp_user->last_name, '', '', '', '', '', '', '', '' );
-					$this->vat_registration_number = '';
-					$this->user_level = 'shopper';
-					$this->role_id = 0;
-					$this->is_subscriber = false;
-					$this->billing_id = $this->billing->address_id;
-					$this->shipping_id = $this->shipping->address_id;
-					$this->stripe_customer_id = '';
-					$this->taxfree = false;
-					$this->freeshipping = false;
-					$this->allow_shipping_bypass = false;
-					$this->is_stripe_test_user = false;
-					$wpec_user_id = $this->mysqli->insert_user( $this->email, $this->password, $this->first_name, $this->last_name, $this->billing_id, $this->shipping_id, $this->user_level, $this->is_subscriber );
-					$this->mysqli->update_address_user_id( $this->billing_id, $wpec_user_id );
-					$this->mysqli->update_address_user_id( $this->shipping_id, $wpec_user_id );
-					if ( $wpec_user_id && function_exists( 'wp_easycart_log_user_activity' ) ) {
-						wp_easycart_log_user_activity( (int) $wpec_user_id, 'account_created', array(
-							'actor_type' => 'system',
-							'meta'       => array( 'source' => 'wordpress_sync' ),
-						) );
-					}
+			if ( $cart_data && $previous_cart_user_id ) {
+				/* The session still names a store customer the WordPress login does not: nobody is signed in to the store. */
+				$cart_data->user_id = '';
+				$cart_data->username = '';
+				$cart_data->first_name = '';
+				$cart_data->last_name = '';
+				$cart_data->email = '';
+				if ( isset( $GLOBALS['ec_cart_id'] ) && 'not-set' != $GLOBALS['ec_cart_id'] ) {
+					$GLOBALS['ec_cart_data']->save_session_to_db();
 				}
-				update_user_meta( $wp_user_id, 'wp_easycart_user_id', $wpec_user_id );
 			}
-			$previous_cart_user_id = ( isset( $GLOBALS['ec_cart_data']->cart_data->user_id ) ) ? (int) $GLOBALS['ec_cart_data']->cart_data->user_id : 0;
+			$this->init_wp_easycart_user();
+			return;
+		}
 
-			$this->user_id = $wpec_user_id;
-			$GLOBALS['ec_cart_data']->cart_data->user_id = $this->user_id;
-			$GLOBALS['ec_cart_data']->cart_data->email = $this->email;
-			$GLOBALS['ec_cart_data']->cart_data->is_guest = false;
-			$GLOBALS['ec_cart_data']->cart_data->guest_key = '';
-			$GLOBALS['ec_cart_data']->cart_data->first_name = $this->first_name;
-			$GLOBALS['ec_cart_data']->cart_data->last_name = $this->last_name;
-
-			if ( (int) $this->user_id !== $previous_cart_user_id && isset( $GLOBALS['ec_cart_id'] ) && 'not-set' != $GLOBALS['ec_cart_id'] && function_exists( 'wpeasycart_session' ) ) {
-				$GLOBALS['ec_cart_data']->save_session_to_db();
-				wpeasycart_session()->rotate_session_id();
+		$this->user_id = (int) $wpec_user_id;
+		$this->email = $row->email;
+		$this->first_name = $row->first_name;
+		$this->last_name = $row->last_name;
+		if ( $cart_data ) {
+			$cart_data->user_id = $this->user_id;
+			$cart_data->email = $this->email;
+			$cart_data->is_guest = false;
+			$cart_data->guest_key = '';
+			$cart_data->first_name = $this->first_name;
+			$cart_data->last_name = $this->last_name;
+			$cart_data->username = trim( $this->first_name . ' ' . $this->last_name );
+			if ( $this->user_id !== $previous_cart_user_id ) {
+				wp_easycart_wordpress_users::prefill_session( $this->user_id );
+				if ( isset( $GLOBALS['ec_cart_id'] ) && 'not-set' != $GLOBALS['ec_cart_id'] && function_exists( 'wpeasycart_session' ) ) {
+					$GLOBALS['ec_cart_data']->save_session_to_db();
+					wpeasycart_session()->rotate_session_id();
+				}
 			}
 		}
 		$this->init_wp_easycart_user();
@@ -208,10 +237,10 @@ class ec_user{
 		$this->mysqli->update_address_user_id( $this->billing_id, $this->user_id );
 		$this->mysqli->update_address_user_id( $this->shipping_id, $this->user_id );
 
-		// MyMail Hook
-		if( function_exists( 'mailster' ) ){
+		// MyMail Hook. 6.0.2: only for a newsletter opt-in.
+		if ( $this->is_subscriber && function_exists( 'mailster' ) ) {
 			$subscriber_id = mailster('subscribers')->add(array(
-				'fistname' => $this->first_name,
+				'firstname' => $this->first_name,
 				'lastname' => $this->last_name,
 				'email' => $this->email,
 				'status' => 1,

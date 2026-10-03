@@ -1,0 +1,1256 @@
+/*
+ * WP EasyCart shop widgets for Elementor ( 6.0.2 ): Products, Product Carousel, Product Categories, Shop, quick view.
+ *
+ * Colours read the store-wide variables ( Site Settings › WP EasyCart: --wpec-price-color, --wpec-button-bg … ) and fall
+ * back to the kit's global colours and fonts. A widget's Style controls set the same variables on the widget, so no rule
+ * here declares a variable a control sets ( it would win over the inherited value ). Layout uses CSS grid and logical
+ * properties ( right-to-left sites mirror by themselves ).
+ */
+
+.wpec-sr-only {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+.wpec-el-hint {
+	margin: 0 0 12px;
+	padding: 8px 12px;
+	border-inline-start: 3px solid #92003b;
+	background: #fdf2f7;
+	color: #444;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------ Lists */
+
+.wpec-products {
+	--wpec-columns: 4;
+	--wpec-col-gap: var( --wpec-gap, 24px );
+	--wpec-row-gap: 32px;
+	--wpec-card-align: start;
+}
+
+@media ( max-width: 1024px ) {
+	.wpec-products {
+		--wpec-columns: 3;
+	}
+}
+
+@media ( max-width: 767px ) {
+	.wpec-products {
+		--wpec-columns: 2;
+	}
+}
+
+.wpec-products__grid {
+	display: grid;
+	grid-template-columns: repeat( var( --wpec-columns ), minmax( 0, 1fr ) );
+	gap: var( --wpec-row-gap ) var( --wpec-col-gap );
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-products__grid > li {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-products__grid > li::before,
+.wpec-products__grid > li::marker {
+	content: none;
+}
+
+.wpec-products__header {
+	margin-bottom: 24px;
+}
+
+.wpec-products__heading {
+	margin: 0;
+}
+
+.wpec-products__heading a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-products__desc,
+.wpec-products__empty {
+	margin: 8px 0 0;
+	color: var( --wpec-muted-color, #6b6b6b );
+}
+
+.wpec-products__empty {
+	margin: 0;
+}
+
+/* ------------------------------------------------------------------ Card */
+
+.wpec-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	text-align: var( --wpec-card-align, start );
+}
+
+.wpec-card__media {
+	position: relative;
+	aspect-ratio: var( --wpec-image-ratio, 1 / 1 );
+	overflow: hidden;
+	border-radius: var( --wpec-radius, 0 );
+	background-color: #f5f5f5;
+}
+
+.wpec-card__image-link {
+	position: relative;
+	display: block;
+	height: 100%;
+}
+
+.wpec-card__media .wpec-card__image {
+	display: block;
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	margin: 0;
+	border-radius: 0;
+	object-fit: var( --wpec-image-fit, cover );
+	transition: opacity 0.3s ease, transform 0.4s ease;
+}
+
+.wpec-card__media .wpec-card__image--hover {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+}
+
+@media ( hover: hover ) {
+	.wpec-card:hover .wpec-card__image--hover,
+	.wpec-card:focus-within .wpec-card__image--hover {
+		opacity: 1;
+	}
+}
+
+.wpec-card__badges {
+	position: absolute;
+	z-index: 2;
+	top: var( --wpec-badge-offset, 10px );
+	inset-inline-start: var( --wpec-badge-offset, 10px );
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	pointer-events: none;
+}
+
+/* An offer's badge ( Offers ) sits in the row with the others instead of its classic tile corner. */
+.wpec-card__badges .ec_offer_product_badge {
+	position: static;
+}
+
+/* Scoped to the cards' badge row: the Product Badges widget has its own .wpec-badge rules ( both load in the editor ). */
+:where( .wpec-card__badges ) .wpec-badge {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 2px;
+	background: var( --wpec-badge-bg, var( --e-global-color-accent, #1d1d1d ) );
+	color: var( --wpec-badge-color, #fff );
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+
+:where( .wpec-card__badges ) .wpec-badge--sale {
+	background: var( --wpec-badge-sale-bg, var( --wpec-badge-bg, var( --wpec-sale-price-color, #b3261e ) ) );
+	color: var( --wpec-badge-sale-color, var( --wpec-badge-color, #fff ) );
+}
+
+:where( .wpec-card__badges ) .wpec-badge--sold-out {
+	background: var( --wpec-badge-sold-out-bg, var( --wpec-muted-color, #5f5f5f ) );
+	color: var( --wpec-badge-sold-out-color, var( --wpec-badge-color, #fff ) );
+}
+
+:where( .wpec-card__badges ) .wpec-badge--tag {
+	background: var( --wpec-tag-bg, var( --wpec-badge-bg, #1d1d1d ) );
+	color: var( --wpec-tag-color, var( --wpec-badge-color, #fff ) );
+}
+
+.wpec-card__quick-view {
+	position: absolute;
+	z-index: 2;
+	right: 10px;
+	bottom: 10px;
+	left: 10px;
+	min-height: 40px;
+	padding: 8px 12px;
+	border: 0;
+	border-radius: var( --wpec-button-radius, var( --wpec-radius, 0 ) );
+	background: rgba( 255, 255, 255, 0.95 );
+	color: #1d1d1d;
+	font: inherit;
+	font-size: 14px;
+	cursor: pointer;
+	opacity: 0;
+	transform: translateY( 6px );
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.wpec-card:hover .wpec-card__quick-view,
+.wpec-card__quick-view:focus-visible {
+	opacity: 1;
+	transform: none;
+}
+
+.wpec-card__quick-view:focus-visible {
+	outline: 2px solid #1d1d1d;
+	outline-offset: 2px;
+}
+
+@media ( hover: none ) {
+	/* As the store's own list: no quick view on touch screens, the product page is one tap away. */
+	.wpec-card__quick-view {
+		display: none;
+	}
+}
+
+.wpec-card__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 6px;
+	padding: 14px 0 0;
+}
+
+.wpec-card__category {
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.8em;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.wpec-card__title {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.35;
+}
+
+.wpec-card__title a {
+	color: var( --e-global-color-text, inherit );
+	text-decoration: none;
+}
+
+.wpec-card__title a:hover {
+	text-decoration: underline;
+}
+
+.wpec-card a:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+.wpec-card__rating {
+	display: flex;
+	align-items: center;
+	justify-content: var( --wpec-card-align, start );
+	gap: 6px;
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.85em;
+}
+
+.wpec-stars {
+	display: inline-block;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: var( --wpec-star-size, 14px );
+	line-height: 1;
+	letter-spacing: 1px;
+}
+
+.wpec-stars::before {
+	content: "\2605\2605\2605\2605\2605";
+	background: linear-gradient( 90deg, var( --wpec-star-color, #e8a317 ) var( --wpec-rating, 0% ), var( --wpec-star-empty-color, #d4d4d4 ) var( --wpec-rating, 0% ) );
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.wpec-card__price,
+.wpec-qv__price {
+	color: var( --wpec-price-color, var( --e-global-color-text, inherit ) );
+	font-family: var( --wpec-price-font-family, inherit );
+	font-weight: var( --wpec-price-font-weight, 600 );
+}
+
+/* The Product Price widget's .wpec-price is a flex column; a card's price follows the card's alignment. */
+.wpec-card__price.wpec-price,
+.wpec-qv__price.wpec-price {
+	display: block;
+	text-align: inherit;
+}
+
+.wpec-price__regular {
+	margin-inline-end: 6px;
+	color: var( --wpec-regular-price-color, var( --wpec-muted-color, #767676 ) );
+	font-weight: 400;
+	text-decoration: line-through;
+}
+
+.wpec-price__current--sale {
+	background: none;
+	color: var( --wpec-sale-price-color, var( --wpec-price-color, #b3261e ) );
+	text-decoration: none;
+}
+
+/* .wpec-price__note is also the Product Price widget's login message: only the cards' notes are muted here. */
+:where( .wpec-card__price, .wpec-qv__price ) .wpec-price__label,
+:where( .wpec-card__price, .wpec-qv__price ) .wpec-price__note {
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.85em;
+	font-weight: 400;
+}
+
+.wpec-card__swatches {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: var( --wpec-card-align, start );
+	gap: 6px;
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-card__swatches li {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-swatch {
+	display: block;
+	line-height: 0;
+}
+
+.wpec-card__swatches .wpec-swatch img {
+	display: block;
+	width: var( --wpec-swatch-size, 20px );
+	max-width: none;
+	height: var( --wpec-swatch-size, 20px );
+	border: 1px solid var( --wpec-border-color, rgba( 0, 0, 0, 0.15 ) );
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.wpec-card__swatches-more {
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.8em;
+}
+
+.wpec-card__excerpt {
+	margin: 0;
+	color: var( --wpec-muted-color, #555 );
+	font-size: 0.9em;
+}
+
+.wpec-card__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: var( --wpec-card-align, start );
+	gap: 8px 12px;
+	margin-top: auto;
+	padding-top: 8px;
+}
+
+.wpec-button-full-yes .wpec-card__actions .wpec-button {
+	flex: 1 1 100%;
+	width: 100%;
+}
+
+.wpec-card__note {
+	margin: 0;
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.9em;
+}
+
+.wpec-view-cart {
+	color: inherit;
+	font-size: 0.9em;
+	text-decoration: underline;
+}
+
+.wpec-card.is-out-of-stock .wpec-card__media .wpec-card__image {
+	opacity: 0.7;
+}
+
+/* Not carried at the shopper's pickup location ( "Show but disable purchase" ). */
+.wpec-card.is-unavailable .wpec-card__media {
+	opacity: 0.4;
+}
+
+/* ------------------------------------------------------------------ Buttons */
+
+/* The search button carries .wpec-button too and is drawn by search.css: these rules leave it alone. */
+:where( :not( .wpec-search__button ) ).wpec-button {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 10px 18px;
+	border: 1px solid transparent;
+	border-radius: var( --wpec-button-radius, var( --wpec-radius, 0 ) );
+	background-color: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	color: var( --wpec-button-color, #fff );
+	font-family: var( --wpec-button-font-family, var( --e-global-typography-accent-font-family, inherit ) );
+	font-size: var( --wpec-button-font-size, 15px );
+	font-weight: var( --wpec-button-font-weight, 600 );
+	line-height: 1.2;
+	letter-spacing: var( --wpec-button-letter-spacing, normal );
+	text-align: center;
+	text-decoration: none;
+	text-transform: var( --wpec-button-text-transform, none );
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+:where( :not( .wpec-search__button ) ).wpec-button:hover,
+:where( :not( .wpec-search__button ) ).wpec-button:focus-visible {
+	background-color: var( --wpec-button-hover-bg, var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) ) );
+	color: var( --wpec-button-hover-color, var( --wpec-button-color, #fff ) );
+	text-decoration: none;
+}
+
+:where( :not( .wpec-search__button ) ).wpec-button:focus-visible {
+	outline: 2px solid var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	outline-offset: 2px;
+}
+
+.wpec-button--secondary {
+	border-color: currentColor;
+	background-color: transparent;
+	color: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+}
+
+.wpec-button--secondary:hover,
+.wpec-button--secondary:focus-visible {
+	border-color: var( --wpec-button-hover-bg, var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) ) );
+	background-color: var( --wpec-button-hover-bg, var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) ) );
+	color: var( --wpec-button-hover-color, var( --wpec-button-color, #fff ) );
+}
+
+.wpec-button.is-loading {
+	color: transparent !important;
+	pointer-events: none;
+}
+
+.wpec-button.is-loading::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 18px;
+	height: 18px;
+	margin: -9px 0 0 -9px;
+	border: 2px solid var( --wpec-button-color, #fff );
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: wpec-spin 0.7s linear infinite;
+}
+
+.wpec-button--secondary.is-loading::after {
+	border-color: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	border-right-color: transparent;
+}
+
+@keyframes wpec-spin {
+	to {
+		transform: rotate( 360deg );
+	}
+}
+
+/* ------------------------------------------------------------------ Page numbers, load more */
+
+.wpec-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 32px;
+}
+
+.wpec-pagination a,
+.wpec-pagination [aria-current] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 40px;
+	min-height: 40px;
+	padding: 0 10px;
+	border: 1px solid var( --wpec-border-color, #d9d9d9 );
+	border-radius: var( --wpec-radius, 0 );
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-pagination a:hover {
+	border-color: currentColor;
+}
+
+.wpec-pagination [aria-current] {
+	border-color: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	background-color: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	color: var( --wpec-button-color, #fff );
+	font-weight: 600;
+}
+
+.wpec-pagination__gap {
+	align-self: center;
+	padding: 0 4px;
+}
+
+.wpec-products__more {
+	display: flex;
+	justify-content: center;
+	margin-top: 32px;
+}
+
+/* ------------------------------------------------------------------ Carousel */
+
+.wpec-carousel__stage {
+	position: relative;
+}
+
+.wpec-carousel__viewport {
+	position: relative;
+	overflow: hidden;
+}
+
+/* Before the script ( or without Swiper ): a scroll-snap row the width of the chosen number of products. */
+.wpec-carousel__track {
+	display: grid;
+	grid-auto-columns: calc( ( 100% - ( var( --wpec-columns ) - 1 ) * var( --wpec-col-gap ) ) / var( --wpec-columns ) );
+	grid-auto-flow: column;
+	gap: var( --wpec-col-gap );
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scroll-snap-type: x mandatory;
+	scrollbar-width: none;
+}
+
+.wpec-carousel__track::-webkit-scrollbar {
+	display: none;
+}
+
+.wpec-carousel__slide {
+	min-width: 0;
+	scroll-snap-align: start;
+}
+
+.wpec-carousel.is-swiper .wpec-carousel__track {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	box-sizing: content-box;
+	width: 100%;
+	gap: 0;
+	overflow: visible;
+	scroll-snap-type: none;
+	transition-property: transform;
+}
+
+.wpec-carousel.is-swiper .wpec-carousel__slide {
+	position: relative;
+	flex-shrink: 0;
+	height: auto;
+	transition-property: transform;
+}
+
+.wpec-carousel .swiper-notification {
+	position: absolute;
+	z-index: -1000;
+	top: 0;
+	left: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.wpec-carousel__arrow {
+	position: absolute;
+	z-index: 3;
+	top: 35%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var( --wpec-arrow-size, 40px );
+	height: var( --wpec-arrow-size, 40px );
+	margin-top: calc( var( --wpec-arrow-size, 40px ) / -2 );
+	padding: 0;
+	border: 1px solid var( --wpec-border-color, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 50%;
+	background: var( --wpec-arrow-bg, rgba( 255, 255, 255, 0.95 ) );
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.12 );
+	color: var( --wpec-arrow-color, var( --e-global-color-text, #1d1d1d ) );
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.wpec-carousel__arrow:hover,
+.wpec-carousel__arrow:focus-visible {
+	background: var( --wpec-arrow-hover-bg, #fff );
+	color: var( --wpec-arrow-hover-color, var( --wpec-arrow-color, var( --e-global-color-accent, #1d1d1d ) ) );
+}
+
+.wpec-carousel__arrow:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+.wpec-carousel__arrow svg {
+	width: 45%;
+	height: 45%;
+}
+
+.wpec-carousel__arrow--prev {
+	inset-inline-start: 8px;
+}
+
+.wpec-carousel__arrow--prev svg {
+	transform: scaleX( -1 );
+}
+
+.wpec-carousel__arrow--next {
+	inset-inline-end: 8px;
+}
+
+[dir="rtl"] .wpec-carousel__arrow--prev svg {
+	transform: none;
+}
+
+[dir="rtl"] .wpec-carousel__arrow--next svg {
+	transform: scaleX( -1 );
+}
+
+.wpec-carousel__arrow.is-disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.wpec-carousel__arrow.swiper-button-lock,
+.wpec-carousel__dots.swiper-pagination-lock {
+	display: none !important;
+}
+
+.wpec-carousel__footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.wpec-carousel__footer:empty {
+	display: none;
+}
+
+.wpec-carousel__dots {
+	position: static !important;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	width: auto !important;
+}
+
+.wpec-carousel__dots .swiper-pagination-bullet {
+	display: inline-block;
+	box-sizing: content-box;
+	width: 10px;
+	height: 10px;
+	margin: 0 !important;
+	border: 7px solid transparent;
+	border-radius: 50%;
+	background: var( --wpec-dot-color, rgba( 0, 0, 0, 0.25 ) );
+	background-clip: padding-box;
+	opacity: 1;
+	cursor: pointer;
+}
+
+.wpec-carousel__dots .swiper-pagination-bullet-active {
+	background-color: var( --wpec-dot-active-color, var( --e-global-color-accent, #1d1d1d ) );
+}
+
+.wpec-carousel__dots .swiper-pagination-bullet:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -4px;
+}
+
+.wpec-carousel.is-scroll .wpec-carousel__dots {
+	display: none !important;
+}
+
+.wpec-carousel__pause {
+	min-height: 32px;
+	padding: 4px 12px;
+	border: 1px solid var( --wpec-border-color, rgba( 0, 0, 0, 0.2 ) );
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ Quick view */
+
+.wpec-qv-dialog {
+	width: min( 920px, calc( 100vw - 32px ) );
+	max-width: none;
+	max-height: calc( 100vh - 32px );
+	padding: 0;
+	overflow: auto;
+	border: 0;
+	border-radius: var( --wpec-radius, 8px );
+	background: #fff;
+	box-shadow: 0 20px 60px rgba( 0, 0, 0, 0.25 );
+	color: var( --e-global-color-text, #1d1d1d );
+	text-align: start;
+}
+
+.wpec-qv-dialog::backdrop {
+	background: rgba( 0, 0, 0, 0.5 );
+}
+
+.wpec-qv-dialog.is-fallback {
+	position: fixed;
+	z-index: 100000;
+	inset: 0;
+	margin: auto;
+}
+
+.wpec-qv-dialog__panel {
+	position: relative;
+	padding: 24px;
+}
+
+.wpec-qv-dialog__close {
+	position: absolute;
+	z-index: 2;
+	top: 8px;
+	inset-inline-end: 8px;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	font-size: 28px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.wpec-qv-dialog__close:focus-visible {
+	outline: 2px solid currentColor;
+}
+
+.wpec-qv-dialog__loading {
+	margin: 40px 0;
+	text-align: center;
+}
+
+.wpec-qv {
+	display: grid;
+	grid-template-columns: minmax( 0, var( --wpec-qv-media, 1fr ) ) minmax( 0, 1fr );
+	align-items: start;
+	gap: 32px;
+}
+
+.wpec-qv__media {
+	position: relative;
+	aspect-ratio: 1 / 1;
+	overflow: hidden;
+	border-radius: var( --wpec-radius, 0 );
+	background: #f5f5f5;
+}
+
+.wpec-qv .wpec-qv__image {
+	display: block;
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	object-fit: contain;
+}
+
+.wpec-qv__title {
+	margin: 0 40px 8px 0;
+	font-size: 1.5rem;
+	line-height: 1.25;
+}
+
+.wpec-qv__title a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-qv .wpec-card__rating {
+	justify-content: flex-start;
+	margin-bottom: 8px;
+}
+
+.wpec-qv__price {
+	margin: 8px 0 12px;
+	font-size: 1.25rem;
+}
+
+.wpec-qv__excerpt {
+	margin-bottom: 16px;
+	color: var( --wpec-muted-color, #555 );
+}
+
+.wpec-qv__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.wpec-qty {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.85em;
+}
+
+.wpec-qty__input {
+	width: 84px;
+	min-height: 44px;
+	padding: 8px;
+	border: 1px solid var( --wpec-border-color, #c8c8c8 );
+	border-radius: var( --wpec-radius, 0 );
+	font: inherit;
+}
+
+.wpec-qv__details {
+	color: inherit;
+	text-decoration: underline;
+}
+
+@media ( max-width: 640px ) {
+	.wpec-qv {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 16px;
+	}
+
+	.wpec-qv-dialog__panel {
+		padding: 16px;
+	}
+}
+
+/* ------------------------------------------------------------------ Shop */
+
+.wpec-shop {
+	container-type: inline-size;
+}
+
+.wpec-shop__layout {
+	display: grid;
+	grid-template-columns: minmax( 0, 1fr );
+	gap: 32px;
+}
+
+.wpec-shop--filters .wpec-shop__layout {
+	grid-template-columns: var( --wpec-filters-width, 260px ) minmax( 0, 1fr );
+}
+
+.wpec-shop--filters-right .wpec-shop__layout {
+	grid-template-columns: minmax( 0, 1fr ) var( --wpec-filters-width, 260px );
+}
+
+.wpec-shop--filters-right .wpec-shop__filters {
+	order: 2;
+}
+
+.wpec-shop__banner {
+	margin: 0 0 20px;
+	padding: 12px 16px;
+	border-radius: var( --wpec-radius, 0 );
+	background: #fff8e1;
+}
+
+.wpec-shop__toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 20px;
+	margin-bottom: 20px;
+}
+
+.wpec-shop__count {
+	margin: 0;
+	margin-inline-end: auto;
+	color: var( --wpec-muted-color, #6b6b6b );
+}
+
+.wpec-shop__sort {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+/* Style › Toolbar › Hide the "Sort by" label: it stays for screen readers. */
+.wpec-sort-label-hide-yes .wpec-shop__sort label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+.wpec-shop__sort select,
+.wpec-shop__filters-toggle {
+	min-height: 40px;
+	border: 1px solid var( --wpec-border-color, #c8c8c8 );
+	border-radius: var( --wpec-radius, 0 );
+	font: inherit;
+}
+
+.wpec-shop__sort select {
+	padding: 6px 10px;
+	background-color: #fff;
+	color: inherit;
+}
+
+/* The Sort button stays ( keyboard users ), the height of the menu beside it. */
+.wpec-shop__sort .wpec-shop__sort-submit {
+	min-height: 40px;
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+
+.wpec-shop__filters-toggle {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 14px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.wpec-shop__chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 20px;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-shop__chips li {
+	margin: 0;
+	list-style: none;
+}
+
+.wpec-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	background: #f1f1f1;
+	color: inherit;
+	font-size: 0.9em;
+	text-decoration: none;
+}
+
+.wpec-chip:hover .wpec-chip__x,
+.wpec-chip:focus-visible .wpec-chip__x {
+	opacity: 1;
+}
+
+.wpec-chip__x {
+	font-size: 1.2em;
+	line-height: 1;
+	opacity: 0.6;
+}
+
+.wpec-shop__clear {
+	color: inherit;
+	font-size: 0.9em;
+	text-decoration: underline;
+}
+
+.wpec-shop__filter {
+	margin-bottom: var( --wpec-filter-gap, 24px );
+}
+
+.wpec-shop__filter-title {
+	margin: 0 0 10px;
+	font-size: 1rem;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.wpec-shop__filter-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.wpec-shop__filter-list li {
+	margin: 0;
+	list-style: none;
+}
+
+.wpec-shop__filter-list a {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 0;
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-shop__filter-list a:hover {
+	text-decoration: underline;
+}
+
+.wpec-shop__filter-list a[aria-current] {
+	font-weight: 600;
+}
+
+.wpec-shop__filter-list a[aria-current] .wpec-shop__filter-label::before {
+	content: "\2713\00a0";
+}
+
+/* Counts follow Style › Filters › Link colour ( --wpec-filter-count-color ) until a count colour is chosen. */
+.wpec-shop__filter-count {
+	margin-inline-start: auto;
+	color: var( --wpec-filter-count-color, var( --wpec-muted-color, #6b6b6b ) );
+	font-size: 0.85em;
+}
+
+.wpec-shop__filter-list .wpec-shop__filter-swatch {
+	width: 18px;
+	max-width: none;
+	height: 18px;
+	border: 1px solid rgba( 0, 0, 0, 0.15 );
+	border-radius: 50%;
+}
+
+.wpec-shop__search {
+	display: flex;
+	margin-bottom: var( --wpec-filter-gap, 24px );
+}
+
+.wpec-shop__search input {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 42px;
+	padding: 8px 12px;
+	border: 1px solid var( --wpec-border-color, #c8c8c8 );
+	border-inline-end: 0;
+	border-radius: var( --wpec-radius, 0 ) 0 0 var( --wpec-radius, 0 );
+	font: inherit;
+}
+
+.wpec-shop__search button {
+	display: flex;
+	flex: 0 0 44px;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1px solid var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	border-radius: 0 var( --wpec-radius, 0 ) var( --wpec-radius, 0 ) 0;
+	background: var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) );
+	color: var( --wpec-button-color, #fff );
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.wpec-shop__search button:hover,
+.wpec-shop__search button:focus-visible {
+	border-color: var( --wpec-button-hover-bg, var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) ) );
+	background: var( --wpec-button-hover-bg, var( --wpec-button-bg, var( --e-global-color-accent, #1d1d1d ) ) );
+	color: var( --wpec-button-hover-color, var( --wpec-button-color, #fff ) );
+}
+
+.wpec-shop__empty {
+	padding: 40px 16px;
+	border: 1px dashed var( --wpec-border-color, #d9d9d9 );
+	border-radius: var( --wpec-radius, 0 );
+	text-align: center;
+}
+
+.wpec-shop__empty p {
+	margin: 0 0 16px;
+}
+
+.wpec-shop--restricted {
+	padding: 32px 16px;
+	text-align: center;
+}
+
+/* Narrow ( a phone, or a narrow column ): the filters fold behind the Filters button. */
+@container ( max-width: 720px ) {
+	.wpec-shop--filters .wpec-shop__layout,
+	.wpec-shop--filters-right .wpec-shop__layout {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+
+	.wpec-shop__filters {
+		display: none;
+		order: 0 !important;
+	}
+
+	.wpec-shop.is-filters-open .wpec-shop__filters {
+		display: block;
+	}
+
+	.wpec-shop__filters-toggle {
+		display: inline-flex;
+	}
+}
+
+@supports not ( container-type: inline-size ) {
+	@media ( max-width: 767px ) {
+		.wpec-shop--filters .wpec-shop__layout,
+		.wpec-shop--filters-right .wpec-shop__layout {
+			grid-template-columns: minmax( 0, 1fr );
+		}
+
+		.wpec-shop__filters {
+			display: none;
+			order: 0 !important;
+		}
+
+		.wpec-shop.is-filters-open .wpec-shop__filters {
+			display: block;
+		}
+
+		.wpec-shop__filters-toggle {
+			display: inline-flex;
+		}
+	}
+}
+
+/* ------------------------------------------------------------------ Categories */
+
+.wpec-category {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+	text-align: var( --wpec-card-align, start );
+}
+
+.wpec-category__media {
+	aspect-ratio: var( --wpec-image-ratio, 1 / 1 );
+	overflow: hidden;
+	background: #f3f3f3;
+}
+
+.wpec-category .wpec-category__media img {
+	display: block;
+	width: 100%;
+	max-width: none;
+	height: 100%;
+	margin: 0;
+	border-radius: 0;
+	object-fit: cover;
+	transition: transform 0.4s ease;
+}
+
+@media ( hover: hover ) {
+	.wpec-category:hover .wpec-category__media img {
+		transform: scale( 1.04 );
+	}
+}
+
+.wpec-category__body {
+	padding: 12px 0 0;
+}
+
+.wpec-category__name {
+	margin: 0;
+	font-size: 1.05rem;
+	line-height: 1.3;
+}
+
+.wpec-category__name a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.wpec-category__name a::after {
+	content: "";
+	position: absolute;
+	z-index: 1;
+	inset: 0;
+}
+
+.wpec-category__name a:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+.wpec-category__count,
+.wpec-category__desc {
+	margin: 4px 0 0;
+	color: var( --wpec-muted-color, #6b6b6b );
+	font-size: 0.875em;
+}
+
+:where( .wpec-categories--over ) .wpec-category__body {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	padding: 16px;
+	background: linear-gradient( to top, var( --wpec-category-overlay, rgba( 0, 0, 0, 0.55 ) ), transparent );
+	color: #fff;
+}
+
+:where( .wpec-categories--over ) .wpec-category__count,
+:where( .wpec-categories--over ) .wpec-category__desc {
+	color: rgba( 255, 255, 255, 0.88 );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wpec-card__media .wpec-card__image,
+	.wpec-card__quick-view,
+	.wpec-button,
+	.wpec-carousel__arrow,
+	.wpec-category .wpec-category__media img {
+		transition: none;
+	}
+
+	.wpec-category:hover .wpec-category__media img {
+		transform: none;
+	}
+
+	.wpec-button.is-loading::after {
+		animation-duration: 1.6s;
+	}
+}

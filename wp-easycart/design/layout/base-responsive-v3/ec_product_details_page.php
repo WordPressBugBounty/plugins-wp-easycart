@@ -6,24 +6,8 @@
 } ?>
 <?php
 do_action( 'wp_easycart_product_details_before', $this->product );
-if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
-	echo "<script>
-		jQuery( document ).ready( function() {
-			setTimeout(function() {
-				fbq('track', 'ViewContent', {
-					content_name: '" . esc_attr( ucwords( strtolower( strip_tags( $this->product->title ) ) ) ) . "',
-					content_ids: ['" . esc_attr( $this->product->product_id ) . "'],
-					content_type: 'product',";
-		if ( ( ! $this->product->login_for_pricing || $this->product->is_login_for_pricing_valid() ) && ( ! $this->product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $this->product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) {
-		echo "
-					value: " . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ",
-					currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',";
-		}
-		echo "
-				});
-			}, 1000 );
-		} );
-	</script>";
+if ( function_exists( 'wp_easycart_meta_view_content' ) && ! ( function_exists( 'wp_easycart_elementor_is_editor' ) && wp_easycart_elementor_is_editor() ) ) {
+	wp_easycart_meta_view_content( $this->product ); /* 6.0.2: Meta ViewContent with event ID ( product_group for a product with variants ); never from the Elementor editor or preview */
 }
 ?>
 <?php
@@ -151,183 +135,11 @@ $GLOBALS['ec_live_editor_loaded'] = "loaded";
 ?>
 
 <?php
-/* If using Google Merchant Show Necessary META */
-if( isset( $this->product->google_attributes ) && $this->product->google_attributes != NULL && $this->product->google_attributes != "" ){
-	$google_attributes = json_decode( $this->product->google_attributes );
-}else{
-	$google_attributes = false;
-}
-$first_image_url = '';
-$first_image_found = false;
-if ( $this->product->use_optionitem_images ) {
-	/* 6.0.1: one rule for the first image set ( ec_product::get_details_initial_imageset_id() ); 0 is the default images. */
-	$first_optionitem_id = $this->product->get_details_initial_imageset_id();
-	if ( false !== $first_optionitem_id ) {
-		for ( $i = 0; $i < count( $this->product->images->imageset ); $i++ ) {
-			if ( ! $first_image_found && ( (int) $this->product->images->imageset[$i]->optionitem_id === (int) $first_optionitem_id ) ) {
-				if ( count( $this->product->images->imageset[$i]->product_images ) > 0 ) {
-					if( 'video:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-						$video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
-						$video_arr = explode( ':::', $video_str );
-						if ( count( $video_arr ) >= 2 ) {
-							$first_image_url = $video_arr[1];
-							$first_image_found = true;
-						}
-					} else if( 'youtube:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 8 ) ) {
-						$youtube_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 8, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 8 );
-						$youtube_video_arr = explode( ':::', $youtube_video_str );
-						if ( count( $youtube_video_arr ) >= 2 ) {
-							$first_image_url = $youtube_video_arr[1];
-							$first_image_found = true;
-						}
-					} else if( 'vimeo:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-						$vimeo_video_str = substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 );
-						$vimeo_video_arr = explode( ':::', $vimeo_video_str );
-						if ( count( $vimeo_video_arr ) >= 2 ) {
-							$first_image_url = $vimeo_video_arr[1];
-							$first_image_found = true;
-						}
-					} else {
-						if ( 'image1' == $this->product->images->imageset[$i]->product_images[0] ) {
-							$first_image_url = $this->product->get_first_image_url();
-							$first_image_found = true;
-						} else if( 'image2' == $this->product->images->imageset[$i]->product_images[0] ) {
-							$first_image_url = $this->product->get_second_image_url();
-							$first_image_found = true;
-						} else if( 'image3' == $this->product->images->imageset[$i]->product_images[0] ) {
-							$first_image_url = $this->product->get_third_image_url();
-							$first_image_found = true;
-						} else if( 'image4' == $this->product->images->imageset[$i]->product_images[0] ) {
-							$first_image_url = $this->product->get_fourth_image_url();
-							$first_image_found = true;
-						} else if( 'image5' == $this->product->images->imageset[$i]->product_images[0] ) {
-							$first_image_url = $this->product->get_fifth_image_url();
-							$first_image_found = true;
-						} else if( 'image:' == substr( $this->product->images->imageset[$i]->product_images[0], 0, 6 ) ) {
-							$first_image_url = esc_attr( apply_filters('wp_easycart_product_details_image_url_type', substr( $this->product->images->imageset[$i]->product_images[0], 6, strlen( $this->product->images->imageset[$i]->product_images[0] ) - 6 ) ) );
-							$first_image_found = true;
-						} else {
-							$product_image_media = wp_get_attachment_image_src( $this->product->images->imageset[$i]->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'medium_large' ) );
-							if ( $product_image_media && isset( $product_image_media[0] ) ) {
-								$first_image_url = $product_image_media[0];
-								$first_image_found = true;
-							}
-						}
-					} // close check for video
-				} else {
-					if ( 0 !== (int) $this->product->images->imageset[$i]->optionitem_id || '' !== trim( (string) $this->product->images->imageset[$i]->image1 ) ) {
-						$first_image_url = $this->product->get_first_image_url();
-						$first_image_found = true;
-					}
-				}
-			}
-		}
-	}
-} else {
-	if ( count( $this->product->images->product_images ) > 0  && 'video:' == substr( $this->product->images->product_images[0], 0, 6 ) ) {
-		$video_str = substr( $this->product->images->product_images[0], 6, strlen( $this->product->images->product_images[0] ) - 6 );
-		$video_arr = explode( ':::', $video_str );
-		if ( count( $video_arr ) >= 2 ) {
-			$first_image_url = $video_arr[1];
-			$first_image_found = true;
-		}
-	} else if( count( $this->product->images->product_images ) > 0  && 'youtube:' == substr( $this->product->images->product_images[0], 0, 8 ) ) {
-		$youtube_video_str = substr( $this->product->images->product_images[0], 8, strlen( $this->product->images->product_images[0] ) - 8 );
-		$youtube_video_arr = explode( ':::', $youtube_video_str );
-		if ( count( $youtube_video_arr ) >= 2 ) {
-			$first_image_url = $youtube_video_arr[1];
-			$first_image_found = true;
-		}
-	} else if( count( $this->product->images->product_images ) > 0  && 'vimeo:' == substr( $this->product->images->product_images[0], 0, 6 ) ) {
-		$vimeo_video_str = substr( $this->product->images->product_images[0], 6, strlen( $this->product->images->product_images[0] ) - 6 );
-		$vimeo_video_arr = explode( ':::', $vimeo_video_str );
-		if ( count( $vimeo_video_arr ) >= 2 ) {
-			$first_image_url = $vimeo_video_arr[1];
-			$first_image_found = true;
-		}
-	} else {
-		if ( count( $this->product->images->product_images ) > 0 ) {
-			if ( 'image1' == $this->product->images->product_images[0] ) {
-				$first_image_url = $this->product->get_first_image_url();
-				$first_image_found = true;
-			} else if( 'image2' == $this->product->images->product_images[0] ) {
-				$first_image_url = $this->product->get_second_image_url();
-				$first_image_found = true;
-			} else if( 'image3' == $this->product->images->product_images[0] ) {
-				$first_image_url = $this->product->get_third_image_url();
-				$first_image_found = true;
-			} else if( 'image4' == $this->product->images->product_images[0] ) {
-				$first_image_url = $this->product->get_fourth_image_url();
-				$first_image_found = true;
-			} else if( 'image5' == $this->product->images->product_images[0] ) {
-				$first_image_url = $this->product->get_fifth_image_url();
-				$first_image_found = true;
-			} else if( 'image:' == substr( $this->product->images->product_images[0], 0, 6 ) ) {
-				$first_image_url = apply_filters('wp_easycart_product_details_image_url_type', substr( $this->product->images->product_images[0], 6, strlen( $this->product->images->product_images[0] ) - 6 ) );
-				$first_image_found = true;
-			} else {
-				$product_image_media = wp_get_attachment_image_src( $this->product->images->product_images[0], apply_filters( 'wp_easycart_product_details_full_size', 'medium_large' ) );
-				if ( $product_image_media && isset( $product_image_media[0] ) ) {
-					$first_image_url = $product_image_media[0];
-				$first_image_found = true;
-				}
-			}
-		}
-	}
-}
-if ( ! $first_image_found ) {
-	$first_image_url = $this->product->get_first_image_url();
+/* 6.0.2: product data for search engines and AI assistants ( wp_easycart_product_schema, printed once per product ). */
+if ( class_exists( 'wp_easycart_product_schema' ) ) {
+	wp_easycart_product_schema::print_for( $this->product );
 }
 ?>
-<script type="application/ld+json">
-{
-	"@context": "http://schema.org",
-	"@type": "Product",
-	"offers": {
-		"@type": "Offer",
-		"url": <?php echo wp_json_encode( esc_url( $this->product->get_product_link() ) ); ?>,
-		"availability": "<?php echo ( !$this->product->show_stock_quantity || $this->product->stock_quantity > 0 ) ? 'InStock' : 'OutOfStock'; ?>"<?php if ( ( ! $this->product->login_for_pricing || $this->product->is_login_for_pricing_valid() ) && ( ! $this->product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $this->product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) { ?>,
-		"price": <?php echo wp_json_encode( number_format( $this->product->price, 2, '.', '' ) ); ?>,
-		"priceValidUntil": <?php echo wp_json_encode( date( 'Y-m-d', strtotime( '+1 year' ) ) ); ?>,
-		"priceCurrency": <?php echo wp_json_encode( $GLOBALS['currency']->get_currency_code() ); ?><?php }?><?php if( $google_attributes && isset( $google_attributes->condition ) ){ ?>,
-		"itemCondition": "<?php if( 'new' == strtolower( $google_attributes->condition ) || '' == $google_attributes->condition ) { echo 'NewCondition'; }else if( 'used' == strtolower( $google_attributes->condition ) ){ echo 'UsedCondition'; }else{ echo 'RefurbishedCondition'; } ?>"<?php }?>
-	},
-	"brand": <?php echo wp_json_encode( $this->product->manufacturer_name ); ?>,
-	"sku": <?php echo wp_json_encode( $this->product->model_number ); ?>,
-	"name": <?php echo wp_json_encode( strip_tags( $this->product->title ) ); ?>,
-	"description": <?php echo  wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', ( ( isset( $this->product->short_description ) && strlen( $this->product->short_description ) > 0 ) ? str_replace( "\n", ' ', str_replace( "\r", ' ', strip_tags( stripslashes( $this->product->short_description ) ) ) ) : str_replace( "\n", ' ', str_replace( "\r", ' ', stripslashes( $this->product->description ) ) ) ) ) ) ); ?><?php if( $google_attributes && isset( $google_attributes->gtin ) && strlen( $google_attributes->gtin ) > 0 ){ ?>,
-	"gtin": <?php echo wp_json_encode( $google_attributes->gtin ); ?><?php }else if( $google_attributes && isset( $google_attributes->mpn ) && strlen( $google_attributes->mpn ) > 0 ){ ?>,
-	"mpn": <?php echo wp_json_encode( $google_attributes->mpn ); ?><?php }?>,
-	"url": <?php echo wp_json_encode( esc_url( $this->product->get_product_link() ) ); ?>,<?php if( $this->product->use_customer_reviews && count( $this->product->reviews ) > 0 ){ 
-	$best_review = false;
-	foreach( $this->product->reviews as $one_review ){
-		if( !$best_review || $one_review->rating > $best_review->rating ){
-			$best_review = $one_review;
-		}
-	}
-	if( $best_review ){
-		$best_review = new ec_review( $best_review );
-	?>
-	"review": {
-		"@type": "Review",
-		"reviewRating": {
-			"@type": "Rating",
-			"ratingValue": <?php echo wp_json_encode( $best_review->rating ); ?>
-		},
-		"author":{
-			"@type": "Person",
-			"name": <?php echo wp_json_encode( stripslashes( $best_review->reviewer_name ) ); ?>
-		},
-		"reviewBody": <?php echo wp_json_encode( trim( preg_replace( '/[\r\n]+/', ' ', stripslashes( $best_review->description ) ) ) ); ?>
-	},<?php }?>
-	"aggregateRating": {
-		"@type": "AggregateRating",
-		"reviewCount": <?php echo wp_json_encode( (int) count( $this->product->reviews ) ); ?>,
-		"ratingValue": <?php echo wp_json_encode( $this->product->get_rating( ) ); ?>
-	},<?php }?>
-	"image": <?php echo wp_json_encode( esc_url( $first_image_url ) ); ?>
-}
-</script>
 
 <?php do_action( 'wpeasycart_product_description_top', $this->product->product_id ); ?>
 
@@ -496,8 +308,8 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				( isset( $this->atts['list_price_color'] ) ) ? $this->atts['list_price_color'] : false
 			); ?><?php if ( $this->product->replace_price_label && in_array( $this->product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
 					<span class="ec_product_price"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span>
-				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price ) ) ) { ?>
-					<span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?></span>
+				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price_options, (float) $this->product->list_price ) ) ) { /* 6.0.2: from the price shown ( default options ), with the list price ( an offer that leaves sale items alone previews nothing on a sale ); the list price is the struck price when it is shown, so the sale price is not struck as well */ ?>
+					<?php if ( (float) $this->product->list_price <= (float) $this->product->price_options ) { ?><span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options ) ); ?></span><?php } ?>
 					<span class="ec_offer_price_preview"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_offer_price_preview ) ); ?></span>
 				<?php } else {
 					$this->product->display_price( 
@@ -509,7 +321,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				?><span class="ec_details_price_label"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span><?php
 			} ?></div>
 			<?php }?>
-			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price ) ); ?>
+			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price_options, 'callout_list_price' => (float) $this->product->list_price ) ); ?>
 			<div class="ec_details_clear"></div>
 		</div>
 		<?php /* END MOBILE SIZED CONTENT REGION */ ?>
@@ -517,7 +329,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 		<?php /* START PRODUCT IMAGES AREA */ ?>
 		<div class="ec_details_images <?php if( isset( $this->atts['details_sizing'] ) ){ echo 'ec_details_images-' . esc_attr( (int) $this->atts['details_sizing'] ); }else{ echo ( get_option( 'ec_option_product_details_sizing' ) && get_option( 'ec_option_product_details_sizing' ) != '' ) ? 'ec_details_images-' . esc_attr( (int) get_option( 'ec_option_product_details_sizing' ) ) : ''; } ?>">
 		<?php if( apply_filters( 'wp_easycart_product_details_show_images', true ) ){ ?>
-			<div class="ec_details_main_image ec_details_main_image_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php echo ( ! $ipad && ! $iphone && get_option( 'ec_option_show_magnification' ) ) ? ' mag_enabled' : ''; ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( ( isset( $this->atts['show_lightbox'] ) && $this->atts['show_lightbox'] ) || ( ! isset( $this->atts['show_lightbox'] ) && get_option( 'ec_option_show_large_popup' ) ) ){ ?> onclick="ec_details_show_image_popup( '<?php echo esc_attr( $this->product->model_number ); ?>' );"<?php }else{ ?> style="cursor:inherit;"<?php }?>>
+			<div class="ec_details_main_image ec_details_main_image_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php /* 6.0.2: the same rule as the magnifier box below ( the shortcode's show_image_hover, else the store setting ). */ echo ( ! $ipad && ! $iphone && ( ( isset( $this->atts['show_image_hover'] ) && $this->atts['show_image_hover'] ) || ( ! isset( $this->atts['show_image_hover'] ) && get_option( 'ec_option_show_magnification' ) ) ) ) ? ' mag_enabled' : ''; ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( ( isset( $this->atts['show_lightbox'] ) && $this->atts['show_lightbox'] ) || ( ! isset( $this->atts['show_lightbox'] ) && get_option( 'ec_option_show_large_popup' ) ) ){ ?> onclick="ec_details_show_image_popup( '<?php echo esc_attr( $this->product->model_number ); ?>' );"<?php }else{ ?> style="cursor:inherit;"<?php }?>>
 				<?php do_action( 'wp_easycart_product_details_image_holder_pre', $this->product );
 				$magbox_active = true;
 				if( $this->product->use_optionitem_images ){
@@ -649,9 +461,11 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 
 			<?php /* START MAIN IMAGE THUMBNAILS */ ?>
 			<?php /* START DISPLAY FOR OPTION ITEM IMAGES USEAGE */ ?>
-			<?php if( ( isset( $this->atts['show_thumbnails'] ) && $this->atts['show_thumbnails'] ) || ( ! isset( $this->atts['show_thumbnails'] ) ) ) { ?>
-			<?php if( $this->product->use_optionitem_images ){
-				$optionitem_id_array = array( 0 );
+			<?php
+			// 6.0.2: the image sets are worked out before the thumbnails check. The lightbox below lists them too, and with the
+			// thumbnails hidden it read an unset array ( a fatal error on PHP 8 ).
+			$optionitem_id_array = array( 0 );
+			if( $this->product->use_optionitem_images ){
 				if( $this->product->use_advanced_optionset ) {
 					if( count( $this->product->advanced_optionsets ) > 0 ) {
 						$valid_optionset = false;
@@ -688,6 +502,9 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				if ( false !== $first_optionitem_id && ! in_array( (int) $first_optionitem_id, array_map( 'intval', $optionitem_id_array ), true ) ) {
 					$optionitem_id_array[] = (int) $first_optionitem_id;
 				}
+			} ?>
+			<?php if( ( isset( $this->atts['show_thumbnails'] ) && $this->atts['show_thumbnails'] ) || ( ! isset( $this->atts['show_thumbnails'] ) ) ) { ?>
+			<?php if( $this->product->use_optionitem_images ){
 				$thumbnails_displayed = 0;
 				for( $i=0; $i<count( $this->product->images->imageset ); $i++ ){
 					if( in_array( $this->product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){
@@ -1431,7 +1248,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 		<?php /* END PRODUCT IMAGES AREA */ ?>
 
 		<div class="ec_details_right <?php if( isset( $this->atts['details_sizing'] ) ){ echo 'ec_details_right-' . esc_attr( (int) $this->atts['details_sizing'] ); }else{ echo ( get_option( 'ec_option_product_details_sizing' ) && get_option( 'ec_option_product_details_sizing' ) != '' ) ? 'ec_details_right-' . esc_attr( (int) get_option( 'ec_option_product_details_sizing' ) ) : ''; } ?>">
-			<?php if( $this->product->inquiry_url == "" ){ // Regular Add to Cart Form ?>
+			<?php /* 6.0.2: always posts to the store. A product's inquiry URL is only ever a link ( the Inquire button when the built-in inquiry form is off ): this form used to be sent there, with the shopper's name, email and message in the address. */ ?>
 
 			<form action="<?php echo esc_attr( $this->cart_page ); ?>" method="POST" enctype="multipart/form-data" class="ec_add_to_cart_form<?php echo esc_attr( ( ( isset( $this->atts['background_add'] ) && $this->atts['background_add'] && ! $this->product->is_subscription_item ) ? ' ec_add_to_cart_form_ajax' : '' ) ); ?>">
 			<?php if( $this->product->is_subscription_item ){ // && !class_exists( "ec_stripe" ) ){ ?>
@@ -1443,12 +1260,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php }?>
 			<input type="hidden" name="product_id" value="<?php echo esc_attr( $this->product->product_id ); ?>"  />
 
-			<?php }else{ // Custom Inquiry Form ?>
-
-			<form action="<?php echo esc_attr( $this->product->inquiry_url ); ?>" method="GET" enctype="multipart/form-data" class="ec_add_to_cart_form">
-			<input type="hidden" name="model_number" value="<?php echo esc_attr( $this->product->model_number ); ?>"  />
-
-			<?php }?>
+			<?php /* 6.0.2: ( the GET form to the product's inquiry URL is gone: see above ) */ ?>
 
 			<?php /* START TOP PRODUCT DATA */ ?>
 			<?php if( ( isset( $this->atts['show_breadcrumbs'] ) && $this->atts['show_breadcrumbs'] ) || ( ! isset( $this->atts['show_breadcrumbs'] ) && get_option( 'ec_option_show_breadcrumbs' ) ) ){ ?>
@@ -1515,8 +1327,8 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				( isset( $this->atts['list_price_color'] ) ) ? $this->atts['list_price_color'] : false
 			); ?><?php if ( $this->product->replace_price_label && in_array( $this->product->enable_price_label, array( 2, 4, 6, 7 ) ) ) { ?>
 					<span class="ec_product_price"><?php echo wp_easycart_escape_html( $this->product->custom_price_label ); ?></span>
-				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price ) ) ) { ?>
-					<span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?></span>
+				<?php } else if ( wp_easycart_offers_active() && false !== ( $ec_offer_price_preview = ec_offer_display::get_product_price_preview( $this->product->product_id, $this->product->manufacturer_id, $this->product->price_options, (float) $this->product->list_price ) ) ) { /* 6.0.2: from the price shown ( default options ), with the list price ( an offer that leaves sale items alone previews nothing on a sale ); the list price is the struck price when it is shown, so the sale price is not struck as well */ ?>
+					<?php if ( (float) $this->product->list_price <= (float) $this->product->price_options ) { ?><span class="ec_offer_price_strike"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options ) ); ?></span><?php } ?>
 					<span class="ec_offer_price_preview"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_offer_price_preview ) ); ?></span>
 				<?php } else {
 					$this->product->display_price( 
@@ -1531,7 +1343,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php if ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->product->promotion_discount_total > 0 ) { ?>
 				<div class="ec_details_price_promo_discount"><span class="dashicons dashicons-tag"></span><span class="ec_details_price_promo_discount_label"> <?php $this->product->display_promotion_text(); ?></span><span class="ec_details_price_promo_discount_minus"> -</span><span class="ec_details_price_promo_discount_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->promotion_discount_total ) ); ?></span></div>
 			<?php }?>
-			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price ) ); ?>
+			<?php wp_easycart_offers_template( 'ec_offer_product_callout.php', array( 'callout_product_id' => $this->product->product_id, 'callout_manufacturer_id' => $this->product->manufacturer_id, 'callout_price' => $this->product->price_options, 'callout_list_price' => (float) $this->product->list_price ) ); ?>
 			<?php }?>
 			<?php if( ( isset( $this->atts['show_customer_reviews'] ) && $this->atts['show_customer_reviews'] ) || ( ! isset( $this->atts['show_customer_reviews'] ) && $this->product->use_customer_reviews ) ){ ?>
 			<div class="ec_details_rating">
@@ -1581,7 +1393,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php /* DONATION OPTIONS */ ?>
 			<?php if( $this->product->is_donation ){ ?>
 			<div class="ec_details_options ec_details_options_donation" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
-				<div class="ec_details_option_row_error ec_donation_error" id="ec_details_donation_error_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_donation_error' ) . " " . esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?>.</div>
+				<div class="ec_details_option_row_error ec_donation_error" id="ec_details_donation_error_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if ( class_exists( 'wp_easycart_storefront_access' ) && wp_easycart_storefront_access::donation_error_shown( $this->product->product_id ) ) { echo ' style="display:block;"'; } /* 6.0.2: the server refused the amount */ ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_donation_error' ) . " " . esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price ) ); ?>.</div>
 				<div class="ec_details_option_row">
 					<div class="ec_details_option_label"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_donation_amount' ); ?></div>
 					<div class="ec_details_option_data"><input type="number" step=".01" min="<?php echo esc_attr( $GLOBALS['currency']->get_number_only( $this->product->price ) ); ?>" class="ec_donation_amount" name="ec_donation_amount" id="ec_donation_amount_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $GLOBALS['currency']->get_number_only( $this->product->price ) ); ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" data-use-advanced-optionset="<?php echo ( $this->product->use_advanced_optionset || $this->product->use_both_option_types ) ? '1' : '0'; ?>" /></div>
@@ -1963,7 +1775,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 						}
 						?>
 
-							<div class="ec_details_grid_row"><span><?php echo wp_easycart_escape_html( $optionitem->optionitem_name ); ?></span><input type="number" min="<?php if( $this->product->min_purchase_quantity > 0 ){ echo esc_attr( $this->product->min_purchase_quantity ); }else{ echo '0'; } ?>"<?php if( $this->product->show_stock_quantity || $this->product->max_purchase_quantity > 0 ){ ?> max="<?php if( $this->product->max_purchase_quantity > 0 ){ echo esc_attr( $this->product->max_purchase_quantity ); }else{ echo esc_attr( $this->product->stock_quantity ); } ?>"<?php }?> step="1" name="ec_option_adv_<?php echo esc_attr( $optionset->option_to_product_id ); ?>_<?php echo esc_attr( $optionitem->optionitem_id ); ?>" value="<?php echo number_format( (float) esc_attr( $optionitem->optionitem_initial_value ), 0, "", "" ); ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-optionitem-price="<?php echo esc_attr( $optionitem->optionitem_price ); ?>" data-optionitem-price-onetime="<?php echo esc_attr( $optionitem->optionitem_price_onetime ); ?>" data-optionitem-price-override="<?php echo esc_attr( $optionitem->optionitem_price_override ); ?>" data-optionitem-price-multiplier="<?php echo esc_attr( $optionitem->optionitem_price_multiplier ); ?>" /><?php
+							<div class="ec_details_grid_row"><span><?php echo wp_easycart_escape_html( $optionitem->optionitem_name ); ?></span><input type="number" min="0"<?php /* 6.0.2: a row may stay at 0; the minimum purchase applies to the grid total ( checked in ec_details_add_to_cart() ). */ ?><?php if( $this->product->show_stock_quantity || $this->product->max_purchase_quantity > 0 ){ ?> max="<?php if( $this->product->max_purchase_quantity > 0 ){ echo esc_attr( $this->product->max_purchase_quantity ); }else{ echo esc_attr( $this->product->stock_quantity ); } ?>"<?php }?> step="1" name="ec_option_adv_<?php echo esc_attr( $optionset->option_to_product_id ); ?>_<?php echo esc_attr( $optionitem->optionitem_id ); ?>" value="<?php echo number_format( (float) esc_attr( $optionitem->optionitem_initial_value ), 0, "", "" ); ?>" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-optionitem-price="<?php echo esc_attr( $optionitem->optionitem_price ); ?>" data-optionitem-price-onetime="<?php echo esc_attr( $optionitem->optionitem_price_onetime ); ?>" data-optionitem-price-override="<?php echo esc_attr( $optionitem->optionitem_price_override ); ?>" data-optionitem-price-multiplier="<?php echo esc_attr( $optionitem->optionitem_price_multiplier ); ?>" /><?php
 								if ( $this->product->login_for_pricing && ! $this->product->is_login_for_pricing_valid() ) {
 									// No pricing shown in this case.
 								} else if ( $optionitem->optionitem_enable_custom_price_label && ( $optionitem->optionitem_price != 0 || ( isset( $optionitem->optionitem_price ) && $optionitem->optionitem_price != 0 ) || ( isset( $optionitem->optionitem_price_onetime ) && $optionitem->optionitem_price_onetime != 0 ) ) ) {
@@ -2244,7 +2056,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 							</div>
 
 							<?php /* Maybe add recaptcha */ ?>
-							<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+							<?php if( wp_easycart_recaptcha_ready() ){ ?>
 							<input type="hidden" id="ec_grecaptcha_response_inquiry" name="ec_grecaptcha_response_inquiry" value="" />
 							<input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
 							<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_product_details_inquiry_recaptcha"></div>
@@ -2260,6 +2072,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 						</div>
 
 						<input type="hidden" name="ec_cart_form_action" value="send_inquiry" />
+						<?php if ( ! wp_doing_ajax() ) { wp_referer_field( true ); } ?>
 						<input type="hidden" name="ec_cart_form_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-send-inquiry' ) ); ?>" />
 						<input type="hidden" name="ec_inquiry_model_number" value="<?php echo esc_attr( $this->product->model_number ); ?>" />
 						<?php /* 6.0.0: invisible honeypot and time-to-submit fields ( wp_easycart_inquiry_guard ). */ ?>
@@ -2275,7 +2088,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 								<input type="button" value="+" class="ec_plus" style="<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>" />
 							</div>
 							<div class="ec_details_add_to_cart ec_deconetwork_custom_space">
-								<input type="submit" value="<?php echo esc_attr( apply_filters( 'wp_easycart_product_details_add_to_cart_value', wp_easycart_language( )->get_text( 'product_details', 'product_details_add_to_cart' ), $this->product->product_id ) ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( ); <?php }?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );"<?php if( $has_quantity_grid ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php }?> />
+								<input type="submit" value="<?php echo esc_attr( apply_filters( 'wp_easycart_product_details_add_to_cart_value', wp_easycart_language( )->get_text( 'product_details', 'product_details_add_to_cart' ), $this->product->product_id ) ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>return wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( this );<?php } else { ?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );<?php }?>"<?php if( $has_quantity_grid ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php }?> />
 							</div>
 						<?php } ?>
 
@@ -2297,7 +2110,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 						<?php } ?>
 
 						<div class="ec_details_add_to_cart">
-							<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_sign_up_now' ); ?>" onclick="<?php do_action( 'wp_easycart_product_details_subscription_button_onclick', $this->product ); ?><?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( ); <?php }?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );"<?php if( get_option( 'ec_option_subscription_one_only' ) ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php } ?> />
+							<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_sign_up_now' ); ?>" onclick="<?php do_action( 'wp_easycart_product_details_subscription_button_onclick', $this->product ); ?><?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>return wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( this );<?php } else { ?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );<?php }?>"<?php if( get_option( 'ec_option_subscription_one_only' ) ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php } ?> />
 						</div>
 						<span class="ec_details_hidden_base_price" id="ec_base_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $this->product->price ); ?></span>
 
@@ -2310,12 +2123,12 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 							<input type="button" value="+" class="ec_plus" style="<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>" />
 						</div>
 						<div class="ec_details_add_to_cart">
-							<input type="submit" value="<?php echo esc_attr( apply_filters( 'wp_easycart_product_details_add_to_cart_value', wp_easycart_language( )->get_text( 'product_details', 'product_details_add_to_cart' ), $this->product->product_id ) ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( ); <?php }?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );" style="<?php if( $has_quantity_grid ){ ?>margin-left:0px !important;<?php } ?><?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>" />
+							<input type="submit" value="<?php echo esc_attr( apply_filters( 'wp_easycart_product_details_add_to_cart_value', wp_easycart_language( )->get_text( 'product_details', 'product_details_add_to_cart' ), $this->product->product_id ) ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>return wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( this );<?php } else { ?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );<?php }?>" style="<?php if( $has_quantity_grid ){ ?>margin-left:0px !important;<?php } ?><?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>" />
 						</div>
 
 						<?php /* PRICING AREA FOR OPTIONS */ ?>
 						<?php if( $this->product->has_options || $this->product->use_advanced_optionset || $this->product->use_both_option_types ){ ?>
-						<div class="ec_details_final_price"<?php echo ( ( isset( $this->atts['show_price'] ) && !$this->atts['show_price'] ) ) ? ' style="display:none;"' : ''; ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_your_price' ); ?> <span id="ec_final_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php if( $override_price_grid > -1 ){ echo esc_attr( $GLOBALS['currency']->get_currency_display( $override_price_grid ) ); }else if( $add_price_grid > 0 ){ echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options + $add_price_grid ) ); }else{ echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options ) ); } ?></span></div>
+						<?php /* 6.0.2: what the shopper pays, a running offer applied ( wp_easycart_offers_your_price() ). */ $ec_your_price = function_exists( 'wp_easycart_offers_your_price' ) ? wp_easycart_offers_your_price( $this->product, ( $override_price_grid > -1 ) ? $override_price_grid : ( ( $add_price_grid > 0 ) ? $this->product->price_options + $add_price_grid : $this->product->price_options ) ) : array( 'price' => ( $override_price_grid > -1 ) ? $override_price_grid : ( ( $add_price_grid > 0 ) ? $this->product->price_options + $add_price_grid : $this->product->price_options ), 'attrs' => '' ); ?><div class="ec_details_final_price"<?php echo ( ( isset( $this->atts['show_price'] ) && !$this->atts['show_price'] ) ) ? ' style="display:none;"' : ''; ?><?php echo $ec_your_price['attrs']; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in wp_easycart_offers_your_price(). */ ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_your_price' ); ?> <span id="ec_final_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_your_price['price'] ) ); ?></span></div>
 						<?php } ?>
 						<span class="ec_details_hidden_base_price" id="ec_base_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $this->product->price ); ?></span>
 
@@ -2327,12 +2140,12 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 							<input type="button" value="+" class="ec_plus" style="<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>" />
 						</div>
 						<div class="ec_details_add_to_cart">
-							<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_button' ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( ); <?php }?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );"<?php if( $has_quantity_grid ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php }?> />
+							<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_backorder_button' ); ?>" onclick="<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>return wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( this );<?php } else { ?>return ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> );<?php }?>"<?php if( $has_quantity_grid ){ ?> style="margin-left:0px !important;<?php echo ( isset( $this->atts['add_to_cart_color'] ) ) ? 'background-color:' . esc_attr( $this->atts['add_to_cart_color'] ) . ' !important;' : ''; ?>"<?php }?> />
 						</div>
 
 						<?php /* PRICING AREA FOR OPTIONS */ ?>
 						<?php if ( $this->product->has_options || $this->product->use_advanced_optionset || $this->product->use_both_option_types ) { ?>
-							<div class="ec_details_final_price"<?php echo ( ( isset( $this->atts['show_price'] ) && !$this->atts['show_price'] ) ) ? ' style="display:none;"' : ''; ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_your_price' ); ?> <span id="ec_final_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php if( $override_price_grid > -1 ){ echo esc_attr( $GLOBALS['currency']->get_currency_display( $override_price_grid ) ); }else if( $add_price_grid > 0 ){ echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options + $add_price_grid ) ); }else{ echo esc_attr( $GLOBALS['currency']->get_currency_display( $this->product->price_options ) ); } ?></span></div>
+							<?php /* 6.0.2: what the shopper pays, a running offer applied ( wp_easycart_offers_your_price() ). */ $ec_your_price = function_exists( 'wp_easycart_offers_your_price' ) ? wp_easycart_offers_your_price( $this->product, ( $override_price_grid > -1 ) ? $override_price_grid : ( ( $add_price_grid > 0 ) ? $this->product->price_options + $add_price_grid : $this->product->price_options ) ) : array( 'price' => ( $override_price_grid > -1 ) ? $override_price_grid : ( ( $add_price_grid > 0 ) ? $this->product->price_options + $add_price_grid : $this->product->price_options ), 'attrs' => '' ); ?><div class="ec_details_final_price"<?php echo ( ( isset( $this->atts['show_price'] ) && !$this->atts['show_price'] ) ) ? ' style="display:none;"' : ''; ?><?php echo $ec_your_price['attrs']; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in wp_easycart_offers_your_price(). */ ?>><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_your_price' ); ?> <span id="ec_final_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $ec_your_price['price'] ) ); ?></span></div>
 						<?php } ?>
 						<span class="ec_details_hidden_base_price" id="ec_base_price_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $this->product->price ); ?></span>
 
@@ -2352,7 +2165,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 									<input type="text" id="ec_email_notify_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="" placeholder="<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_notify_subscribe_email_placeholder' ); ?>" />
 								</div>
 
-								<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+								<?php if( wp_easycart_recaptcha_ready() ){ ?>
 								<div class="ec_out_of_stock_notify_grecaptcha" style="float:left; width:100%; margin:-20px 0 5px; padding:0 15px;">
 									<input type="hidden" id="ec_grecaptcha_response_product_details" name="ec_grecaptcha_response_product_details" value="" />
 									<input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
@@ -2404,6 +2217,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<div class="ec_details_description"><?php echo wp_easycart_escape_html( nl2br( stripslashes( $this->product->short_description ) ) ); ?></div>
 			<?php }?>
 			<?php do_action( 'wp_easycart_product_details_after_description_below', $this->product->product_id ); ?>
+			<?php /* 6.0.2: the buy column below Add to cart, for extensions ( WP EasyCart Tabs 3 prints tabs here when the store picks "Beside the photos" ). */ do_action( 'wpeasycart_product_details_buy_column', $this->product, $wpeasycart_addtocart_shortcode_rand, is_array( $this->atts ) ? $this->atts : array() ); ?>
 
 			<?php if( ( isset( $this->atts['show_categories'] ) && $this->atts['show_categories'] ) || ( ! isset( $this->atts['show_categories'] ) && get_option( 'ec_option_show_categories' ) ) ){ ?>
 				<?php if( count( $this->product->categoryitems ) > 0 ){ ?>
@@ -2420,7 +2234,8 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 				<?php }?>
 			<?php }?>
 
-			<?php if( ( isset( $this->atts['show_manufacturer'] ) && $this->atts['show_manufacturer'] ) || ( ! isset( $this->atts['show_manufacturer'] ) && get_option( 'ec_option_show_manufacturer' ) ) ){ ?>
+			<?php /* 6.0.2: only when the product has a manufacturer ( an empty "Manufacturer:" label showed otherwise ). */ ?>
+			<?php if( ( ( isset( $this->atts['show_manufacturer'] ) && $this->atts['show_manufacturer'] ) || ( ! isset( $this->atts['show_manufacturer'] ) && get_option( 'ec_option_show_manufacturer' ) ) ) && ! empty( $this->product->manufacturer_id ) && '' !== trim( (string) $this->product->manufacturer_name ) ){ ?>
 			<div class="ec_details_manufacturer"><?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_manufacturer' ); ?> <a href="<?php echo esc_attr( $this->product->get_manufacturer_link( ) ); ?>"><?php echo wp_easycart_language( )->convert_text( $this->product->manufacturer_name ); ?></a></div>
 			<?php }?>
 
@@ -2486,8 +2301,12 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 
 	<?php /* START EXTRA CONTENT AREA */ ?>
 	<?php if( ( ( isset( $this->atts['show_description'] ) && $this->atts['show_description'] ) || ( ! isset( $this->atts['show_description'] ) ) ) || ( ( isset( $this->atts['show_specifications'] ) && $this->atts['show_specifications'] ) || ( ! isset( $this->atts['show_specifications'] ) && $this->product->use_specifications ) ) || ( ( isset( $this->atts['show_customer_reviews'] ) && $this->atts['show_customer_reviews'] ) || ( ! isset( $this->atts['show_customer_reviews'] ) && $this->product->use_customer_reviews ) ) ){ ?>
-	<div class="ec_details_extra_area ec_details_extra_area_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
+	<?php /* 6.0.2: an extension may draw this area itself ( see wp_easycart_product_tabs_takeover() ). */ $wpec_tabs_takeover = function_exists( 'wp_easycart_product_tabs_takeover' ) && wp_easycart_product_tabs_takeover( $this->product, $wpeasycart_addtocart_shortcode_rand, $this->atts ); $wpec_tab_panels = array(); ?>
+	<div class="ec_details_extra_area ec_details_extra_area_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php echo $wpec_tabs_takeover ? ' ec_details_extra_area_custom' : ''; ?>">
 
+		<?php if ( $wpec_tabs_takeover ) {
+			$wpec_tab_panels['addon_tabs'] = wp_easycart_product_tabs_capture_gaps( $this->product->product_id, $wpeasycart_addtocart_shortcode_rand );
+		} else { ?>
 		<ul class="ec_details_tabs" data-product-id="<?php echo esc_attr( $this->product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
 
 			<?php do_action( 'wpeasycart_pre_description_tab', $this->product->product_id, $wpeasycart_addtocart_shortcode_rand ); ?>
@@ -2508,11 +2327,13 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<?php do_action( 'wpeasycart_addon_product_details_tab', $this->product->product_id, $wpeasycart_addtocart_shortcode_rand ); ?>
 
 		</ul>
+		<?php } ?>
 
 		<?php if( ( isset( $this->atts['show_description'] ) && $this->atts['show_description'] ) || ( ! isset( $this->atts['show_description'] ) ) ){ ?>
-		<div class="ec_details_description_tab ec_details_description_tab_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" <?php echo esc_attr( apply_filters( 'wpeasycart_description_content_initally_active', '', $this->product->product_id ) ); ?>>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
+		<div class="ec_details_description_tab ec_details_description_tab_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php echo wp_easycart_product_tab_panel_attributes( apply_filters( 'wpeasycart_description_content_initally_active', '', $this->product->product_id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup: '' or ' style="display:none;"'. ?>>
 
-			<?php 
+			<?php
 			// START CONTENT EDITING SECTION
 			if( $is_admin && !$is_preview && substr( $this->product->description, 0, 3 ) != "[ec" ){ ?>
 			<div class="ec_details_edit_buttons">
@@ -2543,9 +2364,11 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			</div>
 
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['description'] = wp_easycart_product_tabs_panel( 'description', ob_get_clean(), $this->product ); } ?>
 		<?php } ?>
 
 		<?php if( ( isset( $this->atts['show_specifications'] ) && $this->atts['show_specifications'] ) || ( ! isset( $this->atts['show_specifications'] ) && $this->product->use_specifications ) ){ ?>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
 		<div class="ec_details_specifications_tab ec_details_specifications_tab_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( isset( $this->atts['show_description'] ) && ! $this->atts['show_description'] ){ echo ' style="display:block;"'; } ?>>
 
 			<?php 
@@ -2579,11 +2402,13 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			</div>
 
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['specifications'] = wp_easycart_product_tabs_panel( 'specifications', ob_get_clean(), $this->product ); } ?>
 		<?php }?>
 
-		<?php 
+		<?php
 		/* START CUSTOMER REVIEW AREA */
 		if( ( isset( $this->atts['show_customer_reviews'] ) && $this->atts['show_customer_reviews'] ) || ( ! isset( $this->atts['show_customer_reviews'] ) && $this->product->use_customer_reviews ) ){ ?>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
 		<div class="ec_details_customer_reviews_tab ec_details_customer_reviews_tab_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( isset( $this->atts['show_description'] ) && ! $this->atts['show_description'] && isset( $this->atts['show_specifications'] ) && ! $this->atts['show_specifications'] ){ echo ' style="display:block;"'; } ?>>
 			<?php /* Native reviews: rating summary + distribution ( design/layout/…/ec_product_details_reviews_summary.php ) */
 			$ec_rs_file = file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_reviews_summary.php' ) ? EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_reviews_summary.php' : EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_product_details_reviews_summary.php';
@@ -2637,6 +2462,7 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 					<input type="hidden" class="ec_review_request_token" id="ec_review_request_token_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $ec_rq->token ); ?>" />
 					<?php } ?>
 					<div class="ec_details_option_row_error" id="ec_details_review_error_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'review_error' ); ?></div>
+					<?php /* 6.0.2: shown when the store could not save the review ( ec_submit_product_review() ). */ $wpec_review_save_error = wp_easycart_language( )->get_text( 'customer_review', 'customer_review_save_error' ); ?><div class="ec_details_option_row_error" id="ec_details_review_save_error_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo ( '' != $wpec_review_save_error ) ? $wpec_review_save_error : esc_html__( 'Your review could not be saved. Please refresh the page and try again.', 'wp-easycart' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the language class escapes its text. ?></div>
 					<div class="ec_details_customer_reviews_row"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_title' ); ?></div>
 					<div class="ec_details_customer_reviews_row ec_lower_space"><input type="text" id="ec_review_title_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" /></div>
 					<div class="ec_details_customer_reviews_row"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_rating' ); ?></div>
@@ -2657,13 +2483,18 @@ var ec_advanced_logic_rules_<?php echo esc_attr( $this->product->product_id ); ?
 			<div class="ec_details_customer_reviews_form">
 				<div class="ec_details_customer_reviews_form_holder">
 					<?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_review_log_in_first' ); ?>
-				</div> 
+				</div>
 			</div>
 			<?php }?>
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['reviews'] = wp_easycart_product_tabs_panel( 'reviews', ob_get_clean(), $this->product ); } ?>
 		<?php }?>
 
-		<?php do_action( 'wpeasycart_addon_product_details_tab_content', $this->product->product_id ); ?>
+		<?php if ( $wpec_tabs_takeover ) {
+			wp_easycart_product_tabs_area( $this->product, $wpeasycart_addtocart_shortcode_rand, $wpec_tab_panels, $this->atts );
+		} else {
+			do_action( 'wpeasycart_addon_product_details_tab_content', $this->product->product_id, $wpeasycart_addtocart_shortcode_rand );
+		} ?>
 
 	</div>
 	<?php }?>
@@ -2762,16 +2593,13 @@ function wp_easycart_add_to_cart_js_validation_end_<?php echo esc_attr( $this->p
 	<?php do_action( 'wp_easycart_add_to_cart_js_validation_end', $this->product->product_id ); ?>
 	return errors;
 }<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?>
-function wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( ){
-	if( ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> ) ){
-		fbq('track', 'AddToCart', {
-			content_name: '<?php echo esc_attr( ucwords( strtolower( strip_tags( stripslashes( $this->product->title ) ) ) ) ); ?>',
-			content: [{id: '<?php echo esc_attr( $this->product->product_id ); ?>', quantity: jQuery( document.getElementById( 'ec_quantity_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>' ) ).val( ), item_price: <?php echo number_format( esc_attr( $this->product->price ), 2, '.', '' ); ?>}],
-			content_type: 'product'<?php if ( ( ! $this->product->login_for_pricing || $this->product->is_login_for_pricing_valid() ) && ( ! $this->product->is_catalog_mode || ! get_option( 'ec_option_hide_price_seasonal' ) ) && ( ! $this->product->is_inquiry_mode || ! get_option( 'ec_option_hide_price_inquiry' ) ) ) { ?>,
-			value: Number( jQuery( document.getElementById( 'ec_quantity_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>' ) ).val( ) * <?php echo number_format( esc_attr( $this->product->price ), 2, '.', '' ); ?> ).toFixed( 2 ),
-			currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>'<?php }?>
-		});
+function wp_easycart_facebook_add_to_cart_track_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>( el ){
+	/* 6.0.2: validate once, then Meta AddToCart for the chosen variant; its event ID goes with the add ( ec_meta_eid ). */
+	if( ! ec_details_add_to_cart( <?php echo esc_attr( $this->product->product_id ); ?>, <?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?> ) ){
+		return false;
 	}
+	<?php echo wp_easycart_meta_details_add_js( $this->product, $wpeasycart_addtocart_shortcode_rand, 'el' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JavaScript with JSON-encoded ( hex-escaped ) values. ?>
+	return true;
 }<?php }?>
 </script><?php if( $is_admin && !$is_preview ){ ?>
 <input type="hidden" id="product_details_update_product_description_nonce_<?php echo esc_attr( $this->product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-product-description-' . (int) $this->product->product_id ) ); ?>" />

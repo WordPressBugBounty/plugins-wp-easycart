@@ -84,6 +84,8 @@ if ( ! function_exists( 'wp_easycart_settings_products_picker_sql' ) ) {
 					'id'     => 'option_id',
 					'label'  => 'option_name',
 					'order'  => 'option_name ASC',
+					/* 6.0.2: not the sets that belong to one product. */
+					'where'  => ( class_exists( 'wp_easycart_product_writer' ) && function_exists( 'get_option' ) ) ? wp_easycart_product_writer::shared_sets_sql() : '',
 				);
 		}
 		return false;
@@ -129,11 +131,12 @@ if ( ! function_exists( 'wp_easycart_settings_products_picker_search' ) ) {
 		$wpdb  = $GLOBALS['wpdb'];
 		$limit = max( 1, min( (int) $limit, 50 ) );
 		$term  = trim( (string) $term );
+		$where = isset( $sql['where'] ) ? (string) $sql['where'] : '';
 		if ( '' === $term ) {
-			$query = $wpdb->prepare( 'SELECT ' . $sql['select'] . ' FROM ' . $sql['from'] . ' ORDER BY ' . $sql['order'] . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column and table names from wp_easycart_settings_products_picker_sql().
+			$query = $wpdb->prepare( 'SELECT ' . $sql['select'] . ' FROM ' . $sql['from'] . ' WHERE 1=1' . $where . ' ORDER BY ' . $sql['order'] . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column and table names and a literal condition from wp_easycart_settings_products_picker_sql().
 		} else {
 			$like  = '%' . $wpdb->esc_like( $term ) . '%';
-			$query = $wpdb->prepare( 'SELECT ' . $sql['select'] . ' FROM ' . $sql['from'] . ' WHERE ' . $sql['label'] . ' LIKE %s ORDER BY ' . $sql['order'] . ' LIMIT %d', $like, $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column and table names from wp_easycart_settings_products_picker_sql().
+			$query = $wpdb->prepare( 'SELECT ' . $sql['select'] . ' FROM ' . $sql['from'] . ' WHERE ' . $sql['label'] . ' LIKE %s' . $where . ' ORDER BY ' . $sql['order'] . ' LIMIT %d', $like, $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column and table names and a literal condition from wp_easycart_settings_products_picker_sql().
 		}
 		return wp_easycart_settings_products_picker_rows( $wpdb->get_results( $query ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
 	}
@@ -225,7 +228,8 @@ return array(
 	'slug'        => 'products',
 	'title'       => __( 'Products', 'wp-easycart' ),
 	'description' => __( 'How products look on their pages and in lists, what happens when a shopper adds one to the cart, stock, reviews and search.', 'wp-easycart' ),
-	'group'       => 'store-setup',
+	'group'       => 'store',
+	'order'       => 20,
 	'icon'        => 'products',
 	'docs'        => array( 'settings', 'product-settings', 'product-display' ),
 	'legacy'      => array( 'products' ),

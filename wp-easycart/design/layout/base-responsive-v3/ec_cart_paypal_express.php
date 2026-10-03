@@ -1,14 +1,6 @@
 <?php
-if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
-	echo "<script>
-		fbq('track', 'AddPaymentInfo', {value: " . esc_js( number_format( $this->order_totals->grand_total, 2, '.', '' ) ) . ", currency: '" . esc_js( $GLOBALS['currency']->get_currency_code( ) ) . "', contents: [";
-		for( $i=0; $i<count( $this->cart->cart ); $i++ ){
-			if( $i > 0 )
-				echo ", ";
-			echo "{ id: '" . esc_attr( $this->cart->cart[$i]->product_id ) . "', quantity: " . esc_attr( $this->cart->cart[$i]->quantity ) . ", price: " . esc_attr( $this->cart->cart[$i]->unit_price ) . " }";
-		}		
-		echo "]});
-	</script>";
+if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
+	wp_easycart_meta_add_payment_info( $this ); /* 6.0.2: Meta AddPaymentInfo, once per checkout, with event ID and catalog content IDs */
 }
 ?>
 <div class="ec_cart_left">
@@ -327,6 +319,8 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 		<textarea name="ec_order_notes" id="ec_order_notes"><?php if( $GLOBALS['ec_cart_data']->cart_data->order_notes != "" ){ echo esc_textarea( $GLOBALS['ec_cart_data']->cart_data->order_notes ); } ?></textarea>
 	</div>
 	<?php }?>
+
+	<?php do_action( 'wpeasycart_checkout_fields', 'express', $this ); /* 6.0.2: every checkout field ( WP EasyCart PRO ); this page follows a cart-page PayPal button */ ?>
 
 	<div class="ec_cart_header">
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_submit_order_button' )?>

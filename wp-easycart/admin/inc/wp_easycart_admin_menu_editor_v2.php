@@ -323,7 +323,7 @@ function ecv2_menu_add_product() {
 		wp_send_json_error( array( 'message' => sprintf( __( '“%s” already uses all three of its menu paths. Free one from the product editor first.', 'wp-easycart' ), wp_unslash( $p->title ) ) ) );
 	}
 	$wpdb->update( 'ec_product', array( 'menulevel' . $slot . '_id_1' => $path[1], 'menulevel' . $slot . '_id_2' => $path[2], 'menulevel' . $slot . '_id_3' => $path[3] ), array( 'product_id' => $product_id ) );
-	wp_cache_delete( 'wpeasycart-product-only-' . $p->model_number, 'wpeasycart-product-list' );
+	ec_db::product_cache_changed();
 	do_action( 'wpeasycart_product_updated', $product_id, $p->model_number );
 
 	$ed->load( $ed->level, $ed->menu->menu_id );
@@ -356,7 +356,7 @@ function ecv2_menu_remove_product() {
 	}
 	if ( empty( $clear ) ) { wp_send_json_error( array( 'message' => sprintf( __( '“%s” is not in this menu.', 'wp-easycart' ), wp_unslash( $p->title ) ) ) ); }
 	$wpdb->update( 'ec_product', $clear, array( 'product_id' => $product_id ) );
-	wp_cache_delete( 'wpeasycart-product-only-' . $p->model_number, 'wpeasycart-product-list' );
+	ec_db::product_cache_changed();
 	do_action( 'wpeasycart_product_updated', $product_id, $p->model_number );
 
 	$ed->load( $ed->level, $ed->menu->menu_id );

@@ -54,6 +54,9 @@ class ec_cartitem {
 	public $coupon_discount_total;
 	public $coupon_discount_line_total;
 
+	/* 6.0.2: what Offers took off this line ( wp_easycart_offer_line_savings(): code, automatic, shown ), set by ec_cartpage. */
+	public $offer_savings = array( 'code' => 0.0, 'automatic' => 0.0, 'shown' => 0.0 );
+
 	public $options_price_onetime;
 	public $grid_price_change;
 
@@ -151,6 +154,12 @@ class ec_cartitem {
 
 	public $use_optionitem_quantity_tracking;
 	public $optionitem_stock_quantity;
+	/** 6.0.2: the fulfillment partner that makes and ships this line's product ( '' = the store ). */
+	public $fulfillment_provider = '';
+	/** 6.0.2: the variant row ( ec_optionitemquantity ) the chosen option items make, 0 when there is none. */
+	public $optionitemquantity_id = 0;
+	/** 6.0.2: the cost of one unit of that variant ( ec_optionitemquantity.cost ), null when not set. */
+	public $variant_cost = null;
 	public $track_quantity;
 	public $max_quantity;
 	public $min_quantity;
@@ -198,6 +207,7 @@ class ec_cartitem {
 		$this->guid = $cartitem_data->guid;
 		$this->manufacturer_id = $cartitem_data->manufacturer_id;
 		$this->manufacturer_name = $cartitem_data->manufacturer_name;
+		$this->fulfillment_provider = ( isset( $cartitem_data->fulfillment_provider ) && is_string( $cartitem_data->fulfillment_provider ) ) ? $cartitem_data->fulfillment_provider : ''; /* 6.0.2 */
 
 		$this->advanced_options = $GLOBALS['ec_cart_data']->get_advanced_cart_options( $this->cartitem_id );
 
@@ -486,6 +496,7 @@ class ec_cartitem {
 		}
 
 		$this->donation_price = $cartitem_data->donation_price;
+		$donation_minimum = isset( $cartitem_data->price ) ? $cartitem_data->price : 0; /* 6.0.2: the product's own price, before variants or options change it below */
 
 		$this->is_deconetwork = $cartitem_data->is_deconetwork;
 		$this->deconetwork_id = $cartitem_data->deconetwork_id;
@@ -545,8 +556,20 @@ class ec_cartitem {
 
 		$options_price = $this->optionitem1_price + $this->optionitem2_price + $this->optionitem3_price + $this->optionitem4_price + $this->optionitem5_price;
 		$options_weight = $this->optionitem1_weight + $this->optionitem2_weight + $this->optionitem3_weight + $this->optionitem4_weight + $this->optionitem5_weight;
-		$variant_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d', $this->product_id, $this->optionitem1_id, $this->optionitem2_id, $this->optionitem3_id, $this->optionitem4_id, $this->optionitem5_id ) );
+		if ( class_exists( 'wp_easycart_variants' ) ) {
+			$variant_row = wp_easycart_variants::find( $this->product_id, array( $this->optionitem1_id, $this->optionitem2_id, $this->optionitem3_id, $this->optionitem4_id, $this->optionitem5_id ) );
+		} else {
+			$variant_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_optionitemquantity WHERE product_id = %d AND optionitem_id_1 = %d AND optionitem_id_2 = %d AND optionitem_id_3 = %d AND optionitem_id_4 = %d AND optionitem_id_5 = %d', $this->product_id, $this->optionitem1_id, $this->optionitem2_id, $this->optionitem3_id, $this->optionitem4_id, $this->optionitem5_id ) );
+		}
 		if ( $variant_row ) {
+			/* 6.0.2: the variant this line is, its cost, and its own weight ( it replaces the product weight and the option
+			   weights; modifiers still add theirs ). */
+			$this->optionitemquantity_id = (int) $variant_row->optionitemquantity_id;
+			$this->variant_cost = ( property_exists( $variant_row, 'cost' ) && null !== $variant_row->cost ) ? (float) $variant_row->cost : null;
+			if ( property_exists( $variant_row, 'weight' ) && null !== $variant_row->weight && (float) $variant_row->weight > 0 ) { /* a weight of 0 is no weight: the product's is used */
+				$this->weight = (float) $variant_row->weight;
+				$options_weight = 0;
+			}
 			if ( -1 != $variant_row->price ) {
 				$options_price = 0;
 				$cartitem_data->price = $variant_row->price;
@@ -577,14 +600,17 @@ class ec_cartitem {
 					} else if ( $advanced_option_details->optionitem_price_multiplier > 1 ) {
 						$this->grid_price_change = $cartitem_data->price * ( $advanced_option_details->optionitem_price_multiplier - 1 );
 					}
+					/* The line's weight change for this grid row ( its quantity × the change ), added to the line's total weight
+					   once, as the grid's price change is ( 6.0.2: it was added to each unit, so the line was multiplied by its
+					   quantity a second time ). */
 					if ( 0 != $advanced_option_details->optionitem_weight ) {
 						$grid_weight_change = $grid_weight_change + ( $advanced_option_details->optionitem_weight * $advanced_option->optionitem_value );
 					} else if ( 0 != $advanced_option_details->optionitem_weight_onetime ) {
 						$grid_weight_change = $grid_weight_change + $advanced_option_details->optionitem_weight_onetime;
 					} else if ( $advanced_option_details->optionitem_weight_override >= 0 ) {
 						$grid_weight_change = $grid_weight_change + ( ( $advanced_option_details->optionitem_weight_override - $cartitem_data->weight ) * $advanced_option->optionitem_value );
-					} else if ( $advanced_option_details->optionitem_weight_multiplier > 1 ) {
-						$grid_weight_change = $cartitem_data->weight * ( $advanced_option_details->optionitem_weight_multiplier - 1 );
+					} else if ( $advanced_option_details->optionitem_weight_multiplier > 0 ) {
+						$grid_weight_change = $grid_weight_change + ( $cartitem_data->weight * ( $advanced_option_details->optionitem_weight_multiplier - 1 ) * $advanced_option->optionitem_value );
 					}
 				} else if ( 'number' == $advanced_option_data->option_type ) {
 					if ( 0 != $advanced_option_details->optionitem_price ) {
@@ -607,8 +633,9 @@ class ec_cartitem {
 					} else if ( $advanced_option_details->optionitem_weight_override >= 0 ) {
 						$this->weight = $advanced_option_details->optionitem_weight_override;
 					}
-					if ( $advanced_option_details->optionitem_weight_multiplier > 1 ) {
-						$weight_multiplier = $advanced_option_details->optionitem_weight_multiplier * $advanced_option->optionitem_value;
+					/* 6.0.2: any × Multiply ( one below 1 was ignored ), and several multiply together, as prices do. */
+					if ( $advanced_option_details->optionitem_weight_multiplier > 0 ) {
+						$weight_multiplier = ( ( 0 == $weight_multiplier ) ? 1 : $weight_multiplier ) * $advanced_option_details->optionitem_weight_multiplier * $advanced_option->optionitem_value;
 					}
 				} else if ( 'dimensions1' == $advanced_option_data->option_type || 'dimensions2' == $advanced_option_data->option_type ) {
 					$dimensions = json_decode( $advanced_option->optionitem_value );
@@ -654,8 +681,8 @@ class ec_cartitem {
 					} else if ( $advanced_option_details->optionitem_weight_override >= 0 ) {
 						$this->weight = $advanced_option_details->optionitem_weight_override;
 					}
-					if ( $advanced_option_details->optionitem_weight_multiplier > 1 ) {
-						$weight_multiplier = $advanced_option_details->optionitem_weight_multiplier;
+					if ( $advanced_option_details->optionitem_weight_multiplier > 0 ) {
+						$weight_multiplier = ( ( 0 == $weight_multiplier ) ? 1 : $weight_multiplier ) * $advanced_option_details->optionitem_weight_multiplier;
 					}
 				}
 			}
@@ -668,11 +695,13 @@ class ec_cartitem {
 			}
 		}
 
-		$this->weight = $this->weight + $options_weight + $grid_weight_change;
+		$this->weight = $this->weight + $options_weight; /* 6.0.2: per unit; the grid's change is the line's, added to total_weight below */
 		$roleprice = $GLOBALS['ec_roleprices']->get_roleprice( $this->product_id );
 
 		if ( $this->is_donation ) {
-			$this->unit_price = $cartitem_data->donation_price + $options_price;
+			/* 6.0.2: what was given, at least the product's price and never below 0 ( a cart may hold an amount taken before the
+			 * server checked it, ec_db::add_to_cart() ). */
+			$this->unit_price = ( class_exists( 'wp_easycart_storefront_access' ) ? wp_easycart_storefront_access::donation_line_price( $cartitem_data->donation_price, $donation_minimum ) : max( 0, (float) $cartitem_data->donation_price ) ) + $options_price;
 		} else if ( $roleprice ) {
 			$this->unit_price = $roleprice + $options_price;
 		} else if ( count( $this->pricetiers ) > 0 ) {
@@ -700,7 +729,7 @@ class ec_cartitem {
 			$this->unit_price = $this->unit_price * $price_multiplier;
 		}
 
-		if ( $weight_multiplier > 1 ) {
+		if ( $weight_multiplier > 0 ) {
 			$this->weight = $this->weight * $weight_multiplier;
 		}
 
@@ -726,7 +755,13 @@ class ec_cartitem {
 		$this->total_price = apply_filters( 'wp_easycart_cart_item_total_price', $this->total_price, $this->cartitem_id, $this->product_id );
 		$this->converted_total_price = ( $GLOBALS['currency']->convert_price( $this->unit_price ) * $this->quantity ) + $GLOBALS['currency']->convert_price( $this->options_price_onetime ) + $GLOBALS['currency']->convert_price( $this->grid_price_change );
 		$this->converted_total_price = apply_filters( 'wp_easycart_cart_item_total_price', $this->converted_total_price, $this->cartitem_id, $this->product_id );
-		$this->total_weight = ( $this->weight * $this->quantity ) + $options_weight_onetime;
+		$this->total_weight = ( $this->weight * $this->quantity ) + $options_weight_onetime + $grid_weight_change;
+		/* 6.0.2: carriers and rate services weigh a line as its unit weight × its quantity ( UPS, FedEx, Australia Post and
+		   Fraktjakt parcels, extension rate services ), so a line with a one-time or grid weight shares it among its units:
+		   weight × quantity is then the line's whole weight. */
+		if ( ( 0 != $options_weight_onetime || 0 != $grid_weight_change ) && $this->quantity > 0 ) {
+			$this->weight = $this->total_weight / $this->quantity;
+		}
 		$this->handling_price = $cartitem_data->handling_price;
 		$this->handling_price_each = $cartitem_data->handling_price_each;
 
@@ -1207,7 +1242,7 @@ class ec_cartitem {
 			echo 'ec_google_removeFromCart( \'' . esc_attr( $this->model_number ) . '\', \'' . esc_attr( str_replace( "'", "\'", $this->title ) ) . '\', document.getElementById( \'ec_cartitem_quantity_' . esc_attr( $this->cartitem_id ) . '\' ), \'' . esc_attr( number_format( $this->unit_price, 2, '.', '' ) ) . '\' );';
 		}
 		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
-			echo 'ec_ga4_remove_from_cart( \'' . esc_attr( $this->model_number ) . '\', \'' . esc_attr( str_replace( "'", "\'", $this->title ) ) . '\', jQuery( document.getElementById( \'ec_quantity_' . esc_attr( $this->cartitem_id ) . '\' ) ).val(), \'' . esc_attr( number_format( $this->unit_price, 2, '.', '' ) ) . '\', \'' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '\', \'' . esc_attr( $this->manufacturer_name ) . '\', ' . esc_attr( ( get_option( 'ec_option_google_ga4_tag_manager' ) ) ? '1' : '0' ) . ' );';
+			echo 'ec_ga4_remove_from_cart( \'' . esc_attr( $this->model_number ) . '\', \'' . esc_attr( str_replace( "'", "\'", $this->title ) ) . '\', jQuery( document.getElementById( \'ec_quantity_' . esc_attr( $this->cartitem_id ) . '\' ) ).val(), \'' . esc_attr( number_format( $this->unit_price, 2, '.', '' ) ) . '\', \'' . esc_attr( wp_easycart_base_currency_code() ) . '\', \'' . esc_attr( $this->manufacturer_name ) . '\', ' . esc_attr( ( get_option( 'ec_option_google_ga4_tag_manager' ) ) ? '1' : '0' ) . ' );';
 		}
 		echo ' ec_cart_item_delete( \'' . esc_attr( $this->cartitem_id ) . '\' ); return false;" />';
 		echo '<input type="hidden" name="ec_cart_form_action" id="ec_cart_form_action" value="ec_delete_action" />';
@@ -1242,7 +1277,7 @@ class ec_cartitem {
 				$unit_price += $this->promotion_discount_total;
 			}
 			$display_html = '';
-			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) );
+			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) || $this->offer_unit_savings() > 0 );
 			if ( $has_discount ) {
 				$display_html .= '<span class="ec_cartitem_price_discounted">';
 			}
@@ -1271,13 +1306,35 @@ class ec_cartitem {
 			if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) {
 				$unit_price -= $this->coupon_discount_total;
 			}
+			$unit_price = max( 0, $unit_price - $this->offer_unit_savings() );
 			return apply_filters( 'wp_easycart_cart_item_unit_price_discounted_display', $GLOBALS['currency']->get_currency_display( $unit_price ) . $extra_label, $this->product_id );
 		}
 	}
 
+	/**
+	 * Record what Offers took off this line, so the line shows it the way the older coupons and promotions did
+	 * ( "Show coupon savings on each line" for codes, "Show promotion savings on each line" for automatic offers ).
+	 *
+	 * @since 6.0.2
+	 * @param array|string $offer_discounts The line's offer discounts ( the Offers engine's list for this line ).
+	 */
+	public function set_offer_savings( $offer_discounts ) {
+		$this->offer_savings = ( function_exists( 'wp_easycart_offer_line_savings' ) ) ? wp_easycart_offer_line_savings( $offer_discounts ) : array( 'code' => 0.0, 'automatic' => 0.0, 'shown' => 0.0 );
+	}
+
+	/** Offers savings shown on this line, for the whole line, in the base currency. */
+	private function offer_line_savings() {
+		return ( is_array( $this->offer_savings ) && isset( $this->offer_savings['shown'] ) ) ? max( 0, (float) $this->offer_savings['shown'] ) : 0;
+	}
+
+	/** Offers savings shown on this line, for one unit, in the base currency. */
+	private function offer_unit_savings() {
+		return ( (int) $this->quantity > 0 ) ? $this->offer_line_savings() / (int) $this->quantity : 0;
+	}
+
 	public function get_unit_discount() {
 		$unit_discount = '';
-		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) ) {
+		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_total > 0 ) || $this->offer_unit_savings() > 0 ) {
 			$unit_discount .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_unit_price_discounted() ) . '</div>';
 		}
 		return $unit_discount;
@@ -1285,7 +1342,7 @@ class ec_cartitem {
 
 	public function get_total_discount() {
 		$total_discount = '';
-		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) ) {
+		if ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) || $this->offer_line_savings() > 0 ) {
 			$total_discount .= '<div class="ec_caritem_price_promo_discount">' . esc_attr( $this->get_total_discounted() ) . '</div>';
 		}
 		return $total_discount;
@@ -1319,7 +1376,7 @@ class ec_cartitem {
 				$total_price += $this->promotion_discount_line_total;
 			}
 			$display_html = '';
-			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) );
+			$has_discount = ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->promotion_discount_line_total > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) || $this->offer_line_savings() > 0 );
 			if ( $has_discount ) {
 				$display_html .= '<span class="ec_cartitem_price_discounted">';
 			}
@@ -1341,6 +1398,10 @@ class ec_cartitem {
 			$total_price = ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $this->total_price : $this->converted_total_price;
 			if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->coupon_discount_line_total > 0 ) {
 				$total_price -= $this->coupon_discount_line_total;
+			}
+			$offer_line_savings = $this->offer_line_savings();
+			if ( $offer_line_savings > 0 ) {
+				$total_price = max( 0, $total_price - ( ( 1 == $GLOBALS['currency']->get_conversion_rate() ) ? $offer_line_savings : $GLOBALS['currency']->convert_price( $offer_line_savings ) ) );
 			}
 			return $GLOBALS['currency']->get_currency_display( $total_price, false );
 		}
@@ -1372,10 +1433,12 @@ class ec_cartitem {
 	}
 
 	private function ec_get_permalink( $postid ) {
+		$classic = $this->store_page . $this->permalink_divider . 'model_number=' . $this->model_number;
 		if ( !get_option( 'ec_option_use_old_linking_style' ) && $postid != '0' ) {
-			return $this->guid;
+			/* 6.0.2: the live permalink, as the store listing uses ( the stored guid keeps a renamed store page's old slug ). */
+			return wp_easycart_store_post_link( $postid, $classic );
 		} else {
-			return $this->store_page . $this->permalink_divider . 'model_number=' . $this->model_number;
+			return $classic;
 		}
 	}
 

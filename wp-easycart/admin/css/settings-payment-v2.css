@@ -19,6 +19,9 @@
 .ecpay-banner-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; font-size:12.5px; }
 .ecpay-banner-text b { font-size:13.5px; color:#78350f; }
 .ecpay-banner-btn { flex-shrink:0; }
+/* 6.0.2: "Subscriptions need Stripe" ( ecst_payment_render_subscriptions() ) shows only while it has something to say. */
+#ecst-ecst_payment_subscriptions:has(> .ecst-row-html:empty) { display:none; }
+#ecst-ecst_payment_subscriptions .ecv2-flash { margin:0; }
 
 /* cards */
 .ecpay-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
@@ -301,6 +304,11 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ec_admin_toggle > span { font-size:13px; font-weight:600; color:var(--ecv2-g900); line-height:1.4; flex:1; }
 .ecpay-drawer .ecpay-legacy .ec_admin_toggle > a { float:none; width:auto; height:auto; display:inline-flex; flex-shrink:0; }
 .ecpay-drawer .ecpay-legacy .ec_admin_toggle > a > span { position:static; width:auto; height:auto; }
+/* 6.0.2: the Stripe panels wrap a switch in its connect link only while that mode has no account. The link's empty span covers
+   the switch, as on the classic page, so a click opens the connection: a click on the switch itself reached only its label,
+   flipped the switch and saved Stripe as the gateway with no account behind it. */
+.ecpay-drawer .ecpay-legacy .ecsc .ec_admin_toggle > a { position:relative; }
+.ecpay-drawer .ecpay-legacy .ecsc .ec_admin_toggle > a > span { position:absolute; top:0; right:0; bottom:0; left:0; z-index:1; }
 .ecpay-drawer .ecpay-legacy .ec_admin_switch { float:none; width:36px; height:20px; margin:0; flex-shrink:0; }
 .ecpay-drawer .ecpay-legacy .ec_admin_slider { background:var(--ecv2-g300); transition:background var(--ecv2-tr); }
 .ecpay-drawer .ecpay-legacy .ec_admin_slider:before { width:16px; height:16px; left:2px; bottom:2px; transition:transform var(--ecv2-tr); }
@@ -371,7 +379,7 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ecsq-field > small { font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
 .ecpay-drawer .ecpay-legacy .ecsq-field select,
 .ecpay-drawer .ecpay-legacy .ecsq-field input[type="text"] { width:100% !important; max-width:100%; float:none !important; margin:0 !important; }
-.ecpay-drawer .ecpay-legacy .ecsq-save { display:none !important; }
+.ecpay-drawer .ecpay-legacy .ecsq-save, .ecpay-drawer .ecpay-legacy input[type].ecsq-save { display:none !important; }
 /* The Checkout group: admin.css styles #ec_square_options ( indented, boxed, 500px ) for the classic page, and an id
    outranks the drawer's classes. PRO's partial now uses #ec_square_checkout; the free partial keeps the old id. */
 .ecpay-drawer .ecpay-legacy #ec_square_options { float:none; width:auto; max-width:none; margin:18px 0 0; border:0; clear:none; }
@@ -383,6 +391,45 @@ body.ecdrawer-open { overflow:hidden; }
 .ecpay-drawer .ecpay-legacy .ecsq-secure.is-done { background:#f0fdf4; color:#166534; }
 .ecpay-drawer .ecpay-legacy button.ecsq-secure-btn { flex:0 0 auto; display:inline-flex; align-items:center; height:32px; padding:0 14px; border:1px solid var(--ecst-accent); border-radius:var(--ecv2-r); background:var(--ecst-accent); color:var(--ecst-on-accent, #fff); font-size:12.5px; font-weight:600; cursor:pointer; }
 .ecpay-drawer .ecpay-legacy button.ecsq-secure-btn:disabled { opacity:.65; cursor:progress; }
+/* 6.0.2: PayPal ( admin/template/settings/payments/paypal.php, FREE and WP EasyCart PRO ) uses the Square groups above,
+   plus a group's one-line hint, a plan chip that opens the upgrade popup, the Notifications group's notes at full width,
+   and option text that wraps rather than widening the drawer. */
+.ecpay-drawer .ecpay-legacy .ecsq-group-hint { margin:6px 0 2px; font-size:12px; color:var(--ecv2-g500); line-height:1.45; }
+.ecpay-drawer .ecpay-legacy button.ecsq-pro-chip { border:0; cursor:pointer; font-family:inherit; line-height:1.4; }
+.ecpay-drawer .ecpay-legacy button.ecsq-pro-chip:focus-visible { outline:none; box-shadow:0 0 0 3px var(--ecst-accent-soft); }
+.ecpay-drawer .ecpay-legacy .ecsq-group > .ec_admin_toggle_note { margin:8px 0 0; }
+.ecpay-drawer .ecpay-legacy .ecsq-status > span:not(.ecsq-dot) { flex:1 1 auto; min-width:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-status b { font-weight:600; color:var(--ecv2-g900); }
+.ecpay-drawer .ecpay-legacy .ecpp .ec_admin_toggle > span,
+.ecpay-drawer .ecpay-legacy .ecpp .ecsq-field > small,
+.ecpay-drawer .ecpay-legacy .ecpp .ecsq-secure-text { min-width:0; overflow-wrap:anywhere; }
+/* 6.0.2: the Stripe panels ( stripe_connect.php here and in WP EasyCart PRO, PRO's stripe.php ) use the Square groups above plus:
+   a sub-heading inside a group, a method row with its notes, an "Always on" state, method name tags ( the free panel's locked
+   rows ) and a read-only address with a Copy button. Without these rules ( an older WP EasyCart ) the rows still read in order. */
+.ecpay-drawer .ecpay-legacy .ecsq-sub { margin:14px 0 0; padding:0 0 2px; font-size:12px; font-weight:600; color:var(--ecv2-g700); }
+.ecpay-drawer .ecpay-legacy .ecsq-method { border-bottom:1px solid var(--ecv2-g100); }
+.ecpay-drawer .ecpay-legacy .ecsq-method:last-child { border-bottom:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-method > .ec_admin_toggle { border-bottom:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-method > .ec_method_deactivated,
+.ecpay-drawer .ecpay-legacy .ecsq-method > .ec_status_error { margin:0 0 10px !important; }
+.ecpay-drawer .ecpay-legacy .ecsq-method > .ecsq-field { padding-top:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-state { flex:0 0 auto; font-size:12px; font-style:normal; font-weight:500; color:var(--ecv2-g500); white-space:nowrap; }
+/* A locked row's chip is a span like the label beside it, and "> span" ( flex:1, the label's dark text ) outranked it: the chip
+   stretched and its text was dark on dark ( Square's free panel too ). */
+.ecpay-drawer .ecpay-legacy .ec_admin_toggle > span.ecsq-pro-chip { flex:0 0 auto; display:inline-flex; color:#fff; font-size:10px; font-weight:700; line-height:1.6; }
+/* admin.css floats .ec_status_label ( 90% wide ): its note box collapsed and the next rows wrapped around the float. */
+.ecpay-drawer .ecpay-legacy .ecsq .ec_status_label { float:none; width:auto; }
+.ecpay-drawer .ecpay-legacy .ecsq-tags { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 0; }
+.ecpay-drawer .ecpay-legacy .ecsq-tags > span { padding:1px 7px; border-radius:999px; background:var(--ecv2-g100); color:var(--ecv2-g700); font-size:11px; font-weight:500; line-height:1.6; }
+.ecpay-drawer .ecpay-legacy .ecsq-copy { display:flex; gap:6px; min-width:0; }
+.ecpay-drawer .ecpay-legacy .ecsq-copy input[type="text"] { flex:1 1 auto; width:auto !important; min-width:0 !important; background:var(--ecv2-g50) !important; color:var(--ecv2-g700) !important; }
+.ecpay-drawer .ecpay-legacy button.ecsq-copy-btn { flex:0 0 auto; display:inline-flex; align-items:center; height:34px; padding:0 12px; border:1px solid var(--ecv2-g300); border-radius:var(--ecv2-r); background:#fff; color:var(--ecv2-g800); font-size:12px; font-weight:600; cursor:pointer; }
+.ecpay-drawer .ecpay-legacy button.ecsq-copy-btn:hover { border-color:var(--ecv2-g400); background:var(--ecv2-g50); }
+.ecpay-drawer .ecpay-legacy .ecsq-field > .ecsq-copied { font-size:12px; font-weight:600; color:#166534; }
+.ecpay-drawer .ecpay-legacy .ecsq .ecsq-group > .ec_admin_toggle_note { margin:8px 0 4px; }
+.ecpay-drawer .ecpay-legacy .ecsq-status.is-warn { background:#fff7e6; color:#874d00; }
+.ecpay-drawer .ecpay-legacy .ecsq-status.is-warn .ecsq-dot { background:#d97706; }
+.ecpay-drawer .ecpay-legacy .ecsq-status a { display:inline; padding:0; margin:0; border:0; background:transparent; color:inherit; font-weight:600; text-decoration:underline; font-size:inherit; }
 
 @media (max-width:1100px) {
 	.ecpay-chooser-grid, .ecpay-chooser-grid.is-n3 { grid-template-columns:repeat(2, minmax(0,1fr)); }

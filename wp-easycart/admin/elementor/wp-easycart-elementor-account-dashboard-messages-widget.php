@@ -25,6 +25,7 @@ $valid_success_codes = array(
 	'activation_success',
 	'password_updated',
 	'order_connected',
+	'order_claim_sent', /* 6.0.2: Connect Order emailed its link */
 );
 
 $valid_error_codes = array(
@@ -41,7 +42,13 @@ $valid_error_codes = array(
 	'subscription_update_failed',
 	'subscription_cancel_failed',
 	'invalid_order_id',
+	/* 6.0.2: Connect Order links */
+	'order_claim_invalid',
+	'order_claim_sign_in',
+	'order_claim_limit',
 );
+/* 6.0.2: the account page's phrase lookup, with English defaults for the 6.0.2 messages. */
+$wpec_account_text = ( method_exists( 'ec_accountpage', 'account_message_text' ) ) ? array( 'ec_accountpage', 'account_message_text' ) : array( wp_easycart_language(), 'get_text' );
 
 if ( isset( $_GET['account_success'] ) && 'login_success' == $_GET['account_success'] ) {
 	do_action( 'wp_easycart_login_success_account' );
@@ -49,7 +56,7 @@ if ( isset( $_GET['account_success'] ) && 'login_success' == $_GET['account_succ
 
 
 if ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $valid_success_codes ) ) {
-	$success_text = wp_easycart_language()->get_text( "ec_success", sanitize_key( $_GET['account_success'] ) );
+	$success_text = call_user_func( $wpec_account_text, 'ec_success', sanitize_key( $_GET['account_success'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a message code for display, checked against the list above.
 	$success_text = apply_filters( 'wpeasycart_account_success', $success_text, sanitize_key( $_GET['account_success'] ) );
 	if ( $success_text ) {
 		echo "<div class=\"ec_account_success\"><div>" . esc_attr( $success_text ) . "</div></div>";
@@ -57,7 +64,7 @@ if ( isset( $_GET['account_success'] ) && in_array( $_GET['account_success'], $v
 }
 
 if ( isset( $_GET['account_error'] ) && in_array( sanitize_key( $_GET['account_error'] ), $valid_error_codes ) ) {
-	$error_text = wp_easycart_language()->get_text( "ec_errors", sanitize_key( $_GET['account_error'] ) );
+	$error_text = call_user_func( $wpec_account_text, 'ec_errors', sanitize_key( $_GET['account_error'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a message code for display, checked against the list above.
 	$error_text = apply_filters( 'wpeasycart_account_error', $error_text, sanitize_key( $_GET['account_error'] ) );
 	if ( $error_text ) {
 		echo '<div class="ec_account_error"><div>' . esc_attr( $error_text ) . ' ';

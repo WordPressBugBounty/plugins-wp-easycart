@@ -125,22 +125,40 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 			$d = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_tempcart_data WHERE session_id = %s ORDER BY tempcart_data_id DESC LIMIT 1', $session_id ) );
 			if ( ! $d ) { return 0; }
 			$email = sanitize_email( trim( (string) $d->email ) ); if ( ! is_email( $email ) ) { return 0; }
+			/** Skip a session ( 6.0.2: checkout protection skips sessions it stopped, so bots trigger no reminder emails ). @since 6.0.2 */
+			if ( apply_filters( 'wpeasycart_abandoned_cart_capture_skip', false, $session_id, $d ) ) { return 0; }
 			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT t.tempcart_id, t.product_id, t.quantity, t.optionitem_id_1, t.optionitem_id_2, t.optionitem_id_3, t.optionitem_id_4, t.optionitem_id_5, t.last_changed_date, t.hide_from_admin, t.abandoned_cart_email_sent, t.donation_price, p.title, p.model_number, p.price, p.image1, p.stock_quantity, p.show_stock_quantity, p.use_optionitem_quantity_tracking, p.activate_in_store FROM ec_tempcart t LEFT JOIN ec_product p ON p.product_id = t.product_id WHERE t.session_id = %s ORDER BY t.tempcart_id', $session_id ) );
 			if ( ! $lines ) { return 0; }
-			$items = array(); $subtotal = 0; $count = 0; $last = ''; $sent = 0; $hidden = 0;
+			$items = array(); $legacy_items = array(); $subtotal = 0; $count = 0; $last = ''; $sent = 0; $hidden = 0;
+			$prices = self::line_prices( $session_id, $d );
 			foreach ( $lines as $l ) {
 				$price = (float) ( (float) $l->donation_price > 0 ? $l->donation_price : $l->price );
-				$opts = array(); for ( $i = 1; $i <= 5; $i++ ) { $oid = (int) $l->{ "optionitem_id_$i" }; if ( $oid ) { $n = $wpdb->get_var( $wpdb->prepare( 'SELECT optionitem_name FROM ec_optionitem WHERE optionitem_id = %d', $oid ) ); if ( $n ) { $opts[] = wp_unslash( $n ); } } }
-				$items[] = array( 'product_id' => (int) $l->product_id, 'title' => wp_unslash( (string) $l->title ), 'sku' => (string) $l->model_number, 'qty' => (int) $l->quantity, 'price' => $price, 'options' => $opts, 'image' => (string) $l->image1 );
-				$subtotal += $price * (int) $l->quantity; $count += (int) $l->quantity; if ( $l->last_changed_date > $last ) { $last = $l->last_changed_date; } $sent = max( $sent, (int) $l->abandoned_cart_email_sent ); $hidden = max( $hidden, (int) $l->hide_from_admin );
+				$total = $price * (int) $l->quantity;
+				// 6.0.2: the price the cart shows for the line ( ec_cartitem ), not the product's own price: option price changes,
+				// a variant's price, advanced options ( price change, one-time price, new price, multiplier, per character, grid
+				// quantities, dimensions ), price tiers, role prices, donations and offers. An $89 product made $129 by its
+				// options was reminded, and totalled, at $89.
+				if ( isset( $prices[ (int) $l->tempcart_id ] ) ) { $price = $prices[ (int) $l->tempcart_id ]['price']; $total = $prices[ (int) $l->tempcart_id ]['total']; }
+				$opts = array(); $oids = array(); for ( $i = 1; $i <= 5; $i++ ) { $oid = (int) $l->{ "optionitem_id_$i" }; if ( $oid ) { $oids[] = $oid; $n = $wpdb->get_var( $wpdb->prepare( 'SELECT optionitem_name FROM ec_optionitem WHERE optionitem_id = %d', $oid ) ); if ( $n ) { $opts[] = wp_unslash( $n ); } } }
+				$item = array( 'product_id' => (int) $l->product_id, 'title' => wp_unslash( (string) $l->title ), 'sku' => (string) $l->model_number, 'qty' => (int) $l->quantity, 'price' => $price, 'options' => $opts, 'image' => (string) $l->image1 );
+				$legacy_items[] = $item;
+				// 6.0.2: the option item ids ( non-zero optionitem_id_1..5, in order ) and the cart line, so an extension can name the exact variant;
+				// the line's total ( one-time option prices are not per item ) and the product's own price ( what "price changed" compares ).
+				$items[] = $item + array( 'optionitem_ids' => $oids, 'tempcart_id' => (int) $l->tempcart_id, 'total' => round( $total, 2 ), 'base_price' => (float) $l->price );
+				$subtotal += $total; $count += (int) $l->quantity; if ( $l->last_changed_date > $last ) { $last = $l->last_changed_date; } $sent = max( $sent, (int) $l->abandoned_cart_email_sent ); $hidden = max( $hidden, (int) $l->hide_from_admin );
 			}
 			$stage = 'cart';
 			if ( '' !== trim( (string) $d->card_error ) ) { $stage = 'payment_failed'; }
 			else if ( '' !== trim( (string) $d->billing_address_line_1 ) || '' !== trim( (string) $d->shipping_method ) || '' !== trim( (string) $d->stripe_paymentintent_id ) ) { $stage = 'checkout_started'; }
+			// 6.0.2: the base currency's ISO code, which the amounts are in ( ec_option_currency, saved before, is the symbol ).
+			$currency = strtoupper( trim( (string) get_option( 'ec_option_base_currency', 'USD' ) ) );
+			if ( ! preg_match( '/^[A-Z]{3}$/', $currency ) ) {
+				$currency = 'USD';
+			}
 			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_abandoned_cart WHERE session_id = %s', $session_id ) );
 			$row = array(
 				'session_id' => $session_id, 'email' => $email, 'first_name' => sanitize_text_field( wp_unslash( '' !== (string) $d->billing_first_name ? $d->billing_first_name : $d->first_name ) ), 'last_name' => sanitize_text_field( wp_unslash( '' !== (string) $d->billing_last_name ? $d->billing_last_name : $d->last_name ) ),
-				'user_id' => (int) $d->user_id, 'phone' => sanitize_text_field( (string) $d->billing_phone ), 'stage' => $stage, 'items_json' => wp_json_encode( $items ), 'item_count' => $count, 'subtotal' => round( $subtotal, 2 ), 'currency' => (string) get_option( 'ec_option_currency' ),
+				'user_id' => (int) $d->user_id, 'phone' => sanitize_text_field( (string) $d->billing_phone ), 'stage' => $stage, 'items_json' => wp_json_encode( $items ), 'item_count' => $count, 'subtotal' => round( $subtotal, 2 ), 'currency' => $currency,
 				'coupon_code' => (string) $d->coupon_code, 'shipping_country' => (string) ( $d->shipping_country ? $d->shipping_country : $d->billing_country ), 'locale' => (string) $d->translate_to, 'card_error' => sanitize_text_field( (string) $d->card_error ), 'last_activity' => $last ? $last : self::db_datetime(),
 			);
 			$idle = (int) self::settings()['idle_minutes'];
@@ -151,12 +169,22 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 			if ( $existing ) {
 				/* a live cart moving again: keep the sequence position; if it was expired/dismissed leave it be unless the cart changed */
 				if ( in_array( $existing->status, array( 'recovered', 'converted_other', 'unsubscribed' ), true ) ) { return (int) $existing->abandoned_cart_id; }
-				if ( 'dismissed' === $existing->status && $existing->items_json === $row['items_json'] ) { return (int) $existing->abandoned_cart_id; }
+				// A snapshot saved before 6.0.2 has no optionitem_ids / tempcart_id: compare it without them, so a dismissed cart does not come back just because the format grew.
+				// 6.0.2: nor because its lines are now priced as the cart prices them ( same_lines() ).
+				if ( 'dismissed' === $existing->status && ( $existing->items_json === $row['items_json'] || $existing->items_json === wp_json_encode( $legacy_items ) || self::same_lines( $existing->items_json, $items ) ) ) { return (int) $existing->abandoned_cart_id; }
 				if ( 'expired' === $existing->status || 'dismissed' === $existing->status ) { $row['status'] = 'active'; $row['sequence_step'] = 0; $row['next_send_at'] = $first_send; }
 				else if ( 0 === (int) $existing->sequence_step ) { $row['next_send_at'] = $first_send; } /* not reminded yet: push the first send out with the new activity */
 				if ( $suppressed ) { $row['status'] = 'unsubscribed'; $row['next_send_at'] = null; }
 				$wpdb->update( 'ec_abandoned_cart', $row, array( 'abandoned_cart_id' => (int) $existing->abandoned_cart_id ) );
 				$id = (int) $existing->abandoned_cart_id;
+				/**
+				 * A saved cart was refreshed from its session ( new carts fire wp_easycart_abandoned_cart_captured ).
+				 *
+				 * @since 6.0.2
+				 * @param int   $id  abandoned_cart_id.
+				 * @param array $row The columns just written ( status, sequence_step and next_send_at only when they changed ).
+				 */
+				do_action( 'wp_easycart_abandoned_cart_updated', $id, $row );
 			} else {
 				$status = $hidden ? 'dismissed' : ( $suppressed ? 'unsubscribed' : 'active' );
 				$row += array( 'status' => $status, 'first_seen' => $last ? $last : self::db_datetime(), 'sequence_step' => $sent, 'next_send_at' => ( $sent || 'active' !== $status ) ? null : $first_send );
@@ -165,6 +193,100 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 				do_action( 'wp_easycart_abandoned_cart_captured', $id, $row );
 			}
 			return $id;
+		}
+
+		/**
+		 * Each line's price as the cart prices it: ec_cartitem built from the session's lines ( ec_db::get_temp_cart() without
+		 * its stock trim ), so every option, variant, tier, role and offer rule the cart applies is applied here too. A sweep
+		 * prices other shoppers' carts, so for the length of the build the cart globals describe that session ( its lines'
+		 * advanced options, its customer's role prices and level ) and are put back after.
+		 *
+		 * @since 6.0.2
+		 * @param string      $session_id Cart session.
+		 * @param object|null $cart_data  Its ec_tempcart_data row.
+		 * @return array tempcart_id => array( 'price' => unit price, 'total' => line total ), both rounded to cents; empty when
+		 *               the cart classes are not loaded ( the product's own price is used then ).
+		 */
+		public static function line_prices( $session_id, $cart_data = null ) {
+			global $wpdb;
+			$session_id = (string) $session_id;
+			if ( '' === $session_id || ! class_exists( 'ec_db' ) || ! class_exists( 'ec_cartitem' ) || ! class_exists( 'ec_roleprices' ) || ! isset( $GLOBALS['ec_cart_data'], $GLOBALS['ec_options'], $GLOBALS['ec_pricetiers'], $GLOBALS['currency'] ) || ! is_object( $GLOBALS['ec_cart_data'] ) ) {
+				return array();
+			}
+			$saved = array(
+				'ec_cart_data'  => $GLOBALS['ec_cart_data'],
+				'ec_roleprices' => isset( $GLOBALS['ec_roleprices'] ) ? $GLOBALS['ec_roleprices'] : null,
+				'ec_user'       => isset( $GLOBALS['ec_user'] ) ? $GLOBALS['ec_user'] : null,
+			);
+			$out = array();
+			try {
+				$db = new ec_db();
+				if ( ! isset( $GLOBALS['ec_cart_data']->ec_cart_id ) || (string) $GLOBALS['ec_cart_data']->ec_cart_id !== $session_id || ! isset( $GLOBALS['ec_roleprices'] ) ) {
+					/* A copy, not a new ec_cart_data: its constructor switches the page language and adds a hook. */
+					$data                        = clone $GLOBALS['ec_cart_data'];
+					$data->ec_cart_id            = $session_id;
+					$data->cart_data             = is_object( $cart_data ) ? $cart_data : (object) array( 'user_id' => 0 );
+					$data->advanced_cart_options = (array) $db->get_advanced_cart_options( $session_id );
+					if ( method_exists( $data, 'init_advanced_cart_options' ) && isset( $GLOBALS['ec_advanced_optionsets'] ) ) {
+						$data->init_advanced_cart_options();
+					}
+					$GLOBALS['ec_cart_data']  = $data; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- WP EasyCart's own cart global, put back below.
+					$GLOBALS['ec_roleprices'] = new ec_roleprices(); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- the session customer's role prices, put back below.
+					if ( is_object( $saved['ec_user'] ) ) {
+						$user_id          = isset( $data->cart_data->user_id ) ? (int) $data->cart_data->user_id : 0;
+						$level            = $user_id ? $wpdb->get_var( $wpdb->prepare( 'SELECT user_level FROM ec_user WHERE user_id = %d', $user_id ) ) : null;
+						$user             = clone $saved['ec_user'];
+						$user->user_id    = $user_id;
+						$user->user_level = ( null !== $level ) ? (string) $level : 'shopper';
+
+						$GLOBALS['ec_user'] = $user; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- login-for-pricing levels of the session customer, put back below.
+					}
+				}
+				foreach ( (array) $db->get_temp_cart( $session_id, false ) as $line ) {
+					if ( ! is_object( $line ) || ! isset( $line->cartitem_id, $line->unit_price, $line->total_price ) ) {
+						continue;
+					}
+					$out[ (int) $line->cartitem_id ] = array(
+						'price' => round( (float) $line->unit_price, 2 ),
+						'total' => round( (float) $line->total_price, 2 ),
+					);
+				}
+			} catch ( Throwable $e ) {
+				$out = array(); /* the product's own price, as before, rather than no snapshot */
+			} finally {
+				$GLOBALS['ec_cart_data'] = $saved['ec_cart_data']; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- restores WP EasyCart's own global.
+				if ( null !== $saved['ec_roleprices'] ) {
+					$GLOBALS['ec_roleprices'] = $saved['ec_roleprices']; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- restores WP EasyCart's own global.
+				}
+				if ( null !== $saved['ec_user'] ) {
+					$GLOBALS['ec_user'] = $saved['ec_user']; // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- restores WP EasyCart's own global.
+				}
+			}
+			return $out;
+		}
+
+		/**
+		 * Do two snapshots hold the same lines ( product, quantity, choices ), whatever their prices and format? A dismissed
+		 * cart comes back only when its lines changed.
+		 *
+		 * @since 6.0.2
+		 * @param string $json  Saved items_json.
+		 * @param array  $items New items.
+		 * @return bool
+		 */
+		public static function same_lines( $json, $items ) {
+			$old = json_decode( (string) $json, true );
+			if ( ! is_array( $old ) || count( $old ) !== count( $items ) ) {
+				return false;
+			}
+			$key = function ( $it ) {
+				return ( isset( $it['product_id'] ) ? (int) $it['product_id'] : 0 ) . '|' . ( isset( $it['qty'] ) ? (int) $it['qty'] : 0 ) . '|' . wp_json_encode( isset( $it['options'] ) ? array_values( (array) $it['options'] ) : array() );
+			};
+			$was = array_map( $key, array_values( $old ) );
+			$now = array_map( $key, array_values( $items ) );
+			sort( $was );
+			sort( $now );
+			return $was === $now;
 		}
 
 		/**
@@ -183,7 +305,8 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 		public static function sweep( $limit = 300 ) {
 			global $wpdb; if ( ! self::tables_exist() ) { return 0; }
 			$days = (int) self::settings()['expire_days'];
-			$sessions = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.session_id FROM ec_tempcart t INNER JOIN ec_tempcart_data d ON d.session_id = t.session_id LEFT JOIN ec_abandoned_cart a ON a.session_id = t.session_id WHERE d.email != '' AND t.last_changed_date >= DATE_SUB( NOW(), INTERVAL %d DAY ) AND ( a.abandoned_cart_id IS NULL OR a.last_activity < ( SELECT MAX( t2.last_changed_date ) FROM ec_tempcart t2 WHERE t2.session_id = t.session_id ) ) LIMIT %d", $days, $limit ) );
+			// 6.0.2: open snapshots saved before lines carried the cart's own price ( no "total" ) are taken again once.
+			$sessions = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.session_id FROM ec_tempcart t INNER JOIN ec_tempcart_data d ON d.session_id = t.session_id LEFT JOIN ec_abandoned_cart a ON a.session_id = t.session_id WHERE d.email != '' AND t.last_changed_date >= DATE_SUB( NOW(), INTERVAL %d DAY ) AND ( a.abandoned_cart_id IS NULL OR a.last_activity < ( SELECT MAX( t2.last_changed_date ) FROM ec_tempcart t2 WHERE t2.session_id = t.session_id ) OR ( a.status IN ( 'active', 'reminded' ) AND a.items_json NOT LIKE %s ) ) LIMIT %d", $days, '%"total":%', $limit ) );
 			$n = 0; foreach ( $sessions as $sid ) { if ( self::capture( $sid ) ) { $n++; } }
 			return $n;
 		}
@@ -478,6 +601,8 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 		}
 		private static function redirect_to_cart() {
 			$to = self::cart_page_url(); if ( '' === $to ) { $to = home_url( '/' ); }
+			/* 6.0.2: keep the email's campaign tags, so the cart page records the order's source as this email. */
+			if ( class_exists( 'wp_easycart_order_source' ) ) { $tags = wp_easycart_order_source::request_tags(); if ( $tags ) { $to = add_query_arg( $tags, $to ); } }
 			nocache_headers(); wp_safe_redirect( $to ); self::end();
 		}
 		private static function mask_email( $email ) {
@@ -527,6 +652,28 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 		}
 		/** exit() that tests can intercept ( define EC_ABANDONED_NO_EXIT ). */
 		private static function end() { if ( defined( 'EC_ABANDONED_NO_EXIT' ) ) { throw new RuntimeException( 'exit' ); } exit; }
+
+		/**
+		 * Who sends this cart's reminder emails: easycart ( the built-in reminder sequence ) unless another system, such as
+		 * an email marketing extension, has taken them over. Anything but easycart means the built-in sequence leaves the
+		 * cart alone.
+		 *
+		 * @since 6.0.2
+		 * @param object $cart ec_abandoned_cart row.
+		 * @return string Sender slug.
+		 */
+		public static function reminder_sender( $cart ) {
+			/**
+			 * Who sends a saved cart's reminder emails.
+			 *
+			 * @since 6.0.2
+			 * @param string $sender easycart, or another system's slug.
+			 * @param object $cart   ec_abandoned_cart row.
+			 */
+			$sender = apply_filters( 'wp_easycart_abandoned_cart_reminder_sender', 'easycart', $cart );
+			$sender = is_string( $sender ) ? sanitize_key( $sender ) : '';
+			return ( '' !== $sender ) ? $sender : 'easycart';
+		}
 
 		/** Has this address unsubscribed from cart reminders ( on any cart, ever )? */
 		public static function is_suppressed( $email ) {
@@ -594,7 +741,7 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 		public static function top_products( $days = 30, $limit = 8 ) {
 			global $wpdb; if ( ! self::tables_exist() ) { return array(); }
 			$agg = array();
-			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT items_json FROM ec_abandoned_cart WHERE first_seen >= DATE_SUB( NOW(), INTERVAL %d DAY )', (int) $days ) ) as $j ) { foreach ( (array) json_decode( $j, true ) as $it ) { $k = (int) $it['product_id']; if ( ! isset( $agg[ $k ] ) ) { $agg[ $k ] = array( 'product_id' => $k, 'title' => $it['title'], 'carts' => 0, 'qty' => 0, 'value' => 0 ); } $agg[ $k ]['carts']++; $agg[ $k ]['qty'] += (int) $it['qty']; $agg[ $k ]['value'] += (float) $it['price'] * (int) $it['qty']; } }
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT items_json FROM ec_abandoned_cart WHERE first_seen >= DATE_SUB( NOW(), INTERVAL %d DAY )', (int) $days ) ) as $j ) { foreach ( (array) json_decode( $j, true ) as $it ) { $k = (int) $it['product_id']; if ( ! isset( $agg[ $k ] ) ) { $agg[ $k ] = array( 'product_id' => $k, 'title' => $it['title'], 'carts' => 0, 'qty' => 0, 'value' => 0 ); } $agg[ $k ]['carts']++; $agg[ $k ]['qty'] += (int) $it['qty']; $agg[ $k ]['value'] += isset( $it['total'] ) ? (float) $it['total'] : (float) $it['price'] * (int) $it['qty']; } }
 			usort( $agg, function( $a, $b ) { return $b['carts'] - $a['carts']; } );
 			return array_slice( $agg, 0, $limit );
 		}

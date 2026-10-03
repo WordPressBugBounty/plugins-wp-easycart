@@ -342,6 +342,10 @@ if ( ! function_exists( 'ecv2_option_set_search' ) ) :
 		$type_sql = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 		$args     = $types;
 		$where    = 'WHERE o.option_type IN ( ' . $type_sql . ' )';
+		/* 6.0.2: sets that belong to one product stay out of the shared pickers, except in that product's own editor. */
+		if ( class_exists( 'wp_easycart_product_writer' ) ) {
+			$where .= wp_easycart_product_writer::shared_sets_sql( 'o', isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0 );
+		}
 		if ( '' !== $q ) {
 			$where .= ' AND o.option_name LIKE %s';
 			$args[] = '%' . $wpdb->esc_like( $q ) . '%';

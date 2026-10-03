@@ -61,19 +61,6 @@ if ( ! function_exists( 'wp_easycart_settings_admin_link_style_validate' ) ) {
 	}
 }
 
-if ( ! function_exists( 'wp_easycart_settings_admin_tracking_saved' ) ) {
-	/** Usage data side effect: the legacy "allow" handlers sent the initial snapshot immediately. */
-	function wp_easycart_settings_admin_tracking_saved( $value, $old, $field ) {
-		if ( '1' !== (string) $value ) {
-			return;
-		}
-		if ( ! function_exists( 'wp_easycart_admin_tracking' ) ) {
-			include EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tracking.php';
-		}
-		do_action( 'wpeasycart_admin_usage_tracking_accepted' );
-	}
-}
-
 if ( ! function_exists( 'wp_easycart_settings_admin_delete_gateway_log' ) ) {
 	/** "Delete Log File" link from the legacy page. */
 	function wp_easycart_settings_admin_delete_gateway_log( $action, $page ) {
@@ -112,7 +99,8 @@ return array(
 	'slug'        => 'admin',
 	'title'       => __( 'Admin', 'wp-easycart' ),
 	'description' => __( 'How the EasyCart admin behaves: the quick-add panel, order lists, mobile apps, diagnostics and a few store-wide switches.', 'wp-easycart' ),
-	'group'       => 'customize',
+	'group'       => 'advanced',
+	'order'       => 10,
 	'icon'        => 'admin-tools',
 	'docs'        => array( 'settings', 'additional-settings', 'additional-options' ),
 	'legacy'      => array( 'miscellaneous' ),
@@ -263,7 +251,7 @@ return array(
 				'ec_option_use_inquiry_form' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Built-in inquiry form on inquiry-mode products', 'wp-easycart' ),
-					'desc'     => __( 'Inquiry-mode products show EasyCart’s name, email and message form and email you the request. Turn off to send shoppers to each product’s inquiry URL instead; products with no URL still show the form.', 'wp-easycart' ),
+					'desc'     => __( 'Inquiry-mode products show EasyCart’s name, email and message form, which always sends the request to your store by email. Turn off to show a link to each product’s inquiry URL instead: the store never sends the shopper’s details to that URL, and products with no URL still show the form.', 'wp-easycart' ),
 					'default'  => 1,
 					'advanced' => true,
 					'keywords' => array( 'inquiry', 'quote', 'contact', 'request' ),
@@ -303,7 +291,7 @@ return array(
 						'1'  => __( 'Send', 'wp-easycart' ),
 						'-1' => __( 'Don’t send', 'wp-easycart' ),
 					),
-					'on_save'  => 'wp_easycart_settings_admin_tracking_saved',
+					/* Turning it on queues the store's setup, turning it off forgets what waits: wp_easycart_tracking_option_changed() ( wpeasycart.php ). */
 					'keywords' => array( 'tracking', 'telemetry', 'privacy', 'statistics' ),
 					'legacy'   => array( 'page' => 'miscellaneous', 'section' => 'Additional Options', 'label' => 'Send Anonymous Data' ),
 				),

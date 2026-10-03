@@ -46,11 +46,8 @@ $more_atts['enable_product3'] = ( 'yes' == $enable_product3 ) ? 1 : 0;
 $more_atts['enable_product4'] = ( 'yes' == $enable_product4 ) ? 1 : 0;
 $more_atts['product_visible_options'] = ( is_array( $visible_options ) ) ? implode( ',', $visible_options ) : '';
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 echo '<div class="wp-easycart-product-details-featured-products-shortcode-wrapper d-flex">';
-echo do_shortcode( '[ec_product_details_featured_products ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_product_details_featured_products ' . $extra_atts . ']' );
 echo '</div>';

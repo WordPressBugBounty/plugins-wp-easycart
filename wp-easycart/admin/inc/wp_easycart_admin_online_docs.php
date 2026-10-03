@@ -7,10 +7,10 @@ class wp_easycart_admin_online_docs {
 	public $extension_guide_url;
 
 	public function __construct() {
-		$this->admin_guide_url = 'http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?wpeasycartadmin=1';
-		$this->admin_guide_section_url = 'http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?wpeasycartadmin=1&section=';
-		$this->installation_guide_url = 'http://docs.wpeasycart.com/wp-easycart-installation-guide/?wpeasycartadmin=1&section=';
-		$this->extension_guide_url = 'http://docs.wpeasycart.com/wp-easycart-extensions-guide/?wpeasycartadmin=1&section=';
+		$this->admin_guide_url = 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?wpeasycartadmin=1';
+		$this->admin_guide_section_url = 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?wpeasycartadmin=1&section=';
+		$this->installation_guide_url = 'https://docs.wpeasycart.com/wp-easycart-installation-guide/?wpeasycartadmin=1&section=';
+		$this->extension_guide_url = 'https://docs.wpeasycart.com/wp-easycart-extensions-guide/?wpeasycartadmin=1&section=';
 	}
 
 	public function print_docs_url( $section, $category, $panel ) {

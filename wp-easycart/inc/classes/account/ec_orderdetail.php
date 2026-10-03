@@ -514,7 +514,7 @@ class ec_orderdetail{
 	}
 
 	public function has_discounted_unit_price() {
-		return ( apply_filters( 'wp_easycart_order_details_show_discount_unit', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->unit_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->unit_discount_coupon > 0 ) ) );
+		return ( apply_filters( 'wp_easycart_order_details_show_discount_unit', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->unit_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->unit_discount_coupon > 0 ) || $this->offer_unit_savings() > 0 ) );
 	}
 
 	public function display_discounted_unit_price() {
@@ -522,7 +522,28 @@ class ec_orderdetail{
 		if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->unit_discount_coupon > 0 ) {
 			$unit_price -= $this->unit_discount_coupon;
 		}
+		$unit_price = max( 0, $unit_price - $this->offer_unit_savings() );
 		echo esc_attr( $GLOBALS['currency']->get_currency_display( $unit_price ) );
+	}
+
+	/**
+	 * Offers savings this line shows ( saved in applied_offers when the order was placed ), for the whole line, following
+	 * "Show coupon / promotion savings on each line" as wp_easycart_offer_line_savings() reads them.
+	 *
+	 * @since 6.0.2
+	 * @return float Base currency.
+	 */
+	public function offer_line_savings() {
+		if ( ! isset( $this->applied_offers ) || '' === (string) $this->applied_offers || ! function_exists( 'wp_easycart_offer_line_savings' ) ) {
+			return 0;
+		}
+		$savings = wp_easycart_offer_line_savings( (string) $this->applied_offers );
+		return min( max( 0, (float) $savings['shown'] ), max( 0, (float) $this->total_price ) );
+	}
+
+	/** Offers savings this line shows, for one unit ( base currency ). */
+	public function offer_unit_savings() {
+		return ( (int) $this->quantity > 0 ) ? $this->offer_line_savings() / (int) $this->quantity : 0;
 	}
 
 	public function display_quantity() {
@@ -538,7 +559,7 @@ class ec_orderdetail{
 	}
 
 	public function has_discounted_total_price() {
-		return ( apply_filters( 'wp_easycart_order_details_show_discount_total', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->total_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->total_discount_coupon > 0 ) ) );
+		return ( apply_filters( 'wp_easycart_order_details_show_discount_total', true ) && ( ( get_option( 'ec_option_show_promotion_discount_total' ) && $this->total_discount_promotion > 0 ) || ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->total_discount_coupon > 0 ) || $this->offer_line_savings() > 0 ) );
 	}
 
 	public function display_discounted_total_price() {
@@ -546,6 +567,7 @@ class ec_orderdetail{
 		if ( get_option( 'ec_option_show_coupon_discount_total' ) && $this->total_discount_coupon > 0 ) {
 			$total_price -= $this->total_discount_coupon;
 		}
+		$total_price = max( 0, $total_price - $this->offer_line_savings() );
 		echo esc_attr( $GLOBALS['currency']->get_currency_display( $total_price ) );
 	}
 

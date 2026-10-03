@@ -152,17 +152,42 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				echo '<td class="ecv2-cell ecv2-cell-' . esc_attr( $col['name'] ) . ( ! empty( $col['tablet_hide'] ) ? ' ecv2-hide-tablet' : '' ) . ( ! empty( $col['laptop_hide'] ) ? ' ecv2-hide-laptop' : '' ) . '">'; $this->print_cell_content( $result, $col ); echo '</td>';
 			}
 			echo '<td class="ecv2-col-actions">'; $this->print_row_actions( $result ); echo '</td></tr>';
+			/* 6.0.2: a region row fills the country's columns, in the order and with the columns the Columns chooser shows. */
+			$span = 1;
+			foreach ( $this->list_columns as $col ) {
+				if ( 'hidden' !== $col['format'] ) {
+					++$span;
+				}
+			}
 			foreach ( $regions as $s ) {
 				echo '<tr class="ecv2-row eccnt-region" data-country="' . (int) $result->id_cnt . '" data-id="' . (int) $s->id_sta . '" style="display:none"><td></td>';
-				echo '<td class="ecv2-cell"><span class="eccnt-region-name">' . esc_html( wp_unslash( $s->name_sta ) ) . '</span>' . ( $s->group_sta ? ' <span class="ecv2-sub" style="display:inline">· ' . esc_html( wp_unslash( $s->group_sta ) ) . '</span>' : '' ) . '</td>';
-				echo '<td class="ecv2-cell"><span class="ecv2-mono">' . esc_html( $s->code_sta ) . '</span></td>';
-				echo '<td class="ecv2-cell"><label class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" class="eccnt-ship" data-kind="region" data-id="' . (int) $s->id_sta . '"' . ( $s->ship_to_active ? ' checked' : '' ) . ' /><span class="ecv2-toggle-slider"></span></label></td>';
+				foreach ( $this->list_columns as $col ) {
+					if ( 'hidden' === $col['format'] ) {
+						continue;
+					}
+					echo '<td class="ecv2-cell' . ( ! empty( $col['tablet_hide'] ) ? ' ecv2-hide-tablet' : '' ) . ( ! empty( $col['laptop_hide'] ) ? ' ecv2-hide-laptop' : '' ) . '">';
+					switch ( $col['name'] ) {
+						case 'name_cnt':
+							echo '<span class="eccnt-region-name">' . esc_html( wp_unslash( $s->name_sta ) ) . '</span>' . ( $s->group_sta ? ' <span class="ecv2-sub" style="display:inline">· ' . esc_html( wp_unslash( $s->group_sta ) ) . '</span>' : '' );
+							break;
+						case 'iso2_cnt':
+							echo '<span class="ecv2-mono">' . esc_html( $s->code_sta ) . '</span>';
+							break;
+						case 'ship_to_active':
+							echo '<label class="ecv2-toggle ecv2-toggle-sm"><input type="checkbox" class="eccnt-ship" data-kind="region" data-id="' . (int) $s->id_sta . '"' . ( $s->ship_to_active ? ' checked' : '' ) . ' /><span class="ecv2-toggle-slider"></span></label>';
+							break;
+						case 'sort_order':
+							echo (int) $s->sort_order;
+							break;
+						case 'id_cnt':
+							echo (int) $s->id_sta;
+							break;
+					}
+					echo '</td>';
+				}
 				/* 6.0.1: edit and delete sat as text links in the Regions column, which read as part of the
 				   country's region summary and wrapped onto three lines. They are a row menu in the Actions
 				   column now, the same as every other row in the V2 admin. */
-				echo '<td class="ecv2-cell ecv2-hide-tablet"></td><td class="ecv2-cell"></td>';
-				echo '<td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->sort_order . '</td>';
-				echo '<td class="ecv2-cell ecv2-hide-laptop">' . (int) $s->id_sta . '</td>';
 				echo '<td class="ecv2-col-actions"><div class="ecv2-row-menu-wrap">';
 				echo '<button type="button" class="ecv2-row-menu-trigger" onclick="ecv2_toggle_row_menu(this);">&#8943;</button>';
 				echo '<div class="ecv2-row-menu">';
@@ -170,7 +195,10 @@ if ( ! class_exists( 'wp_easycart_admin_country_table' ) ) :
 				echo '<a href="#" class="ecv2-row-menu-item ecv2-row-menu-item-danger" onclick="return eccountry.region_row_delete( ' . (int) $s->id_sta . ', this );"><span class="dashicons dashicons-trash"></span> ' . esc_html__( 'Delete', 'wp-easycart' ) . '</a>';
 				echo '</div></div></td></tr>';
 			}
-			if ( $regions ) { echo '<tr class="eccnt-region eccnt-region-add" data-country="' . (int) $result->id_cnt . '" style="display:none"><td></td><td class="ecv2-cell" colspan="8"><a href="#" class="ecos-link-brand" onclick="return eccountry.open( ' . (int) $result->id_cnt . ', \'regions\', 0 );">+ ' . esc_html( sprintf( __( 'Add region to %s', 'wp-easycart' ), wp_unslash( $result->name_cnt ) ) ) . '</a></td></tr>'; }
+			if ( $regions ) {
+				/* translators: %s: country name. */
+				echo '<tr class="eccnt-region eccnt-region-add" data-country="' . (int) $result->id_cnt . '" style="display:none"><td></td><td class="ecv2-cell" colspan="' . (int) $span . '"><a href="#" class="ecos-link-brand" onclick="return eccountry.open( ' . (int) $result->id_cnt . ', \'regions\', 0 );">+ ' . esc_html( sprintf( __( 'Add region to %s', 'wp-easycart' ), wp_unslash( $result->name_cnt ) ) ) . '</a></td></tr>';
+			}
 		}
 
 		protected function print_cell_content( $result, $col ) {

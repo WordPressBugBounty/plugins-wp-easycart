@@ -150,7 +150,8 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				'paymentexpress' => 'Payment Express PxPost',
 				'paypal_pro' => 'PayPal PayFlow Pro',
 				'paypal_payments_pro' => 'PayPal Payments Pro',
-				'paypoint' => 'PayPoint', 
+				'paypoint' => 'PayPoint',
+				'paytrace' => 'PayTrace',
 				'realex' => 'Realex',
 				'securepay' => 'SecurePay',
 				'stripe' => 'Stripe (v1)',
@@ -288,11 +289,13 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			update_option( 'ec_option_paypal_button_shape', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_paypal_button_shape'] ) ), array( 'pill', 'rect' ) ) );
 			update_option( 'ec_option_paypal_express_page1_checkout', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_express_page1_checkout'] ) );
 
-			if ( isset( $_POST['ec_option_paypal_marketing_solution_cid_sandbox'] ) ) {
-				update_option( 'ec_option_paypal_marketing_solution_cid_sandbox', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_marketing_solution_cid_sandbox'] ) );
-			}
-			if ( isset( $_POST['ec_option_paypal_marketing_solution_cid_production'] ) ) {
-				update_option( 'ec_option_paypal_marketing_solution_cid_production', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_paypal_marketing_solution_cid_production'] ) );
+			/* 6.0.2: the container ids are text, and the panel has no field for them: payment.js posts them empty, which
+			   used to save 0 and made every storefront page load PayPal's tag manager for container "0". */
+			foreach ( array( 'ec_option_paypal_marketing_solution_cid_sandbox', 'ec_option_paypal_marketing_solution_cid_production' ) as $cid_option ) {
+				$cid = isset( $_POST[ $cid_option ] ) ? sanitize_text_field( wp_unslash( $_POST[ $cid_option ] ) ) : '';
+				if ( '' !== $cid && '0' !== $cid ) {
+					update_option( $cid_option, $cid );
+				}
 			}
 
 			do_action( 'wp_easycart_paypal_standard_updated' );
@@ -342,8 +345,8 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			}
 			$form_action = sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- dispatch only; verified below before anything changes.
 			$cleared     = array(
-				'paypal-express-sandbox-disconnect'      => array( 'ec_option_paypal_sandbox_webhook_id', 'ec_option_paypal_sandbox_merchant_id' ),
-				'paypal-express-production-disconnect'   => array( 'ec_option_paypal_production_webhook_id', 'ec_option_paypal_production_merchant_id' ),
+				'paypal-express-sandbox-disconnect'      => array( 'ec_option_paypal_sandbox_webhook_id', 'ec_option_paypal_sandbox_merchant_id', 'ec_option_paypal_sandbox_webhook_key' ),
+				'paypal-express-production-disconnect'   => array( 'ec_option_paypal_production_webhook_id', 'ec_option_paypal_production_merchant_id', 'ec_option_paypal_production_webhook_key' ),
 				'paypal-marketing-sandbox-disconnect'    => array( 'ec_option_paypal_marketing_solution_cid_sandbox' ),
 				'paypal-marketing-production-disconnect' => array( 'ec_option_paypal_marketing_solution_cid_production' ),
 			);
@@ -354,54 +357,83 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			foreach ( $cleared[ $form_action ] as $option_name ) {
 				update_option( $option_name, '' );
 			}
+			/* 6.0.2: the account's notification registration goes with it ( WP EasyCart Connect's registration id, the key,
+			   a key still being registered, the last problem ); connecting again registers afresh. */
+			if ( class_exists( 'wp_easycart_paypal_webhooks' ) && in_array( $form_action, array( 'paypal-express-sandbox-disconnect', 'paypal-express-production-disconnect' ), true ) ) {
+				wp_easycart_paypal_webhooks::forget( ( 'paypal-express-sandbox-disconnect' === $form_action ) ? 'sandbox' : 'production' );
+			}
 			wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array() );
 		}
 
+		/**
+		 * The Stripe ( Connect ) options posted by ec_admin_save_stripe_connect_options() ( admin/js/payment.js ).
+		 *
+		 * 6.0.2: only the fields posted are saved. The live gateway and test mode come only from the Live / Test mode switches;
+		 * saving the currency or a checkout option used to post them too and turned off another live gateway. The pay later
+		 * minimum is kept as a whole amount: it was cut to 0 or 1, so every save put Stripe's default back.
+		 *
+		 * @since 6.0.2 only the posted fields.
+		 */
 		public function save_stripe_connect() {
 			ecv2_payment_settings_guard();
+			$verify = wp_easycart_admin_verification();
 
-			update_option( 'ec_option_stripe_connect_use_sandbox', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_connect_use_sandbox'] ) );
-			update_option( 'ec_option_payment_process_method', wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_payment_process_method'] ) ), array( 'stripe_connect' ) ) );
-			update_option( 'ec_option_stripe_currency', wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_currency'] ) ), 3 ) );
-			update_option( 'ec_option_stripe_company_country', wp_easycart_admin_verification()->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_company_country'] ) ), 2 ) );
-			update_option( 'ec_option_stripe_payment_theme', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_payment_theme'] ) ) );
-			update_option( 'ec_option_stripe_payment_layout', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_payment_layout'] ) ) );
-			update_option( 'ec_option_stripe_subscription_notices', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_subscription_notices'] ) ) );
-			update_option( 'ec_option_stripe_address_autocomplete', sanitize_text_field( (int) $_POST['ec_option_stripe_address_autocomplete'] ) );
-			update_option( 'ec_option_stripe_connect_webhook_secret', sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_connect_webhook_secret'] ) ) );
-			
-			update_option( 'ec_option_stripe_affirm', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_affirm'] ) );
-			update_option( 'ec_option_stripe_afterpay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_afterpay'] ) );
-			update_option( 'ec_option_stripe_klarna', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_klarna'] ) );
-			update_option( 'ec_option_stripe_pay_later_minimum', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_pay_later_minimum'] ) );
+			if ( isset( $_POST['ec_option_stripe_connect_use_sandbox'] ) ) {
+				update_option( 'ec_option_stripe_connect_use_sandbox', $verify->filter_bool_int( (int) $_POST['ec_option_stripe_connect_use_sandbox'] ) );
+			}
+			if ( isset( $_POST['ec_option_payment_process_method'] ) ) {
+				update_option( 'ec_option_payment_process_method', $verify->filter_list( sanitize_text_field( wp_unslash( $_POST['ec_option_payment_process_method'] ) ), array( 'stripe_connect' ) ) );
+			}
+			if ( isset( $_POST['ec_option_stripe_currency'] ) ) {
+				update_option( 'ec_option_stripe_currency', $verify->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_currency'] ) ), 3 ) );
+			}
+			if ( isset( $_POST['ec_option_stripe_company_country'] ) ) {
+				update_option( 'ec_option_stripe_company_country', $verify->filter_chars( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_company_country'] ) ), 2 ) );
+			}
+			foreach ( array( 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret' ) as $option ) {
+				if ( isset( $_POST[ $option ] ) ) {
+					update_option( $option, sanitize_text_field( wp_unslash( $_POST[ $option ] ) ) );
+				}
+			}
+			if ( isset( $_POST['ec_option_stripe_pay_later_minimum'] ) ) {
+				$minimum = trim( sanitize_text_field( wp_unslash( $_POST['ec_option_stripe_pay_later_minimum'] ) ) );
+				update_option( 'ec_option_stripe_pay_later_minimum', ( '' === $minimum || ! is_numeric( $minimum ) ) ? '' : (string) max( 0, (int) $minimum ) );
+			}
 
-			update_option( 'ec_option_stripe_enable_apple_pay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_enable_apple_pay'] ) );
-			update_option( 'ec_option_stripe_disable_wallet_first', wp_easycart_admin_verification()->filter_bool_int( ( ( isset( $_POST['ec_option_stripe_disable_wallet_first'] ) ) ? (int) $_POST['ec_option_stripe_disable_wallet_first'] : 0 ) ) );
-			update_option( 'ec_option_stripe_alipay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_alipay'] ) );
-			update_option( 'ec_option_stripe_grabpay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_grabpay'] ) );
-			update_option( 'ec_option_stripe_wechat', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_wechat'] ) );
-			update_option( 'ec_option_stripe_link', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_link'] ) );
-
-			update_option( 'ec_option_stripe_bancontact', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_bancontact'] ) );
-			update_option( 'ec_option_stripe_blik', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_blik'] ) );
-			update_option( 'ec_option_stripe_eps', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_eps'] ) );
-			update_option( 'ec_option_stripe_fpx', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_fpx'] ) );
-			update_option( 'ec_option_stripe_giropay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_giropay'] ) );
-			update_option( 'ec_option_stripe_enable_ideal', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_enable_ideal'] ) );
-			update_option( 'ec_option_stripe_p24', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_p24'] ) );
-			update_option( 'ec_option_stripe_sofort', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_sofort'] ) );
-
-			update_option( 'ec_option_stripe_bacs', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_bacs'] ) );
-			update_option( 'ec_option_stripe_becs', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_becs'] ) );
-			update_option( 'ec_option_stripe_sepa', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_sepa'] ) );
-
-			update_option( 'ec_option_stripe_pix', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_pix'] ) );
-			update_option( 'ec_option_stripe_paynow', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_paynow'] ) );
-			update_option( 'ec_option_stripe_promptpay', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_promptpay'] ) );
-
-			update_option( 'ec_option_stripe_boleto', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_boleto'] ) );
-			update_option( 'ec_option_stripe_konbini', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_konbini'] ) );
-			update_option( 'ec_option_stripe_oxxo', wp_easycart_admin_verification()->filter_bool_int( (int) $_POST['ec_option_stripe_oxxo'] ) );
+			$switches = array(
+				'ec_option_stripe_address_autocomplete',
+				'ec_option_stripe_affirm',
+				'ec_option_stripe_afterpay',
+				'ec_option_stripe_klarna',
+				'ec_option_stripe_enable_apple_pay',
+				'ec_option_stripe_disable_wallet_first',
+				'ec_option_stripe_alipay',
+				'ec_option_stripe_grabpay',
+				'ec_option_stripe_wechat',
+				'ec_option_stripe_link',
+				'ec_option_stripe_bancontact',
+				'ec_option_stripe_blik',
+				'ec_option_stripe_eps',
+				'ec_option_stripe_fpx',
+				'ec_option_stripe_giropay',
+				'ec_option_stripe_enable_ideal',
+				'ec_option_stripe_p24',
+				'ec_option_stripe_sofort',
+				'ec_option_stripe_bacs',
+				'ec_option_stripe_becs',
+				'ec_option_stripe_sepa',
+				'ec_option_stripe_pix',
+				'ec_option_stripe_paynow',
+				'ec_option_stripe_promptpay',
+				'ec_option_stripe_boleto',
+				'ec_option_stripe_konbini',
+				'ec_option_stripe_oxxo',
+			);
+			foreach ( $switches as $option ) {
+				if ( isset( $_POST[ $option ] ) ) {
+					update_option( $option, $verify->filter_bool_int( (int) $_POST[ $option ] ) );
+				}
+			}
 		}
 
 		public function save_stripe_connect_option() {
@@ -612,6 +644,12 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 					update_option( 'ec_option_square_token_expires', '' );
 				}
 				wp_clear_scheduled_hook( 'wp_easycart_square_renew_token' );
+				/* 6.0.2: WP EasyCart PRO's hourly Square inventory and product syncs stop with the connection ( they kept
+				 * calling Square, and the product sync ended in a fatal error ). Turn them on again after reconnecting. */
+				wp_clear_scheduled_hook( 'wpeasycart_square_sync_inventory' );
+				wp_clear_scheduled_hook( 'wpeasycart_square_product_sync' );
+				update_option( 'ec_option_square_auto_sync', 0 );
+				update_option( 'ec_option_square_auto_product_sync', 0 );
 				wp_easycart_admin()->redirect( 'wp-easycart-settings', 'payment', array() );
 
 			} else if ( $_GET['ec_admin_form_action'] == 'square-renew' ) {
@@ -679,16 +717,57 @@ function ec_admin_ajax_save_direct_deposit() {
 add_action( 'wp_ajax_ec_admin_ajax_save_paypal', 'ec_admin_ajax_save_paypal' );
 function ec_admin_ajax_save_paypal() {
 	ecv2_payment_settings_guard();
+	/* 6.0.2: switching PayPal on, or between sandbox and live, registers notifications for the mode now in use. */
+	$before = class_exists( 'wp_easycart_paypal_webhooks' ) ? wp_easycart_paypal_webhooks::snapshot() : null;
 	wp_easycart_admin_payments()->update_third_party_selection();
 	wp_easycart_admin_payments()->update_paypal();
+	if ( null !== $before ) {
+		wp_easycart_paypal_webhooks::settings_saved( $before );
+	}
 	die();
 }
 
 add_action( 'wp_ajax_ec_admin_ajax_save_pro_paypal', 'ec_admin_ajax_save_pro_paypal' );
 function ec_admin_ajax_save_pro_paypal() {
 	ecv2_payment_settings_guard();
+	$before = class_exists( 'wp_easycart_paypal_webhooks' ) ? wp_easycart_paypal_webhooks::snapshot() : null;
 	wp_easycart_admin_payments()->update_third_party_selection();
 	wp_easycart_admin_payments()->update_pro_paypal();
+	if ( null !== $before ) {
+		wp_easycart_paypal_webhooks::settings_saved( $before );
+	}
+	die();
+}
+
+add_action( 'wp_ajax_ec_admin_ajax_save_paypal_webhooks', 'ec_admin_ajax_save_paypal_webhooks' );
+/**
+ * 6.0.2: the PayPal panel's Notifications button ( Set up / Secure notifications / Register again / Try again ): register
+ * the mode in use again, with a new key for a store on WP EasyCart Connect. Answers what was actually saved, and the
+ * Notifications group redrawn. The name keeps the ec_admin_ajax_save_ prefix so the Payments drawer refreshes the card.
+ */
+function ec_admin_ajax_save_paypal_webhooks() {
+	ecv2_payment_settings_guard();
+	if ( ! class_exists( 'wp_easycart_paypal_webhooks' ) ) {
+		wp_send_json_error( array( 'message' => __( 'PayPal notifications are not available.', 'wp-easycart' ) ) );
+	}
+	$result = wp_easycart_paypal_webhooks::register(
+		array(
+			'rotate'  => true,
+			'context' => 'admin',
+		)
+	);
+	ob_start();
+	wp_easycart_paypal_webhooks::print_group();
+	$html = ob_get_clean();
+	echo wp_json_encode(
+		array(
+			'status'  => $result['state'],
+			'secured' => (bool) $result['secured'],
+			'error'   => (string) $result['error'],
+			'message' => (string) $result['message'],
+			'html'    => $html,
+		)
+	);
 	die();
 }
 

@@ -393,6 +393,7 @@ window.ecdv2 = ( function( $ ) {
 		'quantities'                   : 'quantities',
 		'shipping'                     : 'shipping',
 		'packaging'                    : 'packaging',
+		'customs'                      : 'customs',
 		'general_options'              : 'general_options',
 		'general_options_visibility'   : 'general_options',
 		'general_options_marketing'    : 'general_options',
@@ -404,11 +405,15 @@ window.ecdv2 = ( function( $ ) {
 		'deconetwork'                  : 'deconetwork',
 		'seo'                          : 'seo',
 		'yoast_seo'                    : 'yoast_seo',
+		'search_ai'                    : 'search_ai',
 		'googlemerchant'               : 'google_merchant_pro',
 		'order_completed_note'         : 'order_completed_note',
 		'order_completed_email_note'   : 'order_completed_email_note',
 		'order_completed_details_note' : 'order_completed_details_note'
 	};
+
+	/* The editor's own sections; register_section() never replaces them. */
+	var builtin_sections = $.extend( {}, endpoint_map );
 
 	/* ------------------------------------------------------------------ */
 	/* Value helpers ( mirror legacy ec_admin_get_value semantics )         */
@@ -493,6 +498,7 @@ window.ecdv2 = ( function( $ ) {
 				replace_price_label          : c( 'replace_price_label' ),
 				custom_price_label           : v( 'custom_price_label' )
 			};
+			maybe( data, 'product_cost', v( 'product_cost' ) ); /* 6.0.2: Cost per item */
 			return data;
 		},
 
@@ -529,6 +535,16 @@ window.ecdv2 = ( function( $ ) {
 				width  : v( 'width' ),
 				height : v( 'height' ),
 				length : v( 'length' )
+			};
+		},
+
+		/* 6.0.2: Customs and packing. */
+		customs: function() {
+			return {
+				packs_in            : v( 'packs_in' ),
+				hs_code             : v( 'hs_code' ),
+				country_of_origin   : v( 'country_of_origin' ),
+				customs_description : v( 'customs_description' )
 			};
 		},
 
@@ -648,12 +664,23 @@ window.ecdv2 = ( function( $ ) {
 			};
 		},
 
+		/* 6.0.2: Search & AI card ( SEO tab ). Saved into the product's Google attributes by
+		 * ec_admin_ajax_save_product_details_search_ai, keeping every other attribute. */
+		search_ai: function() {
+			return {
+				gtin       : v( 'ecdv2_sai_gtin' ),
+				mpn        : v( 'ecdv2_sai_mpn' ),
+				condition  : v( 'ecdv2_sai_condition' ),
+				no_barcode : c( 'ecdv2_sai_no_barcode' )
+			};
+		},
+
 		/* Google Merchant ( PRO ) — same field set the legacy panel button
 		 * posted; server action is ec_admin_ajax_save_product_details_ +
 		 * this endpoint key. Every gm_* element is rendered by the v2
 		 * section, so plain v() reads are safe. */
 		google_merchant_pro: function() {
-			return {
+			var data = {
 				enabled                     : v( 'gm_enabled' ),
 				title                       : v( 'gm_title' ),
 				google_product_category     : v( 'gm_google_product_category' ),
@@ -694,6 +721,16 @@ window.ecdv2 = ( function( $ ) {
 				min_energy_efficiency_class : v( 'gm_min_energy_efficiency_class' ),
 				max_energy_efficiency_class : v( 'gm_max_energy_efficiency_class' )
 			};
+			/* 6.0.2: barcode, part number and condition live on the Search & AI card; PRO's save
+			 * replaces the whole attribute record, so send the card's values, not blanks. */
+			if ( el( 'ecdv2_sai_gtin' ) ) {
+				var no_barcode = c( 'ecdv2_sai_no_barcode' );
+				data.gtin      = no_barcode ? '' : String( v( 'ecdv2_sai_gtin' ) ).replace( /\D/g, '' );
+				data.mpn       = no_barcode ? '' : v( 'ecdv2_sai_mpn' );
+				data.condition = v( 'ecdv2_sai_condition' );
+				data.identifier_exists = no_barcode ? 'no' : ( ( data.gtin || data.mpn ) ? 'yes' : '' );
+			}
+			return data;
 		},
 
 		images: function() {
@@ -759,6 +796,42 @@ window.ecdv2 = ( function( $ ) {
 		if ( label.length && ! $( '#ecdv2_wrap' ).hasClass( 'ecdv2-is-new' ) ) {
 			label.text( _t( 'save', 'Save' ) );
 		}
+	}
+
+	/**
+	 * 6.0.2: let another plugin's card save with the editor's Save button.
+	 *
+	 *   ecdv2.register_section( 'facebook', function() { return { fb_title: ... }; } );
+	 *
+	 * Any input, select or textarea inside .ecdv2-card[data-ecdv2-section="<key>"] ( or carrying
+	 * data-ecdv2-sec="<key>" ) then marks the card unsaved, and save_all() posts the payload with
+	 * product_id and wp_easycart_nonce ( nonce action wp-easycart-product-details ) to the AJAX action
+	 * ec_admin_ajax_save_product_details_<endpoint>. The endpoint defaults to the key. The editor's own
+	 * sections cannot be replaced.
+	 *
+	 * @param {string}   key        Section key ( [A-Za-z0-9_] ).
+	 * @param {Function} payload_fn Returns the fields to post.
+	 * @param {string}   endpoint   Optional save endpoint suffix.
+	 * @return {boolean} Registered.
+	 */
+	function register_section( key, payload_fn, endpoint ) {
+		key = String( key || '' ).replace( /[^A-Za-z0-9_]/g, '' );
+		endpoint = String( endpoint || key ).replace( /[^A-Za-z0-9_]/g, '' );
+		if ( '' === key || '' === endpoint || 'function' !== typeof payload_fn ) {
+			return false;
+		}
+		var endpoint_key;
+		if ( builtin_sections.hasOwnProperty( key ) ) {
+			return false;
+		}
+		for ( endpoint_key in builtin_sections ) {
+			if ( builtin_sections.hasOwnProperty( endpoint_key ) && builtin_sections[ endpoint_key ] === endpoint ) {
+				return false;
+			}
+		}
+		endpoint_map[ key ] = endpoint;
+		payloads[ endpoint ] = payload_fn;
+		return true;
 	}
 
 	function clear_dirty() {
@@ -891,6 +964,23 @@ window.ecdv2 = ( function( $ ) {
 		return true;
 	}
 
+	/* A save the server refused ( wp_send_json_error(): { success: false, data: { message } }, e.g. a product whose options
+	 * a service manages, or option sets over the variation limit ): its message ( '' when it sent none ), else null. Other
+	 * answers ( a new product's id, plain text, { success: true } ) are not refusals. */
+	function refusal_message( response ) {
+		if ( 'string' === typeof response && /"success"\s*:\s*false/.test( response ) ) {
+			try {
+				response = JSON.parse( response );
+			} catch ( err ) {
+				return null;
+			}
+		}
+		if ( ! response || 'object' !== typeof response || false !== response.success ) {
+			return null;
+		}
+		return ( response.data && 'string' === typeof response.data.message ) ? response.data.message : '';
+	}
+
 	function save_endpoint( endpoint, cards ) {
 		var d = $.Deferred();
 		var data = $.extend( base_data( endpoint ), payloads[ endpoint ]() );
@@ -900,12 +990,23 @@ window.ecdv2 = ( function( $ ) {
 			type    : 'post',
 			data    : data,
 			success : function( response ) {
+				var refused = refusal_message( response );
+				if ( null !== refused ) {
+					cards.removeClass( 'is-saving' ); /* still unsaved */
+					d.reject( endpoint, refused );
+					return;
+				}
 				cards.removeClass( 'is-saving is-dirty' );
+				/* 6.0.2: a saved Track Quantity change redraws WP EasyCart PRO's variation table ( its stock
+				 * column ), as the legacy instant save did. */
+				if ( 'quantities' === endpoint && typeof window.wp_easycart_pro_get_updated_options === 'function' ) {
+					window.wp_easycart_pro_get_updated_options();
+				}
 				d.resolve( response );
 			},
 			error   : function() {
 				cards.removeClass( 'is-saving' );
-				d.reject( endpoint );
+				d.reject( endpoint, '' );
 			}
 		} );
 		return d.promise();
@@ -943,10 +1044,10 @@ window.ecdv2 = ( function( $ ) {
 					$( '#ecdv2_save_btn' ).removeClass( 'is-saving' );
 					toast( _t( 'create_failed', 'Could not create the product. Check the SKU is unique and try again.' ), 'error' );
 				}
-			} ).fail( function() {
+			} ).fail( function( endpoint_key, message ) {
 				saving = false;
 				$( '#ecdv2_save_btn' ).removeClass( 'is-saving' );
-				toast( _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
+				toast( message || _t( 'save_failed', 'Save failed. Please try again.' ), 'error' );
 			} );
 			return false;
 		}
@@ -987,13 +1088,18 @@ window.ecdv2 = ( function( $ ) {
 		saving = true;
 		$( '#ecdv2_save_btn' ).addClass( 'is-saving' );
 		var failed = [];
+		var refusals = []; /* the server's own reasons for a refused save, shown as they are */
 
 		( function run( i ) {
 			if ( i >= queue.length ) {
 				saving = false;
 				$( '#ecdv2_save_btn' ).removeClass( 'is-saving' );
-				if ( failed.length ) {
-					toast( _t( 'partial_save', 'Some sections failed to save:' ) + ' ' + failed.join( ', ' ), 'error' );
+				if ( failed.length || refusals.length ) {
+					var notes = refusals.slice( 0 );
+					if ( failed.length ) {
+						notes.push( _t( 'partial_save', 'Some sections failed to save:' ) + ' ' + failed.join( ', ' ) );
+					}
+					toast( notes.join( ' ' ), 'error' );
 				} else {
 					clear_dirty();
 					toast( _t( 'saved', 'Product saved.' ), 'success' );
@@ -1002,12 +1108,19 @@ window.ecdv2 = ( function( $ ) {
 				refresh_feeds( queue );
 				return;
 			}
+			/* fail before always: the last section's result must be counted before run() reports. */
 			save_endpoint( queue[ i ], seen[ queue[ i ] ] )
+				.fail( function( endpoint_key, message ) {
+					if ( message ) {
+						if ( -1 === $.inArray( message, refusals ) ) {
+							refusals.push( message );
+						}
+					} else {
+						failed.push( endpoint_key );
+					}
+				} )
 				.always( function() {
 					run( i + 1 );
-				} )
-				.fail( function( endpoint_key ) {
-					failed.push( endpoint_key );
 				} );
 		} )( 0 );
 
@@ -1037,6 +1150,36 @@ window.ecdv2 = ( function( $ ) {
 		if ( price.length ) {
 			price.text( money( v( 'price' ) ) );
 		}
+		sync_header_stock();
+	}
+
+	/* 6.0.2: the header's stock chip follows the saved Track Quantity choice ( 0 not tracked = hidden,
+	 * 1 = the overall count or Out of stock, 2 = Variant stock ). Wording comes from the chip's own data
+	 * attributes, printed by the template. */
+	function sync_header_stock() {
+		var $chip = $( '#ecdv2_header_stock' );
+		var type = String( v( 'stock_quantity_type' ) );
+		if ( ! $chip.length || ! el( 'stock_quantity_type' ) ) {
+			return;
+		}
+		var $wrap = $( '#ecdv2_header_stock_wrap' );
+		if ( '1' !== type && '2' !== type ) {
+			$wrap.hide();
+			return;
+		}
+		var qty = parseInt( v( 'stock_quantity' ), 10 ) || 0;
+		var text;
+		if ( '2' === type ) {
+			text = $chip.attr( 'data-text-variant' ) || 'Variant stock';
+		} else if ( qty > 0 ) {
+			text = String( $chip.attr( 'data-text-in' ) || '%d in stock' ).replace( '%d', qty );
+		} else {
+			text = $chip.attr( 'data-text-out' ) || 'Out of stock';
+		}
+		$chip.text( text )
+			.toggleClass( 'ecdv2-instock', '2' === type || qty > 0 )
+			.toggleClass( 'ecdv2-outstock', '1' === type && qty <= 0 );
+		$wrap.show();
 	}
 
 	/* Header status toggle: instant save of the basic section. */
@@ -1089,6 +1232,7 @@ window.ecdv2 = ( function( $ ) {
 		'deconetwork'        : 'behavior',
 		'shipping'           : 'inventory',
 		'packaging'          : 'inventory',
+		'customs'            : 'inventory',
 		'tax'                : 'pricing'
 	};
 
@@ -1461,6 +1605,40 @@ window.ecdv2 = ( function( $ ) {
 		};
 		$( document ).on( 'change', '#stock_quantity_type', quantity_type_sync );
 		quantity_type_sync();
+
+		/* 6.0.2: Track Quantity no longer saves on change ( it saves with Save ), so the free-edition guard of
+		 * the legacy handler lives here: variation stock needs WP EasyCart PRO's option panels. Bound on the
+		 * select itself so a refused choice goes back before the card is marked unsaved. */
+		var type_select = el( 'stock_quantity_type' );
+		if ( type_select ) {
+			$( type_select ).data( 'ecdv2Prev', String( $( type_select ).val() ) ).on( 'change', function( e ) {
+				var chosen = String( $( this ).val() );
+				if ( '2' === chosen && ! $( '#wpeasycart_product_options_pro' ).length ) {
+					if ( typeof wp_easycart_products_language !== 'undefined' && wp_easycart_products_language['optionitem-tracking-note'] ) {
+						window.alert( $( '<div/>' ).html( wp_easycart_products_language['optionitem-tracking-note'] ).text() );
+					}
+					$( this ).val( $( this ).data( 'ecdv2Prev' ) );
+					e.stopPropagation();
+					return;
+				}
+				$( this ).data( 'ecdv2Prev', chosen );
+			} );
+		}
+
+		/* PRO's Change tracking dialog sets the select and saves through the legacy handler at once: the
+		 * header follows it there too. */
+		if ( typeof window.ec_admin_product_details_quantity_type_change === 'function' && ! window.ec_admin_product_details_quantity_type_change.ecdv2 ) {
+			var legacy_type_change = window.ec_admin_product_details_quantity_type_change;
+			window.ec_admin_product_details_quantity_type_change = function() {
+				var out = legacy_type_change.apply( this, arguments );
+				if ( type_select ) {
+					$( type_select ).data( 'ecdv2Prev', String( $( type_select ).val() ) );
+				}
+				sync_header_stock();
+				return out;
+			};
+			window.ec_admin_product_details_quantity_type_change.ecdv2 = true;
+		}
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -2108,6 +2286,58 @@ window.ecdv2 = ( function( $ ) {
 	}
 
 	/* ------------------------------------------------------------------ */
+	/* Search & AI card: preview the saved product data ( 6.0.2 )           */
+	/* ------------------------------------------------------------------ */
+
+	function gtin_problem( raw ) {
+		var digits = String( raw || '' ).replace( /\D/g, '' );
+		if ( '' === digits ) {
+			return '';
+		}
+		if ( [ 8, 12, 13, 14 ].indexOf( digits.length ) < 0 ) {
+			return _t( 'gtin_length', 'A barcode has 8, 12, 13 or 14 digits. For a 10-digit ISBN, use the 13-digit one that starts with 978.' );
+		}
+		var sum = 0, body = digits.slice( 0, -1 ), i;
+		for ( i = 0; i < body.length; i++ ) {
+			sum += parseInt( body.charAt( body.length - 1 - i ), 10 ) * ( 0 === i % 2 ? 3 : 1 );
+		}
+		if ( ( 10 - ( sum % 10 ) ) % 10 !== parseInt( digits.slice( -1 ), 10 ) ) {
+			return _t( 'gtin_check', 'That barcode\'s last digit doesn\'t match the others. Check it for a typo.' );
+		}
+		return '';
+	}
+
+	function bind_search_ai_preview() {
+		$( document ).on( 'input change', '#ecdv2_sai_gtin', function() {
+			var problem = gtin_problem( $( this ).val() );
+			$( '#ecdv2_sai_gtin_error' ).text( problem ).prop( 'hidden', '' === problem );
+		} );
+		$( document ).on( 'click', '#ecdv2_sai_preview_btn', function() {
+			var $btn  = $( this );
+			var $card = $btn.closest( '.ecdv2-sai' );
+			var $pre  = $( '#ecdv2_sai_preview' );
+			if ( ! $card.length || ! $pre.length ) {
+				return;
+			}
+			if ( ! $pre.prop( 'hidden' ) ) {
+				$pre.prop( 'hidden', true );
+				return;
+			}
+			$btn.prop( 'disabled', true );
+			$.post( ( window.ajaxurl || wpeasycart_admin_ajax_object.ajax_url ), {
+				action     : 'ecv2_search_ai_preview',
+				nonce      : $card.attr( 'data-nonce' ),
+				product_id : $card.attr( 'data-product-id' )
+			} ).done( function( response ) {
+				var text = ( response && response.data && ( response.data.text || response.data.message ) ) ? ( response.data.text || response.data.message ) : '';
+				$pre.text( text ).prop( 'hidden', '' === text );
+			} ).always( function() {
+				$btn.prop( 'disabled', false );
+			} );
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
 	/* Yoast SEO card: live search-result preview                           */
 	/* ------------------------------------------------------------------ */
 
@@ -2312,6 +2542,12 @@ window.ecdv2 = ( function( $ ) {
 			type    : 'post',
 			data    : data,
 			success : function( resp ) {
+				/* 6.0.2: the server says why it refused ( Pro, no role chosen, an unknown role, a second price for it ). */
+				var refused = refusal_message( resp );
+				if ( null !== refused ) {
+					toast( refused || _t( 'role_add_failed', 'Could not add the role price.' ), 'error' );
+					return;
+				}
 				$( '#ec_admin_no_role_prices' ).remove();
 				var id = '';
 				var m = String( resp ).match( /role_price_row_(\d+)/ );
@@ -3009,6 +3245,7 @@ window.ecdv2 = ( function( $ ) {
 		bind_featured_products();
 		bind_feeds();
 		bind_yoast_preview();
+		bind_search_ai_preview();
 
 		/* Override the legacy handler from products.js ( ready runs after
 		 * every script has parsed, so this assignment always wins ). */
@@ -3091,7 +3328,8 @@ window.ecdv2 = ( function( $ ) {
 						delay: 250,
 						cache: true,
 						data: function( params ) {
-							return { action: cfg.action, q: params.term || '', page: params.page || 1, wp_easycart_nonce: $sel.attr( 'data-ecdv2-nonce' ) };
+							/* product_id: a product's own option sets ( 6.0.2 ) are listed in its own editor only. */
+							return { action: cfg.action, q: params.term || '', page: params.page || 1, product_id: v( 'product_id' ), wp_easycart_nonce: $sel.attr( 'data-ecdv2-nonce' ) };
 						},
 						processResults: function( data, params ) {
 							params.page = params.page || 1;
@@ -3137,6 +3375,7 @@ window.ecdv2 = ( function( $ ) {
 		save_all         : save_all,
 		quick_activate   : quick_activate,
 		mark_dirty       : mark_dirty,
+		register_section : register_section,
 		gate_toggle      : gate_toggle,
 		menu_toggle      : menu_toggle,
 		menu_close       : menu_close,
@@ -3154,6 +3393,41 @@ window.ecdv2 = ( function( $ ) {
 
 } )( window.jQuery );
 /* ---- Reviews card: allow toggle saves immediately and mirrors the hidden carrier in the general card ---- */
+/* ---- 6.0.2: fields a managed product's service owns ( wp_easycart_product_lock ). A partly locked card lists them in
+ * data-ecdv2-locked-ids and they are shown read-only; a card that is locked as a whole carries a cover. The server keeps
+ * their stored value whatever is posted. ---- */
+( function( $ ) {
+	function lock_editor( id ) {
+		if ( typeof tinymce === 'undefined' || ! tinymce.get ) { return; }
+		var ed = tinymce.get( id );
+		if ( ! ed ) { return; }
+		var set = function() {
+			try {
+				if ( ed.mode && 'function' === typeof ed.mode.set ) { ed.mode.set( 'readonly' ); } else if ( 'function' === typeof ed.setMode ) { ed.setMode( 'readonly' ); }
+			} catch ( err ) {}
+		};
+		if ( ed.initialized ) { set(); } else if ( 'function' === typeof ed.on ) { ed.on( 'init', set ); }
+	}
+	function lock_cards() {
+		$( '.ecdv2-card[data-ecdv2-locked-ids]' ).each( function() {
+			$.each( String( $( this ).attr( 'data-ecdv2-locked-ids' ) || '' ).split( ',' ), function( i, id ) {
+				if ( ! id ) { return; }
+				var node = document.getElementById( id );
+				if ( node ) {
+					$( node ).prop( 'disabled', true ).attr( 'aria-disabled', 'true' ).closest( '.ecdv2-field' ).addClass( 'is-managed-locked' );
+				}
+				$( '[data-ecdv2-wpeditor="' + id + '"]' ).addClass( 'is-managed-locked' ).find( 'textarea, button, input' ).prop( 'disabled', true );
+				lock_editor( id );
+			} );
+		} );
+	}
+	$( lock_cards );
+	$( window ).on( 'load', lock_cards );
+	if ( typeof tinymce !== 'undefined' && tinymce.on ) {
+		tinymce.on( 'AddEditor', function() { setTimeout( lock_cards, 0 ); } );
+	}
+} )( jQuery );
+
 function ecdv2_reviews_toggle( cb ) {
 	var $card = jQuery( '#ecdv2-reviews-card' ), on = cb.checked ? 1 : 0;
 	/* The product list's toast is only there when products-v2.js is loaded; fall back to the editor's own. */

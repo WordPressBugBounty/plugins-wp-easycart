@@ -279,6 +279,8 @@ if( get_option( 'ec_option_font_main' ) ){ ?>
 ?>
 .ec_out_of_stock_notify{ border-color:<?php echo esc_attr( $color1 ); ?>; }
 section.ec_account_subscription_v2, div.ec_account_subscriptions_v2{ --ec-sub-accent:<?php echo esc_attr( $color1 ); ?>; }
+<?php /* 6.0.2: the store's colours and font as CSS variables, for the parts ec-store.css draws from them ( the checkout protection notice, My Account's Pay now ). */ ?>
+:root{ --wpec-main-color:<?php echo esc_attr( $color1 ); ?>; --wpec-second-color:<?php echo esc_attr( $color2 ); ?>; --wpec-text-color:<?php echo ( $bg_theme_dark ) ? '#FFFFFF' : '#222222'; ?>; --wpec-muted-color:<?php echo ( $bg_theme_dark ) ? '#CCCCCC' : '#666666'; ?>; --wpec-panel-color:<?php echo ( $bg_theme_dark ) ? 'rgba(255,255,255,.06)' : '#FFFFFF'; ?>; --wpec-border-color:<?php echo ( $bg_theme_dark ) ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.12)'; ?>; --wpec-error-color:<?php echo ( $bg_theme_dark ) ? '#FFB4B4' : 'rgb(122,9,22)'; ?>;<?php if ( get_option( 'ec_option_font_main' ) ) { ?> --wpec-font-main:<?php echo ( 'custom' == get_option( 'ec_option_font_main' ) ) ? '"' . esc_attr( get_option( 'ec_option_font_custom' ) ) . '", sans-serif' : '"' . esc_attr( get_option( 'ec_option_font_main' ) ) . '", sans-serif'; ?>;<?php } ?> }
 .ec_out_of_stock_notify_title, .ec_out_of_stock_notify_button > input, #ec_user_login_link a{ background-color:<?php echo esc_attr( $color1 ); ?>; }
 .ec_product_type1 .ec_product_addtocart{ background-color:<?php echo esc_attr( $color1 ); ?>; border-bottom-color:<?php echo esc_attr( $color2 ); ?>; }
 .ec_product_type3 .ec_product_addtocart{ background-color:<?php echo esc_attr( $color1 ); ?> !important; }
@@ -405,6 +407,8 @@ ul.ec_menu_vertical ul li a:hover, ul.ec_menu_vertical ul ul li a:hover, .ec_cat
 .ec_account_order_item_buy_button:hover, .ec_account_order_item_download_button:hover{ background-color:<?php echo esc_attr( $color2 ); ?>; }
 .ec_account_dashboard_row_divider a, .ec_account_order_line_column5 a, .ec_account_complete_payment_button{ background-color:<?php echo esc_attr( $color1 ); ?> !important; }
 .ec_account_dashboard_row_divider a:hover, .ec_account_order_line_column5 a:hover, .ec_account_complete_payment_button:hover{ background:<?php echo esc_attr( $color2 ); ?> !important; background-color:<?php echo esc_attr( $color2 ); ?> !important; }
+#ec_account_order_details a.ec_account_order_pay_now{ background-color:<?php echo esc_attr( $color1 ); ?>; color:#FFFFFF; }
+#ec_account_order_details a.ec_account_order_pay_now:hover, #ec_account_order_details a.ec_account_order_pay_now:focus{ background-color:<?php echo esc_attr( $color2 ); ?>; color:#FFFFFF; }
 
 .ec_store_table a{ color:<?php echo esc_attr( $color1 ); ?> !important; }
 .ec_store_table a:hover{ color:<?php echo esc_attr( $color2 ); ?> !important; }

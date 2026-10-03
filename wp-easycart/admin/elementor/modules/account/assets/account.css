@@ -1,0 +1,578 @@
+/**
+ * WP EasyCart account widgets for Elementor ( 6.0.2 ).
+ *
+ * The widgets draw EasyCart's own account templates. ec-store.css and the store's design settings force their fonts and
+ * button colours on those templates ( often with !important ), so these rules are scoped under the widget wrapper with
+ * enough weight to win, and they read CSS variables:
+ * - the widgets' Style controls set --wpec-acc-* and the shared --wpec-button-*, --wpec-success-color, --wpec-error-color
+ *   on the widget;
+ * - the shared --wpec-* variables ( Elementor Site Settings, from the dynamic module ) apply to every EasyCart widget;
+ * - the kit's globals ( --e-global-color-*, fonts inherited from the page ) are the defaults, so a new widget matches the
+ *   site with no setup.
+ *
+ * Round 11: every variable a control sets is read here, and each one falls back to the value the rule had before, so a
+ * widget nobody styled looks as it did. Controls whose value only needs one rule print that rule themselves ( Elementor
+ * only prints it once the control is set ).
+ */
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Base.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.wpec-acc {
+	/* Buttons: the widget's Buttons › Background, else the kit's button colour, else the site accent. */
+	--wpec-acc-btn-bg: var(--wpec-button-bg, var(--e-global-color-accent, var(--wpec-main-color, #222222)));
+	/* Links, the current menu item, focus rings and subscription details: Accent colour, else the button background. */
+	--wpec-acc-accent: var(--wpec-acc-accent-color, var(--wpec-acc-btn-bg));
+	--wpec-acc-focus: var(--wpec-acc-focus-color, var(--wpec-acc-accent));
+	--wpec-acc-line: var(--wpec-border-color, rgba(0, 0, 0, 0.12));
+	--wpec-acc-soft: rgba(127, 127, 127, 0.08);
+	position: relative;
+	box-sizing: border-box;
+	color: var(--wpec-acc-text-color, var(--e-global-color-text, inherit));
+}
+.wpec-acc *,
+.wpec-acc *::before,
+.wpec-acc *::after {
+	box-sizing: border-box;
+}
+/* Children see the widget's accent as the store's main colour ( order documents, pay now ). */
+.wpec-acc > * {
+	--wpec-main-color: var(--wpec-acc-accent);
+}
+.wpec-acc::after {
+	content: "";
+	display: table;
+	clear: both;
+}
+.wpec-acc-sr {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+.wpec-acc .wpec-acc__editor-note {
+	margin: 0 0 16px;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * The templates without their own menu columns ( removed from the markup ): the content takes the whole width.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc .ec_account_page,
+.elementor-element .wpec-acc #ec_account_register,
+.elementor-element .wpec-acc #ec_account_personal_information,
+.elementor-element .wpec-acc #ec_account_subscriptions {
+	width: 100%;
+	max-width: 100%;
+}
+.elementor-element .wpec-acc:not(.wpec-acc--with-store-menu) .ec_account_left:not(.ec_account_login) {
+	float: none;
+	width: 100%;
+	border-right: 0;
+	padding-right: 0;
+}
+.elementor-element .wpec-acc--single .ec_cart_left,
+.elementor-element .wpec-acc--no-register-box .ec_account_left.ec_account_login {
+	float: none;
+	width: 100%;
+	border-right: 0;
+	padding-right: 0;
+}
+.elementor-element .wpec-acc--no-title :is(.ec_account_left, .ec_cart_left) > .ec_cart_header.ec_top,
+.elementor-element .wpec-acc--no-title :is(.ec_account_left, .ec_cart_left) > form > .ec_cart_header.ec_top,
+.elementor-element .wpec-acc--no-title .ec_account_left.ec_account_login .ec_account_subheader,
+.elementor-element .wpec-acc--no-title .wpec-acc-downloads > .ec_cart_header.ec_top,
+.elementor-element .wpec-acc--no-title .wpec-acc-payment > .ec_cart_header.ec_top {
+	display: none;
+}
+.elementor-element .wpec-acc--no-forgot .ec_account_login_link {
+	display: none;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Headings, text, labels.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc :is(.ec_cart_header, .ec_account_subscription_v2_card_title, .ec_account_order_notes h4, .wpec-acc-title) {
+	color: var(--wpec-acc-heading-color, var(--e-global-color-primary, #222222));
+	font-family: var(--wpec-acc-heading-font, inherit) !important;
+}
+.elementor-element .wpec-acc .ec_cart_header {
+	border-bottom-color: var(--wpec-acc-divider-color, var(--wpec-acc-line));
+}
+.elementor-element .wpec-acc :is(.ec_cart_input_row, .ec_account_subheader, .ec_cart_error_row, .ec_account_order_line_header > div, .ec_account_order_line_0 > div, .ec_account_order_line_1 > div, .ec_account_order_header_column_left > span, .ec_account_order_item_details > span, .ec_account_order_details_table td, .ec_account_order_details_table th, .ec_account_download_line, .ec_account_no_order_found, .ec_account_subscription_card_body, .ec_subscription_none_found, .wpec-acc-empty, .wpec-acc-downloads__item, .wpec-acc-card, .wpec-acc-signed-in, .ec_account_error, .ec_account_success) {
+	font-family: var(--wpec-acc-text-font, inherit) !important;
+}
+.elementor-element .wpec-acc :is(.ec_cart_input_row, .ec_account_order_line_header > div, .ec_account_order_line_0 > div, .ec_account_order_line_1 > div, .ec_account_order_header_column_left > span, .ec_account_order_item_details > span.ec_account_order_item_title, .ec_account_order_details_table td, .ec_account_order_details_table th, .ec_account_no_order_found) {
+	color: var(--wpec-acc-text-color, var(--e-global-color-text, #222222));
+}
+.elementor-element .wpec-acc :is(.ec_account_subheader, .wpec-acc-downloads__meta, .wpec-acc-card__note, .wpec-acc-downloads__status, .wpec-acc-empty, .ec_subscription_none_found) {
+	color: var(--wpec-acc-muted-color, var(--wpec-muted-color, #666666));
+}
+.elementor-element .wpec-acc :is(label, .ec_cart_input_row label) {
+	color: var(--wpec-acc-label-color, var(--wpec-acc-text-color, var(--e-global-color-text, #222222)));
+	font-family: var(--wpec-acc-label-font, inherit) !important;
+}
+/* Show the field labels: off. Only a field with a placeholder loses its label, and only from sight. */
+.elementor-element .wpec-acc--no-labels .ec_cart_input_row:has(> input[placeholder]) > label {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+	float: none !important;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Fields.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select, textarea) {
+	color: var(--wpec-acc-field-color, var(--wpec-acc-text-color, var(--e-global-color-text, #222222)));
+	background-color: var(--wpec-acc-field-bg, #ffffff);
+	border: var(--wpec-acc-field-border-width, 1px) solid var(--wpec-acc-field-border, var(--wpec-acc-line));
+	border-radius: var(--wpec-acc-field-radius, var(--wpec-radius, 4px));
+	font-family: var(--wpec-acc-field-font, inherit) !important;
+	max-width: 100%;
+	box-shadow: none;
+	outline: none;
+}
+.elementor-element .wpec-acc :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select) {
+	height: var(--wpec-acc-field-height, 42px);
+	padding: var(--wpec-acc-field-padding, 8px 12px);
+}
+.elementor-element .wpec-acc textarea {
+	padding: var(--wpec-acc-field-padding, 10px 12px);
+}
+/* A field whose "Please enter …" note shows ( ec-store.js shows the note after the field's row, or inside it ). */
+.elementor-element .wpec-acc .ec_cart_input_row:has(+ .ec_cart_error_row[style*="block"]) :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select, textarea):not(:focus) {
+	border-color: var(--wpec-acc-field-error, var(--wpec-acc-field-border, var(--wpec-acc-line)));
+}
+.elementor-element .wpec-acc .ec_cart_input_row:has(> .ec_cart_error_row[style*="block"]) :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select, textarea):not(:focus) {
+	border-color: var(--wpec-acc-field-error, var(--wpec-acc-field-border, var(--wpec-acc-line)));
+}
+.elementor-element .wpec-acc :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select, textarea)[aria-invalid="true"]:not(:focus) {
+	border-color: var(--wpec-acc-field-error, var(--wpec-acc-field-border, var(--wpec-acc-line)));
+}
+.elementor-element .wpec-acc :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="number"], select, textarea):focus {
+	border-color: var(--wpec-acc-field-focus, var(--wpec-acc-focus));
+	background-color: var(--wpec-acc-field-focus-bg, var(--wpec-acc-field-bg, #ffffff));
+	box-shadow: 0 0 0 1px var(--wpec-acc-field-focus, var(--wpec-acc-focus));
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Buttons ( main ), then the secondary ones ( Create account, Download, View order, View all orders, back to the account ).
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc :is(.ec_account_button, .ec_account_login_create_account_button, .ec_account_order_item_buy_button > a, .ec_account_order_item_download_button, .ec_account_dashboard_row_divider a, .ec_account_order_line_column5 a, .ec_account_complete_payment_button, .ec_account_complete_order_link, .ec_account_return_to_dashboard_button a, .ec_account_subscription_card_action a, .wpec-acc-button),
+.elementor-element .wpec-acc #ec_account_order_details a.ec_account_order_pay_now {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	background-color: var(--wpec-acc-btn-bg) !important;
+	background-image: none !important;
+	color: var(--wpec-button-color, #ffffff) !important;
+	/* border: 0 until a border thickness is set */
+	border-width: var(--wpec-acc-button-border-width, 0) !important;
+	border-style: solid !important;
+	border-color: var(--wpec-acc-button-border-color, var(--wpec-acc-btn-bg)) !important;
+	border-radius: var(--wpec-button-radius, var(--wpec-radius, 4px)) !important;
+	font-family: var(--wpec-acc-button-font, inherit) !important;
+	text-decoration: none !important;
+	line-height: 1.2;
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.elementor-element .wpec-acc :is(.ec_account_button, .ec_account_login_create_account_button, .ec_account_order_item_buy_button > a, .ec_account_order_item_download_button, .ec_account_dashboard_row_divider a, .ec_account_order_line_column5 a, .ec_account_complete_payment_button, .ec_account_complete_order_link, .ec_account_return_to_dashboard_button a, .ec_account_subscription_card_action a, .wpec-acc-button):is(:hover, :focus-visible),
+.elementor-element .wpec-acc #ec_account_order_details a.ec_account_order_pay_now:is(:hover, :focus-visible) {
+	background-color: var(--wpec-button-hover-bg, var(--wpec-acc-btn-bg)) !important;
+	color: var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)) !important;
+	border-color: var(--wpec-acc-button-hover-border-color, var(--wpec-acc-button-border-color, var(--wpec-button-hover-bg, var(--wpec-acc-btn-bg)))) !important;
+}
+/* Secondary buttons ( same weight as the rules above, later in the file ): their own colours, else the main button's. */
+.elementor-element .wpec-acc :is(.ec_account_login_create_account_button, .ec_account_order_item_download_button, .ec_account_return_to_dashboard_button a, .ec_account_dashboard_row_divider a, .ec_account_order_line_column5 a) {
+	background-color: var(--wpec-acc-button2-bg, var(--wpec-acc-btn-bg)) !important;
+	color: var(--wpec-acc-button2-color, var(--wpec-button-color, #ffffff)) !important;
+	border-width: var(--wpec-acc-button2-border-width, var(--wpec-acc-button-border-width, 0)) !important;
+	border-color: var(--wpec-acc-button2-border-color, var(--wpec-acc-button-border-color, var(--wpec-acc-button2-bg, var(--wpec-acc-btn-bg)))) !important;
+}
+.elementor-element .wpec-acc :is(.ec_account_login_create_account_button, .ec_account_order_item_download_button, .ec_account_return_to_dashboard_button a, .ec_account_dashboard_row_divider a, .ec_account_order_line_column5 a):is(:hover, :focus-visible) {
+	background-color: var(--wpec-acc-button2-hover-bg, var(--wpec-acc-button2-bg, var(--wpec-button-hover-bg, var(--wpec-acc-btn-bg)))) !important;
+	color: var(--wpec-acc-button2-hover-color, var(--wpec-acc-button2-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)))) !important;
+	border-color: var(--wpec-acc-button2-hover-border-color, var(--wpec-acc-button2-border-color, var(--wpec-acc-button-hover-border-color, var(--wpec-acc-button-border-color, var(--wpec-acc-button2-hover-bg, var(--wpec-acc-button2-bg, var(--wpec-button-hover-bg, var(--wpec-acc-btn-bg)))))))) !important;
+}
+.elementor-element .wpec-acc :is(.ec_account_button, .ec_account_order_line_column5 a, .ec_account_subscription_card_action a, .wpec-acc-button):focus-visible {
+	outline: 2px solid var(--wpec-acc-focus);
+	outline-offset: 2px;
+}
+.elementor-element .wpec-acc :is(.ec_account_order_item_buy_button, .ec_account_order_item_download_button) {
+	background-color: transparent;
+}
+.elementor-element .wpec-acc :is(.ec_account_order_item_download_button, .wpec-acc-button) {
+	padding: 8px 16px;
+}
+/* Subscription cards and panels follow the widget's accent. */
+.elementor-element .wpec-acc :is(section.ec_account_subscription_v2, div.ec_account_subscriptions_v2) {
+	--ec-sub-accent: var(--wpec-acc-accent);
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Links.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc :is(.ec_cart_input_row > a, .ec_cart_button_row a.ec_account_login_link, .ec_account_dashboard_order_info_link, .wpec-acc-link, .ec_account_subscription_v2_back a, .ec_account_order_details_item_display_title > a, .ec_account_order_header_column_left > div > a) {
+	color: var(--wpec-acc-link-color, var(--wpec-acc-accent)) !important;
+	text-decoration: none;
+}
+.elementor-element .wpec-acc :is(.ec_cart_input_row > a, .ec_cart_button_row a.ec_account_login_link, .ec_account_dashboard_order_info_link, .wpec-acc-link, .ec_account_subscription_v2_back a, .ec_account_order_details_item_display_title > a, .ec_account_order_header_column_left > div > a):is(:hover, :focus-visible) {
+	color: var(--wpec-acc-link-hover-color, var(--wpec-acc-link-color, var(--wpec-acc-accent))) !important;
+	text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Messages.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.wpec-acc .wpec-acc__messages {
+	margin: 0 0 16px;
+}
+.wpec-acc .wpec-acc__messages::after {
+	content: "";
+	display: table;
+	clear: both;
+}
+.elementor-element .wpec-acc .ec_account_success {
+	float: none;
+	text-align: left;
+	background-color: var(--wpec-acc-success-bg, #edf7ed);
+	color: var(--wpec-success-color, #1e4620);
+	border: 1px solid currentColor;
+	border-radius: var(--wpec-radius, 4px);
+	font-weight: 600;
+}
+.elementor-element .wpec-acc .ec_account_error {
+	float: none;
+	text-align: left;
+	background-color: var(--wpec-acc-error-bg, #fdecea);
+	color: var(--wpec-error-color, #7a0916);
+	border: 1px solid currentColor;
+	border-radius: var(--wpec-radius, 4px);
+	font-weight: 600;
+}
+/* Messages › Typography's family ( ties the text rule above, later in the file ). */
+.elementor-element .wpec-acc div:is(.ec_account_success, .ec_account_error) {
+	font-family: var(--wpec-acc-message-font, var(--wpec-acc-text-font, inherit)) !important;
+}
+.elementor-element .wpec-acc .ec_account_error a {
+	color: inherit !important;
+	text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Order list ( Order History, and My Account's orders ). Every value falls back to ec-store.css's own.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc .ec_account_order_line_header {
+	background-color: var(--wpec-acc-table-head-bg, #f7f7f7);
+	border-bottom-color: var(--wpec-acc-table-border, #eeeeee);
+}
+.elementor-element .wpec-acc .ec_account_order_line_header > div {
+	font-family: var(--wpec-acc-table-head-font, var(--wpec-acc-text-font, inherit)) !important;
+}
+/* [class]: the Text colour rule weighs 0,4,1 ( its list holds span.ec_account_order_item_title ); this ties it, later. */
+.elementor-element .wpec-acc .ec_account_order_line_header > div[class] {
+	color: var(--wpec-acc-table-head-color, var(--wpec-acc-text-color, var(--e-global-color-text, #222222)));
+}
+.elementor-element .wpec-acc :is(.ec_account_order_line_0, .ec_account_order_line_1) > div {
+	font-family: var(--wpec-acc-table-font, var(--wpec-acc-text-font, inherit)) !important;
+}
+.elementor-element .wpec-acc .ec_account_order_line_0 {
+	background-color: var(--wpec-acc-table-row-bg, #ffffff);
+}
+.elementor-element .wpec-acc .ec_account_order_line_1 {
+	background-color: var(--wpec-acc-table-stripe, #f7f7f7);
+}
+/* A line under every order once Lines is set ( an inset shadow: no row grows by a pixel before that ). */
+.elementor-element .wpec-acc :is(.ec_account_order_line_0, .ec_account_order_line_1) {
+	box-shadow: inset 0 -1px 0 var(--wpec-acc-table-border, transparent);
+}
+.elementor-element .wpec-acc--no-order-date :is(.ec_account_order_line_column2, .ec_account_order_line_column2_header),
+.elementor-element .wpec-acc--no-order-total :is(.ec_account_order_line_column3, .ec_account_order_line_column3_header),
+.elementor-element .wpec-acc--no-order-status :is(.ec_account_order_line_column4, .ec_account_order_line_column4_header),
+.elementor-element .wpec-acc--no-order-button :is(.ec_account_order_line_column5, .ec_account_order_line_column5_header) {
+	display: none !important;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * An order's page.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.elementor-element .wpec-acc--no-order-print .ec_account_order_details_actions > a[target="_blank"],
+.elementor-element .wpec-acc--no-order-notes .ec_account_order_notes {
+	display: none !important;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * My Account layout and the account menu.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.wpec-acc__layout {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--wpec-acc-layout-gap, 32px);
+}
+.wpec-acc__content {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.wpec-acc--menu-left .wpec-acc__layout > .wpec-acc-nav {
+	flex: 0 0 var(--wpec-acc-nav-width, 220px);
+	max-width: 100%;
+}
+.wpec-acc--menu-top .wpec-acc__layout {
+	flex-direction: column;
+	align-items: stretch;
+}
+.wpec-acc-nav__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--wpec-acc-nav-gap, 2px);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.wpec-acc-nav--horizontal .wpec-acc-nav__list {
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: var(--wpec-acc-nav-justify, flex-start);
+	border-bottom: 1px solid var(--wpec-acc-nav-border, var(--wpec-acc-line));
+}
+.wpec-acc-nav--horizontal .wpec-acc-nav__item {
+	flex-grow: var(--wpec-acc-nav-grow, 0);
+}
+.wpec-acc-nav--vertical .wpec-acc-nav__list {
+	border-right: 1px solid var(--wpec-acc-nav-border, var(--wpec-acc-line));
+	padding-right: 12px;
+}
+.wpec-acc-nav__item {
+	margin: 0;
+	padding: 0;
+}
+.wpec-acc-nav__item::before {
+	content: none;
+}
+.elementor-element .wpec-acc-nav__link {
+	display: block;
+	padding: 10px 14px;
+	color: var(--wpec-acc-nav-color, var(--wpec-acc-text-color, inherit));
+	background-color: var(--wpec-acc-nav-bg, transparent);
+	border-radius: var(--wpec-acc-nav-radius, var(--wpec-radius, 4px));
+	text-decoration: none;
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.elementor-element .wpec-acc-nav__link:is(:hover, :focus-visible) {
+	color: var(--wpec-acc-nav-hover-color, var(--wpec-acc-accent));
+	background-color: var(--wpec-acc-nav-hover-bg, var(--wpec-acc-soft));
+	text-decoration: none;
+}
+.elementor-element .wpec-acc-nav__link:focus-visible {
+	outline: 2px solid var(--wpec-acc-focus);
+	outline-offset: 2px;
+}
+.elementor-element .wpec-acc-nav__item.is-active > .wpec-acc-nav__link {
+	color: var(--wpec-acc-nav-active-color, var(--wpec-acc-accent));
+	background-color: var(--wpec-acc-nav-active-bg, var(--wpec-acc-soft));
+	font-weight: 600;
+}
+/* Icons ( Content › Account menu › Icon ): only on items that have one. */
+.elementor-element .wpec-acc-nav__link.has-icon {
+	display: flex;
+	align-items: center;
+	justify-content: var(--wpec-acc-nav-justify, flex-start);
+	gap: var(--wpec-acc-nav-icon-gap, 8px);
+}
+.wpec-acc-nav__icon {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	line-height: 1;
+	font-size: var(--wpec-acc-nav-icon-size, 1em);
+}
+.wpec-acc-nav__icon svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+/* Current item mark. */
+.elementor-element .wpec-acc--nav-bar .wpec-acc-nav--vertical .wpec-acc-nav__item.is-active > .wpec-acc-nav__link {
+	box-shadow: inset var(--wpec-acc-nav-indicator-width, 3px) 0 0 var(--wpec-acc-nav-indicator-color, currentColor);
+}
+.elementor-element .wpec-acc--nav-bar .wpec-acc-nav--horizontal .wpec-acc-nav__item.is-active > .wpec-acc-nav__link {
+	box-shadow: inset 0 calc(-1 * var(--wpec-acc-nav-indicator-width, 3px)) 0 var(--wpec-acc-nav-indicator-color, currentColor);
+}
+.elementor-element .wpec-acc--nav-underline .wpec-acc-nav__item.is-active > .wpec-acc-nav__link {
+	text-decoration: underline;
+	text-decoration-color: var(--wpec-acc-nav-indicator-color, currentColor);
+	text-decoration-thickness: var(--wpec-acc-nav-indicator-width, 2px);
+	text-underline-offset: 0.3em;
+}
+.wpec-acc-nav__select-wrap {
+	display: none;
+}
+.elementor-element .wpec-acc-nav__select {
+	width: 100%;
+	height: var(--wpec-acc-field-height, 42px);
+	padding: var(--wpec-acc-field-padding, 8px 12px);
+	border: var(--wpec-acc-field-border-width, 1px) solid var(--wpec-acc-field-border, var(--wpec-acc-line));
+	border-radius: var(--wpec-acc-field-radius, var(--wpec-radius, 4px));
+	background-color: var(--wpec-acc-field-bg, #ffffff);
+	color: inherit;
+	font-family: inherit;
+}
+@media (max-width: 767px) {
+	.wpec-acc--menu-left .wpec-acc__layout {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.wpec-acc--menu-left .wpec-acc__layout > .wpec-acc-nav {
+		flex-basis: auto;
+	}
+	.wpec-acc-nav--vertical .wpec-acc-nav__list {
+		border-right: 0;
+		padding-right: 0;
+	}
+	.wpec-acc-nav--dropdown .wpec-acc-nav__list {
+		display: none;
+	}
+	.wpec-acc-nav--dropdown .wpec-acc-nav__select-wrap {
+		display: block;
+	}
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Two forms side by side ( addresses, account details ), one column when the widget is narrow.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.wpec-acc-columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--wpec-gap, 32px);
+}
+.wpec-acc-columns--2 {
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--wpec-acc-column-min, 320px)), 1fr));
+}
+.wpec-acc--stack-columns .wpec-acc-columns--2 {
+	grid-template-columns: minmax(0, 1fr);
+}
+.wpec-acc-column {
+	min-width: 0;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * The module's own views: back link, downloads, payment methods, signed-in note, logout.
+ * ------------------------------------------------------------------------------------------------------------------- */
+.wpec-acc .wpec-acc-back {
+	margin: 0 0 16px;
+}
+.wpec-acc .wpec-acc-empty {
+	margin: 12px 0 0;
+}
+.wpec-acc-downloads,
+.wpec-acc-payment {
+	display: block;
+}
+.wpec-acc-downloads__list,
+.wpec-acc-card__subscriptions {
+	clear: both;
+	margin: 12px 0 0;
+	padding: 0;
+	list-style: none;
+}
+.wpec-acc-downloads__item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px 24px;
+	margin: 0;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--wpec-acc-line);
+}
+.wpec-acc-downloads__info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.wpec-acc-downloads__title {
+	font-weight: 600;
+}
+.wpec-acc-downloads__meta {
+	font-size: 0.9em;
+}
+.wpec-acc-card {
+	clear: both;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 14px;
+	margin: 12px 0 0;
+	padding: 16px 18px;
+	border: 1px solid var(--wpec-acc-line);
+	border-radius: var(--wpec-radius, 6px);
+}
+.wpec-acc-card__brand {
+	font-weight: 700;
+}
+.wpec-acc-card__number {
+	letter-spacing: 0.08em;
+}
+.wpec-acc-card__note {
+	flex-basis: 100%;
+	font-size: 0.9em;
+}
+.wpec-acc-card__subscription {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 6px 16px;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--wpec-acc-line);
+}
+/* Change payment method as a button ( Payment Methods › Content ). */
+.wpec-acc-card__subscription > .wpec-acc-card__change.wpec-acc-button {
+	align-self: center;
+}
+.wpec-acc-signed-in p {
+	margin: 0 0 12px;
+}
+.wpec-acc-signed-in__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 18px;
+}
+.wpec-acc--logout {
+	display: flex;
+	flex-direction: column;
+	align-items: var(--wpec-acc-logout-align, flex-start);
+}
+.elementor-element .wpec-acc .wpec-acc-logout__button {
+	padding: 10px 20px;
+}
+.wpec-acc-logout__icon {
+	display: inline-flex;
+	line-height: 1;
+}
+.wpec-acc-logout__icon svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wpec-acc *,
+	.wpec-acc-nav__link {
+		transition: none !important;
+	}
+}

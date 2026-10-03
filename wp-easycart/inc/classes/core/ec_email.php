@@ -42,6 +42,12 @@ if ( ! class_exists( 'ec_email' ) ) :
 		const QUEUE_CHECK_TTL = 600;
 		/** Seconds the SPF / DKIM / DMARC lookups for one from-domain are kept. @since 6.0.0 */
 		const DNS_CACHE_TTL = 3600;
+		/** The example store notification address stores started with before 6.0.2: never mailed ( valid_recipients() ). @since 6.0.2 */
+		const PLACEHOLDER_ADDRESS = 'youremail@url.com';
+		/** Log status of an email that was not sent because it had no valid address: never queued, never a failure. @since 6.0.2 */
+		const SKIPPED = 'skipped';
+		/** Where every help link about email delivery goes. @since 6.0.2 */
+		const DELIVERY_GUIDE_URL = 'https://docs.wpeasycart.com/docs/how-to-guides/how-to-fix-order-emails-going-to-spam-or-missing/';
 
 		/** Context the current send belongs to ( set by callers, read by the wp_mail capture ). */
 		private static $context = null;
@@ -80,6 +86,44 @@ if ( ! class_exists( 'ec_email' ) ) :
 			return 'custom';
 		}
 
+		/**
+		 * Does a custom send method ( 'custom' above ) send the emails ec_email::send() hands it? Its sender must listen on
+		 * wpeasycart_custom_store_email; older ones ( Mandrill 1.2.2 ) only listen on the per-email actions such as
+		 * wpeasycart_custom_order_email.
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public static function custom_store_email_handled() {
+			return (bool) has_action( 'wpeasycart_custom_store_email' );
+		}
+
+		/**
+		 * The transport ec_email::send() really uses: the configured one, except that a custom method nothing sends store
+		 * email for falls back to WordPress mail ( deliver() ).
+		 *
+		 * @since 6.0.2
+		 * @return string 'wp_mail' | 'plugin_smtp' | 'plugin_mail' | 'custom'
+		 */
+		public static function store_email_transport() {
+			$t = self::configured_transport();
+			return ( 'custom' === $t && ! self::custom_store_email_handled() ) ? 'wp_mail' : $t;
+		}
+
+		/**
+		 * The name a plugin gave its custom send method through wpeasycart_email_method ( "Mandrill" ), for messages.
+		 *
+		 * @since 6.0.2
+		 * @return string Empty when the method is not custom or has no usable name.
+		 */
+		public static function custom_method_name() {
+			if ( 'custom' !== self::configured_transport() ) {
+				return '';
+			}
+			$method = apply_filters( 'wpeasycart_email_method', get_option( 'ec_option_use_wp_mail' ) );
+			return is_scalar( $method ) ? sanitize_text_field( (string) $method ) : '';
+		}
+
 		public static function transport_label( $t ) {
 			$l = array( 'wp_mail' => __( 'WordPress mail (wp_mail)', 'wp-easycart' ), 'plugin_smtp' => __( 'EasyCart built-in SMTP', 'wp-easycart' ), 'plugin_mail' => __( 'EasyCart built-in PHP mail()', 'wp-easycart' ), 'custom' => __( 'Custom (third-party hook)', 'wp-easycart' ), 'queue' => __( 'Queue', 'wp-easycart' ) );
 			return isset( $l[ $t ] ) ? $l[ $t ] : $t;
@@ -92,6 +136,33 @@ if ( ! class_exists( 'ec_email' ) ) :
 		/** Callers wrap a send: ec_email::context( 'order_receipt', $order_id ); … ; ec_email::context( null ); */
 		public static function context( $type, $order_id = 0 ) {
 			self::$context = $type ? array( 'type' => (string) $type, 'order_id' => (int) $order_id ) : null;
+		}
+
+		/**
+		 * Log the next sends under $type and give back the context that was set, for pop_context(). A test context the
+		 * caller set wins ( a sample receipt stays a test ).
+		 *
+		 * @since 6.0.2
+		 * @param string $type     Email log type.
+		 * @param int    $order_id Order.
+		 * @return array|null The caller's context.
+		 */
+		public static function push_context( $type, $order_id = 0 ) {
+			$outer = self::$context;
+			if ( ! ( $outer && self::is_test_type( $outer['type'] ) ) ) {
+				self::context( $type, $order_id );
+			}
+			return $outer;
+		}
+
+		/**
+		 * Put back the context push_context() replaced.
+		 *
+		 * @since 6.0.2
+		 * @param array|null $outer What push_context() returned.
+		 */
+		public static function pop_context( $outer ) {
+			self::$context = ( is_array( $outer ) && isset( $outer['type'] ) ) ? $outer : null;
 		}
 
 		/** Best guess for legacy callers: the recipient is an order's customer and the order was touched recently. */
@@ -117,8 +188,12 @@ if ( ! class_exists( 'ec_email' ) ) :
 		 */
 		public static function send( $to, $subject, $message, $args = array() ) {
 			$args = wp_parse_args( $args, array( 'type' => 'store', 'order_id' => 0, 'channel' => 'order', 'headers' => array() ) );
+			$raw = $to;
 			$to = self::normalise_to( $to );
-			if ( ! $to ) { return false; }
+			if ( ! $to ) {
+				self::no_recipient( $args['type'], $args['order_id'], $raw, $subject, false ); /* 6.0.2: one "not sent" row for an address that cannot take mail */
+				return false;
+			}
 			self::context( $args['type'], $args['order_id'] );
 			$res = self::deliver( $to, $subject, $message, $args['channel'], $args['headers'] );
 			self::context( null );
@@ -130,12 +205,10 @@ if ( ! class_exists( 'ec_email' ) ) :
 				return true;
 			}
 			if ( ! $handled ) {
-				self::record( $args['type'], $args['order_id'], $to, $subject, $res['transport'], 'failed', $res['error'], 1, 0, $message );
-				if ( self::queue_enabled() && self::tables_exist() ) {
-					self::enqueue( $to, $subject, $message, array_merge( $args, array( 'error' => $res['error'], 'attempts' => 1 ) ) );
-					return true;
-				}
-				return false;
+				/* 6.0.2: queued first, so a first attempt that will be retried is logged 'retrying' ( with its queue row ), not 'failed': one email, one outcome. */
+				$queue_id = ( self::queue_enabled() && self::tables_exist() ) ? self::enqueue( $to, $subject, $message, array_merge( $args, array( 'error' => $res['error'], 'attempts' => 1 ) ) ) : 0;
+				self::record( $args['type'], $args['order_id'], $to, $subject, $res['transport'], $queue_id ? 'retrying' : 'failed', $res['error'], 1, $queue_id, $message );
+				return $queue_id > 0;
 			}
 			return self::queue_enabled() && self::tables_exist(); /* the failed hook queued it */
 		}
@@ -155,7 +228,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 		/* ------------------------------------------------------------------ */
 
 		/** Attachment filters a queued retry may replay to build its files again. */
-		const REBUILDABLE_FILTERS = array( 'wp_easycart_order_email_attachments', 'wp_easycart_shipping_email_attachments', 'wp_easycart_packing_slip_email_attachments' );
+		const REBUILDABLE_FILTERS = array( 'wp_easycart_order_email_attachments', 'wp_easycart_shipping_email_attachments', 'wp_easycart_packing_slip_email_attachments', 'wp_easycart_invoice_email_attachments', 'wp_easycart_message_email_attachments' ); /* 6.0.2: the order screen's Message email ( WP EasyCart PRO ) */
 
 		/** File path => how it was made ( filter and arguments ), for the files built in this request. */
 		private static $attachment_specs = array();
@@ -298,9 +371,11 @@ if ( ! class_exists( 'ec_email' ) ) :
 		 * One attempt through the configured transport. wp_mail results are logged by the capture hooks.
 		 *
 		 * @since 6.0.1 $attachments.
+		 * @since 6.0.2 A custom method with no wpeasycart_custom_store_email listener sends with wp_mail instead of
+		 *              reporting a send that never happened ( store_email_transport() ).
 		 */
 		private static function deliver( $to, $subject, $message, $channel, $headers = array(), $attachments = array() ) {
-			$t = self::configured_transport();
+			$t = self::store_email_transport();
 			if ( self::is_simulated_failure() ) {
 				/* The merchant asked to watch the retry queue work: fail without touching the mail server. */
 				return array(
@@ -318,6 +393,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 				return array( 'ok' => $ok, 'transport' => 'wp_mail', 'error' => $ok ? '' : ( self::$last_wp_error ? self::$last_wp_error : 'wp_mail() returned false' ), 'handled' => self::$wp_mail_handled );
 			}
 			if ( 'custom' === $t ) {
+				/* Only reached when something listens ( store_email_transport() ); the listener reports no result, so it counts as sent. */
 				do_action( 'wpeasycart_custom_store_email', $from, $to, '', $subject, $message, (array) $attachments );
 				return array( 'ok' => true, 'transport' => 'custom', 'error' => '', 'handled' => false );
 			}
@@ -336,16 +412,127 @@ if ( ! class_exists( 'ec_email' ) ) :
 		 * Comma list of the recipients that carry a valid address. A part written as "Name <addr@x.com>" ( what the
 		 * store notification / BCC list allows, see ecst_email_validate_list() ) is kept whole, since wp_mail accepts
 		 * display names; anything else must be a bare address. @since 6.0.0 display names are no longer dropped.
+		 *
+		 * @since 6.0.2 The example address ( PLACEHOLDER_ADDRESS ) is dropped too.
 		 */
 		private static function normalise_to( $to ) {
-			if ( is_array( $to ) ) { $to = implode( ',', $to ); }
+			return implode( ',', self::valid_recipients( $to ) );
+		}
+
+		/**
+		 * The recipients in a list that can take mail: a comma separated string or an array; "Name <addr@x.com>" parts are
+		 * kept whole; blanks, invalid addresses, repeats and the example address stores started with are left out.
+		 *
+		 * @since 6.0.2
+		 * @param string|array $recipients Recipient list.
+		 * @return array
+		 */
+		public static function valid_recipients( $recipients ) {
+			if ( is_array( $recipients ) ) {
+				$recipients = implode( ',', array_filter( $recipients, 'is_scalar' ) );
+			}
 			$parts = array();
-			foreach ( array_map( 'trim', explode( ',', (string) $to ) ) as $part ) {
+			foreach ( array_map( 'trim', explode( ',', (string) $recipients ) ) as $part ) {
 				if ( '' === $part ) { continue; }
 				$address = preg_match( '/<([^>]+)>\s*$/', $part, $m ) ? trim( $m[1] ) : $part;
-				if ( is_email( $address ) ) { $parts[] = $part; }
+				if ( is_email( $address ) && ! self::is_placeholder( $address ) && ! in_array( $part, $parts, true ) ) { $parts[] = $part; }
 			}
-			return $parts ? implode( ',', $parts ) : '';
+			return $parts;
+		}
+
+		/**
+		 * The example store notification address ( PLACEHOLDER_ADDRESS ), which counts as "not set".
+		 *
+		 * @since 6.0.2
+		 * @param string $address Address.
+		 * @return bool
+		 */
+		public static function is_placeholder( $address ) {
+			return self::PLACEHOLDER_ADDRESS === strtolower( trim( (string) $address ) );
+		}
+
+		/**
+		 * The comma list a sender should mail for one copy of an email. When no valid address is left it answers '' and
+		 * logs one "not sent" row naming the value ( never a failure, never a retry ): the sender skips that copy.
+		 *
+		 * @since 6.0.2
+		 * @param string|array $raw       Recipient list as stored ( an order's email, the store notification addresses ).
+		 * @param string       $type      Email log type of this copy.
+		 * @param int          $order_id  Order, for the log row.
+		 * @param string       $subject   Subject, for the log row.
+		 * @param bool         $log_blank Log a blank list too ( false where blank means "no copies", the store list ).
+		 * @return string
+		 */
+		public static function send_to( $raw, $type, $order_id, $subject, $log_blank = true ) {
+			$to = self::normalise_to( $raw );
+			if ( '' === $to ) {
+				self::no_recipient( $type, $order_id, $raw, $subject, $log_blank );
+			}
+			return $to;
+		}
+
+		/**
+		 * Log an email that was not sent because its recipient list held no valid address ( status SKIPPED, the value in
+		 * the To column ). Left out of the delivery rate and the failure streak.
+		 *
+		 * @since 6.0.2
+		 * @param string       $type      Email log type.
+		 * @param int          $order_id  Order.
+		 * @param string|array $raw       The recipient list that was given.
+		 * @param string       $subject   Subject.
+		 * @param bool         $log_blank Log a blank list too.
+		 * @return int Log row, 0 when nothing was logged.
+		 */
+		public static function no_recipient( $type, $order_id, $raw, $subject, $log_blank = true ) {
+			$raw = trim( is_array( $raw ) ? implode( ', ', array_filter( $raw, 'is_scalar' ) ) : (string) $raw );
+			if ( ( '' === $raw && ! $log_blank ) || ! self::tables_exist() ) {
+				return 0;
+			}
+			if ( '' === $raw ) {
+				$error = __( 'Not sent: there is no email address to send it to.', 'wp-easycart' );
+			} elseif ( self::is_placeholder( $raw ) ) {
+				/* translators: %s: the example address, youremail@url.com */
+				$error = sprintf( __( 'Not sent: %s is the example address. Enter your own under Settings › Email › Store notification addresses.', 'wp-easycart' ), $raw );
+			} else {
+				/* translators: %s: what was entered as the address */
+				$error = sprintf( __( 'Not sent: "%s" is not a valid email address.', 'wp-easycart' ), $raw );
+			}
+			return self::record( $type, $order_id, $raw, $subject, self::store_email_transport(), self::SKIPPED, $error, 0, 0, '' );
+		}
+
+		/**
+		 * Email log types that go to the store rather than to a customer ( copies of order emails, alerts ). A failing run
+		 * of these is worded as such on the Deliverability card.
+		 *
+		 * @since 6.0.2
+		 * @param string $type Email log type.
+		 * @return bool
+		 */
+		public static function is_store_type( $type ) {
+			$type  = (string) $type;
+			$store = ( '_store' === substr( $type, -6 ) ) || in_array( $type, array( 'low_stock', 'out_of_stock', 'review_alert', 'checkout_protection', 'checkout_fields', 'reports_summary' ), true );
+			return (bool) apply_filters( 'wp_easycart_email_is_store_type', $store, $type );
+		}
+
+		/**
+		 * A recipient list without the example store address ( a string stays a comma list, an array an array ).
+		 *
+		 * @since 6.0.2
+		 * @param string|array $to Recipients.
+		 * @return string|array
+		 */
+		private static function drop_placeholder( $to ) {
+			if ( is_array( $to ) ) {
+				return array_values( array_filter( $to, function ( $address ) { return ! is_scalar( $address ) || ! ec_email::is_placeholder( preg_match( '/<([^>]+)>\s*$/', (string) $address, $m ) ? $m[1] : (string) $address ); } ) );
+			}
+			$keep = array();
+			foreach ( explode( ',', (string) $to ) as $part ) {
+				$address = preg_match( '/<([^>]+)>\s*$/', $part, $m ) ? $m[1] : $part;
+				if ( ! self::is_placeholder( $address ) ) {
+					$keep[] = trim( $part );
+				}
+			}
+			return implode( ', ', array_filter( $keep, 'strlen' ) );
 		}
 
 		/* ------------------------------------------------------------------ */
@@ -355,11 +542,16 @@ if ( ! class_exists( 'ec_email' ) ) :
 		/** Remember the args so the succeeded/failed actions can be logged with type/order and re-queued. */
 		public static function capture_wp_mail( $atts ) {
 			if ( ! is_array( $atts ) ) { return $atts; }
+			$store = self::is_store_email( $atts );
+			$raw_to = isset( $atts['to'] ) ? ( is_array( $atts['to'] ) ? implode( ', ', array_filter( $atts['to'], 'is_scalar' ) ) : (string) $atts['to'] ) : '';
+			if ( $store && isset( $atts['to'] ) ) {
+				/* 6.0.2: the example store address is never mailed, whichever sender read the option ( ec_email::valid_recipients() ). */
+				$atts['to'] = self::drop_placeholder( $atts['to'] );
+			}
 			$to = isset( $atts['to'] ) ? self::normalise_to( $atts['to'] ) : '';
 			$subject = isset( $atts['subject'] ) ? (string) $atts['subject'] : '';
-			$store = self::is_store_email( $atts );
 			self::$pending[ self::key( $to, $subject ) ] = array(
-				'store' => $store, 'to' => $to, 'subject' => $subject, 'message' => isset( $atts['message'] ) ? $atts['message'] : '',
+				'store' => $store, 'to' => $to, 'raw_to' => $raw_to, 'subject' => $subject, 'message' => isset( $atts['message'] ) ? $atts['message'] : '',
 				'headers' => isset( $atts['headers'] ) ? $atts['headers'] : '', 'ctx' => self::$context, 'from_queue' => self::$sending_from_queue,
 				'attachments' => self::attachment_recipe( isset( $atts['attachments'] ) ? $atts['attachments'] : array() ),
 			);
@@ -398,11 +590,14 @@ if ( ! class_exists( 'ec_email' ) ) :
 			if ( $p['from_queue'] ) { return; }
 			$ctx = $p['ctx'] ? $p['ctx'] : array( 'type' => 'store', 'order_id' => 0 );
 			if ( ! $ctx['order_id'] ) { $ctx['order_id'] = self::resolve_order( $p['to'], $p['subject'] ); if ( $ctx['order_id'] && 'store' === $ctx['type'] ) { $ctx['type'] = 'order'; } }
-			self::record( $ctx['type'], $ctx['order_id'], $p['to'], $p['subject'], 'wp_mail', 'failed', $msg, 1, 0, $p['message'] );
-			/* Legacy callers get retries too: re-queue from the captured arguments. */
-			if ( self::queue_enabled() && self::tables_exist() && '' !== $p['message'] ) {
-				self::enqueue( $p['to'], $p['subject'], $p['message'], array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => 'order', 'headers' => $p['headers'], 'error' => $msg, 'attempts' => 1, 'attachments' => isset( $p['attachments'] ) ? $p['attachments'] : null ) );
+			if ( '' === $p['to'] ) {
+				/* 6.0.2: no address that can take mail: one "not sent" row, never a failure that retries. */
+				self::no_recipient( $ctx['type'], $ctx['order_id'], isset( $p['raw_to'] ) ? $p['raw_to'] : '', $p['subject'] );
+				return;
 			}
+			/* Legacy callers get retries too: re-queue from the captured arguments. 6.0.2: queued first, so the first attempt of an email that will be retried is logged 'retrying'. */
+			$queue_id = ( self::queue_enabled() && self::tables_exist() && '' !== $p['message'] ) ? self::enqueue( $p['to'], $p['subject'], $p['message'], array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => 'order', 'headers' => $p['headers'], 'error' => $msg, 'attempts' => 1, 'attachments' => isset( $p['attachments'] ) ? $p['attachments'] : null ) ) : 0;
+			self::record( $ctx['type'], $ctx['order_id'], $p['to'], $p['subject'], 'wp_mail', $queue_id ? 'retrying' : 'failed', $msg, 1, $queue_id, $p['message'] );
 		}
 
 		private static function take_pending( $data ) {
@@ -430,11 +625,29 @@ if ( ! class_exists( 'ec_email' ) ) :
 				'transport' => $transport, 'status' => $status, 'error_text' => (string) $error, 'attempts' => (int) $attempts, 'queue_id' => (int) $queue_id, 'body_hash' => $message ? substr( md5( (string) $message ), 0, 40 ) : '',
 			) );
 			$id = (int) $wpdb->insert_id;
-			if ( ! self::is_test_type( $type ) ) {
+			if ( ! self::is_test_type( $type ) && self::moves_streak( $status, $to, $attempts ) ) {
 				self::update_streak( 'sent' === $status ); /* merchant tests never move the streak or raise the failing-email banner */
 			}
 			do_action( 'wp_easycart_email_logged', $id, $status, $transport, $type, $order_id );
 			return $id;
+		}
+
+		/**
+		 * Does this log row move the failure streak? A send resets it; each email counts once as a failure ( its first
+		 * attempt, or a manual retry of a parked one ), so the queue's later retries do not add to it; an email with no
+		 * address never does.
+		 *
+		 * @since 6.0.2
+		 * @param string $status   Log status.
+		 * @param string $to       Recipient.
+		 * @param int    $attempts Attempt number.
+		 * @return bool
+		 */
+		private static function moves_streak( $status, $to, $attempts ) {
+			if ( 'sent' === $status ) {
+				return true;
+			}
+			return in_array( $status, array( 'failed', 'retrying' ), true ) && '' !== trim( (string) $to ) && (int) $attempts <= 1;
 		}
 
 		/** Called by wpeasycart_mailer after each attempt ( unless ec_email::send() is the caller and records itself ). */
@@ -444,10 +657,15 @@ if ( ! class_exists( 'ec_email' ) ) :
 			$ctx = self::$context ? self::$context : array( 'type' => 'store', 'order_id' => 0 );
 			if ( ! $ctx['order_id'] ) { $ctx['order_id'] = self::resolve_order( self::normalise_to( $to ), $subject ); if ( $ctx['order_id'] && 'store' === $ctx['type'] ) { $ctx['type'] = 'order'; } }
 			$ok = ( false === $error );
-			self::record( $ctx['type'], $ctx['order_id'], self::normalise_to( $to ), $subject, $t, $ok ? 'sent' : 'failed', $ok ? '' : (string) $error, 1, 0, $message );
-			if ( ! $ok && self::queue_enabled() && self::tables_exist() && ! self::$sending_from_queue ) {
-				self::enqueue( self::normalise_to( $to ), $subject, $message, array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => $channel, 'error' => (string) $error, 'attempts' => 1, 'attachments' => self::attachment_recipe( $attachments ) ) );
+			$clean_to = self::normalise_to( $to );
+			if ( ! $ok && '' === $clean_to ) {
+				/* 6.0.2: no address that can take mail: one "not sent" row, never a failure that retries. */
+				self::no_recipient( $ctx['type'], $ctx['order_id'], $to, $subject );
+				return;
 			}
+			/* 6.0.2: queued first, so the first attempt of an email that will be retried is logged 'retrying'. */
+			$queue_id = ( ! $ok && self::queue_enabled() && self::tables_exist() && ! self::$sending_from_queue ) ? self::enqueue( $clean_to, $subject, $message, array( 'type' => $ctx['type'], 'order_id' => $ctx['order_id'], 'channel' => $channel, 'error' => (string) $error, 'attempts' => 1, 'attachments' => self::attachment_recipe( $attachments ) ) ) : 0;
+			self::record( $ctx['type'], $ctx['order_id'], $clean_to, $subject, $t, $ok ? 'sent' : ( $queue_id ? 'retrying' : 'failed' ), $ok ? '' : (string) $error, 1, $queue_id, $message );
 		}
 
 		private static function update_streak( $sent ) {
@@ -462,6 +680,8 @@ if ( ! class_exists( 'ec_email' ) ) :
 		public static function enqueue( $to, $subject, $message, $args = array() ) {
 			global $wpdb;
 			if ( ! self::tables_exist() ) { return 0; }
+			$to = self::normalise_to( $to );
+			if ( '' === $to ) { return 0; } /* 6.0.2: an email with no address that can take mail is never queued */
 			$args = wp_parse_args( $args, array( 'type' => 'store', 'order_id' => 0, 'channel' => 'order', 'headers' => array(), 'error' => '', 'attempts' => 0, 'attachments' => null ) );
 			$attempts = (int) $args['attempts'];
 			$row = array(
@@ -530,18 +750,24 @@ if ( ! class_exists( 'ec_email' ) ) :
 		/** Cron: send everything due; on final failure park it. Returns counts. */
 		public static function run_queue( $limit = 50 ) {
 			global $wpdb;
-			if ( ! self::tables_exist() ) { return array( 'sent' => 0, 'retried' => 0, 'parked' => 0 ); }
+			if ( ! self::tables_exist() ) { return array( 'sent' => 0, 'retried' => 0, 'parked' => 0, 'skipped' => 0 ); }
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM ec_email_queue WHERE status = 'pending' AND next_attempt <= %s ORDER BY next_attempt LIMIT %d", current_time( 'mysql' ), (int) $limit ) );
-			$out = array( 'sent' => 0, 'retried' => 0, 'parked' => 0 );
+			$out = array( 'sent' => 0, 'retried' => 0, 'parked' => 0, 'skipped' => 0 ); /* 6.0.2: skipped = no address that can take mail */
 			foreach ( $rows as $q ) { $r = self::attempt( $q ); $out[ $r ]++; }
 			self::queue_changed();
 			self::maybe_schedule();
 			return $out;
 		}
 
-		/** One attempt for a queue row ( also used by "Send now" / "Retry" ). @return 'sent'|'retried'|'parked' */
+		/** One attempt for a queue row ( also used by "Send now" / "Retry" ). @return 'sent'|'retried'|'parked'|'skipped' ( 6.0.2 ) */
 		public static function attempt( $q ) {
 			global $wpdb;
+			if ( '' === self::normalise_to( $q->to_email ) ) {
+				/* 6.0.2: queued before 6.0.2 with no address that can take mail: taken out of the queue with one "not sent" row instead of retrying. */
+				$wpdb->update( 'ec_email_queue', array( 'status' => self::SKIPPED, 'next_attempt' => null ), array( 'queue_id' => (int) $q->queue_id ) );
+				self::no_recipient( $q->email_type, (int) $q->order_id, $q->to_email, $q->subject );
+				return self::SKIPPED;
+			}
 			self::$sending_from_queue = true;
 			self::context( $q->email_type, (int) $q->order_id );
 			$headers = '' !== (string) $q->headers ? explode( "\r\n", (string) $q->headers ) : array();
@@ -558,6 +784,36 @@ if ( ! class_exists( 'ec_email' ) ) :
 			$wpdb->update( 'ec_email_queue', array( 'status' => $parked ? 'failed' : 'pending', 'attempts' => $attempts, 'next_attempt' => $parked ? null : self::next_attempt( $attempts ), 'last_error' => $res['error'] ), array( 'queue_id' => (int) $q->queue_id ) );
 			self::record( $q->email_type, (int) $q->order_id, $q->to_email, $q->subject, $res['transport'], $parked ? 'failed' : 'retrying', $res['error'], $attempts, (int) $q->queue_id, $q->message );
 			return $parked ? 'parked' : 'retried';
+		}
+
+		/**
+		 * Take the queue rows with no address that can take mail ( blank, invalid or the example address ) out of the queue:
+		 * queued before 6.0.2, they would retry until they gave up and then wait for attention. Run once, from
+		 * ec_wpoptionset::retire_placeholders().
+		 *
+		 * @since 6.0.2
+		 * @return int Rows taken out.
+		 */
+		public static function retire_unsendable() {
+			global $wpdb;
+			if ( ! self::tables_exist() ) {
+				return 0;
+			}
+			$ids = array();
+			foreach ( (array) $wpdb->get_results( "SELECT queue_id, to_email FROM ec_email_queue WHERE status IN ( 'pending', 'failed' )" ) as $row ) {
+				if ( '' === self::normalise_to( $row->to_email ) ) {
+					$ids[] = (int) $row->queue_id;
+				}
+			}
+			$done = 0;
+			foreach ( array_chunk( $ids, 200 ) as $chunk ) {
+				$in    = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+				$done += (int) $wpdb->query( $wpdb->prepare( "UPDATE ec_email_queue SET status = %s, next_attempt = NULL WHERE queue_id IN ( {$in} )", array_merge( array( self::SKIPPED ), $chunk ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in is a list of %d placeholders.
+			}
+			if ( $done ) {
+				self::queue_changed();
+			}
+			return $done;
 		}
 
 		public static function retry( $queue_id ) {
@@ -700,18 +956,32 @@ if ( ! class_exists( 'ec_email' ) ) :
 
 		public static function health( $days = 7 ) {
 			global $wpdb;
-			$h = array( 'available' => self::tables_exist(), 'sent' => 0, 'failed' => 0, 'rate' => null, 'last_success' => get_option( 'ec_option_email_last_success', '' ), 'last_error' => null, 'streak' => (int) get_option( 'ec_option_email_fail_streak', 0 ), 'transport' => self::configured_transport(), 'queued' => 0, 'parked' => 0, 'daily' => array(), 'affected_orders' => 0 );
+			$h = array( 'available' => self::tables_exist(), 'sent' => 0, 'failed' => 0, 'rate' => null, 'last_success' => get_option( 'ec_option_email_last_success', '' ), 'last_error' => null, 'streak' => (int) get_option( 'ec_option_email_fail_streak', 0 ), 'transport' => self::configured_transport(), 'store_transport' => self::store_email_transport(), 'queued' => 0, 'parked' => 0, 'daily' => array(), 'affected_orders' => 0, 'streak_customer' => true );
 			if ( ! $h['available'] ) { return $h; }
 			$since = date( 'Y-m-d H:i:s', current_time( 'timestamp' ) - (int) $days * DAY_IN_SECONDS );
-			/* Final outcomes only: a 'retrying' row is not a failure yet. Merchant tests ( including the simulated failure ) are excluded so they cannot dent the delivery rate. */
-			$r = $wpdb->get_row( $wpdb->prepare( "SELECT SUM( status = 'sent' ) AS sent, SUM( status = 'failed' ) AS failed FROM ec_email_log WHERE created_at >= %s AND email_type NOT IN ( %s, %s )", $since, self::TEST_TYPE, self::SIMULATE_TYPE ), ARRAY_A );
+			/* Final outcomes only: a 'retrying' row is not a failure yet. Merchant tests ( including the simulated failure ) are excluded so they cannot dent the delivery rate.
+			   6.0.2: so are emails with no address ( a blank or invalid store notification list, logged before 6.0.2 as failures ). */
+			$r = $wpdb->get_row( $wpdb->prepare( "SELECT SUM( status = 'sent' ) AS sent, SUM( status = 'failed' ) AS failed FROM ec_email_log WHERE created_at >= %s AND email_type NOT IN ( %s, %s ) AND to_email <> ''", $since, self::TEST_TYPE, self::SIMULATE_TYPE ), ARRAY_A );
 			$h['sent'] = (int) $r['sent']; $h['failed'] = (int) $r['failed'];
 			$h['rate'] = ( $h['sent'] + $h['failed'] ) ? (int) round( 100 * $h['sent'] / ( $h['sent'] + $h['failed'] ) ) : null;
-			$h['last_error'] = $wpdb->get_row( $wpdb->prepare( "SELECT created_at, email_type, order_id, to_email, error_text, transport FROM ec_email_log WHERE status IN ( 'failed', 'retrying' ) AND email_type NOT IN ( %s, %s ) ORDER BY log_id DESC LIMIT 1", self::TEST_TYPE, self::SIMULATE_TYPE ) );
-			$h['queued'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_email_queue WHERE status = 'pending'" );
-			$h['parked'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_email_queue WHERE status = 'failed'" );
-			$h['affected_orders'] = (int) $wpdb->get_var( "SELECT COUNT( DISTINCT order_id ) FROM ec_email_queue WHERE status IN ( 'pending', 'failed' ) AND order_id > 0" );
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT DATE( created_at ) AS d, SUM( status = 'sent' ) AS s, SUM( status = 'failed' ) AS f FROM ec_email_log WHERE created_at >= %s AND email_type NOT IN ( %s, %s ) GROUP BY DATE( created_at ) ORDER BY d", date( 'Y-m-d', current_time( 'timestamp' ) - 13 * DAY_IN_SECONDS ), self::TEST_TYPE, self::SIMULATE_TYPE ) ) as $d ) { $h['daily'][ $d->d ] = array( 'sent' => (int) $d->s, 'failed' => (int) $d->f ); }
+			$h['last_error'] = $wpdb->get_row( $wpdb->prepare( "SELECT created_at, email_type, order_id, to_email, error_text, transport FROM ec_email_log WHERE status IN ( 'failed', 'retrying' ) AND email_type NOT IN ( %s, %s ) AND to_email <> '' ORDER BY log_id DESC LIMIT 1", self::TEST_TYPE, self::SIMULATE_TYPE ) );
+			$h['queued'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_email_queue WHERE status = 'pending' AND to_email <> ''" );
+			$h['parked'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_email_queue WHERE status = 'failed' AND to_email <> ''" );
+			$h['affected_orders'] = (int) $wpdb->get_var( "SELECT COUNT( DISTINCT order_id ) FROM ec_email_queue WHERE status IN ( 'pending', 'failed' ) AND order_id > 0 AND to_email <> ''" );
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT DATE( created_at ) AS d, SUM( status = 'sent' ) AS s, SUM( status = 'failed' ) AS f FROM ec_email_log WHERE created_at >= %s AND email_type NOT IN ( %s, %s ) AND to_email <> '' GROUP BY DATE( created_at ) ORDER BY d", date( 'Y-m-d', current_time( 'timestamp' ) - 13 * DAY_IN_SECONDS ), self::TEST_TYPE, self::SIMULATE_TYPE ) ) as $d ) { $h['daily'][ $d->d ] = array( 'sent' => (int) $d->s, 'failed' => (int) $d->f ); }
+			/* 6.0.2: is a customer email among the failures that make up the streak ( moves_streak() ), or only copies and alerts to the store? */
+			if ( $h['streak'] >= self::FAIL_STREAK_ALERT ) {
+				$types = (array) $wpdb->get_col( $wpdb->prepare( "SELECT email_type FROM ec_email_log WHERE status IN ( 'failed', 'retrying' ) AND attempts <= 1 AND to_email <> '' AND email_type NOT IN ( %s, %s ) ORDER BY log_id DESC LIMIT %d", self::TEST_TYPE, self::SIMULATE_TYPE, min( 50, $h['streak'] ) ) );
+				if ( $types ) {
+					$h['streak_customer'] = false;
+					foreach ( $types as $type ) {
+						if ( ! self::is_store_type( $type ) ) {
+							$h['streak_customer'] = true;
+							break;
+						}
+					}
+				}
+			}
 			return $h;
 		}
 
@@ -874,11 +1144,29 @@ if ( ! class_exists( 'ec_email' ) ) :
 					'mailer'    => $mailer,
 				);
 			} else if ( 'wp_mail' === $transport && ! has_action( 'phpmailer_init' ) ) {
-				$out[] = array( 'key' => 'path', 'status' => 'warn', 'title' => __( 'No mail plugin: emails use your server\'s basic mail', 'wp-easycart' ), 'detail' => __( 'Many inboxes treat mail from a web server as suspicious, so receipts can land in spam or go missing. Follow the 3 steps in "Improve delivery" to fix it.', 'wp-easycart' ), 'fix_label' => __( 'How to set up an SMTP plugin', 'wp-easycart' ), 'fix_url' => 'https://wpeasycart.com/docs/email-delivery', 'reason' => 'no_plugin', 'guide' => true );
+				$out[] = array( 'key' => 'path', 'status' => 'warn', 'title' => __( 'No mail plugin: emails use your server\'s basic mail', 'wp-easycart' ), 'detail' => __( 'Many inboxes treat mail from a web server as suspicious, so receipts can land in spam or go missing. Follow the 3 steps in "Improve delivery" to fix it.', 'wp-easycart' ), 'fix_label' => __( 'How to set up an SMTP plugin', 'wp-easycart' ), 'fix_url' => self::DELIVERY_GUIDE_URL, 'reason' => 'no_plugin', 'guide' => true );
 			} else if ( 'wp_mail' === $transport ) {
 				$out[] = array( 'key' => 'path', 'status' => 'ok', 'title' => __( 'WordPress mail with a mail plugin', 'wp-easycart' ), 'detail' => __( 'Another plugin configures the mailer.', 'wp-easycart' ), 'fix_label' => '', 'fix_url' => '', 'reason' => 'configured' );
 			} else {
 				$out[] = array( 'key' => 'path', 'status' => 'warn', 'title' => sprintf( __( 'Using %s', 'wp-easycart' ), self::transport_label( $transport ) ), 'detail' => __( 'This works, but WordPress mail plus a dedicated mail plugin is what we recommend: one place to configure, one set of logs, and API transports that hosts can\'t block.', 'wp-easycart' ), 'fix_label' => __( 'Switch to WordPress mail', 'wp-easycart' ), 'fix_url' => $settings_url, 'reason' => 'builtin', 'guide' => ( 'plugin_mail' === $transport ) );
+			}
+			/* 2b. a custom send method that only sends some emails: the rest go out with WordPress mail ( store_email_transport(), @since 6.0.2 ). */
+			if ( 'custom' === $transport && ! self::custom_store_email_handled() ) {
+				$method_name = self::custom_method_name();
+				$can_manage  = current_user_can( 'activate_plugins' );
+				$out[]       = array(
+					'key'       => 'custom',
+					'status'    => 'warn',
+					'title'     => '' !== $method_name
+						/* translators: %s: name of the send method another plugin set, e.g. Mandrill */
+						? sprintf( __( '%s only sends some of your store emails', 'wp-easycart' ), $method_name )
+						: __( 'Your custom send method only sends some of your store emails', 'wp-easycart' ),
+					'detail'    => __( 'Another plugin set the send method, but it does not handle store notifications, review requests, abandoned cart, back in stock or test emails. EasyCart sends those with WordPress mail instead, so they can arrive from a different server. While that plugin is on, the Send method setting has no effect: to send every email one way, turn it off and use WordPress mail with a mail plugin.', 'wp-easycart' ),
+					'fix_label' => $can_manage ? __( 'Open Plugins', 'wp-easycart' ) : '',
+					'fix_url'   => $can_manage ? admin_url( 'plugins.php' . ( '' !== $method_name ? '?s=' . rawurlencode( $method_name ) : '' ) ) : '',
+					'reason'    => 'custom_unhandled',
+					'method'    => $method_name,
+				);
 			}
 			$service = self::sending_service( $mailer );
 
@@ -888,14 +1176,14 @@ if ( ! class_exists( 'ec_email' ) ) :
 				$spf = $dns['spf'];
 				$services = self::sending_services();
 				$service_include = ( $service && isset( $services[ $service ] ) ) ? $services[ $service ]['spf'] : '';
-				if ( '' === $spf ) { $out[] = array( 'key' => 'spf', 'status' => 'warn', 'title' => __( 'No SPF record', 'wp-easycart' ), 'detail' => sprintf( __( '%s has no SPF record, so receivers can\'t tell which servers may send for it. Your mail provider publishes the exact record to add.', 'wp-easycart' ), $from_domain ), 'fix_label' => __( 'What is SPF?', 'wp-easycart' ), 'fix_url' => 'https://wpeasycart.com/docs/email-delivery#spf', 'domain' => $from_domain, 'service' => $service ); }
+				if ( '' === $spf ) { $out[] = array( 'key' => 'spf', 'status' => 'warn', 'title' => __( 'No SPF record', 'wp-easycart' ), 'detail' => sprintf( __( '%s has no SPF record, so receivers can\'t tell which servers may send for it. Your mail provider publishes the exact record to add.', 'wp-easycart' ), $from_domain ), 'fix_label' => __( 'What is SPF?', 'wp-easycart' ), 'fix_url' => self::DELIVERY_GUIDE_URL, 'domain' => $from_domain, 'service' => $service ); }
 				else { $out[] = array( 'key' => 'spf', 'status' => 'ok', 'title' => __( 'SPF record present', 'wp-easycart' ), 'detail' => $spf, 'fix_label' => '', 'fix_url' => '', 'domain' => $from_domain, 'service' => $service, 'record' => $spf, 'service_missing' => ( '' !== $service_include && false === stripos( $spf, 'include:' . $service_include ) ) ); }
 				$dkim_found = $dns['dkim'];
 				if ( $dkim_found ) { $out[] = array( 'key' => 'dkim', 'status' => 'ok', 'title' => __( 'DKIM record found', 'wp-easycart' ), 'detail' => sprintf( __( 'selector "%s"', 'wp-easycart' ), $dkim_found ), 'fix_label' => '', 'fix_url' => '' ); }
-				else { $out[] = array( 'key' => 'dkim', 'status' => 'warn', 'title' => __( 'No DKIM signature found', 'wp-easycart' ), 'detail' => __( 'We checked the common selectors and found none. Unsigned mail is increasingly filtered. Your sending service gives you one or two CNAME records that fix this.', 'wp-easycart' ), 'fix_label' => __( 'How to add DKIM', 'wp-easycart' ), 'fix_url' => 'https://wpeasycart.com/docs/email-delivery#dkim', 'domain' => $from_domain, 'service' => $service ); }
+				else { $out[] = array( 'key' => 'dkim', 'status' => 'warn', 'title' => __( 'No DKIM signature found', 'wp-easycart' ), 'detail' => __( 'We checked the common selectors and found none. Unsigned mail is increasingly filtered. Your sending service gives you one or two CNAME records that fix this.', 'wp-easycart' ), 'fix_label' => __( 'How to add DKIM', 'wp-easycart' ), 'fix_url' => self::DELIVERY_GUIDE_URL, 'domain' => $from_domain, 'service' => $service ); }
 				$dm = $dns['dmarc'];
 				$out[] = '' === $dm
-					? array( 'key' => 'dmarc', 'status' => 'warn', 'title' => __( 'No DMARC record', 'wp-easycart' ), 'detail' => __( 'Gmail and Yahoo expect a DMARC record from anyone sending them volume. A monitoring-only record ( p=none ) is enough to start.', 'wp-easycart' ), 'fix_label' => __( 'Add a DMARC record', 'wp-easycart' ), 'fix_url' => 'https://wpeasycart.com/docs/email-delivery#dmarc', 'domain' => $from_domain, 'from' => $from )
+					? array( 'key' => 'dmarc', 'status' => 'warn', 'title' => __( 'No DMARC record', 'wp-easycart' ), 'detail' => __( 'Gmail and Yahoo expect a DMARC record from anyone sending them volume. A monitoring-only record ( p=none ) is enough to start.', 'wp-easycart' ), 'fix_label' => __( 'Add a DMARC record', 'wp-easycart' ), 'fix_url' => self::DELIVERY_GUIDE_URL, 'domain' => $from_domain, 'from' => $from )
 					: array( 'key' => 'dmarc', 'status' => 'ok', 'title' => __( 'DMARC record present', 'wp-easycart' ), 'detail' => $dm, 'fix_label' => '', 'fix_url' => '', 'domain' => $from_domain );
 			} else if ( $from_domain ) {
 				$out[] = array( 'key' => 'dns', 'status' => 'skip', 'title' => __( 'DNS checks unavailable', 'wp-easycart' ), 'detail' => __( 'This server does not allow DNS lookups from PHP, so SPF/DKIM/DMARC could not be checked.', 'wp-easycart' ), 'fix_label' => '', 'fix_url' => '', 'domain' => $from_domain );
@@ -936,7 +1224,7 @@ if ( ! class_exists( 'ec_email' ) ) :
 				global $wpdb;
 				$yesterday = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_email_log WHERE status = 'sent' AND created_at >= DATE_SUB( NOW(), INTERVAL 1 DAY )" );
 				if ( in_array( $from_domain, array( 'gmail.com', 'googlemail.com' ), true ) || false !== stripos( (string) get_option( 'ec_option_order_from_smtp_host' ), 'gmail' ) ) {
-					if ( $yesterday >= 400 ) { $out[] = array( 'key' => 'volume', 'status' => 'warn', 'title' => __( 'Volume near Gmail\'s daily limit', 'wp-easycart' ), 'detail' => sprintf( __( '%d emails in the last 24 hours; Gmail caps at 500/day and mail after the cap fails silently.', 'wp-easycart' ), $yesterday ), 'fix_label' => __( 'Move to a transactional provider', 'wp-easycart' ), 'fix_url' => 'https://wpeasycart.com/docs/email-delivery' ); }
+					if ( $yesterday >= 400 ) { $out[] = array( 'key' => 'volume', 'status' => 'warn', 'title' => __( 'Volume near Gmail\'s daily limit', 'wp-easycart' ), 'detail' => sprintf( __( '%d emails in the last 24 hours; Gmail caps at 500/day and mail after the cap fails silently.', 'wp-easycart' ), $yesterday ), 'fix_label' => __( 'Move to a transactional provider', 'wp-easycart' ), 'fix_url' => self::DELIVERY_GUIDE_URL ); }
 				}
 			}
 			return apply_filters( 'wp_easycart_email_checks', $out );

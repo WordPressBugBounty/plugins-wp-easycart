@@ -1,5 +1,9 @@
-<div class="ec_details_extra_area ec_details_extra_area_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
+<?php /* 6.0.2: an extension may draw this area itself ( see wp_easycart_product_tabs_takeover() ). */ $wpec_tabs_takeover = function_exists( 'wp_easycart_product_tabs_takeover' ) && wp_easycart_product_tabs_takeover( $product, $wpeasycart_addtocart_shortcode_rand, isset( $atts ) ? $atts : array() ); $wpec_tab_panels = array(); ?>
+<div class="ec_details_extra_area ec_details_extra_area_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php echo $wpec_tabs_takeover ? ' ec_details_extra_area_custom' : ''; ?>">
 
+		<?php if ( $wpec_tabs_takeover ) {
+			$wpec_tab_panels['addon_tabs'] = wp_easycart_product_tabs_capture_gaps( $product->product_id, $wpeasycart_addtocart_shortcode_rand );
+		} else { ?>
 		<ul class="ec_details_tabs" data-product-id="<?php echo esc_attr( $product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
 
 			<?php do_action( 'wpeasycart_pre_description_tab', $product->product_id, $wpeasycart_addtocart_shortcode_rand ); ?>
@@ -20,9 +24,11 @@
 			<?php do_action( 'wpeasycart_addon_product_details_tab', $product->product_id, $wpeasycart_addtocart_shortcode_rand ); ?>
 
 		</ul>
+		<?php } ?>
 
 		<?php if( ( isset( $atts['show_description'] ) && $atts['show_description'] ) || ( ! isset( $atts['show_description'] ) ) ){ ?>
-		<div class="ec_details_description_tab ec_details_description_tab_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" <?php echo esc_attr( apply_filters( 'wpeasycart_description_content_initally_active', '', $product->product_id ) ); ?>>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
+		<div class="ec_details_description_tab ec_details_description_tab_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php echo wp_easycart_product_tab_panel_attributes( apply_filters( 'wpeasycart_description_content_initally_active', '', $product->product_id ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed markup: '' or ' style="display:none;"'. ?>>
 
 			<div class="ec_details_description_content ec_details_description_content_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
 				<?php
@@ -37,9 +43,11 @@
 			</div>
 
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['description'] = wp_easycart_product_tabs_panel( 'description', ob_get_clean(), $product ); } ?>
 		<?php } ?>
 
 		<?php if( ( isset( $atts['show_specifications'] ) && $atts['show_specifications'] ) || ( ! isset( $atts['show_specifications'] ) && $product->use_specifications ) ){ ?>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
 		<div class="ec_details_specifications_tab ec_details_specifications_tab_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( isset( $atts['show_description'] ) && ! $atts['show_description'] ){ echo ' style="display:block;"'; } ?>>
 
 			<div class="ec_details_specifications_content ec_details_specifications_content_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
@@ -55,12 +63,20 @@
 			</div>
 
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['specifications'] = wp_easycart_product_tabs_panel( 'specifications', ob_get_clean(), $product ); } ?>
 		<?php }?>
 
 		<?php 
 		/* START CUSTOMER REVIEW AREA */
 		if( ( isset( $atts['show_customer_reviews'] ) && $atts['show_customer_reviews'] ) || ( ! isset( $atts['show_customer_reviews'] ) && $product->use_customer_reviews ) ){ ?>
+		<?php if ( $wpec_tabs_takeover ) { ob_start(); } ?>
 		<div class="ec_details_customer_reviews_tab ec_details_customer_reviews_tab_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( isset( $atts['show_description'] ) && ! $atts['show_description'] && isset( $atts['show_specifications'] ) && ! $atts['show_specifications'] ){ echo ' style="display:block;"'; } ?>>
+			<?php
+			/* Native reviews: rating summary + distribution ( ec_product_details_reviews_summary.php, a wp-easycart-data copy first ) */
+			if ( class_exists( 'ec_reviews' ) && method_exists( 'ec_reviews', 'print_summary' ) ) {
+				ec_reviews::print_summary( $product );
+			}
+			?>
 			<?php if( count( $product->reviews ) > 0 ){ ?>
 			<div class="ec_details_customer_reviews_left">
 				<h3><?php echo count( $product->reviews ); ?> <?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_reviews_for_text' ); ?> <?php echo esc_attr( $product->title ); ?></h3>
@@ -70,13 +86,15 @@
 					<?php foreach( $product->reviews as $review_row ){ 
 					$review = new ec_review( $review_row );
 					?>
-					<li>
+					<li data-rating="<?php echo (int) $review->rating; ?>"<?php echo $review->verified ? ' class="ec_review_is_verified"' : ''; ?>>
 						<div>
 							<span class="ec_details_customer_review_date"><strong><?php echo esc_attr( wp_unslash( $review->title ) ); ?></strong> - <?php echo esc_attr( $review->review_date ); ?></span>
 							<?php if( get_option( 'ec_option_customer_review_show_user_name' ) ){ ?><span class="ec_details_customer_review_name"><?php echo esc_attr( wp_unslash( $review->reviewer_name ) ); ?></span><?php }?>
+							<?php $review->display_verified_badge(); ?>
 							<span class="ec_details_customer_review_stars" title="Rated <?php echo esc_attr( $review->rating ); ?> of 5"><?php $review->display_review_stars( ); ?></span>
 						</div>
 						<div class="ec_details_customer_review_data"><?php echo wp_easycart_escape_html( nl2br( wp_unslash( $review->description ) ) ); ?></div>
+						<?php $review->display_reply(); ?>
 					</li>
 					<?php } ?>
 				</ul>
@@ -94,7 +112,26 @@
 						<div class="ec_details_customer_review_success"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_review_submitted' ); ?></div>
 					</div>
 					<h3><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_add_a_review_for' ); ?> <?php echo esc_attr( strip_tags( stripslashes( $product->title ) ) ); ?></h3>
+					<?php
+					/* Native reviews: arrived from a review-request email → confirm the order and pre-select the star they tapped */
+					$wpeasycart_review_request = class_exists( 'ec_reviews' ) ? ec_reviews::current_request( $product->product_id ) : null;
+					$wpeasycart_review_notice  = class_exists( 'ec_reviews' ) ? ec_reviews::link_notice() : '';
+					?>
+					<?php if ( ! $wpeasycart_review_request && '' !== $wpeasycart_review_notice ) { ?>
+					<div class="ec_review_request_notice"><?php echo esc_html( $wpeasycart_review_notice ); ?></div>
+					<?php } ?>
+					<?php if ( $wpeasycart_review_request ) { ?>
+					<div class="ec_review_request_banner" data-prefill-rating="<?php echo (int) ec_reviews::prefill_rating(); ?>" data-product-id="<?php echo esc_attr( $product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
+						<span class="ec_review_verified">&#10003; <?php echo esc_html__( 'Verified buyer', 'wp-easycart' ); ?></span>
+						<?php
+						/* translators: %d: order number. */
+						echo esc_html( sprintf( __( 'Thanks for your order #%d — your review will show as a verified purchase.', 'wp-easycart' ), (int) $wpeasycart_review_request->order_id ) );
+						?>
+					</div>
+					<input type="hidden" class="ec_review_request_token" id="ec_review_request_token_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" value="<?php echo esc_attr( $wpeasycart_review_request->token ); ?>" />
+					<?php } ?>
 					<div class="ec_details_option_row_error" id="ec_details_review_error_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'review_error' ); ?></div>
+					<?php /* 6.0.2: shown when the store could not save the review ( ec_submit_product_review() ). */ $wpec_review_save_error = wp_easycart_language( )->get_text( 'customer_review', 'customer_review_save_error' ); ?><div class="ec_details_option_row_error" id="ec_details_review_save_error_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo ( '' != $wpec_review_save_error ) ? $wpec_review_save_error : esc_html__( 'Your review could not be saved. Please refresh the page and try again.', 'wp-easycart' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the language class escapes its text. ?></div>
 					<div class="ec_details_customer_reviews_row"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_title' ); ?></div>
 					<div class="ec_details_customer_reviews_row ec_lower_space"><input type="text" id="ec_review_title_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>" /></div>
 					<div class="ec_details_customer_reviews_row"><?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_rating' ); ?></div>
@@ -119,8 +156,13 @@
 			</div>
 			<?php }?>
 		</div>
+		<?php if ( $wpec_tabs_takeover ) { $wpec_tab_panels['reviews'] = wp_easycart_product_tabs_panel( 'reviews', ob_get_clean(), $product ); } ?>
 		<?php }?>
 
-		<?php do_action( 'wpeasycart_addon_product_details_tab_content', $product->product_id ); ?>
+		<?php if ( $wpec_tabs_takeover ) {
+			wp_easycart_product_tabs_area( $product, $wpeasycart_addtocart_shortcode_rand, $wpec_tab_panels, isset( $atts ) ? $atts : array() );
+		} else {
+			do_action( 'wpeasycart_addon_product_details_tab_content', $product->product_id, $wpeasycart_addtocart_shortcode_rand );
+		} ?>
 
 	</div>

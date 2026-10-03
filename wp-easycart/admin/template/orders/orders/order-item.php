@@ -1,20 +1,26 @@
 <?php
 /**
- * Order line item ( V2.1 — approved redesign ).
+ * Order line item.
  *
- * DOM order changed to details / price / total / actions so the row grid
- * lays out naturally ( actions on the right ). All element IDs, classes,
- * conditionals, and hooks from the previous template are preserved — the
- * PRO line-edit flow updates this markup by ID and is unaffected. Offer
- * chips moved from inline styles to ecodv2 chip classes.
+ * The picture, the title ( linked to the product while it exists ), where the line stands ( shipped, refunded, its
+ * packages ), its options, then quantity × price, the line total and the edit / remove actions. Every element id, class
+ * and hook the WP EasyCart PRO line edit uses is kept; PRO's add-line answer includes this file on its own, so everything
+ * the order screen passes in ( $ecodv2_live_product_ids, $ecodv2_line_state ) is optional.
+ *
+ * @since 6.0.0
+ * @since 6.0.2 Picture, quantity and shipping state; labelled action buttons.
  */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 $advanced_options = $wpdb->get_results( $wpdb->prepare( "SELECT ec_order_option.* FROM ec_order_option WHERE ec_order_option.orderdetail_id = %s ORDER BY order_option_id", $line_item->orderdetail_id ));
 if( $advanced_options ){
 	$order_detail_row = $wpdb->get_row( $wpdb->prepare( "SELECT ec_orderdetail.is_deconetwork, ec_orderdetail.deconetwork_id, ec_orderdetail.deconetwork_name, ec_orderdetail.deconetwork_product_code, ec_orderdetail.deconetwork_options, ec_orderdetail.deconetwork_color_code, ec_orderdetail.product_id, ec_orderdetail.deconetwork_image_link FROM ec_orderdetail WHERE ec_orderdetail.orderdetail_id = %d", $line_item->orderdetail_id ) );
 	if( $order_detail_row !== false && $order_detail_row->is_deconetwork ){
 		$deconetwork1 = new stdClass( );
-		$deconetwork1->orderdetail_id = $advanced_options->orderdetail_id;
+		$deconetwork1->orderdetail_id = $line_item->orderdetail_id;
 		$deconetwork1->option_name = __( 'DecoNetwork ID', 'wp-easycart' ) . ': ';
 		$deconetwork1->optionitem_name = "";
 		$deconetwork1->option_type = "text";
@@ -63,8 +69,28 @@ if( $advanced_options ){
 		$deconetwork6->option_price_change = "";
 		$advanced_options[] = $deconetwork6;
 	}
-} ?>
-<div class="ec_admin_order_details_line_item ecodv2-line" id="ec_admin_order_details_line_item_<?php echo esc_attr( $line_item->orderdetail_id ); ?>">
+}
+$ecodv2_line_image = class_exists( 'wp_easycart_admin_order_screen' ) ? wp_easycart_admin_order_screen::line_image( $line_item ) : '';
+$ecodv2_state      = ( isset( $ecodv2_line_state ) && is_array( $ecodv2_line_state ) ) ? $ecodv2_line_state : null;
+$ecodv2_line_qty   = (int) $line_item->quantity;
+$ecodv2_line_refd  = isset( $line_item->refunded_quantity ) ? (int) $line_item->refunded_quantity : 0;
+$ecodv2_line_pack  = ! empty( $ecodv2_pack );
+?>
+<div class="ec_admin_order_details_line_item ecodv2-line<?php echo ( $ecodv2_line_refd > 0 && $ecodv2_line_refd >= $ecodv2_line_qty ) ? ' is-refunded' : ''; ?><?php echo $ecodv2_line_pack ? ' has-pack' : ''; ?>" id="ec_admin_order_details_line_item_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"<?php if ( $ecodv2_state ) { ?> data-state="<?php echo esc_attr( $ecodv2_state['group'] ); ?>"<?php } ?>>
+
+	<?php if ( $ecodv2_line_pack ) { ?>
+	<?php /* 6.0.2: a Packed tick while the order is being packed ( saved on the order line, packed_quantity ). */ ?>
+	<label class="ecodv2-pack-check"><input type="checkbox" data-ecodv2-pack="<?php echo esc_attr( $line_item->orderdetail_id ); ?>"<?php checked( ! empty( $ecodv2_pack_checked ) ); ?> /><span class="screen-reader-text"><?php echo esc_html( sprintf( /* translators: %s: product name. */ __( 'Packed: %s', 'wp-easycart' ), wp_strip_all_tags( wp_unslash( $line_item->title ) ) ) ); ?></span></label>
+	<?php } ?>
+
+	<div class="ecodv2-line-thumb<?php echo '' === $ecodv2_line_image ? ' is-empty' : ''; ?>" aria-hidden="true">
+		<?php if ( '' !== $ecodv2_line_image ) { ?>
+		<img src="<?php echo esc_url( $ecodv2_line_image ); ?>" alt="" loading="lazy" decoding="async" />
+		<?php } else { ?>
+		<span class="dashicons dashicons-<?php echo esc_attr( ! empty( $line_item->is_download ) ? 'download' : ( ! empty( $line_item->is_giftcard ) ? 'money-alt' : 'products' ) ); ?>"></span>
+		<?php } ?>
+		<?php if ( $ecodv2_line_qty > 1 ) { ?><span class="ecodv2-line-qty-badge"><?php echo esc_html( (string) $ecodv2_line_qty ); ?></span><?php } ?>
+	</div>
 
 	<div class="ec_admin_order_details_item_details">
 		<?php
@@ -87,12 +113,25 @@ if( $advanced_options ){
 		<span id="ec_admin_order_details_item_title_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" class="ecodv2-line-title"><?php echo wp_easycart_escape_html( $line_item->title ); ?></span>
 		<?php } ?>
 		<?php
-		if ( isset( $line_item->refunded_quantity ) && (int) $line_item->refunded_quantity > 0 ) {
-			if ( (int) $line_item->refunded_quantity >= (int) $line_item->quantity ) {
-				echo ' <span class="ecodv2-chip ecodv2-chip-refunded">' . esc_attr__( 'Refunded', 'wp-easycart' ) . '</span>';
+		if ( $ecodv2_line_refd > 0 ) {
+			if ( $ecodv2_line_refd >= $ecodv2_line_qty ) {
+				echo ' <span class="ecodv2-chip ecodv2-chip-refunded">' . esc_html__( 'Refunded', 'wp-easycart' ) . '</span>';
 			} else {
-				echo ' <span class="ecodv2-chip ecodv2-chip-refunded">' . sprintf( esc_attr__( '%1$d of %2$d refunded', 'wp-easycart' ), (int) $line_item->refunded_quantity, (int) $line_item->quantity ) . '</span>';
+				/* translators: 1: units refunded, 2: units on the line. */
+				echo ' <span class="ecodv2-chip ecodv2-chip-refunded">' . esc_html( sprintf( __( '%1$d of %2$d refunded', 'wp-easycart' ), $ecodv2_line_refd, $ecodv2_line_qty ) ) . '</span>';
 			}
+		}
+		/* Where the line stands when part of it has shipped, and the packages it is in ( the group heading says the rest ). */
+		if ( $ecodv2_state && $ecodv2_state['quantity'] > 0 ) {
+			if ( 'ship' === $ecodv2_state['group'] && $ecodv2_state['shipped'] > 0 ) {
+				/* translators: 1: units shipped, 2: units on the line. */
+				echo ' <span class="ecodv2-chip ecodv2-chip-ship">' . esc_html( sprintf( __( '%1$d of %2$d shipped', 'wp-easycart' ), (int) $ecodv2_state['shipped'], (int) $ecodv2_state['quantity'] ) ) . '</span>';
+			}
+		}
+		/* 6.0.2 bug round 6: the package chip sits in a holder the page fills again after the packages change ( ecodv2_screen_refresh() ). */
+		if ( $ecodv2_state ) {
+			$ecodv2_pkg_text = class_exists( 'wp_easycart_admin_order_screen' ) && method_exists( 'wp_easycart_admin_order_screen', 'line_packages_text' ) ? wp_easycart_admin_order_screen::line_packages_text( $ecodv2_state ) : '';
+			echo '<span class="ecodv2-line-pkgs" data-ecodv2-line-pkgs="' . esc_attr( (int) $line_item->orderdetail_id ) . '">' . ( '' !== $ecodv2_pkg_text ? ' <span class="ecodv2-chip ecodv2-chip-muted">' . esc_html( $ecodv2_pkg_text ) . '</span>' : '' ) . '</span>';
 		}
 		// Offers v2: fulfillment + applied-offer chips for this line.
 		if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() ) {
@@ -107,17 +146,21 @@ if( $advanced_options ){
 			if ( is_array( $wpec_line_offers ) ) {
 				foreach ( $wpec_line_offers as $wpec_line_offer ) {
 					if ( isset( $wpec_line_offer['label'] ) && isset( $wpec_line_offer['amount'] ) && (float) $wpec_line_offer['amount'] > 0 ) {
-						$wpec_line_offer_bits[] = '<span class="ecodv2-chip ecodv2-chip-offer">' . esc_attr( $wpec_line_offer['label'] ) . ' &minus;' . esc_attr( $GLOBALS['currency']->get_currency_display( (float) $wpec_line_offer['amount'] ) ) . '</span>';
+						$wpec_line_offer_bits[] = '<span class="ecodv2-chip ecodv2-chip-offer">' . esc_attr( $wpec_line_offer['label'] ) . ' &minus;' . esc_attr( $GLOBALS['currency']->get_currency_display( (float) $wpec_line_offer['amount'], false ) ) . '</span>';
 					}
 				}
 			}
 			if ( count( $wpec_line_offer_bits ) > 0 ) {
-				echo '<div class="ec_admin_order_details_line_item_offers ecodv2-line-chips">' . implode( ' ', $wpec_line_offer_bits ) . '</div>'; // phpcs:ignore
+				echo '<div class="ec_admin_order_details_line_item_offers ecodv2-line-chips">' . implode( ' ', $wpec_line_offer_bits ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each chip is escaped as it is built.
 			}
 		}
 		?>
 		<div class="ecodv2-item-meta">
-		<div class="ec_details_option_label">SKU:</div> <div class="ec_details_option_value" id="ec_admin_order_details_item_model_number_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_attr( $line_item->model_number );?></div>
+		<?php if ( '' !== trim( (string) $line_item->model_number ) ) { ?>
+		<div class="ec_details_option_label"><?php esc_html_e( 'SKU', 'wp-easycart' ); ?>:</div> <div class="ec_details_option_value" id="ec_admin_order_details_item_model_number_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( $line_item->model_number ); ?></div>
+		<?php } else { ?>
+		<div class="ec_details_option_value ecodv2-legacy-hidden" id="ec_admin_order_details_item_model_number_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"></div>
+		<?php } ?>
 		<?php
 		if( $line_item->subscription_signup_fee > 0 ){
 			echo '<div class="ec_details_option_label">' . esc_attr__( 'Sign Up Fee', 'wp-easycart' ) . ':</div> ';
@@ -131,41 +174,41 @@ if( $advanced_options ){
 		if( $line_item->optionitem_label_1 || $line_item->optionitem_name_1 ){
 			if( $line_item->optionitem_label_1 )
 				echo '<div class="ec_details_option_label">' . esc_attr( $line_item->optionitem_label_1 ).':</div> ';
-			else 
+			else
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ' 1:</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_name_1_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ' . esc_attr( $line_item->optionitem_name_1 ) . '</div>';
 		}
 		if( $line_item->optionitem_label_2 || $line_item->optionitem_name_2 ){
 			if($line_item->optionitem_label_2)
 				echo '<div class="ec_details_option_label">' . esc_attr( $line_item->optionitem_label_2 ) . ':</div> ';
-			else 
+			else
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ' 2:</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_name_2_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ' . esc_attr( $line_item->optionitem_name_2 ) . '</div>';
 		}
 		if( $line_item->optionitem_label_3 || $line_item->optionitem_name_3 ){
 			if($line_item->optionitem_label_3)
 				echo '<div class="ec_details_option_label">' . esc_attr( $line_item->optionitem_label_3 ) . ':</div> ';
-			else 
+			else
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ' 3:</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_name_3_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ' . esc_attr( $line_item->optionitem_name_3 ) . '</div>';
 		}
 		if( $line_item->optionitem_label_4 || $line_item->optionitem_name_4 ){
 			if($line_item->optionitem_label_4)
 				echo '<div class="ec_details_option_label">' . esc_attr( $line_item->optionitem_label_4 ) . ':</div> ';
-			else 
+			else
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ' 4:</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_name_4_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ' . esc_attr( $line_item->optionitem_name_4 ) . '</div>';
 		}
 		if( $line_item->optionitem_label_5 || $line_item->optionitem_name_5 ){
 			if($line_item->optionitem_label_5)
 				echo '<div class="ec_details_option_label">' . esc_attr( $line_item->optionitem_label_5 ) . ':</div> ';
-			else 
+			else
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Option', 'wp-easycart' ) . ' 5:</div> ';
 			echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_optionitem_name_5_display_' . esc_attr( $line_item->orderdetail_id ) . '"> ' . esc_attr( $line_item->optionitem_name_5 ) . '</div>';
 		}
 		$is_download_allowed = true;
 		foreach( $advanced_options as $advanced_option ){
-			if ( ! $advanced_option->optionitem_allow_download ) {
+			if ( isset( $advanced_option->optionitem_allow_download ) && ! $advanced_option->optionitem_allow_download ) {
 				$is_download_allowed = false;
 			}
 			if ( $advanced_option->option_name ) {
@@ -190,24 +233,24 @@ if( $advanced_options ){
 			} else if( $advanced_option->option_type == "grid" ) {
 				echo '<div class="ec_details_option_value"> ' . esc_attr( $advanced_option->optionitem_name ) . ' (' . esc_attr( $advanced_option->option_value ) . ')';
 			} else {
-				echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_adv_optionitem_' . esc_attr( $line_item->orderdetail_id ) . '_' . esc_attr( $advanced_option->order_option_id ) . '"> ' . esc_attr( $advanced_option->option_value );
+				echo '<div class="ec_details_option_value" id="ec_admin_order_details_item_adv_optionitem_' . esc_attr( $line_item->orderdetail_id ) . '_' . esc_attr( isset( $advanced_option->order_option_id ) ? $advanced_option->order_option_id : '' ) . '"> ' . esc_attr( $advanced_option->option_value );
 			}
 
-			if ( $advanced_option->optionitem_enable_custom_price_label && ( $advanced_option->optionitem_price != 0 || ( isset( $advanced_option->optionitem_price ) && $advanced_option->optionitem_price != 0 ) || ( isset( $advanced_option->optionitem_price_onetime ) && $advanced_option->optionitem_price_onetime != 0 ) ) ) {
+			if ( ! empty( $advanced_option->optionitem_enable_custom_price_label ) && ( $advanced_option->optionitem_price != 0 || ( isset( $advanced_option->optionitem_price ) && $advanced_option->optionitem_price != 0 ) || ( isset( $advanced_option->optionitem_price_onetime ) && $advanced_option->optionitem_price_onetime != 0 ) ) ) {
 				echo '<span class="ec_details_option_pricing">' . esc_attr( $advanced_option->optionitem_custom_price_label ) . '</span>';
-			} else if ( $advanced_option->optionitem_price > 0 ) {
-				echo '<span class="ec_details_option_pricing"> (+' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_item_adjustment' ) . ')</span>';
-			} else if ( $advanced_option->optionitem_price < 0 ) {
-				echo '<span class="ec_details_option_pricing"> (' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_item_adjustment' ) . ')</span>';
+			} else if ( isset( $advanced_option->optionitem_price ) && $advanced_option->optionitem_price > 0 ) {
+				echo '<span class="ec_details_option_pricing"> (+' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price, false ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_item_adjustment' ) . ')</span>';
+			} else if ( isset( $advanced_option->optionitem_price ) && $advanced_option->optionitem_price < 0 ) {
+				echo '<span class="ec_details_option_pricing"> (' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price, false ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_item_adjustment' ) . ')</span>';
 			} else if ( isset( $advanced_option->optionitem_price_onetime ) && $advanced_option->optionitem_price_onetime > 0 ) {
-				echo '<span class="ec_details_option_pricing"> (+' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_onetime ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_order_adjustment' ) . ')</span>';
+				echo '<span class="ec_details_option_pricing"> (+' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_onetime, false ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_order_adjustment' ) . ')</span>';
 			} else if ( isset( $advanced_option->optionitem_price_onetime ) && $advanced_option->optionitem_price_onetime < 0 ) {
-				echo '<span class="ec_details_option_pricing"> (' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_onetime ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_order_adjustment' ) . ')</span>';
+				echo '<span class="ec_details_option_pricing"> (' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_onetime, false ) ) . ' ' . wp_easycart_language( )->get_text( 'cart', 'cart_order_adjustment' ) . ')</span>';
 			} else if ( isset( $advanced_option->optionitem_price_override ) && $advanced_option->optionitem_price_override > -1 ) {
-				echo '<span class="ec_details_option_pricing"> (' . wp_easycart_language( )->get_text( 'cart', 'cart_item_new_price_option' ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_override ) ) . ')</span>';
-			} else if ( $advanced_option->option_price_change != '0.000' && $advanced_option->option_price_change == (string) number_format( (float) $advanced_option->option_price_change, 3, '.', '' ) ) {
-				echo '<span class="ec_details_option_pricing"> ' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->option_price_change ) ) . '</span>';
-			} else if ( $advanced_option->option_price_change != '0.000' ) {
+				echo '<span class="ec_details_option_pricing"> (' . wp_easycart_language( )->get_text( 'cart', 'cart_item_new_price_option' ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->optionitem_price_override, false ) ) . ')</span>';
+			} else if ( '' !== (string) $advanced_option->option_price_change && $advanced_option->option_price_change != '0.000' && $advanced_option->option_price_change == (string) number_format( (float) $advanced_option->option_price_change, 3, '.', '' ) ) {
+				echo '<span class="ec_details_option_pricing"> ' . esc_attr( $GLOBALS['currency']->get_currency_display( $advanced_option->option_price_change, false ) ) . '</span>';
+			} else if ( '' !== (string) $advanced_option->option_price_change && $advanced_option->option_price_change != '0.000' ) {
 				echo '<span class="ec_details_option_pricing"> ' . esc_attr( $advanced_option->option_price_change ) . '</span>';
 			}
 
@@ -244,9 +287,9 @@ if( $advanced_options ){
 
 		if( $line_item->is_download ){
 			if ( ! $is_download_allowed ) {
-				echo '<div id="ec_details_option_no_downloads_' . esc_attr( $line_item->orderdetail_id ) . '">';
-					echo '<div class="ec_details_option_label" style="float:left; width:100%; font-size:14px; margin-left:0px;">' . esc_attr__( 'Download disabled by option item settings.', 'wp-easycart' ) . '</div> ';
-					echo '<div class="ec_details_option_value" style="float:left; width:100%; padding-left:10px;"><a class="ec_admin_order_edit_button" style="float:left;" onclick="ec_admin_enable_download_item(\'' . esc_attr( $line_item->orderdetail_id ) . '\')">' . esc_attr__( 'Enable Download', 'wp-easycart' ) . '</a></div>';
+				echo '<div id="ec_details_option_no_downloads_' . esc_attr( $line_item->orderdetail_id ) . '" class="ecodv2-download-off">';
+					echo '<div class="ec_details_option_label">' . esc_attr__( 'Download disabled by option item settings.', 'wp-easycart' ) . '</div> ';
+					echo '<div class="ec_details_option_value"><button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ec_admin_enable_download_item(\'' . esc_attr( $line_item->orderdetail_id ) . '\'); return false;">' . esc_html__( 'Enable Download', 'wp-easycart' ) . '</button></div>';
 				echo '</div>';
 			}
 			if ( ! $is_download_allowed ) {
@@ -271,15 +314,15 @@ if( $advanced_options ){
 				echo '<div class="ec_details_option_label">' . esc_attr__( 'Download Time (seconds)', 'wp-easycart' ) . ':</div> ';
 				echo '<div class="ec_details_option_value"> ' . esc_attr( $line_item->download_timelimit_seconds ) . '</div>';
 			}
-			echo '<div><div class="ec_details_option_label">' . esc_attr__( 'Unique Download ID (view manage downloads to find key)', 'wp-easycart' ) . ':</div></div>';
+			echo '<div class="ecodv2-download-key"><div class="ec_details_option_label">' . esc_attr__( 'Unique Download ID (view manage downloads to find key)', 'wp-easycart' ) . ':</div>';
 			echo '<div class="ec_details_option_value">';
-			echo '<select class="ec_order_download_key select2" style="width:100% !important; float:left;" data-orderdetail-id="' . esc_attr( $line_item->orderdetail_id ) . '">';
+			echo '<select class="ec_order_download_key select2" style="width:100% !important;" data-orderdetail-id="' . esc_attr( $line_item->orderdetail_id ) . '" aria-label="' . esc_attr__( 'Download key', 'wp-easycart' ) . '">';
 			echo '<option value="0">' . esc_attr__( 'Select Download', 'wp-easycart' ) . '</option>';
 			if( $line_item->download_key != '0' ){
 				echo '<option value="' . esc_attr( $line_item->download_key ) . '" selected="selected">' . esc_attr( $line_item->download_key ) . '</option>';
 			}
 			echo '</select>';
-			echo '</div>';
+			echo '</div></div>';
 			if ( ! $is_download_allowed ) {
 				echo '</div>';
 			}
@@ -296,14 +339,22 @@ if( $advanced_options ){
 		</div><?php /* .ecodv2-item-meta */ ?>
 	</div>
 
-	<div class="ec_admin_order_details_item_price" id="ec_admin_order_details_item_price_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_attr( $line_item->quantity ); ?><span> x </span><?php if( $GLOBALS['currency']->get_symbol_location( ) ){ echo esc_attr( $GLOBALS['currency']->get_symbol( ) ); } ?><?php echo esc_attr( apply_filters( 'wp_easycart_cart_item_unit_price_display', number_format( $line_item->unit_price, 2 ), $line_item->product_id ) ); ?></div>
-	<div class="ec_admin_order_details_item_total" id="ec_admin_order_details_item_total_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php if( $GLOBALS['currency']->get_symbol_location( ) ){ echo esc_attr( $GLOBALS['currency']->get_symbol( ) ); } ?><?php echo esc_attr( number_format( $line_item->total_price, 2 ) ); ?></div>
+	<?php
+	/* Quantity × unit price and the line total. WP EasyCart PRO rewrites both by id after a line edit, in the same shape. */
+	$ecodv2_symbol_before = $GLOBALS['currency']->get_symbol_location();
+	$ecodv2_symbol        = $GLOBALS['currency']->get_symbol();
+	$ecodv2_unit_display  = apply_filters( 'wp_easycart_cart_item_unit_price_display', number_format( $line_item->unit_price, 2 ), $line_item->product_id );
+	?>
+	<div class="ec_admin_order_details_item_price" id="ec_admin_order_details_item_price_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( $line_item->quantity ); ?><span> x </span><?php echo esc_html( ( $ecodv2_symbol_before ? $ecodv2_symbol : '' ) . $ecodv2_unit_display . ( $ecodv2_symbol_before ? '' : $ecodv2_symbol ) ); ?></div>
+	<div class="ec_admin_order_details_item_total" id="ec_admin_order_details_item_total_display_<?php echo esc_attr( $line_item->orderdetail_id ); ?>"><?php echo esc_html( ( $ecodv2_symbol_before ? $ecodv2_symbol : '' ) . number_format( $line_item->total_price, 2 ) . ( $ecodv2_symbol_before ? '' : $ecodv2_symbol ) ); ?></div>
 
 	<div class="ec_admin_order_details_item_actions">
 		<?php $delete_line_action = apply_filters( 'wp_easycart_admin_order_details_delete_line_action', 'show_pro_required' ); ?>
 		<?php $edit_line_action = apply_filters( 'wp_easycart_admin_order_details_edit_line_action', 'show_pro_required' ); ?>
-		<div class="dashicons-before dashicons-edit" onclick="ecodv2_open_line_modal( '<?php echo esc_attr( $line_item->orderdetail_id ); ?>', '<?php echo esc_attr( $edit_line_action ); ?>' ); return false;" id="ec_admin_order_line_edit_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" title="<?php esc_attr_e( 'Edit line', 'wp-easycart' ); ?>"></div>
-		<div class="dashicons-before dashicons-trash" onclick="ecodv2_confirm_line_delete( '<?php echo esc_attr( $line_item->orderdetail_id ); ?>', this, '<?php echo esc_attr( $delete_line_action ); ?>' ); return false;" title="<?php esc_attr_e( 'Remove line', 'wp-easycart' ); ?>"></div>
+		<?php $ecodv2_line_name = wp_strip_all_tags( wp_unslash( $line_item->title ) ); ?>
+		<?php /* Buttons ( keyboard and screen readers ); the ids and dashicons classes stay for the PRO line edit. */ ?>
+		<button type="button" class="dashicons-before dashicons-edit ecodv2-line-act" onclick="ecodv2_open_line_modal( '<?php echo esc_attr( $line_item->orderdetail_id ); ?>', '<?php echo esc_attr( $edit_line_action ); ?>' ); return false;" id="ec_admin_order_line_edit_<?php echo esc_attr( $line_item->orderdetail_id ); ?>" title="<?php esc_attr_e( 'Edit line', 'wp-easycart' ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: product name. */ __( 'Edit %s', 'wp-easycart' ), $ecodv2_line_name ) ); ?>"></button>
+		<button type="button" class="dashicons-before dashicons-trash ecodv2-line-act" onclick="ecodv2_confirm_line_delete( '<?php echo esc_attr( $line_item->orderdetail_id ); ?>', this, '<?php echo esc_attr( $delete_line_action ); ?>' ); return false;" title="<?php esc_attr_e( 'Remove line', 'wp-easycart' ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: product name. */ __( 'Remove %s', 'wp-easycart' ), $ecodv2_line_name ) ); ?>"></button>
 	</div>
 
 	<?php do_action( 'wp_easycart_admin_order_details_line_item_end', $line_item ); ?>

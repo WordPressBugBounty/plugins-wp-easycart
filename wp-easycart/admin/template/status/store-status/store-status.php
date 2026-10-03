@@ -119,10 +119,17 @@ ob_start();
 		////////////////////////////
 		// PHP Versoin Check
 		////////////////////////////
-		if( $status->ec_get_php_version( ) < 5.3 ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php esc_attr_e( 'PHP 5.3 is the mimimal version accepted. We do not guarantee functionality for PHP versions below 5.3 at this time.', 'wp-easycart' ); ?></span></div>
+		/* 6.0.2: the plugin's own Requires PHP ( was a hard-coded 5.3, compared as a number ). */
+		if( ! $status->php_version_ok( ) ){ ?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php
+			/* translators: 1: minimum PHP version, 2: this site's PHP version. */
+			echo esc_html( sprintf( __( 'WP EasyCart needs PHP %1$s or newer, and this site runs PHP %2$s. Ask your web host to update PHP.', 'wp-easycart' ), $status->min_php_version( ), $status->ec_get_php_version( ) ) );
+		?></span></div>
 		<?php }else{ ?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php echo sprintf( esc_attr__( 'Your PHP Version is %s, meeting the PHP 5.3 minimal setup.', 'wp-easycart' ), esc_attr( $status->ec_get_php_version( ) ) ); ?></span></div>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php
+			/* translators: 1: this site's PHP version, 2: minimum PHP version. */
+			echo esc_html( sprintf( __( 'Your PHP version is %1$s, which meets the PHP %2$s minimum.', 'wp-easycart' ), $status->ec_get_php_version( ), $status->min_php_version( ) ) );
+		?></span></div>
 		<?php } ?>
 
 		<div class="ec_status_subs ec_status_success">
@@ -292,7 +299,7 @@ ob_start();
 				$using_live_shipping_with_sxml = false;
 				if( $status->ec_using_live_shipping( ) && $status->ec_using_canadapost_shipping( ) && $status->ec_canadapost_shipping_setup( ) ){
 					$using_live_shipping_with_sxml = true;
-				}else if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) && $status->ec_dhl_shipping_setup( ) ){
+				}else if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) && $status->ec_dhl_uses_xml( ) && $status->ec_dhl_shipping_setup( ) ){ /* 6.0.2: the MyDHL API answers JSON */
 					$using_live_shipping_with_sxml = true;
 				}else if( $status->ec_using_live_shipping( ) && $status->ec_using_usps_shipping( ) && $status->ec_usps_shipping_setup( ) ){
 					$using_live_shipping_with_sxml = true;
@@ -315,7 +322,7 @@ ob_start();
 		// EasyCart Status Section
 		///////////////////////////////////////////////
 		?>
-		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'EasyCart Setup Status', 'wp-easycart' ); ?> - <a href="http://docs.wpeasycart.com/wp-easycart-installation-guide/" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for our Installation Guide', 'wp-easycart' ); ?></div></div>
+		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'EasyCart Setup Status', 'wp-easycart' ); ?> - <a href="https://docs.wpeasycart.com/wp-easycart-installation-guide/" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for our Installation Guide', 'wp-easycart' ); ?></div></div>
 		<?php
 		////////////////////////////
 		// Data Folder Check
@@ -425,6 +432,12 @@ ob_start();
 		<?php } ?>
 
 		<?php
+		/* 6.0.2: the store page is also the site's front page, so product links end on a "page not found". */
+		if ( class_exists( 'wp_easycart_admin_store_front_page' ) && wp_easycart_admin_store_front_page::applies() ) { ?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php echo esc_html( wp_easycart_admin_store_front_page::text() ); ?><?php if ( current_user_can( 'manage_options' ) ) { ?> <a href="<?php echo esc_url( wp_easycart_admin_store_front_page::create_url() ); ?>"><?php esc_html_e( 'Create Store page', 'wp-easycart' ); ?></a><?php } ?></span></div>
+		<?php } ?>
+
+		<?php
 		////////////////////////////
 		// Cart Page Setup Check
 		////////////////////////////
@@ -449,7 +462,7 @@ ob_start();
 		// Shipping Status Section
 		///////////////////////////////////////////////
 		?>
-		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'Shipping Status', 'wp-easycart' ); ?> - <a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=shipping-rates" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Shipping Setup Help', 'wp-easycart' ); ?></div></div>
+		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'Shipping Status', 'wp-easycart' ); ?> - <a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=shipping-rates" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Shipping Setup Help', 'wp-easycart' ); ?></div></div>
 		<?php
 
 		////////////////////////////
@@ -550,6 +563,7 @@ ob_start();
 		////////////////////////////
 		if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) && $status->ec_dhl_shipping_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You have successfully setup DHL live shipping.', 'wp-easycart' ); ?></span></div>
+		<?php if ( $status->ec_dhl_uses_xml() ) { wp_easycart_admin_store_status::print_dhl_xml_notice(); } ?>
 		<?php }else if( $status->ec_using_live_shipping( ) && $status->ec_using_dhl_shipping( ) ){ ?>
 		<?php wp_easycart_admin_store_status::print_carrier_fix( 'dhl' ); ?>
 		<?php }
@@ -586,14 +600,18 @@ ob_start();
 		///////////////////////////////////////////////
 		?>
 
-		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'Tax Status', 'wp-easycart' ); ?> - <a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=taxes" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Tax Setup Help', 'wp-easycart' ); ?></div></div>
+		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_attr_e( 'Tax Status', 'wp-easycart' ); ?> - <a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=taxes" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Tax Setup Help', 'wp-easycart' ); ?></div></div>
 
 		<?php 
 		////////////////////////////
 		// No Tax Check
 		////////////////////////////
 		if( $status->ec_using_no_tax( ) ){ ?>
-		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_attr_e( 'You are setup to use no tax structure, this can be changed in the Store Admin -> Rates -> Tax Rates panel.', 'wp-easycart' ); ?></span></div>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php
+			/* 6.0.2: the old Store Admin › Rates › Tax Rates panel is gone. */
+			/* translators: %s: link to Settings › Taxes. */
+			echo sprintf( esc_html__( 'Your store charges no tax. You can set up tax rates under %s.', 'wp-easycart' ), '<a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=tax' ) ) . '">' . esc_html__( 'Settings › Taxes', 'wp-easycart' ) . '</a>' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+		?></span></div>
 		<?php }
 
 		////////////////////////////
@@ -638,7 +656,7 @@ ob_start();
 
 		<div class="ec_status_header">
 			<div class="ec_status_header_text"><?php esc_attr_e( 'Payment Status', 'wp-easycart' ); ?> - 
-				<a href="http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Payment Setup Help', 'wp-easycart' ); ?>
+				<a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment" target="_blank"><?php esc_attr_e( 'Click Here', 'wp-easycart' ); ?></a> <?php esc_attr_e( 'for Payment Setup Help', 'wp-easycart' ); ?>
 			</div>
 		</div>
 		<?php
@@ -676,8 +694,49 @@ ob_start();
 		if( $status->ec_live_payment_selected( ) && $status->ec_live_payment_setup( ) ){ ?>
 		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php echo sprintf( esc_attr__( 'You have selected to use %s as a live payment method and you have entered all necessary info.', 'wp-easycart' ), esc_attr( $status->ec_get_live_payment_method( ) ) ); ?></span></div>
 		<?php }else if( $status->ec_live_payment_selected( ) ){ ?>
-		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php echo sprintf( esc_attr__( 'You have selected %s, but have missed some necessary info. Go to WP EasyCart -> Settings -> Payment to resolve this.', 'wp-easycart' ), esc_attr( $status->ec_get_live_payment_method( ) ) ); ?></span></div>
-		<?php } 
+		<?php $wpec_pay_missing = method_exists( $status, 'ec_live_payment_missing' ) ? $status->ec_live_payment_missing() : ''; /* 6.0.2: say what is missing when it is known */ ?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php echo '' !== $wpec_pay_missing ? esc_html( $wpec_pay_missing ) : sprintf( esc_attr__( 'You have selected %s, but have missed some necessary info. Go to WP EasyCart -> Settings -> Payment to resolve this.', 'wp-easycart' ), esc_attr( $status->ec_get_live_payment_method( ) ) ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ); ?>"><?php esc_html_e( 'Open Settings › Payments', 'wp-easycart' ); ?></a></span></div>
+		<?php }
+
+		/* 6.0.2: subscriptions are billed through Stripe only; subscription products for sale can't be bought without it. */
+		if ( class_exists( 'wp_easycart_subscription_gateway' ) ) {
+			$wpec_subscriptions_stranded = wp_easycart_subscription_gateway::stranded_products();
+			if ( $wpec_subscriptions_stranded > 0 ) {
+				$wpec_subscriptions_text = wp_easycart_subscription_gateway::text( 'status', $wpec_subscriptions_stranded );
+				?>
+				<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label"><?php echo esc_html( $wpec_subscriptions_text['title'] . '. ' . $wpec_subscriptions_text['detail'] ); ?> <a href="<?php echo esc_url( wp_easycart_subscription_gateway::settings_url() ); ?>"><?php esc_html_e( 'Open Settings › Payments', 'wp-easycart' ); ?></a></span></div>
+				<?php
+			}
+		}
+
+		/* 6.0.2: a gateway in sandbox / test mode is a warning, not an error: it works, but no real money moves ( owner bug round 4, item 11 ). */
+		if ( method_exists( $status, 'ec_payment_test_modes' ) ) {
+			foreach ( $status->ec_payment_test_modes() as $wpec_test_gateway ) {
+				?>
+		<div class="ec_status_warning"><div class="dashicons-before dashicons-warning"></div><span class="ec_status_label"><?php echo esc_html( sprintf( /* translators: %s: payment gateway name. */ __( '%s is in sandbox ( test ) mode, so its payments are not real charges. Switch it to live before you take real orders.', 'wp-easycart' ), $wpec_test_gateway ) ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ); ?>"><?php esc_html_e( 'Open Settings › Payments', 'wp-easycart' ); ?></a></span></div>
+				<?php
+			}
+		}
+
+		/* 6.0.2: checkout protection ( card testing ). */
+		if ( class_exists( 'wp_easycart_admin_checkout_protection' ) ) {
+			wp_easycart_admin_checkout_protection::store_status_rows();
+		}
+
+		/* 6.0.2: what search engines and AI assistants can read ( Settings › Search & AI ). */
+		if ( class_exists( 'wp_easycart_admin_search_ai' ) ) {
+			wp_easycart_admin_search_ai::store_status_rows();
+		}
+
+		/* 6.0.2: cookie consent ( Settings › Integrations › Cookie consent ): which banner was found and what is read. */
+		if ( class_exists( 'wp_easycart_consent' ) && method_exists( 'wp_easycart_consent', 'store_status_rows' ) ) {
+			wp_easycart_consent::store_status_rows();
+		}
+
+		/* 6.0.2: store activity for Reports ( Settings › Integrations › Store activity ), and whether cookie consent lets browsers count. */
+		if ( class_exists( 'wp_easycart_store_activity' ) && method_exists( 'wp_easycart_store_activity', 'store_status_rows' ) ) {
+			wp_easycart_store_activity::store_status_rows();
+		}
 
 		////////////////////////////
 		// MISCELLANEOUS
@@ -734,6 +793,40 @@ ob_start();
 		} else {
 			echo '<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label">' . sprintf( esc_attr__( 'Your database storage for your webhook log has %d items, nothing to worry about.', 'wp-easycart' ), (int) $webhook_log_size ) . '</span></div>';
 		} ?>
+
+		<?php
+		// 6.0.2: WP EasyCart's Elementor display conditions register only on Elementor Pro 3.19 to 4.x; a row once Elementor Pro
+		// is newer ( a warning when pages use one: those elements show to every visitor ).
+		if ( class_exists( 'WP_EasyCart_Elementor_Dynamic' ) && method_exists( 'WP_EasyCart_Elementor_Dynamic', 'store_status_rows' ) ) {
+			WP_EasyCart_Elementor_Dynamic::store_status_rows();
+		}
+		?>
+
+		<?php
+		/* 6.0.2: with the Conversions API on, a template copied before 6.0.2 sends Meta events without an event ID, and Meta
+		   counts them twice ( the server sends the same events with one ). Only shown while the Conversions API is on. */
+		if ( method_exists( $status, 'meta_template_copies' ) && get_option( 'ec_option_fb_capi' ) ) {
+			$ecds_meta_copies = $status->meta_template_copies();
+			?>
+		<div class="ec_status_header"><div class="ec_status_header_text"><?php esc_html_e( 'Meta tracking', 'wp-easycart' ); ?></div></div>
+			<?php if ( $ecds_meta_copies ) { ?>
+				<?php foreach ( $ecds_meta_copies as $ecds_meta_file => $ecds_meta_copy ) { ?>
+		<div class="ec_status_error"><div class="dashicons-before dashicons-no"></div><span class="ec_status_label" style="line-height:1.6em;"><?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: template file name, 2: Meta event names, 3: the copy's path. */
+							'ec_cart_success.php' === $ecds_meta_file ? __( 'Your copy of %1$s sends %2$s to Meta without an event ID, so with the Conversions API on, Meta counts every sale twice. Update the copy from WP EasyCart\'s current template, or delete it: %3$s', 'wp-easycart' ) : __( 'Your copy of %1$s sends %2$s to Meta without an event ID, so with the Conversions API on, Meta counts those events twice. Update the copy from WP EasyCart\'s current template, or delete it: %3$s', 'wp-easycart' ),
+							$ecds_meta_file,
+							$ecds_meta_copy['events'],
+							str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( $ecds_meta_copy['path'] ) )
+						)
+					);
+				?></span></div>
+				<?php } ?>
+			<?php } else { ?>
+		<div class="ec_status_success"><div class="dashicons-before dashicons-yes"></div><span class="ec_status_label"><?php esc_html_e( 'Meta events carry one event ID from the browser and the server, so Meta counts each one once.', 'wp-easycart' ); ?></span></div>
+			<?php } ?>
+		<?php } ?>
 
 	</div>
 <?php

@@ -17,6 +17,8 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_settings_home.php' 
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_language_v2.php' );
 // 6.0.1: Settings › Documents saves and previews profiles through its own AJAX handlers ( ecv2_documents_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_documents.php' );
+// 6.0.2: Settings › Checkout fields without WP EasyCart PRO ( the locked example ).
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_checkout_fields.php' );
 // The Payment settings page loads gateway forms and switches gateways through its own AJAX handlers ( ecv2_payment_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payment_v2.php' );
 // The Shipping settings page edits zones through its own AJAX handlers ( ecv2_shipping_zone_* ), so it must also load on admin-ajax requests.
@@ -26,6 +28,12 @@ include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tax_v2.php' );
 // The Shipping rates settings page edits ec_shippingrate rows through its own AJAX handlers ( ecv2_shipping_rate_* ), so it must also load on admin-ajax requests.
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shipping_rates_v2.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_email_health.php' );
+// 6.0.2: Settings › Checkout protection draws its status and activity and answers its own AJAX ( ecv2_protection_* ); its attack banner shows on every EasyCart screen.
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_checkout_protection.php' );
+// 6.0.2: Settings › Search & AI ( status, crawler check ) and the product editor's Search & AI card ( save, preview ).
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_search_ai.php' );
+// 6.0.2: the store page is also the front page ( notice, Store Status row, the Create Store page action on admin-post ).
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_store_front_page.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_abandoned_cart_status.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_actions.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_category.php' );
@@ -56,6 +64,8 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_miscellaneous.php' 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_option.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_undo.php' ); /* 6.0.1: shared 15-minute undo for list deletions */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_orders.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_packages.php' ); /* 6.0.2: Settings › Shipping › Boxes and the order screen's Packages */
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_order_screen.php' ); /* 6.0.2: the order screen's helpers and actions */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_payments.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_preloader.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_products.php' );

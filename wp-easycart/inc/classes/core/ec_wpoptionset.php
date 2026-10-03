@@ -41,6 +41,28 @@ class ec_wpoptionset{
 		return $written;
 	}
 	
+	/**
+	 * Clear, once, the example Universal Analytics ID ( UA-XXXXXXX-X ) the option set seeded before 6.0.2, and take the email
+	 * queue's rows with no address that can take mail out of the queue ( ec_email::retire_unsendable() ). The example store
+	 * notification address is left as saved: ec_email treats it as not set.
+	 *
+	 * @since 6.0.2
+	 * @return bool False when it already ran.
+	 */
+	public static function retire_placeholders() {
+		if ( get_option( 'ec_option_placeholders_retired' ) ) {
+			return false;
+		}
+		if ( 'UA-XXXXXXX-X' === strtoupper( trim( (string) get_option( 'ec_option_googleanalyticsid' ) ) ) ) {
+			update_option( 'ec_option_googleanalyticsid', '' );
+		}
+		if ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'retire_unsendable' ) ) {
+			ec_email::retire_unsendable();
+		}
+		update_option( 'ec_option_placeholders_retired', 1 );
+		return true;
+	}
+
 	private function generate_wp_option_names_and_defaults(){
 		$recommended = self::recommended_defaults();
 
@@ -159,7 +181,7 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_password_from_email');				array_push($this->wp_option_defaults, 'youremail@url.com' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_bcc_email_addresses');				array_push($this->wp_option_defaults, 'youremail@url.com' );
+		array_push($this->wp_option_names, 'ec_option_bcc_email_addresses');				array_push($this->wp_option_defaults, '' ); // 6.0.2: was the example youremail@url.com, which ec_email never mails
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_use_state_dropdown');					array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -171,7 +193,7 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');																																												
 		array_push($this->wp_option_names, 'ec_option_stylesheettype');						array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
-		array_push($this->wp_option_names, 'ec_option_googleanalyticsid');					array_push($this->wp_option_defaults, 'UA-XXXXXXX-X' );
+		array_push($this->wp_option_names, 'ec_option_googleanalyticsid');					array_push($this->wp_option_defaults, '' ); // 6.0.2: was the example UA-XXXXXXX-X ( retire_placeholders() clears it once )
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_google_ga4_property_id');				array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -549,6 +571,8 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_static_ship_items_seperately');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_free_shipping_covers_partners');		array_push($this->wp_option_defaults, '0' ); /* 6.0.2: the store's free shipping also waives what a fulfillment partner charges */
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_google_adwords_conversion_id');		array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_google_adwords_tag_id');				array_push($this->wp_option_defaults, '' );
@@ -646,6 +670,21 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_packing_slip_show_order_notes');		array_push($this->wp_option_defaults, 1 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_fb_pixel');							array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		/* 6.0.2: Meta Pixel and Conversions API ( Settings › Integrations › Meta Pixel ) and Cookie consent. */
+		array_push($this->wp_option_names, 'ec_option_fb_pixel_sitewide');					array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_fb_capi');							array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_fb_capi_token');						array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_fb_advanced_matching');				array_push($this->wp_option_defaults, 1 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_fb_ldu');								array_push($this->wp_option_defaults, 0 );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_fb_test_event_code');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-store-setup-group');
+		array_push($this->wp_option_names, 'ec_option_marketing_consent');					array_push($this->wp_option_defaults, 'off' );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
 		array_push($this->wp_option_names, 'ec_option_enable_shareasale');					array_push($this->wp_option_defaults, 0 );
 																							array_push($this->wp_option_groups, 'ec-store-setup-group');
@@ -770,6 +809,8 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_use_direct_deposit');					array_push($this->wp_option_defaults, '1' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_direct_deposit_message');				array_push($this->wp_option_defaults, 'You have selected a manual payment method.' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_manual_payment_roles');				array_push($this->wp_option_defaults, '' ); // 6.0.2: roles Bill later is offered to, comma separated ( '' = everyone, 'guest' = not signed in )
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_use_affirm');							array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
@@ -1084,6 +1125,12 @@ class ec_wpoptionset{
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_payline_currency');					array_push($this->wp_option_defaults, 'USD' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paytrace_username');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paytrace_password');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paytrace_sandbox');					array_push($this->wp_option_defaults, '0' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_payment_express_username');			array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_payment_express_password');			array_push($this->wp_option_defaults, '' );
@@ -1101,6 +1148,20 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_paypal_wpeasycart_production_webhook_id');array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_paypal_wpeasycart_sandbox_webhook_id');array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paypal_production_webhook_key');	array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paypal_sandbox_webhook_key');		array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		/* 6.0.2: PayPal notifications ( wp_easycart_paypal_webhooks ) — the rolling event log the PayPal panel reads, when one
+		   last arrived, the last registration problem, and each mode's registration state ( written with autoload off ). */
+		array_push($this->wp_option_names, 'ec_option_paypal_webhook_log');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paypal_webhook_last');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paypal_webhook_error');				array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_paypal_webhook_state');				array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_paypal_use_sandbox');					array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
@@ -1421,6 +1482,13 @@ class ec_wpoptionset{
 		array_push($this->wp_option_names, 'ec_option_virtualmerchant_demo_account');		array_push($this->wp_option_defaults, '0' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'ec_option_dhl_account_number');					array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		/* 6.0.2: MyDHL API. ec_option_dhl_api ( the connection ) is left out on purpose: its default depends on the store. */
+		array_push($this->wp_option_names, 'ec_option_dhl_api_key');						array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_dhl_api_secret');						array_push($this->wp_option_defaults, '' );
+																							array_push($this->wp_option_groups, 'ec-payment-group');
+		array_push($this->wp_option_names, 'ec_option_dhl_ship_from_city');					array_push($this->wp_option_defaults, '' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');
 		array_push($this->wp_option_names, 'usps_conversion_rate');							array_push($this->wp_option_defaults, '1.000' );
 																							array_push($this->wp_option_groups, 'ec-payment-group');

@@ -106,7 +106,7 @@ class wp_easycart_admin_settings_icons {
 			'admin-users' => 'users', 'admin-tools' => 'wrench', 'products' => 'package', 'admin-appearance' => 'palette', 'art' => 'palette',
 			'email' => 'mail', 'media-document' => 'file-text', 'translation' => 'globe', 'money-alt' => 'credit-card', 'car' => 'truck', 'media-spreadsheet' => 'percent',
 			'admin-plugins' => 'puzzle', 'admin-settings' => 'wrench', 'list-view' => 'list', 'admin-site-alt3' => 'globe', 'grid-view' => 'grid',
-			'filter' => 'sliders', 'location' => 'map-pin', 'editor-ul' => 'file-text', 'admin-generic' => 'sliders',
+			'filter' => 'sliders', 'location' => 'map-pin', 'editor-ul' => 'file-text', 'admin-generic' => 'sliders', 'email-alt' => 'mail', 'feedback' => 'message', /* 6.0.2: Email marketing, Checkout fields */
 		);
 	}
 
@@ -117,17 +117,41 @@ class wp_easycart_admin_settings_icons {
 			'admin' => array( 'quick-add' => 'plus-circle', 'orders' => 'receipt', 'admin-screens' => 'monitor', 'mobile-apps' => 'smartphone', 'storefront' => 'store', 'diagnostics' => 'activity', 'integrations' => 'puzzle' ),
 			'checkout' => array( 'cart' => 'cart', 'checkout-flow' => 'zap', 'checkout-form' => 'file-text', 'address-fields' => 'map', 'payment-page' => 'credit-card', 'orders' => 'hash', 'stock-alerts' => 'bell', 'abandoned-cart' => 'refresh', 'pickup-schedule' => 'calendar', 'text-notifications' => 'message' ),
 			'design' => array( 'colors' => 'palette', 'typography' => 'type', 'product-listings' => 'grid', 'product-page' => 'layout', 'cart-checkout' => 'cart', 'cart-icon' => 'cart', 'newsletter-popup' => 'mail', 'custom-css' => 'code', 'theme-integration' => 'puzzle', 'templates' => 'layers' ),
+			'newsletter-services' => array( /* 6.0.2: Settings › Email marketing */
+				'mailerlite'           => array( 'text' => 'ML', 'bg' => '#09c269' ),
+				'mailerlite-store'     => array( 'text' => 'ML', 'bg' => '#09c269' ),
+				'kit'                  => array( 'text' => 'K', 'bg' => '#fb6970' ),
+				'kit-store'            => array( 'text' => 'K', 'bg' => '#fb6970' ),
+				'activecampaign'       => array( 'text' => 'AC', 'bg' => '#356ae6' ),
+				'activecampaign-store' => array( 'text' => 'AC', 'bg' => '#356ae6' ),
+				'more-services'        => 'puzzle',
+			),
 			'email-setup' => array( 'deliverability' => 'mail-check', 'sender' => 'at', 'order-emails' => 'receipt', 'account-emails' => 'user', 'receipt-wording' => 'quote' ),
-			'documents' => array( 'receipt' => 'receipt', 'shipping' => 'truck', 'packing-slip' => 'box', 'invoice' => 'file-text', 'attachments' => 'layers' ), /* 6.0.1 */
+			/* 6.0.1; 6.0.2: every section its own icon ( the 6.0.2 sections all fell back to the page's document icon ). */
+			'documents' => array(
+				'receipt'      => 'receipt',
+				'shipping'     => 'truck',
+				'packing-slip' => 'box',
+				'invoice'      => 'file-text',
+				'gift-receipt' => 'mail-check',
+				'credit-note'  => 'swap',
+				'attachments'  => 'layers',
+				'gifts'        => 'gift',
+				'rules'        => 'sliders',
+				'downloads'    => 'download',
+				'pay-links'    => 'credit-card',
+				'invoicing'    => 'hash',
+				'po-numbers'   => 'tag',
+				'terms'        => 'calendar',
+			),
 			'initial-setup' => array( 'store-pages' => 'file-text', 'currency' => 'coins', 'goals' => 'target', 'demo-data' => 'database' ),
 			'integrations' => array(
 				'google-analytics' => array( 'text' => 'GA', 'bg' => '#e37400' ),
 				'google-ads'       => array( 'text' => 'Ads', 'bg' => '#4285f4' ),
 				'google-merchant'  => array( 'text' => 'GM', 'bg' => '#34a853' ),
 				'meta-pixel'       => array( 'text' => 'f', 'bg' => '#0866ff' ),
-				'mailerlite'       => array( 'text' => 'ML', 'bg' => '#09c269' ),
-				'convertkit'       => array( 'text' => 'K', 'bg' => '#fb6970' ),
-				'activecampaign'   => array( 'text' => 'AC', 'bg' => '#356ae6' ),
+				'email-marketing'  => 'mail', /* 6.0.2: MailerLite, Kit and ActiveCampaign moved to Settings › Email marketing */
+				'cookie-consent'   => 'shield', /* 6.0.2 */
 				'shareasale'       => array( 'text' => 'SAS', 'bg' => '#ff6b00' ),
 				'amazon-s3'        => array( 'text' => 'S3', 'bg' => '#ff9900' ),
 				'deconetwork'      => array( 'text' => 'D', 'bg' => '#e5322d' ),
@@ -136,7 +160,7 @@ class wp_easycart_admin_settings_icons {
 			'language-editor' => array( 'languages' => 'globe', 'phrases' => 'quote' ),
 			'payment' => array( 'active' => 'credit-card', 'more' => 'plus-circle', 'options' => 'sliders' ),
 			'products' => array( 'catalog-mode' => 'eye', 'product-pages' => 'file-text', 'sharing' => 'share', 'product-lists' => 'grid', 'add-to-cart' => 'cart-plus', 'store-sidebar' => 'sidebar', 'pricing' => 'dollar', 'inventory' => 'box', 'reviews' => 'star', 'search' => 'search', 'import-export' => 'swap' ),
-			'shipping-settings' => array( 'shipping-method' => 'truck', 'checkout' => 'cart', 'live-rates' => 'zap', 'carriers' => 'key', 'fraktjakt' => 'key', 'ship-from' => 'map-pin', 'zones' => 'map', 'ship-to' => 'globe' ),
+			'shipping-settings' => array( 'shipping-method' => 'truck', 'checkout' => 'cart', 'boxes' => 'package', 'delivery' => 'check-circle', 'live-rates' => 'zap', 'carriers' => 'key', 'fraktjakt' => 'key', 'ship-from' => 'map-pin', 'zones' => 'map', 'ship-to' => 'globe' ),
 			'tax' => array( 'collect' => 'percent', 'state' => 'map', 'country' => 'globe', 'vat' => 'receipt', 'canada' => 'flag', 'duty' => 'anchor', 'automated' => 'cloud' ),
 		);
 	}

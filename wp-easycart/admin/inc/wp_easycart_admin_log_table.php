@@ -227,7 +227,7 @@ if ( ! class_exists( 'wp_easycart_admin_log_table' ) ) :
 				array( 'name' => 'processor', 'label' => __( 'Source', 'wp-easycart' ), 'format' => 'log_processor', 'width' => 140 ),
 				array( 'name' => 'order_id', 'label' => __( 'Order', 'wp-easycart' ), 'format' => 'log_order', 'width' => 90 ),
 				array( 'name' => 'is_error', 'label' => __( 'Result', 'wp-easycart' ), 'format' => 'log_result', 'width' => 90 ),
-				array( 'name' => 'response_text', 'label' => __( 'Response', 'wp-easycart' ), 'format' => 'log_text' ),
+				array( 'name' => 'response_text', 'label' => __( 'Response', 'wp-easycart' ), 'format' => 'log_text', 'primary' => true ), // 6.0.2: always shown ( Columns chooser ), it holds the expand link and the payload.
 				array( 'name' => 'response_id', 'label' => __( 'ID', 'wp-easycart' ), 'format' => 'int', 'is_id' => true, 'laptop_hide' => true ),
 			) );
 			$this->set_search_columns( array( 'ec_response.response_text', 'ec_response.order_id', 'ec_response.processor' ) );

@@ -21,6 +21,25 @@ jQuery( function( $ ) {
 		return;
 	}
 
+	/* 6.0.2: the orders in view, in order, so an opened order's previous / next and Back follow this list ( read by
+	   ecodv2_nav_init() on the order screen ). Saved on load and again as an order is opened ( the rows can change ). */
+	function ecv2_remember_order_list() {
+		var ids = [];
+		$( '.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-row[data-id]' ).each( function() {
+			var id = parseInt( $( this ).attr( 'data-id' ), 10 );
+			if ( id > 0 && -1 === ids.indexOf( id ) ) {
+				ids.push( id );
+			}
+		} );
+		try {
+			if ( ids.length ) {
+				window.sessionStorage.setItem( 'wpec_order_nav', JSON.stringify( { ids: ids, back: window.location.href, t: Date.now() } ) );
+			}
+		} catch ( e ) {}
+	}
+	ecv2_remember_order_list();
+	$( document ).on( 'mousedown keydown', '.ecv2-wrap[data-table-id="ec_admin_order_list_v2"] a[href*="order_id="], .ecv2-wrap[data-table-id="ec_admin_order_list_v2"] .ecv2-row[data-id]', ecv2_remember_order_list );
+
 	var ecv2_undo_stack = [];
 	var ECV2_UNDO_MAX = 20;
 
@@ -92,7 +111,56 @@ jQuery( function( $ ) {
 	window.ecv2_confirm_cancel = function() {
 		ecv2_confirm_callback = null;
 		$( '#ecv2-confirm-dialog' ).hide();
+		ecv2_confirm_reset();
 	};
+
+	/* 6.0.2: the same dialog with its own wording on the button and, when given, a third choice ( alt / on_alt, e.g.
+	   Refund on the order ). o: title, message, yes, alt, on_yes, on_alt. Put back as it was when it closes. */
+	var $confirm_ok = null, confirm_ok_text = '';
+	function ecv2_confirm_reset() {
+		$( '#ecv2-confirm-alt' ).remove();
+		if ( $confirm_ok ) {
+			$confirm_ok.text( confirm_ok_text );
+			$confirm_ok = null;
+		}
+	}
+	function ecv2_order_confirm( o ) {
+		ecv2_confirm_reset();
+		ecv2_show_confirm( o.title || '', o.message || '', function() {
+			ecv2_confirm_reset();
+			if ( o.on_yes ) { o.on_yes(); }
+		} );
+		$confirm_ok = $( '#ecv2-confirm-ok' );
+		confirm_ok_text = $confirm_ok.text();
+		if ( o.yes ) { $confirm_ok.text( o.yes ); }
+		if ( o.alt && o.on_alt ) {
+			$( '<button type="button" class="ecv2-btn ecv2-btn-ghost" id="ecv2-confirm-alt"></button>' ).text( o.alt ).on( 'click', function() {
+				$( '#ecv2-confirm-dialog' ).hide();
+				ecv2_confirm_callback = null;
+				ecv2_confirm_reset();
+				o.on_alt();
+			} ).prependTo( $( '#ecv2-confirm-dialog .ecv2-modal-footer' ) );
+		}
+	}
+	window.ecv2_order_confirm = ecv2_order_confirm;
+	$( document ).on( 'click', '#ecv2-confirm-dialog .ecv2-modal-close', ecv2_confirm_reset );
+
+	/* 6.0.2: Refunded, Partial refund and Cancelled change the status only ( as the order screen says ): asked first,
+	   with Refund on the order offered when WP EasyCart PRO can refund. count > 1 for a bulk change. */
+	function ecv2_order_status_needs_confirm( status_id ) {
+		return -1 !== [ 16, 17, 19 ].indexOf( parseInt( status_id, 10 ) );
+	}
+	function ecv2_order_confirm_status( status_id, count, order_id, on_yes ) {
+		var L = window.ecv2_lang || {}, bulk = count > 1, key = ( bulk ? 'bulk_status_' : 'status_' );
+		ecv2_order_confirm( {
+			title: String( L[ key + 'title_' + status_id ] || L[ 'status_title_' + status_id ] || '' ).replace( '%d', count ),
+			message: L[ key + 'body_' + status_id ] || L[ 'status_body_' + status_id ] || '',
+			yes: L.status_confirm || 'Change status',
+			alt: ( ! bulk && order_id && L.can_refund && L.order_url ) ? ( L.status_refund || '' ) : '',
+			on_alt: function() { window.location.href = L.order_url + order_id + '&ecodv2_open=refund'; },
+			on_yes: on_yes
+		} );
+	}
 
 	/* ===================================================================== */
 	/* View toggle + per page + pagination                                    */
@@ -441,7 +509,14 @@ jQuery( function( $ ) {
 		}
 
 		if ( action === 'change-order-status' ) {
-			ecv2_order_open_status_modal( ids.length );
+			/* 6.0.2: the status picked beside Bulk Actions applies at once; with none picked, the dialog asks. */
+			var inline_status = $( '#ecv2-bulk-order-status' ).val();
+			if ( inline_status ) {
+				$( '#ecv2-order-status-modal-select' ).val( inline_status );
+				window.ecv2_order_apply_status_modal();
+			} else {
+				ecv2_order_open_status_modal( ids.length );
+			}
 			return false;
 		}
 
@@ -608,18 +683,32 @@ jQuery( function( $ ) {
 		$wrap.find( '.ecv2-order-status-menu' ).removeClass( 'ecv2-order-status-menu-open' ).each( function() { ecv2_clear_fixed_pop( $( this ) ); } );
 		if ( status_id === old_status_id ) { return; }
 
-		ecv2_order_send_status( $wrap, order_id, status_id, function( data ) {
-			ecv2_toast( ecv2_lang.order_status_updated || 'Order status updated.', 'success' );
-			ecv2_push_undo({
-				message: ( ecv2_lang.order_status_updated || 'Order status updated.' ) + ' ' + ( ecv2_lang.click_undo || '' ),
-				undo_fn: function() {
-					ecv2_order_send_status( $wrap, order_id, data.old_status_id, function() {
-						ecv2_toast( ecv2_lang.undone || 'Change reverted.', 'info' );
-					});
-				}
+		var go = function() {
+			ecv2_order_send_status( $wrap, order_id, status_id, function( data ) {
+				ecv2_toast( ecv2_lang.order_status_updated || 'Order status updated.', 'success' );
+				ecv2_push_undo({
+					message: ecv2_order_status_undo_text( 'updated', ( ecv2_lang.order_status_updated || 'Order status updated.' ) + ' ' + ( ecv2_lang.click_undo || '' ) ),
+					undo_fn: function() {
+						ecv2_order_send_status( $wrap, order_id, data.old_status_id, function() {
+							ecv2_toast( ecv2_order_status_undo_text( 'undone', ecv2_lang.undone || 'Change reverted.' ), 'info' );
+						});
+					}
+				});
 			});
-		});
+		};
+		if ( ecv2_order_status_needs_confirm( status_id ) ) {
+			ecv2_order_confirm_status( status_id, 1, order_id, go );
+			return;
+		}
+		go();
 	};
+
+	/* 6.0.2: the status Undo puts the old status back only ( stock taken and payments recorded stay ), and says so. The
+	   wording is printed by the list ( #ecv2-order-status-undo-text ); an older list keeps the general wording. */
+	function ecv2_order_status_undo_text( key, fallback ) {
+		var text = $( '#ecv2-order-status-undo-text' ).attr( 'data-' + key );
+		return text ? text : fallback;
+	}
 
 	function ecv2_order_send_status( $wrap, order_id, status_id, on_success ) {
 		$wrap.addClass( 'ecv2-order-status-saving' );
@@ -658,7 +747,22 @@ jQuery( function( $ ) {
 				}
 			});
 		});
-		ecv2_order_sync_fulfill_for_status( order_id, data.status_id );
+		/* 6.0.2: the server draws the Fulfillment cell as it reads now ( packages, partners, packing ). */
+		if ( 'string' === typeof data.state_html && data.state_html ) {
+			ecv2_order_set_fulfill_state( order_id, data.state_html );
+		} else {
+			ecv2_order_sync_fulfill_for_status( order_id, data.status_id );
+		}
+	}
+
+	function ecv2_order_set_fulfill_state( order_id, html ) {
+		$( '.ecv2-order-fulfill-wrap[data-order-id="' + order_id + '"]' ).each( function() {
+			var $state = $( this ).find( '.ecv2-order-fulfill-state' );
+			if ( ! $state.length ) {
+				$state = $( '<div class="ecv2-order-fulfill-state"></div>' ).prependTo( this );
+			}
+			$state.html( html );
+		} );
 	}
 
 	/*
@@ -700,12 +804,43 @@ jQuery( function( $ ) {
 		$( '#ecv2-order-status-modal' ).hide();
 	};
 
+	/*
+	 * 6.0.2: choosing "Change Order Status" shows the status list right beside Bulk Actions, so the new status is picked
+	 * where the action is ( it used to appear only in a dialog after Apply ). Its options come from the dialog's list.
+	 */
+	$( document ).on( 'change', '#ecv2-bulk-action', function() {
+		var $picker = $( '#ecv2-bulk-order-status' );
+		if ( 'change-order-status' !== $( this ).val() ) {
+			$picker.hide();
+			return;
+		}
+		if ( ! $picker.length ) {
+			var $source = $( '#ecv2-order-status-modal-select' );
+			if ( ! $source.length ) { return; }
+			$picker = $( '<select id="ecv2-bulk-order-status" class="ecv2-select"></select>' ).attr( 'aria-label', $( '#ecv2-order-status-modal .ecv2-modal-label' ).text() );
+			$picker.append( $( '<option value=""></option>' ).text( ecv2_lang.choose_status || 'Choose a status…' ) );
+			$source.find( 'option' ).each( function() {
+				$picker.append( $( '<option></option>' ).val( $( this ).val() ).text( $( this ).text() ) );
+			} );
+			$picker.insertAfter( $( this ) );
+		}
+		$picker.show();
+	} );
+
 	window.ecv2_order_apply_status_modal = function() {
 		var status_id = $( '#ecv2-order-status-modal-select' ).val();
-		$( 'input[name="bulk_order_status"]' ).val( status_id );
+		var go = function() {
+			$( 'input[name="bulk_order_status"]' ).val( status_id );
+			$( '#ecv2-bulk-action' ).val( 'change-order-status' );
+			$( '#ecv2-posts-filter' ).submit();
+		};
 		$( '#ecv2-order-status-modal' ).hide();
-		$( '#ecv2-bulk-action' ).val( 'change-order-status' );
-		$( '#ecv2-posts-filter' ).submit();
+		/* 6.0.2: Refunded, Partial refund and Cancelled ask first ( status only, no money moves ). */
+		if ( ecv2_order_status_needs_confirm( status_id ) ) {
+			ecv2_order_confirm_status( status_id, Math.max( 1, ecv2_bulk_collect_ids().length ), 0, go );
+			return;
+		}
+		go();
 	};
 
 	/* ===================================================================== */
@@ -905,11 +1040,17 @@ jQuery( function( $ ) {
 	window.ecv2_order_qe_tracking_changed = function() { qe_auto_email(); };
 	window.ecv2_order_qe_email_touched = function() { qe.email_touched = true; qe_sync_email_hint(); };
 
-	window.ecv2_order_qe_save = function() {
+	window.ecv2_order_qe_save = function( confirmed ) {
 		if ( ! qe.order_id ) { return; }
 		var send_email = $( '#ecv2-qe-send-email' ).is( ':checked' ) ? 1 : 0;
 		if ( qe_snapshot() === qe.initial && ! send_email ) {
 			ecv2_toast( qe_lang( 'nochange' ), 'info' );
+			return;
+		}
+		/* 6.0.2: Refunded, Partial refund and Cancelled ask first, as everywhere else. */
+		var new_status = parseInt( $( '#ecv2-qe-status' ).val(), 10 );
+		if ( true !== confirmed && qe.data && new_status !== parseInt( qe.data.status_id, 10 ) && ecv2_order_status_needs_confirm( new_status ) ) {
+			ecv2_order_confirm_status( new_status, 1, qe.order_id, function() { window.ecv2_order_qe_save( true ); } );
 			return;
 		}
 		var $btn = $( '#ecv2-qe-save' ).prop( 'disabled', true );
@@ -953,14 +1094,17 @@ jQuery( function( $ ) {
 			$wrap.attr( 'data-carrier', d.carrier ).data( 'carrier', d.carrier );
 
 			var $state = $wrap.find( '.ecv2-order-fulfill-state' );
-			if ( d.chip_html ) {
+			if ( 'string' === typeof d.state_html && d.state_html ) {
+				/* 6.0.2: the cell as the server reads it now. */
+				$state.html( d.state_html );
+			} else if ( d.chip_html ) {
 				$state.html( d.chip_html );
 			} else if ( $state.find( '.ecv2-order-track-chip' ).not( '.ecv2-order-fulfill-digital, .ecv2-order-fulfill-done' ).length ) {
 				/* Tracking was cleared; row will show the Fulfill button again on reload. */
 				$state.html( '<span class="ecv2-sku-empty">&mdash;</span>' );
 			}
 			/* No tracking: a shipped / picked up status still reads as fulfilled. */
-			if ( ! d.chip_html && d.status_id ) { ecv2_order_sync_fulfill_for_status( d.order_id, d.status_id ); }
+			if ( ! d.state_html && ! d.chip_html && d.status_id ) { ecv2_order_sync_fulfill_for_status( d.order_id, d.status_id ); }
 
 			var $line2 = $wrap.find( '.ecv2-order-fulfill-line2' );
 			var $meta  = $line2.find( '.ecv2-order-fulfill-meta' );
@@ -1246,14 +1390,212 @@ jQuery( function( $ ) {
 	});
 
 	/* ===================================================================== */
-	/* PRO stubs — orders-v2-pro.js replaces these when licensed              */
+	/* Fulfill and Mark picked up ( 6.0.2, free as on the order screen )      */
 	/* ===================================================================== */
 
-	if ( typeof window.ecv2_open_fulfill !== 'function' ) {
-		window.ecv2_open_fulfill = function() {
-			return window.wpec_gate.locked_action( ecv2_lang.order_pro_gate );
-		};
+	/*
+	 * The row's Fulfill opens the order screen's Ship order in a popover ( ecv2_order_list_fulfill: step check says how
+	 * many packages wait; several are shipped on the order, one tracking number each ). Mark picked up only confirms.
+	 * The row is redrawn from the answer ( status chip, Fulfillment cell ).
+	 */
+	var ship = { order_id: 0, nonce: '', btn: null, mode: 'ship', busy: false };
+	var $ship = $( '#ecv2-order-ship-pop' );
+
+	function ship_mode( mode ) {
+		ship.mode = mode;
+		$ship.find( '[data-ship-show]' ).each( function() {
+			var show = ( ' ' + $( this ).attr( 'data-ship-show' ) + ' ' ).indexOf( ' ' + mode + ' ' ) !== -1;
+			$( this ).prop( 'hidden', ! show ).toggle( show );
+		} );
 	}
+	function ship_error( message ) {
+		$( '#ecv2-ship-error' ).text( message || '' ).prop( 'hidden', ! message );
+	}
+	function ship_place() {
+		if ( ship.btn && $ship.is( ':visible' ) && document.body.contains( ship.btn ) ) {
+			ecv2_place_fixed_pop( $ship, ship.btn, 300 );
+		}
+	}
+	function ship_busy( on ) {
+		ship.busy = on;
+		$( '#ecv2-ship-save, #ecv2-ship-pickup' ).prop( 'disabled', on ).toggleClass( 'ecv2-btn-busy', on );
+	}
+
+	window.ecv2_order_open_ship = function( btn ) {
+		var $wrap = $( btn ).closest( '.ecv2-order-fulfill-wrap' );
+		var order_id = parseInt( $wrap.attr( 'data-order-id' ), 10 );
+		if ( ! $ship.length || ! order_id ) { return false; }
+		if ( ship.order_id === order_id && $ship.is( ':visible' ) ) {
+			window.ecv2_order_close_ship();
+			return false;
+		}
+		ship.order_id = order_id;
+		ship.btn = btn;
+		ship.nonce = $wrap.attr( 'data-nonce' ) || $( '.ecv2-order-status-wrap[data-order-id="' + order_id + '"]' ).first().data( 'nonce' ) || '';
+		ship_busy( false );
+		ship_error( '' );
+		$( '#ecv2-ship-order-label' ).text( '#' + order_id );
+		var pickup = 'pickup' === String( $( btn ).attr( 'data-fulfill-mode' ) || '' );
+		ship_mode( pickup ? 'pickup' : 'ship' );
+		if ( ! pickup ) {
+			var carrier = String( $wrap.attr( 'data-carrier' ) || '' ), $carrier = $( '#ecv2-ship-carrier' );
+			if ( carrier && ! $carrier.find( 'option' ).filter( function() { return this.value === carrier; } ).length ) {
+				$carrier.append( $( '<option></option>' ).val( carrier ).text( carrier ) );
+			}
+			$carrier.val( carrier );
+			$( '#ecv2-ship-tracking' ).val( '' );
+			$( '#ecv2-ship-mark, #ecv2-ship-email' ).prop( 'checked', true );
+			$( '#ecv2-ship-email-row' ).show();
+			$( '#ecv2-ship-meta' ).text( '' ).prop( 'hidden', true );
+			/* What Fulfill will do: the one package it goes on, or the order screen for several. */
+			$.post( wpeasycart_admin_ajax_object.ajax_url, { action: 'ecv2_order_list_fulfill', step: 'check', order_id: order_id, wp_easycart_nonce: ship.nonce }, function( r ) {
+				if ( ship.order_id !== order_id || ! r || ! r.success ) { return; }
+				if ( r.data.packages > 1 ) {
+					$( '#ecv2-ship-many-text' ).text( r.data.message || '' );
+					$( '#ecv2-ship-many-link' ).attr( 'href', r.data.url || '#' );
+					ship_mode( 'many' );
+				} else if ( r.data.meta ) {
+					$( '#ecv2-ship-meta' ).text( r.data.meta ).prop( 'hidden', false );
+				}
+				if ( ! r.data.email ) {
+					$( '#ecv2-ship-email' ).prop( 'checked', false );
+					$( '#ecv2-ship-email-row' ).hide();
+				}
+				ship_place();
+			} );
+		}
+		$ship.prop( 'hidden', false ).show();
+		ship_place();
+		setTimeout( function() { $( pickup ? '#ecv2-ship-pickup' : '#ecv2-ship-tracking' ).trigger( 'focus' ); }, 50 );
+		return false;
+	};
+
+	window.ecv2_order_close_ship = function() {
+		$ship.prop( 'hidden', true ).hide();
+		ecv2_clear_fixed_pop( $ship );
+		var back = ship.btn;
+		ship.order_id = 0;
+		ship.btn = null;
+		if ( back && document.body.contains( back ) ) { back.focus(); }
+	};
+
+	function ship_done( r ) {
+		var d = r.data || {}, order_id = parseInt( d.order_id || ship.order_id, 10 );
+		window.ecv2_order_close_ship();
+		ecv2_toast( d.message || ecv2_lang.saved, 'success' );
+		$( '.ecv2-order-fulfill-wrap[data-order-id="' + order_id + '"]' ).each( function() {
+			$( this ).attr( 'data-tracking', d.tracking || '' ).attr( 'data-carrier', d.carrier || '' );
+		} );
+		if ( d.status ) {
+			ecv2_order_sync_status_chip( order_id, $.extend( {}, d.status, { state_html: d.state_html } ) );
+		} else if ( d.state_html ) {
+			ecv2_order_set_fulfill_state( order_id, d.state_html );
+		}
+	}
+	function ship_post( data, force ) {
+		if ( ship.busy || ! ship.order_id ) { return; }
+		ship_busy( true );
+		ship_error( '' );
+		$.post( wpeasycart_admin_ajax_object.ajax_url, $.extend( { action: 'ecv2_order_list_fulfill', order_id: ship.order_id, wp_easycart_nonce: ship.nonce }, data ), function( r ) {
+			ship_busy( false );
+			if ( r && r.success ) {
+				ship_done( r );
+				return;
+			}
+			var d = ( r && r.data ) || {};
+			if ( 'packages' === d.code && d.url ) {
+				$( '#ecv2-ship-many-text' ).text( d.message || '' );
+				$( '#ecv2-ship-many-link' ).attr( 'href', d.url );
+				ship_mode( 'many' );
+				ship_place();
+				return;
+			}
+			ship_error( d.message || ecv2_lang.error );
+		} ).fail( function() {
+			ship_busy( false );
+			ship_error( ecv2_lang.error );
+		} );
+	}
+
+	window.ecv2_order_save_ship = function( force ) {
+		var tracking = String( $( '#ecv2-ship-tracking' ).val() || '' ).replace( /[\s\u0000-\u001f]+/g, '' );
+		var mark = $( '#ecv2-ship-mark' ).is( ':checked' );
+		$( '#ecv2-ship-tracking' ).val( tracking );
+		if ( '' === tracking && ! mark ) {
+			ship_error( ecv2_lang.ship_need_tracking || 'Enter the tracking number, or tick Mark the order as shipped.' );
+			$( '#ecv2-ship-tracking' ).trigger( 'focus' );
+			return;
+		}
+		if ( '' === tracking && true !== force ) {
+			/* As the order screen asks. */
+			ecv2_order_confirm( {
+				title: ecv2_lang.ship_no_tracking || 'Ship without a tracking number?',
+				message: ecv2_lang.ship_no_tracking_body || '',
+				yes: ecv2_lang.ship_anyway || 'Ship without tracking',
+				on_yes: function() { window.ecv2_order_save_ship( true ); }
+			} );
+			return;
+		}
+		ship_post( {
+			step: 'ship',
+			tracking_number: tracking,
+			carrier: $( '#ecv2-ship-carrier' ).val() || '',
+			mark_shipped: mark ? 1 : 0,
+			notify: $( '#ecv2-ship-email' ).is( ':checked' ) ? 1 : 0
+		} );
+	};
+
+	window.ecv2_order_save_pickup = function() {
+		ship_post( { step: 'pickup' } );
+	};
+
+	$( document ).on( 'keydown', '#ecv2-order-ship-pop', function( ev ) {
+		if ( 'Escape' === ev.key ) {
+			ev.preventDefault();
+			window.ecv2_order_close_ship();
+		} else if ( 'Enter' === ev.key && 'ecv2-ship-tracking' === ev.target.id ) {
+			ev.preventDefault();
+			window.ecv2_order_save_ship();
+		}
+	} );
+	$( document ).on( 'mousedown', function( e ) {
+		if ( ship.order_id && ! $( e.target ).closest( '#ecv2-order-ship-pop, .ecv2-order-fulfill-btn, #ecv2-confirm-dialog' ).length ) {
+			window.ecv2_order_close_ship();
+		}
+	} );
+	$( window ).on( 'scroll resize', ship_place );
+
+	/* WP EasyCart PRO 6.0.1 and older draw nothing else for the row's Fulfill: every Fulfill button now opens this one. */
+	if ( typeof window.ecv2_open_fulfill !== 'function' ) {
+		window.ecv2_open_fulfill = window.ecv2_order_open_ship;
+	}
+
+	/* Ctrl K / Cmd K: the list's search ( the order screen's Find ). */
+	$( document ).on( 'keydown', function( ev ) {
+		if ( ( ev.ctrlKey || ev.metaKey ) && ! ev.altKey && ! ev.shiftKey && 'k' === String( ev.key ).toLowerCase() ) {
+			var $search = $( '#ecv2-search-input' ).filter( ':visible' ).first();
+			if ( $search.length && ! $( 'body' ).hasClass( 'ecv2-qe-open' ) ) {
+				ev.preventDefault();
+				$search.trigger( 'focus' ).trigger( 'select' );
+			}
+		}
+	} );
+
+	/* The bulk status change's counts are shown once ( add_success_messages() ); keep them out of the address bar. */
+	try {
+		if ( window.history && window.history.replaceState && typeof URL === 'function' ) {
+			var ecv2_url = new URL( window.location.href );
+			if ( ecv2_url.searchParams.has( 'status_changed' ) || ecv2_url.searchParams.has( 'status_unchanged' ) ) {
+				ecv2_url.searchParams.delete( 'status_changed' );
+				ecv2_url.searchParams.delete( 'status_unchanged' );
+				window.history.replaceState( window.history.state, '', ecv2_url.toString() );
+			}
+		}
+	} catch ( e ) {}
+
+	/* ===================================================================== */
+	/* PRO stubs — orders-v2-pro.js replaces these when licensed              */
+	/* ===================================================================== */
 	if ( typeof window.ecv2_order_apply_saved_view !== 'function' ) {
 		window.ecv2_order_apply_saved_view = function() {
 			return window.wpec_gate.locked_action( ecv2_lang.order_pro_gate );

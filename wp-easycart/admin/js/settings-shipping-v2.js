@@ -303,7 +303,11 @@
 		$tab.append( '<span class="ecsh-tab-dot" aria-hidden="true"></span>' );
 		$tabs.append( $tab );
 	} );
-	$rows.first().before( $tabs );
+	/* 6.0.2: the tab bar goes above the first row's group, never inside it: hiding that group on another carrier's tab
+	   ( below ) took the tab bar with it, so every other carrier disappeared. */
+	var $firstGroup = $rows.first().parent( '.ecst-group' );
+	( $firstGroup.length ? $firstGroup : $rows.first() ).before( $tabs );
+	var $groups = $sec.find( '.ecst-rows' ).first().children( '.ecst-group' );
 
 	function paintDot( carrier ) {
 		var s = statusOf( carrier );
@@ -318,6 +322,18 @@
 			var c = $( this ).attr( 'data-carrier' );
 			$( this ).toggleClass( 'ecsh-tab-off', !! c && c !== carrier );
 		} );
+		/* 6.0.2: hide the other carriers' row groups as well. A group keeps its top margin, and draws a divider while its
+		   child rows are showing, even when every row in it is hidden, so each carrier before the open tab left one more
+		   stray line. The first and last groups left showing lose the gap above the tabs and the line at the bottom. */
+		var $shown = $();
+		$groups.each( function() {
+			var $group = $( this );
+			var shown = $group.children( '.ecst-row' ).filter( function() { return ! $( this ).hasClass( 'ecsh-tab-off' ); } ).length;
+			$group.toggleClass( 'ecsh-tab-off', ! shown ).removeClass( 'ecsh-tab-first ecsh-tab-last' );
+			if ( shown ) { $shown = $shown.add( $group ); }
+		} );
+		$shown.first().addClass( 'ecsh-tab-first' );
+		$shown.last().addClass( 'ecsh-tab-last' );
 		$tabs.find( '.ecsh-tab' ).each( function() {
 			var on = $( this ).data( 'carrier' ) === carrier;
 			$( this ).toggleClass( 'is-on', on ).attr( { 'aria-selected': on ? 'true' : 'false', tabindex: on ? '0' : '-1' } );

@@ -25,11 +25,23 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) {
 	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php';
 }
 
-$ed       = 'wp_easycart_email_design';
-$items    = is_array( $items ) ? $items : array();
+$ed    = 'wp_easycart_email_design';
+$items = is_array( $items ) ? $items : array();
+
+/*
+ * 6.0.2: a line's total as the cart worked it out ( one-time option prices are charged once, not per item ); snapshots
+ * saved before 6.0.2 have no total and use price × quantity.
+ */
+$ec_acr_line_total = function ( $it ) {
+	if ( isset( $it['total'] ) && is_numeric( $it['total'] ) ) {
+		return (float) $it['total'];
+	}
+	return ( isset( $it['price'] ) ? (float) $it['price'] : 0 ) * ( isset( $it['qty'] ) ? (int) $it['qty'] : 0 );
+};
+
 $subtotal = 0;
 foreach ( $items as $it ) {
-	$subtotal += ( isset( $it['price'] ) ? (float) $it['price'] : 0 ) * ( isset( $it['qty'] ) ? (int) $it['qty'] : 0 );
+	$subtotal += $ec_acr_line_total( $it );
 }
 $ec_acr_heading = isset( $step['heading'] ) ? (string) $step['heading'] : '';
 $ec_acr_intro   = isset( $step['intro'] ) ? (string) $step['intro'] : '';
@@ -87,7 +99,7 @@ if ( count( $items ) > 0 ) {
 			array(
 				'qty'        => $ec_acr_qty,
 				'unit_html'  => $ec_acr_money( $ec_acr_price ),
-				'total_html' => $ec_acr_money( $ec_acr_price * $ec_acr_qty ),
+				'total_html' => $ec_acr_money( $ec_acr_line_total( $it ) ),
 			)
 		);
 	}

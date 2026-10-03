@@ -22,7 +22,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) {
 	require_once EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-email-design.php';
 }
 if ( ! isset( $document ) || ! ( $document instanceof wp_easycart_document ) ) {
-	$document = new wp_easycart_document( 'packing_slip', isset( $order_id ) ? (int) $order_id : 0, wp_easycart_documents::resolve( 'packing_slip' ) );
+	$document = new wp_easycart_document( 'packing_slip', isset( $order_id ) ? (int) $order_id : 0, wp_easycart_documents::resolve( 'packing_slip', '', array(), isset( $order_id ) ? (int) $order_id : 0 ) );
 }
 if ( ! $document->order ) {
 	return;
@@ -70,6 +70,12 @@ $ed::key_values(
 		array(
 			'label' => wp_easycart_documents::text( 'order_date', __( 'Date', 'wp-easycart' ) ),
 			'value' => $document->show( 'order_date' ) ? esc_html( $document->date() ) : '',
+		),
+		/* 6.0.2: the PO number ( WP EasyCart PRO ), when the order has one. */
+		array(
+			'label' => method_exists( 'wp_easycart_documents', 'order_extras' ) ? rtrim( wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ), ': ' ) : '',
+			'value' => ( $document->show( 'po_number' ) && method_exists( 'wp_easycart_documents', 'order_extras' ) ) ? esc_html( wp_easycart_documents::order_extras( $ec_ps_order )->po_number ) : '',
+			'mono'  => true,
 		),
 	)
 );
@@ -234,6 +240,22 @@ if ( $document->show( 'order_notes' ) && '' !== trim( (string) $ec_ps_order->ord
 	$ed::label( wp_kses_post( $ec_ps_lang->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ) ) );
 	$ed::card_start( array( 'padding' => '12px 14px' ) );
 	echo nl2br( esc_html( wp_unslash( $ec_ps_order->order_customer_notes ) ) );
+	$ed::card_end();
+	$ed::section_end();
+}
+
+/* 6.0.2: answers to checkout fields ( WP EasyCart PRO ), where each field and this profile show them. */
+if ( $document->show( 'checkout_fields' ) && class_exists( 'wp_easycart_order_fields' ) ) {
+	wp_easycart_order_fields::print_email_section( $document, 'packing_slip' );
+}
+
+/* 6.0.2: the gift message on a gift order ( WP EasyCart PRO gift purchases ). */
+$ec_ps_extras = method_exists( 'wp_easycart_documents', 'order_extras' ) ? wp_easycart_documents::order_extras( $ec_ps_order ) : null;
+if ( $ec_ps_extras && $ec_ps_extras->is_gift && '' !== $ec_ps_extras->gift_message && $document->show( 'gift_message' ) ) {
+	$ed::section_start();
+	$ed::label( wp_easycart_documents::text( 'gift_message_label', __( 'Gift message', 'wp-easycart' ) ) );
+	$ed::card_start( array( 'padding' => '14px 16px', 'background' => '#f7faf6' ) );
+	echo '<div style="font-family:Georgia,\'Times New Roman\',serif;font-style:italic;font-size:15px;line-height:1.5;color:#1f2937;">' . nl2br( esc_html( $ec_ps_extras->gift_message ) ) . '</div>';
 	$ed::card_end();
 	$ed::section_end();
 }

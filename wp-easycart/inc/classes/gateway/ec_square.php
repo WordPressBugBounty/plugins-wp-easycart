@@ -4,6 +4,21 @@
 
 class ec_square extends ec_gateway{
 
+	/**
+	 * Whether a Square account is connected for the mode the store runs in ( sandbox or live ): its access token and the
+	 * location that takes the payments. The same rule as Store Status ( ec_live_payment_missing() ). WP EasyCart PRO's
+	 * hourly inventory and product syncs run only while this is true ( 6.0.2 ), whatever the payment gateway is.
+	 *
+	 * @since 6.0.2
+	 * @return bool
+	 */
+	public static function is_ready() {
+		$sandbox = (bool) get_option( 'ec_option_square_is_sandbox' );
+		$token   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_access_token' : 'ec_option_square_access_token' );
+		$place   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' );
+		return ( '' !== $token && '' !== $place );
+	}
+
 	/****************************************
 	* GATEWAY SPECIFIC HELPER FUNCTIONS
 	*****************************************/
@@ -613,9 +628,15 @@ class ec_square extends ec_gateway{
 
 		$url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/locations" : "https://connect.squareup.com/v2/locations";
 
+		/* 6.0.2: request the locations URL ( this asked an undefined $gateway_url ), and answer '' when Square answers no
+		 * location ( no account connected, a network error ): reading the body of a WP_Error was a fatal error, hourly,
+		 * through the product sync. */
+		if ( '' === (string) $access_token ) {
+			return (string) $location_id;
+		}
 		$request = new WP_Http;
 		$response = $request->request( 
-			$gateway_url, 
+			$url, 
 			array( 
 				'method' => 'GET',
 				'headers' => $headr,
@@ -624,13 +645,17 @@ class ec_square extends ec_gateway{
 		);
 		if( is_wp_error( $response ) ){
 			$this->mysqli->insert_response( 0, 1, "SQUARE CURL ERROR", $response->get_error_message( ) );
+			return (string) $location_id;
 		}else{
 			$this->mysqli->insert_response( 0, 0, "Square Location Response", print_r( $response, true ) );
 		}
 
-		$response_arr = json_decode( $response['body'] );
+		$response_arr = json_decode( wp_remote_retrieve_body( $response ) );
+		if ( ! is_object( $response_arr ) || ! isset( $response_arr->locations ) || ! is_array( $response_arr->locations ) || count( $response_arr->locations ) < 1 || ! isset( $response_arr->locations[0]->id ) ) {
+			return (string) $location_id;
+		}
 
-		if( !$location_id && isset( $response_arr->locations ) && count( $response_arr->locations ) > 0 ){
+		if( !$location_id ){
 			if( get_option( 'ec_option_square_is_sandbox' ) ){
 				update_option( 'ec_option_square_sandbox_location_id', $response_arr->locations[0]->id );
 			}else{
@@ -1819,10 +1844,7 @@ class ec_square extends ec_gateway{
 		if ( $current_status && $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d', $target_status, $product->post_id ) );
 			clean_post_cache( $product->post_id );
-			wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
-			if ( $model_number != $product->model_number ) {
-				wp_cache_delete( 'wpeasycart-product-only-' . $model_number, 'wpeasycart-product-list' );
-			}
+			ec_db::product_cache_changed();
 		}
 	}
 
@@ -1865,8 +1887,7 @@ class ec_square extends ec_gateway{
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->posts SET post_content = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d", $updated, $post_id ) );
 		clean_post_cache( $post_id );
-		wp_cache_delete( 'wpeasycart-product-only-' . $old_model, 'wpeasycart-product-list' );
-		wp_cache_delete( 'wpeasycart-product-only-' . $new_model, 'wpeasycart-product-list' );
+		ec_db::product_cache_changed();
 	}
 
 	function variation_tracks_inventory( $variation, $location_id ) {
@@ -2049,7 +2070,16 @@ class ec_square extends ec_gateway{
 		return true;
 	}
 	
-	function get_inventory_results( $cursor ) {
+	/**
+	 * One page of the location's inventory counts.
+	 *
+	 * @param string|false $cursor        Square's cursor for the next page.
+	 * @param string|false $updated_after RFC 3339 time: only counts calculated after it ( 6.0.2 ). Honored only with
+	 *                                    $incremental, because WP EasyCart PRO 6.0.1 and older pass their last sync time
+	 *                                    here but move it on even after a failed run: they keep the full fetch.
+	 * @param bool         $incremental   6.0.2: the caller keeps its last sync time only after a run that finished.
+	 */
+	function get_inventory_results( $cursor, $updated_after = false, $incremental = false ) {
 		$access_token = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_access_token' ) : get_option( 'ec_option_square_access_token' );
 		$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
 		$gateway_url = ( get_option( 'ec_option_square_is_sandbox' ) ) ? "https://connect.squareupsandbox.com/v2/inventory/counts/batch-retrieve" : "https://connect.squareup.com/v2/inventory/counts/batch-retrieve";
@@ -2066,6 +2096,9 @@ class ec_square extends ec_gateway{
 		);
 		if( $cursor ){
 			 $gateway_data['cursor'] = $cursor;
+		}
+		if ( $incremental && $updated_after ) {
+			$gateway_data['updated_after'] = (string) $updated_after;
 		}
 
 		$request = new WP_Http;

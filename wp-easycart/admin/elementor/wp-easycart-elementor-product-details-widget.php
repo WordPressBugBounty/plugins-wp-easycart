@@ -85,16 +85,34 @@ $background_add = $args['background_add'];
 $more_atts = array();
 
 global $wpdb;
-$model_number = $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', (int) $product_id ) );
-if ( ! $model_number ) {
-	$model_number = $wpdb->get_var( 'SELECT model_number FROM ec_product' );
+$model_number = ( (int) $product_id > 0 ) ? $wpdb->get_var( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', (int) $product_id ) ) : '';
+
+/*
+ * 6.0.2: no product chosen: the editor shows a sample product while the widget is designed; visitors see nothing. The first
+ * row of ec_product was shown to everyone, even a deactivated product ( which ended the page, see below ).
+ */
+$wpeasycart_in_editor = ( function_exists( 'wp_easycart_elementor_is_editor' ) && wp_easycart_elementor_is_editor() );
+if ( ! $model_number && $wpeasycart_in_editor ) {
+	$model_number = $wpdb->get_var( 'SELECT model_number FROM ec_product WHERE activate_in_store = 1 AND role_id IN ( 0, -1 ) ORDER BY product_id ASC LIMIT 1' );
 }
+
+/*
+ * 6.0.2: [ec_store] ends the whole page with the 404 template when it cannot show its product ( deactivated, limited to a
+ * user role, or a model number the shortcode cannot carry ), so check first with the same lookup it uses.
+ */
+$wpeasycart_product_found = (
+	$model_number
+	&& sanitize_text_field( $model_number ) === $model_number
+	&& false === strpbrk( $model_number, '"[]' )
+	&& count( wp_easycart_get_shortcode_product_list( false, $model_number, '' ) ) > 0
+);
 
 $fonts = array();
 
 $more_atts['is_elementor'] = 1;
-$more_atts['cols_desktop'] = ( ! $cols_upper_desktop || '' == $cols_upper_desktop ) ? $more_atts['columns'] : intval( $cols_upper_desktop );
-$more_atts['columns'] = ( ! $columns || '' == $columns ) ? 4 : intval( $columns );
+$wpeasycart_columns        = ( ! $columns ) ? 4 : intval( $columns ); // 6.0.2: worked out before cols_desktop reads it.
+$more_atts['cols_desktop'] = ( ! $cols_upper_desktop ) ? $wpeasycart_columns : intval( $cols_upper_desktop );
+$more_atts['columns']      = $wpeasycart_columns;
 $more_atts['cols_tablet'] = ( ! $columns_tablet || '' == $columns_tablet ) ? $more_atts['columns'] : intval( $columns_tablet );
 $more_atts['cols_mobile_small'] = ( ! $cols_under_mobile || '' == $cols_under_mobile ) ? 3 : intval( $cols_under_mobile );
 $more_atts['cols_mobile'] = ( ! $columns_mobile || '' == $columns_mobile ) ? $more_atts['cols_mobile_small'] : intval( $columns_mobile );
@@ -149,15 +167,18 @@ $more_atts['background_add'] = ( 'yes' == $background_add ) ? 1 : 0;
 
 echo '<div class="wp-easycart-product-details-shortcode-wrapper d-flex">';
 
+if ( ! $wpeasycart_product_found ) {
+	wp_easycart_print_product_not_found();
+	echo '</div>';
+	return;
+}
+
 $more_atts['elementor'] = true;
 if ( $model_number ) {
 	$more_atts['modelnumber'] = $model_number;
 }
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 $extra_atts . "'";
 
@@ -165,5 +186,5 @@ if ( count( $fonts ) > 0 ) {
 	$gfont_string = 'https://fonts.googleapis.com/css?family=' . str_replace( ' ', '+', implode( '|', $fonts ) );
 	echo '<link rel="stylesheet" href="' . esc_url( $gfont_string ) . '" />';
 }
-echo do_shortcode( '[ec_store ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_store ' . $extra_atts . ']' );
 echo '</div>';

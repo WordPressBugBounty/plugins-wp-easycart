@@ -11,6 +11,7 @@
 		<?php $this->ec_cart_display_shipping_methods( wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ),wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ), "RADIO" ); ?>
 	</div>
 	<?php do_action( 'wp_easycart_cart_shipping_post_methods' ); ?>
+	<?php do_action( 'wpeasycart_checkout_fields', 'delivery', $this ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 </div>
 
 <div class="ec_cart_right">
@@ -118,30 +119,30 @@
 	<?php wp_easycart_offers_template( 'ec_offer_codes.php', array( 'cartpage' => $this, 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null ) ); ?>
 	<?php } else { ?>
 	<?php if( get_option( 'ec_option_show_coupons' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_coupon_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' )?>
 	</div>
-	<div class="ec_cart_error_message" id="ec_coupon_error"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
-	<div class="ec_cart_success_message" id="ec_coupon_success"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_error_message ec_cart_coupon_part" id="ec_coupon_error"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
+	<div class="ec_cart_success_message ec_cart_coupon_part" id="ec_coupon_success"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
+	<div class="ec_cart_input_row ec_cart_coupon_part">
 		<input type="text" name="ec_coupon_code" id="ec_coupon_code" value="<?php if( isset( $this->coupon ) ){ echo esc_attr( $this->coupon_code ); } ?>" placeholder="<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_enter_coupon' )?>" />
 	</div>
-	<div class="ec_cart_button_row">
+	<div class="ec_cart_button_row ec_cart_coupon_part">
 		<div class="ec_cart_button" id="ec_apply_coupon" onclick="ec_apply_coupon( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-coupon-code-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_apply_coupon' ); ?></div>
 		<div class="ec_cart_button_working" id="ec_applying_coupon"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_please_wait' )?></div>
 	</div>
 	<?php }?>
 	<?php }?>
 	<?php if( get_option( 'ec_option_show_giftcards' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_giftcard_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_gift_card_title' )?>
 	</div>
-	<div class="ec_cart_error_message" id="ec_gift_card_error"></div>
-	<div class="ec_cart_success_message" id="ec_gift_card_success"<?php if( $this->gift_card != "" ){?> style="display:block;"<?php }?>><?php if( $this->gift_card != "" ){ echo esc_attr( $this->giftcard->message ); } ?></div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_error_message ec_cart_giftcard_part" id="ec_gift_card_error"></div>
+	<div class="ec_cart_success_message ec_cart_giftcard_part" id="ec_gift_card_success"<?php if( $this->gift_card != "" ){?> style="display:block;"<?php }?>><?php if( $this->gift_card != "" ){ echo esc_attr( $this->giftcard->message ); } ?></div>
+	<div class="ec_cart_input_row ec_cart_giftcard_part">
 		<input type="text" name="ec_gift_card" id="ec_gift_card" value="<?php echo esc_attr( $this->gift_card ); ?>" placeholder="<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_enter_gift_code' )?>" />
 	</div>
-	<div class="ec_cart_button_row">
+	<div class="ec_cart_button_row ec_cart_giftcard_part">
 		<div class="ec_cart_button" id="ec_apply_gift_card" onclick="ec_apply_gift_card( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-gift-card-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_redeem_gift_card' ); ?></div>
 		<div class="ec_cart_button_working" id="ec_applying_gift_card"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_please_wait' )?></div>
 	</div>

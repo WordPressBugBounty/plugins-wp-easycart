@@ -8,7 +8,7 @@
 	</div>
 
 	<div class="ec_cart_locked_panel">
-		We will display shipping methods as soon as your shipping address is complete.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'shipping_locked' ) ); ?>
 	</div>
 
 <?php } else { ?>
@@ -25,6 +25,10 @@
 	<?php if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) { ?>
 	<script>
 		jQuery( document ).ready( function() {
+			if ( window.wpec_ga4_add_shipping_info ) { /* 6.0.2: once per page, not on every redraw of this section */
+				return;
+			}
+			window.wpec_ga4_add_shipping_info = true;
 			<?php if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) { ?>
 			dataLayer.push( { ecommerce: null } );
 			dataLayer.push( {
@@ -33,7 +37,7 @@
 			<?php } else { ?>
 			gtag( "event", "add_shipping_info", {
 			<?php }?>
-				currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+				currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 				value: <?php echo esc_attr( number_format( $cartpage->order_totals->grand_total, 2, '.', '' ) ); ?>,
 				coupon_code: "<?php echo esc_attr( $cartpage->coupon_code ); ?>",
 				shipping_tier: "<?php echo esc_attr( trim( strip_tags( $cartpage->shipping->get_selected_shipping_method() ) ) ); ?>",
@@ -57,12 +61,12 @@
 	<?php if( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { ?>
 	<div class="ec_cart_review_box">
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Contact</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'contact' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->email, ENT_QUOTES ) ); ?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Ship to</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_ship_to' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php
 				echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1, ENT_QUOTES ) );
 				if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 ) {
@@ -77,7 +81,7 @@
 				}
 				echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_country, ENT_QUOTES ) );
 			?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 	</div>
 	<?php }?>
@@ -99,13 +103,15 @@
 		<?php $cartpage->ec_cart_display_shipping_methods( wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ), wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ), "RADIO" ); ?>
 	</div>
 
+	<?php do_action( 'wpeasycart_checkout_fields', 'delivery', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
+
 	<?php if( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { ?>
 	<div class="ec_cart_bottom_nav_v2 ec_cart_bottom_nav_tabbed">
 		<div class="ec_cart_bottom_nav_left">
-			<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Return to Information</a>
+			<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'return_to_information' ) ); ?></a>
 		</div>
 		<div class="ec_cart_bottom_nav_right ec_cart_button_column">
-			<input type="button" value="Continue to Payment" onclick="return wp_easycart_goto_payment_v2();" class="ec_cart_button" />
+			<input type="button" value="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'cart_contact_information', 'cart_contact_information_continue_payment' ) ) ); /* 6.0.2: translated */ ?>" onclick="return wp_easycart_goto_payment_v2();" class="ec_cart_button" />
 		</div>
 	</div>
 	<?php }?>

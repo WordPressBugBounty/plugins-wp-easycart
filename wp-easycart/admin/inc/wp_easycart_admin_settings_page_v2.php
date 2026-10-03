@@ -39,6 +39,11 @@ class wp_easycart_admin_settings_page_v2 {
 	 * legacy slug ), or '' when this request is not a V2 settings page.
 	 */
 	public static function current_slug() {
+		/* 6.0.2: an extension's settings declaration ( 'host' => 'extensions' ) is served under EasyCart › Extensions. */
+		if ( is_admin() && isset( $_GET['page'], $_GET['subpage'] ) && 'wp-easycart-extensions' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+			$ext_page = wp_easycart_admin_settings_registry::page( sanitize_key( wp_unslash( $_GET['subpage'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
+			return ( $ext_page && 'extensions' === $ext_page['host'] ) ? $ext_page['slug'] : '';
+		}
 		if ( ! is_admin() || ! isset( $_GET['page'] ) || 'wp-easycart-settings' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing.
 			return '';
 		}
@@ -227,18 +232,35 @@ class wp_easycart_admin_settings_page_v2 {
 			if ( self::has_shortcode( wp_unslash( $elementor ), $shortcode ) ) {
 				return true; /* Elementor's shortcode widget holding the shortcode */
 			}
-			$widgets = array(
-				'ec_option_storepage'   => array( 'wp_easycart_store' ),
-				'ec_option_accountpage' => array( 'wp_easycart_account' ),
-				'ec_option_cartpage'    => array(),
-			);
-			foreach ( isset( $widgets[ $key ] ) ? $widgets[ $key ] : array() as $widget ) {
+			foreach ( self::elementor_page_widgets( $key ) as $widget ) {
 				if ( false !== stripos( $elementor, '"widgetType":"' . $widget ) ) {
 					return true;
 				}
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * The WP EasyCart Elementor widgets that deliver a store page, written as the text that follows "widgetType":" in
+	 * _elementor_data: a name ending in a double quote matches that one widget ( so the Cart widget is not the Cart Icon ),
+	 * a name without matches every widget whose name starts with it ( the older account widgets, My Account and its parts ).
+	 * Store Status looks for pages the same way ( wp_easycart_admin_store_status::find_store_content_page() ).
+	 *
+	 * 6.0.2: the widgets of the Elementor upgrade: Shop and Products ( store page ), My Account and its parts ( account
+	 * page ), Cart and Checkout ( cart page ), next to the older Store and account widgets.
+	 *
+	 * @since 6.0.2
+	 * @param string $key Option key ( ec_option_storepage, ec_option_cartpage, ec_option_accountpage ).
+	 * @return array
+	 */
+	public static function elementor_page_widgets( $key ) {
+		$widgets = array(
+			'ec_option_storepage'   => array( 'wp_easycart_store', 'wp_easycart_shop"', 'wp_easycart_products"' ),
+			'ec_option_accountpage' => array( 'wp_easycart_account', 'wp_easycart_my_account' ),
+			'ec_option_cartpage'    => array( 'wp_easycart_cart"', 'wp_easycart_checkout"' ),
+		);
+		return isset( $widgets[ $key ] ) ? $widgets[ $key ] : array();
 	}
 
 	/**
@@ -503,6 +525,13 @@ class wp_easycart_admin_settings_page_v2 {
 		<div class="ecv2-wrap ecst-wrap" id="ecst" data-page="<?php echo esc_attr( $page['slug'] ); ?>" data-highlight="<?php echo esc_attr( $highlight ); ?>" data-upsell="<?php echo esc_attr( $page['upsell'] ); ?>"<?php echo $has_health ? ' data-health="1"' : ''; ?>>
 			<div class="ecv2-page-header ecst-header">
 				<div class="ecv2-page-header-left">
+					<?php
+					/* 6.0.2: where the page sits in Settings ( its group, as the sidebar shows it ). */
+					$crumb = ( 'settings' === $page['host'] && class_exists( 'wp_easycart_admin_settings_home' ) && method_exists( 'wp_easycart_admin_settings_home', 'group_of' ) ) ? wp_easycart_admin_settings_home::group_of( $page['slug'] ) : array();
+					?>
+					<?php if ( $crumb ) : ?>
+						<nav class="ecst-crumb" aria-label="<?php esc_attr_e( 'Breadcrumb', 'wp-easycart' ); ?>"><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=home' ) ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></a><span aria-hidden="true"> › </span><a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=home' ) . '#ecst-group-' . $crumb['slug'] ); ?>"><?php echo esc_html( $crumb['label'] ); ?></a></nav>
+					<?php endif; ?>
 					<h1 class="ecv2-page-title"><?php echo esc_html( $page['title'] ); ?></h1>
 					<?php if ( '' !== $page['description'] || '' !== $docs ) : ?>
 						<div class="ecst-desc"><?php echo esc_html( $page['description'] ); ?><?php if ( '' !== $docs ) : ?> <a href="<?php echo esc_url( $docs ); ?>" target="_blank" rel="noopener noreferrer" class="ecst-docs"><?php esc_html_e( 'Docs', 'wp-easycart' ); ?> ↗</a><?php endif; ?></div>
@@ -553,19 +582,32 @@ class wp_easycart_admin_settings_page_v2 {
 
 	private static function render_section( $page, $section, $page_locked ) {
 		$section_locked = $page_locked || wp_easycart_admin_settings_registry::is_locked( $section );
+		/* 6.0.2: rows declared with 'drawer' => id open in a side drawer ( the section's 'drawers' name each one ); an html
+		 * row in the section opens it with a button carrying data-ecst-drawer-open="<id>". The rest render inline. */
+		$inline_fields = array();
+		$drawer_fields = array();
+		foreach ( $section['fields'] as $field_key => $field ) {
+			$drawer_id = isset( $field['drawer'] ) ? sanitize_key( (string) $field['drawer'] ) : '';
+			if ( '' === $drawer_id ) {
+				$inline_fields[ $field_key ] = $field;
+			} else {
+				$drawer_fields[ $drawer_id ][ $field_key ] = $field;
+			}
+		}
 		/* The fold counts and names the advanced settings that appear when it opens, which means every
 		 * advanced row that is not hidden by a parent switched off. 6.0.1: a row nested under another
 		 * advanced row used to be left out on the grounds that it shows inside that row's group, but it is
 		 * a row of its own once its parent is on ( Vatlayer API key under Verify VAT numbers ), so the fold
-		 * promised fewer settings than it opened. settings-page-v2.js keeps the count current as toggles change. */
+		 * promised fewer settings than it opened. settings-page-v2.js keeps the count current as toggles change.
+		 * 6.0.2: rows in a drawer are not counted ( a drawer shows its advanced rows ). */
 		$advanced_all   = array();
 		$advanced_names = array();
-		foreach ( $section['fields'] as $field ) {
+		foreach ( $inline_fields as $field ) {
 			if ( $field['advanced'] && 'html' !== $field['type'] ) {
 				$advanced_all[ $field['key'] ] = true;
 			}
 		}
-		foreach ( $section['fields'] as $field ) {
+		foreach ( $inline_fields as $field ) {
 			if ( ! isset( $advanced_all[ $field['key'] ] ) ) {
 				continue;
 			}
@@ -594,27 +636,34 @@ class wp_easycart_admin_settings_page_v2 {
 				<?php endif; ?>
 			</div>
 			<div class="ecst-rows">
-				<?php
-				/* A top-level row and the rows that depend on it ( children, grandchildren ) share one .ecst-group,
-				 * so the group can be drawn as a unit while its children are showing. */
-				$group_keys = array();
-				foreach ( $section['fields'] as $field ) {
-					$joins = ( '' !== $field['parent'] && isset( $group_keys[ $field['parent'] ] ) );
-					if ( ! $joins ) {
-						if ( $group_keys ) {
-							echo '</div>';
-						}
-						echo '<div class="ecst-group">';
-						$group_keys = array();
-					}
-					$group_keys[ $field['key'] ] = true;
-					self::render_row( $page, $section, $field, $section_locked );
-				}
-				if ( $group_keys ) {
-					echo '</div>';
-				}
-				?>
+				<?php self::render_rows( $page, $section, $inline_fields, $section_locked ); ?>
 			</div>
+			<?php if ( $drawer_fields ) : ?>
+				<?php foreach ( $drawer_fields as $drawer_id => $fields_in_drawer ) : ?>
+					<?php
+					$drawer_decl  = ( isset( $section['drawers'][ $drawer_id ] ) && is_array( $section['drawers'][ $drawer_id ] ) ) ? $section['drawers'][ $drawer_id ] : array();
+					$drawer_title = isset( $drawer_decl['title'] ) ? (string) $drawer_decl['title'] : $section['title'];
+					$drawer_hint  = isset( $drawer_decl['hint'] ) ? (string) $drawer_decl['hint'] : '';
+					$drawer_dom   = 'ecst-drawer-' . $section['slug'] . '-' . $drawer_id;
+					?>
+					<div class="ecst-drawer" id="<?php echo esc_attr( $drawer_dom ); ?>" data-drawer="<?php echo esc_attr( $drawer_id ); ?>" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr( $drawer_dom ); ?>-title" hidden>
+						<div class="ecst-drawer-h">
+							<div class="ecst-drawer-titles">
+								<h3 id="<?php echo esc_attr( $drawer_dom ); ?>-title"><?php echo esc_html( $drawer_title ); ?></h3>
+								<?php if ( '' !== $drawer_hint ) : ?><span><?php echo esc_html( $drawer_hint ); ?></span><?php endif; ?>
+							</div>
+							<button type="button" class="ecst-drawer-x" data-ecst-drawer-close aria-label="<?php esc_attr_e( 'Close', 'wp-easycart' ); ?>">&times;</button>
+						</div>
+						<div class="ecst-drawer-b"><div class="ecst-rows"><?php self::render_rows( $page, $section, $fields_in_drawer, $section_locked ); ?></div><?php self::render_actions( $page, $section, $section_locked, $drawer_id ); ?></div>
+						<div class="ecst-drawer-f">
+							<span class="ecst-grow"></span>
+							<button type="button" class="ecv2-btn ecst-btn-ghost" data-ecst-drawer-close><?php esc_html_e( 'Done', 'wp-easycart' ); ?></button>
+							<?php if ( ! $section_locked ) : ?><button type="button" class="ecv2-btn ecv2-btn-primary" data-ecst-drawer-save><?php esc_html_e( 'Save changes', 'wp-easycart' ); ?></button><?php endif; ?>
+						</div>
+					</div>
+				<?php endforeach; ?>
+				<div class="ecst-drawer-backdrop" data-ecst-drawer-close hidden></div>
+			<?php endif; ?>
 			<?php if ( $advanced_all ) : ?>
 				<div class="ecst-fold"<?php echo $advanced ? '' : ' hidden'; ?>>
 					<button type="button" class="ecst-link ecst-fold-btn" data-count="<?php echo (int) $advanced; ?>" aria-expanded="false"><?php
@@ -627,25 +676,72 @@ class wp_easycart_admin_settings_page_v2 {
 			<?php if ( is_callable( $section['render'] ) ) : ?>
 				<div class="ecst-custom"><?php call_user_func( $section['render'], $page, $section ); ?></div>
 			<?php endif; ?>
-			<?php foreach ( $section['actions'] as $action ) : ?>
-				<?php $action_locked = $section_locked || wp_easycart_admin_settings_registry::is_locked( $action ); ?>
-				<div class="ecst-action<?php echo $action['danger'] ? ' is-danger' : ''; ?><?php echo $action_locked ? ' is-locked' : ''; ?>">
-					<div class="ecst-action-text"><b><?php echo esc_html( $action['label'] ); ?></b><?php if ( '' !== $action['desc'] ) : ?><span><?php echo esc_html( $action['desc'] ); ?></span><?php endif; ?></div>
-					<?php if ( $action_locked ) : ?>
-						<?php self::print_lock_button( $action['id'], self::lock_source( $action, $section, $page ) ); ?>
-					<?php else : ?>
-						<?php
-						/* 'confirm' alone is the dialog title ( classic ). With 'confirm_title' it becomes the one-line body and
-						 * 'confirm_button' names the primary button; settings-page-v2.js opens the V2 confirm dialog with them. */
-						$confirm_title  = isset( $action['confirm_title'] ) ? (string) $action['confirm_title'] : '';
-						$confirm_button = isset( $action['confirm_button'] ) ? (string) $action['confirm_button'] : '';
-						?>
-						<button type="button" class="ecv2-btn<?php echo $action['danger'] ? ' ecst-btn-danger' : ''; ?>" data-action="<?php echo esc_attr( $action['id'] ); ?>" data-sec="<?php echo esc_attr( $section['slug'] ); ?>" data-confirm="<?php echo esc_attr( $action['confirm'] ); ?>"<?php if ( '' !== $confirm_title ) : ?> data-confirm-title="<?php echo esc_attr( $confirm_title ); ?>"<?php endif; ?><?php if ( '' !== $confirm_button ) : ?> data-confirm-ok="<?php echo esc_attr( $confirm_button ); ?>"<?php endif; ?>><?php echo esc_html( '' !== $action['button'] ? $action['button'] : $action['label'] ); ?></button>
-					<?php endif; ?>
-				</div>
-			<?php endforeach; ?>
+			<?php self::render_actions( $page, $section, $section_locked, '', array_keys( $drawer_fields ) ); ?>
 		</section>
 		<?php
+	}
+
+	/**
+	 * A section's action buttons: those for one drawer ( $drawer ), or with '' the section's own, which also takes an action
+	 * whose drawer has no rows to draw ( $drawers lists the drawn ones ).
+	 *
+	 * @since 6.0.2 ( drawer actions )
+	 * @param array  $page           Page.
+	 * @param array  $section        Section.
+	 * @param bool   $section_locked The section is locked.
+	 * @param string $drawer         Drawer id, or '' for the section.
+	 * @param array  $drawers        Drawers drawn in the section ( with $drawer '' ).
+	 */
+	private static function render_actions( $page, $section, $section_locked, $drawer, $drawers = array() ) {
+		foreach ( $section['actions'] as $action ) {
+			$in = isset( $action['drawer'] ) ? (string) $action['drawer'] : '';
+			if ( '' === $drawer ? ( '' !== $in && in_array( $in, $drawers, true ) ) : ( $in !== $drawer ) ) {
+				continue;
+			}
+			$action_locked = $section_locked || wp_easycart_admin_settings_registry::is_locked( $action );
+			?>
+			<div class="ecst-action<?php echo $action['danger'] ? ' is-danger' : ''; ?><?php echo $action_locked ? ' is-locked' : ''; ?><?php echo '' !== $drawer ? ' is-in-drawer' : ''; ?>">
+				<div class="ecst-action-text"><b><?php echo esc_html( $action['label'] ); ?></b><?php if ( '' !== $action['desc'] ) : ?><span><?php echo esc_html( $action['desc'] ); ?></span><?php endif; ?></div>
+				<?php if ( $action_locked ) : ?>
+					<?php self::print_lock_button( $action['id'], self::lock_source( $action, $section, $page ) ); ?>
+				<?php else : ?>
+					<?php
+					/* 'confirm' alone is the dialog title ( classic ). With 'confirm_title' it becomes the one-line body and
+					 * 'confirm_button' names the primary button; settings-page-v2.js opens the V2 confirm dialog with them. */
+					$confirm_title  = isset( $action['confirm_title'] ) ? (string) $action['confirm_title'] : '';
+					$confirm_button = isset( $action['confirm_button'] ) ? (string) $action['confirm_button'] : '';
+					?>
+					<?php if ( ! empty( $action['input'] ) && is_array( $action['input'] ) ) : ?>
+						<input type="text" class="ecv2-input ecst-action-input" maxlength="100" autocomplete="off" aria-label="<?php echo esc_attr( '' !== $action['input']['label'] ? $action['input']['label'] : $action['label'] ); ?>" placeholder="<?php echo esc_attr( $action['input']['placeholder'] ); ?>" />
+					<?php endif; ?>
+					<button type="button" class="ecv2-btn<?php echo $action['danger'] ? ' ecst-btn-danger' : ''; ?>" data-action="<?php echo esc_attr( $action['id'] ); ?>" data-sec="<?php echo esc_attr( $section['slug'] ); ?>" data-confirm="<?php echo esc_attr( $action['confirm'] ); ?>"<?php if ( '' !== $confirm_title ) : ?> data-confirm-title="<?php echo esc_attr( $confirm_title ); ?>"<?php endif; ?><?php if ( '' !== $confirm_button ) : ?> data-confirm-ok="<?php echo esc_attr( $confirm_button ); ?>"<?php endif; ?>><?php echo esc_html( '' !== $action['button'] ? $action['button'] : $action['label'] ); ?></button>
+				<?php endif; ?>
+			</div>
+			<?php
+		}
+	}
+
+	/**
+	 * Rows, grouped: a top-level row and the rows that depend on it ( children, grandchildren ) share one .ecst-group,
+	 * so the group can be drawn as a unit while its children are showing. 6.0.2: shared by the section and its drawers.
+	 */
+	private static function render_rows( $page, $section, $fields, $section_locked ) {
+		$group_keys = array();
+		foreach ( $fields as $field ) {
+			$joins = ( '' !== $field['parent'] && isset( $group_keys[ $field['parent'] ] ) );
+			if ( ! $joins ) {
+				if ( $group_keys ) {
+					echo '</div>';
+				}
+				echo '<div class="ecst-group">';
+				$group_keys = array();
+			}
+			$group_keys[ $field['key'] ] = true;
+			self::render_row( $page, $section, $field, $section_locked );
+		}
+		if ( $group_keys ) {
+			echo '</div>';
+		}
 	}
 
 	private static function render_row( $page, $section, $field, $section_locked ) {
@@ -915,6 +1011,8 @@ class wp_easycart_admin_settings_page_v2 {
 						<label class="ecst-pill<?php echo $on ? ' is-on' : ''; ?>"><input type="checkbox" class="ecst-multi-opt" value="<?php echo esc_attr( $opt_value ); ?>"<?php checked( $on ); ?> /><?php echo esc_html( $opt_label ); ?></label>
 					<?php endforeach; ?>
 				</div>
+				<?php /* 6.0.2: these pills look like the switches around them, which save at once; they wait for Save changes. */ ?>
+				<span class="ecst-multi-hint"><?php esc_html_e( 'Saves with Save changes.', 'wp-easycart' ); ?></span>
 				<?php
 				break;
 			case 'pairs':
@@ -1254,6 +1352,10 @@ class wp_easycart_admin_settings_page_v2 {
 			return __( 'Update', 'wp-easycart' );
 		}
 		$plan = ( is_array( $item ) && isset( $item['pro'] ) && 'premium' === $item['pro'] ) ? 'premium' : 'pro';
+		/* 6.0.2: a Premium row on a lapsed Premium license ( an extension's settings ) is the store's own; it asks to renew. */
+		if ( 'premium' === $plan && class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_premium() && wp_easycart_admin_edition::is_lapsed() ) {
+			return __( 'Renew', 'wp-easycart' );
+		}
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			return wp_easycart_admin_edition::badge( $plan );
 		}
@@ -1272,6 +1374,9 @@ class wp_easycart_admin_settings_page_v2 {
 			return __( 'Update WP EasyCart PRO to use this.', 'wp-easycart' );
 		}
 		$plan = ( is_array( $item ) && isset( $item['pro'] ) && 'premium' === $item['pro'] ) ? 'premium' : 'pro';
+		if ( 'premium' === $plan && class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_premium() && wp_easycart_admin_edition::is_lapsed() ) {
+			return __( 'Your Premium license expired. This keeps working as it is; renew Premium to change it.', 'wp-easycart' );
+		}
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			return wp_easycart_admin_edition::included_text( $plan );
 		}
@@ -1311,7 +1416,9 @@ class wp_easycart_admin_settings_page_v2 {
 		if ( ! is_callable( $action['callback'] ) ) {
 			wp_send_json_error( array( 'message' => __( 'This action is not available.', 'wp-easycart' ) ) );
 		}
-		$result = call_user_func( $action['callback'], $action, $page );
+		/* 6.0.2: what was typed in the action's text box ( 'input' ), for a callback that takes a third argument. */
+		$input  = ( ! empty( $action['input'] ) && isset( $_POST['input'] ) ) ? substr( sanitize_text_field( wp_unslash( $_POST['input'] ) ), 0, 100 ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- ecv2_settings_guard() checks the nonce above.
+		$result = call_user_func( $action['callback'], $action, $page, $input );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}

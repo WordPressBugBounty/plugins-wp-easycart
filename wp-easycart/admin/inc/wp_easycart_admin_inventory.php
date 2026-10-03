@@ -216,6 +216,10 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 			global $wpdb;
 			$product_id = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0;
 			$oiq_id = isset( $_POST['oiq_id'] ) ? (int) $_POST['oiq_id'] : 0;
+			/* 6.0.2: stock the product's managing service owns ( e.g. a fulfillment partner ) is not set here. */
+			if ( class_exists( 'wp_easycart_product_lock' ) ) {
+				wp_easycart_product_lock::refuse( $product_id ? $product_id : (int) $wpdb->get_var( $wpdb->prepare( 'SELECT product_id FROM ec_optionitemquantity WHERE optionitemquantity_id = %d', $oiq_id ) ), 'stock' );
+			}
 			/* Optional tracked flag: 1 = start tracking ( with the quantity below ), 0 = stop tracking ( quantity left as is, item becomes unlimited ). */
 			$tracked = isset( $_POST['tracked'] ) && '' !== $_POST['tracked'] ? ( (int) $_POST['tracked'] ? 1 : 0 ) : null;
 			if ( null !== $tracked ) {

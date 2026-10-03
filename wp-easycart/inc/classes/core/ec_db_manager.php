@@ -81,6 +81,9 @@ class ec_db_manager {
 		$this->apply_default_order_status_colors();
 		update_option( 'ec_option_db_version', EC_CURRENT_DB );
 		update_option( 'ec_option_db_new_version', EC_UPGRADE_DB );
+		if ( class_exists( 'wp_easycart_order_ledger' ) ) {
+			wp_easycart_order_ledger::reset(); // 6.0.2: ready() may have read the older version earlier in this request ( an upgrade step ).
+		}
 		return true;
 	}
 
@@ -487,6 +490,62 @@ class ec_db_manager {
 	}
 
 	/**
+	 * The connection's sql_mode and innodb_strict_mode, read before the update chain changes them.
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	private function save_update_session() {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors( true );
+		$saved = array(
+			'sql_mode'           => $wpdb->get_var( 'SELECT @@SESSION.sql_mode' ),
+			'innodb_strict_mode' => $wpdb->get_var( 'SELECT @@SESSION.innodb_strict_mode' ),
+		);
+		$wpdb->suppress_errors( $suppress );
+		return $saved;
+	}
+
+	/**
+	 * Run a step in a permissive session: no strict / zero-date sql_mode ( a table rebuild otherwise fails on a legacy
+	 * '0000-00-00' default elsewhere in the table, error 1067 ), and innodb_strict_mode off ( wide tables still in
+	 * COMPACT row format otherwise refuse new columns, error 1118 ), as try_repair() does.
+	 *
+	 * @since 6.0.2
+	 * @param array $saved From save_update_session(): only the variables this server has are changed.
+	 */
+	private function relax_update_session( $saved ) {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors( true );
+		if ( null !== $saved['sql_mode'] ) {
+			$wpdb->query( "SET SESSION sql_mode = ''" );
+		}
+		if ( null !== $saved['innodb_strict_mode'] ) {
+			$wpdb->query( 'SET SESSION innodb_strict_mode = 0' );
+		}
+		$wpdb->suppress_errors( $suppress );
+	}
+
+	/**
+	 * Put the connection back exactly as save_update_session() found it ( $wpdb->set_sql_mode() with no arguments
+	 * would only re-read the relaxed mode ).
+	 *
+	 * @since 6.0.2
+	 * @param array $saved From save_update_session().
+	 */
+	private function restore_update_session( $saved ) {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors( true );
+		if ( null !== $saved['sql_mode'] ) {
+			$wpdb->query( $wpdb->prepare( 'SET SESSION sql_mode = %s', (string) $saved['sql_mode'] ) );
+		}
+		if ( null !== $saved['innodb_strict_mode'] ) {
+			$wpdb->query( $wpdb->prepare( 'SET SESSION innodb_strict_mode = %d', (int) $saved['innodb_strict_mode'] ) );
+		}
+		$wpdb->suppress_errors( $suppress );
+	}
+
+	/**
 	 * True once the request's UPDATE_TIME_BUDGET is spent. Batched steps call this between
 	 * chunks and return false ( "come back later" ) when it is.
 	 */
@@ -521,6 +580,7 @@ class ec_db_manager {
 		$paused = false;
 		$this->update_failed = false;
 		$this->update_errors = array();
+		$session = $this->save_update_session(); // 6.0.2
 		foreach ( $functions as $function ) {
 			if ( in_array( $function, $completed, true ) || in_array( $function, $skipped, true ) || ! method_exists( $this, $function ) ) {
 				continue;
@@ -531,6 +591,7 @@ class ec_db_manager {
 			}
 			$errors_before = count( $this->update_errors );
 			$result = null;
+			$this->relax_update_session( $session ); // before every step: a step may set its own mode on the way out
 			try {
 				$result = $this->$function();
 			} catch ( \Throwable $e ) {
@@ -553,8 +614,11 @@ class ec_db_manager {
 			$completed[] = $function;
 			$this->save_update_progress( $completed );
 		}
-		if ( $paused ) {
-			/* No backoff: the next admin/cron request resumes at the first unfinished step. */
+		$this->restore_update_session( $session );
+		if ( $paused && ! $failed ) {
+			/* No backoff: the next admin/cron request resumes at the first unfinished step. 6.0.2: only when nothing
+			   failed. A step that failed earlier in a pass that then paused went unrecorded ( no backoff, no Store
+			   Status message, nothing for "Continue without this change" to skip ) and ran again on every request. */
 			delete_transient( 'ec_db_update_lock' );
 			return;
 		}
@@ -565,12 +629,15 @@ class ec_db_manager {
 			update_option( 'ec_option_db_version_updated', str_replace( '_', '.', EC_CURRENT_VERSION ) );
 			delete_option( self::PROGRESS_OPTION );
 			delete_option( self::FAILING_OPTION );
+			/* 6.0.2: the messages a failed pass stored stop showing once the chain completes ( install_db() records its
+			   own again if a table is still missing ). */
+			delete_option( 'ec_option_db_install_errors' );
 		} else {
 			/* Do not re-run the migration on every request while the cause persists; surface the
 			   messages on the Store Status page. try_repair() clears both on a clean verify. The
 			   progress option is kept so the steps that did complete are not repeated. */
 			set_transient( 'ec_db_update_backoff', 1, 10 * MINUTE_IN_SECONDS );
-			update_option( 'ec_option_db_install_errors', array_merge( $this->get_install_errors(), $this->update_errors ) );
+			update_option( 'ec_option_db_install_errors', array_values( array_unique( array_merge( $this->get_install_errors(), $this->update_errors ) ) ) ); // 6.0.2: once each, not again every retry
 			update_option( self::FAILING_OPTION, array_values( array_unique( $failing ) ), false );
 		}
 		/* One forced structure check per completed chain; verify_db() marks the version on a clean pass. */
@@ -690,6 +757,19 @@ class ec_db_manager {
 			),
 			'6.0.1' => array(
 				'wpeasycart_sql_6_0_1_email'
+			),
+			'6.0.2' => array(
+				'wpeasycart_sql_6_0_2_documents',
+				'wpeasycart_sql_6_0_2_accounting',
+				'wpeasycart_sql_6_0_2_shipping',
+				'wpeasycart_sql_6_0_2_checkout_fields',
+				'wpeasycart_sql_6_0_2_order_source',
+				'wpeasycart_sql_6_0_2_subscribers',
+				'wpeasycart_sql_6_0_2_checkout_protection',
+				'wpeasycart_sql_6_0_2_payments',
+				'wpeasycart_sql_6_0_2_fulfillment',
+				'wpeasycart_sql_6_0_2_packing',
+				'wpeasycart_sql_6_0_2_reports'
 			),
 		);
 
@@ -1248,10 +1328,35 @@ class ec_db_manager {
 		global $wpdb;
 		$this->add_column( 'ec_user', 'password_admin_v1', "varchar(32) NOT NULL DEFAULT ''" );
 	}
+	/**
+	 * ec_offer.created_date's definition. MySQL before 5.6.5 ( and MariaDB 5.5 ) allow only one TIMESTAMP column per
+	 * table to use CURRENT_TIMESTAMP ( error 1293 ), and ec_offer.modified_date already does, so there the table could
+	 * never be created and install_db() failed on every load. On those servers created_date has no default and WP
+	 * EasyCart PRO fills it when it saves an offer.
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	private static function offer_created_date_sql() {
+		global $wpdb;
+		$version = '';
+		if ( method_exists( $wpdb, 'db_server_info' ) ) {
+			$info = (string) $wpdb->db_server_info();
+			if ( false !== stripos( $info, 'mariadb' ) ) {
+				/* MariaDB 10+ can report itself as "5.5.5-10.x.y-MariaDB"; its own version follows that prefix. */
+				$mariadb = preg_replace( '/[^0-9.].*/', '', preg_replace( '/^5\.5\.5-/', '', $info ) );
+				return ( '' !== $mariadb && version_compare( $mariadb, '10.0.1', '<' ) ) ? 'timestamp NULL DEFAULT NULL' : 'timestamp NULL DEFAULT CURRENT_TIMESTAMP';
+			}
+		}
+		$version = (string) $wpdb->db_version();
+		return ( '' !== $version && version_compare( $version, '5.6.5', '<' ) ) ? 'timestamp NULL DEFAULT NULL' : 'timestamp NULL DEFAULT CURRENT_TIMESTAMP';
+	}
+
 	private function wpeasycart_sql_5_9_4() {
 		global $wpdb;
 		$collate = "";
 		$max_index_length = 191;
+		$offer_created_date = self::offer_created_date_sql(); // 6.0.2
 		if ( $wpdb->has_cap( 'collation' ) ) {
 			$collate = $wpdb->get_charset_collate();
 		}
@@ -1305,11 +1410,17 @@ class ec_db_manager {
 		$this->add_column( 'ec_user', 'completed_order_count', "int(11) NOT NULL DEFAULT '0'" );
 		$this->add_column( 'ec_user', 'last_order_date', "datetime DEFAULT NULL" );
 		$this->add_column( 'ec_user', 'history_aggregates_built', "tinyint(1) NOT NULL DEFAULT 0" );
+		$had_date_created = $this->column_exists( 'ec_user', 'date_created' );
 		$this->add_column( 'ec_user', 'date_created', "timestamp NULL DEFAULT CURRENT_TIMESTAMP" );
 		/* Backfilling date_created from each customer's first order used to be one correlated UPDATE
 		   over the whole table here. It is now queued and drained in 5,000-row chunks by
-		   wpeasycart_sql_6_0_0_user_dates() at the end of the chain ( @since 6.0.0 ). */
-		$this->queue_batch_job( 'user_dates', array( array( 'table' => 'ec_user', 'pk' => 'user_id', 'cursor' => 0 ) ) );
+		   wpeasycart_sql_6_0_0_user_dates() at the end of the chain ( @since 6.0.0 ).
+		   6.0.2: only when this run added the column. The released 5.9.4 never set ec_option_db_5_9_4_tables_complete,
+		   so 6.0.0 runs this step again on every store upgraded from it, and the backfill then replaced the date each
+		   customer registered after 5.9.4 with their first order's date ( or NULL ). */
+		if ( ! $had_date_created ) {
+			$this->queue_batch_job( 'user_dates', array( array( 'table' => 'ec_user', 'pk' => 'user_id', 'cursor' => 0 ) ) );
+		}
 		$this->add_column( 'ec_user', 'last_login', "datetime DEFAULT NULL" );
 		$this->add_index( 'ec_user', 'user_date_created', 'date_created' );
 		$this->add_index( 'ec_user', 'user_last_order_date', 'last_order_date' );
@@ -1319,6 +1430,7 @@ class ec_db_manager {
 		$this->add_column( 'ec_orderdetail', 'refunded_quantity', "int(11) NOT NULL DEFAULT '0'" );
 		$this->add_column( 'ec_order', 'shipping_refund_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
 		$this->add_column( 'ec_order', 'tax_refund_total', "float(15,3) NOT NULL DEFAULT '0.000'" );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $collate, $max_index_length and $offer_created_date are this class's own definitions, not input.
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer (
 		  offer_id int(11) NOT NULL AUTO_INCREMENT,
 		  offer_name varchar(255) NOT NULL DEFAULT '',
@@ -1350,7 +1462,7 @@ class ec_db_manager {
 		  display_config longtext,
 		  legacy_promocode_id varchar($max_index_length) NOT NULL DEFAULT '',
 		  legacy_promotion_id int(11) NOT NULL DEFAULT '0',
-		  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+		  created_date $offer_created_date,
 		  modified_date timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		  PRIMARY KEY  (offer_id),
 		  UNIQUE KEY offer_offer_id (offer_id),
@@ -1358,6 +1470,7 @@ class ec_db_manager {
 		  KEY offer_dates (start_date,end_date),
 		  KEY offer_legacy_promotion (legacy_promotion_id)
 		) $collate;" );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_offer_code (
 		  offer_code_id int(11) NOT NULL AUTO_INCREMENT,
 		  offer_id int(11) NOT NULL DEFAULT '0',
@@ -1558,6 +1671,11 @@ class ec_db_manager {
 			'ec_subscription' => array( 'title', 'email' ),
 			'ec_tempcart_optionitem' => array( 'optionitem_model_number' ),
 		);
+		/* 6.0.2: get_schema()'s own name for an index on one of these columns. The index lifted below goes back under
+		   it, so install_db() finds the index it expects instead of adding a second copy beside the old one. */
+		$schema_index_names = array(
+			'ec_subscriber' => array( 'email' => 'subscriber_email' ),
+		);
 		foreach ( $text_columns as $table => $columns ) {
 			if ( ! $this->table_exists( $table ) ) {
 				continue;
@@ -1589,9 +1707,26 @@ class ec_db_manager {
 					foreach ( $lifted as $index ) {
 						$name   = str_replace( '`', '', $index['name'] );
 						$unique = $index['unique'] ? 'UNIQUE ' : '';
-						/* Back with a prefix once the column is TEXT; back as it was if it is still a varchar. */
-						$spec = $relaxed ? "`$column`(191)" : "`$column`";
-						$wpdb->query( "ALTER TABLE `$table` ADD {$unique}INDEX `$name` ( $spec )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers only: this is the index lifted a few lines above, name backtick-stripped.
+						if ( $relaxed ) {
+							/* Back with the schema's prefix, under the schema's name when it has one ( the index the
+							   manual fix creates ), unless that index is already there: dbDelta can add it while the
+							   column is still a varchar. */
+							if ( isset( $schema_index_names[ $table ][ $column ] ) ) {
+								$name = $schema_index_names[ $table ][ $column ];
+							}
+							if ( $this->index_exists( $table, $name ) ) {
+								continue;
+							}
+							$spec = "`$column`(191)";
+						} else {
+							$spec = "`$column`"; // back exactly as it was: the column is still a varchar
+						}
+						$wpdb->query( "ALTER TABLE `$table` ADD {$unique}INDEX `$name` ( $spec )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers only: this is the index lifted a few lines above ( or the schema's name for it ), name backtick-stripped.
+						if ( $relaxed && '' !== $unique && ! $this->index_exists( $table, $name ) ) {
+							/* 6.0.2: two values sharing their first 191 characters cannot take a UNIQUE prefix index; keep
+							   the column indexed rather than leave it with none. */
+							$wpdb->query( "ALTER TABLE `$table` ADD INDEX `$name` ( $spec )" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- identifiers only, as above.
+						}
 					}
 					if ( ! $relaxed ) {
 						$this->record_update_failure( '6.0.0: could not relax ' . $table . '.' . $column . ' to text NULL: ' . $alter_error . ' [ ' . $alter_sql . ' ]' );
@@ -1777,8 +1912,9 @@ class ec_db_manager {
 			KEY email_product (email(100), product_id),
 			KEY scheduled_at (scheduled_at)
 		) $collate;" );
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
 			if ( ! $this->table_exists( 'ec_review_request' ) ) {
-				$this->record_update_failure( '6.0.0 reviews: could not create ec_review_request: ' . $wpdb->last_error );
+				$this->record_update_failure( '6.0.0 reviews: could not create ec_review_request: ' . $sql_error );
 			}
 		}
 	}
@@ -1806,8 +1942,9 @@ class ec_db_manager {
 			KEY status (status),
 			KEY to_email (to_email(100))
 		) $collate;" );
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
 			if ( ! $this->table_exists( 'ec_email_log' ) ) {
-				$this->record_update_failure( '6.0.0 email: could not create ec_email_log: ' . $wpdb->last_error );
+				$this->record_update_failure( '6.0.0 email: could not create ec_email_log: ' . $sql_error );
 			}
 		}
 		if ( ! $this->table_exists( 'ec_email_queue' ) ) {
@@ -1829,8 +1966,9 @@ class ec_db_manager {
 			KEY status_next (status, next_attempt),
 			KEY order_id (order_id)
 		) $collate;" );
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
 			if ( ! $this->table_exists( 'ec_email_queue' ) ) {
-				$this->record_update_failure( '6.0.0 email: could not create ec_email_queue: ' . $wpdb->last_error );
+				$this->record_update_failure( '6.0.0 email: could not create ec_email_queue: ' . $sql_error );
 			}
 		}
 	}
@@ -1847,16 +1985,498 @@ class ec_db_manager {
 		}
 	}
 
+	/**
+	 * 6.0.2 order documents: gift purchases, PO numbers and payment terms on the order ( and the gift / PO answers on the
+	 * checkout session until the order is placed ), a customer's payment terms, and ec_invoice ( issued invoices and credit
+	 * notes with a snapshot of the order ). dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 114 ). The session
+	 * columns load with SELECT *, so WP EasyCart PRO only sets them once they exist ( an unknown key fails the save ).
+	 */
+	private function wpeasycart_sql_6_0_2_documents() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_order', 'is_gift', "tinyint(1) NOT NULL DEFAULT '0'" ),
+			array( 'ec_order', 'gift_message', 'text' ),
+			array( 'ec_order', 'gift_recipient_email', "varchar(255) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'po_number', "varchar(100) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'payment_terms', "varchar(64) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'payment_due_date', 'datetime DEFAULT NULL' ),
+			array( 'ec_user', 'payment_terms', "varchar(64) NOT NULL DEFAULT ''" ),
+			array( 'ec_tempcart_data', 'is_gift', "tinyint(1) NOT NULL DEFAULT '0'" ),
+			array( 'ec_tempcart_data', 'gift_message', 'text' ),
+			array( 'ec_tempcart_data', 'gift_recipient_email', "varchar(255) NOT NULL DEFAULT ''" ),
+			array( 'ec_tempcart_data', 'po_number', "varchar(100) NOT NULL DEFAULT ''" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 documents: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		if ( ! $this->table_exists( 'ec_invoice' ) ) {
+			$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $collate is the database's own charset clause, not input.
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_invoice (
+			invoice_id int(11) NOT NULL AUTO_INCREMENT,
+			order_id int(11) NOT NULL DEFAULT '0',
+			invoice_type varchar(20) NOT NULL DEFAULT 'invoice',
+			invoice_number varchar(64) NOT NULL DEFAULT '',
+			sequence_number int(11) NOT NULL DEFAULT '0',
+			sequence_year int(11) NOT NULL DEFAULT '0',
+			issue_date datetime DEFAULT NULL,
+			payment_terms varchar(64) NOT NULL DEFAULT '',
+			due_date datetime DEFAULT NULL,
+			amount float(15,3) NOT NULL DEFAULT '0.000',
+			parent_invoice_id int(11) NOT NULL DEFAULT '0',
+			refund_ref varchar(100) NOT NULL DEFAULT '',
+			snapshot longtext,
+			created_by bigint(20) NOT NULL DEFAULT '0',
+			PRIMARY KEY  (invoice_id),
+			KEY order_id (order_id),
+			UNIQUE KEY invoice_type_number (invoice_type,invoice_number),
+			KEY issue_date (issue_date)
+		) $collate;" );
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( 'ec_invoice' ) ) {
+				$this->record_update_failure( '6.0.2 documents: could not create ec_invoice: ' . $sql_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2: what an accounting system needs to record an order correctly. giftcard_total is the gift card amount redeemed
+	 * ( until now folded into discount_total, although a redemption is a payment, not a discount ), vat_included whether
+	 * the order's prices included VAT. NULL on both means "not recorded": the order was placed before 6.0.2, or made
+	 * outside the checkout.
+	 */
+	private function wpeasycart_sql_6_0_2_accounting() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_order', 'giftcard_total', 'float(15,3) DEFAULT NULL' ),
+			array( 'ec_order', 'vat_included', 'tinyint(1) DEFAULT NULL' ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 accounting: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2 shipping: the box library ( ec_package ), an order's packages and their labels and tracking
+	 * ( ec_order_shipment ), and what a product says about packing and customs. dbDelta adds the same from get_schema()
+	 * ( EC_UPGRADE_DB 114 ). The Delivered order status is made here so Settings › Shipping can offer it at once.
+	 */
+	private function wpeasycart_sql_6_0_2_shipping() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_product', 'hs_code', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_product', 'country_of_origin', "varchar(2) NOT NULL DEFAULT ''" ),
+			array( 'ec_product', 'customs_description', "varchar(255) NOT NULL DEFAULT ''" ),
+			array( 'ec_product', 'ships_separately', "tinyint(1) NOT NULL DEFAULT '0'" ),
+			array( 'ec_product', 'package_id', "int(11) NOT NULL DEFAULT '0'" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 shipping: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		$tables  = array(
+			'ec_package'        => "CREATE TABLE IF NOT EXISTS ec_package (
+			package_id int(11) NOT NULL AUTO_INCREMENT,
+			label varchar(100) NOT NULL DEFAULT '',
+			package_type varchar(20) NOT NULL DEFAULT 'box',
+			length float(15,3) NOT NULL DEFAULT '0.000',
+			width float(15,3) NOT NULL DEFAULT '0.000',
+			height float(15,3) NOT NULL DEFAULT '0.000',
+			box_weight float(15,3) NOT NULL DEFAULT '0.000',
+			max_weight float(15,3) NOT NULL DEFAULT '0.000',
+			carrier_template varchar(100) NOT NULL DEFAULT '',
+			is_default tinyint(1) NOT NULL DEFAULT '0',
+			is_active tinyint(1) NOT NULL DEFAULT '1',
+			sort_order int(11) NOT NULL DEFAULT '0',
+			PRIMARY KEY  (package_id)
+		) $collate;",
+			'ec_order_shipment' => "CREATE TABLE IF NOT EXISTS ec_order_shipment (
+			shipment_id int(11) NOT NULL AUTO_INCREMENT,
+			order_id int(11) NOT NULL DEFAULT '0',
+			sort_order int(11) NOT NULL DEFAULT '0',
+			package_id int(11) NOT NULL DEFAULT '0',
+			package_name varchar(100) NOT NULL DEFAULT '',
+			length float(15,3) NOT NULL DEFAULT '0.000',
+			width float(15,3) NOT NULL DEFAULT '0.000',
+			height float(15,3) NOT NULL DEFAULT '0.000',
+			weight float(15,3) NOT NULL DEFAULT '0.000',
+			items text,
+			status varchar(20) NOT NULL DEFAULT 'packed',
+			is_return tinyint(1) NOT NULL DEFAULT '0',
+			carrier varchar(100) NOT NULL DEFAULT '',
+			service varchar(255) NOT NULL DEFAULT '',
+			service_code varchar(100) NOT NULL DEFAULT '',
+			tracking_number varchar(255) NOT NULL DEFAULT '',
+			tracking_url text,
+			tracking_status varchar(40) NOT NULL DEFAULT '',
+			tracking_detail varchar(255) NOT NULL DEFAULT '',
+			tracking_updated datetime DEFAULT NULL,
+			label_url text,
+			label_format varchar(20) NOT NULL DEFAULT '',
+			cost float(15,3) NOT NULL DEFAULT '0.000',
+			currency varchar(3) NOT NULL DEFAULT '',
+			provider varchar(40) NOT NULL DEFAULT '',
+			provider_ref varchar(100) NOT NULL DEFAULT '',
+			meta longtext,
+			created_at datetime DEFAULT NULL,
+			updated_at datetime DEFAULT NULL,
+			shipped_at datetime DEFAULT NULL,
+			delivered_at datetime DEFAULT NULL,
+			PRIMARY KEY  (shipment_id),
+			KEY order_id (order_id),
+			KEY provider_ref (provider,provider_ref),
+			KEY tracking_number (tracking_number(64))
+		) $collate;",
+		);
+		foreach ( $tables as $table => $sql ) {
+			if ( $this->table_exists( $table ) ) {
+				continue;
+			}
+			$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed CREATE TABLE; $collate is the database's own charset clause.
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( $table ) ) {
+				$this->record_update_failure( '6.0.2 shipping: could not create ' . $table . ': ' . $sql_error );
+			}
+		}
+		if ( ! (int) get_option( 'ec_option_orderstatus_delivered', 0 ) && $this->table_exists( 'ec_orderstatus' ) ) {
+			$wpdb->insert(
+				'ec_orderstatus',
+				array(
+					'order_status' => 'Order Delivered',
+					'is_approved'  => 1,
+					'color_code'   => '#15803D',
+				)
+			);
+			if ( (int) $wpdb->insert_id > 0 ) {
+				update_option( 'ec_option_orderstatus_delivered', (int) $wpdb->insert_id );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2: checkout fields ( Settings › Checkout fields, WP EasyCart PRO ). The field definitions, the answers during
+	 * checkout ( by session, kept out of ec_tempcart_data, which every checkout save rewrites whole ), the answers kept on
+	 * the order ( with the label and type as they were ) and the answers a customer asked to be remembered.
+	 */
+	private function wpeasycart_sql_6_0_2_checkout_fields() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		$tables  = array(
+			'ec_checkout_field' => "CREATE TABLE IF NOT EXISTS ec_checkout_field (
+			checkout_field_id int(11) NOT NULL AUTO_INCREMENT,
+			field_key varchar(64) NOT NULL DEFAULT '',
+			field_type varchar(32) NOT NULL DEFAULT 'text',
+			placement varchar(32) NOT NULL DEFAULT 'order_notes',
+			label text,
+			settings longtext,
+			conditions longtext,
+			sort_order int(11) NOT NULL DEFAULT '0',
+			status varchar(16) NOT NULL DEFAULT 'active',
+			created_date datetime DEFAULT NULL,
+			modified_date datetime DEFAULT NULL,
+			PRIMARY KEY  (checkout_field_id),
+			UNIQUE KEY field_key (field_key),
+			KEY placement_sort (placement,sort_order)
+		) $collate;",
+			'ec_tempcart_field' => "CREATE TABLE IF NOT EXISTS ec_tempcart_field (
+			tempcart_field_id int(11) NOT NULL AUTO_INCREMENT,
+			session_id varchar(100) NOT NULL DEFAULT '',
+			field_key varchar(64) NOT NULL DEFAULT '',
+			field_value longtext,
+			modified_date datetime DEFAULT NULL,
+			PRIMARY KEY  (tempcart_field_id),
+			UNIQUE KEY session_field (session_id,field_key),
+			KEY modified_date (modified_date)
+		) $collate;",
+			'ec_order_field' => "CREATE TABLE IF NOT EXISTS ec_order_field (
+			order_field_id int(11) NOT NULL AUTO_INCREMENT,
+			order_id int(11) NOT NULL DEFAULT '0',
+			orderdetail_id int(11) NOT NULL DEFAULT '0',
+			repeat_index int(11) NOT NULL DEFAULT '0',
+			checkout_field_id int(11) NOT NULL DEFAULT '0',
+			field_key varchar(64) NOT NULL DEFAULT '',
+			field_type varchar(32) NOT NULL DEFAULT '',
+			field_label text,
+			field_value longtext,
+			display_value longtext,
+			show_on varchar(255) NOT NULL DEFAULT '',
+			field_status varchar(16) NOT NULL DEFAULT '',
+			is_personal tinyint(1) NOT NULL DEFAULT '0',
+			sort_order int(11) NOT NULL DEFAULT '0',
+			created_date datetime DEFAULT NULL,
+			modified_date datetime DEFAULT NULL,
+			PRIMARY KEY  (order_field_id),
+			KEY order_id (order_id),
+			KEY field_key (field_key)
+		) $collate;",
+			'ec_user_field' => "CREATE TABLE IF NOT EXISTS ec_user_field (
+			user_field_id int(11) NOT NULL AUTO_INCREMENT,
+			user_id int(11) NOT NULL DEFAULT '0',
+			field_key varchar(64) NOT NULL DEFAULT '',
+			field_value longtext,
+			modified_date datetime DEFAULT NULL,
+			PRIMARY KEY  (user_field_id),
+			UNIQUE KEY user_field (user_id,field_key)
+		) $collate;",
+		);
+		foreach ( $tables as $table => $sql ) {
+			if ( $this->table_exists( $table ) ) {
+				continue;
+			}
+			$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed CREATE TABLE statements; $collate is the database's own charset clause.
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( $table ) ) {
+				$this->record_update_failure( '6.0.2 checkout fields: could not create ' . $table . ': ' . $sql_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2 order sources: where each order came from ( the shopper's first visit and the latest visit that brought them
+	 * back, sorted into a type and a name, with the raw values in source_data ), and the checkout session's copy of the
+	 * visits so an order that Stripe's webhook finishes still gets them. dbDelta adds the same from get_schema()
+	 * ( EC_UPGRADE_DB 114 ). The session column loads with SELECT *, so wp_easycart_order_source only sets it once it
+	 * exists ( an unknown key fails the save ).
+	 */
+	private function wpeasycart_sql_6_0_2_order_source() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_order', 'source_type', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'source_name', "varchar(100) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'last_source_type', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'last_source_name', "varchar(100) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'source_data', 'longtext' ),
+			array( 'ec_tempcart_data', 'source_data', 'text' ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 order sources: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		foreach ( array( 'order_source_type' => 'source_type', 'order_last_source_type' => 'last_source_type' ) as $index => $column ) {
+			if ( $this->column_exists( 'ec_order', $column ) && ! $this->add_index( 'ec_order', $index, $column ) ) {
+				$this->record_update_failure( '6.0.2 order sources: could not add index ec_order.' . $index . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2 subscribers: a consent record on each newsletter sign-up ( when, where, the visitor's address, the customer
+	 * account ), written by ec_db::insert_subscriber() through wp_easycart_subscribers. dbDelta adds the same from
+	 * get_schema() ( EC_UPGRADE_DB 115 ). Rows from before stay NULL / empty: not recorded.
+	 */
+	private function wpeasycart_sql_6_0_2_subscribers() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_subscriber', 'date_added', 'datetime DEFAULT NULL' ),
+			array( 'ec_subscriber', 'source', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscriber', 'ip_address', "varchar(45) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscriber', 'user_id', "int(11) NOT NULL DEFAULT '0'" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 subscribers: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+	}
+
+	/**
+	 * 6.0.2 checkout protection: the card-testing event log ( ec_checkout_event, see wp_easycart_checkout_guard ). dbDelta
+	 * adds the same from get_schema(), but only on a wp-admin page load; this step also creates it when the update runs
+	 * from cron or WP-CLI, so checkout protection is on as soon as 6.0.2 is recorded. Keep the two definitions the same.
+	 */
+	private function wpeasycart_sql_6_0_2_checkout_protection() {
+		global $wpdb;
+		if ( $this->table_exists( 'ec_checkout_event' ) ) {
+			return;
+		}
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		$sql     = "CREATE TABLE IF NOT EXISTS ec_checkout_event (
+			event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			created_at datetime DEFAULT NULL,
+			event_type varchar(20) NOT NULL DEFAULT '',
+			reason varchar(40) NOT NULL DEFAULT '',
+			place varchar(20) NOT NULL DEFAULT '',
+			gateway varchar(40) NOT NULL DEFAULT '',
+			session_key varchar(24) NOT NULL DEFAULT '',
+			ip_key varchar(24) NOT NULL DEFAULT '',
+			email_key varchar(24) NOT NULL DEFAULT '',
+			card_key varchar(24) NOT NULL DEFAULT '',
+			ip_display varchar(48) NOT NULL DEFAULT '',
+			email_display varchar(100) NOT NULL DEFAULT '',
+			card_display varchar(40) NOT NULL DEFAULT '',
+			user_id int(11) NOT NULL DEFAULT '0',
+			order_id int(11) NOT NULL DEFAULT '0',
+			amount float(15,3) NOT NULL DEFAULT '0.000',
+			ref varchar(100) NOT NULL DEFAULT '',
+			detail varchar(255) NOT NULL DEFAULT '',
+			in_attack tinyint(1) NOT NULL DEFAULT '0',
+			PRIMARY KEY  (event_id),
+			KEY created_at (created_at),
+			KEY event_type (event_type,created_at),
+			KEY session_key (session_key,created_at),
+			KEY ip_key (ip_key,created_at),
+			KEY email_key (email_key,created_at),
+			KEY card_key (card_key,created_at),
+			KEY ref (ref)
+		) $collate;";
+		$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed CREATE TABLE; $collate is the database's own charset clause.
+		$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+		if ( ! $this->table_exists( 'ec_checkout_event' ) ) {
+			$this->record_update_failure( '6.0.2 checkout protection: could not create ec_checkout_event: ' . $sql_error );
+		}
+	}
+
+	/**
+	 * 6.0.2 fulfillment partners ( print on demand and other dropship extensions, see wp_easycart_fulfillment ): which
+	 * partner makes a product and each order line, the line's variant row, partner state and cost, when an order was
+	 * released to partners, the partner shipping chosen at checkout, variant weight / cost / image, and option sets that
+	 * belong to one product. dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 117 ).
+	 *
+	 * Orders already paid are marked released, so a later status change never sends an old order to a partner.
+	 */
+	private function wpeasycart_sql_6_0_2_fulfillment() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_product', 'fulfillment_provider', "varchar(40) NOT NULL DEFAULT ''" ),
+			array( 'ec_option', 'owner_product_id', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'ec_optionitemquantity', 'weight', 'float(15,3) DEFAULT NULL' ),
+			array( 'ec_optionitemquantity', 'cost', 'float(15,3) DEFAULT NULL' ),
+			array( 'ec_optionitemquantity', 'image', "varchar(512) NOT NULL DEFAULT ''" ),
+			array( 'ec_orderdetail', 'optionitemquantity_id', "int(11) NOT NULL DEFAULT '0'" ),
+			array( 'ec_orderdetail', 'fulfillment_provider', "varchar(40) NOT NULL DEFAULT ''" ),
+			array( 'ec_orderdetail', 'fulfillment_status', "varchar(20) NOT NULL DEFAULT ''" ),
+			array( 'ec_orderdetail', 'fulfillment_ref', "varchar(100) NOT NULL DEFAULT ''" ),
+			array( 'ec_orderdetail', 'unit_cost', 'float(15,3) DEFAULT NULL' ),
+			array( 'ec_order', 'fulfillment_released_at', 'datetime DEFAULT NULL' ),
+			array( 'ec_order', 'shipping_groups', 'text' ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 fulfillment: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		if ( $this->column_exists( 'ec_order', 'fulfillment_released_at' ) ) {
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ec_order, ec_orderstatus SET ec_order.fulfillment_released_at = %s WHERE ec_orderstatus.status_id = ec_order.orderstatus_id AND ec_orderstatus.is_approved = 1 AND ec_order.fulfillment_released_at IS NULL',
+					current_time( 'mysql', true )
+				)
+			);
+		}
+	}
+
+	/**
+	 * 6.0.2 packing: the order screen's Packed ticks, kept on each order line ( ec_orderdetail.packed_quantity, the units packed; 0 =
+	 * not packed ), so everyone packing an order sees the same ticks. dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 118 ).
+	 */
+	private function wpeasycart_sql_6_0_2_packing() {
+		global $wpdb;
+		if ( ! $this->add_column( 'ec_orderdetail', 'packed_quantity', "int(11) NOT NULL DEFAULT '0'" ) || ( $this->table_exists( 'ec_orderdetail' ) && ! $this->column_exists( 'ec_orderdetail', 'packed_quantity' ) ) ) {
+			$this->record_update_failure( '6.0.2 packing: could not add ec_orderdetail.packed_quantity: ' . $wpdb->last_error );
+		}
+	}
+
+	/**
+	 * 6.0.2 reports ( EC_UPGRADE_DB 119 ): what Reports and store research read.
+	 *
+	 * - ec_order: customer_key ( md5 of the lower-cased email: one customer across guest checkouts and an account ), paid_at
+	 *   and fulfilled_at ( UTC: when the order was first paid, and first shipped or picked up ), device ( phone | tablet |
+	 *   desktop ).
+	 * - ec_subscription.cancelled_at ( UTC ).
+	 * - ec_order_transaction: every payment and refund with its own date ( wp_easycart_order_ledger ).
+	 * - ec_report_product_day / _visit_day / _step_day / _search_day: daily counts with no personal data
+	 *   ( wp_easycart_store_activity ); ec_report_session: which checkout steps a cart session reached today, kept two days.
+	 * - ec_report_day: saved daily totals for long Reports ranges ( wp_easycart_reports ).
+	 *
+	 * dbDelta adds the same from get_schema(). History is filled in by wp_easycart_order_ledger::backfill(), in slices, here
+	 * and on admin_init until it is done.
+	 */
+	private function wpeasycart_sql_6_0_2_reports() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_order', 'customer_key', "varchar(32) NOT NULL DEFAULT ''" ),
+			array( 'ec_order', 'paid_at', 'datetime DEFAULT NULL' ),
+			array( 'ec_order', 'fulfilled_at', 'datetime DEFAULT NULL' ),
+			array( 'ec_order', 'device', "varchar(10) NOT NULL DEFAULT ''" ),
+			array( 'ec_subscription', 'cancelled_at', 'datetime DEFAULT NULL' ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 reports: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		$this->add_index( 'ec_order', 'order_customer_key', 'customer_key' );
+		$this->add_index( 'ec_order', 'order_paid_at', 'paid_at' );
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		$tables  = array(
+			'ec_order_transaction'  => "CREATE TABLE IF NOT EXISTS ec_order_transaction ( transaction_id bigint(20) NOT NULL AUTO_INCREMENT, order_id int(11) NOT NULL DEFAULT '0', txn_type varchar(10) NOT NULL DEFAULT 'payment', amount float(15,3) NOT NULL DEFAULT '0.000', created_at datetime DEFAULT NULL, source varchar(40) NOT NULL DEFAULT '', gateway varchar(40) NOT NULL DEFAULT '', reference varchar(100) NOT NULL DEFAULT '', reason varchar(255) NOT NULL DEFAULT '', details text, order_log_id int(11) NOT NULL DEFAULT '0', PRIMARY KEY  (transaction_id), KEY order_id (order_id), KEY txn_type_created (txn_type,created_at) ) $collate;",
+			'ec_report_day'         => "CREATE TABLE IF NOT EXISTS ec_report_day ( stat_date date NOT NULL, data text, version varchar(64) NOT NULL DEFAULT '', updated_at datetime DEFAULT NULL, PRIMARY KEY  (stat_date) ) $collate;",
+			'ec_report_product_day' => "CREATE TABLE IF NOT EXISTS ec_report_product_day ( stat_date date NOT NULL, product_id int(11) NOT NULL DEFAULT '0', variant_id int(11) NOT NULL DEFAULT '0', views int(11) NOT NULL DEFAULT '0', add_to_carts int(11) NOT NULL DEFAULT '0', PRIMARY KEY  (stat_date,product_id,variant_id), KEY product_id (product_id) ) $collate;",
+			'ec_report_search_day'  => "CREATE TABLE IF NOT EXISTS ec_report_search_day ( stat_date date NOT NULL, term varchar(100) NOT NULL DEFAULT '', searches int(11) NOT NULL DEFAULT '0', results int(11) NOT NULL DEFAULT '0', PRIMARY KEY  (stat_date,term) ) $collate;",
+			'ec_report_session'     => "CREATE TABLE IF NOT EXISTS ec_report_session ( session_key char(32) NOT NULL DEFAULT '', stat_date date NOT NULL, steps varchar(40) NOT NULL DEFAULT '', PRIMARY KEY  (session_key), KEY stat_date (stat_date) ) $collate;",
+			'ec_report_step_day'    => "CREATE TABLE IF NOT EXISTS ec_report_step_day ( stat_date date NOT NULL, step varchar(20) NOT NULL DEFAULT '', sessions int(11) NOT NULL DEFAULT '0', PRIMARY KEY  (stat_date,step) ) $collate;",
+			'ec_report_visit_day'   => "CREATE TABLE IF NOT EXISTS ec_report_visit_day ( stat_date date NOT NULL, source_type varchar(20) NOT NULL DEFAULT '', visits int(11) NOT NULL DEFAULT '0', PRIMARY KEY  (stat_date,source_type) ) $collate;",
+		);
+		foreach ( $tables as $table => $sql ) {
+			if ( $this->table_exists( $table ) ) {
+				continue;
+			}
+			$wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed DDL.
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( $table ) ) {
+				$this->record_update_failure( '6.0.2 reports: could not create ' . $table . ': ' . $sql_error );
+			}
+		}
+		if ( class_exists( 'wp_easycart_order_ledger' ) && $this->table_exists( 'ec_order_transaction' ) && $this->column_exists( 'ec_order', 'customer_key' ) ) {
+			wp_easycart_order_ledger::reset();
+			wp_easycart_order_ledger::backfill();
+		}
+	}
+
+	/**
+	 * 6.0.2 payments: what each order has been paid ( amount_paid, NULL = not recorded ) and the part of its refunds that gave
+	 * back an overpayment ( overpaid_refund_total ), so an order edited after it was paid shows its balance ( see
+	 * wp_easycart_order_payments ). dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 116 ). Paid orders whose lines and
+	 * totals were never edited are then recorded as paid in full; admin_init finishes that on a large store
+	 * ( wp_easycart_order_payments::maybe_backfill(), which is also how a store that recorded 6.0.2 before this step gets it ).
+	 */
+	private function wpeasycart_sql_6_0_2_payments() {
+		global $wpdb;
+		$cols = array(
+			array( 'ec_order', 'amount_paid', 'float(15,3) DEFAULT NULL' ),
+			array( 'ec_order', 'overpaid_refund_total', "float(15,3) NOT NULL DEFAULT '0.000'" ),
+		);
+		foreach ( $cols as $c ) {
+			if ( ! $this->add_column( $c[0], $c[1], $c[2] ) || ( $this->table_exists( $c[0] ) && ! $this->column_exists( $c[0], $c[1] ) ) ) {
+				$this->record_update_failure( '6.0.2 payments: could not add ' . $c[0] . '.' . $c[1] . ': ' . $wpdb->last_error );
+			}
+		}
+		if ( class_exists( 'wp_easycart_order_payments' ) && $this->column_exists( 'ec_order', 'overpaid_refund_total' ) ) {
+			wp_easycart_order_payments::reset();
+			wp_easycart_order_payments::backfill();
+		}
+	}
+
 	private function wpeasycart_sql_6_0_0_abandoned() {
 		global $wpdb;
 		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
 		if ( ! $this->table_exists( 'ec_abandoned_cart' ) ) {
 			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_abandoned_cart ( abandoned_cart_id int(11) NOT NULL AUTO_INCREMENT, session_id varchar(191) NOT NULL DEFAULT '', email varchar(255) NOT NULL DEFAULT '', first_name varchar(255) NOT NULL DEFAULT '', last_name varchar(255) NOT NULL DEFAULT '', user_id int(11) NOT NULL DEFAULT '0', phone varchar(64) NOT NULL DEFAULT '', status varchar(20) NOT NULL DEFAULT 'active', stage varchar(20) NOT NULL DEFAULT 'cart', items_json longtext, item_count int(11) NOT NULL DEFAULT '0', subtotal decimal(12,2) NOT NULL DEFAULT '0.00', currency varchar(8) NOT NULL DEFAULT '', coupon_code varchar(64) NOT NULL DEFAULT '', shipping_country varchar(8) NOT NULL DEFAULT '', locale varchar(16) NOT NULL DEFAULT '', card_error varchar(255) NOT NULL DEFAULT '', first_seen datetime DEFAULT NULL, last_activity datetime DEFAULT NULL, abandoned_at datetime DEFAULT NULL, recovered_at datetime DEFAULT NULL, recovered_order_id int(11) NOT NULL DEFAULT '0', recovered_total decimal(12,2) NOT NULL DEFAULT '0.00', sequence_step int(11) NOT NULL DEFAULT '0', next_send_at datetime DEFAULT NULL, offer_code_id int(11) NOT NULL DEFAULT '0', offer_code varchar(64) NOT NULL DEFAULT '', offer_code_expires datetime DEFAULT NULL, admin_notes text, PRIMARY KEY  (abandoned_cart_id), UNIQUE KEY session_id (session_id), KEY status_next (status, next_send_at), KEY email (email(100)), KEY last_activity (last_activity), KEY first_seen (first_seen) ) $collate;" );
-			if ( ! $this->table_exists( 'ec_abandoned_cart' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart: ' . $wpdb->last_error ); }
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( 'ec_abandoned_cart' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart: ' . $sql_error ); }
 		}
 		if ( ! $this->table_exists( 'ec_abandoned_cart_event' ) ) {
 			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_abandoned_cart_event ( event_id int(11) NOT NULL AUTO_INCREMENT, abandoned_cart_id int(11) NOT NULL DEFAULT '0', type varchar(24) NOT NULL DEFAULT '', step int(11) NOT NULL DEFAULT '0', detail text, created_at datetime DEFAULT NULL, PRIMARY KEY  (event_id), KEY cart_type (abandoned_cart_id, type), KEY created_at (created_at) ) $collate;" );
-			if ( ! $this->table_exists( 'ec_abandoned_cart_event' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart_event: ' . $wpdb->last_error ); }
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( 'ec_abandoned_cart_event' ) ) { $this->record_update_failure( '6.0.0 abandoned: could not create ec_abandoned_cart_event: ' . $sql_error ); }
 		}
 	}
 
@@ -1938,10 +2558,13 @@ class ec_db_manager {
 	 */
 	private function prefixless_column_indexes( $table, $column ) {
 		global $wpdb;
+		/* 6.0.2: aliased, because MySQL 8.0 returns information_schema column names in upper case ( INDEX_NAME ) and the
+		   rows below are read by name; without the aliases nothing was lifted there and the MODIFY failed as before.
+		   FULLTEXT and SPATIAL indexes never need a prefix, so they are left alone. */
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT index_name, non_unique FROM information_schema.statistics
+			"SELECT index_name AS index_name, non_unique AS non_unique FROM information_schema.statistics
 			 WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s
-			 AND sub_part IS NULL AND index_name != 'PRIMARY'
+			 AND sub_part IS NULL AND index_name != 'PRIMARY' AND index_type NOT IN ( 'FULLTEXT', 'SPATIAL' )
 			 AND index_name NOT IN (
 				SELECT index_name FROM ( SELECT index_name FROM information_schema.statistics
 					WHERE table_schema = DATABASE() AND table_name = %s
@@ -1953,6 +2576,9 @@ class ec_db_manager {
 		) );
 		$out = array();
 		foreach ( (array) $rows as $row ) {
+			if ( ! isset( $row->index_name ) || '' === (string) $row->index_name ) {
+				continue;
+			}
 			$out[] = array( 'name' => $row->index_name, 'unique' => ( '0' === (string) $row->non_unique ) );
 		}
 		return $out;
@@ -2165,7 +2791,11 @@ class ec_db_manager {
 	/* END DATABASE UPGRADE SCRIPTS */
 
 	private function get_uninstall_tables() {
-		$tables = array( 
+		/* 6.0.2: every table get_schema() creates, including the abandoned cart, email and review request tables ( 6.0.0 /
+		   6.0.1 ) and the packages and shipments tables ( 6.0.2 ), so uninstalling removes them and Store Status reports them. */
+		$tables = array(
+			"ec_abandoned_cart",
+			"ec_abandoned_cart_event",
 			"ec_address",
 			"ec_affiliate_rule",
 			"ec_affiliate_rule_to_affiliate",
@@ -2175,14 +2805,19 @@ class ec_db_manager {
 			"ec_cart_link_item",
 			"ec_category",
 			"ec_categoryitem",
+			"ec_checkout_event",
+			"ec_checkout_field",
 			"ec_code",
 			"ec_country",
 			"ec_customfield",
 			"ec_customfielddata",
 			"ec_download",
+			"ec_email_log",
+			"ec_email_queue",
 			"ec_fee",
 			"ec_giftcard",
 			"ec_inventory_log",
+			"ec_invoice",
 			"ec_live_rate_cache",
 			"ec_location",
 			"ec_location_to_product",
@@ -2204,13 +2839,16 @@ class ec_db_manager {
 			"ec_optionitemquantity",
 			"ec_order",
 			"ec_order_fee",
+			"ec_order_field",
 			"ec_order_log",
 			"ec_order_log_meta",
 			"ec_order_option",
+			"ec_order_shipment",
 			"ec_order_tag",
 			"ec_order_tag_item",
 			"ec_orderdetail",
 			"ec_orderstatus",
+			"ec_package",
 			"ec_pageoption",
 			"ec_perpage",
 			"ec_pricepoint",
@@ -2224,6 +2862,7 @@ class ec_db_manager {
 			"ec_promotion",
 			"ec_response",
 			"ec_review",
+			"ec_review_request",
 			"ec_role",
 			"ec_roleaccess",
 			"ec_roleprice",
@@ -2239,11 +2878,13 @@ class ec_db_manager {
 			"ec_taxrate",
 			"ec_tempcart",
 			"ec_tempcart_data",
+			"ec_tempcart_field",
 			"ec_tempcart_optionitem",
 			"ec_tempcart_offer",
 			"ec_timezone",
 			"ec_user",
 			"ec_user_activity",
+			"ec_user_field",
 			"ec_user_note",
 			"ec_user_tag",
 			"ec_user_to_tag",
@@ -2260,6 +2901,7 @@ class ec_db_manager {
 		global $wpdb;
 		$collate = "";
 		$max_index_length = 191;
+		$offer_created_date = self::offer_created_date_sql(); // 6.0.2: see offer_created_date_sql()
 		if( $wpdb->has_cap( 'collation' ) ){
 			$collate = $wpdb->get_charset_collate( );
 		}
@@ -2426,6 +3068,51 @@ CREATE TABLE ec_categoryitem (
   KEY category_id (category_id),
   KEY idx_category_product (category_id, product_id)
 ) $collate;
+CREATE TABLE ec_checkout_event (
+  event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  created_at datetime DEFAULT NULL,
+  event_type varchar(20) NOT NULL DEFAULT '',
+  reason varchar(40) NOT NULL DEFAULT '',
+  place varchar(20) NOT NULL DEFAULT '',
+  gateway varchar(40) NOT NULL DEFAULT '',
+  session_key varchar(24) NOT NULL DEFAULT '',
+  ip_key varchar(24) NOT NULL DEFAULT '',
+  email_key varchar(24) NOT NULL DEFAULT '',
+  card_key varchar(24) NOT NULL DEFAULT '',
+  ip_display varchar(48) NOT NULL DEFAULT '',
+  email_display varchar(100) NOT NULL DEFAULT '',
+  card_display varchar(40) NOT NULL DEFAULT '',
+  user_id int(11) NOT NULL DEFAULT '0',
+  order_id int(11) NOT NULL DEFAULT '0',
+  amount float(15,3) NOT NULL DEFAULT '0.000',
+  ref varchar(100) NOT NULL DEFAULT '',
+  detail varchar(255) NOT NULL DEFAULT '',
+  in_attack tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (event_id),
+  KEY created_at (created_at),
+  KEY event_type (event_type,created_at),
+  KEY session_key (session_key,created_at),
+  KEY ip_key (ip_key,created_at),
+  KEY email_key (email_key,created_at),
+  KEY card_key (card_key,created_at),
+  KEY ref (ref)
+) $collate;
+CREATE TABLE ec_checkout_field (
+  checkout_field_id int(11) NOT NULL AUTO_INCREMENT,
+  field_key varchar(64) NOT NULL DEFAULT '',
+  field_type varchar(32) NOT NULL DEFAULT 'text',
+  placement varchar(32) NOT NULL DEFAULT 'order_notes',
+  label text,
+  settings longtext,
+  conditions longtext,
+  sort_order int(11) NOT NULL DEFAULT '0',
+  status varchar(16) NOT NULL DEFAULT 'active',
+  created_date datetime DEFAULT NULL,
+  modified_date datetime DEFAULT NULL,
+  PRIMARY KEY  (checkout_field_id),
+  UNIQUE KEY field_key (field_key),
+  KEY placement_sort (placement,sort_order)
+) $collate;
 CREATE TABLE ec_code (
   code_id int(11) NOT NULL AUTO_INCREMENT,
   code_val varchar(255) DEFAULT '',
@@ -2560,6 +3247,78 @@ CREATE TABLE ec_inventory_log (
 	KEY optionitemquantity_id (optionitemquantity_id),
 	KEY created (created)
 ) $collate;
+CREATE TABLE ec_package (
+  package_id int(11) NOT NULL AUTO_INCREMENT,
+  label varchar(100) NOT NULL DEFAULT '',
+  package_type varchar(20) NOT NULL DEFAULT 'box',
+  length float(15,3) NOT NULL DEFAULT '0.000',
+  width float(15,3) NOT NULL DEFAULT '0.000',
+  height float(15,3) NOT NULL DEFAULT '0.000',
+  box_weight float(15,3) NOT NULL DEFAULT '0.000',
+  max_weight float(15,3) NOT NULL DEFAULT '0.000',
+  carrier_template varchar(100) NOT NULL DEFAULT '',
+  is_default tinyint(1) NOT NULL DEFAULT '0',
+  is_active tinyint(1) NOT NULL DEFAULT '1',
+  sort_order int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (package_id)
+) $collate;
+CREATE TABLE ec_order_shipment (
+  shipment_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  sort_order int(11) NOT NULL DEFAULT '0',
+  package_id int(11) NOT NULL DEFAULT '0',
+  package_name varchar(100) NOT NULL DEFAULT '',
+  length float(15,3) NOT NULL DEFAULT '0.000',
+  width float(15,3) NOT NULL DEFAULT '0.000',
+  height float(15,3) NOT NULL DEFAULT '0.000',
+  weight float(15,3) NOT NULL DEFAULT '0.000',
+  items text,
+  status varchar(20) NOT NULL DEFAULT 'packed',
+  is_return tinyint(1) NOT NULL DEFAULT '0',
+  carrier varchar(100) NOT NULL DEFAULT '',
+  service varchar(255) NOT NULL DEFAULT '',
+  service_code varchar(100) NOT NULL DEFAULT '',
+  tracking_number varchar(255) NOT NULL DEFAULT '',
+  tracking_url text,
+  tracking_status varchar(40) NOT NULL DEFAULT '',
+  tracking_detail varchar(255) NOT NULL DEFAULT '',
+  tracking_updated datetime DEFAULT NULL,
+  label_url text,
+  label_format varchar(20) NOT NULL DEFAULT '',
+  cost float(15,3) NOT NULL DEFAULT '0.000',
+  currency varchar(3) NOT NULL DEFAULT '',
+  provider varchar(40) NOT NULL DEFAULT '',
+  provider_ref varchar(100) NOT NULL DEFAULT '',
+  meta longtext,
+  created_at datetime DEFAULT NULL,
+  updated_at datetime DEFAULT NULL,
+  shipped_at datetime DEFAULT NULL,
+  delivered_at datetime DEFAULT NULL,
+  PRIMARY KEY  (shipment_id),
+  KEY order_id (order_id),
+  KEY provider_ref (provider,provider_ref),
+  KEY tracking_number (tracking_number(64))
+) $collate;
+CREATE TABLE ec_invoice (
+  invoice_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  invoice_type varchar(20) NOT NULL DEFAULT 'invoice',
+  invoice_number varchar(64) NOT NULL DEFAULT '',
+  sequence_number int(11) NOT NULL DEFAULT '0',
+  sequence_year int(11) NOT NULL DEFAULT '0',
+  issue_date datetime DEFAULT NULL,
+  payment_terms varchar(64) NOT NULL DEFAULT '',
+  due_date datetime DEFAULT NULL,
+  amount float(15,3) NOT NULL DEFAULT '0.000',
+  parent_invoice_id int(11) NOT NULL DEFAULT '0',
+  refund_ref varchar(100) NOT NULL DEFAULT '',
+  snapshot longtext,
+  created_by bigint(20) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (invoice_id),
+  KEY order_id (order_id),
+  UNIQUE KEY invoice_type_number (invoice_type,invoice_number),
+  KEY issue_date (issue_date)
+) $collate;
 CREATE TABLE ec_live_rate_cache (
   live_rate_cache_id int(11) NOT NULL AUTO_INCREMENT,
   ec_cart_id varchar(255) NOT NULL DEFAULT '',
@@ -2686,7 +3445,7 @@ CREATE TABLE ec_offer (
   display_config longtext,
   legacy_promocode_id varchar($max_index_length) NOT NULL DEFAULT '',
   legacy_promotion_id int(11) NOT NULL DEFAULT '0',
-  created_date timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  created_date $offer_created_date,
   modified_date timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY  (offer_id),
   UNIQUE KEY offer_offer_id (offer_id),
@@ -2768,6 +3527,7 @@ CREATE TABLE ec_option (
   option_error_text text,
   option_meta text,
   square_id varchar(255) NOT NULL DEFAULT '',
+  owner_product_id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (option_id),
   UNIQUE KEY option_option_id (option_id) 
 ) $collate;
@@ -2843,6 +3603,9 @@ CREATE TABLE ec_optionitemquantity (
   square_id varchar(255) NOT NULL DEFAULT '',
   google_merchant text NULL,
   reorder_point int(11) NOT NULL DEFAULT '-1',
+  weight float(15,3) DEFAULT NULL,
+  cost float(15,3) DEFAULT NULL,
+  image varchar(512) NOT NULL DEFAULT '',
   PRIMARY KEY  (optionitemquantity_id),
   UNIQUE KEY optionitemquantity_id (optionitemquantity_id),
   KEY product_id (product_id),
@@ -2880,11 +3643,14 @@ CREATE TABLE ec_order (
   refund_total float(15,3) NOT NULL DEFAULT '0.000',
   shipping_refund_total float(15,3) NOT NULL DEFAULT '0.000',
   tax_refund_total float(15,3) NOT NULL DEFAULT '0.000',
+  amount_paid float(15,3) DEFAULT NULL,
+  overpaid_refund_total float(15,3) NOT NULL DEFAULT '0.000',
   promo_code varchar(255) NOT NULL DEFAULT '',
   promo_code_message varchar(1024) NOT NULL DEFAULT '',
   offer_discount_total float(15,3) NOT NULL DEFAULT '0.000',
   applied_offers longtext,
   giftcard_id varchar(20) NOT NULL DEFAULT '',
+  giftcard_total float(15,3) DEFAULT NULL,
   use_expedited_shipping tinyint(1) NOT NULL DEFAULT '0',
   shipping_method varchar(255) NOT NULL DEFAULT '',
   shipping_carrier varchar(255) NOT NULL DEFAULT '',
@@ -2948,17 +3714,97 @@ CREATE TABLE ec_order (
   location_id int(11) NOT NULL DEFAULT 0,
   converted_cart_id varchar(100) NOT NULL DEFAULT '',
   cart_link_id int(11) NOT NULL DEFAULT 0,
+  is_gift tinyint(1) NOT NULL DEFAULT '0',
+  gift_message text,
+  gift_recipient_email varchar(255) NOT NULL DEFAULT '',
+  po_number varchar(100) NOT NULL DEFAULT '',
+  payment_terms varchar(64) NOT NULL DEFAULT '',
+  payment_due_date datetime DEFAULT NULL,
+  vat_included tinyint(1) DEFAULT NULL,
+  source_type varchar(20) NOT NULL DEFAULT '',
+  source_name varchar(100) NOT NULL DEFAULT '',
+  last_source_type varchar(20) NOT NULL DEFAULT '',
+  last_source_name varchar(100) NOT NULL DEFAULT '',
+  source_data longtext,
+  fulfillment_released_at datetime DEFAULT NULL,
+  shipping_groups text,
+  customer_key varchar(32) NOT NULL DEFAULT '',
+  paid_at datetime DEFAULT NULL,
+  fulfilled_at datetime DEFAULT NULL,
+  device varchar(10) NOT NULL DEFAULT '',
   PRIMARY KEY  (order_id),
   UNIQUE KEY order_id (order_id),
   KEY user_id (user_id),
   KEY giftcard_id (giftcard_id),
+  KEY order_source_type (source_type),
+  KEY order_last_source_type (last_source_type),
   KEY order_cart_link (cart_link_id),
   KEY order_order_date (order_date),
   KEY order_orderstatus_id (orderstatus_id),
   KEY order_order_viewed (order_viewed),
   KEY order_user_email (user_email($max_index_length)),
   KEY order_shipping_country (shipping_country($max_index_length)),
-  KEY order_billing_country (billing_country($max_index_length))
+  KEY order_billing_country (billing_country($max_index_length)),
+  KEY order_customer_key (customer_key),
+  KEY order_paid_at (paid_at)
+) $collate;
+CREATE TABLE ec_order_transaction (
+  transaction_id bigint(20) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  txn_type varchar(10) NOT NULL DEFAULT 'payment',
+  amount float(15,3) NOT NULL DEFAULT '0.000',
+  created_at datetime DEFAULT NULL,
+  source varchar(40) NOT NULL DEFAULT '',
+  gateway varchar(40) NOT NULL DEFAULT '',
+  reference varchar(100) NOT NULL DEFAULT '',
+  reason varchar(255) NOT NULL DEFAULT '',
+  details text,
+  order_log_id int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (transaction_id),
+  KEY order_id (order_id),
+  KEY txn_type_created (txn_type,created_at)
+) $collate;
+CREATE TABLE ec_report_day (
+  stat_date date NOT NULL,
+  data text,
+  version varchar(64) NOT NULL DEFAULT '',
+  updated_at datetime DEFAULT NULL,
+  PRIMARY KEY  (stat_date)
+) $collate;
+CREATE TABLE ec_report_product_day (
+  stat_date date NOT NULL,
+  product_id int(11) NOT NULL DEFAULT '0',
+  variant_id int(11) NOT NULL DEFAULT '0',
+  views int(11) NOT NULL DEFAULT '0',
+  add_to_carts int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (stat_date,product_id,variant_id),
+  KEY product_id (product_id)
+) $collate;
+CREATE TABLE ec_report_search_day (
+  stat_date date NOT NULL,
+  term varchar(100) NOT NULL DEFAULT '',
+  searches int(11) NOT NULL DEFAULT '0',
+  results int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (stat_date,term)
+) $collate;
+CREATE TABLE ec_report_session (
+  session_key char(32) NOT NULL DEFAULT '',
+  stat_date date NOT NULL,
+  steps varchar(40) NOT NULL DEFAULT '',
+  PRIMARY KEY  (session_key),
+  KEY stat_date (stat_date)
+) $collate;
+CREATE TABLE ec_report_step_day (
+  stat_date date NOT NULL,
+  step varchar(20) NOT NULL DEFAULT '',
+  sessions int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (stat_date,step)
+) $collate;
+CREATE TABLE ec_report_visit_day (
+  stat_date date NOT NULL,
+  source_type varchar(20) NOT NULL DEFAULT '',
+  visits int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY  (stat_date,source_type)
 ) $collate;
 CREATE TABLE ec_order_fee (
   order_fee_id int(11) NOT NULL AUTO_INCREMENT,
@@ -2968,6 +3814,27 @@ CREATE TABLE ec_order_fee (
   fee_total float(15,3) NOT NULL DEFAULT '0.000',
   PRIMARY KEY  (order_fee_id),
   KEY order_id (order_id)
+) $collate;
+CREATE TABLE ec_order_field (
+  order_field_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) NOT NULL DEFAULT '0',
+  orderdetail_id int(11) NOT NULL DEFAULT '0',
+  repeat_index int(11) NOT NULL DEFAULT '0',
+  checkout_field_id int(11) NOT NULL DEFAULT '0',
+  field_key varchar(64) NOT NULL DEFAULT '',
+  field_type varchar(32) NOT NULL DEFAULT '',
+  field_label text,
+  field_value longtext,
+  display_value longtext,
+  show_on varchar(255) NOT NULL DEFAULT '',
+  field_status varchar(16) NOT NULL DEFAULT '',
+  is_personal tinyint(1) NOT NULL DEFAULT '0',
+  sort_order int(11) NOT NULL DEFAULT '0',
+  created_date datetime DEFAULT NULL,
+  modified_date datetime DEFAULT NULL,
+  PRIMARY KEY  (order_field_id),
+  KEY order_id (order_id),
+  KEY field_key (field_key)
 ) $collate;
 CREATE TABLE ec_order_log (
   order_log_id int(11) NOT NULL AUTO_INCREMENT,
@@ -3103,6 +3970,12 @@ CREATE TABLE ec_orderdetail (
   bundle_product_id int(11) NOT NULL DEFAULT '0',
   is_free_gift tinyint(1) NOT NULL DEFAULT '0',
   applied_offers longtext,
+  optionitemquantity_id int(11) NOT NULL DEFAULT '0',
+  fulfillment_provider varchar(40) NOT NULL DEFAULT '',
+  fulfillment_status varchar(20) NOT NULL DEFAULT '',
+  fulfillment_ref varchar(100) NOT NULL DEFAULT '',
+  unit_cost float(15,3) DEFAULT NULL,
+  packed_quantity int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (orderdetail_id),
   UNIQUE KEY orderdetail_id (orderdetail_id),
   KEY orderdetail_order_id (order_id),
@@ -3299,6 +4172,12 @@ CREATE TABLE ec_product (
   pickup_locations text NULL,
   is_bundle tinyint(1) NOT NULL DEFAULT '0',
   reorder_point int(11) NOT NULL DEFAULT '-1',
+  hs_code varchar(20) NOT NULL DEFAULT '',
+  country_of_origin varchar(2) NOT NULL DEFAULT '',
+  customs_description varchar(255) NOT NULL DEFAULT '',
+  ships_separately tinyint(1) NOT NULL DEFAULT '0',
+  package_id int(11) NOT NULL DEFAULT '0',
+  fulfillment_provider varchar(40) NOT NULL DEFAULT '',
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   KEY product_model_number (model_number($max_index_length)),
@@ -3656,6 +4535,10 @@ CREATE TABLE ec_subscriber (
   email text NULL,
   first_name varchar(255) NOT NULL DEFAULT '',
   last_name varchar(255) NOT NULL DEFAULT '',
+  date_added datetime DEFAULT NULL,
+  source varchar(20) NOT NULL DEFAULT '',
+  ip_address varchar(45) NOT NULL DEFAULT '',
+  user_id int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (subscriber_id),
   UNIQUE KEY subscriber_email (email($max_index_length))
 ) $collate;
@@ -3687,6 +4570,7 @@ CREATE TABLE ec_subscription (
   stripe_subscription_id varchar(255) NOT NULL DEFAULT '',
   quantity int(11) NOT NULL DEFAULT '1',
   num_failed_payment int(11) NOT NULL DEFAULT '0',
+  cancelled_at datetime DEFAULT NULL,
   PRIMARY KEY  (subscription_id),
   UNIQUE KEY subscription_id (subscription_id),
   KEY user_id (user_id),
@@ -3844,7 +4728,22 @@ CREATE TABLE ec_tempcart_data (
   pickup_asap tinyint(1) NOT NULL DEFAULT 1,
   pickup_time varchar(32) NOT NULL DEFAULT '',
   pickup_location int(11) NOT NULL DEFAULT 0,
+  is_gift tinyint(1) NOT NULL DEFAULT '0',
+  gift_message text,
+  gift_recipient_email varchar(255) NOT NULL DEFAULT '',
+  po_number varchar(100) NOT NULL DEFAULT '',
+  source_data text,
   PRIMARY KEY  (tempcart_data_id)
+) $collate;
+CREATE TABLE ec_tempcart_field (
+  tempcart_field_id int(11) NOT NULL AUTO_INCREMENT,
+  session_id varchar(100) NOT NULL DEFAULT '',
+  field_key varchar(64) NOT NULL DEFAULT '',
+  field_value longtext,
+  modified_date datetime DEFAULT NULL,
+  PRIMARY KEY  (tempcart_field_id),
+  UNIQUE KEY session_field (session_id,field_key),
+  KEY modified_date (modified_date)
 ) $collate;
 CREATE TABLE ec_tempcart_offer (
   tempcart_offer_id int(11) NOT NULL AUTO_INCREMENT,
@@ -3911,6 +4810,7 @@ CREATE TABLE ec_user (
   history_aggregates_built tinyint(1) NOT NULL DEFAULT 0,
   date_created timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   last_login datetime DEFAULT NULL,
+  payment_terms varchar(64) NOT NULL DEFAULT '',
   PRIMARY KEY  (user_id),
   UNIQUE KEY user_user_id (user_id),
   UNIQUE KEY user_email (email($max_index_length)),
@@ -3935,6 +4835,15 @@ CREATE TABLE ec_user_activity (
   PRIMARY KEY  (activity_id),
   KEY user_activity_user_date (user_id,activity_date),
   KEY user_activity_type (activity_type)
+) $collate;
+CREATE TABLE ec_user_field (
+  user_field_id int(11) NOT NULL AUTO_INCREMENT,
+  user_id int(11) NOT NULL DEFAULT '0',
+  field_key varchar(64) NOT NULL DEFAULT '',
+  field_value longtext,
+  modified_date datetime DEFAULT NULL,
+  PRIMARY KEY  (user_field_id),
+  UNIQUE KEY user_field (user_id,field_key)
 ) $collate;
 CREATE TABLE ec_user_note (
   note_id int(11) NOT NULL AUTO_INCREMENT,

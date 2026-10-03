@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Scheme_Color;
 use Elementor\Group_Control_Typography;
@@ -28,6 +30,8 @@ use Elementor\Wp_Easycart_Controls_Manager;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
 
 	/**
 	 * Get store widget name.
@@ -68,17 +72,15 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 	 * Enqueue store widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js' ) );
 	}
 
 	/**
 	 * Setup store widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 
 		$this->start_controls_section(
 			'section_products',
@@ -174,7 +176,7 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label_block' => true,
 				'multiple'    => 'true',
 				'condition' => array(
-					'use_dynamic' => '',
+					'use_dynamic!' => 'yes',
 				),
 			)
 		);
@@ -188,7 +190,7 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label_block' => true,
 				'multiple'    => 'true',
 				'condition' => array(
-					'use_dynamic' => '',
+					'use_dynamic!' => 'yes',
 				),
 			)
 		);
@@ -202,7 +204,7 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label_block' => true,
 				'multiple'    => 'true',
 				'condition' => array(
-					'use_dynamic' => '',
+					'use_dynamic!' => 'yes',
 				),
 			)
 		);
@@ -607,8 +609,10 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label'   => esc_attr__( 'Type', 'wp-easycart' ),
 				'type'    => Controls_Manager::SELECT,
 				'default' => '',
+				/* 6.0.2: labels only ( values unchanged ). The first choice always draws Grid Type 1, centred, whatever the store's
+				 * design settings say; it was labelled "Theme Options". */
 				'options' => array(
-					''       => esc_attr__( 'Theme Options', 'wp-easycart' ),
+					''       => esc_attr__( 'Standard (Grid Type 1)', 'wp-easycart' ),
 					'custom' => esc_attr__( 'Custom', 'wp-easycart' ),
 				),
 			)
@@ -620,7 +624,9 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label'     => esc_attr__( 'Product Type', 'wp-easycart' ),
 				'type'      => Controls_Manager::SELECT,
 				'default'   => 'default',
+				/* 6.0.2: 'default' ( the stored default, which uses the store's product type ) had no label, so the editor showed Grid Type 1. */
 				'options'   => array(
+					'default' => esc_attr__( 'Store Default', 'wp-easycart' ),
 					'1'     => esc_attr__( 'Grid Type 1', 'wp-easycart' ),
 					'2'     => esc_attr__( 'Grid Type 2', 'wp-easycart' ),
 					'3'     => esc_attr__( 'Grid Type 3', 'wp-easycart' ),
@@ -913,6 +919,7 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 			array(
 				'type'        => Controls_Manager::SWITCHER,
 				'label'       => esc_attr__( 'Customize Product Image Corners', 'wp-easycart' ),
+				'description' => esc_attr__( 'Not used when an Image Height Mode is chosen under Image Display; use Style › Product Image › Border Radius instead.', 'wp-easycart' ),
 				'default'     => 'no',
 				'condition'   => array(
 					'type' => 'custom',
@@ -1095,7 +1102,7 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 					'center top'    => esc_attr__( 'Top', 'wp-easycart' ),
 					'center bottom' => esc_attr__( 'Bottom', 'wp-easycart' ),
 				),
-				'description' => esc_attr__( 'Anchor point for image cropping when using Cover fit.', 'wp-easycart' ),
+				'description' => esc_attr__( 'Where the image sits in the image window when Contain leaves space around it.', 'wp-easycart' ),
 				'condition'   => array(
 					'image_display_mode' => 'fixed',
 					'image_object_fit'   => 'contain',
@@ -1521,8 +1528,10 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label'     => esc_attr__( 'Star Color', 'wp-easycart' ),
 				'type'      => Controls_Manager::COLOR,
 				'default'   => '',
+				/* 6.0.2: the stars are CSS triangles coloured by their bottom borders ( !important in the store CSS ); `color` alone did nothing. */
 				'selectors' => array(
-					'{{WRAPPER}} .ec_product_star_on' => 'color: {{VALUE}};',
+					'{{WRAPPER}} .ec_product_star_on' => 'color: {{VALUE}}; border-bottom-color: {{VALUE}} !important;',
+					'{{WRAPPER}} .ec_product_star_on:before, {{WRAPPER}} .ec_product_star_on:after' => 'border-bottom-color: {{VALUE}} !important;',
 				),
 			)
 		);
@@ -1534,7 +1543,8 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'type'      => Controls_Manager::COLOR,
 				'default'   => '',
 				'selectors' => array(
-					'{{WRAPPER}} .ec_product_star_off' => 'color: {{VALUE}};',
+					'{{WRAPPER}} .ec_product_star_off' => 'color: {{VALUE}}; border-bottom-color: {{VALUE}} !important;',
+					'{{WRAPPER}} .ec_product_star_off:before, {{WRAPPER}} .ec_product_star_off:after' => 'border-bottom-color: {{VALUE}} !important;',
 				),
 			)
 		);
@@ -1545,8 +1555,9 @@ class Wp_Easycart_Elementor_Store_Widget extends \Elementor\Widget_Base {
 				'label'      => esc_attr__( 'Margin', 'wp-easycart' ),
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', 'em', '%' ),
+				/* 6.0.2: no template prints .ec_product_star_rating; these are the rating rows of the product grid. */
 				'selectors'  => array(
-					'{{WRAPPER}} .ec_product_star_rating' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+					'{{WRAPPER}} .ec_product_stars, {{WRAPPER}} .ec_product_stars_type1, {{WRAPPER}} .ec_product_stars_type2, {{WRAPPER}} .ec_product_stars_type3, {{WRAPPER}} .ec_product_stars_type4, {{WRAPPER}} .ec_product_stars_type5, {{WRAPPER}} .ec_product_stars_type6' => 'margin: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				),
 			)
 		);

@@ -40,7 +40,8 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 		echo '</div>';
 
 		echo '<div class="wp-easycart-button-row">';
-			echo '<button type="submit" class="wp-easycart-button" onclick="return ec_account_connect_order_button_click();">' . esc_html( $args['button_text_connect_order'] ) . '</button>';
+			/* 6.0.2: the check is in ec-store.js; a theme's older copy of that file does not have it, so the form then submits unchecked instead of throwing. */
+			echo '<button type="submit" class="wp-easycart-button" onclick="return ( \'function\' === typeof ec_account_connect_order_button_click ) ? ec_account_connect_order_button_click( this ) : true;">' . esc_html( $args['button_text_connect_order'] ) . '</button>';
 		echo '</div>';
 	echo '</div>';
 	echo '<input type="hidden" name="ec_account_page_id" id="ec_account_page_id" value="' . esc_attr( get_queried_object_id() ) . '" />';

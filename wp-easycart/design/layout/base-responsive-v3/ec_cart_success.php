@@ -1,26 +1,9 @@
 <?php
-if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
-	if( !isset( $_COOKIE['ec_cart_facebook_order_id_tracked_' . $order->order_id] ) ){
-		echo "<script>
-			fbq('track', 'Purchase', {
-				content_type: 'product',
-				value: " . esc_attr( number_format( $order->grand_total, 2, '.', '' ) ) . ",
-				currency: '" . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . "',
-				contents: [";
-		for( $i=0; $i<count( $order->orderdetails ); $i++ ){
-			if( $i > 0 )
-				echo ", ";
-			echo "{
-				id: '" . esc_attr( $order->orderdetails[$i]->product_id ) . "',
-				quantity: " . esc_attr( $order->orderdetails[$i]->quantity ) . ",
-				price: " . esc_attr( $order->orderdetails[$i]->unit_price ) . "
-			}";
-		}		
-		echo "]
-			});
-		</script>";
-		setcookie( 'ec_cart_facebook_order_id_tracked_' . (int) $order->order_id, 1, time( ) + ( 3600 * 24 * 30 ), defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/', defined( 'COOKIE_DOMAIN' ) && COOKIE_DOMAIN ? COOKIE_DOMAIN : '' );
-	}
+if ( function_exists( 'wp_easycart_meta_purchase' ) ) {
+	// 6.0.2: Meta Purchase with eventID order_{order_id} ( WP EasyCart PRO sends the server Purchase with the same ID when
+	// the order is paid ), catalog content IDs and the store currency; once per order in this browser
+	// ( cookie ec_cart_facebook_order_id_tracked_{order_id} ).
+	wp_easycart_meta_purchase( $order );
 }
 ?>
 
@@ -50,7 +33,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 				value: <?php echo esc_attr( number_format( $order->grand_total, 2, '.', '' ) ); ?>,
 				tax: <?php echo esc_attr( number_format( $order->tax_total + $order->vat_total + $order->hst_total + $order->gst_total + $order->pst_total + $order->duty_total, 2, '.', '' ) ); ?>,
 				shipping: <?php echo esc_attr( number_format( $order->shipping_total, 2, '.', '' ) ); ?>,
-				currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+				currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 				coupon: "<?php echo esc_attr( $order->promo_code ); ?>",
 				items: [
 				<?php for( $i=0; $i<count( $order->orderdetails ); $i++ ){ ?>
@@ -76,7 +59,7 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 			value: <?php echo esc_attr( number_format( $order->grand_total, 2, '.', '' ) ); ?>,
 			tax: <?php echo esc_attr( number_format( $order->tax_total + $order->vat_total + $order->hst_total + $order->gst_total + $order->pst_total + $order->duty_total, 2, '.', '' ) ); ?>,
 			shipping: <?php echo esc_attr( number_format( $order->shipping_total, 2, '.', '' ) ); ?>,
-			currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+			currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 			coupon: "<?php echo esc_attr( $order->promo_code ); ?>",
 			items: [
 			<?php for( $i=0; $i<count( $order->orderdetails ); $i++ ){ ?>
@@ -228,9 +211,11 @@ if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){
 </div>
 <?php }?>
 
+<?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'success_print_receipt', (int) $order_id ) : get_option( 'ec_option_success_print_receipt', 1 ) ) { /* 6.0.2: Settings › Documents › Customer downloads, or a document rule */ ?>
 <div class="ec_cart_success_print_button_v2">
 	<?php $this->display_print_receipt_link( '<span class="dashicons dashicons-printer"></span>' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ), $order_id ); ?>
 </div>
+<?php }?>
 
 <div class="ec_order_success_row">
 	<div class="ec_order_success_loader ec_order_success_loader_v2">

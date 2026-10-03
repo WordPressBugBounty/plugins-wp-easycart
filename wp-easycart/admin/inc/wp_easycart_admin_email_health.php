@@ -85,7 +85,15 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 			echo '<div class="ecem-kpi' . ( $h['failed'] ? ' is-bad' : '' ) . '"><b>' . (int) $h['failed'] . '</b><span>' . esc_html__( 'failed · 7 days', 'wp-easycart' ) . '</span></div>';
 			echo '<div class="ecem-kpi is-ok"><b>' . (int) $h['sent'] . '</b><span>' . esc_html__( 'sent · 7 days', 'wp-easycart' ) . '</span></div>';
 			echo '<div class="ecem-kpi"><b>' . esc_html( $h['last_success'] ? date_i18n( 'M j, H:i', strtotime( $h['last_success'] ) ) : '—' ) . '</b><span>' . esc_html__( 'last successful send', 'wp-easycart' ) . '</span></div>';
-			echo '<div class="ecem-kpi"><b>' . esc_html( ec_email::transport_label( $h['transport'] ) ) . '</b><span>' . esc_html__( 'transport in use', 'wp-easycart' ) . ( 'plugin_smtp' === $h['transport'] ? ' · ' . esc_html( get_option( 'ec_option_order_from_smtp_host' ) . ':' . get_option( 'ec_option_order_from_smtp_port' ) ) : '' ) . '</span></div>';
+			/* 6.0.2: a custom method that does not send store emails leaves them to WordPress mail ( ec_email::store_email_transport() ). */
+			$kpi_note = '';
+			if ( 'plugin_smtp' === $h['transport'] ) {
+				$kpi_note = ' · ' . get_option( 'ec_option_order_from_smtp_host' ) . ':' . get_option( 'ec_option_order_from_smtp_port' );
+			} elseif ( isset( $h['store_transport'] ) && $h['store_transport'] !== $h['transport'] ) {
+				/* translators: %s: transport name, e.g. WordPress mail (wp_mail) */
+				$kpi_note = ' · ' . sprintf( __( 'other store emails: %s', 'wp-easycart' ), ec_email::transport_label( $h['store_transport'] ) );
+			}
+			echo '<div class="ecem-kpi"><b>' . esc_html( ec_email::transport_label( $h['transport'] ) ) . '</b><span>' . esc_html( __( 'transport in use', 'wp-easycart' ) . $kpi_note ) . '</span></div>';
 			echo '</div>';
 			if ( $h['queued'] || $h['parked'] ) { echo '<div class="ecem-queue-line">' . esc_html( sprintf( __( 'Queue: %1$d waiting to retry · %2$d need attention', 'wp-easycart' ), $h['queued'], $h['parked'] ) ) . ( $h['affected_orders'] ? ' · <a href="' . esc_url( self::orders_url() ) . '">' . esc_html( sprintf( _n( '%d order affected', '%d orders affected', $h['affected_orders'], 'wp-easycart' ), $h['affected_orders'] ) ) . '</a>' : '' ) . '</div>'; }
 			/* sparkline */
@@ -103,7 +111,9 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 		}
 
 		public static function type_label( $t ) {
-			$l = array( 'order' => __( 'Order email', 'wp-easycart' ), 'order_receipt' => __( 'Order receipt', 'wp-easycart' ), 'order_shipped' => __( 'Order shipped', 'wp-easycart' ), 'packing_slip' => __( 'Packing slip', 'wp-easycart' ), 'order_status' => __( 'Status update', 'wp-easycart' ), 'store' => __( 'Store email', 'wp-easycart' ), 'account' => __( 'Account email', 'wp-easycart' ), 'review_request' => __( 'Review request', 'wp-easycart' ), 'review_reminder' => __( 'Review reminder', 'wp-easycart' ), 'review_reply' => __( 'Review reply', 'wp-easycart' ), 'review_alert' => __( 'Low-rating alert', 'wp-easycart' ), 'giftcard' => __( 'Gift card', 'wp-easycart' ), 'test' => __( 'Test', 'wp-easycart' ), 'test_failure' => __( 'Test — simulated failure', 'wp-easycart' ), 'subscription_trial' => __( 'Subscription trial started', 'wp-easycart' ), 'subscription_trial_ending' => __( 'Subscription trial ending', 'wp-easycart' ), 'subscription_upcoming' => __( 'Subscription renewal notice', 'wp-easycart' ), 'subscription_ended' => __( 'Subscription ended', 'wp-easycart' ), 'subscription_failed' => __( 'Subscription payment failed', 'wp-easycart' ) );
+			$l = array( 'order' => __( 'Order email', 'wp-easycart' ), 'order_receipt' => __( 'Order receipt', 'wp-easycart' ), 'order_shipped' => __( 'Order shipped', 'wp-easycart' ), 'packing_slip' => __( 'Packing slip', 'wp-easycart' ), 'order_status' => __( 'Status update', 'wp-easycart' ), 'store' => __( 'Store email', 'wp-easycart' ), 'account' => __( 'Account email', 'wp-easycart' ), 'review_request' => __( 'Review request', 'wp-easycart' ), 'review_reminder' => __( 'Review reminder', 'wp-easycart' ), 'review_reply' => __( 'Review reply', 'wp-easycart' ), 'review_alert' => __( 'Low-rating alert', 'wp-easycart' ), 'giftcard' => __( 'Gift card', 'wp-easycart' ), 'test' => __( 'Test', 'wp-easycart' ), 'test_failure' => __( 'Test — simulated failure', 'wp-easycart' ), 'subscription_trial' => __( 'Subscription trial started', 'wp-easycart' ), 'subscription_trial_ending' => __( 'Subscription trial ending', 'wp-easycart' ), 'subscription_upcoming' => __( 'Subscription renewal notice', 'wp-easycart' ), 'subscription_ended' => __( 'Subscription ended', 'wp-easycart' ), 'subscription_failed' => __( 'Subscription payment failed', 'wp-easycart' ),
+				/* 6.0.2: order emails are logged by kind, and the store's copies apart from the customer's */
+				'order_receipt_store' => __( 'Order receipt ( store copy )', 'wp-easycart' ), 'invoice' => __( 'Invoice', 'wp-easycart' ), 'invoice_store' => __( 'Invoice ( store copy )', 'wp-easycart' ), 'order_refund' => __( 'Refund', 'wp-easycart' ), 'order_refund_store' => __( 'Refund ( store copy )', 'wp-easycart' ), 'payment_failed' => __( 'Payment failed', 'wp-easycart' ), 'payment_failed_store' => __( 'Payment failed ( store copy )', 'wp-easycart' ), 'giftcard_store' => __( 'Gift card ( store copy )', 'wp-easycart' ), 'low_stock' => __( 'Low stock alert', 'wp-easycart' ), 'out_of_stock' => __( 'Out of stock alert', 'wp-easycart' ) );
 			return isset( $l[ $t ] ) ? $l[ $t ] : ucfirst( str_replace( '_', ' ', (string) $t ) );
 		}
 
@@ -325,6 +335,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_health' ) ) :
 				echo '<td>' . esc_html( self::type_label( $r->email_type ) ) . ( $r->order_id ? ' · <a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ec_admin_form_action=edit&order_id=' . (int) $r->order_id ) ) . '">#' . (int) $r->order_id . '</a>' : '' ) . '<div class="ecem-sub">' . esc_html( $r->subject ) . '</div></td>';
 				echo '<td>' . esc_html( $r->to_email ) . '</td><td>' . esc_html( ec_email::transport_label( $r->transport ) ) . '</td><td>';
 				if ( 'sent' === $r->status ) { echo '<span class="ecv2-chip ecv2-chip-green">' . esc_html__( 'Sent', 'wp-easycart' ) . ( (int) $r->attempts > 1 ? ' · ' . esc_html( sprintf( __( 'attempt %d', 'wp-easycart' ), (int) $r->attempts ) ) : '' ) . '</span>'; }
+				else if ( 'skipped' === $r->status ) { echo '<span class="ecv2-chip ecv2-chip-gray">' . esc_html__( 'Not sent: no valid address', 'wp-easycart' ) . '</span>'; } /* 6.0.2: ec_email::no_recipient() */
 				else if ( 'retrying' === $r->status ) { echo '<span class="ecv2-chip ecv2-chip-amber">' . esc_html( sprintf( __( 'Retry %1$d/%2$d', 'wp-easycart' ), (int) $r->attempts, ec_email::MAX_ATTEMPTS ) ) . ( $r->next_attempt ? ' · ' . esc_html( sprintf( __( 'next %s', 'wp-easycart' ), human_time_diff( strtotime( $r->next_attempt ), current_time( 'timestamp' ) ) ) ) : '' ) . '</span>'; }
 				else { echo '<span class="ecv2-chip ecv2-chip-red">' . esc_html( (int) $r->attempts >= ec_email::MAX_ATTEMPTS ? sprintf( __( 'Failed after %d attempts', 'wp-easycart' ), (int) $r->attempts ) : __( 'Failed', 'wp-easycart' ) ) . '</span>'; }
 				if ( $r->error_text ) { echo '<div class="ecem-sub ecem-mono" title="' . esc_attr( $r->error_text ) . '">' . esc_html( mb_strimwidth_compat( $r->error_text, 90 ) ) . '</div>'; }
@@ -542,7 +553,7 @@ function ecv2_email_retry() {
 	ecv2_email_guard();
 	$r = ec_email::retry( isset( $_POST['queue_id'] ) ? (int) $_POST['queue_id'] : 0 );
 	if ( is_wp_error( $r ) ) { wp_send_json_error( array( 'message' => $r->get_error_message() ) ); }
-	$msgs = array( 'sent' => __( 'Sent.', 'wp-easycart' ), 'retried' => __( 'Still failing — it will retry again automatically.', 'wp-easycart' ), 'parked' => __( 'Still failing after the final attempt. Fix the email settings, then Retry.', 'wp-easycart' ) );
+	$msgs = array( 'sent' => __( 'Sent.', 'wp-easycart' ), 'retried' => __( 'Still failing — it will retry again automatically.', 'wp-easycart' ), 'parked' => __( 'Still failing after the final attempt. Fix the email settings, then Retry.', 'wp-easycart' ), 'skipped' => __( 'Not sent: this email has no valid address, so it was taken out of the queue.', 'wp-easycart' ) );
 	wp_send_json_success( array( 'result' => $r, 'message' => $msgs[ $r ] ) );
 }
 
@@ -580,7 +591,7 @@ function ecv2_email_resend_receipt() {
 	if ( ! $row ) { wp_send_json_error( array( 'message' => __( 'Order not found.', 'wp-easycart' ) ) ); }
 	global $wpdb;
 	/* Anything still queued for this order is superseded by the fresh receipt */
-	$wpdb->query( $wpdb->prepare( "UPDATE ec_email_queue SET status = 'superseded' WHERE order_id = %d AND status IN ( 'pending', 'failed' ) AND email_type IN ( 'order', 'order_receipt', 'store' )", $order_id ) );
+	$wpdb->query( $wpdb->prepare( "UPDATE ec_email_queue SET status = 'superseded' WHERE order_id = %d AND status IN ( 'pending', 'failed' ) AND email_type IN ( 'order', 'order_receipt', 'order_receipt_store', 'store' )", $order_id ) );
 	$before = (int) $wpdb->get_var( 'SELECT MAX( log_id ) FROM ec_email_log' );
 	ec_email::context( 'order_receipt', $order_id );
 	$display = new ec_orderdisplay( $row, true, true );
@@ -643,7 +654,7 @@ function ecv2_email_send_test() {
 	}
 	global $wpdb;
 	$before    = (int) $wpdb->get_var( 'SELECT MAX( log_id ) FROM ec_email_log' );
-	$transport = ec_email::configured_transport();
+	$transport = ec_email::store_email_transport(); /* 6.0.2: the route the test really takes ( a custom method may leave it to wp_mail ). */
 	$mailer    = ( 'wp_mail' === $transport ) ? ec_email::detect_mailer() : null;
 	$route     = $mailer ? $mailer['name'] : ec_email::transport_label( $transport );
 	$store     = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -719,11 +730,16 @@ function ecv2_email_queue_run() {
 	$sent = (int) $res['sent'];
 	$retried = (int) $res['retried'];
 	$parked = (int) $res['parked'];
-	if ( ! $sent && ! $retried && ! $parked ) {
+	$skipped = isset( $res['skipped'] ) ? (int) $res['skipped'] : 0;
+	if ( ! $sent && ! $retried && ! $parked && ! $skipped ) {
 		$message = __( 'Nothing was due yet. Emails waiting for their next attempt stay in the queue until that time.', 'wp-easycart' );
 	} else {
 		/* translators: 1: sent, 2: retried, 3: gave up. */
 		$message = sprintf( __( '%1$d sent, %2$d retried and still waiting, %3$d gave up.', 'wp-easycart' ), $sent, $retried, $parked );
+		if ( $skipped ) {
+			/* translators: %d: emails with no valid address ( 6.0.2 ). */
+			$message .= ' ' . sprintf( _n( '%d had no valid address and was taken out of the queue.', '%d had no valid address and were taken out of the queue.', $skipped, 'wp-easycart' ), $skipped );
+		}
 	}
 	wp_send_json_success( array( 'message' => $message, 'html' => ecv2_email_queue_body_html() ) );
 }

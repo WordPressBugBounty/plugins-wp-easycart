@@ -77,6 +77,9 @@ class wpeasycart_mailer {
 			try {
 				$to_addresses = explode( ",", $to );
 				foreach( $to_addresses as $to_address ){
+					if ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'is_placeholder' ) && ec_email::is_placeholder( $to_address ) ) {
+						continue; /* 6.0.2: the example store address ( youremail@url.com ) is never mailed */
+					}
 					$mail->AddAddress( trim( $to_address ) );
 				}
 
@@ -208,6 +211,9 @@ class wpeasycart_mailer {
 			try {
 				$to_addresses = explode( ",", $to );
 				foreach ( $to_addresses as $to_address ) {
+					if ( class_exists( 'ec_email' ) && method_exists( 'ec_email', 'is_placeholder' ) && ec_email::is_placeholder( $to_address ) ) {
+						continue; /* 6.0.2: the example store address ( youremail@url.com ) is never mailed */
+					}
 					$mail->AddAddress( trim( $to_address ) );
 				}
 

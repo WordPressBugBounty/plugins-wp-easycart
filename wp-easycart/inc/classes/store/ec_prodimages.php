@@ -337,10 +337,12 @@ class ec_prodimages {
 	}
 
 	private function ec_get_permalink( $postid ) {
+		$classic = $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number;
 		if ( ! get_option( 'ec_option_use_old_linking_style' ) && $postid != "0" ){
-			return $this->guid;
+			/* 6.0.2: the live permalink, as the store listing uses ( the stored guid keeps a renamed store page's old slug ). */
+			return wp_easycart_store_post_link( $postid, $classic );
 		} else {
-			return $this->store_page . $this->permalink_divider . "model_number=" . $this->model_number;
+			return $classic;
 		}
 	}
 }

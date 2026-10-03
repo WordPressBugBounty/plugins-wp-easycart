@@ -178,7 +178,7 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 				</div>
 				<?php } ?>
 
-				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_notice' ) ); ?></div>
+				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info"><?php /* 6.0.2: says what a plan change really does ( Stripe applies it at once; with proration the difference is on the next bill ) */ echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_plan_notice', 'Plan changes take effect right away. Your next bill shows the new price and any charge or credit for the rest of the current period.' ) ); ?></div>
 
 				<div class="ec_account_subscription_v2_actions">
 					<input type="submit" class="ec_account_subscription_v2_primary" data-ec-sub-save="plan" disabled="disabled" value="<?php echo esc_attr( wp_easycart_language()->get_text( 'account_subscriptions', 'save_changes_button' ) ); ?>" onclick="return ( typeof ec_account_subscription_save_plan === 'function' ) ? ec_account_subscription_save_plan( this, <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' ) : ec_update_subscription_info( <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' );" />
@@ -272,6 +272,11 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 								return;
 							}
 							jQuery( document.getElementById( 'ec_terms_error' ) ).hide( );
+							if ( ! clientSecret ) {
+								/* 6.0.2: checkout protection held the card check back ( a pause or a human check ): load a fresh one. */
+								window.location.reload();
+								return;
+							}
 							var saveButton = document.getElementById( 'ec_account_subscription_v2_card_save' );
 							if ( saveButton ) {
 								saveButton.disabled = true;
@@ -328,7 +333,7 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 					<?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' ) ); ?>
 				</div>
 
-				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_notice' ) ); ?></div>
+				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info"><?php /* 6.0.2: the card panel's own notice */ echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_card_notice', 'Your next payment is charged to the new card.' ) ); ?></div>
 
 				<div class="ec_account_subscription_v2_actions">
 					<input type="submit" id="ec_account_subscription_v2_card_save" class="ec_account_subscription_v2_primary" disabled="disabled" value="<?php echo esc_attr( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_update_payment' ) ); ?>" onclick="return ec_check_update_subscription_info( );" />

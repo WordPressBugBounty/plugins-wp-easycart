@@ -221,6 +221,15 @@ function ecv2_role_guard() {
 }
 function ecv2_role_row( $id ) { global $wpdb; return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_role WHERE role_id = %d', (int) $id ) ); }
 function ecv2_role_is_master( $id ) { return in_array( (int) $id, wp_easycart_admin_user_role_table::MASTERS, true ); }
+/**
+ * 6.0.2: role prices are Pro ( wp_easycart_admin_pro_gate::price_rules() ). Adding, changing and the % off tools refuse without
+ * it; prices saved earlier keep applying at checkout, and the list and Remove stay open.
+ */
+function ecv2_role_price_rules_guard() {
+	if ( ! method_exists( 'wp_easycart_admin_pro_gate', 'price_rules' ) ) { return; }
+	$gate = wp_easycart_admin_pro_gate::price_rules();
+	if ( 'enabled' !== $gate['state'] ) { wp_send_json_error( array( 'message' => wp_easycart_admin_pro_gate::price_rules_message( 'roles' ), 'locked' => $gate['state'] ) ); }
+}
 
 add_action( 'wp_ajax_ecv2_role_create', 'ecv2_role_create' );
 function ecv2_role_create() {
@@ -289,7 +298,7 @@ function ecv2_role_price_search() {
 
 add_action( 'wp_ajax_ecv2_role_price_set', 'ecv2_role_price_set' );
 function ecv2_role_price_set() {
-	ecv2_role_guard(); global $wpdb;
+	ecv2_role_guard(); ecv2_role_price_rules_guard(); global $wpdb;
 	$role = ecv2_role_row( isset( $_POST['role_id'] ) ? (int) $_POST['role_id'] : 0 ); if ( ! $role ) { wp_send_json_error( array( 'message' => __( 'Role not found.', 'wp-easycart' ) ) ); }
 	$pid = isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0; $price = isset( $_POST['price'] ) ? (float) str_replace( ',', '', sanitize_text_field( wp_unslash( $_POST['price'] ) ) ) : -1;
 	if ( ! $pid || $price < 0 ) { wp_send_json_error( array( 'message' => __( 'Enter a price of 0 or more.', 'wp-easycart' ) ) ); }
@@ -347,7 +356,7 @@ function ecv2_role_price_remove() {
  */
 add_action( 'wp_ajax_ecv2_role_price_percent', 'ecv2_role_price_percent' );
 function ecv2_role_price_percent() {
-	ecv2_role_guard(); global $wpdb;
+	ecv2_role_guard(); ecv2_role_price_rules_guard(); global $wpdb;
 	$role = ecv2_role_row( isset( $_POST['role_id'] ) ? (int) $_POST['role_id'] : 0 ); if ( ! $role ) { wp_send_json_error( array( 'message' => __( 'Role not found.', 'wp-easycart' ) ) ); }
 	$pct = isset( $_POST['percent'] ) ? (float) $_POST['percent'] : 0; $scope = isset( $_POST['scope'] ) ? sanitize_key( wp_unslash( $_POST['scope'] ) ) : 'existing';
 	if ( ! in_array( $scope, array( 'existing', 'selected', 'all' ), true ) ) { $scope = 'existing'; }

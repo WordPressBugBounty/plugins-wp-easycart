@@ -1,4 +1,4 @@
-<?php if( ( $product->show_stock_quantity || $product->use_optionitem_quantity_tracking ) && $product->stock_quantity > 0 && get_option( 'ec_option_show_stock_quantity' ) ){ ?><div class="ec_details_stock_total_ele">
+<?php if( ( $product->show_stock_quantity || $product->use_optionitem_quantity_tracking ) && $product->stock_quantity > 0 && get_option( 'ec_option_show_stock_quantity' ) ){ /* 6.0.2: data-wpec-linked-* let the count follow the variant chosen in this product's add to cart form ( ec-store.js ). */ ?><div class="ec_details_stock_total_ele" data-wpec-linked-product="<?php echo esc_attr( $product->product_id ); ?>" data-wpec-linked-rand="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
 	<span id="ec_details_stock_quantity_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo esc_attr( $product->stock_quantity ); ?></span> 
 	<?php echo wp_easycart_language( )->get_text( 'product_details', 'product_details_left_in_stock' ); ?>
 </div>

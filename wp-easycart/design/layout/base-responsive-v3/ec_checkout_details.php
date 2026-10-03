@@ -1,6 +1,6 @@
 <?php $this->display_page_one_form_start(); ?>
 
-<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 <input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
 <?php }?>
 
@@ -28,7 +28,7 @@
 			<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_password_label' ); ?>
 		</div>
 
-		<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 		<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />
 		<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_recaptcha"></div>
 		<?php }?>
@@ -41,7 +41,7 @@
 			<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'forgot_password' ) ); ?>" class="ec_account_login_link"><?php echo wp_easycart_language( )->get_text( 'account_login', 'account_login_forgot_password_link' ); ?></a>
 		</div>
 
-		<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+		<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 		<script type="text/javascript">
 			if( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ){
 				var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
@@ -170,6 +170,7 @@
 	<?php }?>
 
 	<?php do_action( 'wpeasycart_billing_after' ); ?>
+	<?php do_action( 'wpeasycart_checkout_fields', 'billing', $this ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<?php if ( ! $this->shipping_address_allowed ) { ?>
 		<div class="ec_cart_header">
@@ -310,6 +311,7 @@
 	<?php }?>
 
 	<?php do_action( 'wpeasycart_shipping_after' ); ?>
+	<?php do_action( 'wpeasycart_checkout_fields', 'shipping', $this ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<?php if( $GLOBALS['ec_cart_data']->cart_data->user_id == "" ){ ?>
 	<div class="ec_cart_header">
@@ -332,6 +334,8 @@
 		</div>
 	</div>
 	<?php }?>
+
+	<?php do_action( 'wpeasycart_checkout_fields', 'contact', $this ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<?php if( $GLOBALS['ec_cart_data']->cart_data->email == "" || 
 			  ( $GLOBALS['ec_cart_data']->cart_data->is_guest != "" && $GLOBALS['ec_cart_data']->cart_data->is_guest ) || 
@@ -395,16 +399,17 @@
 	<?php if( get_option( 'ec_option_allow_guest' ) && !$this->has_downloads ){ ?></div><?php }?>
 	<?php } ?>
 	<?php if( get_option( 'ec_option_user_order_notes' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_notes_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_title' ); ?>
 	</div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_input_row ec_cart_notes_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_payment_information_order_notes_message' ); ?>
 		<textarea name="ec_order_notes" id="ec_order_notes"><?php if( $GLOBALS['ec_cart_data']->cart_data->order_notes != "" ){ echo esc_textarea( $GLOBALS['ec_cart_data']->cart_data->order_notes ); } ?></textarea>
 	</div>
 	<?php }?>
 
 	<?php do_action( 'wpeasycart_order_notes_after' ); ?>
+	<?php do_action( 'wpeasycart_checkout_fields', 'order_notes', $this ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<?php if( get_option( 'ec_option_enable_extra_email' ) ) { ?>
 	<div class="ec_cart_header">
@@ -424,7 +429,7 @@
 		<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_checkout_details_errors' )?>
 	</div>
 
-	<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+	<?php if( wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 	<input type="hidden" id="ec_grecaptcha_response_register" name="ec_grecaptcha_response_register" value="" />
 	<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_register_recaptcha"></div>
 	<?php }?>
@@ -434,7 +439,7 @@
 		<div class="wp-easycart-ld-ring wp-easycart-ld-spin" style="color:#fff"></div>
 	</div>
 
-	<?php if( get_option( 'ec_option_cache_prevent' ) && get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_enable_recaptcha_cart' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+	<?php if( get_option( 'ec_option_cache_prevent' ) && wp_easycart_recaptcha_ready( 'cart' ) ){ ?>
 	<script type="text/javascript">
 		if( jQuery( document.getElementById( 'ec_account_register_recaptcha' ) ).length ){
 			var wpeasycart_register_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_register_recaptcha' ), {
@@ -554,30 +559,30 @@
 	<?php wp_easycart_offers_template( 'ec_offer_codes.php', array( 'cartpage' => $this, 'offer_result' => ( isset( $this->offer_result ) ) ? $this->offer_result : null ) ); ?>
 	<?php } else { ?>
 	<?php if( get_option( 'ec_option_show_coupons' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_coupon_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_coupon_title' )?>
 	</div>
-	<div class="ec_cart_error_message" id="ec_coupon_error"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
-	<div class="ec_cart_success_message" id="ec_coupon_success"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_error_message ec_cart_coupon_part" id="ec_coupon_error"<?php if( $this->is_coupon_expired( ) ){ ?> style="display:block;"<?php }?>><?php echo esc_attr( $this->get_coupon_expiration_note( ) ); ?></div>
+	<div class="ec_cart_success_message ec_cart_coupon_part" id="ec_coupon_success"<?php if( isset( $this->coupon ) && !$this->is_coupon_expired( ) ){?> style="display:block;"<?php }?>><?php if( isset( $this->coupon ) ){ if( $this->discount->coupon_matches <= 0 ){ echo wp_easycart_language( )->get_text( 'cart_coupons', 'coupon_not_applicable' ); }else{ echo wp_easycart_language( )->convert_text( $this->coupon->message ); } } ?></div>
+	<div class="ec_cart_input_row ec_cart_coupon_part">
 		<input type="text" name="ec_coupon_code" id="ec_coupon_code" value="<?php if( isset( $this->coupon ) ){ echo esc_attr( $this->coupon_code ); } ?>" placeholder="<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_enter_coupon' )?>" />
 	</div>
-	<div class="ec_cart_button_row">
+	<div class="ec_cart_button_row ec_cart_coupon_part">
 		<div class="ec_cart_button" id="ec_apply_coupon" onclick="ec_apply_coupon( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-coupon-code-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_apply_coupon' ); ?></div>
 		<div class="ec_cart_button_working" id="ec_applying_coupon"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_please_wait' )?></div>
 	</div>
 	<?php }?>
 	<?php }?>
 	<?php if( get_option( 'ec_option_show_giftcards' ) ){ ?>
-	<div class="ec_cart_header">
+	<div class="ec_cart_header ec_cart_giftcard_part">
 		<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_gift_card_title' )?>
 	</div>
-	<div class="ec_cart_error_message" id="ec_gift_card_error"></div>
-	<div class="ec_cart_success_message" id="ec_gift_card_success"<?php if( $this->gift_card != "" ){?> style="display:block;"<?php }?>><?php if( $this->gift_card != "" ){ echo esc_attr( $this->giftcard->message ); } ?></div>
-	<div class="ec_cart_input_row">
+	<div class="ec_cart_error_message ec_cart_giftcard_part" id="ec_gift_card_error"></div>
+	<div class="ec_cart_success_message ec_cart_giftcard_part" id="ec_gift_card_success"<?php if( $this->gift_card != "" ){?> style="display:block;"<?php }?>><?php if( $this->gift_card != "" ){ echo esc_attr( $this->giftcard->message ); } ?></div>
+	<div class="ec_cart_input_row ec_cart_giftcard_part">
 		<input type="text" name="ec_gift_card" id="ec_gift_card" value="<?php echo esc_attr( $this->gift_card ); ?>" placeholder="<?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_enter_gift_code' ); ?>" />
 	</div>
-	<div class="ec_cart_button_row">
+	<div class="ec_cart_button_row ec_cart_giftcard_part">
 		<div class="ec_cart_button" id="ec_apply_gift_card" onclick="ec_apply_gift_card( '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-gift-card-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language( )->get_text( 'cart_coupons', 'cart_redeem_gift_card' ); ?></div>
 		<div class="ec_cart_button_working" id="ec_applying_gift_card"><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_please_wait' )?></div>
 	</div>

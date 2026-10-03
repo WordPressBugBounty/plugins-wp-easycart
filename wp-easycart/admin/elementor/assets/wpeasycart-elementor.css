@@ -1,0 +1,190 @@
+/**
+ * WP EasyCart widgets for Elementor: shared styles ( 6.0.2 ).
+ *
+ * Loaded with every 6.0.2 widget ( handle wpeasycart-elementor, WP_EasyCart_Elementor_Widget_Base::get_style_depends() ) and in
+ * the editor preview.
+ *
+ * 1. Design variables. Widgets read var( --wpec-* , fallback ). The defaults below sit on body with zero specificity, so:
+ *    - Site Settings › WP EasyCart ( the kit, .elementor-kit-N on body ) overrides them;
+ *    - a widget's own Style controls set them on {{WRAPPER}} and win for that widget;
+ *    - they follow the kit's global colours ( --e-global-color-* ), then the store's colours ( --wpec-main-color, printed on
+ *      :root by EasyCart's head content ), then a neutral value.
+ *    --wpec-muted-color, --wpec-border-color and --wpec-error-color are not redefined here: EasyCart prints them on :root for the
+ *    store's light or dark theme.
+ * 2. Building blocks new widgets may use: .wpec-el ( root class: focus rings, reduced motion ), .wpec-el-button, .wpec-el-price,
+ *    .wpec-el-sr-only.
+ * 3. Editor notes: .wpec-el-notice ( ec_editor_notice() ) and .wpec-el-locked ( a PRO widget without PRO ). Visitors never
+ *    see them.
+ */
+
+:where(body) {
+	--wpec-price-color: var(--e-global-color-primary, var(--wpec-text-color, currentColor));
+	--wpec-sale-price-color: var(--e-global-color-accent, var(--wpec-main-color, #b3261e));
+	--wpec-regular-price-color: var(--e-global-color-text, var(--wpec-muted-color, #6b6b6b));
+	--wpec-badge-bg: var(--e-global-color-accent, var(--wpec-main-color, #1d1d1d));
+	--wpec-badge-color: #ffffff;
+	--wpec-button-bg: var(--e-global-color-accent, var(--wpec-main-color, #1d1d1d));
+	--wpec-button-color: #ffffff;
+	--wpec-button-hover-bg: var(--e-global-color-secondary, var(--wpec-second-color, #3a3a3a));
+	--wpec-button-hover-color: #ffffff;
+	--wpec-button-radius: 3px;
+	--wpec-radius: 6px;
+	--wpec-success-color: #1e7e34;
+	--wpec-gap: 16px;
+}
+
+/* 2. Building blocks ( all :where(), so any widget rule beats them ) */
+
+:where(.wpec-el) :focus-visible,
+:where(.wpec-el-button):focus-visible {
+	outline: 2px solid var(--wpec-button-bg, #1d1d1d);
+	outline-offset: 2px;
+}
+
+:where(.wpec-el-button) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 10px 20px;
+	border: 0;
+	border-radius: var(--wpec-button-radius, 3px);
+	background: var(--wpec-button-bg, var(--e-global-color-accent, #1d1d1d));
+	color: var(--wpec-button-color, #ffffff);
+	font-family: var(--wpec-button-font-family, inherit);
+	font-size: var(--wpec-button-font-size, inherit);
+	font-weight: var(--wpec-button-font-weight, 600);
+	text-transform: var(--wpec-button-text-transform, none);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+:where(.wpec-el-button):hover,
+:where(.wpec-el-button):focus {
+	background: var(--wpec-button-hover-bg, var(--e-global-color-secondary, #3a3a3a));
+	color: var(--wpec-button-hover-color, #ffffff);
+	text-decoration: none;
+}
+
+:where(.wpec-el-button)[disabled],
+:where(.wpec-el-button)[aria-disabled="true"] {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+:where(.wpec-el-price) {
+	color: var(--wpec-price-color, inherit);
+	font-family: var(--wpec-price-font-family, inherit);
+	font-size: var(--wpec-price-font-size, inherit);
+	font-weight: var(--wpec-price-font-weight, 600);
+}
+
+:where(.wpec-el-price-sale) {
+	color: var(--wpec-sale-price-color, inherit);
+}
+
+:where(.wpec-el-price-regular) {
+	color: var(--wpec-regular-price-color, #6b6b6b);
+	font-weight: normal;
+	text-decoration: line-through;
+}
+
+.wpec-el-sr-only {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.wpec-el) *,
+	:where(.wpec-el) *::before,
+	:where(.wpec-el) *::after,
+	:where(.wpec-el-button) {
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* 3. Editor notes ( the editor and its preview only ) */
+
+.wpec-el-notice {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px dashed rgba(127, 127, 127, 0.55);
+	border-radius: var(--wpec-radius, 6px);
+	background: rgba(127, 127, 127, 0.08);
+	color: inherit;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-size: 13px;
+	font-weight: normal;
+	line-height: 1.45;
+	text-align: start;
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+.wpec-el-notice strong {
+	font-weight: 600;
+}
+
+.wpec-el-notice span {
+	opacity: 0.8;
+}
+
+.wpec-el-notice a {
+	align-self: flex-start;
+	margin-top: 6px;
+	padding: 6px 14px;
+	border-radius: var(--wpec-button-radius, 3px);
+	background: var(--wpec-button-bg, #1d1d1d);
+	color: var(--wpec-button-color, #ffffff);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.wpec-el-notice a:hover,
+.wpec-el-notice a:focus {
+	background: var(--wpec-button-hover-bg, #3a3a3a);
+	color: var(--wpec-button-hover-color, #ffffff);
+}
+
+.wpec-el-notice a:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+.wpec-el-locked {
+	position: relative;
+	padding-inline-start: 44px;
+	border-style: solid;
+}
+
+.wpec-el-locked::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: 16px;
+	top: 16px;
+	width: 16px;
+	height: 16px;
+	background: currentColor;
+	opacity: 0.7;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E") center / contain no-repeat;
+}

@@ -42,7 +42,7 @@ if ( ! class_exists( 'wp_easycart_admin_email_help' ) ) :
 			$links = apply_filters(
 				'wp_easycart_email_help_links',
 				array(
-					'guide' => 'https://wpeasycart.com/docs/email-delivery',
+					'guide' => ec_email::DELIVERY_GUIDE_URL, /* 6.0.2: the docs site guide */
 					'docs'  => $docs,
 					'video' => 'https://www.youtube.com/watch?v=p96NBca16N0',
 				)
@@ -152,7 +152,10 @@ if ( ! class_exists( 'wp_easycart_admin_email_help' ) ) :
 			$show_test = false;
 			if ( $h['streak'] >= ec_email::FAIL_STREAK_ALERT ) {
 				$state = 'failing';
-				$text  = __( 'Several emails in a row have failed, so customers are probably not getting receipts. The last error below says why.', 'wp-easycart' );
+				/* 6.0.2: only a run that includes customer emails says customers go without; copies and alerts to the store say so. */
+				$text = ( ! isset( $h['streak_customer'] ) || $h['streak_customer'] )
+					? __( 'Several emails in a row have failed, so customers are probably not getting receipts. The last error below says why.', 'wp-easycart' )
+					: __( 'Several emails to your store addresses have failed in a row ( order copies and alerts ). The last error below says why.', 'wp-easycart' );
 			} elseif ( null === $h['rate'] ) {
 				$state     = 'empty';
 				$text      = __( 'Nothing has been sent in the last 7 days, so there is no delivery rate yet. Send yourself a test to check the setup.', 'wp-easycart' );

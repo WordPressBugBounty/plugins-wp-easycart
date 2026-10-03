@@ -42,6 +42,10 @@ if ( function_exists( 'wp_easycart_admin_license' ) ) {
 		$upgrade_url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $transaction_key;
 	}
 }
+/* 6.0.2: one rule for Premium links ( the Pro discount, the trial upgrade, or premium-support-extensions ). */
+if ( class_exists( 'wp_easycart_admin_edition' ) ) {
+	$upgrade_url = wp_easycart_admin_edition::premium_url();
+}
 $is_free      = ! $license_data;
 $is_expired   = ( $license_data && $days_left <= 0 );
 $has_pro_now  = ( $license_data && $days_left > 0 && ( $is_pro || $is_premium || $is_trial ) );
@@ -55,7 +59,7 @@ if ( $is_free ) {
 	$hero = array( 'badge' => __( 'Free', 'wp-easycart' ), 'tone' => 'free', 'ring' => 0, 'title' => __( 'Free edition', 'wp-easycart' ),
 		/* translators: %s: plan name, "Pro/Premium". */
 		'text' => sprintf( __( 'Everything you need to sell is running. Card payments through Stripe, Square and PayPal carry a 2%% fee on the free edition; a %s license removes it and unlocks the features below.', 'wp-easycart' ), $ecss_plan ),
-		'cta' => array( 'admin.php?page=wp-easycart-registration&ec_trial=start', __( 'Try Pro free for 14 days', 'wp-easycart' ), 'primary' ),
+		'cta' => array( wp_easycart_admin()->pro_install_url( 'trial', true ), __( 'Try Pro free for 14 days', 'wp-easycart' ), 'primary' ),
 		'cta2' => array( 'admin.php?page=wp-easycart-registration', __( 'I have a license key', 'wp-easycart' ), '' ) );
 } else if ( $is_trial && $days_left > 0 ) {
 	$hero = array( 'badge' => __( 'Trial', 'wp-easycart' ), 'tone' => 'trial', 'ring' => min( 1, $days_left / 14 ), 'title' => sprintf( _n( '%d day left on your Pro trial', '%d days left on your Pro trial', $days_left, 'wp-easycart' ), $days_left ),
@@ -136,16 +140,21 @@ if ( $offer_counts['offers'] > 0 ) {
 } else {
 	$offers_desc = __( 'Coupon codes, BOGO, free shipping and spend-threshold deals in one place.', 'wp-easycart' );
 }
+$ecss_ext_url = function ( $slug ) {
+	return class_exists( 'wp_easycart_admin_extensions' ) ? wp_easycart_admin_extensions::url( $slug ) : 'https://www.wpeasycart.com/my-account/';
+};
 $features = array(
 	array( 'tier' => 'pro', 'icon' => 'dashicons-megaphone', 'title' => __( 'Offers', 'wp-easycart' ), 'desc' => $offers_desc, 'url' => 'admin.php?page=wp-easycart-rates&subpage=offers', 'link' => __( 'View offers', 'wp-easycart' ), 'ctx' => 'offers' ),
 	array( 'tier' => 'pro', 'icon' => 'dashicons-update', 'title' => __( 'Subscriptions', 'wp-easycart' ), 'desc' => __( 'Recurring billing through Stripe.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-orders&subpage=subscriptions', 'link' => __( 'View subscriptions', 'wp-easycart' ), 'ctx' => 'subscriptions' ),
 	array( 'tier' => 'pro', 'icon' => 'dashicons-download', 'title' => __( 'Downloads', 'wp-easycart' ), 'desc' => __( 'Digital products with limits, expiry and delivery logs.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-orders&subpage=downloads', 'link' => __( 'Manage downloads', 'wp-easycart' ), 'ctx' => 'downloads' ),
 	array( 'tier' => 'pro', 'icon' => 'dashicons-tickets', 'title' => __( 'Gift cards', 'wp-easycart' ), 'desc' => __( 'Sell cards, track balances, issue store credit.', 'wp-easycart' ), 'url' => 'admin.php?page=wp-easycart-rates&subpage=gift-cards', 'link' => __( 'View gift cards', 'wp-easycart' ), 'ctx' => 'giftcards' ),
 	/* 6.0.0: Stamps.com replaces the QuickBooks tile ( the QuickBooks extension targets QuickBooks Desktop, which few stores still use ). */
-	array( 'tier' => 'premium', 'icon' => 'dashicons-tag', 'title' => __( 'Stamps.com', 'wp-easycart' ), 'desc' => __( 'Buy and print USPS postage labels for your orders.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
-	array( 'tier' => 'premium', 'icon' => 'dashicons-airplane', 'title' => __( 'ShipStation', 'wp-easycart' ), 'desc' => __( 'Labels and fulfillment from one place.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
-	array( 'tier' => 'premium', 'icon' => 'dashicons-facebook', 'title' => __( 'Facebook & Instagram', 'wp-easycart' ), 'desc' => __( 'Catalog sync for social shops.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Download from your account', 'wp-easycart' ), 'ctx' => 'default' ),
-	array( 'tier' => 'premium', 'icon' => 'dashicons-smartphone', 'title' => __( 'Mobile apps', 'wp-easycart' ), 'desc' => __( 'Manage orders from your phone.', 'wp-easycart' ), 'url' => 'https://www.wpeasycart.com/my-account/', 'link' => __( 'Get the apps', 'wp-easycart' ), 'ctx' => 'default' ),
+	// 6.0.2: QuickBooks Online and Xero are coming to Premium ( catalog status coming ); an accounting tile can return once they are released.
+	/* 6.0.2: Premium tiles open EasyCart › Extensions ( install and settings live there ); locked ones open the Premium popup. */
+	array( 'tier' => 'premium', 'icon' => 'dashicons-tag', 'title' => __( 'Stamps.com', 'wp-easycart' ), 'desc' => __( 'Buy and print USPS, UPS, FedEx and DHL Express labels for your orders.', 'wp-easycart' ), 'url' => $ecss_ext_url( 'stamps' ), 'link' => __( 'Open in Extensions', 'wp-easycart' ), 'ctx' => 'ext_stamps' ),
+	array( 'tier' => 'premium', 'icon' => 'dashicons-airplane', 'title' => __( 'ShipStation', 'wp-easycart' ), 'desc' => __( 'Labels and fulfillment from one place.', 'wp-easycart' ), 'url' => $ecss_ext_url( 'shipstation' ), 'link' => __( 'Open in Extensions', 'wp-easycart' ), 'ctx' => 'ext_shipstation' ),
+	array( 'tier' => 'premium', 'icon' => 'dashicons-facebook', 'title' => __( 'Facebook & Instagram', 'wp-easycart' ), 'desc' => __( 'Catalog sync for social shops.', 'wp-easycart' ), 'url' => $ecss_ext_url( 'facebook' ), 'link' => __( 'Open in Extensions', 'wp-easycart' ), 'ctx' => 'ext_facebook' ),
+	array( 'tier' => 'premium', 'icon' => 'dashicons-smartphone', 'title' => __( 'Mobile apps', 'wp-easycart' ), 'desc' => __( 'Manage orders from your phone.', 'wp-easycart' ), 'url' => $ecss_ext_url( '' ) . '#apps', 'link' => __( 'Get the apps', 'wp-easycart' ), 'ctx' => 'ext_apps' ),
 );
 $locked_pro = 0; $locked_prem = 0;
 foreach ( $features as $f ) {
@@ -269,7 +278,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 		<?php foreach ( $features as $f ) :
 			$unlocked = ( 'pro' === $f['tier'] ) ? $has_pro_now : $has_prem_now;
 			$expired_tier = ( $is_expired && ( ( 'pro' === $f['tier'] && ( $is_pro || $is_premium ) ) || ( 'premium' === $f['tier'] && $is_premium ) ) );
-			$external = ( 0 === strpos( $f['url'], 'http' ) );
+			$external = ( 0 === strpos( $f['url'], 'http' ) && 0 !== strpos( $f['url'], admin_url() ) ); // 6.0.2: the Extensions page is not external
 			if ( $unlocked ) : ?>
 			<a class="ecss-tile is-on" href="<?php echo esc_url( $f['url'] ); ?>"<?php echo $external ? ' target="_blank"' : ''; ?>>
 				<span class="dashicons <?php echo esc_attr( $f['icon'] ); ?> ecss-tile-icon"></span>
@@ -287,7 +296,7 @@ $ring_r = 26; $ring_c = 2 * M_PI * $ring_r;
 				<span class="ecss-tile-link"><?php esc_html_e( 'Renew license', 'wp-easycart' ); ?></span>
 			</a>
 			<?php else : ?>
-			<button type="button" class="ecss-tile is-locked is-<?php echo esc_attr( $f['tier'] ); ?>" onclick="<?php echo ( 'premium' === $f['tier'] ) ? "window.open( '" . esc_js( $upgrade_url ) . "', '_blank' );" : "ecdv2_upsell( { context: '" . esc_js( $f['ctx'] ) . "' } );"; ?> return false;">
+			<button type="button" class="ecss-tile is-locked is-<?php echo esc_attr( $f['tier'] ); ?>" onclick="<?php echo "ecdv2_upsell( { context: '" . esc_js( $f['ctx'] ) . "' } );"; /* 6.0.2: Premium tiles open the Premium popup too */ ?> return false;">
 				<span class="dashicons <?php echo esc_attr( $f['icon'] ); ?> ecss-tile-icon"></span>
 				<span class="ecss-tile-pill"><?php echo esc_html( wp_easycart_admin_edition::badge( $f['tier'] ) ); ?></span>
 				<strong><?php echo esc_html( $f['title'] ); ?></strong>

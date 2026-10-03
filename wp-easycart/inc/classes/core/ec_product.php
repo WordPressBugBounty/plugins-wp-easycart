@@ -686,6 +686,7 @@ class ec_product {
 			else
 				echo "<input name=\"ec_jquery_get_stock_quantity_file\" id=\"ec_jquery_get_stock_quantity_file_" . esc_attr( $this->model_number ) . "\" type=\"hidden\" value=\"" . esc_attr( plugins_url( 'wp-easycart/design/theme/' . get_option( 'ec_option_base_theme' ) ."/ec_product_details_page/ec_product_details_page_get_stock_quantity.php", EC_PLUGIN_DIRECTORY ) ) . "\" />";
 			echo "<input name=\"ec_cart_form_action\" id=\"ec_cart_form_action_" . esc_attr( $this->model_number ) . "\" value=\"add_to_cart\" type=\"hidden\" />";
+			echo "<input name=\"ec_cart_form_nonce\" type=\"hidden\" value=\"" . esc_attr( wp_create_nonce( 'wp-easycart-add-to-cart-' . (int) $this->product_id ) ) . "\" />"; /* 6.0.2: checked by ec_cartpage::process_add_to_cart() */
 			echo "</form>";
 		}
 	}

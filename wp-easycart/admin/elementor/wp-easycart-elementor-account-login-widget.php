@@ -65,7 +65,9 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 		}
 	echo '</div>';
 
-	if ( get_option( 'ec_option_enable_recaptcha' ) && '' != get_option( 'ec_option_recaptcha_site_key' ) ) {
+	if ( wp_easycart_recaptcha_ready() ) {
+		/* 6.0.2: Google's script ( registered by wp_easycart_register_grecaptcha_js() ); it only loaded on pages whose content holds [ec_account], so with reCAPTCHA on nobody could sign in here. */
+		wp_enqueue_script( 'wpeasycart_google_recaptcha_js' );
 		echo '<input type="hidden" id="ec_grecaptcha_response_login" name="ec_grecaptcha_response_login" value="" />';
 		echo '<input type="hidden" id="ec_grecaptcha_site_key" value="' . esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ) . '" />';
 		echo '<div class="ec_cart_input_row" data-sitekey="' . esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ) . '" id="ec_account_login_recaptcha"></div>';
@@ -78,18 +80,28 @@ echo '<form action="' . esc_url( wpeasycart_links()->get_account_page() ) . '" m
 	echo '<input type="hidden" name="ec_account_page_id" id="ec_account_page_id" value="' . esc_attr( get_queried_object_id() ) . '" />';
 
 	if ( 'yes' == $args['redirect_after_login'] ) {
-		echo "<input type=\"hidden\" name=\"ec_custom_login_redirect\" value=\"" . esc_url_raw( wp_unslash( $args['redirect_url'] ) ) . "\" />";
+		/*
+		 * 6.0.2: the URL control's value is an array ( url, is_external, nofollow ); esc_url_raw() on it was a fatal error on
+		 * PHP 8. Left blank, the customer comes back to this page, as the control's note says.
+		 */
+		$wpec_login_redirect = '';
+		if ( is_array( $args['redirect_url'] ) && isset( $args['redirect_url']['url'] ) && is_string( $args['redirect_url']['url'] ) ) {
+			$wpec_login_redirect = trim( $args['redirect_url']['url'] );
+		} elseif ( is_string( $args['redirect_url'] ) ) {
+			$wpec_login_redirect = trim( $args['redirect_url'] );
+		}
+		if ( '' === $wpec_login_redirect && is_singular() ) {
+			$wpec_login_redirect = (string) get_permalink( get_queried_object_id() );
+		}
+		if ( '' !== $wpec_login_redirect ) {
+			echo '<input type="hidden" name="ec_custom_login_redirect" value="' . esc_url( $wpec_login_redirect ) . '" />';
+		}
 	}
 	echo '<input type="hidden" name="ec_account_form_action" value="login" />';
 	echo '<input type="hidden" name="ec_account_form_nonce" value="' . esc_attr( wp_create_nonce( 'wp-easycart-account-login' ) ) . '" />';
 echo '</form>';
-if ( get_option( 'ec_option_cache_prevent' ) ) {
-echo "<script type=\"text/javascript\">
-	if ( jQuery( document.getElementById( 'ec_account_login_recaptcha' ) ).length ) {
-		var wpeasycart_login_recaptcha = grecaptcha.render( document.getElementById( 'ec_account_login_recaptcha' ), {
-			'sitekey' : jQuery( document.getElementById( 'ec_grecaptcha_site_key' ) ).val(),
-			'callback' : wpeasycart_login_recaptcha_callback
-		} );
-	}
-</script>";
-}
+/*
+ * 6.0.2: no inline reCAPTCHA render ( it was printed on cache-prevent stores ). This form is on the page when it loads, so
+ * Google's onload callback ( wpeasycart_recaptcha_onload in ec-store.js ) renders it; the inline call ran before Google's
+ * script and threw, or rendered the box twice.
+ */

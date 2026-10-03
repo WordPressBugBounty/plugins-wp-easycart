@@ -14,10 +14,12 @@ $gw       = $wizard->get_gateway_state();
 $env      = wp_easycart_admin_setup_wizard::get_environment();
 $gate     = $wizard->show_terms_gate();
 $upsell   = $wizard->show_upsell();
+$fee_badge = $wizard->connect_fee_badge(); /* 6.0.2: the fee the gateways charge now, not the upsell switch */
 $admin    = esc_url_raw( admin_url() );
 $state_id = rand( 1000000, 9999999 );
 
-$paypal_url = esc_url_raw( wp_easycart_admin()->get_available_url() ) . '/paypal-v2/production_onboard.php?redirect=' . urlencode( $admin . '?wpeasycart_paypal_onboard=production&is_wizard=true' );
+/* 6.0.2: WP EasyCart Connect's /paypal-v3/ onboarding. The return carries the nonce wpeasycart_paypal_express_partner_authorized() checks ( without it the account was never kept ). */
+$paypal_url = wp_easycart_paypal_connect::onboard_url( 'production', $admin . '?wpeasycart_paypal_onboard=production&is_wizard=true&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) );
 $stripe_url = esc_url_raw( wp_easycart_admin()->get_available_url() ) . '/connect/?step=start&redirect=' . urlencode( $admin . '?ec_admin_form_action=stripe_onboard&env=production&goto=wizard' ) . '&env=production';
 $square_url = 'https://connect.wpeasycart.com/square-v2/?url=' . urlencode( $admin . '?ec_admin_form_action=handle-square&goto=wizard' ) . '&state=' . $state_id;
 $payment_settings = admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' );
@@ -85,7 +87,7 @@ $ssl_badge = $env['https']
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
 					<?php } else { ?>
-					<span class="ecwz-badge ecwz-badge-gray"><?php echo $upsell ? esc_html__( '2% fee on Free', 'wp-easycart' ) : esc_html__( 'No EasyCart fees', 'wp-easycart' ); ?></span>
+					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $paypal_url ); ?>" data-href="<?php echo esc_url( $paypal_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
 					<?php } ?>
 				</div>
@@ -99,7 +101,7 @@ $ssl_badge = $env['https']
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
 					<?php } else { ?>
-					<span class="ecwz-badge ecwz-badge-gray"><?php echo $upsell ? esc_html__( '2% fee on Free', 'wp-easycart' ) : esc_html__( 'No EasyCart fees', 'wp-easycart' ); ?></span>
+					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $stripe_url ); ?>" data-href="<?php echo esc_url( $stripe_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?><?php if ( ! $env['https'] ) { echo ' title="' . esc_attr__( 'Requires https', 'wp-easycart' ) . '"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
 					<?php } ?>
 				</div>
@@ -113,7 +115,7 @@ $ssl_badge = $env['https']
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
 					<?php } else { ?>
-					<span class="ecwz-badge ecwz-badge-gray"><?php echo $upsell ? esc_html__( '2% fee on Free', 'wp-easycart' ) : esc_html__( 'No EasyCart fees', 'wp-easycart' ); ?></span>
+					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $square_url ); ?>" data-href="<?php echo esc_url( $square_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?><?php if ( ! $env['https'] ) { echo ' title="' . esc_attr__( 'Requires https', 'wp-easycart' ) . '"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
 					<?php } ?>
 				</div>
@@ -125,7 +127,7 @@ $ssl_badge = $env['https']
 			<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
 			<?php esc_html_e( 'Authorize.net, Braintree, Mollie, Klarna and 30+ more.', 'wp-easycart' ); ?>
 			<a href="https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=payment" target="_blank" rel="noopener noreferrer" class="ecwz-lnk"><?php esc_html_e( 'See the list', 'wp-easycart' ); ?></a> ·
-			<a href="admin.php?page=wp-easycart-registration&ec_trial=start" target="_blank" class="ecwz-lnk"><?php esc_html_e( 'Start 14-day trial', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin()->pro_install_url( 'trial' ) ); ?>" target="_blank" class="ecwz-lnk"><?php esc_html_e( 'Start 14-day trial', 'wp-easycart' ); ?></a>
 		</div>
 		<?php } ?>
 

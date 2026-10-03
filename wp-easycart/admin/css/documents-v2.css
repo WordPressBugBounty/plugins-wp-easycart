@@ -217,3 +217,11 @@ body.admin-bar .ecdoc-drawer { top:32px; }
 /* A PRO document without PRO: its Standard profile, read only, with a real preview. */
 .ecdoc.is-locked .ecdoc-fields { opacity:.62; }
 .ecdoc.is-locked .ecdoc-sw, .ecdoc.is-locked .ecdoc-pills label { cursor:not-allowed; }
+/* 6.0.2: a switch only WP EasyCart PRO records ( PO number, terms, gift message ), and the locked rules example. */
+.ecdoc-sw.is-locked { cursor:pointer; }
+.ecdoc-sw.is-locked .ecdoc-sw-text, .ecdoc-sw.is-locked .ecdoc-knob { opacity:.62; }
+.ecdoc-sw.is-locked input { pointer-events:none; }
+.ecdoc-sw.is-locked .ecst-pro-chip { font-size:9px; padding:1px 6px; vertical-align:1px; }
+.ecdoc-lock-click { cursor:pointer; border-radius:8px; }
+.ecdoc-lock-click:focus-visible { outline:2px solid var(--ecst-accent, #2271b1); outline-offset:2px; }
+.ecdoc-rules-mock td:first-child, .ecdoc-rules-mock th:first-child { width:28px; text-align:center; color:var(--ecv2-g500, #6b7280); }

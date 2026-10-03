@@ -10,12 +10,27 @@
  * per service. The DecoNetwork "allow blank item purchase" switch moved here
  * from the Additional Settings page ( `miscellaneous` ).
  *
+ * 6.0.2: MailerLite, ConvertKit ( Kit ) and ActiveCampaign moved to their own
+ * page, Settings › Email marketing ( email-marketing.php ); a short section
+ * here points there.
+ *
  * Only the Universal Analytics ID was editable in the free plugin; every
  * other service is declared with 'pro' => true and unlocks through the gate.
- * PRO attaches the pieces a declaration cannot express ( the Google Merchant
- * feed tool, the DecoNetwork setup notes, the ConvertKit form and
- * ActiveCampaign list pickers that are filled from each service's API ) from
- * wp-easycart-pro/admin/template/settings/integrations.php.
+ * PRO attaches the pieces a declaration cannot express ( the DecoNetwork setup
+ * notes, the ConvertKit form and ActiveCampaign list pickers that are filled
+ * from each service's API ) from wp-easycart-pro/admin/template/settings/integrations.php.
+ * 6.0.2: the Google Merchant attribute spreadsheet moved to Settings › Search &
+ * AI ( section google-attributes ); the Google Merchant section here is a
+ * signpost, unless a PRO older than 6.0.2 still draws the spreadsheet here.
+ *
+ * 6.0.2: the Meta Pixel section adds sitewide loading, advanced matching and
+ * Limited Data Use ( browser side in the free plugin, wp_easycart_meta ) and the
+ * Conversions API rows ( PRO 6.0.2 attaches their runtime, a recent events
+ * table as the section 'render' and a Send test event section action ). The
+ * Cookie consent section ( free ) makes the Meta and Google tags wait for the
+ * shopper's answer in the store's cookie banner ( wp_easycart_consent,
+ * wp_easycart_has_marketing_consent() ); 6.0.2 says which banner it found and how
+ * to check it.
  *
  * The cart importer is a tool, not a set of options: its section has no
  * fields. Its 'render' prints the importer rebuilt in the V2 look ( source
@@ -62,6 +77,110 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_sanitize_hex' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_settings_integrations_clear_activity' ) ) {
+	/**
+	 * Settings › Integrations › Store activity › Clear.
+	 *
+	 * @since 6.0.2
+	 * @return string|WP_Error
+	 */
+	function wp_easycart_settings_integrations_clear_activity() {
+		if ( ! class_exists( 'wp_easycart_store_activity' ) ) {
+			return new WP_Error( 'unavailable', __( 'This action is not available.', 'wp-easycart' ) );
+		}
+		wp_easycart_store_activity::clear();
+		return __( 'Store activity cleared.', 'wp-easycart' );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_activity_consent_rows' ) ) {
+	/**
+	 * Store activity: one note per Cookie consent choice that nothing on this site can answer
+	 * ( wp_easycart_store_activity::consent_block() ), shown while that choice is picked ( so it follows the select ).
+	 *
+	 * @since 6.0.2
+	 * @return array Field key => html row.
+	 */
+	function wp_easycart_settings_integrations_activity_consent_rows() {
+		$rows = array();
+		if ( ! class_exists( 'wp_easycart_store_activity' ) || ! method_exists( 'wp_easycart_store_activity', 'consent_block_choices' ) ) {
+			return $rows;
+		}
+		foreach ( wp_easycart_store_activity::consent_block_choices() as $choice ) {
+			$rows[ 'ecst_store_activity_consent_' . $choice ] = array(
+				'type'      => 'html',
+				'label'     => __( 'Cookie consent', 'wp-easycart' ),
+				'parent'    => 'ec_option_marketing_consent',
+				'show_when' => $choice,
+				'consent'   => $choice,
+				'render'    => 'wp_easycart_settings_integrations_render_activity_consent',
+			);
+		}
+		return $rows;
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_render_activity_consent' ) ) {
+	/**
+	 * Store activity: while Cookie consent is set to a choice nothing on this site can answer, product views, searches and
+	 * visits are never counted. Says so, with a one-click switch ( data-ecst-set ) to the choice that fixes it.
+	 *
+	 * @since 6.0.2
+	 * @param array $field Field declaration ( 'consent' => the choice ).
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_integrations_render_activity_consent( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		if ( ! class_exists( 'wp_easycart_store_activity' ) || ! method_exists( 'wp_easycart_store_activity', 'consent_block' ) ) {
+			return;
+		}
+		$block = wp_easycart_store_activity::consent_block( isset( $field['consent'] ) ? (string) $field['consent'] : null );
+		if ( ! $block ) {
+			return;
+		}
+		echo '<div class="ecck-note is-error">';
+		echo '<span class="ecck-ic dashicons dashicons-dismiss" aria-hidden="true"></span>';
+		echo '<div class="ecck-body">';
+		echo '<p class="ecck-msg">' . esc_html( $block['message'] ) . '</p>';
+		echo '<p class="ecck-actions">';
+		echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecck-switch" data-ecst-set="ec_option_marketing_consent" data-ecst-value="' . esc_attr( $block['suggest'] ) . '">' . esc_html( $block['suggest_label'] ) . '</button>';
+		echo '<a class="ecst-link" href="#ecst-sec-cookie-consent">' . esc_html__( 'Open Cookie consent', 'wp-easycart' ) . '</a>';
+		echo '</p></div></div>';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_render_activity_check' ) ) {
+	/**
+	 * Store activity: how to check that the store counts ( the storefront check, ?wpec_activity_check=1 ).
+	 *
+	 * @since 6.0.2
+	 * @param array $field Field declaration.
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_integrations_render_activity_check( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		$url = ( class_exists( 'wp_easycart_store_activity' ) && method_exists( 'wp_easycart_store_activity', 'check_url' ) ) ? wp_easycart_store_activity::check_url() : home_url( '/?wpec_activity_check=1' );
+		echo '<p class="ecst-row-desc" style="margin:0;">' . esc_html__( 'Open your store in a private window with the store activity check, then search or open a product. A small panel shows whether that browser is counted, what it sent and what Reports counted. Store admins signed in to WordPress are never counted.', 'wp-easycart' ) . ' <a class="ecst-link" href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Open the store activity check', 'wp-easycart' ) . ' ↗</a></p>';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_sanitize_hosts' ) ) {
+	/**
+	 * Order sources ignore list ( 6.0.2 ): one site per line, stored as bare host names ( no scheme, path or www. ).
+	 */
+	function wp_easycart_settings_integrations_sanitize_hosts( $value, $field ) {
+		$hosts = array();
+		foreach ( preg_split( '/[\s,]+/', strtolower( (string) $value ) ) as $host ) {
+			$host = preg_replace( '#^[a-z][a-z0-9+.\-]*://#', '', trim( $host ) );
+			$host = preg_replace( '/^www\./', '', preg_replace( '#[/?\#:].*$#', '', $host ) );
+			if ( preg_match( '/^[a-z0-9.\-]{1,253}$/', $host ) && false !== strpos( $host, '.' ) && ! in_array( $host, $hosts, true ) ) {
+				$hosts[] = trim( $host, '.' );
+			}
+		}
+		return implode( "\n", array_slice( $hosts, 0, 50 ) );
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_settings_integrations_remote_options' ) ) {
 	/**
 	 * Starting option list for the ConvertKit form / ActiveCampaign list
@@ -78,14 +197,181 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_remote_options' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_settings_integrations_render_email_marketing' ) ) {
+	/**
+	 * Where MailerLite, Kit and ActiveCampaign went ( 6.0.2: Settings › Email marketing ).
+	 *
+	 * @since 6.0.2
+	 * @param array $page    Page declaration.
+	 * @param array $section Section declaration.
+	 */
+	function wp_easycart_settings_integrations_render_email_marketing( $page, $section ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's section 'render' signature.
+		$url = class_exists( 'wp_easycart_admin_settings_registry' ) ? wp_easycart_admin_settings_registry::page_url( 'newsletter-services' ) : admin_url( 'admin.php?page=wp-easycart-settings&subpage=newsletter-services' );
+		echo '<p class="ecst-row-desc" style="margin:0;">' . esc_html__( 'Newsletter subscribers, customers, orders and abandoned carts for these services are set up on their own page.', 'wp-easycart' ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Open Email marketing', 'wp-easycart' ) . '</a></p>';
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_settings_integrations_render_google_merchant' ) ) {
 	/**
-	 * Section body for Google Merchant. Without PRO the section is locked and
-	 * this short summary is all that shows; the PRO page filter swaps in the
-	 * CSV download / upload and XML feed tool.
+	 * Section body for Google Merchant.
+	 *
+	 * 6.0.2: everything for Google Shopping is on Settings › Search & AI ( the product feed, Connect Google, feed options and
+	 * the attribute spreadsheet, moved from here ), so this section points there and says whether Merchant Center is
+	 * connected. With WP EasyCart PRO older than 6.0.2 the section keeps its old form ( 'moved_to' is not set ): that PRO
+	 * swaps in the spreadsheet tool here, and without it this short summary shows under the lock.
+	 *
+	 * @param array $page    Page declaration.
+	 * @param array $section Section declaration.
 	 */
 	function wp_easycart_settings_integrations_render_google_merchant( $page, $section ) {
-		echo '<p class="ecst-row-desc" style="margin:0;">' . esc_html__( 'Download a CSV of your catalogue, fill in the Google Shopping attributes ( GTIN, MPN, condition, product category ), upload it back and download the XML feed to submit to your Google Merchant Center account.', 'wp-easycart' ) . '</p>';
+		$search_ai = admin_url( 'admin.php?page=wp-easycart-settings&subpage=search-ai' );
+		if ( empty( $section['moved_to'] ) ) {
+			echo '<p class="ecst-row-desc" style="margin:0;">' . esc_html__( 'Download a CSV of your catalogue, fill in the Google Shopping attributes ( product category, gender, age group, sizes ) and upload it back. The product feed Google fetches every day is on Settings › Search & AI.', 'wp-easycart' ) . ' <a href="' . esc_url( $search_ai . '#ecst-sec-google-feed' ) . '">' . esc_html__( 'Google product feed', 'wp-easycart' ) . '</a></p>';
+			return;
+		}
+		echo '<p class="ecst-row-desc" style="margin:0 0 10px;">' . esc_html__( 'Your Google product feed, the Connect Google option for Merchant Center and the Google attributes spreadsheet are all on Settings › Search & AI.', 'wp-easycart' ) . '</p>';
+		if ( class_exists( 'wp_easycart_google_merchant_pro' ) && method_exists( 'wp_easycart_google_merchant_pro', 'connected' ) ) {
+			$connected = wp_easycart_google_merchant_pro::connected();
+			echo '<p class="ecst-row-desc" style="margin:0 0 10px;"><span class="dashicons dashicons-' . esc_attr( $connected ? 'yes-alt' : 'minus' ) . '" aria-hidden="true" style="font-size:16px;width:16px;height:16px;vertical-align:-3px;margin-right:4px;"></span>' . esc_html( $connected ? __( 'Google Merchant Center is connected.', 'wp-easycart' ) : __( 'Google Merchant Center is not connected.', 'wp-easycart' ) ) . '</p>';
+		}
+		echo '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+		echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $search_ai . '#ecst-sec-google-feed' ) . '"><span class="dashicons dashicons-rss" aria-hidden="true"></span> ' . esc_html__( 'Google product feed', 'wp-easycart' ) . '</a>';
+		echo '<a class="ecv2-btn" href="' . esc_url( $search_ai . '#ecst-sec-google-attributes' ) . '"><span class="dashicons dashicons-media-spreadsheet" aria-hidden="true"></span> ' . esc_html__( 'Google attributes in bulk', 'wp-easycart' ) . '</a>';
+		echo '</div>';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_render_consent_status' ) ) {
+	/**
+	 * Cookie consent: how one choice of "Ask before tracking" works on this site ( an html child row per choice, 'consent',
+	 * so the engine shows the one that matches as the select changes ). Says what was found ( wp_easycart_consent::found() ),
+	 * what WP EasyCart reads, and offers a one-click switch ( data-ecst-set ) to the choice that matches the banner found.
+	 *
+	 * @since 6.0.2
+	 * @param array $field Field declaration ( 'consent' => the choice ).
+	 * @param array $page  Page declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_integrations_render_consent_status( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		if ( ! class_exists( 'wp_easycart_consent' ) ) {
+			return;
+		}
+		$choice = isset( $field['consent'] ) ? (string) $field['consent'] : 'off';
+		$status = wp_easycart_consent::status( $choice );
+		$icons  = array(
+			'ok'     => 'yes-alt',
+			'notice' => 'info-outline',
+			'warn'   => 'warning',
+			'error'  => 'dismiss',
+			'off'    => 'minus',
+		);
+		$icon   = isset( $icons[ $status['level'] ] ) ? $icons[ $status['level'] ] : 'info-outline';
+		echo '<div class="ecck-note is-' . esc_attr( $status['level'] ) . '">';
+		echo '<span class="ecck-ic dashicons dashicons-' . esc_attr( $icon ) . '" aria-hidden="true"></span>';
+		echo '<div class="ecck-body">';
+		echo '<p class="ecck-msg">' . esc_html( $status['message'] ) . '</p>';
+		echo '<dl class="ecck-facts">';
+		echo '<dt>' . esc_html__( 'Found on this site', 'wp-easycart' ) . '</dt><dd>' . esc_html( wp_easycart_consent::found_text() ) . '</dd>';
+		if ( '' !== $status['reads'] ) {
+			echo '<dt>' . esc_html__( 'WP EasyCart reads', 'wp-easycart' ) . '</dt><dd>' . esc_html( $status['reads'] ) . '</dd>';
+		}
+		echo '</dl>';
+		// Bug round 7: nothing on the site can answer this choice ( no banner plugin, no WP Consent API ): offer to stop asking,
+		// for stores that need no cookie banner.
+		$stop = ( class_exists( 'wp_easycart_store_activity' ) && method_exists( 'wp_easycart_store_activity', 'consent_block' ) ) ? wp_easycart_store_activity::consent_block( $choice ) : array();
+		$stop = ( $stop && 'off' === $stop['suggest'] ) ? $stop : array();
+		if ( '' !== $status['suggest'] || $status['find_api'] || $stop ) {
+			echo '<p class="ecck-actions">';
+			if ( '' !== $status['suggest'] ) {
+				echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecck-switch" data-ecst-set="ec_option_marketing_consent" data-ecst-value="' . esc_attr( $status['suggest'] ) . '">' . esc_html( $status['suggest_label'] ) . '</button>';
+			}
+			if ( $stop ) {
+				echo '<button type="button" class="ecv2-btn ecck-switch" data-ecst-set="ec_option_marketing_consent" data-ecst-value="off">' . esc_html( $stop['suggest_label'] ) . '</button>';
+			}
+			if ( $status['find_api'] ) {
+				echo '<a class="ecst-link" href="' . esc_url( admin_url( 'plugin-install.php?s=' . rawurlencode( 'WP Consent API' ) . '&tab=search&type=term' ) ) . '">' . esc_html__( 'Find the WP Consent API plugin', 'wp-easycart' ) . '</a>';
+			}
+			echo '</p>';
+		}
+		echo '</div></div>';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_render_consent_help' ) ) {
+	/**
+	 * Cookie consent section body: what consent changes ( tracking, never buying ) and how to check it on the storefront
+	 * ( wp_easycart_consent::check_url(): the consent check panel ).
+	 *
+	 * @since 6.0.2
+	 * @param array $page    Page declaration.
+	 * @param array $section Section declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_integrations_render_consent_help( $page, $section ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's section 'render' signature.
+		$check      = class_exists( 'wp_easycart_consent' ) ? wp_easycart_consent::check_url() : home_url( '/?wpec_consent_check=1' );
+		$status_url = admin_url( 'admin.php?page=wp-easycart-status&subpage=store-status' );
+		?>
+		<div class="ecck-help">
+			<div class="ecck-col">
+				<h4><?php esc_html_e( 'What consent changes', 'wp-easycart' ); ?></h4>
+				<p><?php esc_html_e( 'Until the shopper accepts, the Meta Pixel and Google tags don\'t load, order sources aren\'t recorded, Reports doesn\'t count their product views, searches or visits, and WP EasyCart sends no tracking events from your server. Marketing consent covers ads and the Meta Pixel; statistics consent covers Google Analytics and the product views and searches Reports counts.', 'wp-easycart' ); ?></p>
+				<p><?php esc_html_e( 'Consent never blocks buying: shoppers who refuse cookies can still check out and create an account. The newsletter box is its own consent to email, separate from cookies, so it works either way.', 'wp-easycart' ); ?></p>
+			</div>
+			<div class="ecck-col">
+				<h4><?php esc_html_e( 'Check it works', 'wp-easycart' ); ?></h4>
+				<ol>
+					<li><?php esc_html_e( 'Choose how to ask above, then open your store in a private window with the consent check. A small panel shows what WP EasyCart reads.', 'wp-easycart' ); ?> <a class="ecst-link" href="<?php echo esc_url( $check ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open the consent check', 'wp-easycart' ); ?> ↗</a></li>
+					<li><?php esc_html_e( 'Refuse cookies in your banner. Marketing and statistics should read refused, and the Meta Pixel and Google Analytics held back.', 'wp-easycart' ); ?></li>
+					<li><?php esc_html_e( 'Accept cookies ( or clear the site\'s cookies and accept ). They switch to running.', 'wp-easycart' ); ?></li>
+					<li><?php esc_html_e( 'Still no change? Your banner may not be the one selected above, or a caching plugin may serve an old page: clear its cache.', 'wp-easycart' ); ?> <a class="ecst-link" href="<?php echo esc_url( $status_url ); ?>"><?php esc_html_e( 'Store Status', 'wp-easycart' ); ?></a></li>
+				</ol>
+			</div>
+		</div>
+		<?php
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_enqueue_consent' ) ) {
+	/**
+	 * Cookie consent section 'enqueue': the status notes' and help panel's styles ( scoped to .ecck-* ).
+	 *
+	 * @since 6.0.2
+	 * @param array $page    Page declaration.
+	 * @param array $section Section declaration.
+	 * @return void
+	 */
+	function wp_easycart_settings_integrations_enqueue_consent( $page, $section ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's section 'enqueue' signature.
+		wp_add_inline_style( 'wp_easycart_admin_settings_page_v2_css', wp_easycart_settings_integrations_consent_css() );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_integrations_consent_css' ) ) {
+	/**
+	 * The Cookie consent styles.
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	function wp_easycart_settings_integrations_consent_css() {
+		return '.ecck-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--ecv2-g200,#e5e7eb);border-left-width:3px;border-radius:var(--ecv2-rs,6px);background:#fff;font-size:12.5px;line-height:1.5;color:var(--ecv2-g700,#374151)}
+.ecck-note.is-ok{border-left-color:#10b981}.ecck-note.is-ok .ecck-ic{color:#059669}
+.ecck-note.is-notice{border-left-color:#3b82f6}.ecck-note.is-notice .ecck-ic{color:#2563eb}
+.ecck-note.is-warn{border-left-color:#f59e0b;background:#fffbeb}.ecck-note.is-warn .ecck-ic{color:#b45309}
+.ecck-note.is-error{border-left-color:#ef4444;background:#fef2f2}.ecck-note.is-error .ecck-ic{color:#dc2626}
+.ecck-note.is-off{border-left-color:var(--ecv2-g300,#d1d5db)}.ecck-note.is-off .ecck-ic{color:var(--ecv2-g500,#6b7280)}
+.ecck-ic{flex:0 0 auto;font-size:18px;width:18px;height:18px;margin-top:1px}
+.ecck-body{min-width:0;flex:1 1 auto}
+.ecck-msg{margin:0 0 6px;font-weight:600;color:var(--ecv2-g900,#111827)}
+.ecck-facts{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 12px;margin:0}
+.ecck-facts dt{color:var(--ecv2-g500,#6b7280);font-weight:500}
+.ecck-facts dd{margin:0;overflow-wrap:anywhere}
+.ecck-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:10px 0 0}
+.ecck-help{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 24px;padding:4px 0;font-size:12.5px;line-height:1.55;color:var(--ecv2-g700,#374151)}
+.ecck-help h4{margin:0 0 6px;font-size:13px;color:var(--ecv2-g900,#111827)}
+.ecck-help p{margin:0 0 8px}
+.ecck-help ol{margin:0;padding-left:18px}
+.ecck-help li{margin:0 0 6px}
+@media (max-width:600px){.ecck-facts{grid-template-columns:minmax(0,1fr)}.ecck-facts dd{margin-bottom:4px}}';
 	}
 }
 
@@ -115,6 +401,14 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_enqueue_cart_importer
 				'customers-imported'          => __( 'Customers Imported', 'wp-easycart' ),
 				'all-customers-imported'      => __( 'All Customers Imported!', 'wp-easycart' ),
 			) );
+			/* 6.0.2: the Shopify import calls send this; ecv2_shopify_import_precheck() ( admin/inc/wp_easycart_admin_cart_importer.php ) and PRO's ecv2_shopify_import_guard() check it. */
+			wp_localize_script(
+				'wp_easycart_admin_cart_importer_js',
+				'wp_easycart_cart_importer',
+				array(
+					'shopify_nonce' => wp_create_nonce( 'wp-easycart-shopify-import' ),
+				)
+			);
 		}
 		wp_enqueue_script( 'wp_easycart_admin_cart_importer_js' );
 		/* Adapter: source cards switch panels; the "only new" switch gets the V2 toggle look ( cart-importer.js already listens to its change event ). */
@@ -286,6 +580,7 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_render_cart_importer'
 							<li><?php esc_html_e( 'Product categories, and attributes as option sets, connected to products the way Woo has them', 'wp-easycart' ); ?></li>
 							<li><?php esc_html_e( 'Products: title, descriptions, regular and sale price, taxable, virtual, SKU ( a random model number if empty ), stock, downloads with their limits and expiry, reviews', 'wp-easycart' ); ?></li>
 							<li><?php esc_html_e( 'Up to five images from the gallery, or the featured image', 'wp-easycart' ); ?></li>
+							<li><?php esc_html_e( 'Published products that are visible in the catalog arrive active; drafts, pending, scheduled, private and hidden products arrive inactive', 'wp-easycart' ); ?></li>
 						</ul>
 					</div>
 					<div class="ecimp-foot">
@@ -295,8 +590,8 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_render_cart_importer'
 						<?php else : ?>
 							<button type="button" class="ecv2-btn" disabled="disabled"><?php esc_html_e( 'Import WooCommerce data', 'wp-easycart' ); ?></button>
 						<?php endif; ?>
-						<span class="ecst-row-desc"><?php esc_html_e( 'Runs 50 products per request so large stores finish without a server timeout. Keep this tab open until it reports done.', 'wp-easycart' ); ?></span>
-						<div class="ecimp-progress" id="wpeasycart_woo_import_progress_bar" style="display:none;" data-l-starting="<?php esc_attr_e( 'Copying categories and option sets...', 'wp-easycart' ); ?>" data-l-products="<?php esc_attr_e( 'products imported', 'wp-easycart' ); ?>" data-l-done="<?php esc_attr_e( 'All products imported.', 'wp-easycart' ); ?>" data-l-error="<?php esc_attr_e( 'The import stopped because the server did not answer. Run it again to continue; products already imported are kept.', 'wp-easycart' ); ?>">
+						<span class="ecst-row-desc"><?php esc_html_e( 'Runs 50 products per request so large stores finish without a server timeout. Keep this tab open until it reports done. If it stops, run it again: it continues where it stopped. Running it again later adds only the products that are new in WooCommerce; products it already imported are left as they are.', 'wp-easycart' ); ?></span>
+						<div class="ecimp-progress" id="wpeasycart_woo_import_progress_bar" style="display:none;" data-l-starting="<?php esc_attr_e( 'Copying categories and option sets...', 'wp-easycart' ); ?>" data-l-products="<?php esc_attr_e( 'products imported', 'wp-easycart' ); ?>" data-l-done="<?php esc_attr_e( 'All products imported.', 'wp-easycart' ); ?>" data-l-skipped="<?php /* translators: %d: number of products. */ esc_attr_e( '%d were already imported and were left as they are.', 'wp-easycart' ); ?>" data-l-error="<?php esc_attr_e( 'The import stopped because the server did not answer. Run it again to continue where it stopped; products already imported are kept and not imported twice.', 'wp-easycart' ); ?>">
 							<div class="ec_admin_progress_bar"><div style="width:2%;"></div></div>
 							<div class="ec_admin_process_status"><span><?php esc_html_e( 'Importer running', 'wp-easycart' ); ?></span></div>
 						</div>
@@ -337,8 +632,9 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_render_cart_importer'
 return array(
 	'slug'        => 'integrations',
 	'title'       => __( 'Integrations', 'wp-easycart' ),
-	'description' => __( 'Analytics and ads tags, email marketing lists, affiliate tracking, Amazon S3 downloads, DecoNetwork and the cart importer.', 'wp-easycart' ),
-	'group'       => 'integrations',
+	'description' => __( 'Analytics and ads tags, affiliate tracking, Amazon S3 downloads, DecoNetwork and the cart importer.', 'wp-easycart' ),
+	'group'       => 'advanced',
+	'order'       => 20,
 	'icon'        => 'admin-plugins',
 	'docs'        => array( 'settings', 'third-party', 'google-analytics' ),
 	'legacy'      => array( 'third-party', 'cart-importer' ),
@@ -371,7 +667,7 @@ return array(
 				'ec_option_google_ga4_tag_manager_direct' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Also send events from the server', 'wp-easycart' ),
-					'desc'     => __( 'Posts view, add to cart, checkout and purchase events from your server to Google through the Measurement Protocol, so they are recorded even when the browser blocks tracking. Needs the three values below.', 'wp-easycart' ),
+					'desc'     => __( 'Posts view, add to cart, checkout and purchase events from your server to your server-side Google Tag Manager container ( Measurement Protocol ), so they are recorded even when the browser blocks tracking. Needs all three values below, the container URL included.', 'wp-easycart' ),
 					'default'  => 0,
 					'pro'      => true,
 					'advanced' => true,
@@ -381,7 +677,7 @@ return array(
 				'ec_option_google_ga4_tag_manager_measurement_id' => array(
 					'type'        => 'text',
 					'label'       => __( 'Measurement ID for server events', 'wp-easycart' ),
-					'desc'        => __( 'From the GA4 data stream. Required even when the events go through a Tag Manager server container.', 'wp-easycart' ),
+					'desc'        => __( 'From the GA4 data stream the server container sends the events to. Required.', 'wp-easycart' ),
 					'default'     => '',
 					'placeholder' => 'G-XXXXXXXXXX',
 					'pro'         => true,
@@ -404,7 +700,7 @@ return array(
 				'ec_option_google_ga4_tag_manager_server_url' => array(
 					'type'        => 'url',
 					'label'       => __( 'Server container URL', 'wp-easycart' ),
-					'desc'        => __( 'Your Tag Manager server container endpoint. Server events are posted here rather than straight to Google.', 'wp-easycart' ),
+					'desc'        => __( 'Your server-side Tag Manager container ( for example https://gtm.example.com ). Required: server events go only there, and your container passes them on to Google.', 'wp-easycart' ),
 					'default'     => '',
 					'placeholder' => 'https://gtm.example.com',
 					'pro'         => true,
@@ -520,149 +816,302 @@ return array(
 			),
 		),
 
-		'google-merchant' => array(
+		/* 6.0.2: a signpost to Settings › Search & AI ( the feed, Connect Google and the attribute spreadsheet ), except with a
+		 * WP EasyCart PRO older than 6.0.2, which still draws the spreadsheet here ( 'moved_to' tells PRO 6.0.2 to leave it be ). */
+		'google-merchant' => ( defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) && version_compare( WP_EASYCART_ADMIN_PRO_VERSION, '6.0.2', '<' ) ) ? array(
 			'title'  => __( 'Google Merchant', 'wp-easycart' ),
-			'hint'   => __( 'Product feed for Google Shopping: download the attribute CSV, upload it, export the XML feed', 'wp-easycart' ),
+			'hint'   => __( 'Edit the Google attributes of many products at once in a spreadsheet', 'wp-easycart' ),
 			'pro'    => true,
 			'fields' => array(),
 			'render' => 'wp_easycart_settings_integrations_render_google_merchant',
+		) : array(
+			'title'    => __( 'Google Merchant Center', 'wp-easycart' ),
+			'hint'     => __( 'Your product feed, Connect Google and bulk attributes are on Search & AI', 'wp-easycart' ),
+			'moved_to' => 'search-ai',
+			'keywords' => array( 'google merchant', 'merchant center', 'google shopping', 'product feed', 'connect google', 'google attributes', 'csv' ),
+			'fields'   => array(),
+			'render'   => 'wp_easycart_settings_integrations_render_google_merchant',
 		),
 
+		// 6.0.2: the browser Pixel runs in FREE ( wp_easycart_meta ); the Conversions API rows need WP EasyCart PRO 6.0.2, which
+		// attaches its runtime, the recent events table ( section 'render' ) and the Send test event button ( section
+		// 'actions' ) through wp_easycart_settings_page_integrations.
 		'meta-pixel' => array(
 			'title'  => __( 'Meta Pixel', 'wp-easycart' ),
-			'hint'   => __( 'Facebook and Instagram ads tracking', 'wp-easycart' ),
+			'hint'   => __( 'Facebook and Instagram ads tracking, from the browser and from your server', 'wp-easycart' ),
 			'fields' => array(
 				'ec_option_fb_pixel' => array(
 					'type'     => 'text',
 					'label'    => __( 'Pixel ID', 'wp-easycart' ),
-					'desc'     => __( 'Adds the Meta Pixel to store pages and fires ViewContent, AddToCart, InitiateCheckout, AddPaymentInfo and Purchase events.', 'wp-easycart' ),
+					'desc'     => __( 'Adds the Meta Pixel to store pages and sends product views, searches, add to cart, checkout, payment, sign-up and purchase events with the product IDs your catalog uses.', 'wp-easycart' ),
 					'default'  => '',
 					'pro'      => true,
 					'keywords' => array( 'facebook', 'instagram', 'pixel', 'meta' ),
 					'legacy'   => array( 'page' => 'third-party', 'section' => 'Facebook Pixel Setup', 'label' => 'Facebook Pixel ID' ),
 				),
+				'ec_option_fb_pixel_sitewide' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Load the Pixel on every page', 'wp-easycart' ),
+					'desc'     => __( 'Meta also sees visits to your blog and other pages, not only store, cart and account pages, so audiences and page view counts are complete.', 'wp-easycart' ),
+					'default'  => 0,
+					'pro'      => true,
+					'keywords' => array( 'facebook', 'pixel', 'sitewide', 'all pages', 'page view', 'base code' ),
+					'legacy'   => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_fb_advanced_matching' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Match events to shoppers', 'wp-easycart' ),
+					'desc'     => __( 'Sends a hashed email and customer ID with the Pixel once a shopper is signed in or has entered their email, so Meta can credit more sales to your ads. Server events send the customer details, also hashed.', 'wp-easycart' ),
+					'default'  => 1,
+					'pro'      => true,
+					'keywords' => array( 'facebook', 'advanced matching', 'hashed', 'email', 'match quality' ),
+					'legacy'   => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_fb_capi' => array(
+					'type'            => 'toggle',
+					'label'           => __( 'Also send events from your server', 'wp-easycart' ),
+					'desc'            => __( 'Sends every event through the Conversions API as well, with the same event IDs as the Pixel, so Meta still counts sales when a browser blocks the Pixel and counts each one only once.', 'wp-easycart' ),
+					'default'         => 0,
+					'pro'             => true,
+					'pro_min_version' => '6.0.2',
+					'keywords'        => array( 'facebook', 'conversions api', 'capi', 'server side', 'server events' ),
+					'legacy'          => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_fb_capi_token' => array(
+					'type'            => 'password',
+					'label'           => __( 'Conversions API access token', 'wp-easycart' ),
+					'desc'            => __( 'Generate it in Meta Events Manager › your Pixel › Settings › Conversions API. Only ever sent from your server.', 'wp-easycart' ),
+					'default'         => '',
+					'pro'             => true,
+					'pro_min_version' => '6.0.2',
+					'parent'          => 'ec_option_fb_capi',
+					'keywords'        => array( 'facebook', 'conversions api', 'capi', 'access token', 'token' ),
+					'legacy'          => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_fb_test_event_code' => array(
+					'type'            => 'text',
+					'label'           => __( 'Test event code', 'wp-easycart' ),
+					'desc'            => __( 'From Meta Events Manager › Test events. Server events show there while a code is set; clear it once you have checked them.', 'wp-easycart' ),
+					'default'         => '',
+					'placeholder'     => 'TEST12345',
+					'pro'             => true,
+					'pro_min_version' => '6.0.2',
+					'advanced'        => true,
+					'parent'          => 'ec_option_fb_capi',
+					'keywords'        => array( 'facebook', 'test events', 'test event code', 'debug' ),
+					'legacy'          => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_fb_ldu' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Limited Data Use', 'wp-easycart' ),
+					'desc'     => __( 'Asks Meta to process events from US states with consumer privacy laws under Limited Data Use. Turn on if your privacy policy promises it.', 'wp-easycart' ),
+					'default'  => 0,
+					'pro'      => true,
+					'advanced' => true,
+					'keywords' => array( 'facebook', 'ldu', 'limited data use', 'ccpa', 'privacy' ),
+					'legacy'   => array( 'page' => 'integrations', 'section' => 'Meta Pixel', 'label' => 'New in 6.0.2' ),
+				),
 			),
 		),
 
-		'mailerlite' => array(
-			'title'  => __( 'MailerLite', 'wp-easycart' ),
-			'hint'   => __( 'Newsletter subscribers synced to your MailerLite account', 'wp-easycart' ),
-			'fields' => array(
-				'ec_option_enable_mailerlite' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'Sync subscribers with MailerLite', 'wp-easycart' ),
-					'desc'     => __( 'Shoppers who tick the newsletter box are added to MailerLite; unsubscribing removes them. Products can also add buyers to a MailerLite group.', 'wp-easycart' ),
-					'default'  => 0,
-					'pro'      => true,
-					'keywords' => array( 'newsletter', 'email marketing', 'subscribers' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'Mailer Lite Setup', 'label' => 'Enable Mailer Lite' ),
-				),
-				'ec_option_mailerlite_api_key' => array(
-					'type'     => 'password',
-					'label'    => __( 'API token', 'wp-easycart' ),
-					'desc'     => __( 'From MailerLite › Integrations › API. Only sent from your server.', 'wp-easycart' ),
-					'default'  => '',
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_mailerlite',
-					'keywords' => array( 'api key', 'token', 'mailerlite' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'Mailer Lite Setup', 'label' => 'Mailer Lite API Token' ),
-				),
-			),
-		),
-
-		'convertkit' => array(
-			'title'  => __( 'ConvertKit (Kit)', 'wp-easycart' ),
-			'hint'   => __( 'Newsletter subscribers added to a Kit form', 'wp-easycart' ),
-			'fields' => array(
-				'ec_option_enable_convertkit' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'Sync subscribers with ConvertKit', 'wp-easycart' ),
-					'desc'     => __( 'Shoppers who tick the newsletter box are subscribed to the form chosen below; unsubscribing removes them.', 'wp-easycart' ),
-					'default'  => 0,
-					'pro'      => true,
-					'keywords' => array( 'newsletter', 'email marketing', 'kit' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'ConvertKit Setup', 'label' => 'Enable ConvertKit' ),
-				),
-				'ec_option_convertkit_api_key' => array(
-					'type'     => 'text',
-					'label'    => __( 'API key', 'wp-easycart' ),
-					'desc'     => __( 'From your Kit account settings. Used to list your forms.', 'wp-easycart' ),
-					'default'  => '',
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_convertkit',
-					'keywords' => array( 'api key', 'convertkit', 'kit' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'ConvertKit Setup', 'label' => 'ConvertKit API Key' ),
-				),
-				'ec_option_convertkit_api_secret' => array(
-					'type'     => 'password',
-					'label'    => __( 'API secret', 'wp-easycart' ),
-					'desc'     => __( 'Needed to subscribe and unsubscribe. Only sent from your server.', 'wp-easycart' ),
-					'default'  => '',
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_convertkit',
-					'keywords' => array( 'api secret', 'convertkit', 'kit' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'ConvertKit Setup', 'label' => 'ConvertKit API Secret' ),
-				),
-				'ec_option_convertkit_form' => array(
+		'cookie-consent' => array(
+			'title'    => __( 'Cookie consent', 'wp-easycart' ),
+			'hint'     => __( 'Wait for the shopper to agree before ads and analytics tags run', 'wp-easycart' ),
+			'keywords' => array( 'consent', 'cookies', 'gdpr', 'wp consent api', 'privacy', 'cookie banner', 'complianz', 'cookieyes', 'cookiebot' ),
+			/* 6.0.2: what consent changes and how to check it on the storefront ( wp_easycart_consent::check_url() ). */
+			'render'   => 'wp_easycart_settings_integrations_render_consent_help',
+			'enqueue'  => 'wp_easycart_settings_integrations_enqueue_consent',
+			'fields'   => array(
+				'ec_option_marketing_consent' => array(
 					'type'     => 'select',
-					'label'    => __( 'Form to subscribe to', 'wp-easycart' ),
-					'desc'     => __( 'Kit only accepts subscribers through a form. Save the API key first, then reload to list your forms.', 'wp-easycart' ),
-					'default'  => '',
-					'options'  => wp_easycart_settings_integrations_remote_options( 'ec_option_convertkit_form', __( 'Choose a form', 'wp-easycart' ), /* translators: %s: ConvertKit form id */ __( 'Form %s', 'wp-easycart' ) ),
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_convertkit',
-					'keywords' => array( 'form', 'convertkit', 'kit' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'ConvertKit Setup', 'label' => 'ConvertKit Form' ),
+					'label'    => __( 'Ask before tracking', 'wp-easycart' ),
+					'desc'     => __( 'Where your cookie banner records the shopper\'s answer. Until the shopper accepts, the Meta Pixel and Google tags don\'t load, order sources aren\'t recorded and no server events are sent. Checkout and newsletter sign-up work either way.', 'wp-easycart' ),
+					'default'  => 'off',
+					/* 6.0.2: Google Consent Mode v2, Cookiebot, CookieYes and Complianz too ( wp_easycart_consent reads each ), and auto:
+					   the banner found on the site ( wp_easycart_consent::source() ). */
+					'options'  => class_exists( 'wp_easycart_consent' ) ? wp_easycart_consent::modes() : array(
+						'off'                 => __( 'Load tags without asking', 'wp-easycart' ),
+						'auto'                => __( 'Follow my cookie banner ( find it automatically )', 'wp-easycart' ),
+						'wp_consent_api'      => __( 'WP Consent API ( banners that support it )', 'wp-easycart' ),
+						'google_consent_mode' => __( 'Google Consent Mode v2 ( set by my cookie banner )', 'wp-easycart' ),
+						'cookiebot'           => __( 'Cookiebot', 'wp-easycart' ),
+						'cookieyes'           => __( 'CookieYes', 'wp-easycart' ),
+						'complianz'           => __( 'Complianz', 'wp-easycart' ),
+					),
+					'keywords' => array( 'consent', 'cookies', 'gdpr', 'wp consent api', 'cookie banner', 'consent mode', 'google consent mode', 'cookiebot', 'cookieyes', 'complianz', 'detect' ),
+					'legacy'   => array( 'page' => 'integrations', 'section' => 'Cookie consent', 'label' => 'New in 6.0.2' ),
+				),
+				/* 6.0.2: what the choice means on this site ( wp_easycart_consent::status() ), one note per choice, shown as the select
+				   changes; a note can switch the select to the choice that matches the banner found. */
+				'ecst_consent_note_auto' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'auto',
+					'consent'   => 'auto',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_on'  => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'wp_consent_api',
+					'consent'   => 'wp_consent_api',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_gcm' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'google_consent_mode',
+					'consent'   => 'google_consent_mode',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_cookiebot' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'cookiebot',
+					'consent'   => 'cookiebot',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_cookieyes' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'cookieyes',
+					'consent'   => 'cookieyes',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_complianz' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'complianz',
+					'consent'   => 'complianz',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
+				),
+				'ecst_consent_note_off' => array(
+					'type'      => 'html',
+					'label'     => __( 'Cookie banner status', 'wp-easycart' ),
+					'parent'    => 'ec_option_marketing_consent',
+					'show_when' => 'off',
+					'consent'   => 'off',
+					'render'    => 'wp_easycart_settings_integrations_render_consent_status',
 				),
 			),
 		),
 
-		'activecampaign' => array(
-			'title'  => __( 'ActiveCampaign', 'wp-easycart' ),
-			'hint'   => __( 'Newsletter subscribers added as contacts on an ActiveCampaign list', 'wp-easycart' ),
+		/* 6.0.2: where each order came from, recorded in the browser on every storefront page. */
+		'order-sources' => array(
+			'title'  => __( 'Order sources', 'wp-easycart' ),
+			'hint'   => __( 'Where each order came from: a search, an ad, a newsletter, or an AI assistant such as ChatGPT', 'wp-easycart' ),
+			'icon'   => 'target',
 			'fields' => array(
-				'ec_option_enable_activecampaign' => array(
+				'ec_option_order_sources'         => array(
 					'type'     => 'toggle',
-					'label'    => __( 'Sync subscribers with ActiveCampaign', 'wp-easycart' ),
-					'desc'     => __( 'Shoppers who tick the newsletter box become contacts on the list chosen below; unsubscribing removes them. Products can also tag buyers.', 'wp-easycart' ),
-					'default'  => 0,
-					'pro'      => true,
-					'keywords' => array( 'newsletter', 'email marketing', 'crm' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'Active Campaign Setup', 'label' => 'Enable Active Campaign' ),
+					'label'    => __( 'Record where orders come from', 'wp-easycart' ),
+					'desc'     => __( 'Notes the referring site and campaign tags when a shopper arrives, and saves them on the order. The orders list shows each order\'s source.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'order source', 'attribution', 'utm', 'referrer', 'chatgpt', 'ai', 'campaign', 'tracking' ),
+					'legacy'   => array( 'page' => 'integrations', 'section' => 'Order sources', 'label' => 'New in 6.0.2' ),
 				),
-				'ec_option_activecampaign_api_url' => array(
-					'type'        => 'url',
-					'label'       => __( 'API URL', 'wp-easycart' ),
-					'desc'        => __( 'Your account’s API access URL, found under Settings › Developer in ActiveCampaign.', 'wp-easycart' ),
+				'ec_option_order_sources_consent' => array(
+					'type'      => 'select',
+					'label'     => __( 'With a cookie banner, wait for', 'wp-easycart' ),
+					'desc'      => __( 'When Cookie consent above follows your cookie banner, or a consent plugin that supports the WP Consent API is active, nothing is recorded until the shopper gives this consent. In the EU and the UK this record usually needs consent.', 'wp-easycart' ),
+					'options'   => array(
+						'marketing'  => __( 'Marketing consent', 'wp-easycart' ),
+						'statistics' => __( 'Statistics consent', 'wp-easycart' ),
+					),
+					'default'   => 'marketing',
+					'parent'    => 'ec_option_order_sources',
+					'show_when' => '1',
+					'keywords'  => array( 'consent', 'cookie banner', 'gdpr', 'wp consent api' ),
+					'legacy'    => array( 'page' => 'integrations', 'section' => 'Order sources', 'label' => 'New in 6.0.2' ),
+				),
+				'ec_option_order_sources_ignore'  => array(
+					'type'        => 'textarea',
+					'label'       => __( 'Ignore visits from these sites', 'wp-easycart' ),
+					'desc'        => __( 'One site per line. A shopper coming back from one of these is never counted as a new source. Your own site and payment pages ( PayPal, Stripe, Square, Klarna, Afterpay, Affirm, Amazon Pay and card checks ) are already ignored.', 'wp-easycart' ),
 					'default'     => '',
-					'placeholder' => 'https://youraccount.api-us1.com',
-					'pro'         => true,
-					'parent'      => 'ec_option_enable_activecampaign',
-					'keywords'    => array( 'api url', 'activecampaign', 'endpoint' ),
-					'legacy'      => array( 'page' => 'third-party', 'section' => 'Active Campaign Setup', 'label' => 'Active Campaign API URL' ),
-				),
-				'ec_option_activecampaign_api_key' => array(
-					'type'     => 'password',
-					'label'    => __( 'API key', 'wp-easycart' ),
-					'desc'     => __( 'From the same Developer settings page. Only sent from your server.', 'wp-easycart' ),
-					'default'  => '',
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_activecampaign',
-					'keywords' => array( 'api key', 'activecampaign', 'token' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'Active Campaign Setup', 'label' => 'Active Campaign API Key' ),
-				),
-				'ec_option_activecampaign_list' => array(
-					'type'     => 'select',
-					'label'    => __( 'List to add contacts to', 'wp-easycart' ),
-					'desc'     => __( 'Create a list in ActiveCampaign for store subscribers. Save the API URL and key first, then reload to see your lists.', 'wp-easycart' ),
-					'default'  => '',
-					'options'  => wp_easycart_settings_integrations_remote_options( 'ec_option_activecampaign_list', __( 'Choose a list', 'wp-easycart' ), /* translators: %s: ActiveCampaign list id */ __( 'List %s', 'wp-easycart' ) ),
-					'pro'      => true,
-					'parent'   => 'ec_option_enable_activecampaign',
-					'keywords' => array( 'list', 'activecampaign', 'contacts' ),
-					'legacy'   => array( 'page' => 'third-party', 'section' => 'Active Campaign Setup', 'label' => 'Active Campaign List' ),
+					'placeholder' => 'pay.mybank.example',
+					'advanced'    => true,
+					'parent'      => 'ec_option_order_sources',
+					'show_when'   => '1',
+					'sanitize'    => 'wp_easycart_settings_integrations_sanitize_hosts',
+					'keywords'    => array( 'ignore', 'referral exclusion', 'payment' ),
+					'legacy'      => array( 'page' => 'integrations', 'section' => 'Order sources', 'label' => 'New in 6.0.2' ),
 				),
 			),
+		),
+
+		/* 6.0.2: the daily counts Reports reads ( wp_easycart_store_activity ). */
+		'store-activity' => array(
+			'title'   => __( 'Store activity', 'wp-easycart' ),
+			'hint'    => __( 'Daily counts of product views, add to cart, visits, checkout steps and searches for Reports', 'wp-easycart' ),
+			'icon'    => 'chart',
+			// Bug round 7: a note while Cookie consent is set to a choice nothing on this site can answer ( views, searches and
+			// visits are then never counted ), and how to check the store counts ( ?wpec_activity_check=1 ).
+			'fields'  => array_merge(
+				array(
+					'ec_option_store_activity' => array(
+						'type'     => 'toggle',
+						'label'    => __( 'Count store activity for Reports', 'wp-easycart' ),
+						'desc'     => __( 'Keeps only daily totals: nothing about who viewed or searched is stored. While Cookie consent is on, product views and searches count only after the shopper allows statistics in your cookie banner, and visits only where order sources are recorded; add to cart and checkout steps always count.', 'wp-easycart' ),
+						'default'  => 1,
+						'keywords' => array( 'reports', 'analytics', 'views', 'conversion', 'funnel', 'search terms', 'privacy', 'statistics' ),
+						'legacy'   => array( 'page' => 'integrations', 'section' => 'Store activity', 'label' => 'New in 6.0.2' ),
+					),
+				),
+				wp_easycart_settings_integrations_activity_consent_rows(),
+				array(
+					'ec_option_store_activity_days' => array(
+						'type'      => 'select',
+						'label'     => __( 'Keep daily counts for', 'wp-easycart' ),
+						'desc'      => __( 'Older days are deleted each night. Orders, payments and refunds are never deleted.', 'wp-easycart' ),
+						'options'   => array(
+							'90'   => __( '90 days', 'wp-easycart' ),
+							'365'  => __( '1 year', 'wp-easycart' ),
+							'730'  => __( '2 years', 'wp-easycart' ),
+							'1825' => __( '5 years', 'wp-easycart' ),
+						),
+						'default'   => '730',
+						'parent'    => 'ec_option_store_activity',
+						'show_when' => '1',
+						'keywords'  => array( 'retention', 'data', 'privacy' ),
+						'legacy'    => array( 'page' => 'integrations', 'section' => 'Store activity', 'label' => 'New in 6.0.2' ),
+					),
+					'ecst_store_activity_check'     => array(
+						'type'      => 'html',
+						'label'     => __( 'Check it counts', 'wp-easycart' ),
+						'parent'    => 'ec_option_store_activity',
+						'show_when' => '1',
+						'keywords'  => array( 'test', 'check', 'not counting', 'searches', 'views' ),
+						'render'    => 'wp_easycart_settings_integrations_render_activity_check',
+					),
+				)
+			),
+			'actions' => array(
+				'clear-activity' => array(
+					'id'             => 'clear-activity',
+					'label'          => __( 'Clear store activity', 'wp-easycart' ),
+					'desc'           => __( 'Deletes every daily count. Reports start counting again from today.', 'wp-easycart' ),
+					'button'         => __( 'Clear', 'wp-easycart' ),
+					'confirm'        => __( 'Clear all store activity?', 'wp-easycart' ),
+					'confirm_title'  => __( 'Product views, add to cart, visits, checkout steps and searches are deleted. Orders are not touched.', 'wp-easycart' ),
+					'confirm_button' => __( 'Clear activity', 'wp-easycart' ),
+					'danger'         => true,
+					'callback'       => 'wp_easycart_settings_integrations_clear_activity',
+				),
+			),
+		),
+
+		'email-marketing' => array(
+			'title'  => __( 'MailerLite, Kit and ActiveCampaign', 'wp-easycart' ),
+			'hint'   => __( 'Moved to Settings › Email marketing in 6.0.2', 'wp-easycart' ),
+			'fields' => array(),
+			'render' => 'wp_easycart_settings_integrations_render_email_marketing',
 		),
 
 		'shareasale' => array(
@@ -806,6 +1255,16 @@ return array(
 					'legacy'   => array( 'page' => 'miscellaneous', 'section' => 'Additional Options', 'label' => 'DecoNetwork - Allow Blank Item Purchase' ),
 				),
 			),
+		),
+
+		/* 6.0.2: the accounting and sales-channel extensions ( Premium ), with a way to the rest. Each row says whether the
+		   extension is on, or what Premium adds ( wp_easycart_admin_extensions::print_integrations_section() ). */
+		'premium-extensions' => array(
+			'title'  => __( 'Premium extensions', 'wp-easycart' ),
+			'hint'   => __( 'QuickBooks Desktop, Facebook & Instagram and the rest of the extensions, with QuickBooks Online and Xero coming soon', 'wp-easycart' ),
+			'icon'   => 'puzzle',
+			'fields' => array(),
+			'render' => array( 'wp_easycart_admin_extensions', 'print_integrations_section' ),
 		),
 
 		'cart-importer' => array(

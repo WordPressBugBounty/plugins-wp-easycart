@@ -5,7 +5,15 @@
 	}
 } ?>
 <section class="ec_account_page" id="ec_account_restricted">
-	<div class="ec_restricted"><?php echo wp_easycart_language( )->get_text( 'product_page', 'product_page_restricted_line_1' ); ?></div>
+	<?php
+	/* 6.0.2: says what to do: sign in, or ( signed in ) that the account has no access yet. product_page_restricted_line_1 stays in the language files for older copies of this template. */
+	$ec_restricted_key  = ( $GLOBALS['ec_user']->user_id == "" || $GLOBALS['ec_user']->user_id == 0 ) ? 'product_page_restricted_signed_out' : 'product_page_restricted_no_access';
+	$ec_restricted_text = wp_easycart_language( )->get_text( 'product_page', $ec_restricted_key );
+	if ( null === $ec_restricted_text || '' === trim( (string) $ec_restricted_text ) ) {
+		$ec_restricted_text = wp_easycart_language( )->get_text( 'product_page', 'product_page_restricted_line_1' );
+	}
+	?>
+	<div class="ec_restricted"><?php echo $ec_restricted_text; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- language text, escaped by ec_language::get_text() as the line it replaces. ?></div>
 	<?php if( $GLOBALS['ec_user']->user_id == "" || $GLOBALS['ec_user']->user_id == 0 ){ ?>
 	<div class="ec_account_left ec_account_login">
 		<form action="<?php echo esc_attr( $this->account_page ); ?>" method="POST">  
@@ -36,7 +44,7 @@
 				<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_please_enter_your' ); ?> <?php echo wp_easycart_language( )->get_text( 'cart_login', 'cart_login_password_label' ); ?>
 			</div>
 
-			<?php if( get_option( 'ec_option_enable_recaptcha' ) && get_option( 'ec_option_recaptcha_site_key' ) != '' ){ ?>
+			<?php if( wp_easycart_recaptcha_ready() ){ ?>
 				<input type="hidden" id="ec_grecaptcha_response_login_widget" name="ec_grecaptcha_response_login" value="" />
 				<input type="hidden" id="ec_grecaptcha_site_key" value="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" />
 				<div class="ec_cart_input_row" data-sitekey="<?php echo esc_attr( get_option( 'ec_option_recaptcha_site_key' ) ); ?>" id="ec_account_login_widget_recaptcha"></div>

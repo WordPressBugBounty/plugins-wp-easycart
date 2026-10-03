@@ -10,34 +10,32 @@ class ec_featuredproducts {
 
 	function __construct( $product_id_1, $product_id_2, $product_id_3, $product_id_4 ) {
 		if ($product_id_1 || $product_id_2 || $product_id_3 || $product_id_4 ) {
-			$products = wp_cache_get( 'wpeasycart-featured-products-' . $product_id_1 . "-" . $product_id_2 . "-" . $product_id_3 . "-" . $product_id_4 );
-			if ( !$products ) {
-				$this->mysqli = new ec_db( );
-				global $wpdb;
-				$where_statement  = " WHERE (";
-				$where_statement .= $wpdb->prepare( " product.product_id = %d", $product_id_1 );
-				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_2 );
-				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_3 );
-				$where_statement .= $wpdb->prepare( " OR product.product_id = %d", $product_id_4 );
-				$where_statement .= " ) AND product.activate_in_store = 1 ";
+			$this->mysqli = new ec_db();
+			global $wpdb;
+			$where_statement  = ' WHERE (';
+			$where_statement .= $wpdb->prepare( ' product.product_id = %d', $product_id_1 );
+			$where_statement .= $wpdb->prepare( ' OR product.product_id = %d', $product_id_2 );
+			$where_statement .= $wpdb->prepare( ' OR product.product_id = %d', $product_id_3 );
+			$where_statement .= $wpdb->prepare( ' OR product.product_id = %d', $product_id_4 );
+			$where_statement .= ' ) AND product.activate_in_store = 1 ';
 
-				$order_statement  = " ORDER BY FIELD(product.product_id ";
-				if ( $product_id_1 ) {
-					$order_statement .= $wpdb->prepare( ", %d", $product_id_1 );
-				}
-				if ( $product_id_2 ) {
-					$order_statement .= $wpdb->prepare( ", %d", $product_id_2 );
-				}
-				if ( $product_id_3 ) {
-					$order_statement .= $wpdb->prepare( ", %d", $product_id_3 );
-				}
-				if ( $product_id_4 ) {
-					$order_statement .= $wpdb->prepare( ", %d", $product_id_4 );
-				}
-				$order_statement .= ") ";
-
-				$products = $this->mysqli->get_product_list( $where_statement, $order_statement, "", $GLOBALS['ec_cart_data']->ec_cart_id, 'wpeasycart-featured-products-'.$product_id_1."-".$product_id_2."-".$product_id_3."-".$product_id_4, "", "" );
+			$order_statement = ' ORDER BY FIELD(product.product_id ';
+			if ( $product_id_1 ) {
+				$order_statement .= $wpdb->prepare( ', %d', $product_id_1 );
 			}
+			if ( $product_id_2 ) {
+				$order_statement .= $wpdb->prepare( ', %d', $product_id_2 );
+			}
+			if ( $product_id_3 ) {
+				$order_statement .= $wpdb->prepare( ', %d', $product_id_3 );
+			}
+			if ( $product_id_4 ) {
+				$order_statement .= $wpdb->prepare( ', %d', $product_id_4 );
+			}
+			$order_statement .= ') ';
+
+			/* 6.0.2: get_product_list() caches the list for this viewer ( ec_db::product_cache_key() ). */
+			$products = $this->mysqli->get_product_list( $where_statement, $order_statement, '', $GLOBALS['ec_cart_data']->ec_cart_id, 'wpeasycart-featured-products-' . $product_id_1 . '-' . $product_id_2 . '-' . $product_id_3 . '-' . $product_id_4, '', '' );
 
 			if ( count( $products ) > 0 ) {
 				$this->product1 = new ec_product( $products[0], 1 );

@@ -22,29 +22,8 @@ $ecrs_activate = self_admin_url( 'admin.php?page=wp-easycart-registration&subpag
 $ecrs_deact    = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=deactivateregistration' );
 $ecrs_email    = self_admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration&ec_action=updateregistrationemail' );
 $ecrs_account  = 'https://www.wpeasycart.com/my-account/';
-$ecrs_trial    = self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' );
+$ecrs_trial    = wp_easycart_admin()->pro_install_url( 'trial' );
 $ecrs_docs     = wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'registration' );
-
-/* One-line result of the last action ( same $_GET codes the endpoints redirect with ). */
-$ecrs_flash = null;
-$ecrs_codes = array(
-	'success' => array(
-		/* translators: %s: plan name, Pro or Premium. */
-		'activate-complete'   => sprintf( __( 'License activated. The %s sections are now open.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
-		'deactivate-complete' => __( 'License deactivated. You can use the key on another site now.', 'wp-easycart' ),
-	),
-	'error' => array(
-		'activate-no-key-found'          => __( 'No license was found for that key. Check the value and try again.', 'wp-easycart' ),
-		'activate-registration-failed'   => __( 'Activation failed. Please try again in a few minutes.', 'wp-easycart' ),
-		'deactivate-no-key-found'        => __( 'No license was found for that key. Check the value and try again.', 'wp-easycart' ),
-		'deactivate-registration-failed' => __( 'Deactivation failed. Please try again in a few minutes.', 'wp-easycart' ),
-	),
-);
-foreach ( $ecrs_codes as $ecrs_kind => $ecrs_map ) {
-	if ( isset( $_GET[ $ecrs_kind ] ) && isset( $ecrs_map[ $_GET[ $ecrs_kind ] ] ) ) {
-		$ecrs_flash = array( $ecrs_kind, $ecrs_map[ $_GET[ $ecrs_kind ] ] );
-	}
-}
 
 $ecrs_license = ( 'activated' === $ecrs_status && function_exists( 'wp_easycart_admin_license' ) ) ? wp_easycart_admin_license()->license_data : null;
 $ecrs_info    = get_option( 'wp_easycart_license_info' );
@@ -63,12 +42,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 		</div>
 	</div>
 
-	<?php if ( $ecrs_flash ) : ?>
-	<div class="ecreg-notice <?php echo 'success' === $ecrs_flash[0] ? 'is-ok' : 'is-ended'; ?>">
-		<span class="dashicons <?php echo 'success' === $ecrs_flash[0] ? 'dashicons-yes-alt' : 'dashicons-warning'; ?>"></span>
-		<span><?php echo esc_html( $ecrs_flash[1] ); ?></span>
-	</div>
-	<?php endif; ?>
+	<?php include __DIR__ . '/registration-notice-v2.php'; /* 6.0.2: the last license action's result, shared with the expired and trial screens */ ?>
 
 	<?php if ( 'communications_error' === $ecrs_status ) : ?>
 	<!-- ================= LICENSING SERVER UNREACHABLE ================= -->
@@ -95,6 +69,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<h3><?php esc_html_e( 'Already have a license key?', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Paste it below. If the key is in use on another site it moves here automatically.', 'wp-easycart' ); ?></p>
 			<form action="<?php echo esc_url( $ecrs_activate ); ?>" method="POST" id="wpeasycart_admin_form1" class="ecreg-form" novalidate="novalidate">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f"><label for="customername"><?php esc_html_e( 'Full name', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input" name="customername" id="customername" required="required" autocomplete="name" /></div>
 				<div class="ecreg-f"><label for="customeremail_activate"><?php esc_html_e( 'Email address', 'wp-easycart' ); ?></label><input type="email" class="ecv2-input" name="customeremail" id="customeremail_activate" required="required" autocomplete="email" value="<?php echo esc_attr( $ecrs_email_v ); ?>" /></div>
 				<div class="ecreg-f"><label for="transactionkey"><?php esc_html_e( 'License key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey" required="required" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" /></div>
@@ -119,7 +94,8 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 	$ecrs_days      = $ecrs_end_ts ? max( 0, class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::days_until( $ecrs_end_ts ) : (int) round( ( $ecrs_end_ts - time() ) / DAY_IN_SECONDS ) ) : 0;
 	$ecrs_lapsed    = ( $ecrs_end_ts && $ecrs_days <= 0 );
 	$ecrs_renew     = $ecrs_premium ? 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecrs_key ) : 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . rawurlencode( $ecrs_key );
-	$ecrs_upgrade   = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecrs_key );
+	/* 6.0.2: a licensed Pro store upgrades at the Pro discount; other stores buy on premium-support-extensions. */
+	$ecrs_upgrade   = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_url() : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . rawurlencode( $ecrs_key );
 	$ecrs_ring_r    = 26; $ecrs_ring_c = 2 * M_PI * $ecrs_ring_r;
 	$ecrs_ring_pct  = $ecrs_end_ts ? min( 1, $ecrs_days / 365 ) : 1;
 	?>
@@ -169,6 +145,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			</dl>
 			<?php if ( ! $ecrs_v3 ) : ?>
 			<form action="<?php echo esc_url( $ecrs_email ); ?>" method="POST" class="ecreg-form ecreg-form-inline" novalidate="novalidate">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f">
 					<label for="customeremail"><?php esc_html_e( 'License email', 'wp-easycart' ); ?> <span class="ecreg-fine"><?php esc_html_e( 'renewal receipts and notices go here', 'wp-easycart' ); ?></span></label>
 					<div class="ecreg-inline"><input type="email" class="ecv2-input" name="customeremail" id="customeremail" value="<?php echo esc_attr( $ecrs_email_v ); ?>" autocomplete="email" /><button type="submit" class="ecv2-btn ecv2-btn-sm"><?php esc_html_e( 'Update', 'wp-easycart' ); ?></button></div>
@@ -199,18 +176,33 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<span class="ecreg-path-fine"><?php esc_html_e( 'Sign in with the account that bought this license so the credit applies.', 'wp-easycart' ); ?></span>
 		</div>
 		<?php if ( ! $ecrs_premium ) : ?>
+		<?php $ecrs_offer = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_offer() : array( 'mode' => 'get', 'cta' => __( 'See Premium', 'wp-easycart' ) ); ?>
 		<div class="ecreg-path">
 			<span class="dashicons dashicons-star-filled ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Upgrade to Premium', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'Everything in Pro plus every extension — ShipStation, QuickBooks, MailChimp, Facebook & Instagram, the mobile apps. Your key stays the same.', 'wp-easycart' ); ?></p>
-			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_upgrade ); ?>" target="_blank"><?php esc_html_e( 'See Premium', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
+			<p><?php echo esc_html( 'upgrade' === $ecrs_offer['mode'] ? __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Pro customers upgrade at a discount, and your key stays the same.', 'wp-easycart' ) : __( 'Everything in Pro plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps, with QuickBooks Online and Xero coming soon. Your key stays the same.', 'wp-easycart' ) ); ?></p>
+			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_upgrade ); ?>" target="_blank"><?php echo esc_html( $ecrs_offer['cta'] ); ?> <span class="dashicons dashicons-external"></span></a>
 		</div>
 		<?php else : ?>
+		<?php
+		/* 6.0.2: extensions install, update and are managed from EasyCart › Extensions; WP EasyCart PRO installs
+		   WP EasyCart Premium in one click where it can ( wp_easycart_premium_install_url ). */
+		$ecrs_ext_install = ( ! $ecrs_lapsed && class_exists( 'wp_easycart_admin_extensions' ) ) ? wp_easycart_admin_extensions::premium_install_url() : '';
+		$ecrs_ext_url     = class_exists( 'wp_easycart_admin_extensions' ) ? wp_easycart_admin_extensions::url() : $ecrs_account;
+		?>
 		<div class="ecreg-path">
-			<span class="dashicons dashicons-download ecreg-path-icon"></span>
+			<span class="dashicons dashicons-admin-plugins ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Premium extensions', 'wp-easycart' ); ?></h3>
-			<p><?php esc_html_e( 'ShipStation, QuickBooks, MailChimp, Facebook & Instagram and the mobile apps are included. Download them from your account.', 'wp-easycart' ); ?></p>
-			<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_account ); ?>" target="_blank"><?php esc_html_e( 'Open my account', 'wp-easycart' ); ?> <span class="dashicons dashicons-external"></span></a>
+			<?php if ( '' !== $ecrs_ext_install ) : ?>
+				<p><?php esc_html_e( 'Your license includes every extension. Install WP EasyCart Premium to add, update and manage them from EasyCart › Extensions.', 'wp-easycart' ); ?></p>
+				<a class="ecv2-btn ecv2-btn-primary ecreg-path-cta" href="<?php echo esc_url( $ecrs_ext_install ); ?>"><?php esc_html_e( 'Install WP EasyCart Premium', 'wp-easycart' ); ?></a>
+			<?php elseif ( $ecrs_lapsed ) : ?>
+				<p><?php esc_html_e( 'Your extensions keep running with their current settings. Renew to install, update and change them.', 'wp-easycart' ); ?></p>
+				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_ext_url ); ?>"><?php esc_html_e( 'Open Extensions', 'wp-easycart' ); ?></a>
+			<?php else : ?>
+				<p><?php esc_html_e( 'ShipStation, Stamps.com, AvaTax, QuickBooks Desktop, Facebook & Instagram and the mobile apps are included with your license, and QuickBooks Online and Xero will be when they\'re released.', 'wp-easycart' ); ?></p>
+				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecrs_ext_url ); ?>"><?php esc_html_e( 'Open Extensions', 'wp-easycart' ); ?></a>
+			<?php endif; ?>
 		</div>
 		<?php endif; ?>
 		<div class="ecreg-path">
@@ -218,6 +210,7 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<h3><?php esc_html_e( 'Move this license', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Deactivate here to use the key on another site. Or skip this step: entering the key on the new site moves it automatically.', 'wp-easycart' ); ?></p>
 			<form action="<?php echo esc_url( $ecrs_deact ); ?>" method="POST" id="wpeasycart_admin_form2" class="ecreg-form" novalidate="novalidate" onsubmit="return window.confirm( <?php echo wp_json_encode( $ecrs_premium ? __( 'Deactivate the Premium license on this site? The Premium panels will lock until a key is entered again.', 'wp-easycart' ) : __( 'Deactivate the Pro license on this site? The Pro panels will lock until a key is entered again.', 'wp-easycart' ) ); ?> );">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
 				<div class="ecreg-f"><label for="transactionkey_deact"><?php esc_html_e( 'Confirm the license key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey_deact" required="required" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" /></div>
 				<button type="submit" class="ecv2-btn ecreg-path-cta ecreg-danger"><?php esc_html_e( 'Deactivate on this site', 'wp-easycart' ); ?></button>
 			</form>

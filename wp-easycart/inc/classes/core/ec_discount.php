@@ -160,8 +160,13 @@ class ec_discount {
 			return ( $cart_subtotal * $promocode_row->promo_percentage / 100 );
 
 		} else if ( $promocode_row->is_shipping_based ) {
-			if ( $promocode_row->promo_shipping == "0.00" || $promocode_row->promo_shipping > $this->shipping_subtotal ) {
-				$this->shipping_discount = $this->shipping_subtotal;
+			$shipping_base = $this->shipping_subtotal;
+			if ( class_exists( 'wp_easycart_shipping_groups' ) ) {
+				/* 6.0.2: a shipping coupon discounts the store's shipping, not what a fulfillment partner charges ( unless free shipping covers partners ). */
+				$shipping_base = wp_easycart_shipping_groups::coupon_shipping_base( $this->cart, $this->shipping_subtotal, $promocode_row );
+			}
+			if ( $promocode_row->promo_shipping == "0.00" || $promocode_row->promo_shipping > $shipping_base ) {
+				$this->shipping_discount = $shipping_base;
 			} else {
 				$this->shipping_discount = $promocode_row->promo_shipping;
 			}

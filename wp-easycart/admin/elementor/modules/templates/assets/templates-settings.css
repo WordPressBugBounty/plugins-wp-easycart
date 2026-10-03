@@ -1,0 +1,67 @@
+/* Settings › Elementor › Product pages / Category pages ( 6.0.2 ). */
+.wpec-elt-tools {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.wpec-elt-chosen,
+.wpec-elt-create {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.wpec-elt-chosen[hidden],
+.wpec-elt-note[hidden],
+.wpec-elt-conflict[hidden] {
+	display: none;
+}
+
+.wpec-elt-status,
+.wpec-elt-hint {
+	font-size: 13px;
+	color: #50575e;
+}
+
+.wpec-elt-status.is-live::before {
+	content: "";
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	margin-right: 6px;
+	border-radius: 50%;
+	background: #1e7e34;
+	vertical-align: middle;
+}
+
+.wpec-elt-status.is-draft {
+	color: #8a5a00;
+}
+
+.wpec-elt-hint {
+	flex: 1 1 260px;
+}
+
+.wpec-elt-note {
+	margin: 0;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.wpec-elt-note.is-warning,
+.wpec-elt-conflict {
+	padding: 10px 12px;
+	border-left: 4px solid #dba617;
+	border-radius: 4px;
+	background: #fcf9e8;
+	color: #1d2327;
+}
+
+.wpec-elt-conflict {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+}

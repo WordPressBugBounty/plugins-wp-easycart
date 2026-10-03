@@ -478,24 +478,42 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * Label / value columns that stack on phones ( carrier + tracking, order number + date … ).
 		 *
 		 * @param array $pairs Each: array( 'label' => html, 'value' => html, 'mono' => bool ).
+		 * @param array $args  @since 6.0.2 per_row ( int, default 0 = every pair on one row ): at most this many pairs side by
+		 *                     side; the rest start new rows with the same column widths ( email clients that ignore the
+		 *                     phone media query otherwise squeeze every pair into one row ).
 		 * @return string
 		 */
-		public static function get_key_values( $pairs ) {
-			$c     = self::ctx();
-			$cells = '';
+		public static function get_key_values( $pairs, $args = array() ) {
+			$c       = self::ctx();
+			$per_row = ( is_array( $args ) && isset( $args['per_row'] ) ) ? max( 0, (int) $args['per_row'] ) : 0;
+			$cells   = array();
 			foreach ( (array) $pairs as $pair ) {
 				if ( ! isset( $pair['value'] ) || '' === trim( (string) $pair['value'] ) ) {
 					continue;
 				}
-				$value_css = ! empty( $pair['mono'] ) ? self::css( 'mono' ) : 'font-family:' . $c['font'] . ';font-size:15px;font-weight:600;color:#111827;';
-				$cells    .= '<td class="ec-email-col" valign="top" align="' . esc_attr( $c['start'] ) . '" style="padding-top:4px;padding-bottom:4px;padding-' . esc_attr( $c['end'] ) . ':16px;' . esc_attr( self::css( 'text' ) ) . '">'
-					. '<div style="' . esc_attr( self::css( 'label' ) ) . '">' . ( isset( $pair['label'] ) ? $pair['label'] : '' ) . '</div>'
-					. '<div style="' . esc_attr( $value_css ) . '">' . $pair['value'] . '</div></td>';
+				$cells[] = $pair;
 			}
-			if ( '' === $cells ) {
+			if ( ! $cells ) {
 				return '';
 			}
-			return '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>' . $cells . '</tr></table>' . "\n";
+			$rows  = ( $per_row > 0 && count( $cells ) > $per_row ) ? array_chunk( $cells, $per_row ) : array( $cells );
+			$width = ( count( $rows ) > 1 ) ? ( floor( 100 / $per_row ) . '%' ) : '';
+			$html  = '';
+			foreach ( $rows as $row_index => $row ) {
+				$html .= '<tr>';
+				foreach ( $row as $pair ) {
+					$value_css = ! empty( $pair['mono'] ) ? self::css( 'mono' ) : 'font-family:' . $c['font'] . ';font-size:15px;font-weight:600;color:#111827;';
+					$html     .= '<td class="ec-email-col" valign="top" align="' . esc_attr( $c['start'] ) . '"' . ( '' !== $width ? ' width="' . esc_attr( $width ) . '"' : '' ) . ' style="' . ( '' !== $width ? 'width:' . esc_attr( $width ) . ';' : '' ) . 'padding-top:' . ( $row_index > 0 ? 10 : 4 ) . 'px;padding-bottom:4px;padding-' . esc_attr( $c['end'] ) . ':16px;' . esc_attr( self::css( 'text' ) ) . '">'
+						. '<div style="' . esc_attr( self::css( 'label' ) ) . '">' . ( isset( $pair['label'] ) ? $pair['label'] : '' ) . '</div>'
+						. '<div style="' . esc_attr( $value_css ) . '">' . $pair['value'] . '</div></td>';
+				}
+				/* A short last row keeps the columns above it: empty cells, hidden on phones where the columns stack. */
+				for ( $i = count( $row ); '' !== $width && $i < $per_row; $i++ ) {
+					$html .= '<td class="ec-email-col-gap" width="' . esc_attr( $width ) . '" style="width:' . esc_attr( $width ) . ';font-size:0;line-height:0;">&nbsp;</td>';
+				}
+				$html .= '</tr>';
+			}
+			return '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">' . $html . '</table>' . "\n";
 		}
 
 		/**

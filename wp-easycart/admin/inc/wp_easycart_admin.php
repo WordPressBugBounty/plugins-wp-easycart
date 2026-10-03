@@ -25,6 +25,22 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 		/** @since 6.0.0 orders per report-export batch. */
 		const REPORT_BATCH = 1000;
 
+		/**
+		 * The WP EasyCart PRO package the installer fetches ( Connect's /pro/, which logs each install: pro_package_url() ), the
+		 * older static zip it falls back to ( what WP EasyCart 6.0.1 and older fetch ), where WordPress keeps the plugin once
+		 * installed ( never derived from this plugin's own folder name, which may not be wp-easycart ), and the installer's
+		 * nonce action.
+		 *
+		 * @since 6.0.2
+		 */
+		const PRO_PACKAGE_URL        = 'https://connect.wpeasycart.com/pro/v1/install/wp-easycart-pro.zip';
+		const PRO_PACKAGE_URL_LEGACY = 'https://connect.wpeasycart.com/downloads/professional-admin/wp-easycart-pro.zip';
+		const PRO_BASENAME           = 'wp-easycart-pro/wp-easycart-admin-pro.php';
+		const PRO_NONCE       = 'wp-easycart-pro-install';
+
+		/** @since 6.0.2 The install step being run ( trial|install|trial-key ): its URL is where the credentials form posts. */
+		private $pro_install_step = 'trial';
+
 		public $month_sales_total;
 		public $month_name;
 		public $month_percentage_change;
@@ -120,8 +136,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$_GET['page'] == 'wp-easycart-users' || 
 				$_GET['page'] == 'wp-easycart-rates' || 
 				$_GET['page'] == 'wp-easycart-settings' || 
-				$_GET['page'] == 'wp-easycart-status' || 
-				$_GET['page'] == 'wp-easycart-registration'
+				$_GET['page'] == 'wp-easycart-status' ||
+				$_GET['page'] == 'wp-easycart-registration' ||
+				$_GET['page'] == 'wp-easycart-extensions' // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page check.
 			) ){
 				// Setup Basic Variables for Admin Design
 				$this->month_sales_total = $this->get_month_sales_total( );
@@ -157,6 +174,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_left_navigation', array( $this, 'load_left_navigation' ), 1, 0 );
 			add_action( 'wp_easycart_admin_head_navigation', array( $this, 'load_head_navigation' ), 1, 0 );
 			add_action( 'wp_easycart_admin_messages', array( $this, 'print_admin_message' ) );
+			add_filter( 'wp_easycart_admin_error_messages', array( $this, 'pro_install_messages' ) ); // 6.0.2
+			add_filter( 'wp_easycart_admin_success_messages', array( $this, 'pro_install_success_message' ) ); // 6.0.2
 			add_action( 'wp_dashboard_setup', array( $this, 'add_ec_nag_widget' ) );
 
 			// Hook Actions
@@ -353,7 +372,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					$product->post_id
 				) );
 				clean_post_cache( $product->post_id );
-				wp_cache_delete( 'wpeasycart-product-only-' . $product->model_number, 'wpeasycart-product-list' );
+				ec_db::product_cache_changed();
 			}
 		}
 
@@ -671,19 +690,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$actions->process_action( );
 			}
 
-			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && isset( $_GET['ec_trial'] ) && $_GET['ec_trial'] == 'start' ){
-				$this->start_pro_trial( );
-				wp_redirect( "admin.php?page=wp-easycart-registration" );
+			/* 6.0.2: capability, nonce and every outcome are handled in handle_pro_install(). */
+			$ec_trial = isset( $_GET['ec_trial'] ) ? sanitize_key( wp_unslash( $_GET['ec_trial'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- handle_pro_install() verifies the nonce.
+			if ( 'start' === $ec_trial || 'key' === $ec_trial ) {
+				$this->handle_pro_install( 'key' === $ec_trial ? 'trial-key' : 'trial' );
 			}
-
-			if( ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) && isset( $_GET['ec_install'] ) && $_GET['ec_install'] == 'pro' ){
-				if( !file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ){
-					$this->install_pro_plugin( 0 );
-				}
-				if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) && !is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ){
-					activate_plugin( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php', NULL, 0, 1 );
-				}
-				wp_redirect( "admin.php?page=wp-easycart-registration" );
+			if ( isset( $_GET['ec_install'] ) && 'pro' === sanitize_key( wp_unslash( $_GET['ec_install'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- handle_pro_install() verifies the nonce.
+				$this->handle_pro_install( 'install' );
 			}
 		}
 
@@ -804,6 +817,45 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 
 		private function stats_cache_set( $key, $value, $ttl = 600 ) {
 			set_transient( $this->stats_cache_key( $key ), $value, $ttl );
+		}
+
+		/**
+		 * For Reports cards an extension adds ( WP EasyCart PRO's Sales by source ): the same storage-clock date bounds,
+		 * and the same cache ( cleared when orders change, keyed by timezone and currency ) as the built-in cards.
+		 *
+		 * @since 6.0.2
+		 * @param string $start_date Y-m-d ( local ).
+		 * @param string $end_date   Y-m-d ( local, inclusive ).
+		 * @return array [ from, to ) on the storage clock.
+		 */
+		public function report_bounds( $start_date, $end_date ) {
+			if ( class_exists( 'wp_easycart_reports' ) ) {
+				return wp_easycart_reports::bounds( $start_date, $end_date, 'db' ); /* 6.0.2: the store's days, daylight saving included */
+			}
+			return $this->storage_bounds( $start_date, $end_date );
+		}
+
+		/**
+		 * Read an extension's cached Reports value ( see report_bounds() ).
+		 *
+		 * @since 6.0.2
+		 * @param string $key Key.
+		 * @return mixed false when not cached.
+		 */
+		public function report_cache_get( $key ) {
+			return $this->stats_cache_get( 'ext|' . $key );
+		}
+
+		/**
+		 * Cache an extension's Reports value ( see report_bounds() ).
+		 *
+		 * @since 6.0.2
+		 * @param string $key   Key.
+		 * @param mixed  $value Value.
+		 * @param int    $ttl   Seconds.
+		 */
+		public function report_cache_set( $key, $value, $ttl = 600 ) {
+			$this->stats_cache_set( 'ext|' . $key, $value, $ttl );
 		}
 
 		/**
@@ -2762,10 +2814,13 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				add_menu_page( 'WP EasyCart', $mainmenu_label, 'manage_options', 'wp-easycart-dashboard', array( $this, 'load_dashboard' ), 'dashicons-cart', 58 );
 			}
 
-			if ( current_user_can( 'wpec_manager' ) ) {
-				add_menu_page( __( 'Extensions', 'wp-easycart' ), __( 'Extensions', 'wp-easycart' ), 'wpec_manager', 'ec_adminv2', array( $this, 'load_extensions_page' ), 'dashicons-cart', 59 );
-			} else if ( current_user_can( 'manage_options' ) ) {
-				add_menu_page( __( 'Extensions', 'wp-easycart' ), __( 'Extensions', 'wp-easycart' ), 'manage_options', 'ec_adminv2', array( $this, 'load_extensions_page' ), 'dashicons-cart', 59 );
+			/* 6.0.2: Extensions lives in the EasyCart menu ( wp-easycart-extensions ). The old top-level menu ec_adminv2
+			   redirects there, and wp_easycart_admin_extensions::tidy_legacy_menu() removes it unless an older extension
+			   still hangs its own screen under it; "All extensions" is its first entry so the menu opens the new page. */
+			$extensions_cap = current_user_can( 'wpec_manager' ) ? 'wpec_manager' : ( current_user_can( 'manage_options' ) ? 'manage_options' : '' );
+			if ( '' !== $extensions_cap ) {
+				add_menu_page( __( 'Extensions', 'wp-easycart' ), __( 'Extensions', 'wp-easycart' ), $extensions_cap, 'ec_adminv2', array( $this, 'load_extensions_page' ), 'dashicons-cart', 59 );
+				add_submenu_page( 'ec_adminv2', __( 'Extensions', 'wp-easycart' ), __( 'All extensions', 'wp-easycart' ), $extensions_cap, 'ec_adminv2', array( $this, 'load_extensions_page' ) );
 			}
 
 			if ( current_user_can( 'wpec_reports' ) ) {
@@ -2810,6 +2865,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				add_submenu_page( 'wp-easycart-dashboard', __( 'WP EasyCart Settings', 'wp-easycart' ), __( 'Settings', 'wp-easycart' ), 'manage_options', 'wp-easycart-settings', array( $this, 'load_settings' ) );
 			}
 
+			if ( '' !== $extensions_cap ) {
+				add_submenu_page( 'wp-easycart-dashboard', __( 'WP EasyCart Extensions', 'wp-easycart' ), __( 'Extensions', 'wp-easycart' ), $extensions_cap, 'wp-easycart-extensions', array( $this, 'load_extensions_page' ) );
+			}
+
 			if ( current_user_can( 'wpec_diagnostics' ) ) {
 				add_submenu_page( 'wp-easycart-dashboard', __( 'WP EasyCart Diagnostics', 'wp-easycart' ), $store_status_label, 'wpec_diagnostics', 'wp-easycart-status', array( $this, 'load_status' ) );
 			} else if ( current_user_can( 'manage_options' ) ) {
@@ -2847,23 +2906,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					}
 					add_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10, 3);
 
-				}else if( isset( $license_data->support_end_date ) && $license_data->model_number == 'ec410' ){ // Premium User
-					if ( current_user_can( 'wpec_reports' ) ) {
-						add_submenu_page( 'wp-easycart-dashboard', __( 'Check License Status', 'wp-easycart' ), '<strong id="wp-easycart-premium-link" style="color:#c0fc14;">' . __( 'Check License Status', 'wp-easycart' ) . '</strong>', 'wpec_reports', 'wp-easycart-license-manage', array( $this, 'upgrade_premium_none' ) );
-					} else {
-						add_submenu_page( 'wp-easycart-dashboard', __( 'Check License Status', 'wp-easycart' ), '<strong id="wp-easycart-premium-link" style="color:#c0fc14;">' . __( 'Check License Status', 'wp-easycart' ) . '</strong>', 'manage_options', 'wp-easycart-license-manage', array( $this, 'upgrade_premium_none' ) );
-					}
-					add_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10, 3);
-
-				}else{ // Missing Key Data?
-					if ( current_user_can( 'wpec_reports' ) ) {
-						add_submenu_page( 'wp-easycart-dashboard', __( 'Check License Status', 'wp-easycart' ), '<strong id="wp-easycart-premium-link" style="color:#c0fc14;">' . __( 'Check License Status', 'wp-easycart' ) . '</strong>', 'wpec_reports', 'wp-easycart-license-manage', array( $this, 'upgrade_premium_none' ) );
-					} else {
-						add_submenu_page( 'wp-easycart-dashboard', __( 'Check License Status', 'wp-easycart' ), '<strong id="wp-easycart-premium-link" style="color:#c0fc14;">' . __( 'Check License Status', 'wp-easycart' ) . '</strong>', 'manage_options', 'wp-easycart-license-manage', array( $this, 'upgrade_premium_none' ) );
-					}
-					add_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10, 3);
-
 				}
+				/* 6.0.2: no item for a current Premium license or unreadable license data. "Check License Status" only sent the
+				   store to the wpeasycart.com account page ( or a blank page ) with nothing to do; Registration's badge already
+				   flags a license that is not active, and Store Status one that ends within 70 days. */
 
 			} else if( current_user_can( 'manage_options' ) || current_user_can( 'wpec_reports' ) ) { // FREE USER 
 				if ( current_user_can( 'wpec_reports' ) ) {
@@ -2904,7 +2950,11 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			add_action( 'wp_easycart_admin_location_details', array( $this, 'show_upgrade' ) );
 
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
-			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+			/* 6.0.2: where WordPress installs PRO, whatever this plugin's own folder is called ( as wp_easycart_admin_pro_gate ). */
+			$pro_plugin_file = WP_PLUGIN_DIR . '/wp-easycart-pro/wp-easycart-admin-pro.php';
+			if ( ! file_exists( $pro_plugin_file ) ) {
+				$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+			}
 
 			$pro_plugin_base_legacy = 'wp-easycart-admin/wp-easycart-admin-pro.php';
 			$pro_plugin_file_legacy = EC_PLUGIN_DIRECTORY . '-admin/wp-easycart-admin-pro.php';
@@ -2992,9 +3042,6 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if( preg_match( '/(?:wp-easycart-premium)$/i', $url ) ){
 				remove_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10 );
 				$url = 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
-			}else if( preg_match( '/(?:wp-easycart-license-manage)$/i', $url ) ){
-				remove_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10 );
-				$url = 'https://www.wpeasycart.com/my-account/';
 			}else if( preg_match( '/(?:wp-easycart-license-manage-trial)$/i', $url ) ){
 				$license_info = get_option( 'wp_easycart_license_info' );
 				remove_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10 );
@@ -3005,13 +3052,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				$url = ( is_object( $license_data ) && isset( $license_data->model_number ) && $license_data->model_number == 'ec400' ) ? 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . $license_info['transaction_key'] : 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $license_info['transaction_key'];
 				remove_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10 );
 			}else if( preg_match( '/(?:wp-easycart-license-upgrade)$/i', $url ) ){
-				$license_data = wp_easycart_admin_license( )->license_data;
-				$license_info = get_option( 'wp_easycart_license_info' );
-				if ( is_array( $license_info ) && isset( $license_info['transaction_key'] ) ) {
-					$url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/?transaction_key=' . $license_info['transaction_key'];
-				} else {
-					$url = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/';
-				}
+				/* 6.0.2: a licensed Pro store upgrades at the Pro discount ( wp_easycart_admin_edition::premium_offer() ). */
+				$url = wp_easycart_admin_edition::premium_url();
 				remove_filter( 'clean_url', array( $this, 'upgrade_premium' ), 10 );
 			}
 			return $url;
@@ -3340,6 +3382,12 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			} else if ( isset( $_GET['page'] ) && $_GET['page'] == "wp-easycart-settings" && isset( $_GET['subpage'] ) && $_GET['subpage'] == "logs" ) {
 				return __( 'WP EasyCart Logs', 'wp-easycart' );
 
+			} else if ( isset( $_GET['page'] ) && 'wp-easycart-extensions' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page title.
+				$ecext_sub = isset( $_GET['subpage'] ) ? sanitize_key( wp_unslash( $_GET['subpage'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page title.
+				$ecext     = ( '' !== $ecext_sub && class_exists( 'wp_easycart_admin_extensions' ) ) ? wp_easycart_admin_extensions::get( $ecext_sub ) : false;
+				/* translators: %s: extension name. */
+				return $ecext ? sprintf( __( 'WP EasyCart %s', 'wp-easycart' ), $ecext['name'] ) : __( 'WP EasyCart Extensions', 'wp-easycart' );
+
 			} else {
 				return $admin_title;
 			}
@@ -3374,11 +3422,14 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					'temporary-deactivation'    => __( 'It\'s a temporary deactivation. I\'m just debugging an issue.', 'wp-easycart' ),
 					'other'                     => __( 'Other.', 'wp-easycart' ),
 					'how-improve'               => __( 'Please tell us the reason so we can improve.', 'wp-easycart' ),
-					'anonymous'                 => __( 'Feedback is Anonymous', 'wp-easycart' ),
+					/* 6.0.2: what Submit sends ( the form asks every store now ). */
+					'anonymous'                 => __( 'Submitting sends your answer to WP EasyCart with your WordPress, PHP and WP EasyCart versions, language and plan. Nothing that identifies you or your store.', 'wp-easycart' ),
 					'skip-deactivate'           => __( 'Skip & Deactivate', 'wp-easycart' ),
 					'cancel'                    => __( 'Cancel', 'wp-easycart' ),
 					'submit-deactivate'         => __( 'Submit & Deactivate', 'wp-easycart' ),
-					'deactivate-nonce'          => esc_attr( wp_create_nonce( 'wp-easycart-deactivate-why' ) )
+					'deactivate-nonce'          => esc_attr( wp_create_nonce( 'wp-easycart-deactivate-why' ) ),
+					/* 6.0.2: every store is asked; an answer goes only when someone submits it. */
+					'ask-feedback'              => '1',
 				);
 
 				if ( is_ssl() ) {
@@ -3702,7 +3753,8 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 							'disc_default'     => __( 'Shows a strike-through price and "% off" badge.', 'wp-easycart' ),
 							/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
 							'type_pro_hint'    => sprintf( __( 'Downloads, subscriptions, gift cards and more are %s types.', 'wp-easycart' ), ( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : __( 'Pro/Premium', 'wp-easycart' ) ) ),
-							'type_stripe'      => __( 'Subscriptions and memberships bill through Stripe, Authorize.net or PayPal.', 'wp-easycart' ),
+							/* 6.0.2: subscriptions bill through Stripe only ( the hint used to name Authorize.net and PayPal too ); say so while the store can't sell them. */
+							'type_stripe'      => ( class_exists( 'wp_easycart_subscription_gateway' ) && ! wp_easycart_subscription_gateway::ready() ) ? wp_easycart_subscription_gateway::summary() : __( 'Subscriptions and memberships bill through Stripe.', 'wp-easycart' ),
 							'type_digital'     => __( 'This type is delivered without shipping.', 'wp-easycart' ),
 							'opt_max'          => __( 'Maximum of 5 — use modifiers for more', 'wp-easycart' ),
 							/* translators: %d is the free-edition option set limit. */
@@ -3755,6 +3807,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 					)
 				);
 				wp_enqueue_script( 'wp_easycart_shell_v2_js' );
+				/* 6.0.2: the V2 lists' Columns chooser ( wp_easycart_admin_table_v2::print_columns_control() ). Its styles are in admin-v2.css. */
+				wp_register_script( 'wp_easycart_list_columns_v2_js', plugins_url( 'wp-easycart/admin/js/list-columns-v2.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
+				wp_enqueue_script( 'wp_easycart_list_columns_v2_js' );
 
 				add_editor_style( );
 				add_thickbox( );
@@ -3973,8 +4028,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				'order_status_updated'  => esc_html__( 'Order status updated.', 'wp-easycart' ),
 				'select_bulk_action'    => esc_html__( 'Please choose a bulk action.', 'wp-easycart' ),
 				'select_orders'         => esc_html__( 'Please select at least one order.', 'wp-easycart' ),
+				'choose_status'         => __( 'Choose a status…', 'wp-easycart' ), /* 6.0.2: the bulk status picker ( set with .text() ) */
 				'delete_orders_title'   => esc_html__( 'Delete Orders', 'wp-easycart' ),
-				'delete_orders_confirm' => esc_html__( 'Permanently delete the selected orders? This cannot be undone.', 'wp-easycart' ),
+				'delete_orders_confirm' => esc_html__( 'Delete the selected orders with their items, download links, packages and checkout answers? You can put them back for 15 minutes afterwards.', 'wp-easycart' ), /* 6.0.2: the list offers Undo ( 6.0.1 ) */
 				'order_pro_gate'        => $ecv2_order_pro_gate,
 				'pro_gate'              => $ecv2_order_pro_gate,
 				/* 6.0.0: the fulfillment cell follows status changes without a reload ( orders-v2.js / orders-v2-pro.js ). */
@@ -3984,6 +4040,31 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				/* 6.0.1: "Picked up" ( status Order Picked Up ) and "Mark picked up" ( a Free Local Pickup row, data-pickup="1" ). */
 				'fulfilled_chip_pickup' => method_exists( 'wp_easycart_admin_order_table', 'pickup_fulfill_supported' ) ? wp_easycart_admin_order_table::fulfilled_chip_html( 'pickup' ) : '',
 				'fulfill_button_pickup' => ( method_exists( 'wp_easycart_admin_order_table', 'pickup_fulfill_supported' ) && wp_easycart_admin_order_table::pickup_fulfill_supported() ) ? wp_easycart_admin_order_table::fulfill_button_html( $ecv2_order_pro_gate, 'pickup' ) : '',
+				/* 6.0.2: Refunded, Partial refund and Cancelled ask first ( as on the order screen ); set with .text(). */
+				'status_title_16'       => __( 'Mark this order refunded?', 'wp-easycart' ),
+				'status_body_16'        => __( 'This changes the order’s status only. No money goes back to the customer: use Refund to return the payment.', 'wp-easycart' ),
+				'status_title_17'       => __( 'Mark this order partly refunded?', 'wp-easycart' ),
+				'status_body_17'        => __( 'This changes the order’s status only. No money goes back to the customer: use Refund to return part of the payment.', 'wp-easycart' ),
+				'status_title_19'       => __( 'Cancel this order?', 'wp-easycart' ),
+				'status_body_19'        => __( 'This changes the order’s status only. If the customer paid, refund the payment too.', 'wp-easycart' ),
+				/* translators: %d: number of orders. */
+				'bulk_status_title_16'  => __( 'Mark %d orders refunded?', 'wp-easycart' ),
+				'bulk_status_body_16'   => __( 'This changes each order’s status only. No money goes back to the customers: use Refund on each order to return a payment.', 'wp-easycart' ),
+				/* translators: %d: number of orders. */
+				'bulk_status_title_17'  => __( 'Mark %d orders partly refunded?', 'wp-easycart' ),
+				'bulk_status_body_17'   => __( 'This changes each order’s status only. No money goes back to the customers: use Refund on each order to return part of a payment.', 'wp-easycart' ),
+				/* translators: %d: number of orders. */
+				'bulk_status_title_19'  => __( 'Cancel %d orders?', 'wp-easycart' ),
+				'bulk_status_body_19'   => __( 'This changes each order’s status only. If a customer paid, refund the payment too.', 'wp-easycart' ),
+				'status_confirm'        => __( 'Change status', 'wp-easycart' ),
+				'status_refund'         => __( 'Refund on the order', 'wp-easycart' ),
+				'can_refund'            => ( isset( $ecv2_order_pro_gate['state'] ) && 'enabled' === $ecv2_order_pro_gate['state'] ),
+				'order_url'             => admin_url( 'admin.php?page=wp-easycart-orders&subpage=orders&ec_admin_form_action=edit&order_id=' ),
+				/* 6.0.2: the row's Fulfill ( free, the order screen's Ship order ). */
+				'ship_need_tracking'    => __( 'Enter the tracking number, or tick Mark the order as shipped.', 'wp-easycart' ),
+				'ship_no_tracking'      => __( 'Ship without a tracking number?', 'wp-easycart' ),
+				'ship_no_tracking_body' => __( 'The order is marked shipped, and the shipped email goes out without tracking.', 'wp-easycart' ),
+				'ship_anyway'           => __( 'Ship without tracking', 'wp-easycart' ),
 			) );
 		}
 
@@ -4018,7 +4099,10 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 				include_once ABSPATH . 'wp-admin/includes/plugin.php';
 			}
 			$pro_plugin_base = 'wp-easycart-pro/wp-easycart-admin-pro.php';
-			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+			$pro_plugin_file = WP_PLUGIN_DIR . '/wp-easycart-pro/wp-easycart-admin-pro.php'; /* 6.0.2: as setup_pro_hooks() */
+			if ( ! file_exists( $pro_plugin_file ) ) {
+				$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
+			}
 			if ( class_exists( 'wp_easycart_admin_pro_gate' ) && wp_easycart_admin_pro_gate::is_outdated() ) {
 				return; // wp_easycart_admin_compat_lock shows the update / deactivate page and its own notice instead.
 			}
@@ -4124,7 +4208,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			} else {
 				echo '<div class="error notice">';
 			}
-			echo '<p>' . esc_html__( 'The WP EasyCart database install could not complete. The following tables failed to create:', 'wp-easycart' ) . '</p>';
+			echo '<p>' . esc_html__( 'The WP EasyCart database install or update could not complete:', 'wp-easycart' ) . '</p>';
 			echo '<ul style="list-style:disc;padding-left:20px;">';
 			foreach ( $install_errors as $install_error ) {
 				echo '<li>' . esc_html( $install_error ) . '</li>';
@@ -4161,7 +4245,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			$count = get_transient( 'ec_download_recovery_count' );
 			if ( false === $count ) {
 				global $wpdb;
-				$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' )" );
+				$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM ec_product WHERE is_download = 1 AND ( download_file_name IS NULL OR download_file_name = '' ) AND NOT ( is_amazon_download = 1 AND amazon_key IS NOT NULL AND amazon_key <> '' )" );
 				set_transient( 'ec_download_recovery_count', $count, DAY_IN_SECONDS );
 			}
 			if ( (int) $count <= 0 ) {
@@ -4185,15 +4269,9 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			}
 		}
 
-		public function get_pro_activation_link( ){ 
-			$pro_plugin_file = EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php';
-			if( strpos( $pro_plugin_file, '/' ) ){
-				$pro_plugin_file = str_replace( '/', '%2F', $pro_plugin_file );
-			}
-			$activate_url = sprintf( admin_url( 'plugins.php?action=activate&plugin=%s&plugin_status=all&paged=1&s' ), $pro_plugin_file ); 
-			$_REQUEST['plugin'] = $pro_plugin_file;
-			$activate_url = wp_nonce_url( $activate_url, 'activate-plugin_' . $pro_plugin_file );
-			return $activate_url;
+		public function get_pro_activation_link( ){
+			/* 6.0.2: the plugin's basename, as the Plugins screen expects it ( the absolute path broke on Windows hosts ). */
+			return wp_nonce_url( self_admin_url( 'plugins.php?action=activate&plugin=' . rawurlencode( self::PRO_BASENAME ) . '&plugin_status=all&paged=1&s' ), 'activate-plugin_' . self::PRO_BASENAME );
 		}
 
 		/**
@@ -4392,7 +4470,7 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			if ( class_exists( 'wp_easycart_admin_upsell' ) ) {
 				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecdv2_upsell( { context: \'default\' } ); return false;">' . esc_html__( "See what's included", 'wp-easycart' ) . '</button>';
 			}
-			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' ) ) . '">' . esc_html__( 'Try Pro free', 'wp-easycart' ) . '</a>';
+			echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( $this->pro_install_url( 'trial' ) ) . '">' . esc_html__( 'Try Pro free', 'wp-easycart' ) . '</a>';
 			echo '</div>';
 		}
 
@@ -4539,140 +4617,472 @@ if ( ! class_exists( 'wp_easycart_admin' ) ) :
 			return $url;
 		}
 
-		public function start_pro_trial() {
-			$current_user = wp_get_current_user( );
-			$name = $current_user->user_firstname . " " . $current_user->user_lastname;
-			$email = $current_user->user_email;
-
-			if ( ! file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
-				$this->install_pro_plugin(  );
-			}
-
-			if ( ! file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) {
-				/* translators: %s: support email address. */
-				echo esc_attr( sprintf( __( 'Error installing the WP EasyCart PRO plugin. Please try again or contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) );
-				die( );
-			}
-
-			if ( ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ) {
-				activate_plugin( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php', NULL, 0, 1 );
-			}
-
-			if ( ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ) ) {
-				echo esc_attr( sprintf( __( 'Error activating WP EasyCart PRO, please visit your plugins page and click activate or contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) );
-				die( );
-			}
-
-			if ( ! class_exists( 'ec_license_manager' ) ) {
-				include( EC_PLUGIN_DIRECTORY . '-pro/license/ec_license_manager.php' );
-			}
-
-			$license_key = $this->create_trial_license( $name, $email );
-			if ( ! $license_key ) {
-				echo esc_attr( sprintf( __( 'Error creating trial key. Something may be wrong with our server, please contact %s for assistance.', 'wp-easycart' ), 'support@wpeasycart.com' ) ) . '<br>';
-				die( );
-			} else if ( $license_key == "key_exists" ) {
-				// Should load from
+		/**
+		 * Nonce'd link that starts a trial ( 'trial' ), installs and activates WP EasyCart PRO for a license key
+		 * ( 'install' ), or finishes a trial once PRO is active ( 'trial-key' ). Every "Start free trial" and "Install
+		 * WP EasyCart PRO" button uses it; a link without the nonce ( a bookmark, an old page ) only opens the
+		 * registration page.
+		 *
+		 * @since 6.0.2
+		 * @param string $step     trial|install|trial-key.
+		 * @param bool   $relative admin.php?… instead of a full URL ( for buttons that open full URLs in a new tab ).
+		 * @return string Raw URL ( escape it on output ).
+		 */
+		public function pro_install_url( $step = 'trial', $relative = false ) {
+			$args = array( 'page' => 'wp-easycart-registration' );
+			if ( 'install' === $step ) {
+				$args['ec_install'] = 'pro';
 			} else {
-				$license_manager = new ec_license_manager( );
-				$license_manager->ec_activate_license( $name, $email, $license_key );
+				$args['ec_trial'] = ( 'trial-key' === $step ) ? 'key' : 'start';
 			}
+			$args['_wpnonce'] = wp_create_nonce( self::PRO_NONCE );
+			return add_query_arg( $args, $relative ? 'admin.php' : self_admin_url( 'admin.php' ) );
 		}
 
-		private function install_pro_plugin( $is_trial = 1 ){
-			echo '<html>';
-				echo '<head>';
-					echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
-					echo '<title>' . esc_attr__( 'Install WP EasyCart PRO', 'wp-easycart' ) . '</title>';
-					echo '<style type="text/css">';
-						echo 'html{ height:100%; margin:0; padding:0; }';
-						echo 'body{ display:block; height:100%; margin:0; padding:0; color:#444; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; font-size:13px; line-height:1.4em; min-width:600px; }';
-						echo 'img{ display:block; margin:0 auto; }';
-						echo '.box-container{ -moz-box-shadow:0px 0px 100px rgba(0, 0, 0, 0.5); -webkit-box-shadow:0px 0px 100px rgba(0, 0, 0, 0.5); box-shadow:0px 0px 100px rgba(0, 0, 0, 0.5); -moz-border-radius:10px; -webkit-border-radius:10px; border-radius:10px; position:fixed; top:15%; left:50%; width:550px; margin:0 0 0 -225px; background:#FFF; overflow:auto; padding:0px; -webkit-box-sizing:border-box; -moz-box-sizing:border-box; box-sizing:border-box; z-index:99999; max-height:420px; }';
-						echo '.box-container > div{ padding:25px; border-color:#FFFFFF; border-width:4px; border-style:solid; border-radius:0px; }';
-						echo 'h1{ font-weight:normal; margin:10px 0 25px; text-align:center; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; font-size:26px; }';
-						echo 'a{ background:#79af40; margin:15px auto 0; display:block; text-align:center; color:#FFF; padding:12px 20px; border-radius:5px; text-decoration:none; font-size:16px; font-weight:normal; }';
-						echo 'a:hover{ background:#92c845; }';
-					echo '</style>';
-				echo '</head>';
-				echo '<body style="background:#f7f4e8;" bgcolor="#f7f4e8">';
-					echo '<div class="box-container" style="max-height:550px;"><div>';
-					echo '<img src="' . esc_attr( plugins_url( "wp-easycart/admin/images/easycart-logo-1-11-2018.png", EC_PLUGIN_DIRECTORY ) ) . '" alt="WP EasyCart" title="WP EasyCart" />';
-
-			$url = "https://connect.wpeasycart.com/downloads/professional-admin/wp-easycart-pro.zip";
-			$method = '';
-
-			if ( false === ( $creds = request_filesystem_credentials( esc_url_raw( $url ), $method, false, false, array() ) ) ) {
-				return false;
+		/**
+		 * "Start free trial" / "Install WP EasyCart PRO".
+		 *
+		 * One step per request, so each fits inside a host's time limit: install and activate WP EasyCart PRO, then,
+		 * for a trial, a second request ( with PRO loaded ) creates the trial key and activates it. Whatever goes
+		 * wrong comes back to the registration page as a notice with a way forward ( try again, download, upload ).
+		 *
+		 * 6.0.2 rewrite: the FTP / SSH credentials form posted to the download server instead of this site, a failed
+		 * download or unzip was reported as a finished install, the links had no nonce, a Store Manager could install
+		 * plugins, and a site that forbids plugin installs was written to anyway.
+		 *
+		 * @since 6.0.2
+		 * @param string $step trial|install|trial-key.
+		 */
+		private function handle_pro_install( $step ) {
+			$this->pro_install_step = $step;
+			if ( ! $this->pro_install_allowed( $step ) ) {
+				$this->pro_install_redirect( 'pro-permission', $step );
 			}
-
-			if ( ! WP_Filesystem( $creds ) ) {
-				request_filesystem_credentials( esc_url_raw( $url ), $method, true, false, array() );
-				return false;
+			$nonce = isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '';
+			if ( ! wp_verify_nonce( $nonce, self::PRO_NONCE ) ) {
+				$this->pro_install_redirect( 'pro-confirm', $step ); // a link without the nonce only opens the page with the buttons
 			}
-
-			if ( ! class_exists( 'Plugin_Upgrader', false ) ) {
-				include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+			if ( function_exists( 'set_time_limit' ) ) {
+				@set_time_limit( 300 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- disabled on some hosts; the step then runs within their limit.
 			}
-			include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
-			include_once ABSPATH . 'wp-admin/includes/file.php';
+			if ( 'trial-key' === $step ) {
+				$this->finish_pro_trial();
+			}
+			$result = $this->ensure_pro_active();
+			if ( 'credentials' === $result ) {
+				exit; // the host needs FTP / SSH details: the form was printed, and it posts back to this step
+			}
+			if ( is_wp_error( $result ) ) {
+				$this->pro_install_redirect( $result->get_error_code(), $step, $result->get_error_message() );
+			}
+			if ( 'trial' === $step ) {
+				wp_safe_redirect( $this->pro_install_url( 'trial-key' ) ); // the next request has PRO loaded
+				exit;
+			}
+			wp_safe_redirect( add_query_arg( array( 'page' => 'wp-easycart-registration', 'success' => 'pro-installed' ), self_admin_url( 'admin.php' ) ) );
+			exit;
+		}
 
-			$skin_args = array(
-				'type'   => 'upload',
-				'title'  => esc_attr__( 'Installing WP EasyCart PRO', 'wp-easycart' ),
-				'url'    => esc_url_raw( $url ),
-				'nonce'  => 'install-plugin_wp-easycart-pro',
-				'plugin' => 'wp-easycart-pro/wp-easycart-admin-pro.php',
+		/**
+		 * Who may run a step: activating PRO needs activate_plugins ( install_plugins is checked when an install is
+		 * needed ), creating the trial key once PRO is active needs the registration page's capability.
+		 *
+		 * @since 6.0.2
+		 * @param string $step trial|install|trial-key.
+		 * @return bool
+		 */
+		private function pro_install_allowed( $step ) {
+			if ( 'trial-key' === $step ) {
+				return current_user_can( 'manage_options' ) || current_user_can( 'wpec_registration' );
+			}
+			return current_user_can( 'activate_plugins' );
+		}
+
+		/**
+		 * WP EasyCart PRO installed ( or replaced when a leftover or outdated copy is in its folder ) and active.
+		 *
+		 * @since 6.0.2
+		 * @return true|string|WP_Error 'credentials' when the credentials form was printed.
+		 */
+		private function ensure_pro_active() {
+			if ( ! function_exists( 'get_plugins' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			$state = $this->pro_package_state();
+			if ( 'ok' !== $state ) {
+				if ( ! current_user_can( 'install_plugins' ) ) {
+					return new WP_Error( 'pro-permission', '' );
+				}
+				$file_mods = function_exists( 'wp_is_file_mod_allowed' ) ? wp_is_file_mod_allowed( 'wp_easycart_install_pro' ) : ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
+				if ( ! $file_mods ) {
+					return new WP_Error( 'pro-file-mods', '' );
+				}
+				$installed = $this->install_pro_package( 'missing' !== $state );
+				if ( true !== $installed ) {
+					return $installed;
+				}
+			}
+			if ( ! is_plugin_active( self::PRO_BASENAME ) ) {
+				/* Silent: WP EasyCart PRO's activated_plugin handler redirects and ends the request, which would stop a
+				   trial before its key is created. The hook it fires for usage tracking is fired here instead. */
+				$activated = activate_plugin( self::PRO_BASENAME, '', false, true );
+				if ( is_wp_error( $activated ) ) {
+					return new WP_Error( 'pro-activate-failed', $activated->get_error_message() );
+				}
+				do_action( 'wpeasycart_pro_activated' );
+			}
+			return true;
+		}
+
+		/**
+		 * What is in the wp-easycart-pro folder: 'missing', 'broken' ( a folder without the plugin in it ), 'outdated'
+		 * ( older than this release loads ) or 'ok'.
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		private function pro_package_state() {
+			if ( ! is_dir( WP_PLUGIN_DIR . '/wp-easycart-pro' ) ) {
+				return 'missing';
+			}
+			$plugins = get_plugins( '/wp-easycart-pro' );
+			if ( ! isset( $plugins['wp-easycart-admin-pro.php'] ) ) {
+				return 'broken';
+			}
+			$version = isset( $plugins['wp-easycart-admin-pro.php']['Version'] ) ? (string) $plugins['wp-easycart-admin-pro.php']['Version'] : '';
+			if ( class_exists( 'wp_easycart_admin_pro_gate' ) && ( '' === $version || version_compare( $version, wp_easycart_admin_pro_gate::MIN_PRO_VERSION, '<' ) ) ) {
+				return 'outdated';
+			}
+			return 'ok';
+		}
+
+		/**
+		 * The WP EasyCart PRO package address for one download, with what Connect logs: why ( trial, install, repair, manual ),
+		 * the store ( site_url() without its scheme and "www.", as the license and WP EasyCart Premium name it ) and the
+		 * WP EasyCart, WordPress and PHP versions. The address ends in .zip, so WordPress names its download after it.
+		 *
+		 * @since 6.0.2
+		 * @param string $reason trial | install | repair | manual.
+		 * @return string
+		 */
+		public function pro_package_url( $reason ) {
+			$args = array(
+				'reason' => sanitize_key( $reason ),
+				'site'   => str_replace( array( 'http://', 'https://', 'www.' ), '', site_url() ),
+				'free'   => str_replace( '_', '.', EC_CURRENT_VERSION ),
+				'wp'     => (string) get_bloginfo( 'version' ),
+				'php'    => (string) preg_replace( '/[^0-9.].*$/', '', PHP_VERSION ),
 			);
-
-			add_filter( 'install_plugin_complete_actions', array( $this, 'remove_actions_install', 3 ) );
-			$skin = new Plugin_Installer_Skin( $skin_args );
-			$upgrader = new Plugin_Upgrader( $skin );
-			try {
-				do_action( 'upgrader_pre_install', $upgrader, array() );
-				$installer_result = $upgrader->install( $url );
-				do_action( 'upgrader_post_install', $upgrader, array() );
-			} catch ( Throwable $t ) {
-				$installer_result = false;
-			}
-
-			if ( is_wp_error( $installer_result ) ) {
-				echo '<a href="https://docs.wpeasycart.com/docs/installation-guide/installing-the-plugin/#manualinstall" target="_blank">' . esc_attr__( 'AN ERROR HAS OCCURED. CLICK HERE FOR HELP.', 'wp-easycart' ) . '</a>';
-				echo '<a href="admin.php?page=wp-easycart-registration&ec_trial=start">' . esc_attr__( 'RETURN TO WP EASYCART', 'wp-easycart' ) . '</a>';
-			} else if( $is_trial ){
-				echo '<a href="admin.php?page=wp-easycart-registration&ec_trial=start">' . esc_attr__( 'CLICK HERE TO COMPLETE INSTALLATION', 'wp-easycart' ) . '</a>';
-			}else{
-				echo '<a href="admin.php?page=wp-easycart-registration&ec_install=pro">' . esc_attr__( 'CLICK HERE TO COMPLETE INSTALLATION', 'wp-easycart' ) . '</a>';
-			}
-			echo '<a href="https://docs.wpeasycart.com/docs/installation-guide/installing-the-plugin/#manualinstall" target="_blank">' . esc_attr__( 'Did something go wrong? If so click here for manual install instructions.', 'wp-easycart' ) . '</a>';
-
-			echo '</div></div></body></html>';
-
-			die( );
+			return add_query_arg( array_map( 'rawurlencode', $args ), self::PRO_PACKAGE_URL );
 		}
 
-		private function remove_actions_install( $actions, $api, $file ){
-			return array( '' );
+		/**
+		 * Download and unpack WP EasyCart PRO with WordPress's own installer ( which handles the download, SSL, the
+		 * temp folder and ZipArchive / PclZip ).
+		 *
+		 * @since 6.0.2
+		 * @param bool $overwrite Replace what is in the folder ( WordPress 5.5+ ).
+		 * @return true|string|WP_Error 'credentials' when the credentials form was printed.
+		 */
+		private function install_pro_package( $overwrite ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/misc.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+			/* The credentials form posts back to this step on this site; it used to post to the download server. */
+			$form_url = $this->pro_install_url( $this->pro_install_step );
+			ob_start();
+			$creds = request_filesystem_credentials( $form_url, '', false, WP_PLUGIN_DIR );
+			$form  = ob_get_clean();
+			if ( false === $creds ) {
+				$this->print_pro_credentials_page( $form );
+				return 'credentials';
+			}
+			if ( ! WP_Filesystem( $creds, WP_PLUGIN_DIR ) ) {
+				ob_start();
+				request_filesystem_credentials( $form_url, '', true, WP_PLUGIN_DIR );
+				$form = ob_get_clean();
+				$this->print_pro_credentials_page( $form );
+				return 'credentials';
+			}
+
+			/* Connect's /pro/ first ( it logs the install ); when that install does not go through ( /pro/ unreachable ), the
+			   older static zip once. Each try gets its own skin, so the reason shown is the last try's. */
+			$reason = ( 'trial' === $this->pro_install_step ) ? 'trial' : ( $overwrite ? 'repair' : 'install' );
+			foreach ( array( $this->pro_package_url( $reason ), self::PRO_PACKAGE_URL_LEGACY ) as $package ) {
+				$skin     = class_exists( 'WP_Ajax_Upgrader_Skin' ) ? new WP_Ajax_Upgrader_Skin() : new Automatic_Upgrader_Skin();
+				$upgrader = new Plugin_Upgrader( $skin );
+				$result   = $upgrader->install( $package, array( 'overwrite_package' => (bool) $overwrite ) );
+				$messages = method_exists( $skin, 'get_error_messages' ) ? trim( (string) $skin->get_error_messages() ) : '';
+				if ( true === $result && '' === $messages ) {
+					break;
+				}
+			}
+			if ( is_wp_error( $result ) ) {
+				return new WP_Error( 'pro-install-failed', $result->get_error_message() );
+			}
+			/* Plugin_Upgrader::install() only returns true when the package landed; a failed download, unzip or copy
+			   leaves an empty result and the reason in the skin. */
+			if ( true !== $result || '' !== $messages ) {
+				return new WP_Error( 'pro-install-failed', '' !== $messages ? $messages : __( 'The installer stopped before WP EasyCart PRO was in place.', 'wp-easycart' ) );
+			}
+			wp_clean_plugins_cache( false );
+			if ( 'ok' !== $this->pro_package_state() ) {
+				return new WP_Error( 'pro-install-failed', __( 'The download did not contain the expected WP EasyCart PRO plugin.', 'wp-easycart' ) );
+			}
+			return true;
 		}
 
-		private function create_trial_license( $name, $email ){
-			$action_url = 'https://licensing.wpeasycart.com/trial/start/start.php';
+		/**
+		 * A page of its own for the FTP / SSH details some hosts ask for before plugins can be installed, with the
+		 * manual way alongside.
+		 *
+		 * @since 6.0.2
+		 * @param string $form request_filesystem_credentials() markup.
+		 */
+		private function print_pro_credentials_page( $form ) {
+			nocache_headers();
+			if ( ! headers_sent() ) {
+				header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
+			}
+			$back = add_query_arg( array( 'page' => 'wp-easycart-registration' ), self_admin_url( 'admin.php' ) );
+			?>
+<!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+<meta charset="<?php echo esc_attr( get_option( 'blog_charset' ) ); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?php esc_html_e( 'Install WP EasyCart PRO', 'wp-easycart' ); ?></title>
+<?php wp_print_styles( array( 'common', 'forms', 'buttons' ) ); ?>
+<style>
+body { background:#f0f0f1; margin:0; padding:40px 16px; }
+.wpec-install { max-width:620px; margin:0 auto; background:#fff; border:1px solid #dcdcde; border-radius:8px; padding:24px 28px; }
+.wpec-install h1 { font-size:20px; margin:0 0 8px; }
+.wpec-install-intro { color:#50575e; }
+.wpec-install-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+</style>
+</head>
+<body class="wp-core-ui">
+<div class="wpec-install">
+	<h1><?php esc_html_e( 'Install WP EasyCart PRO', 'wp-easycart' ); ?></h1>
+	<p class="wpec-install-intro"><?php esc_html_e( 'This site asks for your hosting FTP or SSH details before WordPress can install a plugin. WordPress uses them on this site only.', 'wp-easycart' ); ?></p>
+	<?php echo $form; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WordPress's own request_filesystem_credentials() markup. ?>
+	<p class="wpec-install-intro"><?php esc_html_e( 'Or install it yourself: download WP EasyCart PRO, upload it on Plugins › Add New Plugin, then come back to WP EasyCart.', 'wp-easycart' ); ?></p>
+	<div class="wpec-install-links">
+		<a class="button" href="<?php echo esc_url( $this->pro_package_url( 'manual' ) ); ?>"><?php esc_html_e( 'Download WP EasyCart PRO', 'wp-easycart' ); ?></a>
+		<?php if ( current_user_can( 'upload_plugins' ) ) : ?><a class="button" href="<?php echo esc_url( self_admin_url( 'plugin-install.php?tab=upload' ) ); ?>"><?php esc_html_e( 'Upload a plugin', 'wp-easycart' ); ?></a><?php endif; ?>
+		<a class="button" href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( 'Back to WP EasyCart', 'wp-easycart' ); ?></a>
+	</div>
+</div>
+</body>
+</html>
+			<?php
+		}
 
-			$url = site_url( );
-			$url = str_replace( 'http://', '', $url );
-			$url = str_replace( 'https://', '', $url );
-			$url = str_replace( 'www.', '', $url );
+		/**
+		 * Second step of a trial, with WP EasyCart PRO loaded: create the trial key and activate it.
+		 *
+		 * @since 6.0.2
+		 */
+		private function finish_pro_trial() {
+			if ( ! function_exists( 'is_plugin_active' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			if ( ! is_plugin_active( self::PRO_BASENAME ) ) {
+				$this->pro_install_redirect( 'pro-activate-failed', 'trial', __( 'WP EasyCart PRO is not active.', 'wp-easycart' ) );
+			}
+			if ( ! class_exists( 'ec_license_manager' ) && file_exists( WP_PLUGIN_DIR . '/wp-easycart-pro/license/ec_license_manager.php' ) ) {
+				include_once WP_PLUGIN_DIR . '/wp-easycart-pro/license/ec_license_manager.php';
+			}
+			if ( ! class_exists( 'ec_license_manager' ) ) {
+				$this->pro_install_redirect( 'pro-trial-failed', 'trial', __( 'WP EasyCart PRO did not load its license manager.', 'wp-easycart' ) );
+			}
+			$user = wp_get_current_user();
+			$name = trim( $user->user_firstname . ' ' . $user->user_lastname );
+			if ( '' === $name ) {
+				$name = $user->display_name;
+			}
+			$email = $user->user_email;
 
-			$action_url .= '?ec_action=start_trial';
-			$action_url .= '&site_url=' . esc_url_raw( $url );
-			$action_url .= '&customername=' . sanitize_text_field( wp_unslash( $name ) );
-			$action_url .= '&customeremail=' . sanitize_email( wp_unslash( $email ) );
+			$key = $this->create_trial_license( $name, $email );
+			if ( is_wp_error( $key ) ) {
+				$this->pro_install_redirect( 'pro-trial-failed', 'trial', $key->get_error_message() );
+			}
+			if ( 'key_exists' === $key ) {
+				$this->pro_install_redirect( 'pro-trial-exists', 'trial' );
+			}
+			$license_manager = new ec_license_manager();
+			$status          = trim( (string) $license_manager->ec_activate_license( $name, $email, $key ) );
+			if ( 'success' !== $status ) {
+				/* The key is stored either way ( ec_activate_license() saves it first ), so Activate on the page can finish it. */
+				$this->pro_install_redirect( 'pro-trial-activate', 'trial' );
+			}
+			wp_safe_redirect( add_query_arg( array( 'page' => 'wp-easycart-registration', 'subpage' => 'registration', 'success' => 'activate-complete' ), self_admin_url( 'admin.php' ) ) );
+			exit;
+		}
 
-			$response = wp_remote_get( $action_url, array( 'timeout' => 30, 'sslverify' => false ) );
+		/**
+		 * Ask the licensing server for a trial key.
+		 *
+		 * @since 6.0.2 The query is encoded ( a "+" in an email address arrived as a space ), only a 200 with a key-shaped
+		 *              answer is accepted ( an error page was saved as the license key ), and the reason for a failure
+		 *              is kept.
+		 * @param string $name  Customer name.
+		 * @param string $email Customer email.
+		 * @return string|WP_Error The key, or 'key_exists' when this site already had a trial.
+		 */
+		private function create_trial_license( $name, $email ) {
+			$host  = str_replace( array( 'http://', 'https://', 'www.' ), '', site_url() );
+			$query = array(
+				'ec_action'     => 'start_trial',
+				'site_url'      => esc_url_raw( $host ), // the value the licensing server has always received
+				'customername'  => sanitize_text_field( $name ),
+				'customeremail' => sanitize_email( $email ),
+			);
+			$response = wp_remote_get( 'https://licensing.wpeasycart.com/trial/start/start.php?' . http_build_query( $query, '', '&' ), array( 'timeout' => 30 ) );
 			if ( is_wp_error( $response ) ) {
-				return false;
+				/* translators: %s: the connection error. */
+				return new WP_Error( 'pro-trial-unreachable', sprintf( __( 'This site could not reach licensing.wpeasycart.com: %s', 'wp-easycart' ), $response->get_error_message() ) );
 			}
-			return wp_remote_retrieve_body( $response );
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			$body = trim( (string) wp_remote_retrieve_body( $response ) );
+			if ( 200 !== $code ) {
+				/* translators: %d: HTTP status code. */
+				return new WP_Error( 'pro-trial-server', sprintf( __( 'The licensing server answered with HTTP %d. Please try again in a few minutes.', 'wp-easycart' ), $code ) );
+			}
+			if ( 'key_exists' === $body ) {
+				return $body;
+			}
+			if ( ! preg_match( '/^[^\s<>"\']{6,128}$/', $body ) ) {
+				return new WP_Error( 'pro-trial-response', __( 'The licensing server sent an answer that is not a license key. Please try again in a few minutes.', 'wp-easycart' ) );
+			}
+			return $body;
+		}
+
+		/**
+		 * Back to the registration page with a notice for $code ( pro_install_messages() ).
+		 *
+		 * @since 6.0.2
+		 * @param string $code   pro-* code; anything else from the installer is 'pro-install-failed'.
+		 * @param string $step   The step to try again.
+		 * @param string $detail The reason, shown under the notice.
+		 */
+		private function pro_install_redirect( $code, $step, $detail = '' ) {
+			$known = array( 'pro-permission', 'pro-confirm', 'pro-file-mods', 'pro-install-failed', 'pro-activate-failed', 'pro-trial-failed', 'pro-trial-exists', 'pro-trial-activate' );
+			if ( ! in_array( $code, $known, true ) ) {
+				$code = 'pro-install-failed';
+			}
+			set_transient( 'wpec_pro_install_' . get_current_user_id(), array( 'code' => $code, 'step' => $step, 'detail' => wp_strip_all_tags( (string) $detail ) ), 10 * MINUTE_IN_SECONDS );
+			wp_safe_redirect( add_query_arg( array( 'page' => 'wp-easycart-registration', 'ec_pro_error' => $code ), self_admin_url( 'admin.php' ) ) );
+			exit;
+		}
+
+		/**
+		 * The registration page's notice for a PRO install or trial that could not finish ( ?ec_pro_error= ).
+		 *
+		 * @since 6.0.2
+		 * @param array $messages Error messages so far.
+		 * @return array
+		 */
+		public function pro_install_messages( $messages ) {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only: picks which notice to show after the installer's redirect.
+			if ( ! isset( $_GET['page'], $_GET['ec_pro_error'] ) || 'wp-easycart-registration' !== sanitize_key( wp_unslash( $_GET['page'] ) ) ) {
+				return $messages;
+			}
+			$code = sanitize_key( wp_unslash( $_GET['ec_pro_error'] ) );
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
+			$saved  = get_transient( 'wpec_pro_install_' . get_current_user_id() );
+			$step   = ( is_array( $saved ) && isset( $saved['step'] ) && in_array( $saved['step'], array( 'trial', 'install' ), true ) ) ? $saved['step'] : 'trial';
+			$detail = ( is_array( $saved ) && isset( $saved['code'], $saved['detail'] ) && $saved['code'] === $code ) ? (string) $saved['detail'] : '';
+			$retry  = array( 'label' => __( 'Try again', 'wp-easycart' ), 'url' => $this->pro_install_url( $step ), 'primary' => true );
+			$manual = array( array( 'label' => __( 'Download WP EasyCart PRO', 'wp-easycart' ), 'url' => $this->pro_package_url( 'manual' ) ) );
+			if ( current_user_can( 'upload_plugins' ) ) {
+				$manual[] = array( 'label' => __( 'Upload a plugin', 'wp-easycart' ), 'url' => self_admin_url( 'plugin-install.php?tab=upload' ) );
+			}
+			$manual[] = array( 'label' => __( 'Manual install steps', 'wp-easycart' ), 'url' => 'https://docs.wpeasycart.com/docs/installation-guide/installing-the-plugin/#manualinstall', 'target' => '_blank', 'link' => true );
+			$tone     = 'error';
+			switch ( $code ) {
+				case 'pro-permission':
+					$text    = __( 'Installing and activating plugins needs a site administrator. Ask one to start the trial or install WP EasyCart PRO.', 'wp-easycart' );
+					$actions = array();
+					break;
+				case 'pro-confirm':
+					$text    = __( 'Choose Start free trial or Install WP EasyCart PRO below to continue.', 'wp-easycart' );
+					$actions = array();
+					$tone    = 'warning';
+					break;
+				case 'pro-file-mods':
+					$text    = __( 'This site does not allow plugins to be installed from the dashboard. Download WP EasyCart PRO, add it the way this site is deployed, then activate it.', 'wp-easycart' );
+					$actions = array( $manual[0], end( $manual ) );
+					break;
+				case 'pro-install-failed':
+					$text    = __( 'WP EasyCart PRO could not be installed.', 'wp-easycart' );
+					$actions = array_merge( array( $retry ), $manual );
+					break;
+				case 'pro-activate-failed':
+					$text    = __( 'WP EasyCart PRO is installed but could not be activated.', 'wp-easycart' );
+					$actions = array( $retry, array( 'label' => __( 'Go to Plugins', 'wp-easycart' ), 'url' => self_admin_url( 'plugins.php' ) ) );
+					break;
+				case 'pro-trial-failed':
+					$text    = __( 'Your free trial could not be started.', 'wp-easycart' );
+					$actions = array( $retry );
+					break;
+				case 'pro-trial-exists':
+					$text    = __( 'This site has already had a free trial. Enter your license key below, or choose a plan.', 'wp-easycart' );
+					$actions = array( array( 'label' => __( 'See plans', 'wp-easycart' ), 'url' => class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::plan_url( 'pro', 'default' ) : 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/', 'target' => '_blank' ) );
+					$tone    = 'warning';
+					break;
+				case 'pro-trial-activate':
+					$text    = __( 'Your trial key was created but could not be activated yet. Use Activate on this page to finish.', 'wp-easycart' );
+					$actions = array();
+					break;
+				default:
+					return $messages;
+			}
+			$messages[] = array( 'text' => $text, 'detail' => $detail, 'actions' => $actions, 'tone' => $tone );
+			return $messages;
+		}
+
+		/**
+		 * The notice after WP EasyCart PRO was installed for a license key ( ?success=pro-installed ).
+		 *
+		 * @since 6.0.2
+		 * @param array $messages Success messages so far.
+		 * @return array
+		 */
+		public function pro_install_success_message( $messages ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only: picks the notice to show after the installer's redirect.
+			if ( isset( $_GET['page'], $_GET['success'] ) && 'wp-easycart-registration' === sanitize_key( wp_unslash( $_GET['page'] ) ) && 'pro-installed' === sanitize_key( wp_unslash( $_GET['success'] ) ) ) {
+				$messages[] = $this->pro_install_success_text();
+			}
+			return $messages;
+		}
+
+		/**
+		 * The words after WP EasyCart PRO was installed, for this store's license: most stores already have a trial or a paid
+		 * key, so "enter your license key" only shows when there is none ( owner bug round 4, item 12 ).
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		public function pro_install_success_text() {
+			$tier = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::tier() : 'free';
+			if ( 'free' === $tier ) {
+				return __( 'WP EasyCart PRO is installed and active. Enter your license key below to unlock it.', 'wp-easycart' );
+			}
+			if ( wp_easycart_admin_edition::is_lapsed() ) {
+				if ( 'trial' === $tier ) {
+					/* A trial isn't renewed: it is upgraded to a paid license ( the registration page offers Pro and Premium ). */
+					return __( 'WP EasyCart PRO is installed and active, but your Pro trial has ended. Upgrade below to turn every feature back on and get updates.', 'wp-easycart' );
+				}
+				/* translators: %s: plan name, Pro or Premium. */
+				return sprintf( __( 'WP EasyCart PRO is installed and active, but your %s license has ended. Renew it below to unlock every feature and get updates.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() );
+			}
+			if ( 'trial' === $tier ) {
+				return __( 'WP EasyCart PRO is installed and active, and your free trial is running: every Pro feature is unlocked.', 'wp-easycart' );
+			}
+			/* translators: %s: plan name, Pro or Premium. */
+			return sprintf( __( 'WP EasyCart PRO is installed and active, and your %s license is unlocked: every feature is ready to use.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() );
 		}
 
 		public function adjust_hex_brightness( $hexCode, $adjustPercent ){
@@ -5342,11 +5752,8 @@ function ec_admin_ajax_allow_tracking() {
 		return false;
 	}
 
+	/* Turning sharing on queues the store's setup ( wp_easycart_tracking_option_changed() in wpeasycart.php ). */
 	update_option( 'ec_option_allow_tracking', '1' );
-	if ( ! function_exists( 'wp_easycart_admin_tracking' ) ) {
-		include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tracking.php' );
-	}
-	do_action( 'wpeasycart_admin_usage_tracking_accepted' );
 	die();
 }
 
@@ -5376,8 +5783,10 @@ function ec_admin_ajax_custom_deactivate( ){
 		return false;
 	}
 
-	if ( ! function_exists( 'wp_easycart_admin_tracking' ) ) {
-		include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tracking.php' );
+	/* 6.0.2: the form asks every store and says what it sends; the person chose to submit it, so it goes whether or not the
+	   store shares usage data ( only this answer: wp_easycart_admin_tracking::send_feedback() ). */
+	if ( function_exists( 'wp_easycart_tracking_load' ) ) {
+		wp_easycart_tracking_load();
 	}
 	do_action( 'wpeasycart_deactivated' );
 	die();

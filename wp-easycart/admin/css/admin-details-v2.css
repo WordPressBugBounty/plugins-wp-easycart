@@ -1198,6 +1198,53 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 	.ecdv2-offer-stats { margin-left:42px; }
 }
 
+/* Offers tab: "Test a coupon code" ( 6.0.2 ). The form and its answer are PRO's ( ecv2_product_offer_test ); the locked
+   preview shows a sample with the same markup. */
+.ecdv2-offer-test { margin:0 0 16px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:var(--ecv2-g50); }
+.ecdv2-offer-test [hidden] { display:none !important; }
+.ecdv2-offer-test-label { display:block; margin:0 0 6px; font-size:12.5px; font-weight:600; color:var(--ecv2-g800); }
+.ecdv2-offer-test-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.ecdv2-offer-test-form .ecv2-input { flex:0 1 260px; min-width:0; width:auto; text-transform:uppercase; letter-spacing:.3px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ecdv2-offer-test-form .ecv2-input::placeholder { text-transform:none; letter-spacing:0; font-family:inherit; }
+.ecdv2-offer-test-hint { margin:6px 0 0; font-size:11.5px; color:var(--ecv2-g500); }
+.ecdv2-offer-test-result { margin-top:12px; }
+.ecdv2-offer-test-card { padding:12px 14px; border:1px solid var(--ecv2-g200); border-left-width:3px; border-radius:var(--ecv2-rs); background:#fff; }
+.ecdv2-offer-test-card.is-applies { border-left-color:var(--ecv2-primary); }
+.ecdv2-offer-test-card.is-maybe { border-left-color:var(--ecv2-amber); }
+.ecdv2-offer-test-card.is-blocked { border-left-color:var(--ecv2-danger); }
+.ecdv2-offer-test-card.is-not-found { border-left-color:var(--ecv2-g400); }
+.ecdv2-offer-test-head { display:flex; align-items:flex-start; gap:10px; }
+.ecdv2-offer-test-icon.dashicons { flex-shrink:0; width:20px; height:20px; margin-top:1px; font-size:20px; }
+.is-applies .ecdv2-offer-test-icon { color:var(--ecv2-primary-hover); }
+.is-maybe .ecdv2-offer-test-icon { color:#b45309; }
+.is-blocked .ecdv2-offer-test-icon { color:var(--ecv2-danger); }
+.is-not-found .ecdv2-offer-test-icon { color:var(--ecv2-g500); }
+.ecdv2-offer-test-summary { display:flex; flex-direction:column; gap:2px; flex:1 1 auto; min-width:0; }
+.ecdv2-offer-test-title { font-size:13.5px; color:var(--ecv2-g900); overflow-wrap:anywhere; }
+.ecdv2-offer-test-source { font-size:12px; color:var(--ecv2-g500); overflow-wrap:anywhere; }
+.ecdv2-offer-test-links { display:flex; flex-wrap:wrap; gap:6px; flex-shrink:0; }
+.ecdv2-offer-test-checks { display:flex; flex-direction:column; gap:5px; margin:10px 0 0 30px; padding:0; list-style:none; }
+.ecdv2-offer-test-checks li { display:flex; align-items:flex-start; gap:6px; margin:0; font-size:12.5px; line-height:1.45; color:var(--ecv2-g700); }
+.ecdv2-offer-test-checks .dashicons { flex-shrink:0; width:16px; height:16px; margin-top:1px; font-size:16px; }
+.ecdv2-offer-test-checks .is-ok .dashicons { color:var(--ecv2-primary-hover); }
+.ecdv2-offer-test-checks .is-warn .dashicons { color:#b45309; }
+.ecdv2-offer-test-checks .is-fail { color:var(--ecv2-g900); }
+.ecdv2-offer-test-checks .is-fail .dashicons { color:var(--ecv2-danger); }
+.ecdv2-offer-test-checks .is-info .dashicons { color:var(--ecv2-g400); }
+.ecdv2-offer-test-foot { margin:10px 0 0 30px; font-size:11.5px; line-height:1.45; color:var(--ecv2-g500); }
+.ecdv2-offer-test-error { font-size:12.5px; color:var(--ecv2-danger); }
+
+/* Type & Behavior: under the Subscription Product switch while the store can't sell subscriptions ( 6.0.2,
+   wp_easycart_subscription_gateway: they need Stripe ). The notice is the shell's .ecv2-flash. */
+.ecdv2-subscription-gateway .ecv2-flash { margin:0; }
+@media screen and (max-width:782px) {
+	.ecdv2-offer-test-head { flex-wrap:wrap; }
+	.ecdv2-offer-test-summary { flex-basis:calc(100% - 30px); }
+	.ecdv2-offer-test-links { margin-left:30px; }
+	.ecdv2-offer-test-checks, .ecdv2-offer-test-foot { margin-left:0; }
+	.ecdv2-offer-test-form .ecv2-input { flex:1 1 auto; }
+}
+
 /* Yoast SEO card ( SEO tab ) */
 .ecdv2-yoast-preview { display:flex; flex-direction:column; gap:2px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:#fff; font-family:arial, sans-serif; }
 .ecdv2-yoast-preview-label { font-family:inherit; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; font-weight:600; color:var(--ecv2-g400); margin-bottom:4px; }
@@ -1206,6 +1253,28 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-yoast-preview-desc { font-size:13px; line-height:1.5; color:#4d5156; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .ecdv2-yoast-foot { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--ecv2-g600); line-height:1.45; }
 .ecdv2-yoast-foot .dashicons { color:var(--ecv2-g400); font-size:16px; width:16px; height:16px; flex-shrink:0; }
+
+/* Search & AI card ( SEO tab, 6.0.2 ) */
+.ecdv2-sai { display:grid; grid-template-columns:minmax(0, 1.3fr) minmax(0, 1fr); gap:16px; align-items:start; }
+.ecdv2-sai-fields { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px 14px; }
+.ecdv2-sai-fields .ecdv2-field-full { grid-column:1 / -1; }
+.ecdv2-sai-check { display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--ecv2-g700); line-height:1.45; cursor:pointer; }
+.ecdv2-sai-check input { margin-top:2px; }
+.ecdv2-sai-error { display:block; font-size:12px; color:#b91c1c; margin-top:4px; }
+.ecdv2-sai-error[hidden] { display:none; }
+.ecdv2-sai-side { display:grid; gap:8px; padding:12px 14px; border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); background:var(--ecv2-g50, #f9fafb); }
+.ecdv2-sai-head { font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; font-weight:600; color:var(--ecv2-g400); }
+.ecdv2-sai-list { margin:0; padding:0; list-style:none; display:grid; gap:5px; }
+.ecdv2-sai-list li { position:relative; padding-left:18px; font-size:12.5px; line-height:1.45; color:var(--ecv2-g700); }
+.ecdv2-sai-list li::before { position:absolute; left:0; top:0; font-weight:800; }
+.ecdv2-sai-list li.is-ok::before { content:"\2713"; color:#16a34a; }
+.ecdv2-sai-list li.is-warn::before { content:"!"; color:#b45309; left:3px; }
+.ecdv2-sai-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.ecdv2-sai-preview { grid-column:1 / -1; margin:0; padding:12px 14px; max-height:420px; overflow:auto; border-radius:var(--ecv2-r); background:#0f1a1f; color:#d7e3e8; font:12px/1.55 ui-monospace, Menlo, Consolas, monospace; white-space:pre; }
+.ecdv2-sai-preview[hidden] { display:none; }
+@media screen and (max-width: 960px) {
+	.ecdv2-sai, .ecdv2-sai-fields { grid-template-columns:1fr; }
+}
 
 /* ==================================================================
    Mobile: the editor rail as a slide-out ( shell-v2.js adds the burger,
@@ -1253,4 +1322,27 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 }
 @media screen and (max-width: 782px) and (prefers-reduced-motion: reduce) {
 	body.ecdv2-rail-ready .ecdv2-rail, body.ecdv2-rail-open .ecdv2-rail { transition:none; }
+}
+
+/* 6.0.2: a product another service manages ( a fulfillment partner ): the cover over a card or panel it owns, and the
+   banner above the inputs it owns on a card that is only partly its ( wp_easycart_product_lock::print_cover() ). */
+.ecdv2-pro-media:has( > .ecdv2-managed-cover ),
+.ecdv2-panel:has( > .ecdv2-managed-cover ) { position:relative; }
+.ecdv2-managed-cover { position:absolute; inset:0; z-index:6; display:block; text-align:left; background:rgba( 255, 255, 255, .72 ); -webkit-backdrop-filter:blur( 1.5px ) saturate( .7 ); backdrop-filter:blur( 1.5px ) saturate( .7 ); border-radius:inherit; }
+.ecdv2-managed-cover .ecdv2-managed-card { position:sticky; top:96px; display:flex; align-items:center; gap:12px; max-width:540px; margin:18px auto; padding:12px 14px; background:#fff; border:1px solid var( --ecv2-g200 ); border-radius:10px; box-shadow:0 10px 24px -12px rgba( 15, 23, 42, .35 ); }
+.ecdv2-managed-banner { margin:0 0 14px; }
+.ecdv2-managed-banner .ecdv2-managed-card { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var( --ecv2-g50, #f9fafb ); border:1px solid var( --ecv2-g200 ); border-radius:8px; }
+.ecdv2-managed-mark { flex:0 0 32px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; background:var( --ecv2-g900, #111827 ); color:#fff; font-size:16px; }
+.ecdv2-managed-banner .ecdv2-managed-mark { flex-basis:26px; width:26px; height:26px; border-radius:6px; font-size:14px; }
+.ecdv2-managed-text { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.ecdv2-managed-text b { font-size:13.5px; font-weight:600; color:var( --ecv2-g900, #111827 ); }
+.ecdv2-managed-text > span { font-size:12.5px; line-height:1.45; color:var( --ecv2-g600, #4b5563 ); }
+.ecdv2-managed-open { flex:0 0 auto; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-decoration:none; }
+.ecdv2-managed-open .dashicons { font-size:14px; width:14px; height:14px; }
+.ecdv2-field.is-managed-locked input, .ecdv2-field.is-managed-locked select, .ecdv2-field.is-managed-locked textarea { background:var( --ecv2-g50, #f9fafb ); color:var( --ecv2-g600, #4b5563 ); cursor:not-allowed; }
+[data-ecdv2-wpeditor].is-managed-locked { opacity:.75; }
+@media screen and (max-width: 600px) {
+	.ecdv2-managed-cover .ecdv2-managed-card, .ecdv2-managed-banner .ecdv2-managed-card { flex-wrap:wrap; }
+	.ecdv2-managed-cover .ecdv2-managed-card { margin:12px; top:72px; }
+	.ecdv2-managed-open { width:100%; justify-content:center; }
 }

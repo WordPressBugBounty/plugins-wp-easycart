@@ -80,6 +80,8 @@
 		</div>
 		<?php }?>
 
+		<?php do_action( 'wpeasycart_account_personal_information_fields', $this ); /* 6.0.2: remembered checkout answers ( WP EasyCart PRO checkout fields ) */ ?>
+
 		<div class="ec_cart_button_row">
 			<input type="submit" value="<?php echo wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_update_button' ); ?>" class="ec_account_button" onclick="return ec_account_personal_information_update_click( );" />
 			<?php $this->display_account_personal_information_cancel_link( wp_easycart_language( )->get_text( 'account_personal_information', 'account_personal_information_cancel_link' ) ); ?>

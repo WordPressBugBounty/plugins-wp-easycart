@@ -185,7 +185,7 @@ class wp_easycart_cart_link {
 			|| ( $link->expires && strtotime( $link->expires ) < time() )
 			|| ( $link->max_uses > 0 && $link->use_count >= $link->max_uses ) ) {
 			do_action( 'wp_easycart_cart_link_rejected', $link ? $link : $token );
-			header( 'location: ' . esc_url_raw( $cartpage ) );
+			header( 'location: ' . esc_url_raw( self::with_source_tags( $cartpage ) ) );
 			die();
 		}
 
@@ -232,8 +232,25 @@ class wp_easycart_cart_link {
 		if ( 'checkout' === $link->destination && function_exists( 'wpeasycart_links' ) ) {
 			$destination = wpeasycart_links()->get_cart_page( 'checkout' );
 		}
-		header( 'location: ' . esc_url_raw( apply_filters( 'wp_easycart_cart_link_destination', $destination, $link, $added ) ) );
+		header( 'location: ' . esc_url_raw( self::with_source_tags( apply_filters( 'wp_easycart_cart_link_destination', $destination, $link, $added ) ) ) );
 		die();
+	}
+
+	/**
+	 * 6.0.2: the link's campaign tags and ad click IDs ( utm_source, gclid … ) carried onto the redirect, so the page the
+	 * shopper lands on records the order's source ( the cart page is skipped as a referrer, so without them a shared Cart
+	 * Link read as Direct ).
+	 *
+	 * @since 6.0.2
+	 * @param string $url Where the link sends the shopper.
+	 * @return string
+	 */
+	private static function with_source_tags( $url ) {
+		if ( ! class_exists( 'wp_easycart_order_source' ) || ! method_exists( 'wp_easycart_order_source', 'request_tags' ) ) {
+			return $url;
+		}
+		$tags = wp_easycart_order_source::request_tags();
+		return $tags ? add_query_arg( $tags, $url ) : $url;
 	}
 
 	/**
@@ -292,10 +309,66 @@ class wp_easycart_cart_link {
 	}
 
 	/**
+	 * Add one line to the current shopper's cart with the Cart Link rules ( the
+	 * product must be active and not a subscription, donation or DecoNetwork
+	 * product; basic options must belong to the product's current option sets;
+	 * stale modifiers are dropped ). For other storefront entry points that fill
+	 * a cart from a URL, e.g. a Facebook & Instagram shop's checkout link. The
+	 * caller starts the session ( wpeasycart_session()->handle_session() ).
+	 *
+	 * @since 6.0.2
+	 * @param array|object $item   product_id, optionitem_id_1 … optionitem_id_5,
+	 *                             quantity, modifier_values ( list of option_id,
+	 *                             optionitem_id, optionitem_value ).
+	 * @param string       $source Announced with wpeasycart_cart_item_added.
+	 * @return bool Something was added or merged.
+	 */
+	public static function add_item( $item, $source = 'cart_link' ) {
+		$item = (object) wp_parse_args(
+			(array) $item,
+			array(
+				'product_id'      => 0,
+				'optionitem_id_1' => 0,
+				'optionitem_id_2' => 0,
+				'optionitem_id_3' => 0,
+				'optionitem_id_4' => 0,
+				'optionitem_id_5' => 0,
+				'quantity'        => 1,
+				'modifier_values' => array(),
+			)
+		);
+		if ( ! is_array( $item->modifier_values ) ) {
+			$item->modifier_values = array();
+		}
+		return self::add_link_item( new ec_db(), $item, $source );
+	}
+
+	/**
+	 * Apply coupon / offer codes to the current shopper's cart with the Cart
+	 * Link rules ( see apply_codes() ) and save the session.
+	 *
+	 * @since 6.0.2
+	 * @param array $codes Codes.
+	 * @return int How many were accepted.
+	 */
+	public static function apply_coupon_codes( $codes ) {
+		$applied = self::apply_codes( (array) $codes, $GLOBALS['ec_cart_data']->ec_cart_id );
+		if ( $applied ) {
+			$GLOBALS['ec_cart_data']->save_session_to_db();
+		}
+		return $applied;
+	}
+
+	/**
 	 * Add one saved line to the cart, validating everything against the
 	 * CURRENT catalog. Returns true when something was added / merged.
+	 *
+	 * @param ec_db  $db     Database helper.
+	 * @param object $item   The line.
+	 * @param string $source Announced with wpeasycart_cart_item_added ( 6.0.2 ).
+	 * @return bool
 	 */
-	private static function add_link_item( $db, $item ) {
+	private static function add_link_item( $db, $item, $source = 'cart_link' ) {
 		global $wpdb;
 		$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', (int) $item->product_id ) );
 		if ( ! $product || ! $product->activate_in_store ) {
@@ -386,6 +459,7 @@ class wp_easycart_cart_link {
 		}
 
 		$was_merged  = false;
+		$before_add  = function_exists( 'wp_easycart_cart_add_snapshot' ) ? wp_easycart_cart_add_snapshot( $product->product_id ) : 0;
 		$tempcart_id = $db->quick_add_to_cart( $product->model_number, $optionitem_ids, $option_vals, $was_merged, max( 1, (int) $item->quantity ) );
 		if ( ! $tempcart_id ) {
 			return false;
@@ -394,6 +468,9 @@ class wp_easycart_cart_link {
 			foreach ( $option_vals as $option_val ) {
 				$db->add_option_to_cart( $tempcart_id, $GLOBALS['ec_cart_data']->ec_cart_id, $option_val );
 			}
+		}
+		if ( function_exists( 'wp_easycart_announce_cart_item_added' ) ) {
+			wp_easycart_announce_cart_item_added( $tempcart_id, $product->product_id, $before_add, $source ); /* 6.0.2 */
 		}
 		return true;
 	}

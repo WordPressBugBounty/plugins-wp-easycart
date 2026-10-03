@@ -72,7 +72,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$this->current_section = $section;
 		$this->print_only = isset( $args['only'] ) ? $args['only'] : false;
 		$this->print_except = isset( $args['except'] ) ? $args['except'] : array();
-		echo '<div class="ecdv2-card" data-ecdv2-section="' . esc_attr( $section ) . '">';
+		$lock = $this->section_lock( $section ); /* 6.0.2: what the product's managing service owns in this card */
+		echo '<div class="ecdv2-card' . ( $lock['fields'] ? ' is-managed' : '' ) . '" data-ecdv2-section="' . esc_attr( $section ) . '"' . ( $lock['ids'] ? ' data-ecdv2-locked-ids="' . esc_attr( implode( ',', $lock['ids'] ) ) . '"' : '' ) . '>';
 		echo '<div class="ecdv2-card-saving"></div>';
 		echo '<div class="ecdv2-card-header">';
 		echo '<h3 class="ecdv2-card-title">' . esc_html( $title ) . '</h3>';
@@ -81,6 +82,108 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		}
 		echo '<a href="' . esc_url_raw( $this->docs_link ) . '" target="_blank" class="ecdv2-help-link"><span class="dashicons dashicons-editor-help" style="font-size:14px;width:14px;height:14px;"></span>' . esc_html__( 'Help', 'wp-easycart' ) . '</a>';
 		echo '</div><div class="ecdv2-card-body">';
+		if ( $lock['fields'] ) {
+			$this->print_lock( $lock );
+		}
+	}
+
+	/**
+	 * The inputs of each save section that a managed product's fields cover ( wp_easycart_product_lock ). true = the
+	 * whole card.
+	 *
+	 * @since 6.0.2
+	 * @return array section => field => input ids | true
+	 */
+	public function lock_map() {
+		return apply_filters(
+			'wp_easycart_admin_product_details_v2_lock_map',
+			array(
+				'basic'      => array(
+					'title'       => array( 'title' ),
+					'description' => array( 'description' ),
+					'price'       => array( 'price' ),
+					'list_price'  => array( 'list_price' ),
+					'sku'         => array( 'model_number' ),
+				),
+				'quantities' => array( 'stock' => array( 'stock_quantity_type', 'stock_quantity' ) ),
+				'packaging'  => array(
+					'weight'     => array( 'weight' ),
+					'dimensions' => array( 'width', 'height', 'length' ),
+				),
+				'shipping'   => array( 'shipping' => true ),
+				'customs'    => array( 'shipping' => true ),
+				'categories' => array( 'categories' => true ),
+				/* The free edition's own Options and Images cards; WP EasyCart PRO covers its panels itself. */
+				'options'    => array( 'options' => true ),
+				'images'     => array( 'images' => true ),
+			)
+		);
+	}
+
+	/**
+	 * What a managed product's service owns in one save section.
+	 *
+	 * @since 6.0.2
+	 * @param string $section Section key.
+	 * @return array fields ( locked keys in the section ), ids ( inputs to disable ), full ( every input of the card ).
+	 */
+	public function section_lock( $section ) {
+		$out = array(
+			'fields' => array(),
+			'ids'    => array(),
+			'full'   => false,
+		);
+		$map = $this->lock_map();
+		if ( ! $this->id || ! isset( $map[ $section ] ) || ! class_exists( 'wp_easycart_product_lock' ) ) {
+			return $out;
+		}
+		$locked = wp_easycart_product_lock::locked_fields( $this->product );
+		if ( ! $locked ) {
+			return $out;
+		}
+		$whole = true;
+		foreach ( $map[ $section ] as $field => $ids ) {
+			if ( ! in_array( $field, $locked, true ) ) {
+				$whole = false;
+				continue;
+			}
+			$out['fields'][] = $field;
+			if ( true === $ids ) {
+				continue;
+			}
+			$whole      = false;
+			$out['ids'] = array_merge( $out['ids'], (array) $ids );
+		}
+		/* A card whose every input is locked gets the cover ( packaging with weight and dimensions both locked ). */
+		$out['full'] = $out['fields'] && ( $whole || ( 'packaging' === $section && 2 === count( $out['fields'] ) ) );
+		if ( $out['full'] ) {
+			$out['ids'] = array();
+		}
+		return $out;
+	}
+
+	/**
+	 * The cover over a locked card, or the banner above the locked inputs of a partly locked one.
+	 *
+	 * @since 6.0.2
+	 * @param array $lock From section_lock().
+	 */
+	public function print_lock( $lock ) {
+		if ( $lock['full'] ) {
+			wp_easycart_product_lock::print_cover( $this->product );
+			return;
+		}
+		$by = wp_easycart_product_lock::managed_by( $this->product );
+		wp_easycart_product_lock::print_cover(
+			$this->product,
+			array(
+				'inline' => true,
+				/* translators: 1: the service that manages the product ( e.g. Printful ), 2: what it owns ( e.g. title, price ). */
+				'title'  => sprintf( __( 'Managed by %1$s: %2$s', 'wp-easycart' ), wp_easycart_product_lock::label( $by ), wp_easycart_product_lock::field_names( $lock['fields'] ) ),
+				/* translators: %s: the service that manages the product ( e.g. Printful ). */
+				'text'   => sprintf( __( 'Change them in %s and they arrive here on the next sync. Everything else on this card is yours to edit.', 'wp-easycart' ), wp_easycart_product_lock::label( $by ) ),
+			)
+		);
 	}
 
 	public function section_close() {
@@ -487,10 +590,44 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 
 	public function pricing_fields() {
 		add_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_remove_list_price_from_pricing' ), 99, 2 );
+		add_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_product_cost' ), 100, 2 );
 		add_filter( 'wp_easycart_admin_product_details_subscription_fields_list', array( $this, 'v2_subscription_requires' ), 99 );
 		add_filter( 'wp_easycart_admin_product_details_featured_products_fields_list', array( $this, 'v2_featured_tag_inactive' ), 98, 2 );
 		parent::pricing_fields();
 		remove_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_remove_list_price_from_pricing' ), 99 );
+		remove_filter( 'wp_easycart_admin_product_details_pricing_fields_list', array( $this, 'v2_add_product_cost' ), 100 );
+	}
+
+	/**
+	 * 6.0.2: what one unit costs the store, first on the Pricing card ( saved by the pricing endpoint; order lines record it
+	 * as unit_cost when no variant cost is set ).
+	 *
+	 * @param array $fields  Pricing fields.
+	 * @param mixed $product Product.
+	 * @return array
+	 */
+	public function v2_add_product_cost( $fields, $product = false ) {
+		foreach ( $fields as $field ) {
+			if ( isset( $field['name'] ) && 'product_cost' === $field['name'] ) {
+				return $fields;
+			}
+		}
+		array_unshift(
+			$fields,
+			array(
+				'name'            => 'product_cost',
+				'type'            => 'currency',
+				'label'           => __( 'Cost per item', 'wp-easycart' ),
+				'required'        => false,
+				'validation_type' => 'price',
+				'visible'         => true,
+				'default'         => '0.00',
+				'value'           => isset( $this->product->product_cost ) ? $this->product->product_cost : 0,
+				'placeholder'     => '0.00',
+				'description'     => __( 'What one unit costs you ( your supplier or fulfillment partner price ). Shoppers never see it; orders record it for profit reports.', 'wp-easycart' ),
+			)
+		);
+		return $fields;
 	}
 
 	/** Splice Previous Price directly after Price on the General tab. */
@@ -769,6 +906,14 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				$cluster_open = true;
 			}
 
+			/* 6.0.2: Track Quantity saves with the card's Save like every other field. The legacy onchange
+			 * ( ec_admin_product_details_quantity_type_change ) saved the moment it changed and left the header
+			 * behind; products-details-v2.js keeps its free-edition guard. The function stays for PRO's
+			 * Change tracking dialog, which calls it directly. */
+			if ( 'quantities' === $this->current_section && 'stock_quantity_type' === $fname ) {
+				unset( $field['onchange'] );
+			}
+
 			$this->print_field_v2( $field );
 
 			/* General tab: right under the Price / Previous Price pair, surface
@@ -776,6 +921,11 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			 * volume tiers, B2B roles, labels ) with one-click navigation. */
 			if ( 'basic' === $this->current_section && 'list_price' === $fname ) {
 				$this->print_price_context();
+			}
+
+			/* 6.0.2: right under the Subscription Product switch, whether it is on or not: subscriptions need Stripe. */
+			if ( 'subscription' === $this->current_section && 'is_subscription_item' === $fname ) {
+				$this->print_subscription_gateway_notice();
 			}
 
 			if ( $cluster_open && $fname === end( $cluster_members ) ) {
@@ -788,6 +938,24 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			echo '</div></div>';
 		}
 		echo '</div>';
+	}
+
+	/**
+	 * Subscriptions are billed through Stripe only ( 6.0.2 ). While the store can't sell them ( another card gateway,
+	 * or Stripe not connected ), say so under the Subscription Product switch, before and after it is turned on, with
+	 * the way to Settings › Payments ( a new tab: the editor may hold unsaved changes ). Nothing prints once Stripe bills.
+	 *
+	 * @since 6.0.2
+	 */
+	private function print_subscription_gateway_notice() {
+		if ( ! class_exists( 'wp_easycart_subscription_gateway' ) ) {
+			return;
+		}
+		$html = wp_easycart_subscription_gateway::notice_html( 'product', array( 'new_tab' => true ) );
+		if ( '' === $html ) {
+			return;
+		}
+		echo '<div class="ecdv2-field ecdv2-field-full ecdv2-subscription-gateway" id="ecdv2_subscription_gateway">' . $html . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- notice_html() escapes every part ( wp_easycart_admin::notice_html() ).
 	}
 
 	/**
@@ -973,7 +1141,7 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		$avg = $approved ? (float) $wpdb->get_var( $wpdb->prepare( 'SELECT AVG( rating ) FROM ec_review WHERE product_id = %d AND approved = 1', $pid ) ) : 0;
 		$rows = $pid ? $wpdb->get_results( $wpdb->prepare( 'SELECT review_id, approved, rating, title, description AS review, reviewer_name, date_submitted FROM ec_review WHERE product_id = %d ORDER BY date_submitted DESC LIMIT 5', $pid ) ) : array();
 		$list_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&filter_2=' . $pid );
-		$settings_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&tab=settings' );
+		$settings_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews&tab=requests' ); /* 6.0.2: the review settings tab is "requests" ( tab=settings opened the list ) */
 		$nonce = wp_create_nonce( 'wp-easycart-ecdv2-reviews-toggle' );
 
 		echo '<div class="ecdv2-card ecdv2-reviews-card' . ( $on ? '' : ' is-off' ) . '" id="ecdv2-reviews-card" data-product-id="' . $pid . '" data-nonce="' . esc_attr( $nonce ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $pid is (int) cast above.
@@ -1221,8 +1389,31 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			$rows[] = array_combine( array( 'icon', 'name', 'what', 'status', 'label', 'code', 'uses', 'revenue' ), $s );
 		}
 
+		/* A tested code ( "Test a coupon code", 6.0.2 ): same markup as PRO's answer, with sample values. */
+		$test_checks = array(
+			array( 'ok', 'yes', __( 'The code is on.', 'wp-easycart' ) ),
+			array( 'ok', 'yes', __( 'The offer is live.', 'wp-easycart' ) ),
+			array( 'ok', 'yes', __( 'It covers this product.', 'wp-easycart' ) ),
+			array( 'warn', 'warning', __( 'Conditions: First order only', 'wp-easycart' ) ),
+			/* translators: 1: product price, 2: discount. */
+			array( 'ok', 'yes', sprintf( __( 'One at %1$s gets %2$s off.', 'wp-easycart' ), $this->format_price( $price ), $this->format_price( $price * 0.1 ) ) ),
+		);
+		$mock  = '<div class="ecdv2-offer-test"><span class="ecdv2-offer-test-label">' . esc_html__( 'Test a coupon code', 'wp-easycart' ) . '</span>';
+		$mock .= '<div class="ecdv2-offer-test-form"><span class="ecv2-input ecv2-input-sm">WELCOME10</span><span class="ecv2-btn ecv2-btn-sm">' . esc_html__( 'Test code', 'wp-easycart' ) . '</span></div>';
+		$mock .= '<div class="ecdv2-offer-test-result"><div class="ecdv2-offer-test-card is-maybe"><div class="ecdv2-offer-test-head">';
+		$mock .= '<span class="ecdv2-offer-test-icon dashicons dashicons-warning"></span>';
+		/* translators: %s: coupon code. */
+		$mock .= '<div class="ecdv2-offer-test-summary"><strong class="ecdv2-offer-test-title">' . esc_html( sprintf( __( '%s can discount this product, with the limits below.', 'wp-easycart' ), 'WELCOME10' ) ) . '</strong>';
+		/* translators: %s: offer name. */
+		$mock .= '<span class="ecdv2-offer-test-source">' . esc_html( sprintf( __( 'Offer: %s', 'wp-easycart' ), __( 'Welcome discount', 'wp-easycart' ) ) ) . '</span></div>';
+		$mock .= '<div class="ecdv2-offer-test-links"><span class="ecv2-btn ecv2-btn-sm ecv2-btn-primary">' . esc_html__( 'Edit offer', 'wp-easycart' ) . '</span></div></div><ul class="ecdv2-offer-test-checks">';
+		foreach ( $test_checks as $check ) {
+			$mock .= '<li class="is-' . esc_attr( $check[0] ) . '"><span class="dashicons dashicons-' . esc_attr( $check[1] ) . '"></span><span>' . esc_html( $check[2] ) . '</span></li>';
+		}
+		$mock .= '</ul></div></div></div>';
+
 		/* Stat tiles: the shared V2 list strip, static ( same markup PRO prints ). */
-		$mock  = '<div class="ecv2-health-dashboard ecv2-health-dashboard-grouped ecdv2-offers-stats"><div class="ecv2-health-group">';
+		$mock .= '<div class="ecv2-health-dashboard ecv2-health-dashboard-grouped ecdv2-offers-stats"><div class="ecv2-health-group">';
 		$mock .= '<div class="ecv2-stat-card ecv2-stat-static ecv2-stat-green"><div class="ecv2-stat-main"><div class="ecv2-stat-value">2</div><div class="ecv2-stat-label">' . esc_html__( 'Live offers', 'wp-easycart' ) . '</div></div></div>';
 		$mock .= '<div class="ecv2-stat-card ecv2-stat-static ecv2-stat-default"><div class="ecv2-stat-main"><div class="ecv2-stat-value">71</div><div class="ecv2-stat-label">' . esc_html__( 'Orders with an offer', 'wp-easycart' ) . '</div></div></div>';
 		$mock .= '<div class="ecv2-stat-card ecv2-stat-static ecv2-stat-default"><div class="ecv2-stat-main"><div class="ecv2-stat-value">' . esc_html( $this->format_price( $price * 62 ) ) . '</div><div class="ecv2-stat-label">' . esc_html__( 'Product revenue with offers', 'wp-easycart' ) . '</div></div></div>';
@@ -1246,11 +1437,11 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				'context'   => 'offers',
 				'feature'   => 'reporting',
 				'headline'  => __( 'Every discount on this product, and what it earned', 'wp-easycart' ),
-				'copy'      => sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'With %s this tab lists the offers, coupons and promotions that apply here, whether each is live, scheduled or ended, and the orders and revenue it brought in.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
+				'copy'      => sprintf( /* translators: %s: plan name ( Pro/Premium, Pro or Premium ). */ __( 'With %s this tab lists the offers, coupons and promotions that apply here, whether each is live, scheduled or ended, and the orders and revenue it brought in. Test any coupon code to see whether it discounts this product, and why not.', 'wp-easycart' ), wp_easycart_admin_edition::plan_name() ),
 				'tag'       => __( 'Preview with sample offers', 'wp-easycart' ),
 				'veil'      => __( 'Unlock offers', 'wp-easycart' ),
 				'mock_html' => $mock,
-				'features'  => array( 'targeting', 'schedule', 'reporting', 'codes' ),
+				'features'  => array( 'code_test', 'targeting', 'schedule', 'reporting' ),
 			)
 		);
 		echo '</div></div>';
@@ -1663,7 +1854,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		global $wpdb;
 		$pro_enabled = $this->gate_row(
 			$label ? $label : __( 'Volume Pricing', 'wp-easycart' ),
-			__( 'Reward larger orders with automatic quantity-based discounts. Set price breaks like 10+ for $9.99, 50+ for $8.49.', 'wp-easycart' )
+			__( 'Reward larger orders with automatic quantity-based discounts. Set price breaks like 10+ for $9.99, 50+ for $8.49.', 'wp-easycart' ),
+			array( 'min_version' => wp_easycart_admin_pro_gate::MIN_PRO_VERSION ) /* 6.0.2: the same PRO versions its saves accept ( price_rules() ) */
 		);
 		if ( ! $pro_enabled ) {
 			return;
@@ -1731,7 +1923,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		global $wpdb;
 		$pro_enabled = $this->gate_row(
 			$label ? $label : __( 'B2B Pricing', 'wp-easycart' ),
-			__( 'Offer wholesale or member pricing by user role. Each role can see its own price for this product.', 'wp-easycart' )
+			__( 'Offer wholesale or member pricing by user role. Each role can see its own price for this product.', 'wp-easycart' ),
+			array( 'min_version' => wp_easycart_admin_pro_gate::MIN_PRO_VERSION ) /* 6.0.2: the same PRO versions its saves accept ( price_rules() ) */
 		);
 		if ( ! $pro_enabled ) {
 			return;
@@ -1748,6 +1941,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 		echo '<div class="ecdv2-tier-add ecdv2-role-add">';
 		echo '<span class="ecdv2-tier-sentence">';
 		echo '<select id="add_new_role_price_role">';
+		/* 6.0.2: nothing is picked until the merchant picks a role ( the first role, admin, was chosen silently ). */
+		echo '<option value="">' . esc_html__( 'Choose a role', 'wp-easycart' ) . '</option>';
 		foreach ( $roles as $role ) {
 			echo '<option value="' . esc_attr( $role->role_label ) . '">' . esc_html( $role->role_label ) . '</option>';
 		}
@@ -1806,6 +2001,11 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 			array( 'key' => 'stock', 'label' => __( 'Stock level or tracking decided', 'wp-easycart' ), 'done' => ( ! $p->show_stock_quantity || (int) $p->stock_quantity > 0 || $p->use_optionitem_quantity_tracking ), 'tab' => 'inventory' ),
 			array( 'key' => 'active', 'label' => __( 'Product activated in store', 'wp-easycart' ), 'done' => (bool) $p->activate_in_store, 'tab' => 'general' ),
 		);
+		/* 6.0.2: a subscription can only be bought while Stripe takes the store's card payments ( the notice and its link
+		   are under the Subscription Product switch on Type & Behavior ). */
+		if ( ! empty( $p->is_subscription_item ) && class_exists( 'wp_easycart_subscription_gateway' ) ) {
+			$checks[] = array( 'key' => 'subscription_gateway', 'label' => __( 'Stripe set up to bill this subscription', 'wp-easycart' ), 'done' => wp_easycart_subscription_gateway::ready(), 'tab' => 'behavior' );
+		}
 		return apply_filters( 'wp_easycart_admin_v2_health_checks', $checks, $p );
 	}
 

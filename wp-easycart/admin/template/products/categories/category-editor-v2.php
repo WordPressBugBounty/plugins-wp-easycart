@@ -217,6 +217,17 @@ $yoast_card = class_exists( 'wp_easycart_admin_catalog_yoast_v2' ) && wp_easycar
 
 			<?php if ( $yoast_card ) { wp_easycart_admin_catalog_yoast_v2::print_card( array( 'id' => 'catv2-yoast', 'type' => 'category', 'entity_id' => (int) $c->category_id, 'name' => wp_unslash( $c->category_name ), 'label' => __( 'category', 'wp-easycart' ) ) ); } ?>
 
+			<?php
+			/**
+			 * Extra cards on the category editor, above the Danger zone ( PRO 6.0.2: the Email marketing card ). A card
+			 * saves itself ( the editor's Save button covers only its own fields ).
+			 *
+			 * @since 6.0.2
+			 * @param object $category ec_category row.
+			 */
+			do_action( 'wp_easycart_admin_category_editor_v2_cards', $c );
+			?>
+
 			<!-- Danger -->
 			<div class="ecdv2-card ecos-danger" id="catv2-danger">
 				<div class="ecdv2-card-header"><h3 class="ecdv2-card-title"><?php esc_html_e( 'Danger zone', 'wp-easycart' ); ?></h3></div>

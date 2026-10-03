@@ -501,6 +501,7 @@ function ec_admin_product_details_option1_change( field ){
 	};
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+		ec_admin_product_details_options_saved( data );
 		jQuery( '.ec_admin_opionitem_quantity_row' ).remove( );
 
 		/* Now get updated HTML for Option Item Images */
@@ -578,7 +579,7 @@ function ec_admin_product_details_option2_change( field ){
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ /* More to do... */ } } );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ ec_admin_product_details_options_saved( data ); } } );
 
 	/* Now get updated HTML for Option Item Quantity Boxes */
 	var data = {
@@ -617,7 +618,7 @@ function ec_admin_product_details_option3_change( field ){
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ /* More to do... */ } } );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ ec_admin_product_details_options_saved( data ); } } );
 
 	/* Now get updated HTML for Option Item Quantity Boxes */
 	var data = {
@@ -656,7 +657,7 @@ function ec_admin_product_details_option4_change( field ){
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ /* More to do... */ } } );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ ec_admin_product_details_options_saved( data ); } } );
 
 	/* Now get updated HTML for Option Item Quantity Boxes */
 	var data = {
@@ -695,7 +696,7 @@ function ec_admin_product_details_option5_change( field ){
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_product_details_nonce', 'text' )
 	};
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ /* More to do... */ } } );
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ ec_admin_product_details_options_saved( data ); } } );
 
 	/* Now get updated HTML for Option Item Quantity Boxes */
 	var data = {
@@ -734,6 +735,7 @@ function ec_admin_save_product_details_options( ){
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
 		ec_admin_hide_loader( 'ec_admin_product_details_options_loader' );
+		ec_admin_product_details_options_saved( data );
 
 		/* Now get updated HTML for Option Item Images */
 		ec_admin_product_details_refresh_option_images();
@@ -743,6 +745,19 @@ function ec_admin_save_product_details_options( ){
 	} } );
 
 	return false;
+}
+
+/* 6.0.2: the options save refuses option sets that make more variations than the store allows ( nothing is changed ). */
+function ec_admin_product_details_options_saved( data ){
+	if ( data && false === data.success && data.data && data.data.message ) {
+		if ( 'function' === typeof window.ecv2_toast ) {
+			window.ecv2_toast( data.data.message, 'error' );
+		} else {
+			alert( data.data.message );
+		}
+		return false;
+	}
+	return true;
 }
 
 function ec_admin_product_details_add_advanced_option( ){
@@ -1096,6 +1111,32 @@ function ec_admin_product_details_delete_optionitem_quantity( optionitemquantity
 	return false;
 }
 
+/* 6.0.2: a tier or role price save the server refuses ( volume and role pricing are Pro; a role price needs a role )
+ * answers { success: false, data: { message } } instead of a row: returns the message, or null for a normal answer. */
+function ec_admin_product_details_price_refusal( data ){
+	if ( 'string' === typeof data && /"success"\s*:\s*false/.test( data ) ) {
+		try {
+			data = JSON.parse( data );
+		} catch ( err ) {
+			return null;
+		}
+	}
+	if ( ! data || 'object' !== typeof data || false !== data.success ) {
+		return null;
+	}
+	return ( data.data && data.data.message ) ? String( data.data.message ) : '';
+}
+
+function ec_admin_product_details_price_refused( message ){
+	if ( window.ecdv2 && typeof window.ecdv2.toast === 'function' ) {
+		window.ecdv2.toast( message, 'error' );
+	} else if ( typeof window.ecv2_toast === 'function' ) {
+		window.ecv2_toast( message, 'error' );
+	} else if ( message ) {
+		window.alert( message );
+	}
+}
+
 function ec_admin_product_details_add_price_tier( ){
 	jQuery( document.getElementById( "ec_admin_product_details_pricing_loader" ) ).fadeIn( 'fast' );
 
@@ -1108,6 +1149,12 @@ function ec_admin_product_details_add_price_tier( ){
 	};
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+		var refused = ec_admin_product_details_price_refusal( data );
+		if ( null !== refused ) {
+			ec_admin_hide_loader( 'ec_admin_product_details_pricing_loader' );
+			ec_admin_product_details_price_refused( refused );
+			return;
+		}
 		if( jQuery( document.getElementById( 'ec_admin_no_price_tiers' ) ) ){
 			jQuery( document.getElementById( 'ec_admin_no_price_tiers' ) ).remove( );
 		}
@@ -1132,6 +1179,10 @@ function ec_admin_product_details_edit_price_tier( pricetier_id ){
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_product_details_pricing_loader' );
+		var refused = ec_admin_product_details_price_refusal( data );
+		if ( null !== refused ) {
+			ec_admin_product_details_price_refused( refused );
+		}
 	} } );
 
 	return false;
@@ -1169,6 +1220,12 @@ function ec_admin_product_details_add_role_price( ){
 	};
 
 	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
+		var refused = ec_admin_product_details_price_refusal( data );
+		if ( null !== refused ) {
+			ec_admin_hide_loader( 'ec_admin_product_details_pricing_loader' );
+			ec_admin_product_details_price_refused( refused );
+			return;
+		}
 		if( jQuery( document.getElementById( 'ec_admin_no_role_prices' ) ) ){
 			jQuery( document.getElementById( 'ec_admin_no_role_prices' ) ).remove( );
 		}

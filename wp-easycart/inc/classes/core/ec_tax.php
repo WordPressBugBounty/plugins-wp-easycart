@@ -91,11 +91,133 @@ class ec_tax{
 	public $fees;											// Array( applied feerows + fee total )
 	public $fee_discount_total;								// FLOAT 15,3 - discount subtracted from the 'order_total' fee basis
 
-	function __construct( $cart_subtotal, $taxable_subtotal, $vatable_total, $shipping_state, $shipping_country, $taxfree = false, $shipping_total = 0.00, $cart = false, $is_subscription = false ) {
+	/**
+	 * The payment type every flex fee rule sees for the rest of this request, or null for the checkout's own
+	 * ( use_fee_payment_type(); 'card' while an Apple Pay / Google Pay sheet asks for its totals or pays ).
+	 *
+	 * @since 6.0.2
+	 * @var string|null
+	 */
+	private static $fee_payment_type_override = null;
+
+	/**
+	 * Makes the flex fee rules see this payment type for the rest of the request, whatever the cart session says
+	 * ( null gives the session's own back ).
+	 *
+	 * @since 6.0.2
+	 * @param string|null $payment_type Payment type ( a fee rule's value, e.g. card ), or null.
+	 * @return string|null The one it replaced, to put back.
+	 */
+	public static function use_fee_payment_type( $payment_type ) {
+		$previous                        = self::$fee_payment_type_override;
+		self::$fee_payment_type_override = ( null === $payment_type ) ? null : (string) $payment_type;
+		return $previous;
+	}
+
+	/**
+	 * Payment types that are card payments for the flex fee rules: the Stripe Payment Element names Apple Pay, Google Pay
+	 * and Link by their own type, but each pays with a card ( Link with a saved card or, in the US, a bank account ).
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	public static function card_payment_types() {
+		/**
+		 * Payment types that count as a card payment for flex fees ( the fee editor's Card ).
+		 *
+		 * @since 6.0.2
+		 * @param array $types Payment types ( Stripe Payment Element types ).
+		 */
+		return (array) apply_filters( 'wp_easycart_card_payment_types', array( 'card', 'apple_pay', 'google_pay', 'link' ) );
+	}
+
+	/**
+	 * The payment type the flex fee rules match ( card, affirm, klarna, afterpay_clearpay, third_party, amazonpay,
+	 * manual_bill, … ), from the cart session: its payment method, and for a card payment the type the Stripe Payment
+	 * Element reported ( payment_type ). A card wallet is a card. Another payment method never keeps a type the Payment
+	 * Element reported earlier. '' = not known yet ( rules limited to payment types then stay off ).
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	public static function fee_payment_type() {
+		if ( null !== self::$fee_payment_type_override ) {
+			return self::$fee_payment_type_override;
+		}
+		$cart_data = ( isset( $GLOBALS['ec_cart_data'] ) && is_object( $GLOBALS['ec_cart_data'] ) && isset( $GLOBALS['ec_cart_data']->cart_data ) ) ? $GLOBALS['ec_cart_data']->cart_data : null;
+		$method    = ( $cart_data && isset( $cart_data->payment_method ) ) ? (string) $cart_data->payment_method : '';
+		$type      = ( $cart_data && isset( $cart_data->payment_type ) ) ? (string) $cart_data->payment_type : '';
+		if ( 'apple_pay' === $method ) {
+			$type = 'card'; /* the Stripe Apple Pay / Google Pay button's own payment choice */
+		} elseif ( 'credit_card' === $method ) {
+			$type = ( '' === $type ) ? 'card' : $type;
+		} elseif ( '' !== $method ) {
+			$type = $method; /* third_party, amazonpay, manual_bill, affirm, …: never the Payment Element's last type */
+		}
+		/* PayPal and Amazon Pay chosen inside Stripe's payment form answer the fee options the store already has for them. */
+		$element_aliases = array(
+			'paypal'     => 'third_party',
+			'amazon_pay' => 'amazonpay',
+		);
+		if ( isset( $element_aliases[ $type ] ) ) {
+			$type = $element_aliases[ $type ];
+		}
+		if ( '' !== $type && in_array( $type, self::card_payment_types(), true ) ) {
+			$type = 'card';
+		}
+		/**
+		 * The payment type the flex fee rules match.
+		 *
+		 * @since 6.0.2
+		 * @param string $type   Payment type.
+		 * @param string $method The cart session's payment method.
+		 */
+		return (string) apply_filters( 'wp_easycart_fee_payment_type', $type, $method );
+	}
+
+	/**
+	 * Whether a flex fee rule is limited to payment types ( only then can a wallet's totals differ from the page's ).
+	 *
+	 * @since 6.0.2
+	 * @return bool
+	 */
+	public function has_payment_type_fees() {
+		foreach ( (array) $this->fee_rules as $fee_rule ) {
+			if ( isset( $fee_rule->fee_payment_type ) && '' !== (string) $fee_rule->fee_payment_type && '[]' !== (string) $fee_rule->fee_payment_type ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 6.0.2 tax services: what this build is for ( a context name, or an array the request builder reads: context,
+	 * lines, address, billing, customer, order_id, session, user, pickup_location_id ), the active service's id when it
+	 * answered, and its answer ( wp_easycart_tax_quote ).
+	 */
+	public $tax_context;
+	public $tax_provider = '';
+	public $provider_quote = null;
+	public $provider_request = null;
+
+	/**
+	 * @param float        $cart_subtotal    Cart subtotal ( duty ).
+	 * @param float        $taxable_subtotal Taxable subtotal after the coupon ( sales tax ).
+	 * @param float        $vatable_total    VAT basis.
+	 * @param string       $shipping_state   State the tax is for.
+	 * @param string       $shipping_country Country the tax is for.
+	 * @param bool         $taxfree          The customer is tax exempt.
+	 * @param float        $shipping_total   Shipping after any shipping discount.
+	 * @param mixed        $cart             ec_cart, subscription rows, or product data for a price display.
+	 * @param bool         $is_subscription  A subscription's first payment.
+	 * @param string|array $context          6.0.2: where the tax is worked out, for a tax service ( see wp_easycart_tax_request::from_engine() ).
+	 */
+	function __construct( $cart_subtotal, $taxable_subtotal, $vatable_total, $shipping_state, $shipping_country, $taxfree = false, $shipping_total = 0.00, $cart = false, $is_subscription = false, $context = null ) {
 
 		// Initialize Structures and Lists
 		$this->mysqli = new ec_db();
 		$this->is_subscription = $is_subscription;
+		$this->tax_context = $context;
 		$this->cart = ( $cart ) ? $cart : array();
 		$this->country_list = $GLOBALS['ec_countries']->countries;
 		$taxrates = $this->mysqli->get_taxrates();
@@ -321,7 +443,7 @@ class ec_tax{
 	}
 
 	private function calculate_alt_tax( ){
-		$this->tax_total = $this->tax_rate = $this->duty_total = $this->vat_total = $this->pst_total = $this->pst_rate = $this->hst_total = $this->hst_rate = $this->gst_total = $this->gst_rate = 0;
+		$this->tax_total = $this->tax_rate = $this->duty_total = $this->vat_total = $this->pst = $this->pst_rate = $this->hst = $this->hst_rate = $this->gst = $this->gst_rate = 0;
 
 		$alt_tax_list = (object) array(
 			'tax_total' => 0,
@@ -387,11 +509,11 @@ class ec_tax{
 		$this->vat_total 						= 			$alt_tax_list->vat_total;
 		$this->vat_rate 						= 			$alt_tax_list->vat_rate;
 		$this->vat_enabled                      =           $alt_tax_list->vat_enabled;
-		$this->pst_total 						= 			$alt_tax_list->pst_total;
+		$this->pst 							= 			$alt_tax_list->pst_total; /* 6.0.2: ec_order_totals reads pst / hst / gst ( the filter's *_total never reached the order ). */
 		$this->pst_rate 						= 			$alt_tax_list->pst_rate;
-		$this->hst_total 						= 			$alt_tax_list->hst_total;
+		$this->hst 							= 			$alt_tax_list->hst_total;
 		$this->hst_rate 						= 			$alt_tax_list->hst_rate;
-		$this->gst_total 						= 			$alt_tax_list->gst_total;
+		$this->gst 							= 			$alt_tax_list->gst_total;
 		$this->gst_rate 						= 			$alt_tax_list->gst_rate;
 
 	}
@@ -403,17 +525,37 @@ class ec_tax{
 		$this->duty_total 						= 			0;
 		$this->vat_total 						= 			0;
 
+		/* 6.0.2: a tax service ( wp_easycart_tax_providers ) answers for the destinations it covers. */
+		$provider_replaces = array();
+		if ( ! $this->taxfree ) {
+			$this->provider_quote = $this->get_provider_quote();
+			if ( $this->provider_quote ) {
+				$provider_replaces = wp_easycart_tax_providers::replaced( wp_easycart_tax_providers::active(), $this->provider_country() );
+			}
+		}
+
 		if( $this->taxfree ){
 			// Tax free order, lets not charge the customer
 			$this->tax_total = 0;
 
-		}else if( $this->tax_cloud_enabled && $this->shipping_country == 'US' ){
+		}else if( $this->tax_cloud_enabled && $this->shipping_country == 'US' && ( ! class_exists( 'wp_easycart_tax_providers' ) || wp_easycart_tax_providers::legacy_active( 'taxcloud' ) ) ){
 			$this->tax_total = wpeasycart_taxcloud( )->tax_amount;
 			$this->state_tax_rate = ( $this->cart_subtotal > 0 ) ? ( $this->tax_total / $this->cart_subtotal ) * 100 : 0;
 
-		} else if ( function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() && 'US' == $this->shipping_country ) {
+		} else if ( function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() && 'US' == $this->shipping_country && ( ! class_exists( 'wp_easycart_tax_providers' ) || wp_easycart_tax_providers::legacy_active( 'taxjar' ) ) ) {
 			$this->tax_total = wpeasycart_taxjar( )->tax_amount;
 			$this->state_tax_rate = ( $this->cart_subtotal > 0 ) ? ( $this->tax_total / $this->cart_subtotal ) * 100 : 0;
+
+		} else if ( $this->provider_quote ) {
+			// 6.0.2: the service's tax replaces the state, country and global rates.
+			$this->tax_total = $this->provider_quote->tax_total;
+			$this->shipping_tax_total = $this->provider_quote->shipping_tax;
+			if ( $this->is_subscription ) {
+				/* As with the store's rates: a subscription's tax_total is the items' tax, and the checkout adds shipping_tax_total on its own. */
+				$this->tax_total = max( 0, round( $this->tax_total - $this->shipping_tax_total, 2 ) );
+			}
+			$this->state_tax_rate = (float) $this->provider_quote->rate;
+			$this->calculate_other_taxes( $provider_replaces );
 
 		} else{
 			// Add Shipping to Taxable Total
@@ -475,246 +617,303 @@ class ec_tax{
 				}
 			}
 
-			//Calculate Sales Tax Total
-			$this->tax_total = apply_filters( 'wp_easycart_tax_total', $this->state_tax + $this->country_tax + $this->all_tax, $this->taxable_subtotal );
+			//Calculate Sales Tax Total ( 6.0.2: the filter also gets the context and the engine )
+			$this->tax_total = apply_filters( 'wp_easycart_tax_total', $this->state_tax + $this->country_tax + $this->all_tax, $this->taxable_subtotal, $this->tax_context, $this );
 
-			// Calculate Duty
-			if( $this->duty_enabled && $this->duty_country_match )
-				$this->duty_total = $this->cart_subtotal * $this->duty_rate / 100;
-
-			// Calculate VAT Values
-			if( $this->vat_enabled && $this->is_subscription ){
-				$vat_sub_total = 0;
-				for ( $i = 0; $i < count( $this->cart ); $i++ ) {
-					if ( $this->cart[$i]->vat_enabled ) {
-						$vat_sub_total += round( ( $this->cart[$i]->item_total * $this->vat_rate / 100 ) / $this->vat_rounding ) * $this->vat_rounding;
-					}
-				}
-				$this->vat_total = $vat_sub_total;
-			} else if( $this->vat_enabled ){
-				$GLOBALS['ec_vat_rate'] = $this->vat_rate;
-				if( $this->vat_included ){
-					$this->vat_total = ( $this->vatable_total / ( ( $this->vat_rate / 100 ) + 1 ) ) * ( $this->vat_rate / 100 );
-				}else{
-					$this->vat_total = $this->vatable_total * $this->vat_rate / 100;
-				}
-				$this->vat_total = round( $this->vat_total / $this->vat_rounding ) * $this->vat_rounding;
-			}
-
-			if ( $this->vat_enabled && ! get_option( 'ec_option_no_vat_on_shipping' ) ){
-				$this->shipping_vat_total += round( $this->shipping_total * $this->vat_rate / 100, 2 );
-			}
-
-			// Calculate Canada Tax
-			if( $this->easy_canada_tax_enabled && $this->shipping_country == "CA" ){
-
-				$canada_tax_options = get_option( 'ec_option_canada_tax_options' );
-				$user_level = $GLOBALS['ec_user']->user_level;
-				if( $user_level == 'admin' || $GLOBALS['ec_user']->user_level == "" )
-					$user_level = 'shopper';
-
-				if( $canada_tax_options ){ // New Version of Canada Tax
-
-					$this->gst_rate = 0;
-					$this->pst_rate = 0;
-					$this->hst_rate = 0;
-
-					if( isset( $canada_tax_options['ec_option_collect_alberta_tax_' . $user_level] ) && $this->shipping_state == "AB" ){
-						$this->gst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_british_columbia_tax_' . $user_level] ) && $this->shipping_state == "BC" ){
-						$this->gst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_manitoba_tax_' . $user_level] ) && $this->shipping_state == "MB" ){
-						$this->gst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
-						$this->gst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
-						$this->gst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_northwest_territories_tax_' . $user_level] ) && $this->shipping_state == "NT" ){
-						$this->gst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_nova_scotia_tax_' . $user_level] ) && $this->shipping_state == "NS" ){
-						$this->gst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_nunavut_tax_' . $user_level] ) && $this->shipping_state == "NU" ){
-						$this->gst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_ontario_tax_' . $user_level] ) && $this->shipping_state == "ON" ){
-						$this->gst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_prince_edward_island_tax_' . $user_level] ) && $this->shipping_state == "PE" ){
-						$this->gst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_quebec_tax_' . $user_level] ) && $this->shipping_state == "QC" ){
-						$this->gst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_saskatchewan_tax_' . $user_level] ) && $this->shipping_state == "SK" ){
-						$this->gst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_hst'] * 100;
-
-					}else if( isset( $canada_tax_options['ec_option_collect_yukon_tax_' . $user_level] ) && $this->shipping_state == "YT" ){
-						$this->gst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_gst'] * 100;
-						$this->pst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_pst'] * 100;
-						$this->hst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_hst'] * 100;
-
-					}
-
-					if ( $this->is_subscription ) {
-						$gst_tax_sub_total = 0;
-						$pst_tax_sub_total = 0;
-						$hst_tax_sub_total = 0;
-						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
-							if ( $this->cart[$i]->is_taxable ) {
-								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								if ( $this->quebec_compounds_qst() ) {
-									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
-								} else {
-									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
-								}
-								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
-							}
-						}
-						$this->gst = $gst_tax_sub_total;
-						$this->pst = $pst_tax_sub_total;
-						$this->hst = $hst_tax_sub_total;
-					} else {
-						$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
-						if ( $this->quebec_compounds_qst() ) {
-							$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
-						} else {
-							$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
-						}
-						$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
-					}
-					if( $this->tax_shipping ){
-						$this->shipping_tax_total += round( $this->shipping_total * $this->gst_rate / 100, 2 );
-						$this->shipping_tax_total += round( $this->shipping_total * $this->pst_rate / 100, 2 );
-						$this->shipping_tax_total += round( $this->shipping_total * $this->hst_rate / 100, 2 );
-					}
-
-				}else{ // old canada tax
-
-					if( $this->collect_alberta && $this->shipping_state == "AB" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-
-					}else if( $this->collect_british_columbia && $this->shipping_state == "BC" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-						$this->pst = round( $this->taxable_subtotal * .07, 2 );
-						$this->pst_rate = 7;
-
-					}else if( $this->collect_manitoba && $this->shipping_state == "MB" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-						$this->pst = round( $this->taxable_subtotal * .08, 2 );
-						$this->pst_rate = 8;
-
-					}else if( $this->collect_newfoundland && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
-						$this->hst = round( $this->taxable_subtotal * .13, 2 );
-						$this->hst_rate = 13;
-
-					}else if( $this->collect_new_brunswick && $this->shipping_state == "NB" ){
-						$this->hst = round( $this->taxable_subtotal * .13, 2 );
-						$this->hst_rate = 13;
-
-					}else if( $this->collect_nova_scotia && $this->shipping_state == "NS" ){
-						$this->hst = round( $this->taxable_subtotal * .15, 2 );
-						$this->hst_rate = 15;
-
-					}else if( $this->collect_northwest_territories && $this->shipping_state == "NT" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-
-					}else if( $this->collect_nunavut && $this->shipping_state == "NU" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-
-					}else if( $this->collect_ontario && $this->shipping_state == "ON" ){
-						$this->hst = round( $this->taxable_subtotal * .13, 2 );
-						$this->hst_rate = 13;
-
-					}else if( $this->collect_prince_edward_island && $this->shipping_state == "PE" ){
-						$this->hst = round( $this->taxable_subtotal * .14, 2 );
-						$this->hst_rate = 14;
-
-					}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-						$this->pst = round( ( $this->quebec_compounds_qst() ? $this->taxable_subtotal + $this->gst : $this->taxable_subtotal ) * .09975, 2 );
-						$this->pst_rate = 9.975;
-
-					}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-						$this->pst = round( $this->taxable_subtotal * .05, 2 );
-						$this->pst_rate = 5;
-
-					}else if( $this->collect_yukon && $this->shipping_state == "YT" ){
-						$this->gst = round( $this->taxable_subtotal * .05, 2 );
-						$this->gst_rate = 5;
-
-					}
-
-					if ( $this->is_subscription ) {
-						$gst_tax_sub_total = 0;
-						$pst_tax_sub_total = 0;
-						$hst_tax_sub_total = 0;
-						for ( $i = 0; $i < count( $this->cart ); $i++ ) {
-							if ( $this->cart[$i]->is_taxable ) {
-								$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
-								if( $this->collect_quebec && $this->quebec_compounds_qst() ){
-									$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
-								} else {
-									$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
-								}
-								$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
-							}
-						}
-						$this->gst = $gst_tax_sub_total;
-						$this->pst = $pst_tax_sub_total;
-						$this->hst = $hst_tax_sub_total;
-					}
-
-					if( $this->tax_shipping ){
-						$this->shipping_tax_total += round( $this->shipping_total * $this->gst_rate / 100, 2 );
-						$this->shipping_tax_total += round( $this->shipping_total * $this->pst_rate / 100, 2 );
-						$this->shipping_tax_total += round( $this->shipping_total * $this->hst_rate / 100, 2 );
-					}
-
-				}// Close different types of canada tax
-
-			} // Close Canada Taxation Check
+			// Duty, VAT and Canada tax.
+			$this->calculate_other_taxes( array() );
 
 		}
 
+	}
+
+	/**
+	 * The active tax service's answer for this build, or null ( no service, a destination it does not cover, a build
+	 * with nothing to tax such as a product price display, or a service that wants the store's own rates used ).
+	 *
+	 * @since 6.0.2
+	 * @return wp_easycart_tax_quote|null
+	 */
+	private function get_provider_quote() {
+		if ( ! class_exists( 'wp_easycart_tax_providers' ) || ! wp_easycart_tax_providers::active() ) {
+			return null;
+		}
+		$request = wp_easycart_tax_request::from_engine(
+			array(
+				'cart'             => $this->cart,
+				'cart_subtotal'    => $this->cart_subtotal,
+				'taxable_subtotal' => $this->taxable_subtotal,
+				'shipping_total'   => $this->shipping_total,
+				'state'            => $this->shipping_state,
+				'country'          => $this->shipping_country,
+				'taxfree'          => $this->taxfree,
+				'is_subscription'  => $this->is_subscription,
+				'context'          => $this->tax_context,
+			)
+		);
+		if ( ! $request ) {
+			return null;
+		}
+		$quote = wp_easycart_tax_providers::quote( $request );
+		if ( $quote ) {
+			$this->tax_provider = $quote->provider;
+			$this->provider_request = $request;
+		}
+		return $quote;
+	}
+
+	/**
+	 * The country the service taxed ( the request's destination, which can be the billing address ).
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	private function provider_country() {
+		return ( $this->provider_request && '' !== $this->provider_request->address['country'] ) ? $this->provider_request->address['country'] : $this->shipping_country;
+	}
+
+	/**
+	 * Duty, VAT and Canada tax, after the sales tax. A tax service that covers the destination can replace any of them
+	 * ( wp_easycart_tax_provider::replaces() ); the rest still come from the store's own settings.
+	 *
+	 * @since 6.0.2 ( moved out of calculate_taxes() )
+	 * @param array $replaces Kinds the service replaced: vat, canada, duty.
+	 */
+	private function calculate_other_taxes( $replaces ) {
+		// Calculate Duty
+		if( ! in_array( 'duty', $replaces, true ) && $this->duty_enabled && $this->duty_country_match )
+			$this->duty_total = $this->cart_subtotal * $this->duty_rate / 100;
+
+		// Calculate VAT Values
+		if( ! in_array( 'vat', $replaces, true ) && $this->vat_enabled && $this->is_subscription ){
+			$vat_sub_total = 0;
+			for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+				if ( $this->cart[$i]->vat_enabled ) {
+					$vat_sub_total += round( ( $this->cart[$i]->item_total * $this->vat_rate / 100 ) / $this->vat_rounding ) * $this->vat_rounding;
+				}
+			}
+			$this->vat_total = $vat_sub_total;
+		} else if( ! in_array( 'vat', $replaces, true ) && $this->vat_enabled ){
+			$GLOBALS['ec_vat_rate'] = $this->vat_rate;
+			if( $this->vat_included ){
+				$this->vat_total = ( $this->vatable_total / ( ( $this->vat_rate / 100 ) + 1 ) ) * ( $this->vat_rate / 100 );
+			}else{
+				$this->vat_total = $this->vatable_total * $this->vat_rate / 100;
+			}
+			$this->vat_total = round( $this->vat_total / $this->vat_rounding ) * $this->vat_rounding;
+		}
+
+		if ( ! in_array( 'vat', $replaces, true ) && $this->vat_enabled && ! get_option( 'ec_option_no_vat_on_shipping' ) ){
+			$this->shipping_vat_total += round( $this->shipping_total * $this->vat_rate / 100, 2 );
+		}
+
+		// Calculate Canada Tax
+		if( ! in_array( 'canada', $replaces, true ) && $this->easy_canada_tax_enabled && $this->shipping_country == "CA" ){
+
+			$canada_tax_options = get_option( 'ec_option_canada_tax_options' );
+			$user_level = $GLOBALS['ec_user']->user_level;
+			if( $user_level == 'admin' || $GLOBALS['ec_user']->user_level == "" )
+				$user_level = 'shopper';
+
+			if( $canada_tax_options ){ // New Version of Canada Tax
+
+				$this->gst_rate = 0;
+				$this->pst_rate = 0;
+				$this->hst_rate = 0;
+
+				if( isset( $canada_tax_options['ec_option_collect_alberta_tax_' . $user_level] ) && $this->shipping_state == "AB" ){
+					$this->gst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_alberta_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_british_columbia_tax_' . $user_level] ) && $this->shipping_state == "BC" ){
+					$this->gst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_british_columbia_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_manitoba_tax_' . $user_level] ) && $this->shipping_state == "MB" ){
+					$this->gst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_manitoba_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_new_brunswick_tax_' . $user_level] ) && $this->shipping_state == "NB" ){
+					$this->gst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_new_brunswick_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_newfoundland_tax_' . $user_level] ) && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
+					$this->gst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_newfoundland_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_northwest_territories_tax_' . $user_level] ) && $this->shipping_state == "NT" ){
+					$this->gst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_northwest_territories_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_nova_scotia_tax_' . $user_level] ) && $this->shipping_state == "NS" ){
+					$this->gst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_nova_scotia_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_nunavut_tax_' . $user_level] ) && $this->shipping_state == "NU" ){
+					$this->gst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_nunavut_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_ontario_tax_' . $user_level] ) && $this->shipping_state == "ON" ){
+					$this->gst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_ontario_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_prince_edward_island_tax_' . $user_level] ) && $this->shipping_state == "PE" ){
+					$this->gst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_prince_edward_island_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_quebec_tax_' . $user_level] ) && $this->shipping_state == "QC" ){
+					$this->gst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_quebec_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_saskatchewan_tax_' . $user_level] ) && $this->shipping_state == "SK" ){
+					$this->gst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_saskatchewan_tax_' . $user_level . '_hst'] * 100;
+
+				}else if( isset( $canada_tax_options['ec_option_collect_yukon_tax_' . $user_level] ) && $this->shipping_state == "YT" ){
+					$this->gst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_gst'] * 100;
+					$this->pst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_pst'] * 100;
+					$this->hst_rate = $canada_tax_options['ec_option_yukon_tax_' . $user_level . '_hst'] * 100;
+
+				}
+
+				if ( $this->is_subscription ) {
+					$gst_tax_sub_total = 0;
+					$pst_tax_sub_total = 0;
+					$hst_tax_sub_total = 0;
+					for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+						if ( $this->cart[$i]->is_taxable ) {
+							$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
+							if ( $this->quebec_compounds_qst() ) {
+								$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
+							} else {
+								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+							}
+							$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
+						}
+					}
+					$this->gst = $gst_tax_sub_total;
+					$this->pst = $pst_tax_sub_total;
+					$this->hst = $hst_tax_sub_total;
+				} else {
+					$this->gst = round( $this->taxable_subtotal * ( $this->gst_rate / 100 ), 2 );
+					if ( $this->quebec_compounds_qst() ) {
+						$this->pst = round( ( $this->taxable_subtotal + $this->gst ) * ( $this->pst_rate / 100 ), 2 );
+					} else {
+						$this->pst = round( $this->taxable_subtotal * ( $this->pst_rate / 100 ), 2 );
+					}
+					$this->hst = round( $this->taxable_subtotal * ( $this->hst_rate / 100 ), 2 );
+				}
+				if( $this->tax_shipping ){
+					$this->shipping_tax_total += round( $this->shipping_total * $this->gst_rate / 100, 2 );
+					$this->shipping_tax_total += round( $this->shipping_total * $this->pst_rate / 100, 2 );
+					$this->shipping_tax_total += round( $this->shipping_total * $this->hst_rate / 100, 2 );
+				}
+
+			}else{ // old canada tax
+
+				if( $this->collect_alberta && $this->shipping_state == "AB" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+
+				}else if( $this->collect_british_columbia && $this->shipping_state == "BC" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+					$this->pst = round( $this->taxable_subtotal * .07, 2 );
+					$this->pst_rate = 7;
+
+				}else if( $this->collect_manitoba && $this->shipping_state == "MB" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+					$this->pst = round( $this->taxable_subtotal * .08, 2 );
+					$this->pst_rate = 8;
+
+				}else if( $this->collect_newfoundland && ( $this->shipping_state == "NF" || $this->shipping_state == "NL" ) ){
+					$this->hst = round( $this->taxable_subtotal * .13, 2 );
+					$this->hst_rate = 13;
+
+				}else if( $this->collect_new_brunswick && $this->shipping_state == "NB" ){
+					$this->hst = round( $this->taxable_subtotal * .13, 2 );
+					$this->hst_rate = 13;
+
+				}else if( $this->collect_nova_scotia && $this->shipping_state == "NS" ){
+					$this->hst = round( $this->taxable_subtotal * .15, 2 );
+					$this->hst_rate = 15;
+
+				}else if( $this->collect_northwest_territories && $this->shipping_state == "NT" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+
+				}else if( $this->collect_nunavut && $this->shipping_state == "NU" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+
+				}else if( $this->collect_ontario && $this->shipping_state == "ON" ){
+					$this->hst = round( $this->taxable_subtotal * .13, 2 );
+					$this->hst_rate = 13;
+
+				}else if( $this->collect_prince_edward_island && $this->shipping_state == "PE" ){
+					$this->hst = round( $this->taxable_subtotal * .14, 2 );
+					$this->hst_rate = 14;
+
+				}else if( $this->collect_quebec && $this->shipping_state == "QC" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+					$this->pst = round( ( $this->quebec_compounds_qst() ? $this->taxable_subtotal + $this->gst : $this->taxable_subtotal ) * .09975, 2 );
+					$this->pst_rate = 9.975;
+
+				}else if( $this->collect_saskatchewan && $this->shipping_state == "SK" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+					$this->pst = round( $this->taxable_subtotal * .05, 2 );
+					$this->pst_rate = 5;
+
+				}else if( $this->collect_yukon && $this->shipping_state == "YT" ){
+					$this->gst = round( $this->taxable_subtotal * .05, 2 );
+					$this->gst_rate = 5;
+
+				}
+
+				if ( $this->is_subscription ) {
+					$gst_tax_sub_total = 0;
+					$pst_tax_sub_total = 0;
+					$hst_tax_sub_total = 0;
+					for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+						if ( $this->cart[$i]->is_taxable ) {
+							$gst_tax_sub_total += round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 );
+							if( $this->collect_quebec && $this->quebec_compounds_qst() ){
+								$pst_tax_sub_total += round( ( $this->cart[$i]->item_total + round( $this->cart[$i]->item_total * $this->gst_rate / 100, 2 ) ) * $this->pst_rate / 100, 2 );
+							} else {
+								$pst_tax_sub_total += round( $this->cart[$i]->item_total * $this->pst_rate / 100, 2 );
+							}
+							$hst_tax_sub_total += round( $this->cart[$i]->item_total * $this->hst_rate / 100, 2 );
+						}
+					}
+					$this->gst = $gst_tax_sub_total;
+					$this->pst = $pst_tax_sub_total;
+					$this->hst = $hst_tax_sub_total;
+				}
+
+				if( $this->tax_shipping ){
+					$this->shipping_tax_total += round( $this->shipping_total * $this->gst_rate / 100, 2 );
+					$this->shipping_tax_total += round( $this->shipping_total * $this->pst_rate / 100, 2 );
+					$this->shipping_tax_total += round( $this->shipping_total * $this->hst_rate / 100, 2 );
+				}
+
+			}// Close different types of canada tax
+
+		} // Close Canada Taxation Check
 	}
 
 	public function calculate_fees() {
@@ -726,16 +925,8 @@ class ec_tax{
 		$shipping_state = isset( $GLOBALS['ec_cart_data']->cart_data->shipping_state ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_state : '';
 		$shipping_zip = isset( $GLOBALS['ec_cart_data']->cart_data->shipping_zip ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_zip : '';
 		$shipping_city = isset( $GLOBALS['ec_cart_data']->cart_data->shipping_city ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_city : '';
-		$payment_type = isset( $GLOBALS['ec_cart_data']->cart_data->payment_type ) ? $GLOBALS['ec_cart_data']->cart_data->payment_type : '';
-		if ( isset( $GLOBALS['ec_cart_data']->cart_data->payment_method ) && 'amazonpay' == $GLOBALS['ec_cart_data']->cart_data->payment_method ) {
-			$payment_type = 'amazonpay';
-		} else if ( isset( $GLOBALS['ec_cart_data']->cart_data->payment_method ) && 'third_party' == $GLOBALS['ec_cart_data']->cart_data->payment_method ) {
-			$payment_type = 'third_party';
-		} else if ( isset( $GLOBALS['ec_cart_data']->cart_data->payment_method ) && 'manual_bill' == $GLOBALS['ec_cart_data']->cart_data->payment_method ) {
-			$payment_type = 'manual_bill';
-		} else if ( '' == $payment_type && isset( $GLOBALS['ec_cart_data']->cart_data->payment_method ) && 'credit_card' == $GLOBALS['ec_cart_data']->cart_data->payment_method ) {
-			$payment_type = 'card';
-		}
+		/* 6.0.2: one reading for every path ( Apple Pay, Google Pay and Link are card payments; see fee_payment_type() ). */
+		$payment_type = self::fee_payment_type();
 		foreach ( $this->fee_rules as $fee_rule ) {
 			$is_applicable = true;
 			$is_cat_subtotal = false;
@@ -874,6 +1065,11 @@ class ec_tax{
 				if ( 1 == $fee_rule->fee_type && $fee_rule->fee_max > 0 && $fee_rule->fee_max < $fee_total ) {
 					$fee_total = round( $fee_rule->fee_max, 2 );
 				}
+				/* 6.0.2 bug round 14: a fee that comes to nothing ( a percentage of a free cart, a 0 rate ) is left out, so no
+				   zero row shows in the cart, the emails and the order. A negative fee ( a discount ) still applies. */
+				if ( abs( (float) $fee_total ) < 0.005 ) {
+					continue;
+				}
 				$applicable_fees[] = (object) array(
 					'fee_id' => $fee_rule->fee_id,
 					'label' => $fee_rule->fee_label,
@@ -911,29 +1107,60 @@ class ec_tax{
 		return $this->pst_rate;
 	}
 
+	/**
+	 * The automated tax service behind this destination, for the Square and Stripe tax rates: name ( the rate's label,
+	 * '' when no service is on ) and covers ( the service prices this destination, so the store's state, country and
+	 * global rates stay out ).
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	private function automated_rate_service() {
+		$tax_cloud = get_option( 'ec_option_tax_cloud_api_id' ) != "" && get_option( 'ec_option_tax_cloud_api_key' ) != "";
+		$tax_jar   = function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled();
+		if ( ! class_exists( 'wp_easycart_tax_providers' ) ) {
+			$name = $tax_cloud ? 'Tax Cloud Rate' : ( $tax_jar ? 'TaxJar Rate' : '' );
+			return array( 'name' => $name, 'covers' => ( '' !== $name && 'US' == $this->shipping_country ) );
+		}
+		$active = wp_easycart_tax_providers::active_id();
+		if ( 'taxcloud' === $active ) {
+			return array( 'name' => 'Tax Cloud Rate', 'covers' => ( 'US' == $this->shipping_country ) );
+		}
+		if ( 'taxjar' === $active ) {
+			return array( 'name' => 'TaxJar Rate', 'covers' => ( 'US' == $this->shipping_country ) );
+		}
+		$provider = wp_easycart_tax_providers::active();
+		if ( $provider && $provider->covers( $this->shipping_country ) ) {
+			return array( 'name' => wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_tax' ), 'covers' => true );
+		}
+		return array( 'name' => '', 'covers' => false );
+	}
+
 	public function get_square_tax_rates( $taxable, $vatable, $taxcloud_rate ){
 		$square_taxrates = array( );
-		if( $taxable && get_option( 'ec_option_tax_cloud_api_id' ) != "" && get_option( 'ec_option_tax_cloud_api_key' ) != "" && $taxcloud_rate > 0 ){
-			$square_taxrates[] = array( 'Tax Cloud Rate', round( $taxcloud_rate * 100, 2 ), $this->shipping_state, 'ADDITIVE', 'tax' );
-		} else if( $taxable && function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() && $taxcloud_rate > 0 ){
-			$square_taxrates[] = array( 'TaxJar Rate', round( $taxcloud_rate * 100, 2 ), $this->shipping_state, 'ADDITIVE', 'tax' );
+		/* 6.0.2: TaxCloud, TaxJar or a registered tax service priced the order ( $taxcloud_rate is its effective rate ); the
+		   store's state, country and global rates then stay out, as they do in the engine. */
+		$service = $this->automated_rate_service();
+		if( $taxable && '' !== $service['name'] && $taxcloud_rate > 0 ){
+			$square_taxrates[] = array( $service['name'], round( $taxcloud_rate * 100, 2 ), 'ADDITIVE', 'tax' ); /* 6.0.2: same shape as the other rows ( name, rate, type, kind ); the extra state shifted type and kind. */
 		}
+		$table_taxable = $taxable && ! $service['covers'];
 
 		$taxrates = $this->mysqli->get_taxrates( );
 		foreach( $taxrates as $taxrate ){
-			if( $taxable && $taxrate->tax_by_state ){
+			if( $table_taxable && $taxrate->tax_by_state ){
 				$this->state_tax_enabled = true;
 				if(	$this->shipping_state == $taxrate->state_code && ( $taxrate->country_code == "" || $this->shipping_country == $taxrate->country_code ) && $taxrate->state_rate > 0 ){
 					$square_taxrates[] = array( $taxrate->state_code . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->state_rate, 'ADDITIVE', 'tax' );
 
 				}
-			}else if( $taxable && $taxrate->tax_by_country && $taxrate->country_rate > 0 ){
+			}else if( $table_taxable && $taxrate->tax_by_country && $taxrate->country_rate > 0 ){
 				$this->country_tax_enabled = true;
 				if( $this->shipping_country == $taxrate->country_code ){
 					$square_taxrates[] = array( $taxrate->country_code . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->country_rate, 'ADDITIVE', 'tax' );
 				}
 
-			}else if( $taxable && $taxrate->tax_by_all && $taxrate->all_rate > 0 ){
+			}else if( $table_taxable && $taxrate->tax_by_all && $taxrate->all_rate > 0 ){
 				$square_taxrates[] = array( wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->all_rate, 'ADDITIVE', 'tax' );
 
 			}else if( $taxable && $taxrate->tax_by_duty ){
@@ -1173,15 +1400,16 @@ class ec_tax{
 
 	public function get_stripe_tax_rates( $taxable, $vatable, $taxcloud_rate ){
 		$stripe_taxrates = array( );
-		if( $taxable && get_option( 'ec_option_tax_cloud_api_id' ) != "" && get_option( 'ec_option_tax_cloud_api_key' ) != "" && $taxcloud_rate > 0 ){
-			$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $this->get_stripe_tax_rate( '', 'Tax Cloud Rate', round( $taxcloud_rate * 100, 2 ), $this->shipping_state ) );
-		} else if( $taxable && function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() && $taxcloud_rate > 0 ){
-			$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $this->get_stripe_tax_rate( '', 'TaxJar Rate', round( $taxcloud_rate * 100, 2 ), $this->shipping_state ) );
+		/* 6.0.2: see get_square_tax_rates(). */
+		$service = $this->automated_rate_service();
+		if( $taxable && '' !== $service['name'] && $taxcloud_rate > 0 ){
+			$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $this->get_stripe_tax_rate( '', $service['name'], round( $taxcloud_rate * 100, 2 ), $this->shipping_state ) );
 		}
+		$table_taxable = $taxable && ! $service['covers'];
 
 		$taxrates = $this->mysqli->get_taxrates( );
 		foreach( $taxrates as $taxrate ){
-			if( $taxable && $taxrate->tax_by_state ){
+			if( $table_taxable && $taxrate->tax_by_state ){
 				$this->state_tax_enabled = true;
 				if(	$this->shipping_state == $taxrate->state_code && ( $taxrate->country_code == "" || $this->shipping_country == $taxrate->country_code ) && $taxrate->state_rate > 0 ){
 					if( $taxrate->stripe_taxrate_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $taxrate->stripe_taxrate_id, $taxrate->state_code . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->state_rate, $taxrate->state_code ) ){
@@ -1189,7 +1417,7 @@ class ec_tax{
 					}
 					$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $new_stripe_taxrate_id );
 				}
-			}else if( $taxable && $taxrate->tax_by_country && $taxrate->country_rate > 0 ){
+			}else if( $table_taxable && $taxrate->tax_by_country && $taxrate->country_rate > 0 ){
 				$this->country_tax_enabled = true;
 				if( $this->shipping_country == $taxrate->country_code ){
 					if( $taxrate->stripe_taxrate_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $taxrate->stripe_taxrate_id, $taxrate->country_code . ' ' . wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->country_rate, $taxrate->country_code ) ){
@@ -1197,7 +1425,7 @@ class ec_tax{
 					}
 					$stripe_taxrates[] = (object) array( 'is_tax' => true, 'is_vat' => false, 'id' => $new_stripe_taxrate_id );
 				}
-			}else if( $taxable && $taxrate->tax_by_all && $taxrate->all_rate > 0 ){
+			}else if( $table_taxable && $taxrate->tax_by_all && $taxrate->all_rate > 0 ){
 				if( $taxrate->stripe_taxrate_id != $new_stripe_taxrate_id = $this->get_stripe_tax_rate( $taxrate->stripe_taxrate_id, wp_easycart_language( )->get_text( 'cart_totals', 'cart_totals_tax' ), $taxrate->all_rate ) ){
 					$this->mysqli->update_stripe_taxrate_id( $taxrate->taxrate_id, $new_stripe_taxrate_id );
 				}
@@ -1461,7 +1689,8 @@ class ec_tax{
 
 	public function is_tax_enabled() {
 		$is_tax_enabled = false;
-		if ( $this->state_tax_enabled || $this->country_tax_enabled || $this->all_tax_enabled || $this->tax_cloud_enabled ) {
+		/* 6.0.2: a store that only uses TaxJar shows its Tax row too, and so does one using a registered tax service. */
+		if ( $this->state_tax_enabled || $this->country_tax_enabled || $this->all_tax_enabled || $this->tax_cloud_enabled || ( function_exists( 'wpeasycart_taxjar' ) && wpeasycart_taxjar()->is_enabled() ) || ( class_exists( 'wp_easycart_tax_providers' ) && null !== wp_easycart_tax_providers::active() ) ) {
 			$is_tax_enabled = true;
 		}
 		return apply_filters( 'wp_easycart_is_tax_enabled', $is_tax_enabled );

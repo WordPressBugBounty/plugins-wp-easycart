@@ -516,6 +516,9 @@ jQuery( function( $ ) {
 				render_health( r.data.health );
 				mark_saved();
 				ecv2_toast( ( L.saved || 'Saved' ) + ( r.data.stock_deleted ? ' · ' + r.data.stock_deleted + ' variant stock rows removed' : '' ), 'success' );
+				if ( r.data.rebuild_left ) {
+					ecv2_toast( ( L.rebuild_left || '%d more products get their new variants when each is next opened or saved.' ).replace( '%d', parseInt( r.data.rebuild_left, 10 ) ), 'info' );
+				}
 			} )
 			.fail( function() { ecv2_toast( L.error || 'Something went wrong.', 'error' ); } )
 			.always( function() { $btn.removeClass( 'is-saving' ).prop( 'disabled', false ).find( '.ecdv2-save-label' ).text( 'Save' ); } );

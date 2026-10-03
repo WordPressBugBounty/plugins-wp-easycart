@@ -85,7 +85,10 @@
 .ecsh-tab-dot.is-error { background:#dc2626; }
 .ecsh-tab-dot.is-incomplete { background:#d97706; }
 .ecsh-tab-dot.is-disabled { background:var(--ecv2-g300); }
-.ecst-row.ecsh-tab-off { display:none !important; }
+.ecst-row.ecsh-tab-off { display:none !important; } .ecst-group.ecsh-tab-off { display:none !important; } /* 6.0.2: and their groups ( dividers, accent bars ) */
+/* 6.0.2: the open carrier starts right under the tab bar and ends without a line of its own above the card's edge. */
+#ecst-sec-carriers .ecst-group.ecsh-tab-first { margin-top:0; }
+#ecst-sec-carriers .ecst-group.ecsh-tab-last > .ecst-row:last-child { border-bottom:0; }
 
 /* UPS connect row ( PRO ) */
 .ecsh-connect { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }

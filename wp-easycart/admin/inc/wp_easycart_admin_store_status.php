@@ -180,6 +180,31 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			return phpversion();
 		}
 
+		/**
+		 * The PHP version WP EasyCart needs: its own header's Requires PHP, so Diagnostics follows the plugin.
+		 *
+		 * @since 6.0.2 Diagnostics checked for PHP 5.3 and compared the version string with a number.
+		 * @return string
+		 */
+		public function min_php_version() {
+			$min = '';
+			if ( function_exists( 'get_file_data' ) ) {
+				$data = get_file_data( EC_PLUGIN_DIRECTORY . '/wpeasycart.php', array( 'requires_php' => 'Requires PHP' ) );
+				$min  = isset( $data['requires_php'] ) ? trim( (string) $data['requires_php'] ) : '';
+			}
+			return ( '' !== $min ) ? $min : '7.3';
+		}
+
+		/**
+		 * The site's PHP is at least min_php_version().
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public function php_version_ok() {
+			return version_compare( PHP_VERSION, $this->min_php_version(), '>=' );
+		}
+
 		public function add_success_messages( $messages ) {
 			if ( isset( $_GET['success'] ) && $_GET['success'] == 'database-repair-complete' ) {
 				$messages[] = __( 'The database repair tool has completed and your database structure verified clean.', 'wp-easycart' );
@@ -202,9 +227,9 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'rebuild-store-permalinks' ) {
 				$messages[] = __( 'Your store permalinks have been rebuilt.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-category-permalinks' ) {
-				$messages[] = __( 'We have completed an attempt to fix your category permalinks.', 'wp-easycart' );
+				$messages[] = __( 'We have completed an attempt to fix your category permalinks.', 'wp-easycart' ) . $this->links_updated_text();
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-product-permalinks' ) {
-				$messages[] = __( 'We have completed an attempt to fix your product permalinks.', 'wp-easycart' );
+				$messages[] = __( 'We have completed an attempt to fix your product permalinks.', 'wp-easycart' ) . $this->links_updated_text();
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-gateway-log' ) {
 				$messages[] = __( 'Your gateway log size has been reduced.', 'wp-easycart' );
 			} else if ( isset( $_GET['success'] ) && $_GET['success'] == 'fix-webhook-log' ) {
@@ -217,6 +242,43 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$messages[] = __( 'Your post tags have been fixed.', 'wp-easycart' );
 			}
 			return $messages;
+		}
+
+		/**
+		 * 6.0.2: " N stored links were updated …" after a permalink fix, from the links count the finished job adds.
+		 *
+		 * @return string '' when none were.
+		 */
+		private function links_updated_text() {
+			$links = isset( $_GET['links'] ) ? absint( $_GET['links'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only count after a nonce-checked job.
+			if ( ! $links ) {
+				return '';
+			}
+			/* translators: %s: number of store posts whose stored link was updated. */
+			return ' ' . sprintf( _n( '%s stored link still pointed at an old store page address and was updated.', '%s stored links still pointed at an old store page address and were updated.', $links, 'wp-easycart' ), number_format_i18n( $links ) );
+		}
+
+		/**
+		 * 6.0.2: rewrite a store post's stored guid when it no longer matches the post's address ( the store page was renamed
+		 * after the post was made ). WP EasyCart saves the current permalink there on every product and category save; the
+		 * storefront now links by get_permalink(), and the guid is what feeds, other plugins and older theme copies read.
+		 *
+		 * @param int $post_id The ec_store post.
+		 * @return bool True when it was rewritten.
+		 */
+		private function refresh_post_link( $post_id ) {
+			global $wpdb;
+			$post = get_post( (int) $post_id );
+			if ( ! $post || 'ec_store' !== $post->post_type ) {
+				return false;
+			}
+			$link = get_permalink( $post );
+			if ( ! is_string( $link ) || '' === $link || $link === $post->guid ) {
+				return false;
+			}
+			$wpdb->update( $wpdb->posts, array( 'guid' => $link ), array( 'ID' => (int) $post->ID ) );
+			clean_post_cache( (int) $post->ID );
+			return true;
 		}
 
 		public function process_repair_database() {
@@ -238,8 +300,11 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			} else if ( $_GET['ec_admin_form_action'] == 'retry-database-install' ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-action-retry-database-install' ) ) {
 					/* Explicit retry from the install-failure notice: clear the backoff
-					   and force a fresh install_db() pass. */
+					   and force a fresh install_db() pass. 6.0.2: the upgrade steps' backoff too, so the next admin
+					   page runs the failing step again ( after a manual fix, or on a release that fixes it ) instead of
+					   the notice clearing now and coming back ten minutes later. */
 					delete_transient( 'ec_db_install_backoff' );
+					delete_transient( 'ec_db_update_backoff' );
 					$db_manager = new ec_db_manager();
 					if ( $db_manager->install_db( true ) ) {
 						wp_redirect( 'admin.php?page=wp-easycart-status&subpage=store-status&success=database-install-complete' );
@@ -823,10 +888,19 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				$total = $this->job_phase_total( $job, $phase );
 			}
 
+			/* 6.0.2: stored links a permalink fix updated, added up over the job's requests for the closing notice. */
+			$links_key = 'wpec_status_links_' . get_current_user_id();
+			if ( '' === $cursor && $phase === $phases[0] ) {
+				delete_transient( $links_key );
+			}
+
 			$deadline = microtime( true ) + self::JOB_TIME_BUDGET;
 			$result = $this->run_job_step( $job, $phase, $cursor, $deadline );
 			if ( isset( $result['error'] ) ) {
 				wp_send_json_error( array( 'message' => $result['error'] ) );
+			}
+			if ( ! empty( $result['links'] ) ) {
+				set_transient( $links_key, (int) get_transient( $links_key ) + (int) $result['links'], DAY_IN_SECONDS );
 			}
 			if ( isset( $result['total'] ) ) {
 				$total = (int) $result['total'];
@@ -857,10 +931,13 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				'total'     => $total,
 			);
 			if ( $done ) {
-				$response['redirect'] = add_query_arg(
-					array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'success' => $jobs[ $job ]['success'] ),
-					admin_url( 'admin.php' )
-				);
+				$args  = array( 'page' => 'wp-easycart-status', 'subpage' => 'store-status', 'success' => $jobs[ $job ]['success'] );
+				$links = (int) get_transient( $links_key );
+				delete_transient( $links_key );
+				if ( $links > 0 ) {
+					$args['links'] = $links;
+				}
+				$response['redirect'] = add_query_arg( $args, admin_url( 'admin.php' ) );
 			}
 			wp_send_json_success( $response );
 		}
@@ -969,6 +1046,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			global $wpdb;
 			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT activate_in_store, post_id, title, product_id, model_number FROM ec_product WHERE product_id > %d ORDER BY product_id LIMIT %d', $last_id, self::JOB_BATCH ) );
 			$count = 0;
+			$links = 0;
 			$next = $last_id;
 			foreach ( (array) $rows as $product ) {
 				$target_status = $product->activate_in_store ? 'publish' : 'private';
@@ -988,6 +1066,9 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					if ( $current_status != $target_status && in_array( $current_status, array( 'publish', 'private' ), true ) ) {
 						wp_easycart_post_sync()->set_status( 'product', $product->product_id, $verified_id, $target_status );
 					}
+					if ( $this->refresh_post_link( $verified_id ) ) {
+						$links++; /* 6.0.2 */
+					}
 				}
 				$next = (int) $product->product_id;
 				$count++;
@@ -995,7 +1076,9 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					break;
 				}
 			}
-			return $this->batch_result( $rows, $count, $next );
+			$result = $this->batch_result( $rows, $count, $next );
+			$result['links'] = $links;
+			return $result;
 		}
 
 		/**
@@ -1007,9 +1090,10 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			global $wpdb;
 			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT category_id, post_id, category_name FROM ec_category WHERE category_id > %d ORDER BY category_id LIMIT %d', $last_id, self::JOB_BATCH ) );
 			$count = 0;
+			$links = 0;
 			$next = $last_id;
 			foreach ( (array) $rows as $category ) {
-				wp_easycart_post_sync()->resolve(
+				$verified_id = wp_easycart_post_sync()->resolve(
 					'category',
 					$category->category_id,
 					$category->post_id,
@@ -1020,13 +1104,18 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 						'post_type'    => 'ec_store',
 					)
 				);
+				if ( $verified_id && $this->refresh_post_link( $verified_id ) ) {
+					$links++; /* 6.0.2 */
+				}
 				$next = (int) $category->category_id;
 				$count++;
 				if ( microtime( true ) > $deadline ) {
 					break;
 				}
 			}
-			return $this->batch_result( $rows, $count, $next );
+			$result = $this->batch_result( $rows, $count, $next );
+			$result['links'] = $links;
+			return $result;
 		}
 
 		/**
@@ -1264,6 +1353,51 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			delete_transient( self::LOG_SIZE_TRANSIENT );
 		}
 
+		/**
+		 * Copied storefront templates ( wp-easycart-data ) that still fire Meta Pixel events the old way, without an event
+		 * ID. Only while the Conversions API is on: the server then sends the same events with an ID, and Meta cannot pair
+		 * them with the copy's, so it counts them twice ( a copied ec_cart_success.php counts every sale twice ).
+		 *
+		 * @since 6.0.2
+		 * @return array file => array( path, events ); empty when the Conversions API is off or no copy fires Meta events.
+		 */
+		public function meta_template_copies() {
+			if ( ! get_option( 'ec_option_fb_capi' ) || ! function_exists( 'wp_easycart_meta_pixel_id' ) || '' === wp_easycart_meta_pixel_id() ) {
+				return array();
+			}
+			$files = array(
+				'ec_cart_success.php'                          => 'Purchase',
+				'ec_cart.php'                                  => 'InitiateCheckout',
+				'ec_cart_v2.php'                               => 'InitiateCheckout',
+				'ec_cart_payment.php'                          => 'AddPaymentInfo',
+				'ec_cart_payment_v2.php'                       => 'AddPaymentInfo',
+				'ec_cart_paypal_express.php'                   => 'AddPaymentInfo',
+				'ec_product.php'                               => 'AddToCart',
+				'ec_product_details_page.php'                  => 'ViewContent, AddToCart',
+				'ec_product_details_page_meta.php'             => 'ViewContent',
+				'ec_product_details_page_add_to_cart.php'      => 'AddToCart',
+				'ec_product_details_page_featured_product.php' => 'AddToCart',
+				'ec_add_to_cart_shortcode.php'                 => 'AddToCart',
+			);
+			$dir   = EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/';
+			$found = array();
+			foreach ( $files as $file => $events ) {
+				$path = $dir . $file;
+				if ( ! is_readable( $path ) ) {
+					continue;
+				}
+				$code = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading a local template copy.
+				/* The 6.0.2 templates fire Meta events through the wp_easycart_meta_* helpers; a copy made earlier calls fbq() itself. */
+				if ( false !== strpos( $code, 'fbq(' ) && false === strpos( $code, 'wp_easycart_meta_' ) ) {
+					$found[ $file ] = array(
+						'path'   => $path,
+						'events' => $events,
+					);
+				}
+			}
+			return $found;
+		}
+
 		public function wpeasycart_get_data_folder_list() {
 			$folders = array(
 				array( 
@@ -1360,22 +1494,78 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		 * @return array { found: bool, match: bool }
 		 */
 		private function shortcode_page_status( $shortcode, $selected_id ) {
-			global $wpdb;
 			$selected_id = (int) $selected_id;
 			$key = $shortcode . '|' . $selected_id;
 			if ( ! array_key_exists( $key, $this->shortcode_pages ) ) {
-				$this->shortcode_pages[ $key ] = $wpdb->get_var(
-					$wpdb->prepare(
-						"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ( ID = %d ) DESC, ID ASC LIMIT 1",
-						'%' . $wpdb->esc_like( $shortcode ) . '%',
-						$selected_id
-					)
-				);
+				$this->shortcode_pages[ $key ] = $this->find_store_content_page( $shortcode, $selected_id );
 			}
 			$found_id = (int) $this->shortcode_pages[ $key ];
 			return array(
 				'found' => $found_id > 0,
 				'match' => $found_id > 0 && $found_id === $selected_id,
+			);
+		}
+
+		/**
+		 * The page that delivers the store, the cart or the account, preferring the one the store setting points at.
+		 *
+		 * 6.0.2: the selected page counts however it was built, by the rule Settings › Store details uses
+		 * ( wp_easycart_admin_settings_page_v2::page_has_store_content(): the shortcode, the store block, Elementor's
+		 * WP EasyCart elements or its Shortcode element ). A page built with Elementor keeps its layout in the
+		 * _elementor_data meta and often has no shortcode in its content, so the check used to say the page was missing.
+		 * Otherwise any published page with the shortcode in its content, or an Elementor layout holding it.
+		 *
+		 * @since 6.0.2
+		 * @param string $shortcode   Shortcode prefix, e.g. '[ec_store'.
+		 * @param int    $selected_id Page ID stored in the matching ec_option_*page setting.
+		 * @return int Page ID, or 0.
+		 */
+		private function find_store_content_page( $shortcode, $selected_id ) {
+			global $wpdb;
+			$options = array(
+				'[ec_store'   => 'ec_option_storepage',
+				'[ec_cart'    => 'ec_option_cartpage',
+				'[ec_account' => 'ec_option_accountpage',
+			);
+			$option  = isset( $options[ $shortcode ] ) ? $options[ $shortcode ] : '';
+			if ( $selected_id > 0 && '' !== $option && class_exists( 'wp_easycart_admin_settings_page_v2' ) && method_exists( 'wp_easycart_admin_settings_page_v2', 'page_has_store_content' ) ) {
+				$post = get_post( $selected_id );
+				if ( $post && 'page' === $post->post_type && 'publish' === $post->post_status && wp_easycart_admin_settings_page_v2::page_has_store_content( $post, $option, $shortcode . ']' ) ) {
+					return $selected_id;
+				}
+			}
+			$found = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ( ID = %d ) DESC, ID ASC LIMIT 1",
+					'%' . $wpdb->esc_like( $shortcode ) . '%',
+					$selected_id
+				)
+			);
+			if ( $found > 0 ) {
+				return $found;
+			}
+			/* Elementor: the shortcode in its Shortcode element, or the WP EasyCart store / cart / account elements. 6.0.2: the
+			 * same widget list as Settings › Store details ( a name ending in " is that one widget, else a name prefix ). */
+			if ( '' !== $option && class_exists( 'wp_easycart_admin_settings_page_v2' ) && method_exists( 'wp_easycart_admin_settings_page_v2', 'elementor_page_widgets' ) ) {
+				$widgets = wp_easycart_admin_settings_page_v2::elementor_page_widgets( $option );
+			} else {
+				$fallback = array(
+					'[ec_store'   => array( 'wp_easycart_store', 'wp_easycart_shop"', 'wp_easycart_products"' ),
+					'[ec_cart'    => array( 'wp_easycart_cart"', 'wp_easycart_checkout"' ),
+					'[ec_account' => array( 'wp_easycart_account', 'wp_easycart_my_account' ),
+				);
+				$widgets  = isset( $fallback[ $shortcode ] ) ? $fallback[ $shortcode ] : array();
+			}
+			$likes = array( '%' . $wpdb->esc_like( $shortcode ) . '%' );
+			foreach ( $widgets as $widget ) {
+				$likes[] = '%' . $wpdb->esc_like( '"widgetType":"' . $widget ) . '%';
+			}
+			$where = implode( ' OR ', array_fill( 0, count( $likes ), 'm.meta_value LIKE %s' ) );
+			return (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_elementor_data' WHERE p.post_type = 'page' AND p.post_status = 'publish' AND ( {$where} ) ORDER BY ( p.ID = %d ) DESC, p.ID ASC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$where} is one fixed placeholder clause per LIKE value.
+					array_merge( $likes, array( $selected_id ) )
+				)
 			);
 		}
 
@@ -1389,7 +1579,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$store_page_found = $store['found'];
 			$store_is_match = $store['match'];
 			if ( !$store_page_found ) {
-				return __( "The shortcode [ec_store] was not found on any page. Please add [ec_store] to a WordPress page to correct this.", 'wp-easycart' );
+				return __( 'No published page shows the store. Add the [ec_store] shortcode to a page ( or build it with the WP EasyCart Shop element in Elementor, or the EasyCart store block ), then choose that page on Settings › Store details.', 'wp-easycart' );
 			} else if ( !$store_is_match ) {
 				return __( "You have not connected your store page with the EasyCart system. Please go to the setup page and select the correct page from the dropdown menu.", 'wp-easycart' );
 			} else {
@@ -1407,7 +1597,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$cart_page_found = $cart['found'];
 			$cart_is_match = $cart['match'];
 			if ( !$cart_page_found ) {
-				return __( "The shortcode [ec_cart] was not found on any page. Please add [ec_cart] to a WordPress page to correct this.", 'wp-easycart' );
+				return __( 'No published page shows the cart. Add the [ec_cart] shortcode to a page ( or the WP EasyCart Cart or Checkout element in Elementor ), then choose that page on Settings › Store details.', 'wp-easycart' );
 			} else if ( !$cart_is_match ) {
 				return __( "You have not connected your cart page with the EasyCart system. Please go to the setup page and select the correct page from the dropdown menu.", 'wp-easycart' );
 			} else {
@@ -1425,7 +1615,7 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 			$account_page_found = $account['found'];
 			$account_is_match = $account['match'];
 			if ( !$account_page_found ) {
-				return __( "The shortcode [ec_account] was not found on any page. Please add [ec_account] to a WordPress page to correct this.", 'wp-easycart' );
+				return __( 'No published page shows the customer account. Add the [ec_account] shortcode to a page ( or the WP EasyCart My Account element in Elementor ), then choose that page on Settings › Store details.', 'wp-easycart' );
 			} else if ( !$account_is_match ) {
 				return __( "You have not connected your account page with the EasyCart system. Please go to the setup page and select the correct page from the dropdown menu.", 'wp-easycart' );
 			} else {
@@ -1779,13 +1969,34 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 		}
 
 		public function ec_dhl_shipping_setup() {
+			static $answer = null; /* 6.0.2: the page asks twice ( SimpleXML check, DHL row ); test DHL once */
+			if ( null !== $answer ) {
+				return $answer;
+			}
 			$dhl_has_settings = false;
 			$dhl_setup = false;
 			$dhl_error_reason = 0;
 
+			if ( ! class_exists( 'ec_dhl' ) ) {
+				$answer = false; /* WP EasyCart PRO is not loaded */
+				return $answer;
+			}
+
 			$db = new ec_db_admin();
 			$setting_row = $db->get_settings();
 			$settings = new ec_setting( $setting_row );
+
+			/* 6.0.2: the MyDHL API or the older XML Services, whichever DHL is set to use. */
+			if ( method_exists( 'ec_dhl', 'required_details' ) && method_exists( 'ec_dhl', 'test_connection' ) ) {
+				if ( in_array( '', ec_dhl::required_details( $setting_row ), true ) ) {
+					$answer = false;
+					return $answer;
+				}
+				$dhl_class = new ec_dhl( $settings );
+				$test      = $dhl_class->test_connection();
+				$answer    = ( isset( $test['status'] ) && 'connected' === $test['status'] );
+				return $answer;
+			}
 
 			if ( $setting_row->dhl_site_id && $setting_row->dhl_password && $setting_row->dhl_ship_from_country && $setting_row->dhl_ship_from_zip && $setting_row->dhl_weight_unit ) {
 				$dhl_has_settings = true;
@@ -1808,7 +2019,36 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				}
 			}
 
-			return ( $dhl_has_settings && $dhl_setup );
+			$answer = ( $dhl_has_settings && $dhl_setup );
+			return $answer;
+		}
+
+		/**
+		 * Whether DHL quotes through the older XML Services ( a Site ID ) rather than the MyDHL API. True with a WP EasyCart
+		 * PRO older than 6.0.2, which only has XML Services.
+		 *
+		 * @since 6.0.2
+		 * @return bool
+		 */
+		public function ec_dhl_uses_xml() {
+			if ( class_exists( 'ec_dhl' ) && method_exists( 'ec_dhl', 'api_mode' ) ) {
+				return 'xml' === ec_dhl::api_mode();
+			}
+			return true;
+		}
+
+		/**
+		 * Store Status row for a store whose DHL quotes through XML Services: it still works, and this says how to move to
+		 * the MyDHL API.
+		 *
+		 * @since 6.0.2
+		 */
+		public static function print_dhl_xml_notice() {
+			$setup = admin_url( 'admin.php?page=wp-easycart-settings&subpage=shipping-settings#ecst-ec_option_dhl_api' );
+			echo '<div class="ec_status_success ecss-carrier-fix ecss-carrier-note"><div class="dashicons-before dashicons-info"></div>';
+			echo '<span class="ec_status_label">' . esc_html__( 'DHL quotes through its older XML Services connection. It still works, but DHL now issues MyDHL API keys instead: request MyDHL API access for your DHL account and switch the connection in your DHL settings.', 'wp-easycart' ) . '</span>';
+			echo '<span class="ecss-carrier-acts"><a class="ecv2-btn ecv2-btn-sm" href="' . esc_url( $setup ) . '">' . esc_html__( 'Open DHL settings', 'wp-easycart' ) . '</a></span>';
+			echo '</div>';
 		}
 
 		public function ec_using_auspost_shipping() {
@@ -2156,6 +2396,92 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				return false;
 		}
 
+		/**
+		 * What a live gateway still needs, in words, when WP EasyCart can tell ( '' when nothing is missing or it can't tell ).
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		public function ec_live_payment_missing() {
+			$method = get_option( 'ec_option_payment_process_method' );
+			if ( 'square' === $method ) {
+				$sandbox = (bool) get_option( 'ec_option_square_is_sandbox' );
+				$token   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_access_token' : 'ec_option_square_access_token' );
+				$place   = (string) get_option( $sandbox ? 'ec_option_square_sandbox_location_id' : 'ec_option_square_location_id' );
+				if ( '' === $token ) {
+					return $sandbox ? __( 'Square is set to sandbox ( test ) mode but no Square sandbox account is connected. Connect one on Settings › Payments, or turn sandbox mode off to use your live account.', 'wp-easycart' ) : __( 'No Square account is connected. Connect Square on Settings › Payments.', 'wp-easycart' );
+				}
+				if ( '' === $place ) {
+					return $sandbox ? __( 'Square is connected in sandbox ( test ) mode, but no sandbox location is chosen. Choose the location on Settings › Payments.', 'wp-easycart' ) : __( 'Square is connected, but no location is chosen. Choose the location that takes your payments on Settings › Payments.', 'wp-easycart' );
+				}
+				return '';
+			}
+			if ( 'stripe_connect' === $method ) {
+				$sandbox = (bool) get_option( 'ec_option_stripe_connect_use_sandbox' );
+				if ( '' === (string) get_option( $sandbox ? 'ec_option_stripe_connect_sandbox_access_token' : 'ec_option_stripe_connect_production_access_token' ) ) {
+					return $sandbox ? __( 'Stripe is set to test mode but no Stripe test account is connected. Connect one on Settings › Payments, or turn test mode off to use your live account.', 'wp-easycart' ) : __( 'No Stripe account is connected. Connect Stripe on Settings › Payments.', 'wp-easycart' );
+				}
+			}
+			return '';
+		}
+
+		/**
+		 * The payment methods that are set up but running in a sandbox or test mode, where no real money moves.
+		 *
+		 * @since 6.0.2
+		 * @return string[] Gateway names.
+		 */
+		public function ec_payment_test_modes() {
+			$names = array();
+			/* The payment settings screen knows every gateway's test switch ( Settings › Payments ): ask it first. */
+			if ( class_exists( 'wp_easycart_admin_payment_v2' ) && method_exists( 'wp_easycart_admin_payment_v2', 'catalog' ) && method_exists( 'wp_easycart_admin_payment_v2', 'status' ) ) {
+				foreach ( wp_easycart_admin_payment_v2::catalog() as $key => $gateway ) {
+					$state = wp_easycart_admin_payment_v2::status( $key );
+					if ( is_array( $state ) && ! empty( $state['enabled'] ) && ! empty( $state['test'] ) ) {
+						$names[] = isset( $gateway['label'] ) ? (string) $gateway['label'] : (string) $key;
+					}
+				}
+				return array_values( array_unique( array_filter( (array) apply_filters( 'wp_easycart_payment_test_modes', $names ) ) ) );
+			}
+			$live  = (string) get_option( 'ec_option_payment_process_method' );
+			$tests = array(
+				'stripe'              => ( 0 === strpos( (string) get_option( 'ec_option_stripe_api_key' ), 'sk_test' ) || 0 === strpos( (string) get_option( 'ec_option_stripe_public_api_key' ), 'pk_test' ) ),
+				'stripe_connect'      => (bool) get_option( 'ec_option_stripe_connect_use_sandbox' ),
+				'square'              => (bool) get_option( 'ec_option_square_is_sandbox' ),
+				'braintree'           => ( 'sandbox' === (string) get_option( 'ec_option_braintree_environment' ) ),
+				'authorize'           => ( (bool) get_option( 'ec_option_authorize_test_mode' ) || (bool) get_option( 'ec_option_authorize_developer_account' ) ),
+				'intuit'              => (bool) get_option( 'ec_option_intuit_test_mode' ),
+				'paytrace'            => (bool) get_option( 'ec_option_paytrace_sandbox' ),
+				'moneris_ca'          => (bool) get_option( 'ec_option_moneris_ca_test_mode' ),
+				'sagepay'             => (bool) get_option( 'ec_option_sagepay_testmode' ),
+				'paypal_pro'          => (bool) get_option( 'ec_option_paypal_pro_test_mode' ),
+				'paypal_payments_pro' => (bool) get_option( 'ec_option_paypal_payments_pro_test_mode' ),
+				'eway'                => (bool) get_option( 'ec_option_eway_test_mode' ),
+				'realex'              => (bool) get_option( 'ec_option_realex_test_mode' ),
+				'firstdata'           => (bool) get_option( 'ec_option_firstdatae4_test_mode' ),
+			);
+			if ( '' !== $live && '0' !== $live && ! empty( $tests[ $live ] ) ) {
+				$names[] = $this->ec_get_live_payment_method();
+			}
+			$third = (string) get_option( 'ec_option_payment_third_party' );
+			if ( ( 'paypal' === $third && get_option( 'ec_option_paypal_use_sandbox' ) ) || ( 'redsys' === $third && get_option( 'ec_option_redsys_test_mode' ) ) ) {
+				$names[] = $this->ec_get_third_party_method();
+			}
+			if ( get_option( 'ec_option_amazonpay_enable' ) && get_option( 'ec_option_amazonpay_is_sandbox' ) ) {
+				$names[] = 'Amazon Pay';
+			}
+			if ( get_option( 'ec_option_use_affirm' ) && get_option( 'ec_option_affirm_sandbox_account' ) ) {
+				$names[] = 'Affirm';
+			}
+			/**
+			 * Payment methods running in a test mode, for Diagnostics.
+			 *
+			 * @since 6.0.2
+			 * @param string[] $names Gateway names.
+			 */
+			return array_values( array_unique( array_filter( (array) apply_filters( 'wp_easycart_payment_test_modes', $names ) ) ) );
+		}
+
 		public function ec_live_payment_setup() {
 			$live_payment = get_option( 'ec_option_payment_process_method' );
 			if ( $live_payment == "authorize" ) {
@@ -2242,6 +2568,11 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					return true;
 				else
 					return false;
+			} else if ( $live_payment == "paytrace" ) {
+				if ( get_option( 'ec_option_paytrace_username' ) != "" && get_option( 'ec_option_paytrace_password' ) != "" )
+					return true;
+				else
+					return false;
 			} else if ( $live_payment == "paypoint" ) {
 				if ( get_option( 'ec_option_paypoint_merchant_id' ) != "" && get_option( 'ec_option_paypoint_vpn_password' ) != "" &&  get_option( 'ec_option_paypoint_vpn_password' ) != "0" )
 					return true;
@@ -2283,10 +2614,9 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				else
 					return false;
 			} else if ( $live_payment == "square" ) {
-				if ( get_option( 'ec_option_square_access_token' ) != "" )
-					return true;
-				else
-					return false;
+				/* 6.0.2: a sandbox store keeps its token and location in the sandbox options ( only the live token was checked, so
+				   every sandbox store read as not set up; owner bug round 4, item 11 ). */
+				return '' === $this->ec_live_payment_missing();
 			} else if ( $live_payment == "virtualmerchant" ) {
 				if ( get_option( 'ec_option_virtualmerchant_ssl_merchant_id' ) != "" && get_option( 'ec_option_virtualmerchant_ssl_user_id' ) != "" && get_option( 'ec_option_virtualmerchant_ssl_pin' ) != "" )
 					return true;
@@ -2336,6 +2666,8 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 				return "PayPal Payments Pro";
 			} else if ( $live_payment == "paypoint" ) {
 				return "PayPoint";
+			} else if ( $live_payment == "paytrace" ) {
+				return "PayTrace";
 			} else if ( $live_payment == "realex" ) {
 				return "Realex";
 			} else if ( $live_payment == "sagepay" ) {

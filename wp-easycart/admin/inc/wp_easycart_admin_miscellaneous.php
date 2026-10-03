@@ -31,11 +31,8 @@ if ( ! class_exists( 'wp_easycart_admin_miscellaneous' ) ) :
 
 			if ( $_GET['ec_admin_form_action'] == "allow-usage-tracking" ) {
 				if ( wp_easycart_admin_verification()->verify_access( 'wp-easycart-enable-usage-tracking' ) ) {
+					/* Turning sharing on queues the store's setup ( wp_easycart_tracking_option_changed() in wpeasycart.php ). */
 					update_option( 'ec_option_allow_tracking', '1' );
-					if ( !function_exists( 'wp_easycart_admin_tracking' ) ) {
-						include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tracking.php' );
-					}
-					do_action( 'wpeasycart_admin_usage_tracking_accepted' );
 					wp_easycart_admin()->redirect( 'wp-easycart-settings', 'initial-setup', array( 'success' => 'tracking-enabled' ) );
 				}
 			}

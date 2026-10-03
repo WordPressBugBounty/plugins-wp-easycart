@@ -46,6 +46,7 @@
 				</div>
 			<?php }?>
 		<?php }?>
+		<?php if ( class_exists( 'wp_easycart_shipping_groups' ) ) { wp_easycart_shipping_groups::print_totals_note( $this->shipping ); /* 6.0.2: what fulfillment partners add */ } ?>
 	</div>
 	<div class="ec_cart_price_row_total" id="ec_cart_shipping"><?php echo esc_attr( $this->get_shipping_total( ) ); ?></div>
 	<div class="ec_cart_price_row_loader">

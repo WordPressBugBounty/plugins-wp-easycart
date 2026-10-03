@@ -249,6 +249,100 @@ if ( ! class_exists( 'wp_easycart_admin_edition' ) ) :
 		}
 
 		/**
+		 * How this store gets Premium, and where its button goes. A licensed Pro store upgrades at the Pro discount, a Pro
+		 * trial upgrades through the trial link ( it keeps the trial's key ), a lapsed Premium store renews, and every other
+		 * store ( free, a lapsed Pro license ) buys Premium on premium-support-extensions. A Premium store with a current
+		 * license gets mode 'active' and no link.
+		 *
+		 * @since 6.0.2
+		 * @return array mode ( active|renew|upgrade|trial|get ), url, cta, title, desc.
+		 */
+		public static function premium_offer() {
+			$tier   = self::tier();
+			$lapsed = self::is_lapsed();
+			$key    = self::license_key();
+			$buy    = 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/';
+			$keyed  = ( '' !== $key ) ? $buy . '?transaction_key=' . rawurlencode( $key ) : $buy;
+			if ( 'premium' === $tier && ! $lapsed ) {
+				$offer = array(
+					'mode'  => 'active',
+					'url'   => '',
+					'cta'   => '',
+					'title' => '',
+					'desc'  => '',
+				);
+			} elseif ( 'premium' === $tier ) {
+				$offer = array(
+					'mode'  => 'renew',
+					'url'   => $keyed,
+					'cta'   => __( 'Renew Premium', 'wp-easycart' ),
+					'title' => __( 'Renew Premium', 'wp-easycart' ),
+					'desc'  => __( 'Renew to install, update and change your extensions. They keep running in the meantime.', 'wp-easycart' ),
+				);
+			} elseif ( 'pro' === $tier && ! $lapsed ) {
+				$offer = array(
+					'mode'  => 'upgrade',
+					'url'   => 'https://www.wpeasycart.com/products/wp-easycart-pro-to-premium-upgrade/' . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' ),
+					'cta'   => __( 'Upgrade to Premium', 'wp-easycart' ),
+					'title' => __( 'Upgrade to Premium', 'wp-easycart' ),
+					'desc'  => __( 'Pro customers upgrade at a discount. You keep everything in Pro and add every extension.', 'wp-easycart' ),
+				);
+			} elseif ( 'trial' === $tier ) {
+				$offer = array(
+					'mode'  => 'trial',
+					'url'   => 'https://www.wpeasycart.com/products/wp-easycart-trial-upgrade/?transaction_key=' . rawurlencode( $key ) . '&license_type=Premium',
+					'cta'   => __( 'Upgrade to Premium', 'wp-easycart' ),
+					'title' => __( 'Upgrade your trial to Premium', 'wp-easycart' ),
+					'desc'  => __( 'Everything in Pro, plus every extension, installed and updated from your dashboard.', 'wp-easycart' ),
+				);
+			} else {
+				$offer = array(
+					'mode'  => 'get',
+					'url'   => $keyed,
+					'cta'   => __( 'Get Premium', 'wp-easycart' ),
+					'title' => __( 'Premium', 'wp-easycart' ),
+					'desc'  => __( 'Everything in Pro, plus every extension, installed and updated from your dashboard.', 'wp-easycart' ),
+				);
+			}
+			/**
+			 * Filter the Premium offer ( its mode, link and wording ).
+			 *
+			 * @since 6.0.2
+			 * @param array  $offer  mode, url, cta, title, desc.
+			 * @param string $tier   free|trial|pro|premium.
+			 * @param bool   $lapsed The license is past its end date.
+			 */
+			return apply_filters( 'wp_easycart_admin_premium_offer', $offer, $tier, $lapsed );
+		}
+
+		/**
+		 * Where a Premium button goes for this store ( see premium_offer() ). A Premium store with a current license gets
+		 * the Premium product page, keyed to its license.
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		public static function premium_url() {
+			$offer = self::premium_offer();
+			if ( '' !== $offer['url'] ) {
+				return $offer['url'];
+			}
+			$key = self::license_key();
+			return 'https://www.wpeasycart.com/products/wp-easycart-premium-support-extensions/' . ( '' !== $key ? '?transaction_key=' . rawurlencode( $key ) : '' );
+		}
+
+		/**
+		 * The registered license key, or ''.
+		 *
+		 * @since 6.0.2
+		 * @return string
+		 */
+		private static function license_key() {
+			$info = get_option( 'wp_easycart_license_info' );
+			return ( is_array( $info ) && ! empty( $info['transaction_key'] ) ) ? (string) $info['transaction_key'] : '';
+		}
+
+		/**
 		 * Labels for admin scripts ( localized as wp_easycart_edition ).
 		 *
 		 * @return array

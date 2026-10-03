@@ -118,6 +118,47 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		protected $row_menu_actions = array();
 		protected $bulk_edit_fields = array();
 
+		/* Columns chooser ( 6.0.2, see set_list_columns() ) */
+		/** Option: each list's store default columns, table id => array( 'order', 'hidden' ). @since 6.0.2 */
+		const COLUMNS_OPTION = 'wp_easycart_admin_list_columns';
+		/** User meta prefix ( + table id ) for a person's own columns. @since 6.0.2 */
+		const COLUMNS_META = 'ecv2_list_columns_';
+		/** Nonce action of ecv2_list_columns_save. @since 6.0.2 */
+		const COLUMNS_NONCE = 'wp-easycart-ecv2-list-columns';
+		/**
+		 * Lists that WP EasyCart PRO draws with a cell for every column, up to the PRO version that skips hidden ones: they
+		 * keep their declared columns while an older PRO is active ( the gift card list before PRO 6.0.2 ). @since 6.0.2
+		 */
+		const COLUMNS_PRO_MIN = array( 'wp_easycart_admin_giftcard_table' => '6.0.2' );
+		/**
+		 * Whether this list offers the Columns chooser ( set_column_chooser() ).
+		 *
+		 * @since 6.0.2
+		 * @var bool
+		 */
+		protected $column_chooser = true;
+		/**
+		 * The columns as declared, before the viewer's choice is applied to $list_columns.
+		 *
+		 * @since 6.0.2
+		 * @var array
+		 */
+		protected $column_definitions = array();
+		/**
+		 * The chooser's rows in display order: array( 'key', 'label', 'locked', 'shown' ).
+		 *
+		 * @since 6.0.2
+		 * @var array
+		 */
+		protected $column_catalog = array();
+		/**
+		 * Where the columns shown come from: user | store | default.
+		 *
+		 * @since 6.0.2
+		 * @var string
+		 */
+		protected $column_choice_source = 'default';
+
 		public function __construct() {
 			global $wpdb;
 			$this->wpdb = $wpdb;
@@ -237,8 +278,16 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 
 			$this->perpage = 25;
 		}
+		/**
+		 * The list's id: the table's HTML id, and the key of each person's column choice.
+		 *
+		 * @since 6.0.2 Setting it applies the viewer's column choice.
+		 *
+		 * @param string $table_id Table id.
+		 */
 		public function set_table_id( $table_id ) {
 			$this->table_id = $table_id;
+			$this->apply_column_choice();
 		}
 		/**
 		 * Extra class(es) on the <table> so child tables can scope layout CSS
@@ -284,9 +333,465 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			$this->cancel_link = $cancel_link;
 			$this->cancel_label = $cancel_label;
 		}
+		/**
+		 * The list's columns, in order. Each column is an array:
+		 *
+		 *  - name            The result field ( or the alias its 'select' gives ). Also the column's key, its cell class
+		 *                    ( ecv2-cell-<name> ) and its sort key.
+		 *  - label           Header text.
+		 *  - format          How the cell is drawn ( print_cell_content() ). 'hidden' = data for other cells: selected,
+		 *                    never printed, never offered in the Columns chooser.
+		 *  - select, is_concat + concat, orderby, width, tablet_hide, laptop_hide, mobile_hide, linked, is_id: as before.
+		 *  - primary         ( 6.0.2 ) true on the column that carries the row's link or main control when that is not the
+		 *                    first column marked 'linked' ( or, with none, the first column with a label ). That column is
+		 *                    always shown; the row checkbox and the row actions are never columns, so they always show too.
+		 *  - default_hidden  ( 6.0.2 ) true: the column starts hidden and each person ( or the store default ) can turn it
+		 *                    on under Columns. For a column an extension adds to a busy list, such as the orders list,
+		 *                    through its columns filter. Only lists with the chooser use it.
+		 *  - chooser_label   ( 6.0.2 ) The column's name in the Columns chooser when its header is blank ( an image ).
+		 *
+		 * Columns chooser ( 6.0.2 ): each person can hide and reorder a list's printed columns from the toolbar. Their own
+		 * choice ( user meta COLUMNS_META . table id ) beats the store default ( option COLUMNS_OPTION, saved by someone
+		 * with manage_options ), and both beat the declaration. A saved column that is no longer declared is ignored; a
+		 * column declared since shows, before the column declared after it, unless it is default_hidden. The choice is
+		 * applied here and in set_table_id(): $list_columns comes back in the chosen order and a hidden column keeps its
+		 * place with 'format' => 'hidden' ( 'chooser_format' holds its own ), so its data is still selected for other
+		 * cells, sorting and search, and every loop that skips 'hidden' columns leaves out its header and cells.
+		 * $column_definitions keeps the list as declared. A list that draws its cells another way turns the chooser off
+		 * with set_column_chooser( false ).
+		 *
+		 * @since 6.0.2 Applies the viewer's column choice.
+		 *
+		 * @param array $list_columns Column definitions.
+		 */
 		public function set_list_columns( $list_columns ) {
-			$this->list_columns = $list_columns;
+			$this->list_columns       = $list_columns;
+			$this->column_definitions = is_array( $list_columns ) ? $list_columns : array();
+			$this->apply_column_choice();
 		}
+
+		/**
+		 * Offer the Columns chooser on this list ( on by default ). Off, every declared column shows, default_hidden
+		 * ones included.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param bool $on Whether the list offers the chooser.
+		 */
+		public function set_column_chooser( $on ) {
+			$this->column_chooser = (bool) $on;
+			$this->apply_column_choice();
+		}
+
+		/**
+		 * Rebuild $list_columns from the declaration and the viewer's choice ( see set_list_columns() ).
+		 *
+		 * @since 6.0.2
+		 */
+		protected function apply_column_choice() {
+			$this->column_catalog       = array();
+			$this->column_choice_source = 'default';
+			if ( empty( $this->column_definitions ) ) {
+				return;
+			}
+			$this->list_columns = $this->column_definitions;
+			if ( ! $this->column_chooser_on() ) {
+				return;
+			}
+			$defs      = self::chooser_columns( $this->column_definitions );
+			$choosable = 0;
+			foreach ( $defs as $def ) {
+				if ( ! $def['locked'] ) {
+					++$choosable;
+				}
+			}
+			if ( $choosable < 1 ) {
+				return;
+			}
+			$saved                      = self::saved_column_choice( $this->table_id, get_current_user_id() );
+			$this->column_choice_source = $saved['source'];
+			$shown                      = self::arrange_columns( $defs, $saved['choice'] );
+			$order                      = array_keys( $shown );
+
+			/* The chooser's columns trade places among their own slots; data columns ( and anything else ) stay put. */
+			$by_key = array();
+			foreach ( $this->column_definitions as $col ) {
+				if ( self::is_chooser_slot( $col, $by_key ) ) {
+					$by_key[ (string) $col['name'] ] = $col;
+				}
+			}
+			$columns = array();
+			$seen    = array();
+			$slot    = 0;
+			foreach ( $this->column_definitions as $col ) {
+				if ( ! self::is_chooser_slot( $col, $seen ) ) {
+					$columns[] = $col;
+					continue;
+				}
+				$seen[ (string) $col['name'] ] = true;
+				$key                           = (string) $order[ $slot ];
+				++$slot;
+				$column = $by_key[ $key ];
+				if ( ! $shown[ $key ] ) {
+					$column['chooser_format'] = isset( $column['format'] ) ? $column['format'] : '';
+					$column['format']         = 'hidden';
+				}
+				$columns[] = $column;
+			}
+			$this->list_columns = $columns;
+			foreach ( $shown as $key => $on ) {
+				$this->column_catalog[] = array(
+					'key'    => (string) $key,
+					'label'  => $defs[ $key ]['label'],
+					'locked' => $defs[ $key ]['locked'],
+					'shown'  => (bool) $on,
+				);
+			}
+		}
+
+		/**
+		 * Whether this list applies and offers the Columns chooser now.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @return bool
+		 */
+		protected function column_chooser_on() {
+			if ( ! $this->column_chooser || ! is_string( $this->table_id ) || '' === sanitize_key( $this->table_id ) ) {
+				return false;
+			}
+			return self::column_chooser_supported( get_class( $this ), defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ? WP_EASYCART_ADMIN_PRO_VERSION : '' );
+		}
+
+		/**
+		 * False for a list in COLUMNS_PRO_MIN while the active WP EasyCart PRO is older than the version named there.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param string $class_name  The list's class.
+		 * @param string $pro_version WP_EASYCART_ADMIN_PRO_VERSION, '' without PRO.
+		 * @return bool
+		 */
+		public static function column_chooser_supported( $class_name, $pro_version ) {
+			$minimums   = self::COLUMNS_PRO_MIN;
+			$class_name = strtolower( (string) $class_name );
+			if ( ! isset( $minimums[ $class_name ] ) ) {
+				return true;
+			}
+			return '' !== (string) $pro_version && version_compare( (string) $pro_version, $minimums[ $class_name ], '>=' );
+		}
+
+		/**
+		 * A column's key is its name when that is a plain identifier ( letters, digits, _ and -, not starting with a
+		 * digit ). A printed column without one is always shown and not listed in the chooser.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param mixed $key Column name.
+		 * @return bool
+		 */
+		public static function is_column_key( $key ) {
+			return is_string( $key ) && 1 === preg_match( '/^[A-Za-z_][A-Za-z0-9_\-]{0,99}$/', $key );
+		}
+
+		/**
+		 * A printed column with a plain key that is not already in $seen ( only the first of two same-named columns ).
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param mixed $col  Column definition.
+		 * @param array $seen Keys already taken.
+		 * @return bool
+		 */
+		protected static function is_chooser_slot( $col, $seen ) {
+			return is_array( $col ) && ( ! isset( $col['format'] ) || 'hidden' !== $col['format'] ) && isset( $col['name'] ) && self::is_column_key( $col['name'] ) && ! isset( $seen[ (string) $col['name'] ] );
+		}
+
+		/**
+		 * The columns the chooser lists, in declared order: key => array( 'label', 'locked', 'default_hidden' ). The
+		 * locked one is the primary column ( see set_list_columns() ).
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param array $columns Column definitions.
+		 * @return array
+		 */
+		public static function chooser_columns( $columns ) {
+			$printable = array();
+			foreach ( (array) $columns as $col ) {
+				if ( self::is_chooser_slot( $col, $printable ) ) {
+					$printable[ (string) $col['name'] ] = $col;
+				}
+			}
+			if ( empty( $printable ) ) {
+				return array();
+			}
+			$primary = '';
+			foreach ( array( 'primary', 'linked' ) as $flag ) {
+				foreach ( $printable as $key => $col ) {
+					if ( '' === $primary && ! empty( $col[ $flag ] ) ) {
+						$primary = (string) $key;
+					}
+				}
+			}
+			if ( '' === $primary ) {
+				foreach ( $printable as $key => $col ) {
+					if ( '' === $primary && isset( $col['label'] ) && '' !== trim( wp_strip_all_tags( (string) $col['label'] ) ) ) {
+						$primary = (string) $key;
+					}
+				}
+			}
+			if ( '' === $primary ) {
+				$keys    = array_keys( $printable );
+				$primary = (string) $keys[0];
+			}
+			$defs = array();
+			foreach ( $printable as $key => $col ) {
+				$label = '';
+				foreach ( array( 'chooser_label', 'label' ) as $field ) {
+					if ( '' === $label && isset( $col[ $field ] ) ) {
+						$label = trim( wp_strip_all_tags( (string) $col[ $field ] ) );
+					}
+				}
+				$defs[ (string) $key ] = array(
+					'label'          => '' !== $label ? $label : ucwords( str_replace( array( '_', '-' ), ' ', (string) $key ) ),
+					'locked'         => ( (string) $key === $primary ),
+					'default_hidden' => ( (string) $key !== $primary && ! empty( $col['default_hidden'] ) ),
+				);
+			}
+			return $defs;
+		}
+
+		/**
+		 * Which columns show, in which order: key => shown, in display order. Without a choice, the declared order with
+		 * default_hidden columns off. With one, its order and hidden columns; a key it does not know yet goes before the
+		 * nearest column declared after it ( so a column an extension puts "before Fulfillment" lands there, and one it
+		 * appends lands at the end ) and follows default_hidden; a key it holds that is no longer declared is dropped.
+		 * The locked column always shows.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param array      $defs   chooser_columns().
+		 * @param array|null $choice array( 'order' => keys, 'hidden' => keys ), or null.
+		 * @return array
+		 */
+		public static function arrange_columns( $defs, $choice ) {
+			$declared = array();
+			foreach ( array_keys( (array) $defs ) as $key ) {
+				$declared[] = (string) $key;
+			}
+			$shown = array();
+			if ( ! is_array( $choice ) || empty( $choice['order'] ) ) {
+				foreach ( $declared as $key ) {
+					$shown[ $key ] = $defs[ $key ]['locked'] || ! $defs[ $key ]['default_hidden'];
+				}
+				return $shown;
+			}
+			$known  = array_values( array_unique( array_map( 'strval', (array) $choice['order'] ) ) );
+			$hidden = array_map( 'strval', isset( $choice['hidden'] ) ? (array) $choice['hidden'] : array() );
+			$order  = array_values( array_intersect( $known, $declared ) );
+			$count  = count( $declared );
+			foreach ( $declared as $i => $key ) {
+				if ( in_array( $key, $known, true ) ) {
+					continue;
+				}
+				$at = count( $order );
+				for ( $j = $i + 1; $j < $count; $j++ ) {
+					$next = array_search( $declared[ $j ], $order, true );
+					if ( false !== $next ) {
+						$at = $next;
+						break;
+					}
+				}
+				array_splice( $order, $at, 0, array( $key ) );
+			}
+			foreach ( $order as $key ) {
+				if ( $defs[ $key ]['locked'] ) {
+					$shown[ $key ] = true;
+				} elseif ( in_array( $key, $known, true ) ) {
+					$shown[ $key ] = ! in_array( $key, $hidden, true );
+				} else {
+					$shown[ $key ] = ! $defs[ $key ]['default_hidden'];
+				}
+			}
+			return $shown;
+		}
+
+		/**
+		 * A stored choice cleaned up: array( 'order' => keys, 'hidden' => keys ), or null when there is none.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param mixed $raw User meta or option value.
+		 * @return array|null
+		 */
+		public static function clean_column_choice( $raw ) {
+			if ( ! is_array( $raw ) || empty( $raw['order'] ) || ! is_array( $raw['order'] ) ) {
+				return null;
+			}
+			$order  = array_values( array_unique( array_filter( $raw['order'], array( __CLASS__, 'is_column_key' ) ) ) );
+			$hidden = isset( $raw['hidden'] ) && is_array( $raw['hidden'] ) ? array_values( array_unique( array_filter( $raw['hidden'], array( __CLASS__, 'is_column_key' ) ) ) ) : array();
+			if ( empty( $order ) ) {
+				return null;
+			}
+			return array(
+				'order'  => $order,
+				'hidden' => array_values( array_intersect( $hidden, $order ) ),
+			);
+		}
+
+		/**
+		 * The store default for a list, or null.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param string $table_id List's table id.
+		 * @return array|null
+		 */
+		public static function store_column_choice( $table_id ) {
+			$all      = get_option( self::COLUMNS_OPTION, array() );
+			$table_id = sanitize_key( $table_id );
+			return ( is_array( $all ) && '' !== $table_id && isset( $all[ $table_id ] ) ) ? self::clean_column_choice( $all[ $table_id ] ) : null;
+		}
+
+		/**
+		 * The choice that applies to a person on a list: their own, else the store default, else none.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param string $table_id List's table id.
+		 * @param int    $user_id  WordPress user ( 0 = nobody signed in ).
+		 * @return array array( 'choice' => array|null, 'source' => 'user'|'store'|'default' ).
+		 */
+		public static function saved_column_choice( $table_id, $user_id ) {
+			$table_id = sanitize_key( $table_id );
+			$choice   = null;
+			$source   = 'default';
+			if ( '' !== $table_id && (int) $user_id > 0 ) {
+				$choice = self::clean_column_choice( get_user_meta( (int) $user_id, self::COLUMNS_META . $table_id, true ) );
+				$source = ( null !== $choice ) ? 'user' : 'default';
+			}
+			if ( '' !== $table_id && null === $choice ) {
+				$choice = self::store_column_choice( $table_id );
+				$source = ( null !== $choice ) ? 'store' : 'default';
+			}
+			return array(
+				'choice' => $choice,
+				'source' => $source,
+			);
+		}
+
+		/**
+		 * What the chooser signs when it draws, so a save can only name the columns that list offered.
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param string   $table_id List's table id.
+		 * @param string[] $keys     Every listed key, in the order the panel sends them.
+		 * @param string[] $locked   The keys that cannot be hidden.
+		 * @param int      $user_id  The person.
+		 * @return string
+		 */
+		public static function column_signature( $table_id, $keys, $locked, $user_id ) {
+			return wp_hash( 'ecv2-list-columns|' . (int) $user_id . '|' . sanitize_key( $table_id ) . '|' . implode( ',', (array) $keys ) . '|' . implode( ',', (array) $locked ) );
+		}
+
+		/**
+		 * Someone who works in the EasyCart admin lists ( any of its screens ).
+		 *
+		 * @since 6.0.2
+		 *
+		 * @return bool
+		 */
+		public static function can_choose_columns() {
+			foreach ( array( 'manage_options', 'wpec_manager', 'wpec_products', 'wpec_orders', 'wpec_users', 'wpec_marketing', 'wpec_settings', 'wpec_diagnostics' ) as $capability ) {
+				if ( current_user_can( $capability ) ) { // phpcs:ignore WordPress.WP.Capabilities.Undetermined -- a fixed list of WordPress and EasyCart capabilities.
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Save a Columns chooser request ( ecv2_list_columns_save, after its guard ).
+		 *
+		 * @since 6.0.2
+		 *
+		 * @param string   $op       user ( my columns ) | reset ( drop mine ) | store ( default for everyone ) | clear_store.
+		 * @param string   $table_id List's table id.
+		 * @param string[] $keys     Keys the panel was drawn with.
+		 * @param string[] $locked   Keys it could not hide.
+		 * @param string   $sig      column_signature() of those.
+		 * @param string[] $order    Chosen order.
+		 * @param string[] $hidden   Chosen hidden keys.
+		 * @param int      $user_id  The person saving.
+		 * @return array|WP_Error array( 'op', 'choice', 'message' ).
+		 */
+		public static function save_column_choice( $op, $table_id, $keys, $locked, $sig, $order, $hidden, $user_id ) {
+			$table_id = sanitize_key( $table_id );
+			$keys     = array_values( array_map( 'strval', (array) $keys ) );
+			$locked   = array_values( array_map( 'strval', (array) $locked ) );
+			$user_id  = (int) $user_id;
+			$expired  = new WP_Error( 'ecv2_list_columns_changed', __( 'This list has changed since the page loaded. Reload the page and try again.', 'wp-easycart' ) );
+			if ( '' === $table_id || $user_id < 1 || empty( $keys ) || count( $keys ) !== count( array_filter( $keys, array( __CLASS__, 'is_column_key' ) ) ) || array_diff( $locked, $keys ) ) {
+				return $expired;
+			}
+			if ( ! is_string( $sig ) || '' === $sig || ! hash_equals( self::column_signature( $table_id, $keys, $locked, $user_id ), $sig ) ) {
+				return $expired;
+			}
+			if ( ! in_array( $op, array( 'user', 'reset', 'store', 'clear_store' ), true ) ) {
+				return new WP_Error( 'ecv2_list_columns_op', __( 'Your columns could not be saved. Try again.', 'wp-easycart' ) );
+			}
+			if ( in_array( $op, array( 'store', 'clear_store' ), true ) && ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error( 'ecv2_list_columns_store', __( 'Only an administrator can change the default for everyone.', 'wp-easycart' ) );
+			}
+			$meta_key = self::COLUMNS_META . $table_id;
+			$all      = get_option( self::COLUMNS_OPTION, array() );
+			$all      = is_array( $all ) ? $all : array();
+			$choice   = null;
+			if ( in_array( $op, array( 'user', 'store' ), true ) ) {
+				/* Only keys this list offered; every offered key is recorded, so a column added later is known to be new. */
+				$chosen = array();
+				foreach ( array_merge( array_map( 'strval', (array) $order ), $keys ) as $key ) {
+					if ( in_array( $key, $keys, true ) && ! in_array( $key, $chosen, true ) ) {
+						$chosen[] = $key;
+					}
+				}
+				$off = array();
+				foreach ( array_map( 'strval', (array) $hidden ) as $key ) {
+					if ( in_array( $key, $keys, true ) && ! in_array( $key, $locked, true ) && ! in_array( $key, $off, true ) ) {
+						$off[] = $key;
+					}
+				}
+				$choice = array(
+					'order'  => $chosen,
+					'hidden' => $off,
+				);
+			}
+			if ( 'user' === $op ) {
+				update_user_meta( $user_id, $meta_key, $choice );
+				$message = __( 'Columns saved.', 'wp-easycart' );
+			} elseif ( 'reset' === $op ) {
+				delete_user_meta( $user_id, $meta_key );
+				$message = __( 'Columns reset to the default.', 'wp-easycart' );
+			} elseif ( 'store' === $op ) {
+				$all[ $table_id ] = $choice;
+				update_option( self::COLUMNS_OPTION, $all, false );
+				/* The administrator now sees what everyone sees. */
+				delete_user_meta( $user_id, $meta_key );
+				$message = __( 'These columns are now the default for everyone.', 'wp-easycart' );
+			} else {
+				unset( $all[ $table_id ] );
+				update_option( self::COLUMNS_OPTION, $all, false );
+				$message = __( 'The default for everyone is cleared.', 'wp-easycart' );
+			}
+			return array(
+				'op'      => $op,
+				'choice'  => $choice,
+				'message' => $message,
+			);
+		}
+
 		public function set_search_columns( $search_columns ) {
 			$this->search_columns = $search_columns;
 		}
@@ -629,11 +1134,12 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			$this->print_filter_button();
 			echo '</div>';
 
-			// Right: Search + View toggles.
+			// Right: Search + Columns + View toggles.
 			echo '<div class="ecv2-toolbar-right">';
 			if ( ! $this->search_disabled ) {
 				$this->print_search_box();
 			}
+			$this->print_columns_control();
 			$this->print_view_toggle();
 			echo '</div>';
 
@@ -929,6 +1435,107 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 			echo '<button type="button" class="ecv2-search-clear" id="ecv2-search-clear" ' . ( $has_search ? '' : 'style="display:none;"' ) . ' title="' . esc_attr__( 'Clear search', 'wp-easycart' ) . '"><span class="dashicons dashicons-no-alt"></span></button>';
 			echo '<button type="button" class="ecv2-search-submit" id="ecv2-search-submit" title="' . esc_attr__( 'Search', 'wp-easycart' ) . '"><span class="dashicons dashicons-search"></span></button>';
 			echo '</div>';
+		}
+
+		/**
+		 * The toolbar's Columns button and its panel ( admin/js/list-columns-v2.js ): show, hide and order this list's
+		 * columns for me, go back to the default, and ( manage_options ) make my columns the default for everyone. The
+		 * panel only acts on the table view, so CSS hides it in the card and spreadsheet views. Its inputs have no name:
+		 * the toolbar sits inside the list's GET form.
+		 *
+		 * @since 6.0.2
+		 */
+		protected function print_columns_control() {
+			if ( count( $this->column_catalog ) < 2 ) {
+				return;
+			}
+			$keys   = array();
+			$locked = array();
+			$off    = 0;
+			foreach ( $this->column_catalog as $column ) {
+				$keys[] = $column['key'];
+				if ( $column['locked'] ) {
+					$locked[] = $column['key'];
+				}
+				if ( ! $column['shown'] ) {
+					++$off;
+				}
+			}
+			$user_id   = get_current_user_id();
+			$is_admin  = current_user_can( 'manage_options' );
+			$has_store = $is_admin && null !== self::store_column_choice( $this->table_id );
+			$id        = 'ecv2-cols-' . sanitize_html_class( sanitize_key( $this->table_id ) );
+			$texts     = array(
+				'saving' => __( 'Saving…', 'wp-easycart' ),
+				'error'  => __( 'Your columns could not be saved. Try again.', 'wp-easycart' ),
+				/* translators: 1: column name, 2: its new position, 3: how many columns there are. */
+				'moved'  => __( '%1$s moved to position %2$d of %3$d.', 'wp-easycart' ),
+			);
+
+			echo '<div class="ecv2-cols" data-ecv2-cols>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-cols-btn" id="' . esc_attr( $id ) . '-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="' . esc_attr( $id ) . '">';
+			echo '<span class="dashicons dashicons-columns" aria-hidden="true"></span> <span class="ecv2-cols-btn-label">' . esc_html__( 'Columns', 'wp-easycart' ) . '</span>';
+			if ( $off > 0 ) {
+				/* translators: %d: how many of the list's columns are hidden. */
+				echo ' <span class="ecv2-cols-badge" aria-hidden="true">' . esc_html( $off ) . '</span><span class="screen-reader-text"> (' . esc_html( sprintf( __( '%d hidden', 'wp-easycart' ), $off ) ) . ')</span>';
+			}
+			echo '</button>';
+
+			echo '<div class="ecv2-cols-panel" id="' . esc_attr( $id ) . '" role="dialog" aria-labelledby="' . esc_attr( $id ) . '-title" hidden';
+			echo ' data-table-id="' . esc_attr( sanitize_key( $this->table_id ) ) . '"';
+			echo ' data-keys="' . esc_attr( wp_json_encode( $keys ) ) . '"';
+			echo ' data-locked="' . esc_attr( wp_json_encode( $locked ) ) . '"';
+			echo ' data-sig="' . esc_attr( self::column_signature( $this->table_id, $keys, $locked, $user_id ) ) . '"';
+			echo ' data-nonce="' . esc_attr( wp_create_nonce( self::COLUMNS_NONCE ) ) . '"';
+			echo ' data-ajax-url="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"';
+			echo ' data-text="' . esc_attr( wp_json_encode( $texts ) ) . '">';
+
+			echo '<div class="ecv2-cols-head">';
+			echo '<h3 class="ecv2-cols-title" id="' . esc_attr( $id ) . '-title">' . esc_html__( 'Show these columns', 'wp-easycart' ) . '</h3>';
+			if ( 'user' === $this->column_choice_source ) {
+				echo '<p class="ecv2-cols-sub">' . esc_html__( 'Your own columns for this list.', 'wp-easycart' ) . '</p>';
+			} elseif ( 'store' === $this->column_choice_source ) {
+				echo '<p class="ecv2-cols-sub">' . esc_html__( 'The store’s default columns for this list.', 'wp-easycart' ) . '</p>';
+			}
+			echo '</div>';
+
+			echo '<ul class="ecv2-cols-list">';
+			$count = count( $this->column_catalog );
+			foreach ( $this->column_catalog as $i => $column ) {
+				echo '<li class="ecv2-cols-item' . ( $column['locked'] ? ' is-locked' : '' ) . '" data-key="' . esc_attr( $column['key'] ) . '">';
+				echo '<label class="ecv2-cols-check"><input type="checkbox"' . checked( $column['shown'], true, false ) . disabled( $column['locked'], true, false ) . ' /> <span class="ecv2-cols-name">' . esc_html( $column['label'] ) . '</span></label>';
+				if ( $column['locked'] ) {
+					echo '<span class="ecv2-cols-lock">' . esc_html__( 'Always shown', 'wp-easycart' ) . '</span>';
+				}
+				echo '<span class="ecv2-cols-move">';
+				/* translators: %s: column name. */
+				echo '<button type="button" class="ecv2-cols-up" aria-label="' . esc_attr( sprintf( __( 'Move %s up', 'wp-easycart' ), $column['label'] ) ) . '"' . disabled( 0 === $i, true, false ) . '><span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span></button>';
+				/* translators: %s: column name. */
+				echo '<button type="button" class="ecv2-cols-down" aria-label="' . esc_attr( sprintf( __( 'Move %s down', 'wp-easycart' ), $column['label'] ) ) . '"' . disabled( $count - 1 === $i, true, false ) . '><span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span></button>';
+				echo '</span>';
+				echo '</li>';
+			}
+			echo '</ul>';
+
+			echo '<p class="ecv2-cols-status" role="status" aria-live="polite"></p>';
+			echo '<div class="ecv2-cols-foot">';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-cols-op="reset"' . disabled( 'user' !== $this->column_choice_source, true, false ) . '>' . esc_html__( 'Reset to default', 'wp-easycart' ) . '</button>';
+			echo '<span class="ecv2-cols-foot-right">';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-sm" data-cols-cancel>' . esc_html__( 'Cancel', 'wp-easycart' ) . '</button>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-primary ecv2-btn-sm" data-cols-op="user">' . esc_html__( 'Save', 'wp-easycart' ) . '</button>';
+			echo '</span>';
+			echo '</div>';
+			if ( $is_admin ) {
+				echo '<div class="ecv2-cols-store">';
+				echo '<button type="button" class="ecv2-btn ecv2-btn-sm" data-cols-op="store">' . esc_html__( 'Use as the default for everyone', 'wp-easycart' ) . '</button>';
+				echo '<p class="ecv2-cols-hint">' . esc_html__( 'Everyone who has not picked their own columns sees these.', 'wp-easycart' ) . '</p>';
+				if ( $has_store ) {
+					echo '<button type="button" class="ecv2-cols-link" data-cols-op="clear_store">' . esc_html__( 'Clear the default for everyone', 'wp-easycart' ) . '</button>';
+				}
+				echo '</div>';
+			}
+			echo '</div>'; // .ecv2-cols-panel
+			echo '</div>'; // .ecv2-cols
 		}
 
 		protected function print_view_toggle() {
@@ -1279,9 +1886,12 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		 * Print a single card. Override in child classes for custom card layout.
 		 */
 		protected function print_card( $result ) {
+			/* 6.0.2: the first column as declared, whatever order the Columns chooser shows the table in. */
+			$declared = ! empty( $this->column_definitions ) ? $this->column_definitions : $this->list_columns;
+			$first    = reset( $declared );
 			echo '<div class="ecv2-card" data-id="' . esc_attr( $result->{ $this->key } ) . '">';
 			echo '<div class="ecv2-card-body">';
-			echo '<h3 class="ecv2-card-title">' . esc_html( $result->{ $this->list_columns[0]['name'] } ) . '</h3>';
+			echo '<h3 class="ecv2-card-title">' . esc_html( $result->{ $first['name'] } ) . '</h3>';
 			echo '</div>';
 			echo '<div class="ecv2-card-footer">';
 			echo '<input type="checkbox" name="bulk[]" value="' . esc_attr( $result->{ $this->key } ) . '" class="ecv2-row-check" />';
@@ -1290,7 +1900,8 @@ if ( ! class_exists( 'wp_easycart_admin_table_v2' ) ) :
 		}
 
 		protected function print_spreadsheet_view() {
-			$columns = ! empty( $this->spreadsheet_columns ) ? $this->spreadsheet_columns : $this->list_columns;
+			/* 6.0.2: the spreadsheet keeps its own Columns picker, so it starts from the declared columns, not the table's choice. */
+			$columns = ! empty( $this->spreadsheet_columns ) ? $this->spreadsheet_columns : ( ! empty( $this->column_definitions ) ? $this->column_definitions : $this->list_columns );
 
 			// Column toggle toolbar.
 			echo '<div class="ecv2-ss-toolbar">';
@@ -1843,4 +2454,47 @@ function ecv2_save_stat_visibility() {
 	update_user_meta( $user_id, $meta_key, $hidden );
 
 	wp_send_json_success( array( 'hidden' => $hidden ) );
+}
+
+if ( ! function_exists( 'ecv2_list_columns_guard' ) ) {
+	/**
+	 * The Columns chooser's saves ( ecv2_list_columns_save ): someone who works in the EasyCart admin lists, and the
+	 * chooser's nonce. The default for everyone also needs manage_options ( checked by the save ).
+	 *
+	 * @since 6.0.2
+	 */
+	function ecv2_list_columns_guard() {
+		if ( ! wp_easycart_admin_table_v2::can_choose_columns() ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) );
+		}
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), wp_easycart_admin_table_v2::COLUMNS_NONCE ) ) {
+			wp_send_json_error( array( 'message' => __( 'This page has expired. Reload it and try again.', 'wp-easycart' ) ) );
+		}
+	}
+}
+
+add_action( 'wp_ajax_ecv2_list_columns_save', 'ecv2_list_columns_save' );
+if ( ! function_exists( 'ecv2_list_columns_save' ) ) {
+	/**
+	 * Columns chooser: save my columns for a list, reset them, or ( manage_options ) set or clear the default for
+	 * everyone. Only the keys the panel was drawn with count ( signed when drawn ).
+	 *
+	 * @since 6.0.2
+	 */
+	function ecv2_list_columns_save() {
+		ecv2_list_columns_guard();
+		$table_id = isset( $_POST['table_id'] ) ? sanitize_key( wp_unslash( $_POST['table_id'] ) ) : '';
+		$op       = isset( $_POST['op'] ) ? sanitize_key( wp_unslash( $_POST['op'] ) ) : '';
+		$sig      = isset( $_POST['sig'] ) ? sanitize_text_field( wp_unslash( $_POST['sig'] ) ) : '';
+		$keys     = ( isset( $_POST['keys'] ) && is_array( $_POST['keys'] ) ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['keys'] ) ) : array();
+		$locked   = ( isset( $_POST['locked'] ) && is_array( $_POST['locked'] ) ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['locked'] ) ) : array();
+		$order    = ( isset( $_POST['order'] ) && is_array( $_POST['order'] ) ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['order'] ) ) : array();
+		$hidden   = ( isset( $_POST['hidden'] ) && is_array( $_POST['hidden'] ) ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['hidden'] ) ) : array();
+
+		$result = wp_easycart_admin_table_v2::save_column_choice( $op, $table_id, $keys, $locked, $sig, $order, $hidden, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+		wp_send_json_success( $result );
+	}
 }

@@ -8,15 +8,24 @@
 	</div>
 
 	<div class="ec_cart_locked_panel">
-		We will display payment methods as soon as your shipping address is complete.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'payment_locked' ) ); ?>
 	</div>
 
 <?php } else { ?>
 
+	<?php
+	if ( function_exists( 'wp_easycart_meta_add_payment_info' ) ) {
+		// 6.0.2: Meta AddPaymentInfo once per checkout. The tabbed checkout's payment step counts when it shows; on the
+		// single page, payment is on the page from the start, so it counts once the shopper reaches that section.
+		wp_easycart_meta_add_payment_info( $cartpage, get_option( 'ec_option_onepage_checkout_tabbed' ) ? 'now' : 'deferred' );
+	}
+	?>
+
 	<?php if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) { ?>
 	<script>
 		jQuery( document ).ready( function() {
-			jQuery( document.getElementById( 'ec_submit_order_form' ) ).on( 'submit', function() {
+			/* 6.0.2: the single page's form is the details form; one handler, even when this section is drawn again */
+			jQuery( document.getElementById( 'ec_submit_order_form' ) || document.getElementById( 'wpeasycart_checkout_details_form' ) ).off( 'submit.wpecga4' ).on( 'submit.wpecga4', function() {
 				<?php if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) { ?>
 				dataLayer.push( { ecommerce: null } );
 				dataLayer.push( {
@@ -25,7 +34,7 @@
 				<?php } else { ?>
 				gtag( "event", "add_payment_info", {
 				<?php }?>
-					currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+					currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 					value: <?php echo esc_attr( number_format( $cartpage->order_totals->grand_total, 2, '.', '' ) ); ?>,
 					coupon_code: "<?php echo esc_attr( $cartpage->coupon_code ); ?>",
 					shipping_tier: "<?php echo esc_attr( trim( strip_tags( $cartpage->shipping->get_selected_shipping_method() ) ) ); ?>",
@@ -50,13 +59,13 @@
 	<?php if( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { ?>
 	<div class="ec_cart_review_box">
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Contact</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'contact' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->email, ENT_QUOTES ) ); ?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 		<?php if ( get_option( 'ec_option_use_shipping' ) && $cartpage->shipping_address_allowed && ( $cartpage->cart->shippable_total_items > 0 || $cartpage->order_totals->handling_total > 0 || $cartpage->cart->excluded_shippable_total_items > 0 ) ) { ?>
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Ship to</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_ship_to' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php
 				echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1, ENT_QUOTES ) );
 				if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2 ) {
@@ -71,16 +80,16 @@
 				}
 				echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_country, ENT_QUOTES ) );
 			?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Method</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_method' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php echo esc_attr( $cartpage->shipping->get_selected_shipping_method_label() ); ?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'shipping', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'shipping', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 		<?php } else { ?>
 		<div class="ec_cart_review_row">
-			<div class="ec_cart_review_label">Billing</div>
+			<div class="ec_cart_review_label"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'review_billing' ) ); ?></div>
 			<div class="ec_cart_review_info"><?php
 				echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1, ENT_QUOTES ) );
 				if ( '' != $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2 ) {
@@ -95,7 +104,7 @@
 				}
 				echo ' ' . esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_country, ENT_QUOTES ) );
 			?></div>
-			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Change</a></div>
+			<div class="ec_cart_review_button"><a href="#" onclick="return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'change' ) ); ?></a></div>
 		</div>
 		<?php }?>
 	</div>
@@ -125,6 +134,19 @@
 	<?php }?>
 
 	<?php if ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { $cartpage->display_page_three_form_start( ); } ?>
+
+	<?php
+	/* 6.0.2: preorder and restaurant pickup ( date, time, store location ), as the classic payment step. */
+	$wpec_pickup_closed = $cartpage->cart->has_restaurant_items() && ! $cartpage->cart->is_restaurant_open();
+	if ( $cartpage->cart->has_preorder_items() || $cartpage->cart->has_restaurant_items() ) {
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_pickup_v2.php' ) ) {
+			include EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_pickup_v2.php';
+		} else {
+			include EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_cart_pickup_v2.php';
+		}
+		do_action( 'wpeasycart_checkout_fields', 'pickup', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */
+	}
+	?>
 
 	<?php if( $cartpage->order_totals->grand_total > 0 ){ ?>
 	<div class="ec_cart_header ec_cart_header_no_border">
@@ -178,6 +200,10 @@
 				<div class="ec_cart_box_section ec_affirm_box">
 					<script>
 						function ec_checkout_with_affirm( ){
+						var wpec_affirm_value = function( key, fallback ) { /* 6.0.2: what Place order just saved */
+							return ( 'function' === typeof wpeasycart_onepage_session_value ) ? wpeasycart_onepage_session_value( key, fallback ) : fallback;
+						};
+						var wpec_affirm_totals = ( 'undefined' !== typeof wpeasycart_onepage_place && wpeasycart_onepage_place.totals ) ? wpeasycart_onepage_place.totals : null;
 						affirm.checkout({
 							config: {
 								financial_product_key:		"<?php echo esc_attr( get_option( 'ec_option_affirm_financial_product' ) ); ?>"
@@ -188,36 +214,36 @@
 							},
 							billing: {
 								name: {
-									first:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_first_name, ENT_QUOTES ) ); ?>",
-									last:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_last_name, ENT_QUOTES ) ); ?>"
+									first:					wpec_affirm_value( 'billing_first_name', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_first_name, ENT_QUOTES ) ); ?>" ),
+									last:					wpec_affirm_value( 'billing_last_name', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_last_name, ENT_QUOTES ) ); ?>" )
 								},
 								address: {
-									line1:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1, ENT_QUOTES ) ); ?>",
-									line2:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2, ENT_QUOTES ) ); ?>",
-									city:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_city, ENT_QUOTES ) ); ?>",
-									state:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_state, ENT_QUOTES ) ); ?>",
-									zipcode:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_zip, ENT_QUOTES ) ); ?>",
-									country:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_country, ENT_QUOTES ) ); ?>"
+									line1:					wpec_affirm_value( 'billing_address_line_1', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_1, ENT_QUOTES ) ); ?>" ),
+									line2:					wpec_affirm_value( 'billing_address_line_2', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_address_line_2, ENT_QUOTES ) ); ?>" ),
+									city:					wpec_affirm_value( 'billing_city', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_city, ENT_QUOTES ) ); ?>" ),
+									state:					wpec_affirm_value( 'billing_state', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_state, ENT_QUOTES ) ); ?>" ),
+									zipcode:				wpec_affirm_value( 'billing_zip', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_zip, ENT_QUOTES ) ); ?>" ),
+									country:				wpec_affirm_value( 'billing_country', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_country, ENT_QUOTES ) ); ?>" )
 								},
-								phone_number:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_phone, ENT_QUOTES ) ); ?>"<?php if( !class_exists( 'Email_Encoder' ) && !function_exists( 'eae_encode_emails' ) ){ ?>,
-								email:						"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->email, ENT_QUOTES ) ); ?>"<?php }?>
+								phone_number:				wpec_affirm_value( 'billing_phone', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->billing_phone, ENT_QUOTES ) ); ?>" )<?php if( !class_exists( 'Email_Encoder' ) && !function_exists( 'eae_encode_emails' ) ){ ?>,
+								email:						wpec_affirm_value( 'email', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->email, ENT_QUOTES ) ); ?>" )<?php }?>
 							},
 							shipping: {
 								name: {
-									first:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_first_name, ENT_QUOTES ) ); ?>",
-									last:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_last_name, ENT_QUOTES ) ); ?>"
+									first:					wpec_affirm_value( 'shipping_first_name', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_first_name, ENT_QUOTES ) ); ?>" ),
+									last:					wpec_affirm_value( 'shipping_last_name', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_last_name, ENT_QUOTES ) ); ?>" )
 								},
 								address: {
-									line1:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1, ENT_QUOTES ) ); ?>",
-									line2:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2, ENT_QUOTES ) ); ?>",
-									city:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_city, ENT_QUOTES ) ); ?>",
-									state:					"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_state, ENT_QUOTES ) ); ?>",
-									zipcode:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_zip, ENT_QUOTES ) ); ?>",
-									country:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_country, ENT_QUOTES ) ); ?>"
+									line1:					wpec_affirm_value( 'shipping_address_line_1', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_1, ENT_QUOTES ) ); ?>" ),
+									line2:					wpec_affirm_value( 'shipping_address_line_2', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_address_line_2, ENT_QUOTES ) ); ?>" ),
+									city:					wpec_affirm_value( 'shipping_city', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_city, ENT_QUOTES ) ); ?>" ),
+									state:					wpec_affirm_value( 'shipping_state', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_state, ENT_QUOTES ) ); ?>" ),
+									zipcode:				wpec_affirm_value( 'shipping_zip', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_zip, ENT_QUOTES ) ); ?>" ),
+									country:				wpec_affirm_value( 'shipping_country', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_country, ENT_QUOTES ) ); ?>" )
 								},
-								phone_number:				"<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_phone, ENT_QUOTES ) ); ?>"
+								phone_number:				wpec_affirm_value( 'shipping_phone', "<?php echo esc_attr( htmlspecialchars( $GLOBALS['ec_cart_data']->cart_data->shipping_phone, ENT_QUOTES ) ); ?>" )
 							},
-							items: [<?php for( $i=0; $i<count( $cartpage->cart->cart ); $i++ ){ ?>{
+							items: ( 'undefined' !== typeof wpeasycart_onepage_place && wpeasycart_onepage_place.items && wpeasycart_onepage_place.items.length ) ? wpeasycart_onepage_place.items : [<?php for( $i=0; $i<count( $cartpage->cart->cart ); $i++ ){ ?>{
 								display_name:         		"<?php echo esc_attr( $cartpage->cart->cart[$i]->title ); ?>",
 								sku:                  		"<?php echo esc_attr( $cartpage->cart->cart[$i]->model_number ); ?>",
 								unit_price:           		<?php echo esc_attr( number_format( ( 100 * $cartpage->cart->cart[$i]->unit_price ), 0, '', '' ) ); ?>,
@@ -225,11 +251,29 @@
 								item_image_url:       		"<?php echo esc_attr( $cartpage->cart->cart[$i]->get_image_url( ) ); ?>",
 								item_url:             		"<?php echo esc_attr( $cartpage->cart->cart[$i]->get_product_url( ) ); ?>"
 							},<?php }?>],
-							tax_amount:						<?php echo esc_attr( number_format( ( 100 * $cartpage->order_totals->tax_total ), 0, '', '' ) ); ?>,
-							shipping_amount:				<?php echo esc_attr( number_format( ( 100 * $cartpage->order_totals->shipping_total ), 0, '', '' ) ); ?>
+							tax_amount:						wpec_affirm_totals ? wpec_affirm_totals.tax : <?php echo esc_attr( number_format( ( 100 * $cartpage->order_totals->tax_total ), 0, '', '' ) ); ?>,
+							shipping_amount:				wpec_affirm_totals ? wpec_affirm_totals.shipping : <?php echo esc_attr( number_format( ( 100 * $cartpage->order_totals->shipping_total ), 0, '', '' ) ); ?>
 						});
 						affirm.checkout.open( );
 					}
+						( function() { /* 6.0.2: opened from the submit Place order sends after its checks */
+							var affirm_form = document.getElementById( 'ec_submit_order_form' ) || document.getElementById( 'wpeasycart_checkout_details_form' );
+							if ( ! affirm_form ) {
+								return;
+							}
+							if ( affirm_form.wpecAffirmSubmit ) {
+								affirm_form.removeEventListener( 'submit', affirm_form.wpecAffirmSubmit );
+							}
+							affirm_form.wpecAffirmSubmit = function( event ) {
+								if ( 'affirm' != jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).val() ) {
+									return;
+								}
+								event.preventDefault();
+								wpeasycart_onepage_restore_buttons();
+								ec_checkout_with_affirm();
+							};
+							affirm_form.addEventListener( 'submit', affirm_form.wpecAffirmSubmit );
+						} )();
 					</script>
 
 					<a href="https://www.affirm.com" target="_blank"><img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "affirm-banner-540x200.png" ) ); ?>" alt="Affirm Split Pay" /></a>
@@ -237,7 +281,7 @@
 			</div>
 		<?php }?>
 
-		<?php if( $cartpage->use_third_party( ) && 'paypal' != get_option( 'ec_option_payment_third_party' ) ){?>
+		<?php if( $cartpage->use_third_party( ) ){ /* 6.0.2: PayPal too ( its buttons replace Place order when chosen ) */ ?>
 			<label for="ec_payment_third_party" class="ec_cart_full_radio">
 				<div class="ec_cart_payment_table_row<?php echo ( 'third_party' == $cartpage->get_selected_payment_method() ) ? ' ec_payment_row_selected' : ''; ?>">
 					<div class="ec_cart_payment_table_column">
@@ -292,9 +336,9 @@
 		<div id="ec_credit_card_form"<?php if( $cartpage->get_selected_payment_method( ) == "credit_card" ){ ?> style="display:block;"<?php }?>>
 			<div class="ec_cart_box_section">
 				<?php if( get_option( 'ec_option_payment_process_method' ) == "square"  && $cartpage->order_totals->grand_total < 1 ){ ?>
-				<p style="font-size:18px; color:red">Minimum Order Total of $1.00 is Required!</h1>
+				<p style="font-size:18px; color:red"><?php echo esc_html( sprintf( wp_easycart_language()->get_text( 'cart_onepage', 'card_minimum' ), $GLOBALS['currency']->get_currency_display( 1 ) ) ); ?></p>
 				<?php }else if( ( get_option( 'ec_option_payment_process_method' ) == "stripe" || get_option( 'ec_option_payment_process_method' ) == "stripe_connect" ) && $cartpage->order_totals->grand_total < .5 ){ ?>
-				<p style="font-size:18px; color:red">Minimum Order Total of $0.50 is Required!</h1>
+				<p style="font-size:18px; color:red"><?php echo esc_html( sprintf( wp_easycart_language()->get_text( 'cart_onepage', 'card_minimum' ), $GLOBALS['currency']->get_currency_display( 0.5 ) ) ); ?></p>
 				<?php }?>
 
 				<?php if( get_option( 'ec_option_payment_process_method' ) == "square" ){
@@ -346,9 +390,12 @@
 								console.log( 'Create Error', createErr );
 								return;
 							}
+							if ( form.wpecBraintreeSubmit ) { /* 6.0.2: one listener, even when the section is drawn again */
+								form.removeEventListener( 'submit', form.wpecBraintreeSubmit );
+							}
 							form.addEventListener(
-								'submit', 
-								function( event ){
+								'submit',
+								form.wpecBraintreeSubmit = function( event ){
 									var payment_method = "credit_card";
 									if( jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).length )
 										payment_method = jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).val( );
@@ -394,17 +441,17 @@
 				<?php }else{ // Close if Card Pointe Only Form ?>
 
 				<div class="ec_cart_input_row" style="margin-top:-10px;">
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "visa.png" ) ); ?>" alt="Visa" class="ec_card_active" id="ec_card_visa" />
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "visa_inactive.png" ) ); ?>" alt="Visa" class="ec_card_inactive" id="ec_card_visa_inactive" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "visa.png" ) ); ?>" alt="Visa" class="ec_card_active" id="ec_card_visa" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "visa_inactive.png" ) ); ?>" alt="Visa" class="ec_card_inactive" id="ec_card_visa_inactive" />
 
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "discover.png" ) ); ?>" alt="Discover" class="ec_card_active" id="ec_card_discover" />
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "discover_inactive.png" ) ); ?>" alt="Discover" class="ec_card_inactive" id="ec_card_discover_inactive" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "discover.png" ) ); ?>" alt="Discover" class="ec_card_active" id="ec_card_discover" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "discover_inactive.png" ) ); ?>" alt="Discover" class="ec_card_inactive" id="ec_card_discover_inactive" />
 
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "mastercard.png") ); ?>" alt="Mastercard" class="ec_card_active" id="ec_card_mastercard" />
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "mastercard_inactive.png") ); ?>" alt="Mastercard" class="ec_card_inactive" id="ec_card_mastercard_inactive" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "mastercard.png") ); ?>" alt="Mastercard" class="ec_card_active" id="ec_card_mastercard" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "mastercard_inactive.png") ); ?>" alt="Mastercard" class="ec_card_inactive" id="ec_card_mastercard_inactive" />
 
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "american_express.png") ); ?>" alt="AMEX" class="ec_card_active" id="ec_card_amex" />
-					<img src="<?php echo esc_attr( $this->get_payment_image_source( "american_express_inactive.png") ); ?>" alt="AMEX" class="ec_card_inactive" id="ec_card_amex_inactive" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "american_express.png") ); ?>" alt="AMEX" class="ec_card_active" id="ec_card_amex" />
+					<img src="<?php echo esc_attr( $cartpage->get_payment_image_source( "american_express_inactive.png") ); ?>" alt="AMEX" class="ec_card_inactive" id="ec_card_amex_inactive" />
 				</div>
 
 				<?php if( get_option( 'ec_option_show_card_holder_name' ) ){ ?>
@@ -460,19 +507,19 @@
 
 	<?php if( get_option( 'ec_option_use_shipping' ) && $cartpage->shipping_address_allowed && ( $cartpage->cart->shippable_total_items > 0 || $cartpage->order_totals->handling_total > 0 || $cartpage->cart->excluded_shippable_total_items > 0 ) ) { ?>
 	<div class="ec_cart_header ec_cart_header_no_border">
-		Billing Address
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'billing_address' ) ); ?>
 	</div>
 
 	<div class="ec_cart_billing_table">
 		<?php $shipping_selector = ( 'true' == $GLOBALS['ec_cart_data']->cart_data->shipping_selector ) ? 1 : 0; ?>
 		<label for="billing_address_type_same" class="ec_cart_full_radio">
 			<div class="ec_cart_billing_table_row<?php echo ( ! $shipping_selector ) ? ' ec_billing_row_selected' : ''; ?>">
-				<div class="ec_cart_billing_table_column"><input type="radio" name="billing_address_type[]" id="billing_address_type_same" value="0"<?php echo ( ! $shipping_selector ) ? ' checked="checked"' : ''; ?> onChange="ec_update_billing_address_display( '0', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> Same as shipping address</div>
+				<div class="ec_cart_billing_table_column"><input type="radio" name="billing_address_type[]" id="billing_address_type_same" value="0"<?php echo ( ! $shipping_selector ) ? ' checked="checked"' : ''; ?> onChange="ec_update_billing_address_display( '0', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'billing_same' ) ); ?></div>
 			</div>
 		</label>
 		<label for="billing_address_type_different" class="ec_cart_full_radio">
 			<div class="ec_cart_billing_table_row<?php echo ( $shipping_selector ) ? ' ec_billing_row_selected' : ''; ?>">
-				<div class="ec_cart_billing_table_column"><input type="radio" name="billing_address_type[]" id="billing_address_type_different" value="1"<?php echo ( $shipping_selector ) ? ' checked="checked"' : ''; ?> onChange="ec_update_billing_address_display( '1', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> Use a different billing address</div>
+				<div class="ec_cart_billing_table_column"><input type="radio" name="billing_address_type[]" id="billing_address_type_different" value="1"<?php echo ( $shipping_selector ) ? ' checked="checked"' : ''; ?> onChange="ec_update_billing_address_display( '1', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );" /> <?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'billing_different' ) ); ?></div>
 			</div>
 		</label>
 		<div class="ec_cart_billing_table_address"<?php echo ( ! $shipping_selector ) ? ' style="display:none;"' : ''; ?>>
@@ -595,7 +642,7 @@
 				<?php }?>
 				<input type="hidden" id="wp_easycart_update_billing_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>" />
 
-				<?php if( get_option( 'ec_option_cache_prevent' ) ){ ?>
+				<?php if( wp_easycart_cart_is_dynamic() ){ ?>
 				<script type="text/javascript">
 					wpeasycart_cart_billing_country_update( );
 					jQuery( document.getElementById( 'ec_cart_billing_country' ) ).change( wpeasycart_cart_billing_country_update );
@@ -606,6 +653,7 @@
 			<?php } ?>
 		</div>
 	</div>
+	<?php do_action( 'wpeasycart_checkout_fields', 'billing', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 	<?php }?>
 
 	<div class="ec_cart_header ec_cart_header_no_border">
@@ -617,6 +665,8 @@
 			<?php echo wp_easycart_language( )->get_text( "ec_errors", "payment_failed" ); ?>
 		</div>
 	</div>
+
+	<?php do_action( 'wpeasycart_checkout_fields', 'review', $cartpage ); /* 6.0.2: checkout fields ( WP EasyCart PRO ) */ ?>
 
 	<div class="ec_cart_error_row" id="ec_terms_error">
 		<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_accept_terms' )?> 
@@ -634,7 +684,7 @@
 	<?php }?>
 
 	<div class="ec_cart_error_row" id="ec_email_order2_error">
-		Please enter a valid email address.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'invalid_email' ) ); ?>
 	</div>
 
 	<div class="ec_cart_error_row" id="ec_create_account_order_error">
@@ -642,29 +692,55 @@
 	</div>
 
 	<div class="ec_cart_error_row" id="ec_shipping_order_error">
-		Please correct errors with your shipping address.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'shipping_address_error' ) ); ?>
 	</div>
 
 	<div class="ec_cart_error_row" id="ec_shipping_method_order_error">
-		There is no shipping method selected or available. Please enter a valid shipping address to continue.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'no_shipping_method' ) ); ?>
 	</div>
 
 	<div class="ec_cart_error_row" id="ec_billing_order_error">
-		Please correct errors with your billing address.
+		<?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'billing_address_error' ) ); ?>
 	</div>
 
 	<?php if ( ( get_option( 'ec_option_payment_process_method' ) == "stripe" || get_option( 'ec_option_payment_process_method' ) == "stripe_connect" ) ) { 
 		$cartpage->print_stripe_script_v2( true );
 	} ?>
 
+	<?php /* 6.0.2: Place order ( wpeasycart_onepage_place_order() in ec-store.js ): the server's check and the classic Place order post. */ ?>
+	<div class="ec_cart_error" id="ec_onepage_order_errors" role="alert" style="display:none;"></div>
+	<div id="wpeasycart_onepage_place" hidden
+		data-check-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-save-checkout-info-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>"
+		data-submit-action="<?php echo esc_url( wpeasycart_links()->get_cart_page( 'checkout_submit_order' ) ); ?>"
+		data-submit-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-submit-order-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>"
+		data-free-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-v2-complete-payment-main-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>"
+		data-billing-nonce="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-update-billing-address-type-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>"
+		data-eway-key="<?php echo ( 'eway' == get_option( 'ec_option_payment_process_method' ) && get_option( 'ec_option_eway_use_rapid_pay' ) ) ? esc_attr( get_option( 'ec_option_eway_client_key' ) ) : ''; ?>"
+		data-error="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'cart_onepage', 'place_order_error' ) ) ); ?>"
+		data-total-changed="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'cart_onepage', 'total_changed' ) ) ); ?>"></div>
 	<div class="ec_cart_error_row" id="ec_submit_order_error">
-		<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_correct_errors' )?> 
+		<?php echo wp_easycart_language( )->get_text( 'cart_form_notices', 'cart_notice_payment_correct_errors' )?>
 	</div>
 
-	<div class="ec_cart_bottom_nav_v2<?php echo ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) ? ' ec_cart_bottom_nav_tabbed' : ''; ?>" id="wpeasycart_submit_order_row"<?php if( get_option( 'ec_option_payment_third_party' ) == "paypal" && $cartpage->get_selected_payment_method( ) == "third_party" && get_option( 'ec_option_paypal_enable_pay_now' ) == '1' && $cartpage->order_totals->grand_total > 0 ){ ?> style="display:none;"<?php }?>>
+	<?php /* 6.0.2: checkout protection's notice ( ec-checkout-protection.js ) goes here, full width above PayPal's buttons and Place order. */ ?>
+	<div id="ec_checkout_protection_notice" class="wpec-protect-mount"></div>
+
+	<?php if ( 'paypal' == get_option( 'ec_option_payment_third_party' ) && '1' == get_option( 'ec_option_paypal_enable_pay_now' ) && $cartpage->order_totals->grand_total > 0 ) { /* 6.0.2: PayPal's buttons when PayPal is chosen */ ?>
+	<div class="ec_cart_paypal_row_v2" id="wpeasycart_submit_paypal_order_row"<?php if ( 'third_party' != $cartpage->get_selected_payment_method() ) { ?> style="display:none;"<?php } ?>>
+		<div id="paypal-button-container-payment" style="width:100%; max-width:100%; margin:0;"></div>
+		<div class="ec_cart_error" id="paypal-error" style="display:none;"><div><?php echo wp_kses_post( wp_easycart_language()->get_text( 'ec_errors', 'payment_failed' ) ); ?></div></div>
+	</div>
+	<?php /* 6.0.2: its own id ( the express PayPal button in the information step prints paypal-success-cover ). */ ?>
+	<div id="paypal-success-cover-payment" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
+		<div style="position:absolute; top:50%; left:50%; margin:-19px 0 0 -19px;"><div style="height:30px; width:30px; box-sizing:content-box; animation:rotation .7s infinite linear; border:8px solid rgba(0, 0, 0, .2); border-top-color:#fff; border-radius:100%;"></div></div>
+	</div>
+	<?php $cartpage->print_paypal_express_button_code( true, false, 'paypal-button-container-payment' ); ?>
+	<?php } ?>
+
+	<div class="ec_cart_bottom_nav_v2<?php echo ( get_option( 'ec_option_onepage_checkout_tabbed' ) ) ? ' ec_cart_bottom_nav_tabbed' : ''; ?>" id="wpeasycart_submit_order_row"<?php if( $wpec_pickup_closed || ( get_option( 'ec_option_payment_third_party' ) == "paypal" && $cartpage->get_selected_payment_method( ) == "third_party" && get_option( 'ec_option_paypal_enable_pay_now' ) == '1' && $cartpage->order_totals->grand_total > 0 ) ){ /* 6.0.2: nothing to order while the restaurant is closed */ ?> style="display:none;"<?php }?>>
 		<?php if( get_option( 'ec_option_onepage_checkout_tabbed' ) ) { ?>
 		<div class="ec_cart_bottom_nav_left">
-			<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'shipping', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );">Return to Shipping</a>
+			<a href="#" class="ec_cart_bottom_nav_back" onclick="return wp_easycart_goto_page_v2( 'shipping', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'return_to_shipping' ) ); ?></a>
 		</div>
 		<?php }?>
 		<div class="ec_cart_bottom_nav_right ec_cart_button_column">
@@ -678,7 +754,10 @@
 	<?php if( $cartpage->use_manual_payment( ) ){?>
 	<script type="text/javascript">
 		var form = ( jQuery( document.getElementById( 'ec_submit_order_form' ) ).length ) ? document.getElementById( 'ec_submit_order_form' ) : document.getElementById( 'wpeasycart_checkout_details_form' );
-		form.addEventListener( 'submit', function( event ) {
+		if ( form.wpecManualSubmit ) { /* 6.0.2: the section was drawn again: replace the listener, never add a second one */
+			form.removeEventListener( 'submit', form.wpecManualSubmit );
+		}
+		form.wpecManualSubmit = function( event ) {
 			var payment_method = 'credit_card';
 			if ( jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).length ) {
 				payment_method = jQuery( 'input:radio[name=ec_cart_payment_selection]:checked' ).val();
@@ -705,12 +784,23 @@
 					nonce: '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-complete-payment-manual-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>'
 				};
 				jQuery.ajax({url: wpeasycart_ajax_object.ajax_url, type: 'post', data: data, success: function( result ){
-					jQuery( location ).attr( 'href', result );
+					wpeasycart_checkout_goto( result );
+				}, error: function() {
+					/* 6.0.2: the order call failed ( a network error, an expired page ): Place order comes back with the reason. */
+					jQuery( document.getElementById( 'manual-success-cover' ) ).hide( );
+					if ( 'function' === typeof wpeasycart_onepage_show_errors && document.getElementById( 'wpeasycart_onepage_place' ) ) {
+						wpeasycart_onepage_show_errors( [ { message: document.getElementById( 'wpeasycart_onepage_place' ).getAttribute( 'data-error' ) } ] );
+					} else {
+						jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show( );
+						jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide( );
+						ec_show_error( 'ec_submit_order' );
+					}
 				} } );
-				
+
 				return false;
 			}
-		} );
+		};
+		form.addEventListener( 'submit', form.wpecManualSubmit );
 	</script>
 	<?php }?>
 <?php } // Close check for payment allowed ?>

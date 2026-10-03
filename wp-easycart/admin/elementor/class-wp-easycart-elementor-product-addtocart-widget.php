@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Scheme_Color;
 use Elementor\Group_Control_Typography;
@@ -30,6 +32,8 @@ use Elementor\Core\Kits\Documents\Tabs\Global_Typography;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
 
 	/**
 	 * Get product add to cart widget name.
@@ -70,17 +74,15 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 	 * Enqueue product add to cart widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js' ) );
 	}
 
 	/**
 	 * Setup product add to cart widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 
 		$this->start_controls_section(
 			'section_addtocart_v2',
@@ -177,7 +179,8 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 			array(
 				'label'       => esc_attr__( 'Background Add', 'wp-easycart' ),
 				'type'    => Controls_Manager::SELECT,
-				'default' => 'featured',
+				/* 6.0.2: was 'featured', which is not an option ( the panel showed a blank choice ); any value but '0' adds in the background, so untouched widgets behave the same. */
+				'default' => '1',
 				'options'     => array(
 					'0' => esc_attr__( 'No, Redirect to Cart', 'wp-easycart' ),
 					'1'  => esc_attr__( 'Yes, Add in Background', 'wp-easycart' ),
@@ -190,7 +193,8 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 			array(
 				'type'  => Controls_Manager::SWITCHER,
 				'label' => esc_attr__( 'Display Quantity', 'wp-easycart' ),
-				'default'   => 0,
+				/* 6.0.2: was int 0, so the panel showed off while the box always showed; only a stored '' ( switched off ) hides it. */
+				'default'   => 'yes',
 			)
 		);
 
@@ -850,6 +854,8 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 				'selectors' => array(
 					'{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > button.ec_minus i:before' => 'font-size: {{SIZE}}{{UNIT}};',
+					/* 6.0.2: an uploaded SVG icon ( matches nothing when the icon is a font icon ). */
+					'{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > button.ec_minus svg' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -897,6 +903,8 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 				),
 				'selectors' => array(
 					'{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > button.ec_plus i:before' => 'font-size: {{SIZE}}{{UNIT}};',
+					/* 6.0.2: an uploaded SVG icon ( matches nothing when the icon is a font icon ). */
+					'{{WRAPPER}} .ec_details_add_to_cart_group_ele .ec_details_quantity > button.ec_plus svg' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
 				),
 			)
 		);
@@ -5291,7 +5299,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->add_responsive_control(
 			'ec_adtw_error_padding',
 			array(
-				'label' => esc_attr__( 'Button Padding', 'wp-easycart' ),
+				'label' => esc_attr__( 'Padding', 'wp-easycart' ),
 				'type' => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', '%', 'em', 'rem', 'custom' ),
 				'default' => array(
@@ -5311,7 +5319,7 @@ class Wp_Easycart_Elementor_Product_Addtocart_Widget extends \Elementor\Widget_B
 		$this->add_responsive_control(
 			'ec_adtw_error_margin',
 			array(
-				'label' => esc_attr__( 'Button Margin', 'wp-easycart' ),
+				'label' => esc_attr__( 'Margin', 'wp-easycart' ),
 				'type' => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', '%', 'em', 'rem', 'custom' ),
 				'default' => array(

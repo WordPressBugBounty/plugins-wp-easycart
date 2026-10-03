@@ -1,7 +1,7 @@
 <div class="ec_details_images ec_details_images-100 ec_image_size_<?php echo esc_attr( $image_size ); ?> ec_thumb_size_<?php echo esc_attr( $thumb_size ); ?> ec_image_layout_<?php echo esc_attr( $thumbnails_position ); ?> ec_thumb_stack_<?php echo esc_attr( $thumbnails_stack ); ?>">
-<?php wp_easycart_offers_template( 'ec_offer_product_badge.php', array( 'badge_product_id' => $product->product_id, 'badge_manufacturer_id' => $product->manufacturer_id, 'badge_price' => $product->price ) ); ?>
+<?php wp_easycart_offers_template( 'ec_offer_product_badge.php', array( 'badge_product_id' => $product->product_id, 'badge_manufacturer_id' => $product->manufacturer_id, 'badge_price' => $product->price, 'badge_list_price' => (float) $product->list_price ) ); ?>
 <?php if( apply_filters( 'wp_easycart_product_details_show_images', true ) ){ ?>
-	<div class="ec_details_main_image ec_details_main_image_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php echo ( ! $ipad && ! $iphone && get_option( 'ec_option_show_magnification' ) ) ? ' mag_enabled' : ''; ?>" data-product-id="<?php echo esc_attr( $product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( ( isset( $show_lightbox ) && $show_lightbox ) || ( ! isset( $show_lightbox ) && get_option( 'ec_option_show_large_popup' ) ) ){ ?> onclick="ec_details_show_image_popup( '<?php echo esc_attr( $product->model_number ); ?>' );"<?php }else{ ?> style="cursor:inherit;"<?php }?>>
+	<div class="ec_details_main_image ec_details_main_image_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?><?php /* 6.0.2: the same rule as the magnifier box below ( the shortcode's show_image_hover, else the store setting ). */ echo ( ! $ipad && ! $iphone && ( ( isset( $show_image_hover ) && $show_image_hover ) || ( ! isset( $show_image_hover ) && get_option( 'ec_option_show_magnification' ) ) ) ) ? ' mag_enabled' : ''; ?>" data-product-id="<?php echo esc_attr( $product->product_id ); ?>" data-rand-id="<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"<?php if( ( isset( $show_lightbox ) && $show_lightbox ) || ( ! isset( $show_lightbox ) && get_option( 'ec_option_show_large_popup' ) ) ){ ?> onclick="ec_details_show_image_popup( '<?php echo esc_attr( $product->model_number ); ?>' );"<?php }else{ ?> style="cursor:inherit;"<?php }?>>
 		<?php do_action( 'wp_easycart_product_details_image_holder_pre', $product );
 		$magbox_active = true;
 		if( $product->use_optionitem_images ){
@@ -133,9 +133,11 @@
 
 	<?php /* START MAIN IMAGE THUMBNAILS */ ?>
 	<?php /* START DISPLAY FOR OPTION ITEM IMAGES USEAGE */ ?>
-	<?php if( ( isset( $show_thumbnails ) && $show_thumbnails ) || ( ! isset( $show_thumbnails ) ) ) { ?>
-	<?php if( $product->use_optionitem_images ){
-		$optionitem_id_array = array( );
+	<?php
+	// 6.0.2: the image sets are worked out before the thumbnails check. The lightbox below lists them too, and with the
+	// thumbnails hidden it read an unset array ( a fatal error on PHP 8 ).
+	$optionitem_id_array = array();
+	if( $product->use_optionitem_images ){
 		if( $product->use_advanced_optionset ) {
 			if( count( $product->advanced_optionsets ) > 0 ) {
 				$valid_optionset = false;
@@ -173,6 +175,9 @@
 		if ( false !== $first_optionitem_id && ! in_array( (int) $first_optionitem_id, array_map( 'intval', $optionitem_id_array ), true ) ) {
 			$optionitem_id_array[] = (int) $first_optionitem_id;
 		}
+	} ?>
+	<?php if( ( isset( $show_thumbnails ) && $show_thumbnails ) || ( ! isset( $show_thumbnails ) ) ) { ?>
+	<?php if( $product->use_optionitem_images ){
 		$thumbnails_displayed = 0;
 		for( $i=0; $i<count( $product->images->imageset ); $i++ ){
 			if( in_array( $product->images->imageset[$i]->optionitem_id, $optionitem_id_array ) ){

@@ -15,7 +15,7 @@ class ec_colorwidget extends WP_Widget{
 		}
 		
 		global $wpdb;
-		$option_sets = $wpdb->get_results( "SELECT ec_option.option_id, ec_option.option_name FROM ec_option WHERE ec_option.option_type = 'basic-swatch' ORDER BY ec_option.option_name ASC" );
+		$option_sets = $wpdb->get_results( "SELECT ec_option.option_id, ec_option.option_name FROM ec_option WHERE ec_option.option_type = 'basic-swatch'" . ( class_exists( 'wp_easycart_product_writer' ) ? wp_easycart_product_writer::shared_sets_sql() : '' ) . ' ORDER BY ec_option.option_name ASC' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- 6.0.2: a literal condition leaves out the sets that belong to one product.
 		
 		echo "<p><label for=\"" . esc_attr( $this->get_field_name( 'option_id' ) ) . "\">" . esc_attr__( 'Option Set', 'wp-easycart' ) . ":</label>";
 		echo "<select class=\"widefat\" id=\"" . esc_attr( $this->get_field_id( 'option_id' ) ) . "\" name=\"" . esc_attr( $this->get_field_name( 'option_id' ) ) . "\">";

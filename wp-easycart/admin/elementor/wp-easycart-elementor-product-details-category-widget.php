@@ -25,15 +25,12 @@ $categories_divider = $args['categories_divider'];
 
 $more_atts['product_id'] = (int) $args['product_id'];
 $more_atts['use_post_id'] = ( 'yes' == $use_post_id ) ? 1 : 0;
-$more_atts['product_id'] = $categories_element;
+$more_atts['categories_element'] = $categories_element; /* 6.0.2: this overwrote product_id, so a chosen product was never found */
 $more_atts['categories_label'] = $categories_label;
 $more_atts['categories_divider'] = $categories_divider;
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 echo '<div class="wp-easycart-product-details-category-shortcode-wrapper d-flex">';
-echo do_shortcode( '[ec_product_details_category ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_product_details_category ' . $extra_atts . ']' );
 echo '</div>';

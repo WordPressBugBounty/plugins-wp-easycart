@@ -1,4 +1,8 @@
 jQuery( document ).ready( function( ){
+	/* 6.0.2: only stores that share usage data are asked ( the answer is sent only from those ). */
+	if ( typeof wpeasycart_admin_ajax_object === 'undefined' || ! wpeasycart_admin_ajax_object.wp_easycart_deactivate_language || '1' !== wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['ask-feedback'] ) {
+		return;
+	}
 	jQuery( 'table.plugins > tbody > tr' ).each( function( ){
 		if( jQuery( this ).attr( 'data-slug' ) == 'wp-easycart' ){
 			jQuery( this ).find( 'span.deactivate > a' ).each( function( ){
@@ -57,7 +61,7 @@ jQuery( document ).ready( function( ){
 								deactivate_content += '</ul>';
 							deactivate_content += '</div>';
 							deactivate_content += '<div class="ec-admin-deactivate-box-footer">';
-								deactivate_content += '<label class="ec-admin-deactivate-anonymous"><strong>' + wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['anonymous'] + '</strong></label>';
+								deactivate_content += '<label class="ec-admin-deactivate-anonymous">' + wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['anonymous'] + '</label>';
 								deactivate_content += '<a href="' + jQuery( this ).attr( 'href' ) + '" class="button button-secondary button-deactivate allow-deactivate" onclick="return wpeasycart_deactivate_submit( \'' + wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['deactivate-nonce'] + '\' );">' + wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['skip-deactivate'] + '</a>';
 								deactivate_content += '<a href="#" class="button button-primary button-close" onclick="wpeasycart_deactivate_cancel( );">' + wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['cancel'] + '</a>';
 							deactivate_content += '</div>';

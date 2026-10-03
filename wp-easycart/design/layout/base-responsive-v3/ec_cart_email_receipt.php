@@ -41,7 +41,7 @@ $ec_receipt_items    = ( isset( $this->cart ) && is_object( $this->cart ) && iss
 
 /* 6.0.1: what this receipt shows comes from its profile in Settings › Documents ( $document_fields from the sender,
    or the default profile ). Standard follows the old ec_option_show_image_on_receipt / _email_on_receipt options. */
-$ec_receipt_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'receipt' ) : null );
+$ec_receipt_doc  = ( isset( $document_fields ) && is_array( $document_fields ) ) ? $document_fields : ( class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::resolve( 'receipt', '', array(), (int) $this->order_id ) : null );
 $ec_receipt_show = function ( $key ) use ( $ec_receipt_doc ) {
 	return class_exists( 'wp_easycart_documents' ) ? wp_easycart_documents::show( $ec_receipt_doc, $key ) : true;
 };
@@ -189,7 +189,13 @@ if ( $ec_receipt_show( 'email' ) ) {
 		$ec_receipt_emails[] = esc_html( $this->email_other );
 	}
 }
-if ( '' !== trim( (string) $ec_receipt_shipping_method ) || '' !== (string) $ec_receipt_promo || $ec_receipt_emails ) {
+/* 6.0.2: PO number, payment terms and due date ( WP EasyCart PRO ), when the order has them and the profile shows them. */
+$ec_receipt_extras = class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'order_extras' ) ? wp_easycart_documents::order_extras( (int) $this->order_id ) : null;
+$ec_receipt_po     = ( $ec_receipt_extras && $ec_receipt_show( 'po_number' ) ) ? $ec_receipt_extras->po_number : '';
+$ec_receipt_terms  = ( $ec_receipt_extras && $ec_receipt_show( 'due_date' ) ) ? $ec_receipt_extras->payment_terms : '';
+/* 6.0.2: a paid order has nothing due, so its receipt leaves the red Due date out ( as My Account does ). */
+$ec_receipt_due    = ( $ec_receipt_extras && $ec_receipt_show( 'due_date' ) && '' !== $ec_receipt_extras->payment_due_date && empty( $this->is_approved ) ) ? date_i18n( get_option( 'date_format' ), strtotime( $ec_receipt_extras->payment_due_date ) ) : '';
+if ( '' !== trim( (string) $ec_receipt_shipping_method ) || '' !== (string) $ec_receipt_promo || $ec_receipt_emails || '' !== $ec_receipt_po || '' !== $ec_receipt_terms || '' !== $ec_receipt_due ) {
 	$ed::section_start( array( 'top' => 0 ) );
 	$ed::card_start( array( 'padding' => '12px 16px' ) );
 	$ed::key_values(
@@ -202,13 +208,39 @@ if ( '' !== trim( (string) $ec_receipt_shipping_method ) || '' !== (string) $ec_
 				'label' => wp_kses_post( $ec_receipt_lang->get_text( 'cart_coupons', 'cart_coupon_title' ) ),
 				'value' => ( '' !== (string) $ec_receipt_promo ) ? esc_html( $ec_receipt_promo ) : '',
 			),
-		)
+			array(
+				'label' => class_exists( 'wp_easycart_documents' ) ? rtrim( wp_easycart_documents::text( 'po_number_label', __( 'PO number:', 'wp-easycart' ) ), ': ' ) : '',
+				'value' => esc_html( $ec_receipt_po ),
+				'mono'  => true,
+			),
+			array(
+				'label' => class_exists( 'wp_easycart_documents' ) ? rtrim( wp_easycart_documents::text( 'payment_terms_label', __( 'Terms:', 'wp-easycart' ) ), ': ' ) : '',
+				'value' => esc_html( $ec_receipt_terms ),
+			),
+			array(
+				'label' => class_exists( 'wp_easycart_documents' ) ? rtrim( wp_easycart_documents::text( 'due_date_label', __( 'Due:', 'wp-easycart' ) ), ': ' ) : '',
+				'value' => ( '' !== $ec_receipt_due ) ? '<strong style="color:#9a3412;">' . esc_html( $ec_receipt_due ) . '</strong>' : '',
+			),
+		),
+		/* 6.0.2: at most three details side by side; the rest start a new row. */
+		array( 'per_row' => 3 )
 	);
 	if ( $ec_receipt_emails ) {
 		$ed::paragraph( implode( '<br />', $ec_receipt_emails ), array( 'tone' => 'strong', 'margin' => '4px 0 0 0', 'nolink' => true ) );
 	}
 	$ed::card_end();
 	$ed::section_end();
+}
+
+/* 6.0.2: a gift order ( WP EasyCart PRO ): that it is a gift, the gift message and who gets the gift receipt, when this
+   profile's Gift details switch is on. */
+if ( $ec_receipt_show( 'gift' ) && class_exists( 'wp_easycart_order_gift' ) ) {
+	wp_easycart_order_gift::print_email_section( (int) $this->order_id, array( 'context' => 'receipt' ) );
+}
+
+/* 6.0.2: answers to checkout fields ( WP EasyCart PRO ), where each field and this profile show them. */
+if ( $ec_receipt_show( 'checkout_fields' ) && class_exists( 'wp_easycart_order_fields' ) ) {
+	wp_easycart_order_fields::print_email_section( (int) $this->order_id, empty( $is_admin ) ? 'receipt' : 'receipt_admin' );
 }
 
 /* Product order-complete email notes */
@@ -496,6 +528,17 @@ if ( $ec_receipt_after_totals ) {
 	$ed::totals( $ec_receipt_after_totals );
 }
 endif;
+
+/**
+ * 6.0.2: download links for the order's documents ( WP EasyCart PRO prints them for the attachments grid's Link cells ).
+ * Print whole sections ( wp_easycart_email_design::section_start() … section_end() ).
+ *
+ * @since 6.0.2
+ * @param string $email     receipt.
+ * @param int    $order_id  Order.
+ * @param string $recipient customer | admin.
+ */
+do_action( 'wp_easycart_document_email_links', 'receipt', (int) $this->order_id, $is_admin ? 'admin' : 'customer' );
 
 /* Order notes, closing lines */
 if ( get_option( 'ec_option_user_order_notes' ) && $ec_receipt_show( 'order_notes' ) && isset( $this->order_customer_notes ) && '' !== trim( (string) $this->order_customer_notes ) ) {

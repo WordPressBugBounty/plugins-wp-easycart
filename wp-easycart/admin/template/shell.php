@@ -165,7 +165,7 @@ document.addEventListener( 'DOMContentLoaded', function() {
 				if ( 'lapsed' === $ecsh_renewal['tone'] ) { esc_html_e( 'lapsed', 'wp-easycart' ); }
 				else { echo esc_html( sprintf( _n( '%d day left', '%d days left', $ecsh_renewal['days'], 'wp-easycart' ), $ecsh_renewal['days'] ) ); }
 				?></strong>
-				<span><?php echo 'lapsed' === $ecsh_renewal['tone'] ? ( ! empty( $ecsh_renewal['premium'] ) ? esc_html__( 'Premium features and extensions are paused — renew to reopen', 'wp-easycart' ) : esc_html__( 'Pro features are locked — renew to reopen', 'wp-easycart' ) ) : esc_html__( 'Renew before fees and locks return', 'wp-easycart' ); ?></span>
+				<span><?php echo 'lapsed' === $ecsh_renewal['tone'] ? ( ! empty( $ecsh_renewal['premium'] ) ? esc_html__( 'Premium features are locked and extensions run without updates — renew to reopen', 'wp-easycart' ) : esc_html__( 'Pro features are locked — renew to reopen', 'wp-easycart' ) ) : esc_html__( 'Renew before fees and locks return', 'wp-easycart' ); ?></span>
 			</button>
 			<?php } ?>
 			<a class="ecsh-sb-powered" href="http://www.wpeasycart.com" target="_blank" rel="noopener"><?php esc_attr_e( 'Powered by WP EasyCart', 'wp-easycart' ); ?></a>

@@ -195,11 +195,24 @@ $delete_warning = apply_filters( 'wp_easycart_admin_user_details_v2_delete_warni
 						<div class="ecudv2-readout-grid">
 							<div class="ecudv2-readout">
 								<span class="ecudv2-readout-label"><?php esc_html_e( 'WordPress Account', 'wp-easycart' ); ?></span>
+								<?php $wp_user_same_email = ( $wp_user || $is_new ) ? false : $this->get_wp_user_same_email(); ?>
 								<?php if ( $wp_user ) { ?>
 									<a href="<?php echo esc_url( get_edit_user_link( $wp_user->ID ) ); ?>" target="_blank"><?php echo esc_html( $wp_user->user_login ); ?> (#<?php echo (int) $wp_user->ID; ?>)</a>
+								<?php } else if ( $wp_user_same_email ) { ?>
+									<span><a href="<?php echo esc_url( get_edit_user_link( $wp_user_same_email->ID ) ); ?>" target="_blank"><?php echo esc_html( $wp_user_same_email->user_login ); ?> (#<?php echo (int) $wp_user_same_email->ID; ?>)</a> <span class="ecv2-date-empty"><?php esc_html_e( 'Same email, not linked', 'wp-easycart' ); ?></span></span>
 								<?php } else { ?>
 									<span class="ecv2-date-empty"><?php esc_html_e( 'No linked WordPress account', 'wp-easycart' ); ?></span>
 								<?php } ?>
+								<?php
+								/**
+								 * More about the customer's WordPress account ( WordPress User Sync adds its actions here ).
+								 *
+								 * @since 6.0.2
+								 * @param object       $user    The customer.
+								 * @param WP_User|bool $wp_user The linked WordPress user.
+								 */
+								do_action( 'wp_easycart_admin_user_details_v2_wordpress_account', $user, $wp_user );
+								?>
 							</div>
 							<div class="ecudv2-readout">
 								<span class="ecudv2-readout-label"><?php esc_html_e( 'Registered', 'wp-easycart' ); ?></span>

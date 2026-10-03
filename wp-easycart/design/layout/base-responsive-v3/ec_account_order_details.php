@@ -26,9 +26,20 @@
 ?>
 <section class="ec_account_page" id="ec_account_order_details">
 	<?php if ( $this->order ) { ?>
-	<div class="right">
+	<?php
+	/* 6.0.2: an unpaid order can be paid from its pay link ( asked once: the notice below says so too ). */
+	$ec_order_can_pay = class_exists( 'wp_easycart_order_pay' ) && method_exists( 'wp_easycart_order_pay', 'can_pay' ) && wp_easycart_order_pay::can_pay( $this->order );
+	?>
+	<?php /* 6.0.2: a row of its own above the order ( ec-store.css ), styled from the store's main colour. */ ?>
+	<div class="right ec_account_order_details_actions">
 		<?php do_action( 'wp_easycart_order_details_header_right', $this->order ); ?>
-		<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $this->order->order_id, 'ec_guest_key' => ( ( '' != $this->order->guest_key ) ? $this->order->guest_key : null ) ) ) ); ?>" target="_blank"><img src="<?php echo esc_attr( $this->get_print_order_icon_url( ) ); ?>" /></a>
+		<?php if ( $ec_order_can_pay ) { ?>
+		<a class="ec_account_order_pay_now" href="<?php echo esc_url( wp_easycart_order_pay::url( (int) $this->order->order_id ) ); ?>"><?php echo wp_easycart_order_pay::text( 'account_pay_now', __( 'Pay now', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></a>
+		<?php } ?>
+		<?php /* 6.0.2: Settings › Documents › Customer downloads can turn the print link off, and a document rule can for some orders. */ ?>
+		<?php if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'print_receipt', (int) $this->order->order_id ) : get_option( 'ec_option_account_print_receipt', 1 ) ) { ?>
+		<a href="<?php echo esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $this->order->order_id, 'ec_guest_key' => ( ( '' != $this->order->guest_key ) ? $this->order->guest_key : null ) ) ) ); ?>" target="_blank"><img src="<?php echo esc_attr( $this->get_print_order_icon_url( ) ); ?>" alt="<?php echo esc_attr__( 'Print', 'wp-easycart' ); ?>" /></a>
+		<?php } ?>
 	</div>
 
 	<div class="ec_account_order_details_main_holder">
@@ -40,10 +51,21 @@
 		<div class="ec_cart_error_row2" style="margin-bottom:20px;">
 			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'order_refunded' )?> 
 		</div>
+		<?php } else if ( ! $this->order->is_approved && $ec_order_can_pay ) { /* 6.0.2: nothing is processing: the order waits for the customer to pay it */ ?>
+		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
+			<?php echo wp_easycart_order_pay::text( 'account_pay_waiting', __( 'This order is waiting for payment.', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?>
+		</div>
 		<?php } else if ( ! $this->order->is_approved ) { ?>
 		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
-			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?> 
+			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?>
 		</div>
+		<?php } else if ( $ec_order_can_pay && class_exists( 'wp_easycart_order_payments' ) ) { /* 6.0.2: changed after it was paid; Pay now above takes the balance */ ?>
+		<?php $ec_order_balance = wp_easycart_order_payments::summary( (int) $this->order->order_id ); ?>
+		<?php if ( $ec_order_balance['due'] >= 0.005 ) { ?>
+		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
+			<?php echo wp_easycart_order_pay::text( 'account_pay_balance', __( 'This order changed after it was paid. Balance due:', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?> <strong><?php echo esc_html( $GLOBALS['currency']->get_currency_display( $ec_order_balance['due'] ) ); ?></strong>
+		</div>
+		<?php } ?>
 		<?php }?>
 		<?php if ( $this->order->includes_preorder_items ) { ?>
 			<div class="ec_cart_notice_row" style="margin-bottom:20px;">

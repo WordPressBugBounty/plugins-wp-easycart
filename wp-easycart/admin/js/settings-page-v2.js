@@ -154,7 +154,7 @@
 			var $fold = $sec.find( '.ecst-fold' ), $btn = $fold.find( '.ecst-fold-btn' );
 			if ( ! $btn.length ) { return; }
 			var names = [];
-			$sec.find( '.ecst-row.is-advanced[data-key]' ).not( '[data-type="html"]' ).each( function() {
+			$sec.find( '.ecst-row.is-advanced[data-key]' ).not( '[data-type="html"]' ).not( '.ecst-drawer .ecst-row' ).each( function() { /* 6.0.2: a drawer shows its own */
 				var $r = $( this );
 				if ( $r.prop( 'hidden' ) ) { return; }
 				names.push( $r.data( 'label' ) );
@@ -643,6 +643,86 @@
 			refreshFold( $sec );
 		} );
 
+		/* 6.0.2: side drawers ( rows declared with 'drawer' ). A button with data-ecst-drawer-open="<id>" in the section opens
+		 * one; Save changes saves what is waiting and closes it, Done / × / Escape / the backdrop close it ( unsaved text stays
+		 * in the save bar ). A search result or deep link to a row inside a drawer opens that drawer first. */
+		var drawerReturn = null, drawerSaving = false;
+		function openDrawer( $drawer ) {
+			if ( ! $drawer.length ) { return; }
+			closeDrawers( true );
+			drawerReturn = document.activeElement;
+			$drawer.prop( 'hidden', false );
+			$drawer.closest( '.ecst-section' ).find( '.ecst-drawer-backdrop' ).prop( 'hidden', false );
+			$( 'body' ).addClass( 'ecst-drawer-open' );
+			$drawer.find( '.ecst-row' ).each( function() { applyDeps( $( this ).data( 'key' ) ); } );
+			setTimeout( function() {
+				$drawer.find( '.ecst-drawer-b' ).find( 'input:visible, select:visible, textarea:visible, button:visible' ).first().trigger( 'focus' );
+			}, 30 );
+		}
+		function closeDrawers( quiet ) {
+			var was_open = $( '.ecst-drawer:not([hidden])' ).length > 0;
+			$( '.ecst-drawer, .ecst-drawer-backdrop' ).prop( 'hidden', true );
+			$( 'body' ).removeClass( 'ecst-drawer-open' );
+			if ( ! quiet && was_open && drawerReturn && drawerReturn.focus ) { drawerReturn.focus(); }
+		}
+		$wrap.on( 'click', '[data-ecst-drawer-open]', function( e ) {
+			e.preventDefault();
+			openDrawer( $( this ).closest( '.ecst-section' ).find( '.ecst-drawer[data-drawer="' + $( this ).attr( 'data-ecst-drawer-open' ) + '"]' ) );
+		} );
+		$wrap.on( 'click', '[data-ecst-drawer-close]', function( e ) {
+			e.preventDefault();
+			closeDrawers();
+		} );
+		$wrap.on( 'click', '[data-ecst-drawer-save]', function( e ) {
+			e.preventDefault();
+			if ( ! Object.keys( dirty ).length ) { closeDrawers(); return; }
+			drawerSaving = true;
+			saveBatch();
+		} );
+		$( document ).on( 'ecst:saved', function() {
+			if ( drawerSaving && ! Object.keys( dirty ).length ) { closeDrawers(); }
+			drawerSaving = false;
+		} );
+		$( document ).on( 'keydown', function( e ) {
+			if ( 'Escape' === e.key && $( '.ecst-drawer:not([hidden])' ).length ) { closeDrawers(); }
+		} );
+		$( document ).on( 'ecst:reveal', function( e, $target ) {
+			var $drawer = $target && $target.length ? $target.closest( '.ecst-drawer' ) : $();
+			if ( $drawer.length && $drawer.prop( 'hidden' ) ) { openDrawer( $drawer ); }
+		} );
+
+		/* 6.0.2: a button in an html row that picks a choice for a select or pills row ( data-ecst-set="<key>"
+		 * data-ecst-value="<value>" ): the row takes the value and saves as if the merchant had picked it ( Cookie consent's
+		 * "Follow Complianz" ). */
+		$wrap.on( 'click', '[data-ecst-set]', function( e ) {
+			e.preventDefault();
+			var key = String( $( this ).attr( 'data-ecst-set' ) ), val = String( $( this ).attr( 'data-ecst-value' ) || '' ), $row = rowOf( key );
+			if ( ! $row.length || $row.hasClass( 'is-locked' ) ) { return; }
+			if ( $row.data( 'type' ) === 'pills' ) {
+				$row.find( '.ecst-input' ).filter( function() { return String( this.value ) === val; } ).first().prop( 'checked', true ).trigger( 'change' );
+				return;
+			}
+			var $sel = $row.find( 'select.ecst-input' );
+			if ( $sel.length && $sel.find( 'option' ).filter( function() { return String( this.value ) === val; } ).length && String( $sel.val() ) !== val ) {
+				$sel.val( val ).trigger( 'change' );
+				$sel.trigger( 'focus' );
+			}
+		} );
+
+		/* 6.0.2: a note that shows only while a field it names is empty ( data-ecst-needs="<key> <key>" in an html row ), such
+		 * as reCAPTCHA's missing keys. It follows what is typed; the server decides again on the next load. */
+		function needsNotes() {
+			$wrap.find( '[data-ecst-needs]' ).each( function() {
+				var missing = false;
+				$.each( String( $( this ).attr( 'data-ecst-needs' ) ).split( ' ' ), function( i, key ) {
+					var $in = key ? rowOf( key ).find( '.ecst-input' ) : $();
+					if ( $in.length && '' === String( $in.val() || '' ).trim() ) { missing = true; }
+				} );
+				$( this ).prop( 'hidden', ! missing );
+			} );
+		}
+		$wrap.on( 'input change', '.ecst-input', needsNotes );
+
 		/* 6.0.1: a policy URL can start from a draft page written for you. */
 		$wrap.on( 'click', '.ecst-newpage-btn', function() {
 			var $btn = $( this ), $row = $btn.closest( '.ecst-row' ), key = $row.data( 'key' );
@@ -694,6 +774,10 @@
 		} );
 
 		/* actions */
+		/* Enter in an action's text box runs the action ( never a form submit ). */
+		$wrap.on( 'keydown', '.ecst-action-input', function( e ) {
+			if ( 'Enter' === e.key ) { e.preventDefault(); $( this ).closest( '.ecst-action' ).find( '.ecv2-btn[data-action]' ).first().trigger( 'click' ); }
+		} );
 		$wrap.on( 'click', '.ecst-action .ecv2-btn[data-action]', function() {
 			var $b = $( this ), run = function() {
 				// Inline result under the action text ( stays visible; the toast is a transient extra ).
@@ -706,7 +790,10 @@
 					$res.removeClass( 'is-busy' ).addClass( ok ? 'is-ok' : 'is-bad' ).text( m );
 					toast( m, ok ? 'success' : 'error' );
 				};
-				post( 'ecv2_settings_action', { page: page, section: $b.data( 'sec' ), action_id: $b.data( 'action' ) }, function( d ) {
+				/* 6.0.2: an action with a text box ( 'input' ) sends what was typed ( Test Vatlayer: a VAT number ). */
+				var args = { page: page, section: $b.data( 'sec' ), action_id: $b.data( 'action' ) }, $typed = $act.find( '.ecst-action-input' );
+				if ( $typed.length ) { args.input = String( $typed.val() || '' ); }
+				post( 'ecv2_settings_action', args, function( d ) {
 					done( true, d.message || T.saved || 'Done.' );
 					/* Rows the action changed ( "Create store page" selects the new page ) are redrawn in place, then the page's problem list. */
 					if ( d.fields ) { Object.keys( d.fields ).forEach( function( k ) { applyField( k, d.fields[ k ] ); } ); }
@@ -773,6 +860,7 @@
 		function reveal( $target ) {
 			var $sec = $target.closest( '.ecst-section' ), p = $target.data( 'parent' ), guard = 0;
 			$( document ).trigger( 'ecst:reveal', [ $target ] ); // page scripts show a hidden tab or panel first ( shipping carrier tabs )
+			if ( $target.closest( '.ecst-drawer' ).length ) { $target.prop( 'hidden', false ); return; } // 6.0.2: its drawer opened above and shows every row
 			if ( $target.hasClass( 'is-advanced' ) && ! $sec.hasClass( 'is-adv-open' ) ) { $sec.find( '.ecst-fold-btn' ).trigger( 'click' ); }
 			while ( p && guard++ < 8 ) {
 				var $pr = rowOf( p );

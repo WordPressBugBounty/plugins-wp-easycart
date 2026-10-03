@@ -164,6 +164,10 @@ if( get_option( 'ec_option_payment_process_method' ) == 'authorize' ){
 	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_paypoint.php' ) ){
 		include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_paypoint.php' );
 	}
+}else if( get_option( 'ec_option_payment_process_method' ) == 'paytrace' ){
+	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_paytrace.php' ) ){
+		include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_paytrace.php' );
+	}
 }else if( get_option( 'ec_option_payment_process_method' ) == 'realex' ){
 	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_realex.php' ) ){
 		include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_realex.php' );
@@ -200,6 +204,7 @@ if( get_option( 'ec_option_payment_process_method' ) == 'authorize' ){
 
 // THIRD PARTY GATEWAYS
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/ec_third_party.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/gateway/class-wp-easycart-paypal-connect.php' ); /* 6.0.2: every call to WP EasyCart Connect's PayPal relay ( /paypal-v3/ ) and its Connect PayPal links, whatever the gateway in use */
 
 if( get_option( 'ec_option_payment_third_party' ) == '2checkout_thirdparty' ){
 	if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/gateway/ec_2checkout_thirdparty.php' ) ){
@@ -378,6 +383,32 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_optionset.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_order.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_order_totals.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-documents.php' ); /* 6.0.1: order documents ( profiles for the receipt, shipped email and packing slip ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-payments.php' ); /* 6.0.2: what each order has been paid, and its balance */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-ledger.php' ); /* 6.0.2: payments, refunds and order facts for Reports */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-refunds.php' ); /* 6.0.2: each payment of an order and how it is refunded */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-store-activity.php' ); /* 6.0.2: daily store activity counts for Reports ( views, adds, visits, checkout steps, searches ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-reports.php' ); /* 6.0.2: the Reports engine ( tabs, kept days, the summary email on WP-Cron ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-pay.php' ); /* 6.0.2: pay an existing order from its link ( ec_page=invoice ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-paypal-webhooks.php' ); /* 6.0.2: PayPal notifications ( registration, status, the Payments drawer's Notifications group ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-gateway.php' ); /* 6.0.2: subscriptions need Stripe; what to tell the merchant and the shopper when they can't be sold */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-gift.php' ); /* 6.0.2: gift orders on the storefront, in emails and on the order screen ( asked by WP EasyCart PRO ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-consent.php' ); /* 6.0.2: cookie consent ( WP Consent API, Google Consent Mode, Cookiebot, CookieYes, Complianz ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-meta.php' ); /* 6.0.2: Meta content IDs, the browser Pixel and storefront event announcements */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-packages.php' ); /* 6.0.2: box library and packing */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-shipments.php' ); /* 6.0.2: an order's packages, labels, tracking and delivery */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-checkout-guard.php' ); /* 6.0.2: checkout protection ( card-testing defence ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-fields.php' ); /* 6.0.2: checkout field answers kept on orders ( asked by WP EasyCart PRO ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-source.php' ); /* 6.0.2: where each order came from */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-schema.php' ); /* 6.0.2: product data for search engines and AI assistants */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-store-schema.php' ); /* 6.0.2: store return and shipping policy for search engines */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-wordpress-users.php' ); /* 6.0.2: store accounts and WordPress users ( WordPress User Sync ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscribers.php' ); /* 6.0.2: newsletter subscribers: one event for every change, and a consent record */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-privacy.php' ); /* 6.0.2: WordPress personal data export and erase for accounts, orders, the newsletter and saved carts */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-variants.php' ); /* 6.0.2: a product's variant rows, kept when its option sets change */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-storefront-access.php' ); /* 6.0.2: what a shopper may add to the cart, download and open ( memberships ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-writer.php' ); /* 6.0.2: create and update products from code ( importers, catalog extensions ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-fulfillment.php' ); /* 6.0.2: fulfillment partners ( print on demand ): order lines, release, state */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-shipping-groups.php' ); /* 6.0.2: checkout shipping for lines a fulfillment partner ships */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_page_options.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_payment.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_perpages.php' );
@@ -399,10 +430,20 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_setting.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_shipping.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_subscription.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_tax.php' );
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-tax-providers.php' ); /* 6.0.2: tax services ( Avalara AvaTax ) answer the engine */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-vatlayer.php' ); /* 6.0.2: the Vatlayer VAT number check ( checkout and Settings › Taxes › Test Vatlayer ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_taxcloud.php' );
-if( file_exists( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/tax/ec_taxjar.php' ) ){
-	include( EC_PLUGIN_DIRECTORY . '-pro/inc/classes/tax/ec_taxjar.php' );
-}
+// 6.0.2: TaxJar is PRO code and runs only while PRO is active ( it was loaded from the PRO folder even when PRO was
+// deactivated ). PRO 6.0.2+ loads it itself; this covers an active older PRO, once every plugin has loaded.
+add_action(
+	'plugins_loaded',
+	function () {
+		if ( ! function_exists( 'wpeasycart_taxjar' ) && defined( 'WP_EASYCART_ADMIN_PRO_PLUGIN_DIR' ) && file_exists( WP_EASYCART_ADMIN_PRO_PLUGIN_DIR . 'inc/classes/tax/ec_taxjar.php' ) ) {
+			include( WP_EASYCART_ADMIN_PRO_PLUGIN_DIR . 'inc/classes/tax/ec_taxjar.php' );
+		}
+	},
+	1
+);
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_user_activity.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_url_redirects.php' );
@@ -467,6 +508,9 @@ if( get_option( 'ec_option_is_installed' ) && !defined( 'WPEASYCART_ACCESSING_AM
 
 	$GLOBALS['ec_cart_data'] = new ec_cart_data( ( ( isset( $GLOBALS['ec_cart_id'] ) ) ? $GLOBALS['ec_cart_id'] : 'not-set' ) );
 	$GLOBALS['ec_cart_data']->restore_session_from_db( );
+	if ( class_exists( 'wp_easycart_order_source' ) ) {
+		wp_easycart_order_source::sync_session(); /* 6.0.2: the checkout session keeps where the shopper came from */
+	}
 
 	$GLOBALS['ec_advanced_optionsets'] = new ec_advanced_optionsets( );
 	$GLOBALS['ec_categories'] = new ec_categories( );

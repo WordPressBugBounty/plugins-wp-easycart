@@ -1,1 +1,1 @@
-<div class="ec_details_sku"><?php echo esc_attr( $product->model_number ); ?></div>
+<div class="ec_details_sku" data-wpec-linked-product="<?php echo esc_attr( $product->product_id ); /* 6.0.2: follows the variant chosen in this product's add to cart form ( ec-store.js ) */ ?>"><?php echo esc_attr( $product->model_number ); ?></div>

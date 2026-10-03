@@ -150,6 +150,7 @@ class wp_easycart_admin_payment_v2 {
 			'paypal_pro'          => 'PayPal PayFlow Pro',
 			'paypal_payments_pro' => 'PayPal Payments Pro',
 			'paypoint'            => 'PayPoint',
+			'paytrace'            => 'PayTrace',
 			'realex'              => 'Realex',
 			'securepay'           => 'SecurePay',
 			'stripe'              => 'Stripe (API keys, v1)',
@@ -359,7 +360,7 @@ class wp_easycart_admin_payment_v2 {
 				}
 				self::fact( $s, __( 'Extra methods', 'wp-easycart' ), $wallets ? implode( ', ', $wallets ) : __( 'Cards only', 'wp-easycart' ) );
 				if ( $s['connected'] ) {
-					self::fact( $s, __( 'Webhook URL', 'wp-easycart' ), get_site_url() . '?wpeasycarthook=stripe-webhook' );
+					self::fact( $s, __( 'Webhook URL', 'wp-easycart' ), wp_easycart_hook_url( 'stripe-webhook' ) );
 				}
 				break;
 
@@ -405,6 +406,10 @@ class wp_easycart_admin_payment_v2 {
 				if ( $express ) {
 					self::fact( $s, __( 'Extra buttons', 'wp-easycart' ), $buttons ? implode( ', ', $buttons ) : __( 'PayPal only', 'wp-easycart' ) );
 				}
+				/* 6.0.2: what PayPal's notifications are doing ( wp_easycart_paypal_webhooks ), as Square's card says for its sync. */
+				if ( $express && $s['connected'] && class_exists( 'wp_easycart_paypal_webhooks' ) && '' !== wp_easycart_paypal_webhooks::connection() ) {
+					self::fact( $s, __( 'Notifications', 'wp-easycart' ), wp_easycart_paypal_webhooks::card_text() );
+				}
 				break;
 
 			case 'manual':
@@ -413,6 +418,8 @@ class wp_easycart_admin_payment_v2 {
 				self::fact( $s, __( 'Shown as', 'wp-easycart' ), self::manual_title() );
 				$message = trim( wp_strip_all_tags( (string) get_option( 'ec_option_direct_deposit_message' ) ) );
 				self::fact( $s, __( 'Instructions', 'wp-easycart' ), '' === $message ? __( 'None written yet', 'wp-easycart' ) : ( strlen( $message ) > 90 ? substr( $message, 0, 87 ) . '…' : $message ) );
+				/* 6.0.2: the roles it is offered to ( ec_cartpage::use_manual_payment() ) */
+				self::fact( $s, __( 'Offered to', 'wp-easycart' ), self::manual_roles_text() );
 				break;
 
 			case 'stripe':
@@ -565,9 +572,13 @@ class wp_easycart_admin_payment_v2 {
 	 * ec_option_language_data ( update_language_item ), the message is a plain option, and the
 	 * tracking action fires. Values are cleaned with the registry's own sanitizers.
 	 *
+	 * @since 6.0.2 $roles: the customer roles Bill later is offered to ( ec_option_manual_payment_roles; empty = everyone ).
+	 * @param string     $title   Option name.
+	 * @param string     $message Instructions.
+	 * @param array|null $roles   Roles, or null to leave them as saved.
 	 * @return string|WP_Error message
 	 */
-	public static function save_manual( $title, $message ) {
+	public static function save_manual( $title, $message, $roles = null ) {
 		if ( ! class_exists( 'wp_easycart_admin_settings_registry' ) ) {
 			return new WP_Error( 'ecpay_registry', __( 'The settings engine is not available.', 'wp-easycart' ) );
 		}
@@ -585,6 +596,17 @@ class wp_easycart_admin_payment_v2 {
 			return new WP_Error( 'ecpay_title', __( 'Give the pay-later option a name; shoppers pick it by this name at checkout.', 'wp-easycart' ) );
 		}
 		update_option( 'ec_option_direct_deposit_message', $message );
+		if ( is_array( $roles ) ) {
+			$known = self::manual_role_options();
+			$keep  = array();
+			foreach ( $roles as $role ) {
+				$role = (string) $role;
+				if ( isset( $known[ $role ] ) && ! in_array( $role, $keep, true ) ) {
+					$keep[] = $role;
+				}
+			}
+			update_option( 'ec_option_manual_payment_roles', implode( ',', $keep ) );
+		}
 		if ( function_exists( 'wp_easycart_language' ) ) {
 			$file = self::language_file();
 			$data = wp_easycart_language()->get_language_data();
@@ -595,6 +617,52 @@ class wp_easycart_admin_payment_v2 {
 		do_action( 'wpeasycart_manual_billing_updated', (int) get_option( 'ec_option_use_direct_deposit' ) );
 		self::$status = array();
 		return __( 'Bill later wording saved.', 'wp-easycart' );
+	}
+
+	/**
+	 * The roles Bill later can be offered to: Guest checkout and each customer role, as Settings › Documents lists them
+	 * for PO numbers ( wp_easycart_settings_documents_role_options() ).
+	 *
+	 * @since 6.0.2
+	 * @return array role => label
+	 */
+	public static function manual_role_options() {
+		if ( ! function_exists( 'wp_easycart_settings_documents_role_options' ) && class_exists( 'wp_easycart_admin_settings_registry' ) ) {
+			wp_easycart_admin_settings_registry::pages(); /* loads the declarations, Settings › Documents with its role list among them */
+		}
+		if ( function_exists( 'wp_easycart_settings_documents_role_options' ) ) {
+			return (array) wp_easycart_settings_documents_role_options();
+		}
+		return array( 'guest' => __( 'Guest checkout', 'wp-easycart' ) );
+	}
+
+	/**
+	 * The roles Bill later is kept to ( empty = everyone ).
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	public static function manual_roles() {
+		return array_values( array_filter( array_map( 'trim', explode( ',', (string) get_option( 'ec_option_manual_payment_roles', '' ) ) ), 'strlen' ) );
+	}
+
+	/**
+	 * "Everyone", or the chosen roles by name, for the Bill later card.
+	 *
+	 * @since 6.0.2
+	 * @return string
+	 */
+	public static function manual_roles_text() {
+		$roles = self::manual_roles();
+		if ( ! $roles ) {
+			return __( 'Everyone', 'wp-easycart' );
+		}
+		$labels = self::manual_role_options();
+		$names  = array();
+		foreach ( $roles as $role ) {
+			$names[] = isset( $labels[ $role ] ) ? $labels[ $role ] : $role;
+		}
+		return implode( ', ', $names );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -619,10 +687,11 @@ class wp_easycart_admin_payment_v2 {
 					'test' => 'https://connect.wpeasycart.com/square-sandbox/?url=' . rawurlencode( $admin . '?ec_admin_form_action=handle-square' ) . '&state=' . $state,
 				);
 			case 'paypal':
+				/* 6.0.2: WP EasyCart Connect's /paypal-v3/ onboarding ( wp_easycart_paypal_connect ), same return handler. */
 				$nonce = wp_create_nonce( 'wp-easycart-paypal' );
 				return array(
-					'live' => $base . '/paypal-v2/production_onboard.php?redirect=' . rawurlencode( $admin . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . $nonce ),
-					'test' => $base . '/paypal-v2/sandbox_onboard.php?redirect=' . rawurlencode( $admin . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . $nonce ),
+					'live' => wp_easycart_paypal_connect::onboard_url( 'production', $admin . '?wpeasycart_paypal_onboard=production&wp_easycart_nonce=' . $nonce ),
+					'test' => wp_easycart_paypal_connect::onboard_url( 'sandbox', $admin . '?wpeasycart_paypal_onboard=sandbox&wp_easycart_nonce=' . $nonce ),
 				);
 		}
 		return array();
@@ -2083,6 +2152,18 @@ class wp_easycart_admin_payment_v2 {
 				<textarea class="ecv2-input" id="ecpay_manual_message" rows="7" placeholder="<?php esc_attr_e( 'Please transfer the order total to …', 'wp-easycart' ); ?>"><?php echo esc_textarea( (string) get_option( 'ec_option_direct_deposit_message' ) ); ?></textarea>
 				<span class="ecdv2-field-desc"><?php esc_html_e( 'Shown at checkout and on the receipt when they choose to pay later: bank details, where to send a cheque, pickup notes.', 'wp-easycart' ); ?></span>
 			</div>
+			<?php /* 6.0.2: Bill later for chosen customer roles only ( ec_option_manual_payment_roles ) */ ?>
+			<?php $manual_roles = self::manual_roles(); ?>
+			<div class="ecdv2-field ecdv2-field-full">
+				<span class="ecdv2-label" id="ecpay_manual_roles_label"><?php esc_html_e( 'Offer it to', 'wp-easycart' ); ?></span>
+				<div class="ecst-pills ecst-multi ecpay-manual-roles" id="ecpay_manual_roles" role="group" aria-labelledby="ecpay_manual_roles_label">
+					<?php foreach ( self::manual_role_options() as $role_value => $role_label ) : ?>
+						<?php $role_on = in_array( (string) $role_value, $manual_roles, true ); ?>
+						<label class="ecst-pill<?php echo $role_on ? ' is-on' : ''; ?>"><input type="checkbox" class="ecpay-manual-role" value="<?php echo esc_attr( $role_value ); ?>"<?php checked( $role_on ); ?> /><?php echo esc_html( $role_label ); ?></label>
+					<?php endforeach; ?>
+				</div>
+				<span class="ecdv2-field-desc"><?php esc_html_e( 'Leave every role unticked to offer Bill later to everyone. Tick roles, such as wholesale, to offer it only to them. Guest checkout covers shoppers who are not signed in.', 'wp-easycart' ); ?></span>
+			</div>
 		</div>
 		<?php
 		$html = ob_get_clean();
@@ -2099,7 +2180,12 @@ class wp_easycart_admin_payment_v2 {
 		ecv2_settings_guard();
 		$title   = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
 		$message = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
-		$result  = self::save_manual( $title, $message );
+		/* 6.0.2: the roles it is offered to; roles_sent tells none ticked ( everyone ) from an older script that sends none */
+		$roles   = null;
+		if ( ! empty( $_POST['roles_sent'] ) ) {
+			$roles = isset( $_POST['roles'] ) ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['roles'] ) ) : array();
+		}
+		$result  = self::save_manual( $title, $message, $roles );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}

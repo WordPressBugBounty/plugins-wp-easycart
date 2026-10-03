@@ -15,16 +15,26 @@ if ( ! $order ) {
 	$order = $mysqli->get_order_row( $order_id, $GLOBALS['ec_cart_data']->cart_data->user_id );
 }
 
-$bill_country = $mysqli->get_country_name( $order->billing_country );
-if ( $bill_country ) {
-	$order->billing_country = $bill_country;
-}
-$ship_country = $mysqli->get_country_name( $order->shipping_country );
-if ( $ship_country ) {
-	$order->shipping_country = $ship_country;
+/*
+ * 6.0.2: Settings › Documents › Customer downloads ( and a document rule, for some orders ) decide whether customers can
+ * print receipts. The My Account link and the order confirmation page link both open this page, so it refuses only when
+ * neither may be shown for this order; before, turning the switches off only hid the links.
+ */
+if ( $order && class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) && ! wp_easycart_documents::customer_download( 'print_receipt', $order_id ) && ! wp_easycart_documents::customer_download( 'success_print_receipt', $order_id ) ) {
+	$order = false;
 }
 
 if ( $order ) {
+	/* 6.0.2: country names only for an order that was found ( these read a property of false: warnings ). */
+	$bill_country = $mysqli->get_country_name( $order->billing_country );
+	if ( $bill_country ) {
+		$order->billing_country = $bill_country;
+	}
+	$ship_country = $mysqli->get_country_name( $order->shipping_country );
+	if ( $ship_country ) {
+		$order->shipping_country = $ship_country;
+	}
+
 	$order_details = false;
 	if ( isset( $_GET['ec_guest_key'] ) && (bool) $_GET['ec_guest_key'] ) {
 		$order_details = $mysqli->get_guest_order_details( $order_id, sanitize_text_field( $_GET['ec_guest_key'] ) );

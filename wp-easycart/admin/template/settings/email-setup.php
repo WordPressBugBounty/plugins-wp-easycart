@@ -81,7 +81,7 @@ if ( ! function_exists( 'ecst_email_validate_list' ) ) {
 		$bad = array();
 		foreach ( array_filter( array_map( 'trim', explode( ',', (string) $value ) ), 'strlen' ) as $part ) {
 			$address = preg_match( '/<([^>]*)>/', $part, $m ) ? trim( $m[1] ) : $part;
-			if ( ! is_email( $address ) ) {
+			if ( ! is_email( $address ) || 'youremail@url.com' === strtolower( $address ) ) { /* 6.0.2: the example address is never mailed ( ec_email::valid_recipients() ) */
 				$bad[] = $part;
 			}
 		}
@@ -391,9 +391,6 @@ if ( ! function_exists( 'ecst_email_phrase_fields' ) ) {
 			'cart_success_will_receive_email'               => __( 'Success page: email confirmation note', 'wp-easycart' ),
 			'cart_success_print_receipt_text'               => __( 'Success page: print receipt link', 'wp-easycart' ),
 			'cart_success_save_order_text'                  => __( 'Success page: save your details prompt', 'wp-easycart' ),
-			'cart_success_create_password'                  => __( 'Success page: create password label', 'wp-easycart' ),
-			'cart_success_verify_password'                  => __( 'Success page: verify password label', 'wp-easycart' ),
-			'cart_success_password_hint'                    => __( 'Success page: password hint', 'wp-easycart' ),
 			'cart_success_create_account'                   => __( 'Success page: create account button', 'wp-easycart' ),
 			'cart_success_view_downloads'                   => __( 'Success page: view downloads button', 'wp-easycart' ),
 			'cart_downloads_available'                      => __( 'Downloads available note', 'wp-easycart' ),
@@ -431,10 +428,12 @@ if ( ! function_exists( 'ecst_email_phrase_fields' ) ) {
 			'cart_payment_complete_order_totals_vat', 'cart_payment_complete_order_totals_duty', 'cart_payment_complete_order_totals_grand_total', 'cart_payment_complete_order_totals_balance_left',
 			'cart_payment_complete_bottom_line_1', 'cart_payment_complete_bottom_line_2', 'cart_payment_view_order',
 		);
+		/* 6.0.2: phrases nothing prints any more ( the success page's old create-password form ): no rows; the keys stay in the language files. */
+		$unused = array( 'cart_success_create_password', 'cart_success_verify_password', 'cart_success_password_hint' );
 		$fields = array();
 		foreach ( ecst_email_phrase_items() as $key => $item ) {
 			$key = sanitize_key( $key );
-			if ( '' === $key ) {
+			if ( '' === $key || in_array( $key, $unused, true ) ) {
 				continue;
 			}
 			$title = ( is_object( $item ) && isset( $item->title ) ) ? (string) $item->title : $key;
@@ -486,7 +485,8 @@ return array(
 	'slug'        => 'email-setup',
 	'title'       => __( 'Email', 'wp-easycart' ),
 	'description' => __( 'How store emails are sent, who they come from, what receipts include, and the wording shoppers read.', 'wp-easycart' ),
-	'group'       => 'customize',
+	'group'       => 'emails-documents',
+	'order'       => 10,
 	'icon'        => 'email',
 	'docs'        => array( 'settings', 'email-setup', 'email-settings' ),
 	'legacy'      => array( 'email-setup', 'email' ),
@@ -519,8 +519,8 @@ return array(
 				'ec_option_bcc_email_addresses' => array(
 					'type'        => 'text',
 					'label'       => __( 'Store notification addresses', 'wp-easycart' ),
-					'desc'        => __( 'Gets a copy of every order, refund, stock, review and new-account email. Separate several addresses with commas.', 'wp-easycart' ),
-					'default'     => 'youremail@url.com',
+					'desc'        => __( 'Gets a copy of every order, refund, stock, review and new-account email. Separate several addresses with commas, or leave it empty to get no copies.', 'wp-easycart' ),
+					'default'     => '', // 6.0.2: was the example youremail@url.com ( ec_wpoptionset ), which is never mailed
 					'placeholder' => 'orders@example.com, owner@example.com',
 					'sanitize'    => 'ecst_email_sanitize_list',
 					'validate'    => 'ecst_email_validate_list',
@@ -861,17 +861,17 @@ return array(
 
 		'account-emails' => array(
 			'title'   => __( 'Account emails', 'wp-easycart' ),
-			'hint'    => __( 'Password resets, account activation and new-account alerts', 'wp-easycart' ),
+			'hint'    => __( 'Password resets, account activation, abandoned cart reminders and new-account alerts', 'wp-easycart' ),
 			'fields'  => array(
 				'ec_option_password_from_email' => array(
 					'type'        => 'text',
 					'label'       => __( 'Account emails come from', 'wp-easycart' ),
-					'desc'        => __( 'The sender shoppers see on password reset, activation and other account emails. Use “Store Name <help@yourdomain.com>” to show a name.', 'wp-easycart' ),
+					'desc'        => __( 'The sender shoppers see on password reset, activation and abandoned cart reminder emails, and the address their replies go to. Use “Store Name <help@yourdomain.com>” to show a name.', 'wp-easycart' ),
 					'default'     => 'youremail@url.com',
 					'placeholder' => 'Store Name <help@example.com>',
 					'sanitize'    => 'ecst_email_sanitize_from',
 					'validate'    => 'ecst_email_validate_from',
-					'keywords'    => array( 'from address', 'sender', 'password reset', 'account' ),
+					'keywords'    => array( 'from address', 'sender', 'reply-to', 'password reset', 'account', 'abandoned cart', 'reminder' ),
 					'legacy'      => array( 'page' => 'email-setup', 'section' => 'Customer Account Email Setup', 'label' => 'Customer Account From Email Address' ),
 				),
 				'ec_option_password_use_smtp' => array(

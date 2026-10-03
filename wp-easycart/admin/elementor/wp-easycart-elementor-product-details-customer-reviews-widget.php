@@ -50,11 +50,8 @@ $more_atts['enable_review_form'] = ( 'yes' == $enable_review_form ) ? 1 : 0;
 $more_atts['enable_review_form_title'] = ( 'yes' == $enable_review_form_title ) ? 1 : 0;
 $more_atts['form_button_text'] = $form_button_text;
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 echo '<div class="wp-easycart-product-details-customer-reviews-shortcode-wrapper d-flex">';
-echo do_shortcode( '[ec_product_details_customer_reviews ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_product_details_customer_reviews ' . $extra_atts . ']' );
 echo '</div>';

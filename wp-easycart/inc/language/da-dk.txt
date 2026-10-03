@@ -42,6 +42,223 @@
 				}
             }
         },
+        "elementor_shop": {
+            "label": "Elementor Shop Widgets",
+            "options": {
+                "shop_sale": {
+                    "title": "Shop Widgets, Sale Badge",
+                    "value": "Sale"
+                },
+                "shop_percent_off": {
+                    "title": "Shop Widgets, Discount Badge ( [percent] is the discount )",
+                    "value": "-[percent]%"
+                },
+                "shop_sold_out": {
+                    "title": "Shop Widgets, Sold Out Badge",
+                    "value": "Sold out"
+                },
+                "shop_regular_price": {
+                    "title": "Shop Widgets, Regular Price ( screen readers )",
+                    "value": "Regular price:"
+                },
+                "shop_sale_price": {
+                    "title": "Shop Widgets, Sale Price ( screen readers )",
+                    "value": "Sale price:"
+                },
+                "shop_rated": {
+                    "title": "Shop Widgets, Rating ( [rating] is the average )",
+                    "value": "Rated [rating] out of 5"
+                },
+                "shop_review_one": {
+                    "title": "Shop Widgets, One Review ( [count] )",
+                    "value": "[count] review"
+                },
+                "shop_review_many": {
+                    "title": "Shop Widgets, Reviews ( [count] )",
+                    "value": "[count] reviews"
+                },
+                "shop_options": {
+                    "title": "Shop Widgets, Colour Swatches ( screen readers )",
+                    "value": "Available options"
+                },
+                "shop_more_options": {
+                    "title": "Shop Widgets, More Swatches ( [count] )",
+                    "value": "+[count]"
+                },
+                "shop_adding": {
+                    "title": "Shop Widgets, Adding to Cart",
+                    "value": "Adding\u2026"
+                },
+                "shop_added": {
+                    "title": "Shop Widgets, Added Button",
+                    "value": "Added"
+                },
+                "shop_added_note": {
+                    "title": "Shop Widgets, Added to Cart ( [product] is the product name )",
+                    "value": "[product] was added to your cart."
+                },
+                "shop_add_failed": {
+                    "title": "Shop Widgets, Could Not Add",
+                    "value": "This product could not be added. Opening the product page."
+                },
+                "shop_quantity": {
+                    "title": "Shop Widgets, Quantity Label",
+                    "value": "Quantity"
+                },
+                "shop_view_details": {
+                    "title": "Shop Widgets, Quick View Details Link",
+                    "value": "View full details"
+                },
+                "shop_close": {
+                    "title": "Shop Widgets, Close Quick View",
+                    "value": "Close"
+                },
+                "shop_loading": {
+                    "title": "Shop Widgets, Loading",
+                    "value": "Loading\u2026"
+                },
+                "shop_load_more": {
+                    "title": "Shop Widgets, Load More Button",
+                    "value": "Load more"
+                },
+                "shop_loaded": {
+                    "title": "Shop Widgets, More Products Loaded ( [count] )",
+                    "value": "[count] more products loaded"
+                },
+                "shop_page_nav": {
+                    "title": "Shop Widgets, Page Numbers ( screen readers )",
+                    "value": "Product pages"
+                },
+                "shop_page": {
+                    "title": "Shop Widgets, Page Number ( [page] )",
+                    "value": "Page [page]"
+                },
+                "shop_previous": {
+                    "title": "Shop Widgets, Previous Page",
+                    "value": "Previous page"
+                },
+                "shop_next": {
+                    "title": "Shop Widgets, Next Page",
+                    "value": "Next page"
+                },
+                "shop_carousel_label": {
+                    "title": "Shop Widgets, Carousel Name",
+                    "value": "Products"
+                },
+                "shop_carousel_prev": {
+                    "title": "Shop Widgets, Carousel Previous",
+                    "value": "Previous products"
+                },
+                "shop_carousel_next": {
+                    "title": "Shop Widgets, Carousel Next",
+                    "value": "Next products"
+                },
+                "shop_carousel_pause": {
+                    "title": "Shop Widgets, Carousel Pause",
+                    "value": "Pause"
+                },
+                "shop_carousel_play": {
+                    "title": "Shop Widgets, Carousel Play",
+                    "value": "Play"
+                },
+                "shop_carousel_slide": {
+                    "title": "Shop Widgets, Carousel Slide ( [index] of [total] )",
+                    "value": "[index] of [total]"
+                },
+                "shop_carousel_go_to": {
+                    "title": "Shop Widgets, Carousel Dot ( [index] )",
+                    "value": "Go to slide [index]"
+                },
+                "shop_result_count": {
+                    "title": "Shop Widgets, Results ( [start], [end], [total] )",
+                    "value": "Showing [start]\u2013[end] of [total] products"
+                },
+                "shop_result_all": {
+                    "title": "Shop Widgets, All Results ( [total] )",
+                    "value": "Showing all [total] products"
+                },
+                "shop_result_one": {
+                    "title": "Shop Widgets, One Result",
+                    "value": "Showing 1 product"
+                },
+                "shop_sort_by": {
+                    "title": "Shop Widgets, Sort Label",
+                    "value": "Sort by"
+                },
+                "shop_sort_apply": {
+                    "title": "Shop Widgets, Sort Button",
+                    "value": "Sort"
+                },
+                "shop_active_filters": {
+                    "title": "Shop Widgets, Active Filters ( screen readers )",
+                    "value": "Active filters"
+                },
+                "shop_remove_filter": {
+                    "title": "Shop Widgets, Remove Filter ( [filter] )",
+                    "value": "Remove filter: [filter]"
+                },
+                "shop_clear_all": {
+                    "title": "Shop Widgets, Clear All Filters",
+                    "value": "Clear all"
+                },
+                "shop_chip_search": {
+                    "title": "Shop Widgets, Search Filter ( [term] )",
+                    "value": "Search: [term]"
+                },
+                "shop_price": {
+                    "title": "Shop Widgets, Price Filter Title",
+                    "value": "Price"
+                },
+                "shop_sign_in": {
+                    "title": "Shop Widgets, Sign In Button",
+                    "value": "Sign in"
+                },
+                "shop_category_count_one": {
+                    "title": "Shop Widgets, Category With One Product ( [count] )",
+                    "value": "[count] product"
+                },
+                "shop_category_count_many": {
+                    "title": "Shop Widgets, Category Products ( [count] )",
+                    "value": "[count] products"
+                },
+                "shop_search_label": {
+                    "title": "Shop Widgets, Search Label",
+                    "value": "Search products"
+                },
+                "shop_search_placeholder": {
+                    "title": "Shop Widgets, Search Placeholder",
+                    "value": "Search products\u2026"
+                },
+                "shop_search_button": {
+                    "title": "Shop Widgets, Search Button",
+                    "value": "Search"
+                },
+                "shop_search_suggestions": {
+                    "title": "Shop Widgets, Suggestions ( screen readers )",
+                    "value": "Product suggestions"
+                },
+                "shop_search_view_all": {
+                    "title": "Shop Widgets, View All Results ( [term] )",
+                    "value": "View all results for \u201c[term]\u201d"
+                },
+                "shop_search_none": {
+                    "title": "Shop Widgets, No Suggestions ( [term] )",
+                    "value": "No products match \u201c[term]\u201d."
+                },
+                "shop_search_result": {
+                    "title": "Shop Widgets, One Suggestion ( screen readers )",
+                    "value": "1 product found. Use the down arrow to choose it."
+                },
+                "shop_search_results": {
+                    "title": "Shop Widgets, Suggestions Found ( [count], screen readers )",
+                    "value": "[count] products found. Use the up and down arrows to choose one."
+                },
+                "shop_search_loading": {
+                    "title": "Shop Widgets, Searching",
+                    "value": "Searching\u2026"
+                }
+            }
+        },
         "product_page": {
             "label": "Product Page",
             "options": {
@@ -109,6 +326,14 @@
                     "title": "Restricted Product Line 2 Post Link",
                     "value": ". Din konto skal muligvis bekræftes, inden du får adgang til butikken."
                 },
+                "product_page_restricted_signed_out": {
+                    "title": "Restricted Store, Signed Out Message",
+                    "value": "Log ind for at se butikken."
+                },
+                "product_page_restricted_no_access": {
+                    "title": "Restricted Store, Signed In Without Access",
+                    "value": "Din konto har endnu ikke adgang til butikken."
+                },
                 "product_page_start_trial_1": {
                     "title": "Start Your Trial Text Part 1",
                     "value": "Start dine"
@@ -145,6 +370,23 @@
 					"title":"Filters",
 					"value":"Filtre"
 				}
+            }
+        },
+        "elementor_templates": {
+            "label": "Elementor - Category Widgets",
+            "options": {
+                "category_product_count_one": {
+                    "title": "Subcategories Widget: One Product",
+                    "value": "1 product"
+                },
+                "category_product_count": {
+                    "title": "Subcategories Widget: Product Count ( [count] is the number )",
+                    "value": "[count] products"
+                },
+                "categories_label": {
+                    "title": "Subcategories Widget: List Name for Screen Readers",
+                    "value": "Categories"
+                }
             }
         },
         "quick_view": {
@@ -617,6 +859,143 @@
 				}
             }
         },
+        "elementor_product": {
+            "label": "Elementor - Product Purchase Widgets",
+            "options": {
+                "added_to_cart": {
+                    "title": "Add to Cart, Added Message",
+                    "value": "Added to your cart."
+                },
+                "view_cart": {
+                    "title": "Add to Cart, View Cart Link",
+                    "value": "View cart"
+                },
+                "buy_now": {
+                    "title": "Add to Cart, Buy Now Button",
+                    "value": "Buy now"
+                },
+                "add_unconfirmed": {
+                    "title": "Add to Cart, Add Not Confirmed",
+                    "value": "We could not confirm this was added. Please check your cart before you try again."
+                },
+                "quantity_label": {
+                    "title": "Add to Cart, Quantity Label ( screen readers )",
+                    "value": "Quantity"
+                },
+                "decrease_quantity": {
+                    "title": "Add to Cart, Minus Button ( screen readers )",
+                    "value": "Decrease quantity"
+                },
+                "increase_quantity": {
+                    "title": "Add to Cart, Plus Button ( screen readers )",
+                    "value": "Increase quantity"
+                },
+                "in_stock": {
+                    "title": "Stock, In Stock",
+                    "value": "In stock"
+                },
+                "stock_count": {
+                    "title": "Stock, Number in Stock ( [count] is the number )",
+                    "value": "[count] in stock"
+                },
+                "low_stock": {
+                    "title": "Stock, Low Stock ( [count] is the number )",
+                    "value": "Only [count] left"
+                },
+                "backorder": {
+                    "title": "Stock, Available on Backorder",
+                    "value": "Available on backorder"
+                },
+                "sku_label": {
+                    "title": "SKU, Label",
+                    "value": "SKU:"
+                },
+                "badge_sale": {
+                    "title": "Badges, On Sale",
+                    "value": "Sale"
+                },
+                "badge_sale_percent": {
+                    "title": "Badges, Discount ( [percent] is the number )",
+                    "value": "-[percent]%"
+                },
+                "badge_new": {
+                    "title": "Badges, New",
+                    "value": "New"
+                },
+                "badge_low_stock": {
+                    "title": "Badges, Low Stock",
+                    "value": "Low stock"
+                },
+                "badge_out_of_stock": {
+                    "title": "Badges, Sold Out",
+                    "value": "Sold out"
+                },
+                "price_tiers_title": {
+                    "title": "Price, Quantity Discounts Title",
+                    "value": "Buy more, save more"
+                },
+                "price_tiers_quantity": {
+                    "title": "Price, Quantity Discounts Quantity Column",
+                    "value": "Quantity"
+                },
+                "price_tiers_price": {
+                    "title": "Price, Quantity Discounts Price Column",
+                    "value": "Price each"
+                },
+                "gallery_label": {
+                    "title": "Gallery, Name ( screen readers, [product] is the product )",
+                    "value": "[product] images"
+                },
+                "gallery_slide": {
+                    "title": "Gallery, Image Position ( screen readers )",
+                    "value": "[number] of [count]"
+                },
+                "gallery_previous": {
+                    "title": "Gallery, Previous Image",
+                    "value": "Previous image"
+                },
+                "gallery_next": {
+                    "title": "Gallery, Next Image",
+                    "value": "Next image"
+                },
+                "gallery_open": {
+                    "title": "Gallery, Open Larger Image",
+                    "value": "Open larger image"
+                },
+                "gallery_close": {
+                    "title": "Gallery, Close Larger Image",
+                    "value": "Close"
+                },
+                "gallery_thumbnail": {
+                    "title": "Gallery, Thumbnail ( [number] is the image )",
+                    "value": "Show image [number]"
+                },
+                "gallery_play": {
+                    "title": "Gallery, Play Video",
+                    "value": "Play video"
+                },
+                "gallery_thumbs_previous": {
+                    "title": "Gallery, Thumbnail Strip Back Arrow ( screen readers )",
+                    "value": "Earlier thumbnails"
+                },
+                "gallery_thumbs_next": {
+                    "title": "Gallery, Thumbnail Strip Forward Arrow ( screen readers )",
+                    "value": "More thumbnails"
+                },
+                "gallery_pause": {
+                    "title": "Gallery, Pause Slideshow Button",
+                    "value": "Pause the slideshow"
+                },
+                "gallery_resume": {
+                    "title": "Gallery, Play Slideshow Button",
+                    "value": "Play the slideshow"
+                },
+                "price_you_save": {
+                    "title": "Product Price, You Save ( [amount] is the saving, [percent] the percentage )",
+                    "value": "You save [amount] ([percent]%)"
+                }
+            }
+        },
         "customer_review": {
             "label": "Customer Review Panel",
             "options": {
@@ -695,6 +1074,207 @@
                 "review_error": {
                     "title": "Store Review Error Missing Data",
                     "value": "Du skal udfylde titel, vurderlig og meddelelse i din anmeldelse."
+                },
+                "customer_review_save_error": {
+                    "title": "Store Review Error Not Saved",
+                    "value": "Your review could not be saved. Please refresh the page and try again."
+                }
+            }
+        },
+        "elementor_product_info": {
+            "label": "Elementor - Product Information",
+            "options": {
+                "rating_label": {
+                    "title": "Product Rating: Screen Reader Text ( [rating] is the average )",
+                    "value": "Rated [rating] out of 5"
+                },
+                "review_count_one": {
+                    "title": "Product Rating: One Review",
+                    "value": "1 review"
+                },
+                "review_count_many": {
+                    "title": "Product Rating: Reviews ( [count] is the number )",
+                    "value": "[count] reviews"
+                },
+                "rating_none": {
+                    "title": "Product Rating: No Reviews",
+                    "value": "No reviews yet"
+                },
+                "reviews_based_on_one": {
+                    "title": "Product Reviews: Summary, One Review",
+                    "value": "Based on 1 review"
+                },
+                "reviews_based_on_many": {
+                    "title": "Product Reviews: Summary ( [count] is the number )",
+                    "value": "Based on [count] reviews"
+                },
+                "reviews_filter_group": {
+                    "title": "Product Reviews: Star Filter Label",
+                    "value": "Filter reviews by rating"
+                },
+                "reviews_filter_button": {
+                    "title": "Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )",
+                    "value": "Show [rating]-star reviews ([count])"
+                },
+                "reviews_filter_showing": {
+                    "title": "Product Reviews: Filter On ( [rating] is the stars )",
+                    "value": "Showing [rating]-star reviews."
+                },
+                "reviews_filter_clear": {
+                    "title": "Product Reviews: Show All Reviews",
+                    "value": "Show all reviews"
+                },
+                "reviews_none": {
+                    "title": "Product Reviews: No Reviews ( no form shown )",
+                    "value": "There are no reviews yet."
+                },
+                "reviews_sign_in": {
+                    "title": "Product Reviews: Sign In Link",
+                    "value": "Sign in"
+                },
+                "review_star_one": {
+                    "title": "Product Reviews: Form, 1 Star",
+                    "value": "1 star"
+                },
+                "review_star_many": {
+                    "title": "Product Reviews: Form, Stars ( [rating] is the number )",
+                    "value": "[rating] stars"
+                },
+                "breadcrumbs_label": {
+                    "title": "Breadcrumbs: Screen Reader Label",
+                    "value": "Breadcrumb"
+                },
+                "meta_sku": {
+                    "title": "Product Meta: SKU Label",
+                    "value": "SKU:"
+                },
+                "meta_category": {
+                    "title": "Product Meta: One Category Label",
+                    "value": "Category:"
+                },
+                "meta_brand": {
+                    "title": "Product Meta: Brand Label",
+                    "value": "Brand:"
+                },
+                "meta_tag": {
+                    "title": "Product Meta: Tag Label",
+                    "value": "Tag:"
+                },
+                "share_facebook": {
+                    "title": "Share Buttons: Facebook",
+                    "value": "Share on Facebook"
+                },
+                "share_x": {
+                    "title": "Share Buttons: X",
+                    "value": "Share on X"
+                },
+                "share_pinterest": {
+                    "title": "Share Buttons: Pinterest",
+                    "value": "Pin on Pinterest"
+                },
+                "share_linkedin": {
+                    "title": "Share Buttons: LinkedIn",
+                    "value": "Share on LinkedIn"
+                },
+                "share_email": {
+                    "title": "Share Buttons: Email",
+                    "value": "Share by email"
+                },
+                "share_email_label": {
+                    "title": "Share Buttons: Email Button Text",
+                    "value": "Email"
+                },
+                "share_copy": {
+                    "title": "Share Buttons: Copy Link",
+                    "value": "Copy link"
+                },
+                "share_copied": {
+                    "title": "Share Buttons: Link Copied",
+                    "value": "Link copied"
+                },
+                "share_whatsapp": {
+                    "title": "Share Buttons: WhatsApp ( screen readers )",
+                    "value": "Share on WhatsApp"
+                },
+                "share_telegram": {
+                    "title": "Share Buttons: Telegram ( screen readers )",
+                    "value": "Share on Telegram"
+                },
+                "share_reddit": {
+                    "title": "Share Buttons: Reddit ( screen readers )",
+                    "value": "Share on Reddit"
+                },
+                "share_threads": {
+                    "title": "Share Buttons: Threads ( screen readers )",
+                    "value": "Share on Threads"
+                },
+                "share_bluesky": {
+                    "title": "Share Buttons: Bluesky ( screen readers )",
+                    "value": "Share on Bluesky"
+                },
+                "share_sms_label": {
+                    "title": "Share Buttons: Text Message Button",
+                    "value": "Text message"
+                },
+                "share_sms": {
+                    "title": "Share Buttons: Text Message ( screen readers )",
+                    "value": "Share by text message"
+                },
+                "share_print_label": {
+                    "title": "Share Buttons: Print Button",
+                    "value": "Print"
+                },
+                "share_print": {
+                    "title": "Share Buttons: Print ( screen readers )",
+                    "value": "Print this page"
+                },
+                "share_native_label": {
+                    "title": "Share Buttons: Device Share Menu Button",
+                    "value": "Share"
+                },
+                "share_native": {
+                    "title": "Share Buttons: Device Share Menu ( screen readers )",
+                    "value": "Share with an app on this device"
+                },
+                "meta_stock": {
+                    "title": "Product Meta: Stock Label",
+                    "value": "Availability:"
+                },
+                "meta_in_stock": {
+                    "title": "Product Meta: In Stock",
+                    "value": "In stock"
+                },
+                "meta_stock_count": {
+                    "title": "Product Meta: Units In Stock ( [count] is the number )",
+                    "value": "[count] in stock"
+                },
+                "meta_backorder": {
+                    "title": "Product Meta: On Backorder",
+                    "value": "Available on backorder"
+                },
+                "meta_weight": {
+                    "title": "Product Meta: Weight Label",
+                    "value": "Weight:"
+                },
+                "meta_dimensions": {
+                    "title": "Product Meta: Dimensions Label",
+                    "value": "Dimensions:"
+                },
+                "reviews_more": {
+                    "title": "Product Reviews: Show More Link",
+                    "value": "Show more reviews"
+                },
+                "reviews_shown": {
+                    "title": "Product Reviews: How Many Show ( [shown] and [total] are numbers )",
+                    "value": "Showing [shown] of [total] reviews."
+                },
+                "read_more": {
+                    "title": "Description: Read More Button",
+                    "value": "Read more"
+                },
+                "read_less": {
+                    "title": "Description: Show Less Button",
+                    "value": "Show less"
                 }
             }
         },
@@ -1407,6 +1987,10 @@
 				"cart_subscription_already_purchased":{
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Du har allerede købt denne vare. Besøg din konto for at gennemgå dine aktive abonnementer."
+				},
+				"cart_subscription_unavailable":{
+					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
+					"value":"Dette abonnement kan ikke købes online lige nu. Kontakt os venligst for at tilmelde dig."
 				}
             }
         },
@@ -2224,6 +2808,75 @@
 				}
             }
         },
+        "elementor_checkout": {
+            "label": "Elementor Cart and Checkout",
+            "options": {
+                "mini_cart_title": {
+                    "title": "Mini Cart, Title",
+                    "value": "Your cart"
+                },
+                "view_cart": {
+                    "title": "Mini Cart, View Cart Button",
+                    "value": "View cart"
+                },
+                "close": {
+                    "title": "Mini Cart, Close Button ( screen readers )",
+                    "value": "Close"
+                },
+                "cart_button_label": {
+                    "title": "Menu Cart, Button Name ( screen readers; [count] is the number of items )",
+                    "value": "Cart, [count] items"
+                },
+                "remove_item": {
+                    "title": "Mini Cart, Remove Button ( screen readers; [title] is the product )",
+                    "value": "Remove [title]"
+                },
+                "quantity_of": {
+                    "title": "Side Cart, Quantity Box ( screen readers; [title] is the product )",
+                    "value": "Quantity of [title]"
+                },
+                "increase_quantity": {
+                    "title": "Side Cart, Plus Button ( screen readers; [title] is the product )",
+                    "value": "Increase quantity of [title]"
+                },
+                "decrease_quantity": {
+                    "title": "Side Cart, Minus Button ( screen readers; [title] is the product )",
+                    "value": "Decrease quantity of [title]"
+                },
+                "cart_updated": {
+                    "title": "Mini Cart, Cart Updated ( screen readers )",
+                    "value": "Your cart was updated."
+                },
+                "item_added": {
+                    "title": "Side Cart, Product Added ( screen readers; [title] is the product )",
+                    "value": "[title] was added to your cart."
+                },
+                "free_shipping_remaining": {
+                    "title": "Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
+                    "value": "Spend [amount] more for free shipping"
+                },
+                "free_shipping_available": {
+                    "title": "Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
+                    "value": "Free shipping available"
+                },
+                "confirmation_items": {
+                    "title": "Order Confirmation, Products Heading",
+                    "value": "Your order"
+                },
+                "confirmation_payment": {
+                    "title": "Order Confirmation, How to Pay Heading",
+                    "value": "How to pay"
+                },
+                "confirmation_pay_link_note": {
+                    "title": "Order Confirmation, Pay Online Note",
+                    "value": "You can pay for this order online."
+                },
+                "confirmation_pay_now": {
+                    "title": "Order Confirmation, Pay Now Button",
+                    "value": "Pay now"
+                }
+            }
+        },
         "subscription_trial": {
             "label": "Subscription Trial Email",
             "options": {
@@ -2460,6 +3113,23 @@
                 }
             }
         },
+        "account_connect_order_email": {
+            "label": "Account - Connect Order Email",
+            "options": {
+                "account_connect_order_email_title": {
+                    "title": "Connect Order Email Subject and Heading",
+                    "value": "Add your order to your account"
+                },
+                "account_connect_order_email_message": {
+                    "title": "Connect Order Email Message ( [order_id] is the order number )",
+                    "value": "You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+                },
+                "account_connect_order_email_link": {
+                    "title": "Connect Order Email Link",
+                    "value": "Add the order to my account"
+                }
+            }
+        },
         "account_register": {
             "label": "Account - Register",
             "options": {
@@ -2510,6 +3180,99 @@
                 "account_register_email_message": {
                     "title": "Account, Register Email Message",
                     "value": "Ny konto oprettetmed email adresse:"
+                }
+            }
+        },
+        "elementor_account": {
+            "label": "Account - Elementor Widgets",
+            "options": {
+                "nav_dashboard": {
+                    "title": "Account Widgets, Menu, Dashboard",
+                    "value": "Dashboard"
+                },
+                "nav_orders": {
+                    "title": "Account Widgets, Menu, Orders",
+                    "value": "Orders"
+                },
+                "nav_downloads": {
+                    "title": "Account Widgets, Menu, Downloads",
+                    "value": "Downloads"
+                },
+                "nav_subscriptions": {
+                    "title": "Account Widgets, Menu, Subscriptions",
+                    "value": "Subscriptions"
+                },
+                "nav_addresses": {
+                    "title": "Account Widgets, Menu, Addresses",
+                    "value": "Addresses"
+                },
+                "nav_details": {
+                    "title": "Account Widgets, Menu, Account Details",
+                    "value": "Account details"
+                },
+                "nav_payment_methods": {
+                    "title": "Account Widgets, Menu, Payment Methods",
+                    "value": "Payment methods"
+                },
+                "nav_logout": {
+                    "title": "Account Widgets, Menu, Sign Out",
+                    "value": "Sign out"
+                },
+                "nav_menu_label": {
+                    "title": "Account Widgets, Menu Name ( screen readers, phone dropdown )",
+                    "value": "Account menu"
+                },
+                "back_to_orders": {
+                    "title": "Account Widgets, Back to Orders Link",
+                    "value": "Back to orders"
+                },
+                "downloads_title": {
+                    "title": "Account Widgets, Downloads Title",
+                    "value": "Downloads"
+                },
+                "downloads_none": {
+                    "title": "Account Widgets, No Downloads",
+                    "value": "You have no downloads yet."
+                },
+                "downloads_order": {
+                    "title": "Account Widgets, Downloads, Order Link",
+                    "value": "Order"
+                },
+                "downloads_expires": {
+                    "title": "Account Widgets, Downloads, Available Until",
+                    "value": "Available until"
+                },
+                "downloads_expired": {
+                    "title": "Account Widgets, Downloads, Expired",
+                    "value": "This download has expired."
+                },
+                "downloads_used_up": {
+                    "title": "Account Widgets, Downloads, Limit Reached",
+                    "value": "No downloads left."
+                },
+                "payment_title": {
+                    "title": "Account Widgets, Payment Methods Title",
+                    "value": "Payment methods"
+                },
+                "payment_card": {
+                    "title": "Account Widgets, Payment Methods, Card",
+                    "value": "Card"
+                },
+                "payment_card_note": {
+                    "title": "Account Widgets, Payment Methods, Card Note",
+                    "value": "Used for your subscriptions."
+                },
+                "payment_none": {
+                    "title": "Account Widgets, No Payment Method",
+                    "value": "You have no saved payment method."
+                },
+                "signed_in_as": {
+                    "title": "Account Widgets, Signed In As ( [name] is the customer's name )",
+                    "value": "You are signed in as [name]."
+                },
+                "my_account": {
+                    "title": "Account Widgets, My Account Button",
+                    "value": "My account"
                 }
             }
         },
@@ -3201,6 +3964,14 @@
                     "title": "Account, Subscription Details, User Notice",
                     "value": "*BEMÆRK: Alle ændringer til betalingsmetode eller abonnement vil træde i kraft ved næste betalingsdato. Prisændringer vil træde i kraft åjeblikkelig og vil fremgå af din næste reginig."
                 },
+                "subscription_details_plan_notice": {
+                    "title": "Account, Subscription Details, Plan Change Notice",
+                    "value": "Ændringer af abonnementet træder i kraft med det samme. Din næste regning viser den nye pris og et eventuelt tillæg eller fradrag for resten af den aktuelle periode."
+                },
+                "subscription_details_card_notice": {
+                    "title": "Account, Subscription Details, Card Change Notice",
+                    "value": "Din næste betaling trækkes på det nye kort."
+                },
                 "subscription_details_past_payments": {
                     "title": "Account, Subscription Details, Past Payments Title",
                     "value": "Tidligere betalinger"
@@ -3534,6 +4305,18 @@
 					"title":"Cart, Invalid Order ID",
 					"value":"Der blev ikke fundet nogen gyldig ordre med det ID og din e-mailadresse."
 				},
+				"order_claim_invalid":{
+					"title":"Connect Order, Link Not Valid",
+					"value":"That link is not valid or has expired. Ask for a new one from your account."
+				},
+				"order_claim_sign_in":{
+					"title":"Connect Order, Sign In First",
+					"value":"Sign in to the account that asked for this link, then open the link again."
+				},
+				"order_claim_limit":{
+					"title":"Connect Order, Too Many Requests",
+					"value":"Too many requests. Please try again later."
+				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
 					"value":"Dette link til nulstilling af adgangskode er ugyldigt eller udløbet. Anmod venligst om et nyt."
@@ -3545,6 +4328,10 @@
 				"password_invalid":{
 					"title":"Reset Password Invalid",
 					"value":"Den adgangskode er ikke tilladt. Vælg venligst en anden."
+				},
+				"download_unavailable":{
+					"title":"Download Unavailable",
+					"value":"Denne download er ikke tilgængelig. Downloads åbner, når en ordre er betalt, og lukker, hvis den refunderes eller annulleres."
 				}
             }
         },
@@ -3618,6 +4405,10 @@
 				"order_connected":{
 					"title":"Order Connect to Account",
 					"value":"Din ordre er blevet knyttet til din konto!"
+				},
+				"order_claim_sent":{
+					"title":"Connect Order, Link Sent",
+					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -3869,9 +4660,130 @@
                 }
             }
         },
+        "checkout_fields":{
+            "label":"Checkout Fields",
+            "options":{
+                "details_title":{
+                    "title":"Checkout Fields Answers Heading",
+                    "value":"Additional details"
+                },
+                "optional":{
+                    "title":"Optional Field Marker",
+                    "value":"(optional)"
+                },
+                "select_placeholder":{
+                    "title":"Dropdown First Choice",
+                    "value":"Choose…"
+                },
+                "required_error":{
+                    "title":"Required Field Error",
+                    "value":"Please fill in this field."
+                },
+                "choose_error":{
+                    "title":"Required Choice Error",
+                    "value":"Please choose an option."
+                },
+                "email_error":{
+                    "title":"Email Field Error",
+                    "value":"Please enter a valid email address."
+                },
+                "phone_error":{
+                    "title":"Phone Field Error",
+                    "value":"Please enter a valid phone number."
+                },
+                "number_error":{
+                    "title":"Number Field Error",
+                    "value":"Please enter a number in the allowed range."
+                },
+                "date_error":{
+                    "title":"Date Field Error",
+                    "value":"Please choose an available date."
+                },
+                "format_error":{
+                    "title":"Format Error",
+                    "value":"Please check the format of this answer."
+                },
+                "length_error":{
+                    "title":"Too Short Error",
+                    "value":"Please enter a longer answer."
+                },
+                "consent_error":{
+                    "title":"Consent Error",
+                    "value":"Please accept to continue."
+                },
+                "checkout_error":{
+                    "title":"Checkout Fields Notice",
+                    "value":"Please check the highlighted checkout fields."
+                },
+                "yes":{
+                    "title":"Checkbox Ticked Answer",
+                    "value":"Yes"
+                },
+                "no":{
+                    "title":"Checkbox Not Ticked Answer",
+                    "value":"No"
+                },
+                "accepted":{
+                    "title":"Consent Accepted Answer",
+                    "value":"Accepted"
+                },
+                "after_payment_title":{
+                    "title":"After Payment Heading",
+                    "value":"A few more details"
+                },
+                "after_payment_intro":{
+                    "title":"After Payment Introduction",
+                    "value":"We still need a few details to complete your order."
+                },
+                "after_payment_button":{
+                    "title":"After Payment Save Button",
+                    "value":"Save details"
+                },
+                "after_payment_saved":{
+                    "title":"After Payment Saved Message",
+                    "value":"Thank you. We have your details."
+                },
+                "after_payment_failed":{
+                    "title":"After Payment Save Failed Message",
+                    "value":"Your details could not be saved. Reload the page and try again."
+                }
+            }
+        },
         "documents": {
             "label": "Order Documents",
             "options": {
+				"shipment_package":{
+					"title":"Package Label (tracking)",
+					"value":"Package %d"
+				},
+				"shipment_packages_intro":{
+					"title":"Several Packages Intro",
+					"value":"Your order ships in %d packages. Each one has its own tracking number."
+				},
+				"tracking_label_created":{
+					"title":"Tracking: Label Created",
+					"value":"Label created"
+				},
+				"tracking_in_transit":{
+					"title":"Tracking: In Transit",
+					"value":"In transit"
+				},
+				"tracking_out_for_delivery":{
+					"title":"Tracking: Out for Delivery",
+					"value":"Out for delivery"
+				},
+				"tracking_delivered":{
+					"title":"Tracking: Delivered",
+					"value":"Delivered"
+				},
+				"tracking_problem":{
+					"title":"Tracking: Delivery Problem",
+					"value":"Delivery problem"
+				},
+				"tracking_returned":{
+					"title":"Tracking: Returned",
+					"value":"Returned to sender"
+				},
                 "packing_slip_title": {
                     "title": "Packing Slip Title",
                     "value": "Følgeseddel"
@@ -3927,6 +4839,603 @@
                 "invoice_date": {
                     "title": "Invoice PDF Date Label",
                     "value": "Dato:"
+                },
+                "po_number_label": {
+                    "title": "PO Number Label",
+                    "value": "Indkøbsordrenr.:"
+                },
+                "payment_terms_label": {
+                    "title": "Payment Terms Label",
+                    "value": "Betalingsbetingelser:"
+                },
+                "due_date_label": {
+                    "title": "Due Date Label",
+                    "value": "Forfald:"
+                },
+                "invoice_number_label": {
+                    "title": "Invoice Number Label",
+                    "value": "Fakturanummer:"
+                },
+                "invoice_issued_label": {
+                    "title": "Invoice Issue Date Label",
+                    "value": "Udstedt:"
+                },
+                "invoice_email_subject": {
+                    "title": "Invoice Email Subject",
+                    "value": "Faktura"
+                },
+                "invoice_email_intro": {
+                    "title": "Invoice Email Intro",
+                    "value": "Din faktura er vedhæftet som PDF."
+                },
+                "invoice_email_intro_no_pdf": {
+                    "title": "Invoice Email Intro ( No PDF )",
+                    "value": "Her er oplysningerne om din faktura."
+                },
+                "invoice_pay_button": {
+                    "title": "Invoice Email Pay Button",
+                    "value": "Betal faktura"
+                },
+                "gift_message_label": {
+                    "title": "Gift Message Label",
+                    "value": "Gavehilsen"
+                },
+                "gift_receipt_title": {
+                    "title": "Gift Receipt Heading",
+                    "value": "Gavekvittering"
+                },
+                "gift_receipt_intro": {
+                    "title": "Gift Receipt Intro",
+                    "value": "Nogen har sendt dig en gave. Her er, hvad der er på vej til dig."
+                },
+                "gift_from_label": {
+                    "title": "Gift From Label",
+                    "value": "Fra"
+                },
+                "gift_returns_note": {
+                    "title": "Gift Receipt Exchanges Note",
+                    "value": "Vil du bytte noget? Kontakt os og oplys ordrenummeret ovenfor."
+                },
+                "gift_returns_note_no_number": {
+                    "title": "Gift Receipt Exchanges Note ( no order number )",
+                    "value": "Vil du bytte noget? Kontakt os, så hjælper vi dig med at finde din gave."
+                },
+                "pay_loading": {
+                    "title": "Pay Page Loading Message",
+                    "value": "Indlæser den sikre betalingsformular…"
+                },
+                "account_pay_waiting": {
+                    "title": "My Account Order Waiting For Payment",
+                    "value": "Denne ordre afventer betaling."
+                },
+                "gift_receipt_email_subject": {
+                    "title": "Gift Receipt Email Subject",
+                    "value": "En gave er på vej til dig"
+                },
+                "credit_note_title": {
+                    "title": "Credit Note Heading",
+                    "value": "Kreditnota"
+                },
+                "credit_note_number_label": {
+                    "title": "Credit Note Number Label",
+                    "value": "Kreditnotanummer:"
+                },
+                "credit_note_for_invoice": {
+                    "title": "Credit Note Invoice Label",
+                    "value": "Vedrører faktura:"
+                },
+                "credit_note_invoice_total": {
+                    "title": "Credit Note Invoice Total Label",
+                    "value": "Fakturabeløb"
+                },
+                "amount_credited": {
+                    "title": "Amount Credited Label",
+                    "value": "Krediteret beløb"
+                },
+                "document_links_title": {
+                    "title": "Email Document Links Heading",
+                    "value": "Dine dokumenter"
+                },
+                "document_links_expire": {
+                    "title": "Email Document Links Expiry ( %d is the number of days )",
+                    "value": "Disse links virker i %d dage."
+                },
+                "document_link_invoice": {
+                    "title": "Email Invoice PDF Link",
+                    "value": "Faktura-PDF"
+                },
+                "document_link_packing_slip": {
+                    "title": "Email Packing Slip PDF Link",
+                    "value": "Følgeseddel-PDF"
+                },
+                "account_download_receipt": {
+                    "title": "My Account Receipt PDF Link",
+                    "value": "Kvittering (PDF)"
+                },
+                "account_download_invoice": {
+                    "title": "My Account Invoice PDF Link",
+                    "value": "Faktura (PDF)"
+                },
+                "account_download_credit_note": {
+                    "title": "My Account Credit Note PDF Link",
+                    "value": "Kreditnota (PDF)"
+                },
+                "account_download_packing_slip": {
+                    "title": "My Account Packing Slip PDF Link",
+                    "value": "Følgeseddel (PDF)"
+                },
+                "account_download_gift_receipt": {
+                    "title": "My Account Gift Receipt PDF Link",
+                    "value": "Gavekvittering (PDF)"
+                },
+                "checkout_po_title": {
+                    "title": "Checkout PO Number Heading",
+                    "value": "Indkøbsordre"
+                },
+                "checkout_po_label": {
+                    "title": "Checkout PO Number Label",
+                    "value": "Indkøbsordrenummer (valgfrit)"
+                },
+                "checkout_po_label_required": {
+                    "title": "Checkout PO Number Label ( Required )",
+                    "value": "Indkøbsordrenummer"
+                },
+                "checkout_po_error": {
+                    "title": "Checkout PO Number Error",
+                    "value": "Indtast dit indkøbsordrenummer."
+                },
+                "checkout_gift_title": {
+                    "title": "Checkout Gift Heading",
+                    "value": "Gavemuligheder"
+                },
+                "checkout_gift_switch": {
+                    "title": "Checkout Gift Switch",
+                    "value": "Send denne ordre som en gave"
+                },
+                "checkout_gift_message_label": {
+                    "title": "Checkout Gift Message Label",
+                    "value": "Gavehilsen (valgfri)"
+                },
+                "checkout_gift_recipient_email": {
+                    "title": "Checkout Gift Recipient Email Label",
+                    "value": "Modtagerens e-mail (valgfri)"
+                },
+                "checkout_gift_switch_help": {
+                    "title": "Checkout Gift Switch Help",
+                    "value": "Vi lægger ikke priserne i pakken. Din egen kvittering viser stadig, hvad du har betalt."
+                },
+                "checkout_gift_message_placeholder": {
+                    "title": "Checkout Gift Message Placeholder",
+                    "value": "Skriv en kort hilsen til gaven"
+                },
+                "checkout_gift_recipient_help": {
+                    "title": "Checkout Gift Recipient Help",
+                    "value": "Vi sender modtageren en gavekvittering uden priser, når pakken afsendes."
+                },
+                "checkout_gift_recipient_error": {
+                    "title": "Checkout Gift Recipient Error",
+                    "value": "Indtast en gyldig e-mailadresse, eller lad feltet stå tomt."
+                },
+                "gift_summary_title": {
+                    "title": "Gift Summary Heading",
+                    "value": "Denne ordre er en gave"
+                },
+                "gift_summary_prices": {
+                    "title": "Gift Summary: No Prices",
+                    "value": "Der kommer ingen priser i pakken."
+                },
+                "gift_summary_recipient": {
+                    "title": "Gift Summary: Gift Receipt To",
+                    "value": "Gavekvittering til"
+                },
+                "gift_summary_recipient_note": {
+                    "title": "Gift Summary: Gift Receipt Timing",
+                    "value": "Sendes pr. e-mail uden priser, når ordren afsendes."
+                },
+                "gift_summary_recipient_sent": {
+                    "title": "Gift Summary: Gift Receipt Sent ( %s is the date )",
+                    "value": "Sendt den %s."
+                },
+                "gift_summary_edit": {
+                    "title": "Gift Summary: Change Link",
+                    "value": "Skift"
+                },
+                "gift_summary_short": {
+                    "title": "Gift Summary: Order Summary Line",
+                    "value": "Sendes som gave"
+                },
+                "pay_title": {
+                    "title": "Pay Page Heading",
+                    "value": "Betal din ordre"
+                },
+                "pay_paid_title": {
+                    "title": "Pay Page Heading ( Paid )",
+                    "value": "Tak"
+                },
+                "pay_amount_due": {
+                    "title": "Pay Page Amount Due Label",
+                    "value": "Beløb til betaling"
+                },
+                "pay_method_title": {
+                    "title": "Pay Page Payment Heading",
+                    "value": "Betaling"
+                },
+                "pay_card_tab": {
+                    "title": "Pay Page Card Tab",
+                    "value": "Kort"
+                },
+                "pay_paypal_tab": {
+                    "title": "Pay Page PayPal Tab",
+                    "value": "PayPal"
+                },
+                "pay_bank_tab": {
+                    "title": "Pay Page Bank Transfer Tab",
+                    "value": "Bankoverførsel"
+                },
+                "pay_button": {
+                    "title": "Pay Page Pay Button",
+                    "value": "Betal nu"
+                },
+                "pay_processing": {
+                    "title": "Pay Page Processing",
+                    "value": "Behandler din betaling…"
+                },
+                "pay_success": {
+                    "title": "Pay Page Payment Received",
+                    "value": "Tak! Vi har modtaget din betaling og sendt dig en kvittering."
+                },
+                "pay_paid": {
+                    "title": "Pay Page Already Paid",
+                    "value": "Denne ordre er betalt. Tak!"
+                },
+                "pay_pending": {
+                    "title": "Pay Page Payment Pending",
+                    "value": "Din betaling behandles. Vi sender dig en e-mail, når den er bekræftet."
+                },
+                "pay_closed": {
+                    "title": "Pay Page Order Closed",
+                    "value": "Denne ordre kan ikke længere betales online. Kontakt os, hvis du har spørgsmål."
+                },
+                "pay_not_found": {
+                    "title": "Pay Page Order Not Found",
+                    "value": "Vi kunne ikke finde denne ordre. Tjek linket i din e-mail, eller kontakt os."
+                },
+                "pay_unavailable": {
+                    "title": "Pay Page No Online Payment",
+                    "value": "Onlinebetaling er ikke mulig for denne ordre. Kontakt os for at aftale betaling."
+                },
+                "pay_error": {
+                    "title": "Pay Page Payment Error",
+                    "value": "Betalingen kunne ikke gennemføres. Prøv igen, eller brug en anden betalingsmetode."
+                },
+                "pay_expired": {
+                    "title": "Pay Page Expired",
+                    "value": "Siden er udløbet. Genindlæs den, og prøv igen."
+                },
+                "pay_billing_error": {
+                    "title": "Pay Page Billing Address Missing",
+                    "value": "Udfyld din faktureringsadresse."
+                },
+                "pay_bank_intro": {
+                    "title": "Pay Page Bank Transfer Intro",
+                    "value": "Betal via bankoverførsel med disse oplysninger, og angiv dit ordrenummer:"
+                },
+                "pay_shipping_title": {
+                    "title": "Pay Page Shipping Heading",
+                    "value": "Leveres til"
+                },
+                "pay_view_order": {
+                    "title": "Pay Page View Order Link",
+                    "value": "Se din ordre"
+                },
+                "pay_download_invoice": {
+                    "title": "Pay Page Invoice PDF Link",
+                    "value": "Download faktura (PDF)"
+                },
+                "account_pay_now": {
+                    "title": "My Account Pay Now Button",
+                    "value": "Betal nu"
+                },
+                "pay_paid_label": {
+                    "title": "Pay Page, Invoice Email And PDF Paid Label ( an order changed after it was paid )",
+                    "value": "Betalt"
+                },
+                "pay_balance_label": {
+                    "title": "Pay Page, Invoice Email And PDF Balance Due Label",
+                    "value": "Restbeløb"
+                },
+                "account_pay_balance": {
+                    "title": "My Account Order Balance Due Notice ( the amount follows )",
+                    "value": "Denne ordre er ændret, efter den blev betalt. Restbeløb:"
+                }
+            }
+        },
+        "checkout_protection": {
+            "label": "Checkout Protection",
+            "options": {
+                "declined": {
+                    "title": "Payment Declined (simple message)",
+                    "value": "Your payment wasn't approved. Please check your card details or try a different card."
+                },
+                "paused_title": {
+                    "title": "Paused: Title",
+                    "value": "Payments are paused for a little while."
+                },
+                "paused": {
+                    "title": "Paused: Message ([time] and [email] are filled in)",
+                    "value": "For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+                },
+                "paused_soon": {
+                    "title": "Paused: Message Without a Time",
+                    "value": "For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+                },
+                "check_title": {
+                    "title": "Human Check: Title",
+                    "value": "Quick security check"
+                },
+                "check_needed": {
+                    "title": "Human Check: Message",
+                    "value": "Please complete the security check below, then place your order again."
+                },
+                "check_failed": {
+                    "title": "Human Check: Failed",
+                    "value": "The security check didn't work. Please try it again."
+                },
+                "checking": {
+                    "title": "Human Check: Checking",
+                    "value": "Checking…"
+                },
+                "reload": {
+                    "title": "Reload Needed",
+                    "value": "Please reload this page and try again."
+                },
+                "code_paused": {
+                    "title": "Too Many Codes Tried",
+                    "value": "Too many codes were tried. Please wait an hour before trying another code."
+                }
+            }
+        },
+        "fulfillment": {
+            "label": "Fulfillment Partners",
+            "options": {
+                "being_made": {
+                    "title": "Package Status: Being Made by a Partner",
+                    "value": "Being made"
+                }
+            }
+        },
+        "product_managed": {
+            "label": "Managed Products",
+            "options": {
+                "variant_unavailable": {
+                    "title": "Cart: Variant Switched Off",
+                    "value": "An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+                },
+                "line_unavailable": {
+                    "title": "Cart: Item Cannot Be Ordered",
+                    "value": "An item in your cart cannot be ordered right now. Please remove it or try again later."
+                },
+                "product_unavailable": {
+                    "title": "Cart: Item Not Available To Order",
+                    "value": "En vare i din kurv kan ikke bestilles. Fjern den for at fortsætte."
+                }
+            }
+        },
+        "cart_onepage": {
+            "label": "One-page Checkout",
+            "options": {
+                "breadcrumb_cart": {
+                    "title": "Steps: Cart",
+                    "value": "Kurv"
+                },
+                "breadcrumb_information": {
+                    "title": "Steps: Information",
+                    "value": "Oplysninger"
+                },
+                "breadcrumb_shipping": {
+                    "title": "Steps: Shipping",
+                    "value": "Levering"
+                },
+                "breadcrumb_payment": {
+                    "title": "Steps: Payment",
+                    "value": "Betaling"
+                },
+                "show_order_summary": {
+                    "title": "Show Order Summary ( Mobile )",
+                    "value": "Vis ordreoversigt"
+                },
+                "edit_cart": {
+                    "title": "Edit Cart Link",
+                    "value": "Rediger kurv"
+                },
+                "order_summary": {
+                    "title": "Order Summary Heading",
+                    "value": "Ordreoversigt"
+                },
+                "express_checkout": {
+                    "title": "Express Checkout Heading",
+                    "value": "Hurtig betaling"
+                },
+                "express_or": {
+                    "title": "Express Checkout Divider",
+                    "value": "ELLER"
+                },
+                "contact": {
+                    "title": "Contact Heading",
+                    "value": "Kontakt"
+                },
+                "create_account_link": {
+                    "title": "Create Account Link",
+                    "value": "Opret konto"
+                },
+                "invalid_email": {
+                    "title": "Invalid Email Error",
+                    "value": "Indtast venligst en gyldig e-mailadresse."
+                },
+                "email_has_account": {
+                    "title": "Email Has Account Error",
+                    "value": "E-mailadressen har allerede en konto. Log ind for at fortsætte."
+                },
+                "billing_address": {
+                    "title": "Billing Address Heading",
+                    "value": "Faktureringsadresse"
+                },
+                "billing_same": {
+                    "title": "Billing Same As Shipping",
+                    "value": "Samme som leveringsadressen"
+                },
+                "billing_different": {
+                    "title": "Billing Different Address",
+                    "value": "Brug en anden faktureringsadresse"
+                },
+                "shipping_address_error": {
+                    "title": "Shipping Address Error",
+                    "value": "Ret venligst fejlene i din leveringsadresse."
+                },
+                "billing_address_error": {
+                    "title": "Billing Address Error",
+                    "value": "Ret venligst fejlene i din faktureringsadresse."
+                },
+                "no_shipping_method": {
+                    "title": "No Shipping Method Error",
+                    "value": "Der er ingen leveringsmetode valgt eller tilgængelig. Indtast en gyldig leveringsadresse for at fortsætte."
+                },
+                "shipping_locked": {
+                    "title": "Shipping Methods Waiting",
+                    "value": "Vi viser leveringsmetoderne, så snart din leveringsadresse er udfyldt."
+                },
+                "payment_locked": {
+                    "title": "Payment Methods Waiting",
+                    "value": "Vi viser betalingsmetoderne, så snart din leveringsadresse er udfyldt."
+                },
+                "review_ship_to": {
+                    "title": "Review: Ship To",
+                    "value": "Leveres til"
+                },
+                "review_method": {
+                    "title": "Review: Shipping Method",
+                    "value": "Metode"
+                },
+                "review_billing": {
+                    "title": "Review: Billing",
+                    "value": "Fakturering"
+                },
+                "change": {
+                    "title": "Review: Change Link",
+                    "value": "Skift"
+                },
+                "return_to_cart": {
+                    "title": "Back to Cart Link",
+                    "value": "Tilbage til kurven"
+                },
+                "return_to_information": {
+                    "title": "Back to Information Link",
+                    "value": "Tilbage til oplysninger"
+                },
+                "return_to_shipping": {
+                    "title": "Back to Shipping Link",
+                    "value": "Tilbage til levering"
+                },
+                "pickup_asap": {
+                    "title": "Pickup: As Soon As Possible",
+                    "value": "Hurtigst muligt"
+                },
+                "pickup_schedule": {
+                    "title": "Pickup: Schedule for Later",
+                    "value": "Planlæg til senere"
+                },
+                "remove": {
+                    "title": "Remove Item Link",
+                    "value": "Fjern"
+                },
+                "checkout_note": {
+                    "title": "Cart: Calculated at Checkout Note",
+                    "value": "Levering, moms og rabatkoder beregnes ved kassen."
+                },
+                "card_minimum": {
+                    "title": "Card Payment Minimum ( %s is the amount )",
+                    "value": "Ordren skal være på mindst %s for at betale med kort."
+                },
+                "place_order_error": {
+                    "title": "Place Order: Could Not Continue",
+                    "value": "Noget gik galt. Kontroller dine oplysninger, og prøv igen."
+                },
+                "total_changed": {
+                    "title": "Place Order: Total Changed",
+                    "value": "Din ordretotal er ændret. Kontroller den, og afgiv derefter din ordre igen."
+                },
+                "placing_title": {
+                    "title": "Place Order: Working, Title",
+                    "value": "Din ordre afgives"
+                },
+                "placing_checking": {
+                    "title": "Place Order: Working, Checking the Order",
+                    "value": "Vi tjekker din ordre…"
+                },
+                "placing_payment": {
+                    "title": "Place Order: Working, Processing the Payment",
+                    "value": "Din betaling behandles…"
+                },
+                "placing_finishing": {
+                    "title": "Place Order: Working, Completing the Order",
+                    "value": "Din ordre gøres færdig…"
+                },
+                "placing_slow": {
+                    "title": "Place Order: Working, Taking Longer Than Usual",
+                    "value": "Det tager lidt længere tid end normalt."
+                },
+                "placing_hint": {
+                    "title": "Place Order: Working, Keep the Page Open",
+                    "value": "Hold venligst denne side åben."
+                }
+            }
+        },
+        "shipping_groups": {
+            "label": "Checkout - Partner Shipping",
+            "options": {
+                "ships_separately": {
+                    "title": "Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
+                    "value": "[label] items ship separately ( [amount] )."
+                },
+                "delivery_estimate": {
+                    "title": "Note: Delivery Estimate ([days] is the delivery time)",
+                    "value": "Estimated delivery: [days]."
+                },
+                "delivery_days": {
+                    "title": "Delivery Time ([days] is a number or a range)",
+                    "value": "[days] business days"
+                },
+                "pending": {
+                    "title": "Note: No Address Yet ([label] is the partner)",
+                    "value": "[label] items ship separately. Their shipping is added once you enter your address."
+                },
+                "unavailable": {
+                    "title": "Note: No Shipping for This Address ([label] is the partner)",
+                    "value": "We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+                },
+                "totals_included": {
+                    "title": "Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
+                    "value": "Includes [label] shipping: [amount]"
+                },
+                "totals_pending": {
+                    "title": "Totals: No Address Yet ([label] is the partner)",
+                    "value": "[label] shipping is added once you enter your address"
+                },
+                "totals_unavailable": {
+                    "title": "Totals: No Shipping for This Address ([label] is the partner)",
+                    "value": "[label] shipping is unavailable for this address"
+                },
+                "free": {
+                    "title": "Partner Shipping Covered by Free Shipping",
+                    "value": "Free"
+                },
+                "checkout_error": {
+                    "title": "Checkout Error: Partner Shipping Unavailable",
+                    "value": "We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+                },
+                "method_name": {
+                    "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",
+                    "value": "[label] - [service]"
                 }
             }
         },

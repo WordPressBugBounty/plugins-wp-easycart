@@ -34,9 +34,11 @@ $ecre_stats    = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Support & updates have expired', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'expired' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'expired' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 		</div>
 	</div>
+
+	<?php include __DIR__ . '/registration-notice-v2.php'; /* 6.0.2: a key entered here showed no result before */ ?>
 
 	<div class="ecreg-notice is-ended">
 		<span class="dashicons dashicons-warning"></span>

@@ -576,10 +576,84 @@ if ( ! function_exists( 'ecst_tax_render_canada_grid' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_tax_service_state' ) ) {
+	/**
+	 * 'on' | 'incomplete' | 'off' for an automated tax service ( taxcloud, taxjar ), from its saved settings.
+	 *
+	 * @since 6.0.2
+	 * @param string $service Service key.
+	 * @return string
+	 */
+	function ecst_tax_service_state( $service ) {
+		if ( ! function_exists( 'get_option' ) ) {
+			return 'off';
+		}
+		$state = 'off';
+		if ( 'taxcloud' === $service ) {
+			$id    = trim( (string) get_option( 'ec_option_tax_cloud_api_id' ) );
+			$key   = trim( (string) get_option( 'ec_option_tax_cloud_api_key' ) );
+			$state = ( '' !== $id && '' !== $key ) ? 'on' : ( ( '' !== $id || '' !== $key ) ? 'incomplete' : 'off' );
+		} elseif ( 'taxjar' === $service && get_option( 'ec_option_tax_jar_enable' ) ) {
+			$token = trim( (string) get_option( get_option( 'ec_option_tax_jar_sandbox' ) ? 'ec_option_tax_jar_sandbox_token' : 'ec_option_tax_jar_live_token' ) );
+			$state = '' !== $token ? 'on' : 'incomplete';
+		}
+		/* 6.0.2: one service calculates tax ( Tax service in use ); a service that is set up but not the one in use waits. */
+		if ( 'on' === $state && class_exists( 'wp_easycart_tax_providers' ) && method_exists( 'wp_easycart_tax_providers', 'active_id' ) && wp_easycart_tax_providers::active_id() !== $service ) {
+			$state = 'standby';
+		}
+		return $state;
+	}
+}
+
+if ( ! function_exists( 'ecst_tax_test_vatlayer' ) ) {
+	/**
+	 * Taxes › VAT › Test Vatlayer ( 6.0.2 ).
+	 *
+	 * @param array  $action Action.
+	 * @param array  $page   Page.
+	 * @param string $input  VAT number typed beside the button.
+	 * @return array|WP_Error
+	 */
+	function ecst_tax_test_vatlayer( $action, $page, $input = '' ) {
+		if ( ! class_exists( 'wp_easycart_vatlayer' ) ) {
+			return new WP_Error( 'vatlayer', __( 'This check is not available.', 'wp-easycart' ) );
+		}
+		return wp_easycart_vatlayer::test( $input );
+	}
+}
+
 if ( ! function_exists( 'ecst_tax_render_service_heading' ) ) {
-	/** Sub-heading row inside the automated services section. */
+	/**
+	 * 6.0.2: an automated service's row ( the same row as AvaTax's ): name, what it does, whether it is on, and Edit, which
+	 * opens the service's settings in a drawer ( the rows declared with 'drawer' => <service> ).
+	 *
+	 * @param array $field Field declaration ( label, desc, service ).
+	 */
 	function ecst_tax_render_service_heading( $field ) {
-		echo '<div class="ectx-intro"><b>' . esc_html( $field['label'] ) . '</b>' . ( '' !== $field['desc'] ? ' <span style="color:var(--ecv2-g500);">' . esc_html( $field['desc'] ) . '</span>' : '' ) . '</div>';
+		$service = isset( $field['service'] ) ? sanitize_key( (string) $field['service'] ) : '';
+		$marks   = array(
+			'taxcloud' => array( 'TC', '#0b6fb7' ),
+			'taxjar'   => array( 'TJ', '#e2543b' ),
+		);
+		$mark    = isset( $marks[ $service ] ) ? $marks[ $service ] : array( strtoupper( substr( (string) $field['label'], 0, 2 ) ), '#6b7280' );
+		$state   = ecst_tax_service_state( $service );
+		$chips   = array(
+			'on'         => array( 'ecv2-chip-green', __( 'On', 'wp-easycart' ), __( 'Calculating tax at checkout.', 'wp-easycart' ) ),
+			'incomplete' => array( 'ecv2-chip-amber', __( 'Not finished', 'wp-easycart' ), __( 'Some details are missing, so it is not calculating tax yet.', 'wp-easycart' ) ),
+			'standby'    => array( 'ecv2-chip-gray', __( 'Not in use', 'wp-easycart' ), __( 'Set up, but another tax service is in use ( Tax service in use, above ).', 'wp-easycart' ) ),
+			'off'        => array( 'ecv2-chip-gray', __( 'Off', 'wp-easycart' ), (string) $field['desc'] ),
+		);
+		$chip    = $chips[ $state ];
+		$texts   = array(
+			'chips'  => $chips,
+			'edit'   => __( 'Edit', 'wp-easycart' ),
+			'set_up' => __( 'Set up', 'wp-easycart' ),
+		);
+		echo '<div class="ecext-slot ectx-svc" data-service="' . esc_attr( $service ) . '" data-state="' . esc_attr( $state ) . '" data-texts="' . esc_attr( wp_json_encode( $texts ) ) . '"><div class="ecext-row">';
+		echo '<span class="ecext-logo" style="background:' . esc_attr( $mark[1] ) . ';" aria-hidden="true">' . esc_html( $mark[0] ) . '</span>';
+		echo '<div class="ecext-row-text"><b>' . esc_html( $field['label'] ) . ' <span class="ecv2-chip ' . esc_attr( $chip[0] ) . ' ectx-svc-chip">' . esc_html( $chip[1] ) . '</span></b><span class="ectx-svc-line">' . esc_html( $chip[2] ) . '</span></div>';
+		echo '<div class="ecext-row-actions"><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecst-drawer-open="' . esc_attr( $service ) . '">' . esc_html( 'off' === $state ? __( 'Set up', 'wp-easycart' ) : __( 'Edit', 'wp-easycart' ) ) . '</button></div>';
+		echo '</div></div>';
 	}
 }
 
@@ -597,7 +671,8 @@ return array(
 	'slug'        => 'tax',
 	'title'       => __( 'Taxes', 'wp-easycart' ),
 	'description' => __( 'What tax you collect and where: a flat rate, rates by state or country, VAT, Canadian GST/PST/HST, duty, or an automated service.', 'wp-easycart' ),
-	'group'       => 'financial',
+	'group'       => 'payments-taxes',
+	'order'       => 20,
 	'icon'        => 'media-spreadsheet',
 	'docs'        => array( 'settings', 'taxes', 'global-tax-setup' ),
 	'legacy'      => array( 'tax' ),
@@ -657,9 +732,9 @@ return array(
 		),
 
 		'vat' => array(
-			'title'  => __( 'VAT', 'wp-easycart' ),
-			'hint'   => __( 'Value added tax, one rate or a rate per country', 'wp-easycart' ),
-			'fields' => array(
+			'title'   => __( 'VAT', 'wp-easycart' ),
+			'hint'    => __( 'Value added tax, one rate or a rate per country', 'wp-easycart' ),
+			'fields'  => array(
 				'ec_option_use_vat_tax' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Charge VAT', 'wp-easycart' ),
@@ -756,7 +831,21 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Setup VAT Options', 'label' => 'Default Rounding' ),
 				),
 			),
-			'render' => 'ecst_tax_render_vat_country_rates',
+			'render'  => 'ecst_tax_render_vat_country_rates',
+			/* 6.0.2: checks the saved Vatlayer key with a number now ( wp_easycart_vatlayer::test() ). */
+			'actions' => array(
+				array(
+					'id'       => 'vatlayer_test',
+					'label'    => __( 'Test Vatlayer', 'wp-easycart' ),
+					'desc'     => __( 'Checks a VAT number with your saved Vatlayer API key and shows the answer. Leave the box empty to try a sample number.', 'wp-easycart' ),
+					'button'   => __( 'Run test', 'wp-easycart' ),
+					'input'    => array(
+						'label'       => __( 'VAT number to check', 'wp-easycart' ),
+						'placeholder' => __( 'VAT number ( optional )', 'wp-easycart' ),
+					),
+					'callback' => 'ecst_tax_test_vatlayer',
+				),
+			),
 		),
 
 		'canada' => array(
@@ -819,17 +908,43 @@ return array(
 		),
 
 		'automated' => array(
-			'title'  => __( 'Automated tax services', 'wp-easycart' ),
-			'hint'   => __( 'Live US rates from TaxCloud or TaxJar instead of your own tables', 'wp-easycart' ),
-			'pro'    => true,
-			'fields' => array(
+			'title'   => __( 'Automated tax services', 'wp-easycart' ),
+			'hint'    => __( 'Live rates from TaxCloud, TaxJar or Avalara AvaTax instead of your own tables', 'wp-easycart' ),
+			'pro'     => true,
+			'drawers' => array(
+				'taxcloud' => array(
+					'title' => __( 'TaxCloud', 'wp-easycart' ),
+					'hint'  => __( 'US sales tax by address. Active as soon as both the API ID and API key are filled in.', 'wp-easycart' ),
+				),
+				'taxjar'   => array(
+					'title' => __( 'TaxJar', 'wp-easycart' ),
+					'hint'  => __( 'US sales tax by address with TaxJar product categories. Needs the token for the mode you pick.', 'wp-easycart' ),
+				),
+			),
+			'fields'  => array(
+				/* 6.0.2: one service calculates tax ( wp_easycart_tax_providers ). Automatic keeps the order used before. */
+				'ec_option_tax_provider' => array(
+					'type'     => 'select',
+					'label'    => __( 'Tax service in use', 'wp-easycart' ),
+					'desc'     => __( 'Only this service calculates tax at checkout and receives your orders. Automatic keeps the order used before: TaxCloud when its keys are filled in, then TaxJar, then an extension such as Avalara AvaTax.', 'wp-easycart' ),
+					'default'  => '',
+					'options'  => function () {
+						return class_exists( 'wp_easycart_tax_providers' ) ? wp_easycart_tax_providers::choice_options() : array( '' => __( 'Automatic', 'wp-easycart' ) );
+					},
+					'pro'      => true,
+					'keywords' => array( 'taxcloud', 'taxjar', 'avatax', 'avalara', 'automated', 'service', 'provider' ),
+					'legacy'   => array(),
+				),
+				/* 6.0.2: one row per service ( like the AvaTax row ), each service's settings in a drawer opened by Edit. */
 				'ecst_tax_heading_taxcloud' => array(
-					'type'   => 'html',
-					'label'  => __( 'TaxCloud', 'wp-easycart' ),
-					'desc'   => __( 'US sales tax by address. Active as soon as both the API ID and API key are filled in.', 'wp-easycart' ),
-					'render' => 'ecst_tax_render_service_heading',
+					'type'    => 'html',
+					'label'   => __( 'TaxCloud', 'wp-easycart' ),
+					'desc'    => __( 'US sales tax by address. Active as soon as both the API ID and API key are filled in.', 'wp-easycart' ),
+					'service' => 'taxcloud',
+					'render'  => 'ecst_tax_render_service_heading',
 				),
 				'ec_option_tax_cloud_api_id' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'text',
 					'label'    => __( 'TaxCloud API ID', 'wp-easycart' ),
 					'desc'     => __( 'From your TaxCloud account.', 'wp-easycart' ),
@@ -838,6 +953,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'API ID' ),
 				),
 				'ec_option_tax_cloud_api_key' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'password',
 					'label'    => __( 'TaxCloud API key', 'wp-easycart' ),
 					'desc'     => __( 'From your TaxCloud account. Kept private; only sent from your server.', 'wp-easycart' ),
@@ -846,6 +962,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'API Key' ),
 				),
 				'ec_option_tax_cloud_address' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'text',
 					'label'    => __( 'TaxCloud origin address', 'wp-easycart' ),
 					'desc'     => __( 'Street address you ship from.', 'wp-easycart' ),
@@ -854,6 +971,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'Origin Address' ),
 				),
 				'ec_option_tax_cloud_city' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'text',
 					'label'    => __( 'TaxCloud origin city', 'wp-easycart' ),
 					'desc'     => __( 'City you ship from.', 'wp-easycart' ),
@@ -862,6 +980,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'Origin City' ),
 				),
 				'ec_option_tax_cloud_state' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'select',
 					'label'    => __( 'TaxCloud origin state', 'wp-easycart' ),
 					'desc'     => __( 'State you ship from.', 'wp-easycart' ),
@@ -871,6 +990,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'Origin State' ),
 				),
 				'ec_option_tax_cloud_zip' => array(
+					'drawer'   => 'taxcloud',
 					'type'     => 'text',
 					'label'    => __( 'TaxCloud origin ZIP', 'wp-easycart' ),
 					'desc'     => __( 'ZIP code you ship from.', 'wp-easycart' ),
@@ -879,12 +999,14 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'Tax Cloud for USA', 'label' => 'Origin Zip' ),
 				),
 				'ecst_tax_heading_taxjar' => array(
-					'type'   => 'html',
-					'label'  => __( 'TaxJar', 'wp-easycart' ),
-					'desc'   => __( 'US sales tax by address with TaxJar product categories. Needs the token for the mode you pick.', 'wp-easycart' ),
-					'render' => 'ecst_tax_render_service_heading',
+					'type'    => 'html',
+					'label'   => __( 'TaxJar', 'wp-easycart' ),
+					'desc'    => __( 'US sales tax by address with TaxJar product categories. Needs the token for the mode you pick.', 'wp-easycart' ),
+					'service' => 'taxjar',
+					'render'  => 'ecst_tax_render_service_heading',
 				),
 				'ec_option_tax_jar_enable' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'toggle',
 					'label'    => __( 'TaxJar', 'wp-easycart' ),
 					'desc'     => __( 'Calculates US sales tax through TaxJar once a token is entered.', 'wp-easycart' ),
@@ -893,6 +1015,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Enable TaxJar' ),
 				),
 				'ec_option_tax_jar_sandbox' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'toggle',
 					'label'    => __( 'Sandbox mode', 'wp-easycart' ),
 					'desc'     => __( 'Talks to the TaxJar sandbox with the sandbox token. Not live; turn off before you sell.', 'wp-easycart' ),
@@ -903,6 +1026,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Enable Sandbox' ),
 				),
 				'ec_option_tax_jar_live_token' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'password',
 					'label'    => __( 'TaxJar live token', 'wp-easycart' ),
 					'desc'     => __( 'From your TaxJar account. Used while sandbox mode is off.', 'wp-easycart' ),
@@ -912,6 +1036,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Live Token' ),
 				),
 				'ec_option_tax_jar_sandbox_token' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'password',
 					'label'    => __( 'TaxJar sandbox token', 'wp-easycart' ),
 					'desc'     => __( 'From your TaxJar account. Used only while sandbox mode is on.', 'wp-easycart' ),
@@ -922,6 +1047,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Sandbox Token' ),
 				),
 				'ec_option_tax_jar_enable_address_verification' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'toggle',
 					'label'    => __( 'Verify US addresses with TaxJar', 'wp-easycart' ),
 					'desc'     => __( 'Needs a TaxJar Professional plan. Applies to US addresses only.', 'wp-easycart' ),
@@ -932,6 +1058,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Enable Address Verification' ),
 				),
 				'ec_option_tax_jar_address' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'text',
 					'label'    => __( 'TaxJar origin address', 'wp-easycart' ),
 					'desc'     => __( 'Street address you ship from.', 'wp-easycart' ),
@@ -941,6 +1068,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Origin Address' ),
 				),
 				'ec_option_tax_jar_city' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'text',
 					'label'    => __( 'TaxJar origin city', 'wp-easycart' ),
 					'desc'     => __( 'City you ship from.', 'wp-easycart' ),
@@ -950,6 +1078,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Origin City' ),
 				),
 				'ec_option_tax_jar_state' => array(
+					'drawer'   => 'taxjar',
 					'type'        => 'text',
 					'label'       => __( 'TaxJar origin state', 'wp-easycart' ),
 					'desc'        => __( 'Two-letter state or province code you ship from.', 'wp-easycart' ),
@@ -960,6 +1089,7 @@ return array(
 					'legacy'      => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Origin State' ),
 				),
 				'ec_option_tax_jar_zip' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'text',
 					'label'    => __( 'TaxJar origin ZIP', 'wp-easycart' ),
 					'desc'     => __( 'ZIP or postal code you ship from.', 'wp-easycart' ),
@@ -969,6 +1099,7 @@ return array(
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Origin Zip' ),
 				),
 				'ec_option_tax_jar_country' => array(
+					'drawer'   => 'taxjar',
 					'type'     => 'select',
 					'label'    => __( 'TaxJar origin country', 'wp-easycart' ),
 					'desc'     => __( 'Country you ship from. Only countries TaxJar supports are listed.', 'wp-easycart' ),
@@ -980,6 +1111,25 @@ return array(
 					'pro'      => true,
 					'keywords' => array( 'taxjar', 'origin', 'country' ),
 					'legacy'   => array( 'page' => 'tax', 'section' => 'TaxJar', 'label' => 'Origin Country Code' ),
+				),
+				/* 6.0.2: the Avalara AvaTax extension ( Premium ). Its settings live under EasyCart › Extensions; this row
+				   says whether it is on, or what Premium adds ( wp_easycart_admin_extensions::print_tax_row() ). */
+				'ecst_tax_extension_avatax' => array(
+					'type'   => 'html',
+					'label'  => 'Avalara AvaTax',
+					'render' => array( 'wp_easycart_admin_extensions', 'print_tax_row' ),
+				),
+			),
+			/* 6.0.2: in the TaxJar drawer; WP EasyCart PRO 6.0.2 supplies the check ( ec_taxjar::test_connection() ). */
+			'actions' => array(
+				array(
+					'id'              => 'taxjar_test',
+					'drawer'          => 'taxjar',
+					'label'           => __( 'Test connection', 'wp-easycart' ),
+					'desc'            => __( 'Uses the saved settings ( save your changes first ): checks the token, lists where your TaxJar account collects tax, prices a sample sale at your origin address and says what the last checkout lookup did.', 'wp-easycart' ),
+					'button'          => __( 'Test connection', 'wp-easycart' ),
+					'pro'             => true,
+					'pro_min_version' => '6.0.2',
 				),
 			),
 		),

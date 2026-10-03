@@ -161,7 +161,8 @@ class wp_easycart_admin_upsell {
 		$out[] = $lapsed ? sprintf( __( 'every %s admin panel is locked ( data is kept, not editable )', 'wp-easycart' ), $plan ) : sprintf( __( 'every %s admin panel locks ( data is kept, not editable )', 'wp-easycart' ), $plan );
 		$out[] = $lapsed ? __( 'security fixes, updates and priority support are not being delivered', 'wp-easycart' ) : __( 'security fixes, updates and priority support stop', 'wp-easycart' );
 		if ( $r && $r['premium'] ) {
-			$out[] = $lapsed ? __( 'Premium extensions ( ShipStation, QuickBooks, MailChimp, apps ) are not syncing', 'wp-easycart' ) : __( 'Premium extensions ( ShipStation, QuickBooks, MailChimp, apps ) stop syncing', 'wp-easycart' );
+			/* 6.0.2: extensions keep running on a lapsed license; changing, installing and updating them waits for a renewal. */
+			$out[] = $lapsed ? __( 'your Premium extensions run without updates, and their settings are locked', 'wp-easycart' ) : __( 'your Premium extensions keep running, but their updates stop and their settings lock', 'wp-easycart' );
 		}
 		return $out;
 	}
@@ -214,7 +215,8 @@ class wp_easycart_admin_upsell {
 			'orders_30d'    => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_order WHERE order_date > DATE_SUB( NOW(), INTERVAL 30 DAY )' ),
 			'products'      => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1' ),
 			'customers'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_user' ),
-			'abandoned_30d' => (int) $wpdb->get_var( 'SELECT COUNT( DISTINCT session_id ) FROM ec_tempcart WHERE last_changed_date > DATE_SUB( NOW(), INTERVAL 30 DAY )' ),
+			/* 6.0.2: carts that were abandoned ( ec_abandoned_cart ), not every cart session that changed. */
+			'abandoned_30d' => ( 'ec_abandoned_cart' === $wpdb->get_var( "SHOW TABLES LIKE 'ec_abandoned_cart'" ) ) ? (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_abandoned_cart WHERE abandoned_at > DATE_SUB( NOW(), INTERVAL 30 DAY )' ) : (int) $wpdb->get_var( 'SELECT COUNT( DISTINCT session_id ) FROM ec_tempcart WHERE last_changed_date > DATE_SUB( NOW(), INTERVAL 30 DAY )' ),
 			'downloads'     => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE is_download = 1' ),
 			'tracked'       => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1 AND ( show_stock_quantity = 1 OR use_optionitem_quantity_tracking = 1 )' ),
 			'pro_products'  => (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product WHERE activate_in_store = 1 AND ( is_subscription_item = 1 OR is_download = 1 OR is_giftcard = 1 OR is_donation = 1 )' ),
@@ -251,6 +253,12 @@ class wp_easycart_admin_upsell {
 					$rec = max( 1, round( $s['abandoned_30d'] * 0.1 ) );
 					$val = $s['avg_order'] > 0 ? ' ' . sprintf( __( '— roughly %s in sales.', 'wp-easycart' ), self::money( $rec * $s['avg_order'] ) ) : '.';
 					return sprintf( __( '%s shoppers left items in their cart in the last 30 days. Recovering even 1 in 10 means %s extra orders%s', 'wp-easycart' ), $n( $s['abandoned_30d'] ), $n( $rec ), $val );
+				}
+				break;
+			case 'google_feed':
+				if ( $s['products'] >= 1 ) {
+					/* translators: 1: number of products, 2: plan name, Pro or Premium. */
+					return sprintf( __( 'Your %1$s products can show on Google Shopping for free. %2$s keeps their feed up to date so they never expire there.', 'wp-easycart' ), $n( $s['products'] ), $plan );
 				}
 				break;
 			case 'giftcards':
@@ -369,7 +377,7 @@ class wp_easycart_admin_upsell {
 				'plan'      => 'pro',
 				'icon'      => 'dashicons-megaphone',
 				'new_label' => __( 'New Offer', 'wp-easycart' ),
-				'docs'      => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=offers',
+				'docs'      => 'https://docs.wpeasycart.com/docs/administrative-console-guide/offers/', // 6.0.2: the docs site page ( wp_easycart_admin_online_docs )
 				'features'  => array(
 					'types'     => self::f( 'dashicons-tag', __( 'Every discount type', 'wp-easycart' ), __( 'Percent, fixed amount, buy-one-get-one, free shipping, and spend-threshold offers.', 'wp-easycart' ) ),
 					'targeting' => self::f( 'dashicons-filter', __( 'Precise targeting', 'wp-easycart' ), __( 'Limit an offer to specific products, categories, or customer groups.', 'wp-easycart' ) ),
@@ -377,6 +385,10 @@ class wp_easycart_admin_upsell {
 					'schedule'  => self::f( 'dashicons-calendar-alt', __( 'Scheduling & limits', 'wp-easycart' ), __( 'Set start and end dates; cap total redemptions or uses per customer.', 'wp-easycart' ) ),
 					'stacking'  => self::f( 'dashicons-editor-ol', __( 'Stacking rules', 'wp-easycart' ), __( 'Decide which offers combine and which are exclusive — no accidental double discounts.', 'wp-easycart' ) ),
 					'reporting' => self::f( 'dashicons-chart-bar', __( 'Revenue per offer', 'wp-easycart' ), __( 'See uses, discount given, and orders driven for each offer in the list.', 'wp-easycart' ) ),
+					/* 6.0.2 */
+					'bulk_codes' => array_merge( self::f( 'dashicons-database-import', __( 'Thousands of codes at once', 'wp-easycart' ), __( 'Generate up to 10,000 single-use codes, import a code file from a deal site or email tool, and export who used which code.', 'wp-easycart' ) ), array( 'min_version' => '6.0.2' ) ),
+					'subscriptions' => array_merge( self::f( 'dashicons-update', __( 'Codes for subscriptions', 'wp-easycart' ), __( 'Let a code take money off a subscription for the first payment, a set number of payments, or every payment.', 'wp-easycart' ) ), array( 'min_version' => '6.0.2' ) ),
+					'code_test' => array_merge( self::f( 'dashicons-search', __( 'Test a code on a product', 'wp-easycart' ), __( 'Type a coupon code on a product to see whether it discounts it and why not, then open the offer or coupon to fix it.', 'wp-easycart' ) ), array( 'min_version' => '6.0.2' ) ),
 				),
 			),
 			'coupons' => array(
@@ -456,6 +468,31 @@ class wp_easycart_admin_upsell {
 					'send'        => self::f( 'dashicons-email-alt', __( 'Change it when you send', 'wp-easycart' ), __( 'Choose documents, profiles and items for one email without touching your defaults.', 'wp-easycart' ) ),
 					'split'       => self::f( 'dashicons-share-alt2', __( 'Partial shipments', 'wp-easycart' ), __( 'A slip and shipped email for just the items in this box, with the rest listed to follow.', 'wp-easycart' ) ),
 					'branding'    => self::f( 'dashicons-format-image', __( 'A logo for each profile', 'wp-easycart' ), __( 'Give any profile its own logo and footer image, sized and placed for it, such as a plain logo on the gift slip.', 'wp-easycart' ) ),
+					/* 6.0.2 */
+					'gifts'       => self::f( 'dashicons-heart', __( 'Gift orders', 'wp-easycart' ), __( 'A gift option and message at checkout, a slip without prices and a gift receipt for the recipient.', 'wp-easycart' ) ),
+					'rules'       => self::f( 'dashicons-randomize', __( 'Document rules', 'wp-easycart' ), __( 'Pick profiles, attachments and payment terms by customer role, payment, shipping, country or total.', 'wp-easycart' ) ),
+					'invoicing'   => self::f( 'dashicons-editor-ol', __( 'Invoice numbers and credit notes', 'wp-easycart' ), __( 'Numbered invoices that never change once issued, and a credit note for each refund.', 'wp-easycart' ) ),
+					'b2b'         => self::f( 'dashicons-building', __( 'PO numbers and payment terms', 'wp-easycart' ), __( 'A PO field at checkout for business roles, and Net 30 terms with a due date on the invoice.', 'wp-easycart' ) ),
+					'downloads'   => self::f( 'dashicons-download', __( 'Downloads in My Account', 'wp-easycart' ), __( 'Receipt, invoice, packing slip and gift receipt PDFs from the account page, or as links in emails.', 'wp-easycart' ) ),
+					'new_order'   => self::f( 'dashicons-cart', __( 'Create orders in the admin', 'wp-easycart' ), __( 'Build an order for a phone or quote customer and send the invoice with a link to pay.', 'wp-easycart' ) ),
+					'invoice_email' => self::f( 'dashicons-email-alt', __( 'Invoice emails with a Pay button', 'wp-easycart' ), __( 'Email an invoice from any order, with or without the PDF, and a button that lets the customer pay it online.', 'wp-easycart' ) ),
+				),
+			),
+			/* 6.0.2: Settings › Checkout fields. */
+			'checkout_fields' => array(
+				'title'       => __( 'Checkout fields', 'wp-easycart' ),
+				'headline'    => __( 'Ask shoppers what your store needs to know', 'wp-easycart' ),
+				'lede'        => __( 'Your own questions in the classic and one-page checkout, asked only when they apply, with every answer kept on the order.', 'wp-easycart' ),
+				'plan'        => 'pro',
+				'min_version' => '6.0.2',
+				'icon'        => 'dashicons-feedback',
+				'features'    => array(
+					'types'      => self::f( 'dashicons-forms', __( '14 kinds of question', 'wp-easycart' ), __( 'Text, dropdowns, checkboxes, dates, numbers, phone, email, consent with a record of what was agreed, headings and hidden fields.', 'wp-easycart' ) ),
+					'placements' => self::f( 'dashicons-layout', __( 'Anywhere in the checkout', 'wp-easycart' ), __( 'With the contact details, billing or shipping address, delivery, pickup, order notes, or just above Place order.', 'wp-easycart' ) ),
+					'conditions' => self::f( 'dashicons-randomize', __( 'Only when it applies', 'wp-easycart' ), __( 'Ask for certain products, categories, countries, delivery or payment methods, customers, dates or earlier answers.', 'wp-easycart' ) ),
+					'everywhere' => self::f( 'dashicons-media-document', __( 'Answers wherever the order goes', 'wp-easycart' ), __( 'On the order screen, in the emails, on the packing slip and invoice, in My Account and in the order export.', 'wp-easycart' ) ),
+					'remember'   => self::f( 'dashicons-id', __( 'Remembered for next time', 'wp-easycart' ), __( 'Keep a customer’s answer on their account, so their next order is quicker.', 'wp-easycart' ) ),
+					'express'    => self::f( 'dashicons-smartphone', __( 'Safe with express checkout', 'wp-easycart' ), __( 'Apple Pay, Google Pay and PayPal buttons step aside while a required question applies, or it is asked after payment.', 'wp-easycart' ) ),
 				),
 			),
 			'fees' => array(
@@ -533,17 +570,75 @@ class wp_easycart_admin_upsell {
 				'title'    => __( 'Reporting', 'wp-easycart' ),
 				'headline' => __( 'See what is selling, to whom, and what you are leaving behind', 'wp-easycart' ),
 				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
-				'lede'     => sprintf( __( 'The free reports show totals. %s breaks them down by product, customer and coupon, tracks recovered carts, and mails you a summary.', 'wp-easycart' ), $plan ),
-				'plan'     => 'pro',
-				'icon'     => 'dashicons-chart-line',
-				'docs'     => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=reports',
-				'features' => array(
-					'products'  => self::f( 'dashicons-products', __( 'Sales by product', 'wp-easycart' ), __( 'Units and revenue per product and per variation, ranked, for any date range.', 'wp-easycart' ) ),
-					'customers' => self::f( 'dashicons-groups', __( 'Customer reports', 'wp-easycart' ), __( 'Top customers, first-time vs returning, and lifetime value.', 'wp-easycart' ) ),
-					'coupons'   => self::f( 'dashicons-tickets-alt', __( 'Coupon & offer performance', 'wp-easycart' ), __( 'Uses, discount given and revenue driven for every code and promotion.', 'wp-easycart' ) ),
-					'abandoned' => self::f( 'dashicons-cart', __( 'Abandoned-cart recovery', 'wp-easycart' ), __( 'How many carts were reminded, how many came back, and what they were worth.', 'wp-easycart' ) ),
-					'digest'    => self::f( 'dashicons-email-alt', __( 'Scheduled email summaries', 'wp-easycart' ), __( 'A daily or weekly snapshot of sales, orders and low stock in your inbox.', 'wp-easycart' ) ),
-					'export'    => self::f( 'dashicons-download', __( 'Detailed exports', 'wp-easycart' ), __( 'Line-item level CSVs for your accountant or spreadsheet.', 'wp-easycart' ) ),
+				/* 6.0.2: each feature below is a Reports tab or tool WP EasyCart PRO 6.0.2 draws ( wp_easycart_reports::tabs() ). */
+				'lede'        => sprintf( __( 'The free reports show your totals and taxes. %s breaks them down by product, customer, code, source and day, shows profit and shipping times, and mails you a summary.', 'wp-easycart' ), $plan ),
+				'plan'        => 'pro',
+				'min_version' => '6.0.2',
+				'icon'        => 'dashicons-chart-line',
+				'docs'        => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=reports',
+				'features'    => array(
+					'products'      => self::f( 'dashicons-products', __( 'Products', 'wp-easycart' ), __( 'Views, add to cart, units, sales and conversion per product, days of stock left, and what has not sold in 60 days.', 'wp-easycart' ) ),
+					'customers'     => self::f( 'dashicons-groups', __( 'Customers', 'wp-easycart' ), __( 'New and returning customers, repeat rate, top customers, lifetime value and monthly cohorts.', 'wp-easycart' ) ),
+					'coupons'       => self::f( 'dashicons-tickets-alt', __( 'Codes', 'wp-easycart' ), __( 'Uses, discount given and sales for every coupon and offer code.', 'wp-easycart' ) ),
+					'abandoned'     => self::f( 'dashicons-cart', __( 'Carts', 'wp-easycart' ), __( 'The checkout funnel step by step, carts left behind, and what reminders brought back.', 'wp-easycart' ) ),
+					'sources'       => self::f( 'dashicons-chart-pie', __( 'Sources', 'wp-easycart' ), __( 'Visits, orders, sales and conversion by where shoppers came from, AI assistants included.', 'wp-easycart' ) ),
+					'profit'        => self::f( 'dashicons-money-alt', __( 'Profit', 'wp-easycart' ), __( 'Sales less product cost and discounts, with the margin of every product.', 'wp-easycart' ) ),
+					'fulfillment'   => self::f( 'dashicons-car', __( 'Fulfillment', 'wp-easycart' ), __( 'How long orders take from payment to shipping, week by week, and what is waiting now.', 'wp-easycart' ) ),
+					'searches'      => self::f( 'dashicons-search', __( 'Searches', 'wp-easycart' ), __( 'What shoppers search your store for, and the searches that find nothing.', 'wp-easycart' ) ),
+					'subscriptions' => self::f( 'dashicons-update', __( 'Subscriptions', 'wp-easycart' ), __( 'Monthly recurring revenue, new subscriptions, cancellations and churn.', 'wp-easycart' ) ),
+					'digest'        => self::f( 'dashicons-email-alt', __( 'Daily, weekly or monthly summaries', 'wp-easycart' ), __( 'Your numbers by email, with top products, codes, recovered carts and low stock.', 'wp-easycart' ) ),
+					'views'         => self::f( 'dashicons-star-filled', __( 'Saved views', 'wp-easycart' ), __( 'Keep the reports you open every week, with their dates and filters, one click away.', 'wp-easycart' ) ),
+					'export'        => self::f( 'dashicons-download', __( 'CSV for every report and a research export', 'wp-easycart' ), __( 'Download any table, or every order, line, payment, refund, customer and daily count at once.', 'wp-easycart' ) ),
+				),
+			),
+			/* 6.0.2: every store records where each order came from; the orders list shows it, the rest needs WP EasyCart PRO 6.0.2. */
+			'order_sources' => array(
+				'title'       => __( 'Order sources', 'wp-easycart' ),
+				'headline'    => __( 'See which channels bring your sales, ChatGPT included', 'wp-easycart' ),
+				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+				'lede'        => sprintf( __( 'Every order already records where it came from. %s shows each visit on the order and adds up sales by source on Reports, with AI assistants named.', 'wp-easycart' ), $plan ),
+				'plan'        => 'pro',
+				'min_version' => '6.0.2',
+				'icon'        => 'dashicons-chart-pie',
+				'features'    => array(
+					'reports'   => self::f( 'dashicons-chart-bar', __( 'Sales by source', 'wp-easycart' ), __( 'Sales, orders and average order value by source on Reports, with ChatGPT, Perplexity, Gemini, Copilot and Claude named.', 'wp-easycart' ) ),
+					'details'   => self::f( 'dashicons-location', __( 'Every visit on the order', 'wp-easycart' ), __( 'The first and latest visit, days to order, number of visits, landing page and campaign tags.', 'wp-easycart' ) ),
+					'filter'    => self::f( 'dashicons-filter', __( 'Filter orders by source', 'wp-easycart' ), __( 'Show only the orders from AI assistants, ads or email, or search by campaign.', 'wp-easycart' ) ),
+					'export'    => self::f( 'dashicons-download', __( 'Sources in the order export', 'wp-easycart' ), __( 'Source, campaign, medium and landing page columns in the orders CSV.', 'wp-easycart' ) ),
+					'customers' => self::f( 'dashicons-admin-users', __( 'How each customer found you', 'wp-easycart' ), __( 'The source of a customer\'s first order on their customer screen.', 'wp-easycart' ) ),
+				),
+			),
+			/* 6.0.2: the Pro parts of the Elementor integration ( admin/elementor, wp_easycart_elementor_pro_feature() ). */
+			'elementor'       => array(
+				'title'       => __( 'Store design in Elementor', 'wp-easycart' ),
+				'headline'    => __( 'Design every step of the sale in Elementor', 'wp-easycart' ),
+				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+				'lede'        => sprintf( __( '%s adds checkout layout choices ( where the order summary sits, which parts show, your own text between sections ), a side cart that opens when a shopper adds a product, and layouts for single products and categories.', 'wp-easycart' ), $plan ),
+				'plan'        => 'pro',
+				'min_version' => '6.0.2',
+				'icon'        => 'dashicons-layout',
+				'features'    => array(
+					'checkout_sections'  => self::f( 'dashicons-feedback', __( 'Checkout layout choices', 'wp-easycart' ), __( 'Put the order summary beside, above or below the checkout, hide the parts you don\'t use, and add your own text between the checkout sections.', 'wp-easycart' ) ),
+					'side_cart'          => self::f( 'dashicons-cart', __( 'Side cart', 'wp-easycart' ), __( 'A cart that slides in when a shopper adds a product, with a free-shipping progress bar.', 'wp-easycart' ) ),
+					'template_overrides' => self::f( 'dashicons-admin-page', __( 'Layouts for one product or category', 'wp-easycart' ), __( 'Give a single product or category its own Elementor layout, on top of the store-wide templates.', 'wp-easycart' ) ),
+				),
+			),
+			/* 6.0.2: Settings › Search & AI › Google product feed ( the product markup itself is free ). */
+			'google_feed'     => array(
+				'title'       => __( 'Google product feed', 'wp-easycart' ),
+				'headline'    => __( 'List your products on Google without uploading a thing', 'wp-easycart' ),
+				/* translators: %s: plan name, Pro/Premium, Pro or Premium. */
+				'lede'        => sprintf( __( '%s keeps a private feed address up to date by itself. Google Merchant Center, Bing and Pinterest fetch it every day, with the same prices and stock as your product pages.', 'wp-easycart' ), $plan ),
+				'plan'        => 'pro',
+				'min_version' => '6.0.2',
+				'icon'        => 'dashicons-rss',
+				'features'    => array(
+					'auto'     => self::f( 'dashicons-update', __( 'Updates by itself', 'wp-easycart' ), __( 'Rebuilt every night and within the hour after product or stock changes, so products never expire in Merchant Center.', 'wp-easycart' ) ),
+					'match'    => self::f( 'dashicons-yes-alt', __( 'Matches your product pages', 'wp-easycart' ), __( 'Built from the same data as the page, so Google never finds a different price and disapproves the product.', 'wp-easycart' ) ),
+					'variants' => self::f( 'dashicons-randomize', __( 'Every variant listed', 'wp-easycart' ), __( 'Each size and color with its own price, stock, image and a link that opens it already chosen.', 'wp-easycart' ) ),
+					'connect'  => self::f( 'dashicons-admin-links', __( 'Connect Merchant Center', 'wp-easycart' ), __( 'Add the feed in one step and see active, pending and disapproved products with the top problems.', 'wp-easycart' ) ),
+					'channels' => self::f( 'dashicons-share', __( 'Bing and Pinterest too', 'wp-easycart' ), __( 'The same address works in Microsoft Merchant Center, and a tab-separated copy for Pinterest catalogs.', 'wp-easycart' ) ),
+					'health'   => self::f( 'dashicons-heart', __( 'What to fix', 'wp-easycart' ), __( 'Products left out and why, missing or wrong barcodes, and images too small for Google.', 'wp-easycart' ) ),
 				),
 			),
 			'orders' => array(
@@ -585,9 +680,14 @@ class wp_easycart_admin_upsell {
 				'lede'     => __( 'One more way to pay means fewer shoppers bouncing at the last step.', 'wp-easycart' ),
 				'plan'     => 'pro',
 				'icon'     => 'dashicons-money',
-				'docs'     => 'http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=paypal-express',
+				'docs'     => 'https://docs.wpeasycart.com/docs/administrative-console-guide/paypal-payment-settings/', // 6.0.2: the docs site page ( wp_easycart_admin_online_docs )
 				'features' => array(
 					'express'  => self::f( 'dashicons-money', __( 'PayPal Express buttons', 'wp-easycart' ), __( 'Fast checkout for PayPal account holders.', 'wp-easycart' ) ),
+					/* 6.0.2: the locked buttons on the PayPal panel ( admin/template/settings/payments/paypal.php ) open these. */
+					'venmo'    => self::f( 'dashicons-smartphone', __( 'Venmo button', 'wp-easycart' ), __( 'Shoppers in the US pay with Venmo.', 'wp-easycart' ) ),
+					'card'     => self::f( 'dashicons-id', __( 'Debit or credit card button', 'wp-easycart' ), __( 'Shoppers pay by card without a PayPal account.', 'wp-easycart' ) ),
+					'paylater' => self::f( 'dashicons-calendar-alt', __( 'Pay Later', 'wp-easycart' ), __( 'PayPal’s pay-in-installments offers, where PayPal has them.', 'wp-easycart' ) ),
+					'cart'     => self::f( 'dashicons-cart', __( 'PayPal on the cart page', 'wp-easycart' ), __( 'Shoppers check out with PayPal straight from the cart.', 'wp-easycart' ) ),
 					'gateways' => self::f( 'dashicons-admin-plugins', __( '20+ gateways', 'wp-easycart' ), __( 'Stripe, Square, Authorize.net, and more.', 'wp-easycart' ) ),
 				),
 			),
@@ -600,7 +700,7 @@ class wp_easycart_admin_upsell {
 				'lede'     => sprintf( __( 'Live %s quotes replace flat-rate guesswork — stop under- or over-charging for shipping.', 'wp-easycart' ), $name ),
 				'plan'     => 'pro',
 				'icon'     => 'dashicons-airplane',
-				'docs'     => 'http://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=shipping-settings',
+				'docs'     => 'https://docs.wpeasycart.com/wp-easycart-administrative-console-guide/?section=shipping-settings',
 				'features' => array(
 					'live'     => self::f( 'dashicons-airplane', sprintf( __( 'Live %s rates', 'wp-easycart' ), $name ), __( 'Based on weight, dimensions, and destination.', 'wp-easycart' ) ),
 					'services' => self::f( 'dashicons-editor-ul', __( 'Several service levels', 'wp-easycart' ), __( 'Ground, 2-day, overnight — shopper picks.', 'wp-easycart' ) ),
@@ -608,6 +708,13 @@ class wp_easycart_admin_upsell {
 					'labels'   => self::f( 'dashicons-printer', __( 'Labels ( Premium )', 'wp-easycart' ), __( 'ShipStation integration and label printing.', 'wp-easycart' ) ),
 				),
 			);
+		}
+
+		/* 6.0.2: these Order documents features need WP EasyCart PRO 6.0.2; a 6.0.1 store is asked to update, not sold a plan. */
+		foreach ( array( 'gifts', 'rules', 'invoicing', 'b2b', 'downloads', 'new_order', 'invoice_email' ) as $wpec_602_feature ) {
+			if ( isset( $catalog['documents']['features'][ $wpec_602_feature ] ) ) {
+				$catalog['documents']['features'][ $wpec_602_feature ]['min_version'] = '6.0.2';
+			}
 		}
 
 		$catalog = apply_filters( 'wp_easycart_upsell_catalog', $catalog );
@@ -643,6 +750,16 @@ class wp_easycart_admin_upsell {
 		$e['stat_line'] = self::stat_line( $context );
 		$e['pro_url']   = self::plan_url( 'pro', $context );
 		$e['prem_url']  = self::plan_url( 'premium', $context );
+		/* 6.0.2: a Premium context ( the extensions ) offers only Premium, worded for this store: get it, upgrade a Pro
+		   license or a trial, or renew. upgrade-screen.php and upsell.js hide the Pro card and the trial link for it. */
+		if ( isset( $e['plan'] ) && 'premium' === $e['plan'] && class_exists( 'wp_easycart_admin_edition' ) ) {
+			$offer           = wp_easycart_admin_edition::premium_offer();
+			$e['offer_mode'] = $offer['mode'];
+			$e['prem_title'] = '' !== $offer['title'] ? $offer['title'] : __( 'Premium', 'wp-easycart' );
+			$e['prem_desc']  = $offer['desc'];
+			$e['prem_cta']   = '' !== $offer['cta'] ? $offer['cta'] : __( 'Get Premium', 'wp-easycart' );
+			$e['pro_url']    = $e['prem_url']; /* upsell.js opens pro_url when no popup is on the page */
+		}
 		/* 6.0.1: only a newer WP EasyCart PRO is missing, so the popup asks for the update instead of offering the plans. */
 		$e['update_version'] = self::update_version( $context );
 		$e['update']         = ( '' !== $e['update_version'] );
@@ -744,6 +861,11 @@ class wp_easycart_admin_upsell {
 				return 'https://www.wpeasycart.com/products/wp-easycart-professional-support-upgrades/?transaction_key=' . rawurlencode( $key );
 			}
 		}
+		/* 6.0.2: Premium goes to the upgrade at the Pro discount for a licensed Pro store, the trial upgrade for a trial,
+		   and premium-support-extensions for everyone else ( wp_easycart_admin_edition::premium_offer() ). */
+		if ( 'premium' === $plan && class_exists( 'wp_easycart_admin_edition' ) ) {
+			return apply_filters( 'wp_easycart_upgrade_premium_url', wp_easycart_admin_edition::premium_url() );
+		}
 		$page = isset( $_GET['subpage'] ) ? sanitize_key( $_GET['subpage'] ) : ( isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '' );
 		$url  = add_query_arg( array( 'upsell' => ( 'premium' === $plan ? 6 : 5 ), 'upsellpage' => $page, 'upsellctx' => $context ), self::PRICING_URL );
 		return apply_filters( 'premium' === $plan ? 'wp_easycart_upgrade_premium_url' : 'wp_easycart_upgrade_pro_url', $url );
@@ -753,7 +875,7 @@ class wp_easycart_admin_upsell {
 		if ( ! function_exists( 'is_plugin_active' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
-		return file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) && ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' );
+		return ( file_exists( WP_PLUGIN_DIR . '/wp-easycart-pro/wp-easycart-admin-pro.php' ) || file_exists( EC_PLUGIN_DIRECTORY . '-pro/wp-easycart-admin-pro.php' ) ) && ! is_plugin_active( 'wp-easycart-pro/wp-easycart-admin-pro.php' ); // 6.0.2: by the plugins folder too
 	}
 
 	/** onclick handler string for any locked control. */
@@ -959,7 +1081,14 @@ class wp_easycart_admin_upsell {
 		wp_enqueue_script( 'wp_easycart_admin_upsell_js', plugins_url( 'wp-easycart/admin/js/upsell.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
 		wp_localize_script( 'wp_easycart_admin_upsell_js', 'wp_easycart_upsell_vars', array(
 			'entries' => self::entries_for_js(),
-			'lang'    => array( 'learn' => __( 'How it works', 'wp-easycart' ), 'full' => __( 'Full feature list', 'wp-easycart' ) ),
+			'lang'    => array(
+				'learn'      => __( 'How it works', 'wp-easycart' ),
+				'full'       => __( 'Full feature list', 'wp-easycart' ),
+				/* 6.0.2: the standard Premium card, restored after a Premium context used the same popup. */
+				'prem_title' => __( 'Premium', 'wp-easycart' ),
+				'prem_desc'  => __( 'Everything in Pro, plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop and more, with QuickBooks Online and Xero coming soon.', 'wp-easycart' ),
+				'prem_cta'   => __( 'Get Premium', 'wp-easycart' ),
+			),
 		) );
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			wp_localize_script( 'wp_easycart_admin_upsell_js', 'wp_easycart_edition', wp_easycart_admin_edition::for_js() );

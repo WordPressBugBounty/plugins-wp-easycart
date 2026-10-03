@@ -1,6 +1,15 @@
 <?php
 
 class ec_shipping {
+	/**
+	 * 6.0.2: every rate reaches the Offers shipping filters by its own id ( a method or live row's shippingrate_id ), and
+	 * the charged price of a live or method rate asks wp_easycart_trigger_rate with that id. WP EasyCart PRO reads it to
+	 * know it need not discount a live rate itself.
+	 *
+	 * @since 6.0.2
+	 */
+	const OFFER_RATE_IDS = 1;
+
 	protected $mysqli;
 	public $shipper;
 	public $has_live_rates;
@@ -39,6 +48,13 @@ class ec_shipping {
 	public $shipping_promotion_text;
 
 	private $freeshipping;
+
+	/**
+	 * 6.0.2: lines a fulfillment partner ships ( wp_easycart_shipping_groups::for_shipping() ); null for every other cart.
+	 *
+	 * @var array|null
+	 */
+	private $shipping_groups = null;
 
 	function __construct( $subtotal, $weight, $quantity = 1, $display_type = 'RADIO', $freeshipping = false, $length = 1, $width = 1, $height = 1, $cart = array() ) {
 		$this->mysqli = new ec_db();
@@ -91,6 +107,16 @@ class ec_shipping {
 
 			} else if ( $GLOBALS['ec_user'] && $GLOBALS['ec_user']->shipping && $GLOBALS['ec_user']->shipping->country ) {
 				$this->destination_country = $GLOBALS['ec_user']->shipping->country;
+			}
+
+			/* 6.0.2: lines a fulfillment partner ships are priced by the partner ( wp_easycart_shipping_groups ). When the store
+			 * ships nothing, the partner's services are the choices whatever the shipping mode, with no store handling. */
+			if ( class_exists( 'wp_easycart_shipping_groups' ) ) {
+				$this->shipping_groups = wp_easycart_shipping_groups::for_shipping( $this->cart, $this->destination_country, $this->destination_state, $this->destination_zip );
+				if ( null !== $this->shipping_groups && $this->shipping_groups['all_partner'] ) {
+					$this->shipping_method = 'group';
+					$this->handling = 0;
+				}
 			}
 
 			if ( $this->shipping_method == 'fraktjakt' ) {
@@ -166,6 +192,10 @@ class ec_shipping {
 			);
 
 			$this->subtotal = $subtotal - $GLOBALS['wpeasycart_current_coupon_discount'];
+			if ( null !== $this->shipping_groups ) {
+				/* 6.0.2: only the store's part of the discount comes off the store's shipping subtotal. */
+				$this->subtotal = wp_easycart_shipping_groups::store_subtotal( $this->shipping_groups, $subtotal, isset( $GLOBALS['wpeasycart_current_coupon_discount'] ) ? $GLOBALS['wpeasycart_current_coupon_discount'] : 0 );
+			}
 			$this->weight = $weight;
 			$this->width = $width;
 			$this->height = $height;
@@ -215,6 +245,19 @@ class ec_shipping {
 	}
 
 	public function print_shipping_options( $standard_text, $express_text, $coupon = false ) {
+		if ( $this->groups_only() ) {
+			/* 6.0.2: every line the store would ship is made and shipped by a fulfillment partner: its services are the choices. */
+			$this->has_live_rates = wp_easycart_shipping_groups::print_options( $this->shipping_groups, $this->change_shipping_js_func, $this->groups_store_free( '', $coupon ), ( 'SELECT' == $this->display_type ) ? 'SELECT' : 'RADIO' );
+			wp_easycart_shipping_groups::print_note( $this->shipping_groups, $this->groups_amounts() );
+			return;
+		}
+		$this->print_store_shipping_options( $standard_text, $express_text, $coupon );
+		if ( null !== $this->shipping_groups ) {
+			wp_easycart_shipping_groups::print_note( $this->shipping_groups, $this->groups_amounts() ); /* 6.0.2: partner items ship separately */
+		}
+	}
+
+	private function print_store_shipping_options( $standard_text, $express_text, $coupon = false ) {
 		if ( apply_filters( 'wp_easycart_shipping_should_print_custom_options', false ) ) {
 			do_action( 'wp_easycart_shipping_print_custom_shipping_options' );
 
@@ -280,9 +323,15 @@ class ec_shipping {
 	}
 
 	public function get_shipping_rate_data( $standard_text, $express_text, $multiplier = 100, $coupon = false ) {
+		if ( $this->groups_only() ) {
+			return apply_filters( 'wp_easycart_shipping_get_rate_data', wp_easycart_shipping_groups::rate_rows( $this->shipping_groups, $multiplier, $this->groups_store_free( '', $coupon ) ) ); /* 6.0.2 */
+		}
 		$rates = array();
 		$handling_total = $this->handling;
 		$handling_total = $this->add_cart_handling( $handling_total );
+		/* 6.0.2: the wallets' rates take an Offers shipping discount as the charged price does ( offer_rate(), then the fees a
+		 * free-shipping offer waives ). */
+		$offer_product_fees = $this->add_cart_handling( 0 );
 		$promotion = new ec_promotion();
 		if ( $this->shipping_method == 'price' || $this->shipping_method == 'weight' || $this->shipping_method == 'quantity' || $this->shipping_method == 'percentage' ) {
 			if ( $this->shipping_method == 'price' ) {
@@ -294,6 +343,7 @@ class ec_shipping {
 			} else if ( $this->shipping_method == 'percentage' ) {
 				$standard_price = $this->get_percentage_based_rate();
 			}
+			$standard_price = $this->offer_rate( $standard_price, $this->shipping_method );
 
 			if ( 'FREE' == strtoupper( (string) $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) {
 				if ( get_option( 'ec_option_add_local_pickup' ) ) {
@@ -307,8 +357,9 @@ class ec_shipping {
 
 			if ( $GLOBALS['ec_cart_data']->cart_data->expedited_shipping == 'shipexpress' ) {
 				if ( $this->express_price > 0 ) {
-					$express_discount = $promotion->get_shipping_discounts( $this->subtotal, $standard_price + $this->express_price + $handling_total, $this->shipping_promotion_text );
-					$express_price = $standard_price + $this->express_price + $handling_total - $express_discount;
+					$express_base = $this->offer_fees_waived( $standard_price + $this->express_price + $handling_total, 'shipexpress', $offer_product_fees );
+					$express_discount = $promotion->get_shipping_discounts( $this->subtotal, $express_base, $this->shipping_promotion_text );
+					$express_price = $express_base - $express_discount;
 					$express_price = ( is_object( $coupon ) ) ? floatval( $coupon->discount_shipping( $express_price ) ) : floatval( $express_price );
 					$express_rate = ( $multiplier == 100 ) ? (int) number_format( ( $express_price ) * $multiplier, 0, '', '' ) : number_format( $express_price, 2, '.', '' );
 					$rates[] = (object) array(
@@ -322,8 +373,9 @@ class ec_shipping {
 			if ( $promotion->has_free_shipping_promotion( $this->cart ) ) {
 				$standard_rate = 0;
 			} else {
-				$standard_discount = $promotion->get_shipping_discounts( $this->subtotal, $standard_price + $handling_total, $this->shipping_promotion_text );
-				$display_price = $standard_price + $handling_total - $standard_discount;
+				$standard_base = $this->offer_fees_waived( $standard_price + $handling_total, 'standard', $offer_product_fees );
+				$standard_discount = $promotion->get_shipping_discounts( $this->subtotal, $standard_base, $this->shipping_promotion_text );
+				$display_price = $standard_base - $standard_discount;
 				$display_price = ( is_object( $coupon ) ) ? floatval( $coupon->discount_shipping( $display_price ) ) : floatval( $display_price );
 				$standard_rate = ( $multiplier == 100 ) ? (int) number_format( $display_price * $multiplier, 0, '', '' ) : number_format( $display_price, 2, '.', '' );
 			}
@@ -335,8 +387,9 @@ class ec_shipping {
 
 			if ( $GLOBALS['ec_cart_data']->cart_data->expedited_shipping != 'shipexpress' ) {
 				if ( $this->express_price > 0 ) {
-					$express_discount = $promotion->get_shipping_discounts( $this->subtotal, $standard_price + $this->express_price + $handling_total, $this->shipping_promotion_text );
-					$express_price = $standard_price + $this->express_price + $handling_total - $express_discount;
+					$express_base = $this->offer_fees_waived( $standard_price + $this->express_price + $handling_total, 'shipexpress', $offer_product_fees );
+					$express_discount = $promotion->get_shipping_discounts( $this->subtotal, $express_base, $this->shipping_promotion_text );
+					$express_price = $express_base - $express_discount;
 					$express_price = ( is_object( $coupon ) ) ? floatval( $coupon->discount_shipping( $express_price ) ) : floatval( $express_price );
 					$express_rate = ( $multiplier == 100 ) ? (int) number_format( $express_price * $multiplier, 0, '', '' ) : number_format( $express_price, 2, '.', '' );
 					$rates[] = (object) array(
@@ -372,9 +425,9 @@ class ec_shipping {
 					if ( $this->method_based[ $i ][3] > 0 && $this->subtotal >= $this->method_based[ $i ][3] ) {
 						$rate = 0;
 					} else if ( get_option( 'ec_option_static_ship_items_seperately' ) ) {
-						$rate = ( $this->method_based[ $i ][0] * $this->quantity ) + $handling_total;
+						$rate = $this->offer_fees_waived( $this->offer_rate( $this->method_based[ $i ][0] * $this->quantity, $this->method_based[ $i ][2] ) + $handling_total, $this->method_based[ $i ][2], $offer_product_fees );
 					} else {
-						$rate = $this->method_based[ $i ][0] + $handling_total;
+						$rate = $this->offer_fees_waived( $this->offer_rate( $this->method_based[ $i ][0], $this->method_based[ $i ][2] ) + $handling_total, $this->method_based[ $i ][2], $offer_product_fees );
 					}
 					$discount = $promotion->get_shipping_discounts( $this->subtotal, $rate, $this->shipping_promotion_text );
 					$rate = floatval( $rate ) - floatval( $discount );
@@ -393,9 +446,9 @@ class ec_shipping {
 					if ( $this->method_based[ $i ][3] > 0 && $this->subtotal >= $this->method_based[ $i ][3] ) {
 						$rate = 0;
 					} else if ( get_option( 'ec_option_static_ship_items_seperately' ) ) {
-						$rate = ( $this->method_based[ $i ][0] * $this->quantity ) + $handling_total;
+						$rate = $this->offer_fees_waived( $this->offer_rate( $this->method_based[ $i ][0] * $this->quantity, $this->method_based[ $i ][2] ) + $handling_total, $this->method_based[ $i ][2], $offer_product_fees );
 					} else {
-						$rate = $this->method_based[ $i ][0] + $handling_total;
+						$rate = $this->offer_fees_waived( $this->offer_rate( $this->method_based[ $i ][0], $this->method_based[ $i ][2] ) + $handling_total, $this->method_based[ $i ][2], $offer_product_fees );
 					}
 					$discount = $promotion->get_shipping_discounts( $this->subtotal, $rate, $this->shipping_promotion_text );
 					$rate = floatval( $rate ) - floatval( $discount );
@@ -465,7 +518,7 @@ class ec_shipping {
 						if ( 'FREE' == strtoupper( (string) $rate ) ) {
 							$rate = 0;
 						} else {
-							$rate = floatval( $rate ) + floatval( $handling_total );
+							$rate = $this->offer_fees_waived( floatval( $this->offer_rate( $rate, $id ) ) + floatval( $handling_total ), $id, $offer_product_fees );
 						}
 
 						$discount = $promotion->get_shipping_discounts( $this->subtotal, $rate, $this->shipping_promotion_text );
@@ -502,7 +555,7 @@ class ec_shipping {
 						if ( 'FREE' == strtoupper( (string) $rate ) ) {
 							$rate = apply_filters( 'wp_easycart_live_shipping_free_rate', 0 );
 						} else {
-							$rate = floatval( $rate ) + floatval( $handling_total );
+							$rate = $this->offer_fees_waived( floatval( $this->offer_rate( $rate, $this->live_based[ $i ][2] ) ) + floatval( $handling_total ), $this->live_based[ $i ][2], $offer_product_fees );
 						}
 						$id = $this->live_based[ $i ][2];
 						$label = $this->live_based[ $i ][1];
@@ -513,7 +566,7 @@ class ec_shipping {
 							if ( $this->live_based[ $i ][4] == 0 ) {
 								$rate = 'FREE';
 							} else {
-								$rate = $this->live_based[ $i ][4];
+								$rate = $this->offer_rate( $this->live_based[ $i ][4], $id );
 							}
 						}
 
@@ -569,6 +622,12 @@ class ec_shipping {
 			}
 		}
 
+		if ( null !== $this->shipping_groups ) {
+			/* 6.0.2: each rate includes what the fulfillment partners charge for their lines. */
+			foreach ( $rates as $rate ) {
+				$rate->amount = wp_easycart_shipping_groups::add_to_amount( $rate->amount, wp_easycart_shipping_groups::share( $this->shipping_groups, $this->groups_store_free( $rate->id, $coupon ) ), $multiplier );
+			}
+		}
 		$rates = apply_filters( 'wp_easycart_shipping_get_rate_data', $rates );
 		return $rates;
 	}
@@ -702,27 +761,34 @@ class ec_shipping {
 		$found_count = 0;
 		$last_rate_id = 0;
 		$allowed_live_rates = array();
-		$applicable_rate_ids = $this->mysqli->get_rates_by_class( $this->cart );
+		$class_lines = ( null !== $this->shipping_groups ) ? wp_easycart_shipping_groups::store_lines( $this->cart ) : $this->cart; /* 6.0.2: a partner's lines never limit the store's carriers */
+		$applicable_rate_ids = $this->mysqli->get_rates_by_class( $class_lines );
 		if ( count( $applicable_rate_ids ) ) {
 			 for ( $i=0; $i<count( $applicable_rate_ids ); $i++ ) {
 				if ( $last_rate_id != $applicable_rate_ids[ $i ]->shipping_rate_id ) {
 					$found_count = 0;
 					$last_rate_id = $applicable_rate_ids[ $i ]->shipping_rate_id;
 				}
-				 for ( $j=0; $j<count( $this->cart ); $j++ ) {
-					if ( $applicable_rate_ids[ $i ]->shipping_class_id == $this->cart[$j]->shipping_class_id )
+				 for ( $j=0; $j<count( $class_lines ); $j++ ) {
+					if ( $applicable_rate_ids[ $i ]->shipping_class_id == $class_lines[$j]->shipping_class_id )
 						$found_count++;
 				}
-				if ( $found_count == count( $this->cart ) ) {
+				if ( $found_count == count( $class_lines ) ) {
 					$allowed_live_rates[] = $last_rate_id;
 				}
 			}
 			$new_live_based = array();
+			$matched = 0;
 			foreach( $this->live_based as $live_based ) {
-				if ( in_array( $live_based[2], $allowed_live_rates ) )
+				if ( in_array( $live_based[2], $allowed_live_rates ) ) {
 					$new_live_based[] = $live_based;
+					$matched++;
+				} else if ( $this->keeps_extension_rate( $live_based ) ) {
+					/* 6.0.2: an extension's rate ( e.g. a WP EasyCart PRO rate provider ) has no rate row a class can list, so it stays. */
+					$new_live_based[] = $live_based;
+				}
 			}
-			if ( count( $new_live_based ) == 0 ) { // Need to offer multiple options
+			if ( 0 == $matched ) { // Need to offer multiple options
 				return false;
 			} else {
 				$this->live_based = $new_live_based;
@@ -730,6 +796,29 @@ class ec_shipping {
 			}
 		}
 
+	}
+
+	/**
+	 * Whether shipping classes leave an extension's live rate on offer. Its id is not a number ( "optimalship",
+	 * "shippo_<group>" ), so no class can list it; it stays unless the extension says otherwise.
+	 *
+	 * @since 6.0.2
+	 * @param array $live_based Row: code, label, id, live type, override rate, free shipping at.
+	 * @return bool
+	 */
+	private function keeps_extension_rate( $live_based ) {
+		if ( ! isset( $live_based[2] ) || '' === (string) $live_based[2] || is_numeric( $live_based[2] ) ) {
+			return false;
+		}
+		/**
+		 * Filter whether shipping classes leave an extension's live rate on offer.
+		 *
+		 * @since 6.0.2
+		 * @param bool  $keep       True.
+		 * @param array $live_based The rate's row.
+		 * @param array $cart       Cart items.
+		 */
+		return (bool) apply_filters( 'wpeasycart_shipping_class_keeps_extension_rate', true, $live_based, $this->cart );
 	}
 
 	private function get_live_based_shipping_options_by_class( $standard_text, $express_text ) {
@@ -844,6 +933,9 @@ class ec_shipping {
 	}
 
 	public function has_shipping_option() {
+		if ( $this->groups_only() ) {
+			return '' !== wp_easycart_shipping_groups::selected_id( $this->shipping_groups ); /* 6.0.2: a partner service to choose */
+		}
 		if ( apply_filters( 'wp_easycart_shipping_should_print_custom_options', false ) ) {
 			return apply_filters( 'wp_easycart_shipping_has_custom_shipping_options', true );
 
@@ -881,7 +973,7 @@ class ec_shipping {
 			if ( ( !$selected_method && $i == 0 ) || ( $selected_method == $shipping_option['id'] ) ) {
 				echo ' checked="checked"';
 			}
-			echo '>' . esc_attr( $shipping_option['description'] ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '<span id="ec_cart_standard_shipping_price">' . esc_attr( $GLOBALS['currency']->get_number_only( apply_filters( 'wp_easycart_shipping_price_display', $shipping_option['price'] + $this->handling, $shipping_option['id'] ) ) ) . '</span>)</div>';
+			echo '>' . esc_attr( $shipping_option['description'] ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '<span id="ec_cart_standard_shipping_price">' . esc_attr( $GLOBALS['currency']->get_number_only( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $shipping_option['price'] + $this->handling, $shipping_option['id'] ), $shipping_option['id'] ) ) ) . '</span>)</div>';
 			$i++;
 		}
 	}
@@ -903,7 +995,7 @@ class ec_shipping {
 			}
 		}
 		$is_selected = ( ( $GLOBALS['ec_cart_data']->cart_data->shipping_method == '' && $i==0 ) || ( $GLOBALS['ec_cart_data']->cart_data->shipping_method != '' && $GLOBALS['ec_cart_data']->cart_data->shipping_method == $this->method_based[ $i ][2] ) );
-		if ( get_option( 'ec_option_onepage_checkout' ) ) {
+		if ( wp_easycart_onepage_active() ) {
 			echo '<label class="ec_cart_full_radio">';
 		}
 		echo '<div class="ec_cart_shipping_method_row';
@@ -915,8 +1007,8 @@ class ec_shipping {
 		if ( $is_selected ) {
 			echo ' checked="checked"';
 		}
-		echo ' /> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ) ) ) . ')</div>';
-		if ( get_option( 'ec_option_onepage_checkout' ) ) {
+		echo ' /> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ), $this->method_based[ $i ][2], $coupon ) ) ) . ')</div>';
+		if ( wp_easycart_onepage_active() ) {
 			echo '</label>';
 		}
 	}
@@ -939,7 +1031,7 @@ class ec_shipping {
 				$rate = floatval( $coupon->discount_shipping( $rate ) );
 			}
 		}
-		echo '> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ) ) ) . ')</option>';
+		echo '> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ), $this->method_based[ $i ][2], $coupon ) ) ) . ')</option>';
 	}
 
 	private function print_method_based_div( $i, $coupon = false ) {
@@ -956,7 +1048,7 @@ class ec_shipping {
 				$rate = floatval( $coupon->discount_shipping( $rate ) );
 			}
 		}
-		echo '<div class="ec_cart_shipping_method_row" id="' . esc_attr( $this->method_based[ $i ][2] ) . '"> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ) ) ) . ')</div>';
+		echo '<div class="ec_cart_shipping_method_row" id="' . esc_attr( $this->method_based[ $i ][2] ) . '"> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ), $this->method_based[ $i ][2], $coupon ) ) ) . ')</div>';
 	}
 
 	private function get_method_based_div( $i, $coupon = false ) {
@@ -973,7 +1065,7 @@ class ec_shipping {
 				$rate = floatval( $coupon->discount_shipping( $rate ) );
 			}
 		}
-		return '<div class="ec_cart_shipping_method_row" id="' . esc_attr( $this->method_based[ $i ][2] ) . '"> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ) ) ) . ')</div>';
+		return '<div class="ec_cart_shipping_method_row" id="' . esc_attr( $this->method_based[ $i ][2] ) . '"> ' . esc_attr( $this->method_based[ $i ][1] ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->method_based[ $i ][2] ), $this->method_based[ $i ][2], $coupon ) ) ) . ')</div>';
 	}
 
 	private function get_live_based_radio( $count, $i, $rate, $service_days = 0, $coupon = false ) {
@@ -997,7 +1089,7 @@ class ec_shipping {
 			} else if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method == "" && $this->get_lowest_live_based_rate() == $this->live_based[ $i ][2] ) {
 				$is_selected = true;
 			}
-			if ( get_option( 'ec_option_onepage_checkout' ) ) {
+			if ( wp_easycart_onepage_active() ) {
 				echo '<label class="ec_cart_full_radio">';
 			}
 			echo '<div class="ec_cart_shipping_method_row';
@@ -1017,8 +1109,8 @@ class ec_shipping {
 			if ( $service_days > 0 && get_option( 'ec_option_show_delivery_days_live_shipping' ) ) {
 				echo ' (' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'delivery_in' ) . ' ' . esc_attr( $service_days ) . '-' . esc_attr( $service_days + 1 ) . ' ' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'delivery_days' ) . ')';
 			}
-			echo '</span> <span class="price">' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->live_based[ $i ][2] ) ) ) . '</span></div>';
-			if ( get_option( 'ec_option_onepage_checkout' ) ) {
+			echo '</span> <span class="price">' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->live_based[ $i ][2] ), $this->live_based[ $i ][2], $coupon ) ) ) . '</span></div>';
+			if ( wp_easycart_onepage_active() ) {
 				echo '</label>';
 			}
 		}
@@ -1038,7 +1130,7 @@ class ec_shipping {
 			if ( ( $GLOBALS['ec_cart_data']->cart_data->shipping_method == '' && $count == 0 ) || ( $GLOBALS['ec_cart_data']->cart_data->shipping_method != '' && $GLOBALS['ec_cart_data']->cart_data->shipping_method == $this->live_based[ $i ][0] ) ) {
 				echo ' selected="selected"';
 			}
-			echo '> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][0] ) ) ) . '</option>';
+			echo '> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][2] ), $this->live_based[ $i ][2] ) ) ) . '</option>';
 		}
 	}
 
@@ -1057,7 +1149,7 @@ class ec_shipping {
 					$rate = floatval( $coupon->discount_shipping( $rate ) );
 				}
 			}
-			return '<div id="' . esc_attr( $this->live_based[ $i ][0] ) . '"> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->live_based[ $i ][0] ) ) ) . '</div>';
+			return '<div id="' . esc_attr( $this->live_based[ $i ][0] ) . '"> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $rate, $this->live_based[ $i ][2] ), $this->live_based[ $i ][2], $coupon ) ) ) . '</div>';
 		}
 		return '';
 	}
@@ -1067,6 +1159,9 @@ class ec_shipping {
 		$handling_added_ids = array( );
 		if ( isset( $this->cart ) && is_array( $this->cart ) ) {
 			for ( $i = 0; $i < count( $this->cart ); $i++ ) {
+				if ( null !== $this->shipping_groups && isset( $this->shipping_groups['claimed'][ $i ] ) ) {
+					continue; /* 6.0.2: the store never charges handling on a line a fulfillment partner ships */
+				}
 				if ( ! in_array( $this->cart[$i]->product_id, $handling_added_ids ) ) {
 					$handling_total = $handling_total + floatval( $this->cart[ $i ]->handling_price );
 					$handling_added_ids[] = $this->cart[$i]->product_id;
@@ -1075,6 +1170,57 @@ class ec_shipping {
 			}
 		}
 		return floatval( $rate ) + floatval( $handling_total );
+	}
+
+	/**
+	 * 6.0.2: a rate's own price ( before handling ) with an Offers shipping discount taken off ( wp_easycart_trigger_rate,
+	 * the filter the charged price asks ). Only a price is filtered: 'FREE' and 'ERROR' pass through unchanged.
+	 *
+	 * @since 6.0.2
+	 * @param mixed  $rate The rate's price.
+	 * @param string $id   The rate's id: a method or live row's shippingrate_id, else the shipping mode.
+	 * @return mixed
+	 */
+	private function offer_rate( $rate, $id ) {
+		if ( ! is_numeric( $rate ) ) {
+			return $rate;
+		}
+		return apply_filters( 'wp_easycart_trigger_rate', $rate, (string) $id );
+	}
+
+	/**
+	 * 6.0.2: the handling and per-product fees an Offers free-shipping discount waives, taken off a rate that includes
+	 * them ( as the charged price does ).
+	 *
+	 * @since 6.0.2
+	 * @param float  $total        The rate with handling and per-product fees.
+	 * @param string $id           The rate's id.
+	 * @param float  $product_fees The per-product shipping fees in $total.
+	 * @return float
+	 */
+	private function offer_fees_waived( $total, $id, $product_fees ) {
+		if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() && class_exists( 'ec_offer_integration' ) ) {
+			return ec_offer_integration::apply_shipping_fee_waivers( $total, (string) $id, floatval( $this->handling ), floatval( $product_fees ) );
+		}
+		return $total;
+	}
+
+	/**
+	 * 6.0.2: the method row the charged price uses: the chosen one, else the first ( as get_store_shipping_price() does ).
+	 *
+	 * @since 6.0.2
+	 * @return string The row's shippingrate_id, '' when there is none.
+	 */
+	private function charged_method_id() {
+		$selected = ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) ? $GLOBALS['ec_cart_data']->cart_data->shipping_method : '';
+		if ( '' != $selected ) {
+			foreach ( $this->method_based as $method_row ) {
+				if ( $selected == $method_row[2] ) {
+					return (string) $method_row[2];
+				}
+			}
+		}
+		return ( isset( $this->method_based[0][2] ) ) ? (string) $this->method_based[0][2] : '';
 	}
 
 	private function get_live_based_id( $count, $i, $rate ) {
@@ -1098,11 +1244,14 @@ class ec_shipping {
 			} else {
 				$rate = floatval( $rate ) + floatval( $this->handling );
 			}
-			echo '<div id="' . esc_attr( $this->live_based[ $i ][0] ) . '"> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][0] ) ) ) . '</div>';
+			echo '<div id="' . esc_attr( $this->live_based[ $i ][0] ) . '"> ' . esc_attr( $this->live_based[ $i ][1] ) . ' ' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][2] ), $this->live_based[ $i ][2] ) ) ) . '</div>';
 		}
 	}
 
 	public function get_lowest_live_based_rate() {
+		if ( $this->groups_only() ) {
+			return wp_easycart_shipping_groups::selected_id( $this->shipping_groups ); /* 6.0.2 */
+		}
 		$lowest_i = 0;
 		$lowest = 100000.00;
 		$lowest_ship_method = 'ERROR';
@@ -1137,6 +1286,9 @@ class ec_shipping {
 	}
 	
 	public function get_selected_shipping_method_id() {
+		if ( $this->groups_only() ) {
+			return wp_easycart_shipping_groups::selected_id( $this->shipping_groups ); /* 6.0.2 */
+		}
 		if ( '' != $GLOBALS['ec_cart_data']->cart_data->shipping_method && '0' != $GLOBALS['ec_cart_data']->cart_data->shipping_method ) {
 			return $GLOBALS['ec_cart_data']->cart_data->shipping_method;
 		}
@@ -1202,6 +1354,9 @@ class ec_shipping {
 	}
 
 	public function get_selected_shipping_method( $coupon = false ) {
+		if ( $this->groups_only() ) {
+			return wp_easycart_shipping_groups::selected_div( $this->shipping_groups, $this->groups_store_free( '', $coupon ) ); /* 6.0.2 */
+		}
 
 		$selected_shipping_method_id = 0;
 		if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method != '' ) {
@@ -1223,9 +1378,9 @@ class ec_shipping {
 				$cart_obj = (object) array(
 					'cart' => $this->cart,
 				);
-				return '<div id="promo_free">' . esc_attr( $promotion->get_free_shipping_promo_label( $cart_obj ) ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ) ) ) . ')</div>';
+				return '<div id="promo_free">' . esc_attr( $promotion->get_free_shipping_promo_label( $cart_obj ) ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ), 'promo_free', $coupon ) ) ) . ')</div>';
 			} else if ( 'FREE' == strtoupper( (string) $selected_shipping_method_id ) ) {
-				return '<div id="free"> ' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' ' . $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ) ) . '</div>';
+				return '<div id="free"> ' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' ' . $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ), 'free', $coupon ) ) . '</div>';
 			}
 
 			$shippable_total = 0;
@@ -1256,9 +1411,9 @@ class ec_shipping {
 				$cart_obj = (object) array(
 					'cart' => $this->cart,
 				);
-				return '<div id="promo_free">' . esc_attr( $promotion->get_free_shipping_promo_label( $cart_obj ) ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ) ) ) . ')</div>';
+				return '<div id="promo_free">' . esc_attr( $promotion->get_free_shipping_promo_label( $cart_obj ) ) . ' (' . esc_attr( $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ), 'promo_free', $coupon ) ) ) . ')</div>';
 			} else if ( 'FREE' == strtoupper( (string) $selected_shipping_method_id ) ) {
-				return '<div id="free"> ' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' ' . $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ) ) . '</div>';
+				return '<div id="free"> ' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' ' . $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ), 'free', $coupon ) ) . '</div>';
 			}
 
 			$shippable_total = 0;
@@ -1283,7 +1438,7 @@ class ec_shipping {
 							} else {
 								$rate = $this->live_based[ $i ][4];
 							}
-							return '<div id="' . $this->live_based[ $i ][0] . '"> ' . $this->live_based[ $i ][1] . ' ' . $GLOBALS['currency']->get_currency_display( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][2] ) ) . '</div>';
+							return '<div id="' . $this->live_based[ $i ][0] . '"> ' . $this->live_based[ $i ][1] . ' ' . $GLOBALS['currency']->get_currency_display( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', $this->add_cart_handling( $rate ), $this->live_based[ $i ][2] ), $this->live_based[ $i ][2], $coupon ) ) . '</div>';
 						} else if ( $this->live_based[ $i ][5] > 0 && $this->subtotal >= $this->live_based[ $i ][5] ) { // Shipping free at rate
 							$rate = 'FREE';
 						} else {
@@ -1352,6 +1507,9 @@ class ec_shipping {
 	}
 
 	public function get_selected_shipping_method_label() {
+		if ( $this->groups_only() ) {
+			return wp_easycart_shipping_groups::selected_label( $this->shipping_groups ); /* 6.0.2 */
+		}
 		$selected_shipping_method_id = 0;
 		if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method != '' ) {
 			$selected_shipping_method_id = $GLOBALS['ec_cart_data']->cart_data->shipping_method;
@@ -1481,13 +1639,13 @@ class ec_shipping {
 			if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method == "free" ) {
 				echo ' checked="checked"';
 			}
-			echo ' /><span class="ec_cart_standard_shipping_price_label">' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '</span> <span id="ec_cart_standard_shipping_price_free">' . esc_attr( $GLOBALS['currency']->get_number_only( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ) ) ) . '</span>)</div>';
+			echo ' /><span class="ec_cart_standard_shipping_price_label">' . wp_easycart_language()->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_free' ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '</span> <span id="ec_cart_standard_shipping_price_free">' . esc_attr( $GLOBALS['currency']->get_number_only( $this->with_group_share( apply_filters( 'wp_easycart_shipping_price_display', 0, 'free' ), 'free', $discount ) ) ) . '</span>)</div>';
 		}
 		echo '<div id="ec_cart_standard_shipping_row" class="ec_cart_shipping_method_row"><input type="radio" class="no_wrap" name="ec_cart_shipping_method" id="ec_cart_shipping_method" onchange="' . esc_attr( $this->change_shipping_js_func ) . '(\'standard\',0, \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-shipping-method-' . $GLOBALS['ec_cart_data']->ec_cart_id . '-standard' ) ) . '\');" value="standard"';
 		if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method == "" || $GLOBALS['ec_cart_data']->cart_data->shipping_method == "standard" ) {
 			echo ' checked="checked"';
 		}
-		echo ' /><span class="ec_cart_standard_shipping_price_label">' . esc_attr( $standard_text ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '</span><span id="ec_cart_standard_shipping_price">' . esc_attr( $GLOBALS['currency']->get_number_only( $standard_price ) ) . '</span>)</div>';
+		echo ' /><span class="ec_cart_standard_shipping_price_label">' . esc_attr( $standard_text ) . ' (' . esc_attr( $GLOBALS['currency']->get_symbol() ) . '</span><span id="ec_cart_standard_shipping_price">' . esc_attr( $GLOBALS['currency']->get_number_only( $this->with_group_share( $standard_price, 'standard', $discount ) ) ) . '</span>)</div>';
 		if ( $shippable_total > 0 && $this->express_price > 0 ) {
 			echo '<div id="ec_cart_express_shipping_row" class="ec_cart_shipping_method_row"><input type="checkbox" name="ec_cart_ship_express" id="ec_cart_ship_express" onchange="' . esc_attr( $this->change_shipping_js_func ) . '(\'shipexpress\',0, \'' . esc_attr( wp_create_nonce( 'wp-easycart-update-shipping-method-' . $GLOBALS['ec_cart_data']->ec_cart_id . '-shipexpress' ) ) . '\');" value="shipexpress"';
 			if ( $this->ship_express ) {
@@ -1498,11 +1656,135 @@ class ec_shipping {
 	}
 
 	public function get_shipping_price( $cart_handling = 0, $coupon = false, $include_promotions = true ) {
+		if ( null === $this->shipping_groups ) {
+			return $this->get_store_shipping_price( $cart_handling, $coupon, $include_promotions );
+		}
+		/* 6.0.2: what the fulfillment partners charge for their lines is added after the store's own price ( and after every
+		 * Offers waiver, which never reaches it ). The store's free shipping only covers it with the covers-partners option. */
+		if ( $this->groups_only() ) {
+			$amounts = $this->groups_amounts( $include_promotions );
+			$price = array_sum( $amounts );
+		} else {
+			$store = $this->get_store_shipping_price( $cart_handling, $coupon, $include_promotions );
+			$amounts = $this->groups_amounts( $include_promotions ); /* after the store's price: it may choose the free-shipping promotion */
+			$price = floatval( $store ) + array_sum( $amounts );
+		}
+		if ( $include_promotions ) {
+			$this->shipping_groups['charged'] = $amounts;
+			wp_easycart_shipping_groups::remember( $this->shipping_groups, $amounts );
+		}
+		return $price;
+	}
+
+	/**
+	 * 6.0.2: what each fulfillment partner is charged for with the saved shipping choice.
+	 *
+	 * @param bool $include_promotions Promotions count.
+	 * @return array Provider => amount.
+	 */
+	private function groups_amounts( $include_promotions = true ) {
+		if ( $this->groups_only() ) {
+			return wp_easycart_shipping_groups::amounts( $this->shipping_groups, $this->groups_store_free( '', false, $include_promotions ) );
+		}
+		$selection = ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) ? (string) $GLOBALS['ec_cart_data']->cart_data->shipping_method : '';
+		return wp_easycart_shipping_groups::amounts( $this->shipping_groups, $this->groups_store_free( $selection, false, $include_promotions, true ) );
+	}
+
+	/**
+	 * 6.0.2: the lines a fulfillment partner ships, and what it charges for them ( wp_easycart_shipping_groups::for_shipping() ).
+	 *
+	 * @return array|null Null when no line is a partner's.
+	 */
+	public function get_shipping_groups() {
+		return $this->shipping_groups;
+	}
+
+	/**
+	 * 6.0.2: every line the store would ship is a fulfillment partner's ( the partner's services are the choices ).
+	 *
+	 * @return bool
+	 */
+	private function groups_only() {
+		return null !== $this->shipping_groups && ! empty( $this->shipping_groups['all_partner'] );
+	}
+
+	/**
+	 * 6.0.2: a store amount shown to the shopper, with what the fulfillment partners charge added ( after the display
+	 * filter, so Offers never waive it ). Unchanged when no line is a partner's.
+	 *
+	 * @param mixed  $amount Store amount.
+	 * @param string $id     The rate's id ( free = local pickup ).
+	 * @param mixed  $coupon The checkout's ec_discount.
+	 * @return mixed
+	 */
+	private function with_group_share( $amount, $id = '', $coupon = false ) {
+		if ( null === $this->shipping_groups ) {
+			return $amount;
+		}
+		return floatval( $amount ) + wp_easycart_shipping_groups::share( $this->shipping_groups, $this->groups_store_free( $id, $coupon ) );
+	}
+
+	/**
+	 * 6.0.2: the store's free shipping reaches this rate and covers partner shipping ( ec_option_free_shipping_covers_partners ):
+	 * the account ships free, a free-shipping promotion or coupon applies, or the rate row's free-shipping threshold is met.
+	 * Local pickup is not free shipping.
+	 *
+	 * @param string $id                 The rate's id, or the saved choice when $selected.
+	 * @param mixed  $coupon             The checkout's ec_discount ( the charged price leaves coupons to ec_discount ).
+	 * @param bool   $include_promotions Promotions count.
+	 * @param bool   $selected           $id is the saved choice: an empty or unknown one is the rate charged by default.
+	 * @return bool
+	 */
+	private function groups_store_free( $id, $coupon = false, $include_promotions = true, $selected = false ) {
+		if ( null === $this->shipping_groups || ! wp_easycart_shipping_groups::covers() ) {
+			return false;
+		}
+		$id = (string) $id;
+		if ( $this->freeshipping || 'promo_free' === $id ) {
+			return true;
+		}
+		if ( 'free' !== $id && $this->groups_row_free( $id, $selected ) ) {
+			return true;
+		}
+		return wp_easycart_shipping_groups::store_free( $this->cart, $this->groups_only() || in_array( $this->shipping_method, array( 'price', 'weight', 'quantity', 'percentage' ), true ), $coupon, $include_promotions );
+	}
+
+	/**
+	 * 6.0.2: a method or live rate row's own free shipping ( its free-shipping threshold is met, or a live row's override is 0 ).
+	 *
+	 * @param string $id       Rate id.
+	 * @param bool   $selected $id is the saved choice: when it matches no row, the row charged by default is checked.
+	 * @return bool
+	 */
+	private function groups_row_free( $id, $selected = false ) {
+		if ( 'method' == $this->shipping_method ) {
+			foreach ( $this->method_based as $row ) {
+				if ( (string) $row[2] === $id ) {
+					return $row[3] > 0 && $this->subtotal >= $row[3];
+				}
+			}
+			return $selected && isset( $this->method_based[0] ) && $this->method_based[0][3] > 0 && $this->subtotal >= $this->method_based[0][3];
+		} else if ( 'live' == $this->shipping_method ) {
+			$any = false;
+			foreach ( $this->live_based as $row ) {
+				$free = ( $row[5] > 0 && $this->subtotal >= $row[5] ) || ( null !== $row[4] && 0 == $row[4] && get_option( 'ec_option_live_override_always' ) );
+				if ( (string) $row[2] === $id ) {
+					return $free;
+				}
+				$any = $any || ( $row[5] > 0 && $this->subtotal >= $row[5] );
+			}
+			return $selected && '' === $id && $any; /* nothing chosen yet: a row that ships free is the lowest */
+		}
+		return false;
+	}
+
+	private function get_store_shipping_price( $cart_handling = 0, $coupon = false, $include_promotions = true ) {
 		if ( $this->freeshipping ) {
 			return '0.00';
 		}
 
 		$rate = 'ERROR';
+		$offer_rate_id = null; /* 6.0.2: the charged method or live row's id, for the Offers filters */
 		$shippable_total = 0;
 		$cart_subtotal = 0;
 		for ( $i = 0; $i<count( $this->cart ); $i++ ) {
@@ -1589,7 +1871,10 @@ class ec_shipping {
 					}
 				}
 			}
-			$rate = apply_filters( 'wp_easycart_trigger_rate', $rate, 'method' );
+			/* 6.0.2: the Offers filter gets the charged row's id ( it got 'method', so "Only these rates" never discounted a
+			 * charged method rate ), and 'FREE' stays free. */
+			$offer_rate_id = $this->charged_method_id();
+			$rate          = $this->offer_rate( $rate, $offer_rate_id );
 
 		} else if ( $this->shipping_method == 'quantity' ) {
 			 for ( $i=0; $i<count( $this->quantity_based ); $i++ ) {
@@ -1632,6 +1917,7 @@ class ec_shipping {
 					for ( $i=0; $i<count( $this->live_based ); $i++ ) {
 
 						if ( $GLOBALS['ec_cart_data']->cart_data->shipping_method != '' && $GLOBALS['ec_cart_data']->cart_data->shipping_method == $this->live_based[ $i ][2] ) {
+							$offer_rate_id = (string) $this->live_based[ $i ][2];
 							if ( $this->live_based[ $i ][4] !== null && get_option( 'ec_option_live_override_always' ) ) {
 								if ( $this->live_based[ $i ][4] == 0 ) {
 									$rate = 'FREE';
@@ -1669,6 +1955,11 @@ class ec_shipping {
 					}
 					if ( $rate == 'ERROR' && $lowest_ship_method != 'ERROR' && $lowest < 100000.00 ) {
 						$rate = $lowest;
+						$offer_rate_id = (string) $lowest_ship_method;
+					}
+					/* 6.0.2: a live rate gets its Offers shipping discount too ( only the display did ), for the row charged. */
+					if ( null !== $offer_rate_id ) {
+						$rate = $this->offer_rate( $rate, $offer_rate_id );
 					}
 				}
 			}
@@ -1710,7 +2001,10 @@ class ec_shipping {
 			}
 			$rate = floatval( $rate ) + floatval( $this->handling ) + floatval( $cart_handling );
 			if ( function_exists( 'wp_easycart_offers_active' ) && wp_easycart_offers_active() && class_exists( 'ec_offer_integration' ) ) {
-				$rate = ec_offer_integration::apply_shipping_fee_waivers( $rate, ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) ? (string) $GLOBALS['ec_cart_data']->cart_data->shipping_method : '', floatval( $this->handling ), floatval( $cart_handling ) );
+				if ( null === $offer_rate_id ) {
+					$offer_rate_id = ( isset( $GLOBALS['ec_cart_data']->cart_data->shipping_method ) ) ? (string) $GLOBALS['ec_cart_data']->cart_data->shipping_method : '';
+				}
+				$rate = ec_offer_integration::apply_shipping_fee_waivers( $rate, $offer_rate_id, floatval( $this->handling ), floatval( $cart_handling ) ); /* 6.0.2: the charged row's id */
 			}
 			if ( $include_promotions ) {
 				$discount = $promotion->get_shipping_discounts( $cart_subtotal, $rate, $this->shipping_promotion_text );
@@ -1761,6 +2055,9 @@ class ec_shipping {
 	}
 
 	public function has_shipping_rates() {
+		if ( $this->groups_only() ) {
+			return 1; /* 6.0.2: partner shipping, or a note about it, shows in the totals */
+		}
 		if ( $this->shipping_method == 'price' ) {
 			return count( $this->price_based );
 		} else if ( $this->shipping_method == 'weight' ) {

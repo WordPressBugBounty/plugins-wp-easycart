@@ -1,0 +1,44 @@
+/* WP EasyCart — Settings › Search & AI ( 6.0.2 ). Status card, shipping zones and the crawler check.
+   Colours come from the V2 admin tokens; the accent follows the admin colourizer ( --ec-brand ). */
+
+.ecsa-kpis { display: grid; grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); gap: 8px; padding: 4px 0 12px; }
+.ecsa-kpi { border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 6px; padding: 9px 11px; display: grid; gap: 1px; min-width: 0; }
+.ecsa-kpi b { font-size: 19px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var( --ecv2-g900, #111827 ); }
+.ecsa-kpi span { font-size: 11.5px; color: var( --ecv2-g500, #6b7280 ); line-height: 1.35; }
+.ecsa-kpi.is-ok b { color: #15803d; }
+.ecsa-kpi.is-warn b { color: #b45309; }
+
+.ecsa-lines { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ecsa-lines li { position: relative; padding-left: 20px; font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g700, #374151 ); }
+.ecsa-lines li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+.ecsa-lines li.is-ok::before { content: "\2713"; color: #16a34a; }
+.ecsa-lines li.is-warn::before { content: "!"; color: #b45309; left: 4px; }
+.ecsa-lines b { color: var( --ecv2-g900, #111827 ); }
+
+.ecsa-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
+
+.ecsa-note { margin: 8px 0; padding: 10px 12px; border-radius: 6px; border: 1px solid var( --ecv2-g200, #e5e7eb ); background: var( --ecv2-g50, #f9fafb ); font-size: 12.5px; line-height: 1.5; color: var( --ecv2-g700, #374151 ); }
+.ecsa-note b { color: var( --ecv2-g900, #111827 ); }
+.ecsa-note.is-warn { background: #fffbeb; border-color: #fde68a; }
+.ecsa-note.is-ok { background: #ecfdf5; border-color: #a7f3d0; }
+.ecsa-sub { margin: 0 0 8px; font-size: 12px; color: var( --ecv2-g500, #6b7280 ); }
+
+.ecsa-zones, .ecsa-bots { display: grid; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 6px; margin-bottom: 10px; }
+.ecsa-zone, .ecsa-bot { display: grid; grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1.7fr ) auto; gap: 8px 14px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var( --ecv2-g100, #f3f4f6 ); font-size: 12.5px; color: var( --ecv2-g600, #4b5563 ); }
+.ecsa-zone:last-child, .ecsa-bot:last-child { border-bottom: 0; }
+.ecsa-zone b, .ecsa-bot b { color: var( --ecv2-g900, #111827 ); display: block; font-size: 13px; }
+.ecsa-bot code { font-size: 11px; background: var( --ecv2-g100, #f3f4f6 ); padding: 1px 5px; border-radius: 3px; color: var( --ecv2-g700, #374151 ); }
+.ecsa-state { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.ecsa-state.is-ok { background: #dcfce7; color: #166534; }
+.ecsa-state.is-bad { background: #fee2e2; color: #991b1b; }
+.ecsa-state.is-warn { background: #fef3c7; color: #92400e; }
+.ecsa-state.is-na { background: var( --ecv2-g100, #f3f4f6 ); color: var( --ecv2-g500, #6b7280 ); }
+
+/* 6.0.2: the Google product feed's preview without WP EasyCart PRO ( under the section's lock ). */
+.ecsa-mock { opacity: .6; filter: grayscale( .35 ); pointer-events: none; user-select: none; }
+.ecsa-mock-url { margin: 0 0 10px; padding: 7px 9px; border: 1px solid var( --ecv2-g200, #e5e7eb ); border-radius: 6px; background: var( --ecv2-g50, #f9fafb ); font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var( --ecv2-g700, #374151 ); overflow-wrap: anywhere; }
+
+@media screen and ( max-width: 900px ) {
+	.ecsa-kpis { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); }
+	.ecsa-zone, .ecsa-bot { grid-template-columns: 1fr; gap: 4px; }
+}

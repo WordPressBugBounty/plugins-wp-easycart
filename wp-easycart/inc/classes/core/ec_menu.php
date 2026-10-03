@@ -5,7 +5,8 @@ class ec_menu{
 	public $menu;													// Menu Array
 	private $store_page;											// VARCHAR
 	private $permalinkdivider;										// CHAR
-	
+	private $posts_primed = false;									// 6.0.2: menu posts loaded for their links
+
 	function __construct( ){
 		
 		$db = new ec_db( );
@@ -301,22 +302,34 @@ class ec_menu{
 		if( substr_count( $this->store_page, '?' ) )					$this->permalinkdivider = "&";
 		else															$this->permalinkdivider = "?";
 		
+		$classic = '';
+		if( $menu_level == 1 )
+			$classic = $this->store_page . $this->permalinkdivider . "menuid=" . $this->get_menulevel1_id( $level1 ) . "&menuname=" . $this->get_menulevel1_name( $level1 );
+		else if( $menu_level == 2 )
+			$classic = $this->store_page . $this->permalinkdivider . "submenuid=" . $this->get_menulevel2_id( $level1, $level2 ) . "&submenuname=" . $this->get_menulevel2_name( $level1, $level2 );
+		else if( $menu_level == 3 )
+			$classic = $this->store_page . $this->permalinkdivider . "subsubmenuid=" . $this->get_menulevel3_id( $level1, $level2, $level3 ) . "&subsubmenuname=" . $this->get_menulevel3_name( $level1, $level2, $level3 );
+
 		if( !get_option( 'ec_option_use_old_linking_style' ) && $postid != "0" ){
-			if( $menu_level == 1 )
-				return $this->menu[$level1]->guid;
-			else if( $menu_level == 2 )
-				return $this->menu[$level1]->submenu[$level2]->guid;
-			else if( $menu_level == 3 )
-				return $this->menu[$level1]->submenu[$level2]->subsubmenu[$level3]->guid;
-		}else{
-			if( $menu_level == 1 )
-				return $this->store_page . $this->permalinkdivider . "menuid=" . $this->get_menulevel1_id( $level1 ) . "&menuname=" . $this->get_menulevel1_name( $level1 );
-			else if( $menu_level == 2 )
-				return $this->store_page . $this->permalinkdivider . "submenuid=" . $this->get_menulevel2_id( $level1, $level2 ) . "&submenuname=" . $this->get_menulevel2_name( $level1, $level2 );
-			else if( $menu_level == 3 )
-				return $this->store_page . $this->permalinkdivider . "subsubmenuid=" . $this->get_menulevel3_id( $level1, $level2, $level3 ) . "&subsubmenuname=" . $this->get_menulevel3_name( $level1, $level2, $level3 );
+			/* 6.0.2: the live permalink ( the stored guid keeps a renamed store page's old slug ); every menu post loads in one query. */
+			if( ! $this->posts_primed ){
+				$this->posts_primed = true;
+				$ids = array( );
+				foreach( $this->menu as $menu1 ){
+					$ids[] = $menu1->post_id;
+					foreach( $menu1->submenu as $menu2 ){
+						$ids[] = $menu2->post_id;
+						foreach( $menu2->subsubmenu as $menu3 ){
+							$ids[] = $menu3->post_id;
+						}
+					}
+				}
+				wp_easycart_prime_store_posts( $ids );
+			}
+			return wp_easycart_store_post_link( $postid, $classic );
 		}
-		
+		return $classic;
+
 	}
 }
 

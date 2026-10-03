@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
 
+require_once __DIR__ . '/base/trait-wp-easycart-elementor-legacy-widget.php'; // 6.0.2: retirement, plain content, assets.
+
 use Elementor\Controls_Manager;
 use Elementor\Icons_Manager;
 use Elementor\Repeater;
@@ -23,6 +25,8 @@ use Elementor\Group_Control_Background;
 use Elementor\Utils;
 use Elementor\Wp_Easycart_Controls_Manager;
 
+require_once EC_PLUGIN_DIRECTORY . '/admin/elementor/wp-easycart-elementor-account-functions.php';
+
 /**
  * WP EasyCart Account Dashboard Widget for Elementor
  *
@@ -31,6 +35,25 @@ use Elementor\Wp_Easycart_Controls_Manager;
  * @author   WP EasyCart
  */
 class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_Base {
+
+	use WP_EasyCart_Elementor_Legacy_Widget;
+
+	/**
+	 * Dashboard types offered before 6.0.2 that were never built ( they printed "Coming Soon" ). Saved widgets keep the
+	 * value; they render nothing for visitors and a note in the editor.
+	 *
+	 * @since 6.0.2
+	 * @var array
+	 */
+	const UNFINISHED_TYPES = array( 'subscriptions', 'downloads', 'email', 'billing', 'shipping' );
+
+	/**
+	 * Status indicators drawn so far in this render, for a render attribute key of their own.
+	 *
+	 * @since 6.0.2
+	 * @var int
+	 */
+	private $indicator_count = 0;
 
 	/**
 	 * Get store widget name.
@@ -71,17 +94,15 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 	 * Enqueue store widget scripts and styles.
 	 */
 	public function get_script_depends() {
-		$scripts = array( 'isotope-pkgd', 'jquery-hoverIntent' );
-		if ( ( isset( $_REQUEST['action'] ) && 'elementor' == $_REQUEST['action'] ) || isset( $_REQUEST['elementor-preview'] ) ) {
-			$scripts[] = 'wpeasycart_js';
-		}
-		return $scripts;
+		/* 6.0.2: the same list on every request ( Elementor caches it per page ); registered by WP_EasyCart_Elementor::register_assets(). */
+		return $this->ec_legacy_assets( 'js', array( 'wpeasycart_js' ) );
 	}
 
 	/**
 	 * Setup store widget controls.
 	 */
-	protected function _register_controls() {
+	protected function register_controls() {
+		$this->ec_legacy_register_notice(); // 6.0.2: "newer widget available" note, only once a replacement is registered.
 		global $wpdb;
 		$orderstatuses = $wpdb->get_results( 'SELECT ec_orderstatus.status_id, ec_orderstatus.order_status FROM ec_orderstatus ORDER BY status_id ASC' );
 		$order_status_options = array();
@@ -102,14 +123,12 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 			array(
 				'label'   => esc_html__( 'Dashboard Element Type', 'wp-easycart' ),
 				'type'    => Controls_Manager::SELECT,
+				// 6.0.2: only the types that exist. Subscriptions, Downloads, Primary Email, Billing Address and Shipping Address
+				// printed "Coming Soon" to customers; a widget saved with one keeps its value and shows nothing ( a note in the
+				// editor ), see self::UNFINISHED_TYPES.
 				'options' => array(
 					'messages' => esc_html__( 'Success/Error Messages', 'wp-easycart' ),
 					'recent-orders' => esc_html__( 'Orders', 'wp-easycart' ),
-					'subscriptions' => esc_html__( 'Subscriptions', 'wp-easycart' ),
-					'downloads' => esc_html__( 'Downloads', 'wp-easycart' ),
-					'email' => esc_html__( 'Primary Email', 'wp-easycart' ),
-					'billing' => esc_html__( 'Billing Address', 'wp-easycart' ),
-					'shipping' => esc_html__( 'Shipping Address', 'wp-easycart' ),
 				),
 				'default'      => 'recent-orders',
 				'toggle'       => false,
@@ -118,6 +137,9 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 				'render_type'  => 'template',
 			)
 		);
+
+		/* 6.0.2: Show to ( everyone | signed-in customers | visitors ). The default keeps saved widgets showing to everyone. */
+		$this->add_control( 'visibility', wp_easycart_elementor_account_visibility_control() );
 
 		$this->add_control(
 			'track_shipment_button_text',
@@ -450,34 +472,37 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 				'label' => esc_html__( 'Define Columns', 'wp-easycart' ),
 				'type' => Controls_Manager::REPEATER,
 				'fields' => $repeater->get_controls(),
+				// 6.0.2: the starting columns of a newly added widget. They used keys that are not fields of this repeater
+				// ( row_content_type, row_dynamic_value, header_free_text for a dynamic header ), so every column showed the
+				// order number under an empty header. Widgets already saved keep their own columns.
 				'default' => array(
 					array(
-						'column_label' => esc_html__( 'Status', 'wp-easycart' ),
-						'header_content_type' => 'dynamic',
-						'header_free_text' => 'order_status',
-						'row_content_type' => 'dynamic',
-						'row_dynamic_value' => 'order_date',
+						'column_label'         => esc_html__( 'Status', 'wp-easycart' ),
+						'header_content_type'  => 'dynamic',
+						'header_dynamic_value' => 'order_status',
+						'column_content_type'  => 'dynamic',
+						'column_dynamic_value' => 'order_date',
 					),
 					array(
-						'column_label' => esc_html__( 'Total', 'wp-easycart' ),
-						'header_content_type' => 'free_text',
-						'header_free_text' => esc_html__( 'TOTAL', 'wp-easycart' ),
-						'row_content_type' => 'dynamic',
-						'row_dynamic_value' => 'grand_total',
+						'column_label'         => esc_html__( 'Total', 'wp-easycart' ),
+						'header_content_type'  => 'free_text',
+						'header_free_text'     => esc_html__( 'TOTAL', 'wp-easycart' ),
+						'column_content_type'  => 'dynamic',
+						'column_dynamic_value' => 'grand_total',
 					),
 					array(
-						'column_label' => esc_html__( 'Shipping', 'wp-easycart' ),
-						'header_content_type' => 'free_text',
-						'header_free_text' => esc_html__( 'SHIP TO', 'wp-easycart' ),
-						'row_content_type' => 'dynamic',
-						'row_dynamic_value' => 'shipping_name',
+						'column_label'         => esc_html__( 'Shipping', 'wp-easycart' ),
+						'header_content_type'  => 'free_text',
+						'header_free_text'     => esc_html__( 'SHIP TO', 'wp-easycart' ),
+						'column_content_type'  => 'dynamic',
+						'column_dynamic_value' => 'shipping_name',
 					),
 					array(
-						'column_label' => esc_html__( 'Order #', 'wp-easycart' ),
-						'header_content_type' => 'dynamic',
-						'header_free_text' => 'order_id',
-						'row_content_type' => 'dynamic',
-						'row_dynamic_value' => 'actions',
+						'column_label'         => esc_html__( 'Order #', 'wp-easycart' ),
+						'header_content_type'  => 'dynamic',
+						'header_dynamic_value' => 'order_id',
+						'column_content_type'  => 'dynamic',
+						'column_dynamic_value' => 'actions',
 					),
 				),
 				'title_field' => '{{{ column_label }}}',
@@ -1913,13 +1938,11 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 			)
 		);
 
-		$this->add_group_control(
-			Group_Control_Typography::get_type(),
-			array(
-				'name'     => 'button_typography',
-				'selector' => '{{WRAPPER}} .wp-easycart-orders-all',
-			)
-		);
+		/*
+		 * 6.0.2: a second button_typography group was declared here. Elementor refuses a control ID it already has ( the
+		 * Order Item Styling one ), with a notice per sub-control, so it never existed; removed. Saved button_typography
+		 * values belong to the order item buttons and still style them.
+		 */
 
 		$this->start_controls_tabs( 'view_all_button_style' );
 
@@ -2439,21 +2462,52 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 		$this->end_controls_section();
 	}
 
+	/**
+	 * Whether the element returns dynamic content ( Elementor element caching ).
+	 *
+	 * 6.0.2: never cached; it shows the signed-in customer's orders. Elementor 3.22+ already treats widgets as dynamic;
+	 * this keeps it so if that default changes.
+	 *
+	 * @return bool
+	 */
+	protected function is_dynamic_content(): bool {
+		return true;
+	}
+
+	/**
+	 * Plain content Elementor saves as the page's post_content.
+	 *
+	 * 6.0.2: nothing. Elementor's default renders the widget when the page is saved in the editor, which wrote the editing
+	 * admin's own orders ( or a customer's, during Login as Customer ) into post_content, where excerpts, site search and
+	 * feeds show them.
+	 */
+	public function render_plain_content() {}
+
+	/**
+	 * Render the dashboard element.
+	 */
 	protected function render() {
 		$atts = $this->get_settings_for_display();
+		/* 6.0.2: no page cache, and the Show to setting. */
+		if ( ! wp_easycart_elementor_account_render_start( $atts ) ) {
+			return;
+		}
 		if ( 'messages' == $atts['dashboard_type'] ) {
 			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/wp-easycart-elementor-account-dashboard-messages-widget.php' );
 		} else if ( 'recent-orders' == $atts['dashboard_type'] ) {
 			include( EC_PLUGIN_DIRECTORY . '/admin/elementor/wp-easycart-elementor-account-dashboard-orders-widget.php' );
-		} else {
-			echo 'Coming Soon';
+		} elseif ( function_exists( 'wp_easycart_elementor_is_editor' ) && wp_easycart_elementor_is_editor() ) {
+			/* 6.0.2: the unfinished types ( self::UNFINISHED_TYPES ) printed "Coming Soon" to customers; now nothing, and this note for the merchant. */
+			wp_easycart_elementor_account_notice( __( 'This dashboard element type is not available. Choose Orders or Success/Error Messages in Dashboard Element Type; visitors see nothing here.', 'wp-easycart' ) );
 		}
 	}
 
 	private function wp_easycart_elementor_dashboard_process_status_indicators( $order_status, $position, $is_first_order_item, $status_indicators_repeater ) {
-		if ( $is_first_order_item && is_array( $status_indicators_repeater ) && count( $status_indicators_repeater ) > 0 ) {
+		if ( is_array( $status_indicators_repeater ) && count( $status_indicators_repeater ) > 0 ) {
 			foreach ( $status_indicators_repeater as $indicator_rule ) {
-				if ( $position == $indicator_rule['indicator_location'] && is_array( $indicator_rule['oir_orderstatus_ids'] ) && in_array( $order_status, $indicator_rule['oir_orderstatus_ids'] ) ) {
+				/* 6.0.2: "Show on First Order Item Only" switched off shows the indicator on every item of the order ( it was ignored ). */
+				$first_item_only = ! isset( $indicator_rule['first_item_only'] ) || 'yes' === $indicator_rule['first_item_only'];
+				if ( ( $is_first_order_item || ! $first_item_only ) && isset( $indicator_rule['indicator_location'] ) && $position == $indicator_rule['indicator_location'] && isset( $indicator_rule['oir_orderstatus_ids'] ) && is_array( $indicator_rule['oir_orderstatus_ids'] ) && in_array( $order_status, $indicator_rule['oir_orderstatus_ids'] ) ) {
 					$this->wp_easycart_elementor_dashboard_render_status_indicator( $indicator_rule );
 				}
 			}
@@ -2461,19 +2515,26 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 	}
 
 	private function wp_easycart_elementor_dashboard_render_status_indicator( $indicator_rule ) {
-		$repeater_item_id = $indicator_rule['_id'];
-		$this->add_render_attribute( 'indicator_wrapper', 'class', 'order-item-status-indicator' );
-		$this->add_render_attribute( 'indicator_wrapper', 'class', esc_attr( 'elementor-repeater-item-' . $repeater_item_id ) );
+		/*
+		 * 6.0.2: a render attribute key per indicator ( one shared key collected every indicator's classes and links ), and
+		 * the attribute string printed as Elementor escapes it: esc_html() turned its quotes into &quot;, so the classes
+		 * ( and with them the indicator's styles ) and the link were broken.
+		 */
+		++$this->indicator_count;
+		$attribute_key    = 'indicator_wrapper_' . $this->indicator_count;
+		$repeater_item_id = isset( $indicator_rule['_id'] ) ? (string) $indicator_rule['_id'] : '';
+		$this->add_render_attribute( $attribute_key, 'class', 'order-item-status-indicator' );
+		$this->add_render_attribute( $attribute_key, 'class', 'elementor-repeater-item-' . $repeater_item_id );
 		if ( ! empty( $indicator_rule['indicator_layout'] ) ) {
-			$this->add_render_attribute( 'indicator_wrapper', 'class', esc_attr( 'indicator-layout-' . $indicator_rule['indicator_layout'] ) );
+			$this->add_render_attribute( $attribute_key, 'class', 'indicator-layout-' . $indicator_rule['indicator_layout'] );
 		}
 		$tag = 'span';
 		if ( isset( $indicator_rule['indicator_link'] ) && ! empty( $indicator_rule['indicator_link']['url'] ) ) {
 			$tag = 'a';
-			$this->add_link_attributes( 'indicator_wrapper', $indicator_rule['indicator_link'] );
+			$this->add_link_attributes( $attribute_key, $indicator_rule['indicator_link'] );
 		}
 		?>
-		<<?php echo esc_attr( $tag ); ?> <?php echo esc_html( $this->get_render_attribute_string( 'indicator_wrapper' ) ); ?>>
+		<<?php echo esc_attr( $tag ); ?> <?php echo $this->get_render_attribute_string( $attribute_key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Elementor escapes every attribute value. ?>>
 			<?php if ( isset( $indicator_rule['indicator_icon'] ) && isset( $indicator_rule['indicator_icon']['value'] ) && ! empty( $indicator_rule['indicator_icon']['value'] ) ) { ?>
 				<?php Icons_Manager::render_icon( $indicator_rule['indicator_icon'], array( 'aria-hidden' => 'true', 'title' => $indicator_rule['indicator_label'], ) ); ?>
 			<?php } ?>
@@ -2586,7 +2647,11 @@ class Wp_Easycart_Elementor_Account_Dashboard_Widget extends \Elementor\Widget_B
 					$order->display_payment_method();
 				}
 			} else if ( 'actions' == $column[$type . '_dynamic_value'] ) {
-				echo '<a href="' . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order->order_id ) ) ) . '">' . wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' ) . '</a> | <a href="' . esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $order->order_id ) ) ) . '" target="_blank">' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ) . '</a>';
+				echo '<a href="' . esc_attr( wpeasycart_links()->get_account_page( 'order_details', array( 'order_id' => (int) $order->order_id ) ) ) . '">' . wp_easycart_language( )->get_text( 'account_dashboard', 'account_dashboard_order_view_details' ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a language phrase, sanitized when saved.
+				/* 6.0.2: Settings › Documents › Customer downloads can turn the print link off, and a document rule can for some orders. */
+				if ( class_exists( 'wp_easycart_documents' ) && method_exists( 'wp_easycart_documents', 'customer_download' ) ? wp_easycart_documents::customer_download( 'print_receipt', (int) $order->order_id ) : get_option( 'ec_option_account_print_receipt', 1 ) ) {
+					echo ' | <a href="' . esc_attr( wpeasycart_links()->get_account_page( 'print_receipt', array( 'order_id' => (int) $order->order_id ) ) ) . '" target="_blank">' . wp_easycart_language( )->get_text( 'cart_success', 'cart_success_print_receipt_text' ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a language phrase, sanitized when saved.
+				}
 			}
 		}
 	}

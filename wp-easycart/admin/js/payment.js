@@ -1540,7 +1540,7 @@ function stripe_live_on_off( ){
 		jQuery( document.getElementById( 'ec_option_payment_process_method' ) ).val( '0' );
 		toggle_live_gateways( );
 	}
-	ec_admin_save_stripe_connect_options( );
+	ec_admin_save_stripe_connect_options( true );
 }
 
 function stripe_sandbox_on_off( ){
@@ -1557,7 +1557,7 @@ function stripe_sandbox_on_off( ){
 		jQuery( document.getElementById( 'ec_option_payment_process_method' ) ).val( '0' );
 		toggle_live_gateways( );
 	}
-	ec_admin_save_stripe_connect_options( );
+	ec_admin_save_stripe_connect_options( true );
 }
 
 function stripe_connect_show_advanced( ){
@@ -1571,25 +1571,36 @@ function stripe_connect_show_advanced( ){
 	return false;
 }
 
+/* 6.0.2: a method that no longer fits is switched off whatever draws it ( a select, a switch whose value follows its state,
+   a hidden value ), and a family whose methods all left is hidden instead of showing an empty heading. */
+function ec_admin_stripe_method_off( $row ) {
+	$row.find( 'select' ).val( '0' );
+	$row.find( 'input.ec_admin_slider_checkbox' ).prop( 'checked', false ).val( '0' );
+	$row.find( 'input[type="hidden"][id^="ec_option_stripe_"]' ).val( '0' );
+}
+
 function ec_admin_update_stripe_connect_display( currency, country ) {
 	jQuery( '.ec_admin_stripe_section, .ec_admin_stripe_settings_row' ).each( function() {
-		if ( jQuery( this ).attr( 'data-currencies' ).split( ',' ).includes( currency ) && jQuery( this ).attr( 'data-countries' ).split( ',' ).includes( country ) ) {
-			jQuery( this ).show();
+		var $row = jQuery( this );
+		if ( String( $row.attr( 'data-currencies' ) || '' ).split( ',' ).includes( currency ) && String( $row.attr( 'data-countries' ) || '' ).split( ',' ).includes( country ) ) {
+			$row.show();
 		} else {
-			jQuery( this ).hide();
-			jQuery( this ).find( 'select' ).each( function() {
-				jQuery( this ).val( '0' );
-			} );
+			$row.hide();
+			ec_admin_stripe_method_off( $row );
 		}
-		jQuery( this ).find( '.ec_status_error' ).hide();
-		if ( jQuery( this ).attr( 'data-country-currency' ) ) {
-			var country_to_currency = JSON.parse( jQuery( this ).attr( 'data-country-currency' ) );
+		$row.find( '.ec_status_error' ).hide();
+		if ( $row.attr( 'data-country-currency' ) ) {
+			var country_to_currency = JSON.parse( $row.attr( 'data-country-currency' ) );
 			if ( ! country_to_currency[country] || ! country_to_currency[country].includes( currency ) ) {
-				jQuery( this ).find( '.ec_status_error' ).show();
-				jQuery( this ).find( 'select' ).each( function() {
-					jQuery( this ).val( '0' );
-				} );
+				$row.find( '.ec_status_error' ).show();
+				ec_admin_stripe_method_off( $row );
 			}
+		}
+	} );
+	jQuery( '.ec_admin_stripe_section' ).each( function() {
+		var $rows = jQuery( this ).find( '.ec_admin_stripe_settings_row' );
+		if ( $rows.length && ! $rows.filter( function() { return 'none' !== this.style.display; } ).length ) {
+			jQuery( this ).hide();
 		}
 	} );
 }
@@ -1611,112 +1622,58 @@ function ec_admin_update_stripe_connect_option( this_ele ) {
 	return false;
 }
 
-function ec_admin_save_stripe_connect_options() {
+/* 6.0.2: the Stripe options the panel shows, by element id ( = option name ). A field the panel does not show is not posted and
+   the handler keeps what is stored: the Stripe API keys panel of WP EasyCart PRO before 6.0.2 calls this for its payment form
+   options only, and used to blank the currency, country, wallets and signing secret. Switches carry their value in value="". */
+function ec_admin_stripe_connect_fields( data ){
+	var ids = [
+		'ec_option_stripe_currency', 'ec_option_stripe_company_country', 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout',
+		'ec_option_stripe_subscription_notices', 'ec_option_stripe_address_autocomplete', 'ec_option_stripe_connect_webhook_secret',
+		'ec_option_stripe_affirm', 'ec_option_stripe_afterpay', 'ec_option_stripe_klarna', 'ec_option_stripe_pay_later_minimum',
+		'ec_option_stripe_enable_apple_pay', 'ec_option_stripe_disable_wallet_first', 'ec_option_stripe_alipay', 'ec_option_stripe_grabpay',
+		'ec_option_stripe_wechat', 'ec_option_stripe_link', 'ec_option_stripe_bancontact', 'ec_option_stripe_blik', 'ec_option_stripe_eps',
+		'ec_option_stripe_fpx', 'ec_option_stripe_giropay', 'ec_option_stripe_enable_ideal', 'ec_option_stripe_p24', 'ec_option_stripe_sofort',
+		'ec_option_stripe_bacs', 'ec_option_stripe_becs', 'ec_option_stripe_sepa', 'ec_option_stripe_pix', 'ec_option_stripe_paynow',
+		'ec_option_stripe_promptpay', 'ec_option_stripe_boleto', 'ec_option_stripe_konbini', 'ec_option_stripe_oxxo'
+	];
+	for ( var i = 0; i < ids.length; i++ ) {
+		var $field = jQuery( document.getElementById( ids[ i ] ) );
+		if ( $field.length ) {
+			data[ ids[ i ] ] = $field.val( );
+		}
+	}
+	return data;
+}
+
+/* with_method: true only from the Live / Test mode switches ( stripe_live_on_off, stripe_sandbox_on_off ). 6.0.2: the other
+   controls used to post the switch state too, so saving the currency or a checkout option on a store running another live
+   gateway turned it off ( GrabPay also saved Alipay's value ). */
+function ec_admin_save_stripe_connect_options( with_method ) {
 	jQuery( document.getElementById( "ec_admin_stripe_display_loader" ) ).fadeIn( 'fast' );
 	var currency = jQuery( document.getElementById( 'ec_option_stripe_currency' ) ).val( );
 	var country = jQuery( document.getElementById( 'ec_option_stripe_company_country' ) ).val( );
-	var payment_theme = jQuery( document.getElementById( 'ec_option_stripe_payment_theme' ) ).val( );
-	var payment_layout = jQuery( document.getElementById( 'ec_option_stripe_payment_layout' ) ).val( );
-	var subscription_notices = jQuery( document.getElementById( 'ec_option_stripe_subscription_notices' ) ).val( );
-	var address_autocomplete = jQuery( document.getElementById( 'ec_option_stripe_address_autocomplete' ) ).val( );
-	var webhook_signature = jQuery( document.getElementById( 'ec_option_stripe_connect_webhook_secret' ) ).val( );
-
-	ec_admin_update_stripe_connect_display( currency, country );
-
-	var enable_affirm = jQuery( document.getElementById( 'ec_option_stripe_affirm' ) ).val( );
-	var enable_afterpay = jQuery( document.getElementById( 'ec_option_stripe_afterpay' ) ).val( );
-	var enable_klarna = jQuery( document.getElementById( 'ec_option_stripe_klarna' ) ).val( );
-	var pay_later_minimum = jQuery( document.getElementById( 'ec_option_stripe_pay_later_minimum' ) ).val( );
-
-	var wallet_first = jQuery( document.getElementById( 'ec_option_stripe_disable_wallet_first' ) ).val( );
-	var apple_pay = jQuery( document.getElementById( 'ec_option_stripe_enable_apple_pay' ) ).val( );
-	var enable_alipay = jQuery( document.getElementById( 'ec_option_stripe_alipay' ) ).val( );
-	var enable_grabpay = jQuery( document.getElementById( 'ec_option_stripe_alipay' ) ).val( );
-	var enable_wechat = jQuery( document.getElementById( 'ec_option_stripe_wechat' ) ).val( );
-	var enable_link = jQuery( document.getElementById( 'ec_option_stripe_link' ) ).val( );
-
-	var enable_bancontact = jQuery( document.getElementById( 'ec_option_stripe_bancontact' ) ).val( );
-	var enable_blik = jQuery( document.getElementById( 'ec_option_stripe_blik' ) ).val( );
-	var enable_eps = jQuery( document.getElementById( 'ec_option_stripe_eps' ) ).val( );
-	var enable_fpx = jQuery( document.getElementById( 'ec_option_stripe_fpx' ) ).val( );
-	var enable_giropay = jQuery( document.getElementById( 'ec_option_stripe_giropay' ) ).val( );
-	var enable_ideal = jQuery( document.getElementById( 'ec_option_stripe_enable_ideal' ) ).val( );
-	var enable_p24 = jQuery( document.getElementById( 'ec_option_stripe_p24' ) ).val( );
-	var enable_sofort = jQuery( document.getElementById( 'ec_option_stripe_sofort' ) ).val( );
-
-	var enable_bacs = jQuery( document.getElementById( 'ec_option_stripe_bacs' ) ).val( );
-	var enable_becs = jQuery( document.getElementById( 'ec_option_stripe_becs' ) ).val( );
-	var enable_sepa = jQuery( document.getElementById( 'ec_option_stripe_sepa' ) ).val( );
-
-	var enable_pix = jQuery( document.getElementById( 'ec_option_stripe_pix' ) ).val( );
-	var enable_paynow = jQuery( document.getElementById( 'ec_option_stripe_paynow' ) ).val( );
-	var enable_promptpay = jQuery( document.getElementById( 'ec_option_stripe_promptpay' ) ).val( );
-
-	var enable_boleto = jQuery( document.getElementById( 'ec_option_stripe_boleto' ) ).val( );
-	var enable_konbini = jQuery( document.getElementById( 'ec_option_stripe_konbini' ) ).val( );
-	var enable_oxxo = jQuery( document.getElementById( 'ec_option_stripe_oxxo' ) ).val( );
-
-	var payment_method = '';
-
-	if ( '1' == jQuery( document.getElementById( 'ec_option_stripe_enable_apple_pay' ) ).val( ) ) {
-		jQuery( document.getElementById( 'stripe_wallet_first' ) ).show( );
-	} else {
-		jQuery( document.getElementById( 'stripe_wallet_first' ) ).hide( );
+	if ( undefined !== currency && undefined !== country ) {
+		ec_admin_update_stripe_connect_display( currency, country );
 	}
 
-	if ( jQuery( document.getElementById( 'use_stripe_connect' ) ).val( ) == '1' ) {
-		payment_method = 'stripe_connect';
+	if ( jQuery( document.getElementById( 'ec_option_stripe_enable_apple_pay' ) ).length ) {
+		if ( '1' == jQuery( document.getElementById( 'ec_option_stripe_enable_apple_pay' ) ).val( ) ) {
+			jQuery( document.getElementById( 'stripe_wallet_first' ) ).show( );
+		} else {
+			jQuery( document.getElementById( 'stripe_wallet_first' ) ).hide( );
+		}
 	}
 
-	var data = {
+	var data = ec_admin_stripe_connect_fields( {
 		action: 'ec_admin_ajax_save_stripe_connect',
-		ec_option_payment_process_method: payment_method,
-		ec_option_stripe_connect_use_sandbox: jQuery( document.getElementById( 'ec_option_stripe_connect_use_sandbox' ) ).val( ),
-		ec_option_stripe_currency: currency,
-		ec_option_stripe_company_country: country,
-		ec_option_stripe_payment_theme: payment_theme,
-		ec_option_stripe_payment_layout: payment_layout,
-		ec_option_stripe_subscription_notices: subscription_notices,
-		ec_option_stripe_address_autocomplete: address_autocomplete,
-		ec_option_stripe_connect_webhook_secret: webhook_signature,
-
-		ec_option_stripe_affirm: enable_affirm,
-		ec_option_stripe_afterpay: enable_afterpay,
-		ec_option_stripe_klarna: enable_klarna,
-		ec_option_stripe_pay_later_minimum: pay_later_minimum,
-
-		ec_option_stripe_enable_apple_pay: apple_pay,
-		ec_option_stripe_disable_wallet_first: wallet_first,
-		ec_option_stripe_alipay: enable_alipay,
-		ec_option_stripe_grabpay: enable_grabpay,
-		ec_option_stripe_wechat: enable_wechat,
-		ec_option_stripe_link: enable_link,
-
-		ec_option_stripe_bancontact: enable_bancontact,
-		ec_option_stripe_blik: enable_blik,
-		ec_option_stripe_eps: enable_eps,
-		ec_option_stripe_fpx: enable_fpx,
-		ec_option_stripe_giropay: enable_giropay,
-		ec_option_stripe_enable_ideal: enable_ideal,
-		ec_option_stripe_p24: enable_p24,
-		ec_option_stripe_sofort: enable_sofort,
-
-		ec_option_stripe_bacs: enable_bacs,
-		ec_option_stripe_becs: enable_becs,
-		ec_option_stripe_sepa: enable_sepa,
-
-		ec_option_stripe_pix: enable_pix,
-		ec_option_stripe_paynow: enable_paynow,
-		ec_option_stripe_promptpay: enable_promptpay,
-
-		ec_option_stripe_boleto: enable_boleto,
-		ec_option_stripe_konbini: enable_konbini,
-		ec_option_stripe_oxxo: enable_oxxo,
-
 		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
-	};
+	} );
+	if ( true === with_method ) {
+		data.ec_option_payment_process_method = ( jQuery( document.getElementById( 'use_stripe_connect' ) ).val( ) == '1' ) ? 'stripe_connect' : '';
+		data.ec_option_stripe_connect_use_sandbox = jQuery( document.getElementById( 'ec_option_stripe_connect_use_sandbox' ) ).val( );
+	}
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_stripe_display_loader' );
 	} } );
 
@@ -1763,8 +1720,17 @@ function ec_admin_save_stripe_options( ){
 		ec_option_stripe_enable_ideal: enable_ideal,
 		ec_option_stripe_order_create_customer: stripe_order_create_customer
 	};
+	/* 6.0.2: WP EasyCart PRO 6.0.2's panel also shows the payment form's look, the subscription emails and the webhook signing
+	   secret, and saves them here ( its handler keeps what is not posted ). Its older panel saved them through
+	   ec_admin_save_stripe_connect_options(). */
+	var extra = [ 'ec_option_stripe_payment_theme', 'ec_option_stripe_payment_layout', 'ec_option_stripe_subscription_notices', 'ec_option_stripe_connect_webhook_secret' ];
+	for ( var i = 0; i < extra.length; i++ ) {
+		if ( jQuery( document.getElementById( extra[ i ] ) ).length ) {
+			data[ extra[ i ] ] = jQuery( document.getElementById( extra[ i ] ) ).val( );
+		}
+	}
 
-	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){ 
+	jQuery.ajax({url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', data: data, success: function(data){
 		ec_admin_hide_loader( 'ec_admin_live_gateway_display_loader' );
 	} } );
 
@@ -1867,6 +1833,46 @@ function ec_admin_square_webhooks_secure( button ){
 	}, error: function(){
 		$note.text( $button.attr( 'data-failed' ) || '' ).show();
 		$button.prop( 'disabled', false ).text( label );
+	} } );
+	return false;
+}
+
+/* 6.0.2: the PayPal panel's Notifications button ( Set up notifications / Secure notifications / Register again / Try
+   again ): registers the mode in use again, with a new key. The answer carries the Notifications group redrawn from what
+   was actually saved ( wp_easycart_paypal_webhooks::print_group() ), which replaces the one on the page. */
+function ec_admin_paypal_webhooks_secure( button ){
+	var $button = jQuery( button ), label = $button.text();
+	var $group = $button.closest( '#ec_paypal_webhooks' );
+	var fail = function( text ){
+		jQuery( '#ec_paypal_webhook_note' ).text( text || $button.attr( 'data-failed' ) || '' ).show();
+		$button.prop( 'disabled', false ).text( label );
+	};
+	$button.prop( 'disabled', true ).text( $button.attr( 'data-busy' ) || label );
+	jQuery.ajax( { url: wpeasycart_admin_ajax_object.ajax_url, type: 'post', dataType: 'json', data: {
+		action: 'ec_admin_ajax_save_paypal_webhooks',
+		wp_easycart_nonce: ec_admin_get_value( 'wp_easycart_payment_settings_nonce', 'text' )
+	}, success: function( r ){
+		if ( ! r || r.success === false ) {
+			fail( ( r && r.data && r.data.message ) ? r.data.message : '' );
+			return;
+		}
+		if ( r.html && $group.length ) {
+			var $fresh = jQuery( r.html );
+			$group.replaceWith( $fresh );
+			if ( r.secured && r.message ) {
+				$fresh.find( '.ecsq-group-t' ).after( jQuery( '<div class="ec_admin_toggle_note ecsq-secure is-done" role="status"></div>' ).append( jQuery( '<span class="ecsq-secure-text"></span>' ).text( r.message ) ) );
+			}
+			return;
+		}
+		if ( r.error ) {
+			fail( r.error );
+			return;
+		}
+		jQuery( '#ec_paypal_webhook_secure' ).removeClass( 'ec_admin_toggle_note_warn' ).addClass( 'is-done' ).find( '.ecsq-secure-text' ).text( r.message || '' );
+		$button.remove();
+	}, error: function( xhr ){
+		var j = xhr && xhr.responseJSON;
+		fail( ( j && j.data && j.data.message ) ? j.data.message : '' );
 	} } );
 	return false;
 }

@@ -10,9 +10,10 @@
  *
  * Integration points
  *   wpeasycart_order_status_update( $order_id, $status_id )   ← queues requests ( statuses configurable, default Shipped )
- *   wpeasycart_review_submitted( $review_id )                  ← the review-submit AJAX handler must fire this once
- *                                                                after the INSERT; the engine then claims the request
- *                                                                token ( cookie ), sets verified, applies rules.
+ *   wpeasycart_review_submitted( $review_id )                  ← fired once per new review by ec_db::submit_customer_review()
+ *                                                                after the INSERT ( 6.0.2; nothing fired it before ); the
+ *                                                                engine then claims the request token ( cookie ), sets
+ *                                                                verified, applies rules.
  *   wp_easycart_review_requests_send ( hourly cron )           ← sends due requests / reminders
  *   ?ec_review_token=…&ec_review_rating=N on a product page    ← opens the form pre-filled; token kept in a cookie
  *   ?ec_review_unsubscribe=…                                    ← one-click opt-out
@@ -71,6 +72,44 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 				$ok = (bool) $wpdb->get_var( "SHOW COLUMNS FROM ec_review LIKE 'reply_text'" ) && (bool) $wpdb->get_var( "SHOW TABLES LIKE 'ec_review_request'" );
 			}
 			return $ok;
+		}
+
+		/**
+		 * Store accounts looked up this request, by ec_user id ( false = none ).
+		 *
+		 * @var array
+		 */
+		private static $accounts = array();
+
+		/**
+		 * The store account behind a review or review request. ec_review.user_id and ec_review_request.user_id are ec_user ids,
+		 * never WordPress user ids ( get_userdata() on one finds whichever WordPress user has that number ). @since 6.0.2
+		 *
+		 * @param int $user_id ec_user.user_id.
+		 * @return object|null user_id, first_name, last_name, name ( first and last name, may be '' ) and email ( '' unless valid ),
+		 *                     or null when there is no such account.
+		 */
+		public static function account( $user_id ) {
+			global $wpdb;
+			$user_id = (int) $user_id;
+			if ( $user_id <= 0 ) {
+				return null;
+			}
+			if ( ! array_key_exists( $user_id, self::$accounts ) ) {
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT user_id, first_name, last_name, email FROM ec_user WHERE user_id = %d', $user_id ) );
+				if ( $row ) {
+					$row->user_id    = (int) $row->user_id;
+					$row->first_name = trim( wp_unslash( (string) $row->first_name ) );
+					$row->last_name  = trim( wp_unslash( (string) $row->last_name ) );
+					$row->name       = trim( $row->first_name . ' ' . $row->last_name );
+					$row->email      = trim( (string) $row->email );
+					if ( ! is_email( $row->email ) ) {
+						$row->email = '';
+					}
+				}
+				self::$accounts[ $user_id ] = $row ? $row : false;
+			}
+			return self::$accounts[ $user_id ] ? self::$accounts[ $user_id ] : null;
 		}
 
 		/* ------------------------------------------------------------------ */
@@ -146,6 +185,22 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 			return (bool) $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 		}
 
+		/**
+		 * Email of a store account. ec_review.user_id and ec_review_request.user_id are ec_user ids, never WordPress user ids
+		 * ( get_userdata() on one found whichever WordPress user had that number ). @since 6.0.2
+		 *
+		 * @param int $user_id ec_user.user_id.
+		 * @return string The account's email, or '' when there is none.
+		 */
+		private static function account_email( $user_id ) {
+			global $wpdb;
+			if ( (int) $user_id <= 0 ) {
+				return '';
+			}
+			$email = trim( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT email FROM ec_user WHERE user_id = %d', (int) $user_id ) ) );
+			return is_email( $email ) ? $email : '';
+		}
+
 		/** Recompute the flag for every review that has a user or email ( admin tool / after upgrade ). */
 		public static function recompute_verified() {
 			global $wpdb;
@@ -178,6 +233,34 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 				wp_cache_set( $key, $s, 'wpeasycart-reviews' );
 			}
 			return $s;
+		}
+
+		/**
+		 * Prints the rating summary ( ec_product_details_reviews_summary.php, a wp-easycart-data copy first ) from a template
+		 * that has the product in $product, such as ec_product_details_page_tabs.php ( [ec_product_details_tabs] ). The summary
+		 * reads $this->product, so it runs with $this bound to an object carrying the product, and copies made for the
+		 * product page keep working. @since 6.0.2
+		 *
+		 * @param ec_product $product Product being displayed.
+		 */
+		public static function print_summary( $product ) {
+			if ( ! is_object( $product ) ) {
+				return;
+			}
+			$file = EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_reviews_summary.php';
+			if ( ! file_exists( $file ) ) {
+				$file = EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option( 'ec_option_latest_layout' ) . '/ec_product_details_reviews_summary.php';
+			}
+			if ( ! file_exists( $file ) ) {
+				return;
+			}
+			$print = Closure::bind(
+				function ( $ec_rs_file ) {
+					include $ec_rs_file;
+				},
+				(object) array( 'product' => $product )
+			);
+			$print( $file );
 		}
 
 		public static function flush( $review_id = 0 ) {
@@ -252,7 +335,7 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 		/* ------------------------------------------------------------------ */
 
 		/**
-		 * Fired by the review-submit handler after INSERT. Everything here is best-effort and
+		 * Fired by ec_db::submit_customer_review() after the INSERT. Everything here is best-effort and
 		 * silent — a failure must never break the customer's submission.
 		 */
 		public static function on_review_submitted( $review_id ) {
@@ -274,8 +357,8 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 			}
 			/* Logged-in customer: remember their email so guests-turned-customers still match later */
 			if ( '' === (string) $review->reviewer_email && (int) $review->user_id ) {
-				$u = get_userdata( (int) $review->user_id );
-				if ( $u && ! empty( $u->user_email ) ) { $update['reviewer_email'] = $u->user_email; $review->reviewer_email = $u->user_email; }
+				$account_email = self::account_email( (int) $review->user_id );
+				if ( '' !== $account_email ) { $update['reviewer_email'] = $account_email; $review->reviewer_email = $account_email; }
 			}
 
 			/* 2. Verified buyer */
@@ -463,7 +546,7 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 		private static function send_reply_email( $review, $reply ) {
 			global $wpdb;
 			$to = (string) $review->reviewer_email;
-			if ( '' === $to && (int) $review->user_id ) { $u = get_userdata( (int) $review->user_id ); $to = $u ? $u->user_email : ''; }
+			if ( '' === $to && (int) $review->user_id ) { $to = self::account_email( (int) $review->user_id ); }
 			if ( ! is_email( $to ) ) { return false; }
 			$p = $wpdb->get_row( $wpdb->prepare( 'SELECT title, post_id FROM ec_product WHERE product_id = %d', (int) $review->product_id ) );
 			$vars = array(

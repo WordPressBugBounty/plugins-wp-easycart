@@ -11,6 +11,8 @@ class ec_storepage{
 	private $model_number;									// VARCHAR 255
 	private $optionitem_id;									// INT
 	private $category_view;									// BOOL
+	private $product_not_found = false;						// BOOL ( 6.0.2 ): a widget asked for a model number that does not exist
+	private $elementor_category_template = 0;				// INT ( 6.0.2 ): the Elementor template that draws this category page
 
 	public $previous_model_number;							// VARCHAR 255
 	public $number_in_product_list;							// INT
@@ -56,7 +58,14 @@ class ec_storepage{
 		}
 
 		if( ! $this->is_details ) {
-			$this->setup_products(  $menuid, $submenuid, $subsubmenuid, $manufacturerid, $groupid );
+			/* 6.0.2: a category page drawn by an Elementor template ( Settings › Elementor › Category pages ) skips the standard
+			 * list's queries; display_store_page() loads them after all if the template draws nothing. */
+			if ( function_exists( 'wp_easycart_elementor_category_template_id' ) ) {
+				$this->elementor_category_template = (int) wp_easycart_elementor_category_template_id( $groupid, $atts );
+			}
+			if ( ! $this->elementor_category_template ) {
+				$this->setup_products(  $menuid, $submenuid, $subsubmenuid, $manufacturerid, $groupid );
+			}
 		} else {
 			if ( 'NOMODELNUMBER' != $modelnumber ) {
 				$this->model_number = $modelnumber;
@@ -122,6 +131,11 @@ class ec_storepage{
 		$products = $db->get_product_list( $wpdb->prepare( ' WHERE product.model_number = %s' . ( ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) ? ' AND product.activate_in_store = 1' : '' ), $this->model_number ), '', '', '', 'wpeasycart-product-only-' . $this->model_number, '', '' );
 		if ( count( $products ) > 0 ) {
 			$this->product = new ec_product( $products[0], 0, 1, 0 );
+		} else if ( is_array( $this->atts ) && ! empty( $this->atts['elementor'] ) ) {
+			/* 6.0.2: inside an Elementor widget the page is already half drawn: including the 404 template here and stopping
+			 * left a broken page ( no footer, status 200 ) whenever a page with a Store widget got an unknown ?model_number=.
+			 * The widget shows the not-found note instead; the classic store page keeps its 404. */
+			$this->product_not_found = true;
 		} else {
 			global $wp_query;
 			$wp_query->is_404 = true;
@@ -164,13 +178,29 @@ class ec_storepage{
 	}
 
 	public function display_store_error(){
+		global $wpdb;
+		$error_code = sanitize_key( $_GET['ec_store_error'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- a notice code for display, checked against the list below; the caller checked it is set.
 		$error_notes = array(
 			"minquantity" => wp_easycart_language( )->get_text( "ec_errors", "minquantity" ) 
 		);
-		echo "<div class=\"ec_cart_error\"><div>" . esc_attr( $error_notes[ sanitize_key( $_GET['ec_store_error'] ) ] ) . "</div></div>";
+		if ( 'donation' === $error_code ) {
+			/* 6.0.2: a donation below the product's price, sent back by the older add to cart form ( ec_cartpage::process_add_to_cart() ). */
+			$donation_minimum = ( '' !== (string) $this->model_number ) ? $wpdb->get_var( $wpdb->prepare( 'SELECT price FROM ec_product WHERE model_number = %s AND is_donation = 1', $this->model_number ) ) : null;
+			$error_notes['donation'] = wp_easycart_language( )->get_text( 'product_details', 'product_details_donation_error' ) . ( ( null !== $donation_minimum ) ? ' ' . $GLOBALS['currency']->get_currency_display( $donation_minimum ) . '.' : '' );
+		}
+		if ( ! isset( $error_notes[ $error_code ] ) ) {
+			return; /* 6.0.2: an unknown code printed an empty notice ( and a PHP warning ) */
+		}
+		echo "<div class=\"ec_cart_error\"><div>" . esc_attr( $error_notes[ $error_code ] ) . "</div></div>";
 	}
 
 	public function display_store_page() {
+		if ( $this->product_not_found ) {
+			if ( function_exists( 'wp_easycart_print_product_not_found' ) ) {
+				wp_easycart_print_product_not_found();
+			}
+			return;
+		}
 		if( get_option( 'ec_option_restrict_store' ) ){
 			$restricted = explode( "***", get_option( 'ec_option_restrict_store' ) );
 		}
@@ -184,6 +214,15 @@ class ec_storepage{
 			}
 			if ( isset( $_GET['ec_store_error'] ) ) {
 				$this->display_store_error();
+			}
+			if ( ! $this->is_details && $this->elementor_category_template ) {
+				/* 6.0.2: the category's Elementor template draws the page instead of the category view and product list. */
+				if ( function_exists( 'wp_easycart_elementor_render_category_template' ) && wp_easycart_elementor_render_category_template( $this->group_id, $this->atts ) ) {
+					$this->display_category_template_events( $paging );
+					return;
+				}
+				$this->elementor_category_template = 0;
+				$this->setup_products( $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id );
 			}
 			if ( ! $this->is_details && $this->category_list->num_categories > 0 && get_option( 'ec_option_show_featured_categories' ) && 1 == $paging ) {
 				$this->display_category_view();
@@ -266,6 +305,20 @@ class ec_storepage{
 			'image_hover_effect' => '',
 		), $this->atts ) );
 
+		$this->display_product_list_events();
+
+		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_page.php' ) ) {
+			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_page.php' );
+		} else {
+			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_page.php' );
+		}
+	}
+
+	/**
+	 * The product list's analytics and hooks: GA4 view_item_list, Meta Search, wp_easycart_view_product_list ( 6.0.2: moved
+	 * out of display_products_page() unchanged, so a category page drawn by an Elementor template sends them too ).
+	 */
+	private function display_product_list_events() {
 		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
 			if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) {
 				echo '<script>
@@ -315,13 +368,38 @@ class ec_storepage{
 				</script>';
 			}
 		}
-		do_action( 'wp_easycart_view_product_list', $this->product_list, $this->category_list, $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id, $this->atts );
-
-		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_page.php' ) ) {
-			include( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option('ec_option_base_layout') . '/ec_product_page.php' );
-		} else {
-			include( EC_PLUGIN_DIRECTORY . '/design/layout/' . get_option('ec_option_latest_layout') . '/ec_product_page.php' );
+		// 6.0.2: Meta Search on the first page of store search results.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- which search is shown; nothing is changed.
+		if ( function_exists( 'wp_easycart_meta_search' ) && isset( $_GET['ec_search'] ) && ( ! isset( $_GET['pagenum'] ) || 1 >= (int) $_GET['pagenum'] ) ) {
+			wp_easycart_meta_search( sanitize_text_field( wp_unslash( $_GET['ec_search'] ) ), $this->product_list->products );
 		}
+		// phpcs:enable
+		do_action( 'wp_easycart_view_product_list', $this->product_list, $this->category_list, $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id, $this->atts );
+	}
+
+	/**
+	 * 6.0.2: a category page drawn by an Elementor template sends what the standard category page sends ( the category view
+	 * hook under the same conditions, then the product list events ), once and never in the Elementor editor. The product
+	 * list is loaded only when something uses it.
+	 *
+	 * @param int $paging Page number.
+	 */
+	private function display_category_template_events( $paging ) {
+		if ( function_exists( 'wp_easycart_elementor_is_editor' ) && wp_easycart_elementor_is_editor() ) {
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- which search is shown; nothing is changed.
+		$searching = ( function_exists( 'wp_easycart_meta_search' ) && isset( $_GET['ec_search'] ) );
+		if ( '' == get_option( 'ec_option_google_ga4_property_id' ) && ! $searching && ! has_action( 'wp_easycart_view_product_list' ) && ! has_action( 'wp_easycart_category_view' ) ) {
+			return;
+		}
+		if ( ! $this->product_list ) {
+			$this->setup_products( $this->menu_id, $this->submenu_id, $this->subsubmenu_id, $this->manufacturer_id, $this->group_id );
+		}
+		if ( $this->category_list->num_categories > 0 && get_option( 'ec_option_show_featured_categories' ) && 1 == $paging ) {
+			do_action( 'wp_easycart_category_view', $this->group_id, $this->category_list, $this->product_list );
+		}
+		$this->display_product_list_events();
 	}
 
 	public function has_products( ){
@@ -332,6 +410,9 @@ class ec_storepage{
 	}
 
 	private function display_product_details_page( ){
+		if ( class_exists( 'wp_easycart_store_activity' ) && isset( $this->product ) ) {
+			wp_easycart_store_activity::product_viewed( $this->product ); /* 6.0.2: Reports' product views ( theme copies of the details template too ) */
+		}
 		$storepageid = get_option('ec_option_storepage');
 		$cartpageid = get_option('ec_option_cartpage');
 		$accountpageid = apply_filters( 'wp_easycart_account_page_id', get_option( 'ec_option_accountpage' ) );
@@ -350,7 +431,13 @@ class ec_storepage{
 			echo "<script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create', '" . esc_js( get_option( 'ec_option_googleanalyticsid' ) ) . "', 'auto');ga('send', 'pageview');ga('require', 'ec');ga('ec:addImpression',{'id': '" . esc_js( $this->product->model_number ) . "','name': '" . esc_js( $this->product->title ) . "','price': '" . esc_js( number_format( $this->product->price, 2, '.', '' ) ) . "',});ga('send', 'pageview');function  ec_google_addToCart( ){ga('create', '" . esc_js( get_option( 'ec_option_googleanalyticsid' ) ) . "', 'auto');ga('require', 'ec');ga('ec:addProduct', {'id': '" . esc_js( $this->product->model_number ) . "','name': '" . esc_js( $this->product->title ) . "','price': '" . esc_js( number_format( $this->product->price, 2, '.', '' ) ) . "','quantity': document.getElementById( 'product_quantity_" . esc_js( $this->product->model_number ) . "' )});ga('ec:setAction', 'add');ga('send', 'event', 'UX', 'click', 'add to cart');}</script>";
 		}
 
-		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
+		/* 6.0.2: never from the Elementor editor or its preview, and once per product per page ( the Product Meta widget shares the flag ). */
+		$wpec_ga4_in_editor = ( function_exists( 'wp_easycart_elementor_is_editor' ) && wp_easycart_elementor_is_editor() );
+		if ( ! isset( $GLOBALS['wpeasycart_ga4_view_item_printed'] ) || ! is_array( $GLOBALS['wpeasycart_ga4_view_item_printed'] ) ) {
+			$GLOBALS['wpeasycart_ga4_view_item_printed'] = array();
+		}
+		if ( '' != get_option( 'ec_option_google_ga4_property_id' ) && ! $wpec_ga4_in_editor && ! isset( $GLOBALS['wpeasycart_ga4_view_item_printed'][ (int) $this->product->product_id ] ) ) {
+			$GLOBALS['wpeasycart_ga4_view_item_printed'][ (int) $this->product->product_id ] = true;
 			if ( get_option( 'ec_option_google_ga4_tag_manager' ) ) {
 				echo '<script>
 				document.addEventListener( \'DOMContentLoaded\', function() {
@@ -358,7 +445,7 @@ class ec_storepage{
 					dataLayer.push( {
 						event: "view_item",
 						ecommerce: {
-							currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
+							currency: "' . esc_attr( wp_easycart_base_currency_code() ) . '",
 							value: ' . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ',
 							items: [ {
 								item_id: "' . esc_attr( $this->product->model_number ) . '",
@@ -376,7 +463,7 @@ class ec_storepage{
 				echo '<script>
 				document.addEventListener( \'DOMContentLoaded\', function() {
 					gtag( "event", "view_item", {
-						currency: "' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '",
+						currency: "' . esc_attr( wp_easycart_base_currency_code() ) . '",
 						value: ' . esc_attr( number_format( $this->product->price, 2, '.', '' ) ) . ',
 						items: [ {
 							item_id: "' . esc_attr( $this->product->model_number ) . '",
@@ -390,6 +477,13 @@ class ec_storepage{
 				} );
 				</script>';
 			}
+		}
+
+		/* 6.0.2: a product template made in Elementor ( Settings › Elementor › Product pages ) draws the product instead of the
+		 * standard layout. The 404, restricted-store and analytics steps above stay; the template renderer adds the details
+		 * hooks, the Meta event and the structured data ( WP_EasyCart_Elementor_Templates::render_product() ). */
+		if ( function_exists( 'wp_easycart_elementor_render_product_template' ) && wp_easycart_elementor_render_product_template( $this->product, $this->atts ) ) {
+			return;
 		}
 
 		if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_product_details_page.php' ) ) {

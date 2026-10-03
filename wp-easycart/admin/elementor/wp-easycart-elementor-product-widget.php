@@ -162,7 +162,15 @@ if ( $wpec_elem_title ) {
 	$heading_html = $wpec_elem_title;
 
 	if ( $wpec_elem_title_link && isset( $wpec_elem_title_link['url'] ) && $wpec_elem_title_link['url'] ) {
-		$heading_html = sprintf( '<a href="%1$s"' . ( $wpec_elem_title_link['is_external'] ? ' target="nofollow"' : '' ) . ( $wpec_elem_title_link['nofollow'] ? ' rel="_blank"' : '' ) . '>%2$s</a>', esc_url( $wpec_elem_title_link['url'] ), $heading_html );
+		/* 6.0.2: "Open in new window" printed target="nofollow" and "Add nofollow" printed rel="_blank". */
+		$wpec_elem_title_rel = array();
+		if ( ! empty( $wpec_elem_title_link['nofollow'] ) ) {
+			$wpec_elem_title_rel[] = 'nofollow';
+		}
+		if ( ! empty( $wpec_elem_title_link['is_external'] ) ) {
+			$wpec_elem_title_rel[] = 'noopener';
+		}
+		$heading_html = sprintf( '<a href="%1$s"' . ( ! empty( $wpec_elem_title_link['is_external'] ) ? ' target="_blank"' : '' ) . ( count( $wpec_elem_title_rel ) ? ' rel="' . implode( ' ', $wpec_elem_title_rel ) . '"' : '' ) . '>%2$s</a>', esc_url( $wpec_elem_title_link['url'] ), $heading_html );
 	}
 
 	$heading_html = '<h2 class="heading-title">' . $heading_html . '</h2>';
@@ -256,10 +264,11 @@ $more_atts['product_style'] = $product_style;
 $more_atts['product_align'] = $product_align;
 $more_atts['product_visible_options'] = implode( ',', $visible_options );
 $more_atts['product_rounded_corners'] = ( 'yes' == $product_rounded_corners ) ? 1 : 0;
-$more_atts['product_rounded_corners_tl'] = (int) $product_rounded_corners_tl['size'];
-$more_atts['product_rounded_corners_tr'] = (int) $product_rounded_corners_tr['size'];
-$more_atts['product_rounded_corners_bl'] = (int) $product_rounded_corners_bl['size'];
-$more_atts['product_rounded_corners_br'] = (int) $product_rounded_corners_br['size'];
+/* 6.0.2: the corner sizes are null while "Customize Product Image Corners" is off ( PHP warnings ); 0 is what they gave. */
+$more_atts['product_rounded_corners_tl'] = ( is_array( $product_rounded_corners_tl ) && isset( $product_rounded_corners_tl['size'] ) ) ? (int) $product_rounded_corners_tl['size'] : 0;
+$more_atts['product_rounded_corners_tr'] = ( is_array( $product_rounded_corners_tr ) && isset( $product_rounded_corners_tr['size'] ) ) ? (int) $product_rounded_corners_tr['size'] : 0;
+$more_atts['product_rounded_corners_bl'] = ( is_array( $product_rounded_corners_bl ) && isset( $product_rounded_corners_bl['size'] ) ) ? (int) $product_rounded_corners_bl['size'] : 0;
+$more_atts['product_rounded_corners_br'] = ( is_array( $product_rounded_corners_br ) && isset( $product_rounded_corners_br['size'] ) ) ? (int) $product_rounded_corners_br['size'] : 0;
 $more_atts['product_border'] = $product_border;
 $more_atts['product_slider_nav_pos'] = $product_slider_nav_pos;
 $more_atts['product_slider_nav_type'] = $product_slider_nav_type;
@@ -278,11 +287,8 @@ if ( $spacing ) {
 	$more_atts['spacing']  = ( is_array( $spacing ) ) ? esc_attr( $spacing['size'] ) : esc_attr( $spacing );
 }
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 $extra_atts . "'";
-echo do_shortcode( '[ec_product ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_product ' . $extra_atts . ']' );
 echo '</div>';

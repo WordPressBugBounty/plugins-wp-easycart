@@ -1,0 +1,858 @@
+/**
+ * WP EasyCart for Elementor: cart and checkout widgets ( 6.0.2 ).
+ *
+ * 1. EasyCart's cart page inside the Cart, Checkout and Order Confirmation widgets ( .wpec-el-cart-page ). EasyCart's own CSS
+ *    sets fonts, button colours and cart line titles with !important, so the widgets' controls set custom properties and the
+ *    rules below apply them, falling back to the Site Settings › WP EasyCart kit ( --wpec-button-* ) and then to EasyCart's
+ *    own values ( --wpec-main-color ... ) while they are not set.
+ * 2. Parts a widget hides ( .wpec-hide-* ) and the empty cart.
+ * 3. The widgets' own markup: order summary, order confirmation additions, menu cart and mini cart.
+ *
+ * Elementor's control rules ( {{WRAPPER}} .x ) must win over the rules here that set the same property: those rules use
+ * :where() or stay at a lower specificity, and only EasyCart's own !important values are answered with !important here.
+ */
+
+/* 1. EasyCart markup inside the widgets ------------------------------------------------------------------------------- */
+
+.wpec-el-cart-page.wpec-el-cart-page :is([class*="ec_cart"], [class*="ec_cartitem"], [class*="ec_order_success"], [class*="ec_minimum"], [class*="ec_details_price"], [class*="ec_account"], .ec_quantity, .ec_minus, .ec_plus, dt, dd, th, td, label, input, select, textarea, button, h1, h2, h3, h4, p, a):not(.dashicons):not([class*="dashicons-"]):not(.ec_cartitem_delete):not(.ec_cartitem_deleting):not(.ec_cartitem_updating):not(.ec_cart_breadcrumb_divider):not(.wp-easycart-ld-ring) {
+	font-family: var(--wpec-el-font, var(--wpec-el-font-base, var(--wpec-font-main, inherit))) !important;
+}
+
+/* Buttons ( round 11: the kit's button colours, corners and font come before EasyCart's own ) */
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_button, .ec_cart_button_row input[type="submit"], .ec_cart_button_row input[type="button"]):not(.ec_cart_button_checkout) {
+	--wpec-el-font-base: var(--wpec-button-font-family, var(--wpec-font-main, inherit));
+	background-color: var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222))) !important;
+	background-image: none !important;
+	color: var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff)) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_button, .ec_cart_button_row input[type="submit"], .ec_cart_button_row input[type="button"]):not(.ec_cart_button_checkout):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-btn-hover-bg, var(--wpec-el-btn-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, var(--wpec-second-color, #666666))))) !important;
+	color: var(--wpec-el-btn-hover-color, var(--wpec-el-btn-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_button_checkout, .ec_cart_table_checkout_button) {
+	--wpec-el-font-base: var(--wpec-button-font-family, var(--wpec-font-main, inherit));
+	background-color: var(--wpec-el-cta-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222)))) !important;
+	background-image: none !important;
+	color: var(--wpec-el-cta-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_button_checkout, .ec_cart_table_checkout_button):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-cta-hover-bg, var(--wpec-el-cta-bg, var(--wpec-el-btn-hover-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, var(--wpec-second-color, #666666)))))) !important;
+	color: var(--wpec-el-cta-hover-color, var(--wpec-el-cta-color, var(--wpec-el-btn-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff))))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(a.ec_cart_empty_button, .wpec-cart-empty__button) {
+	--wpec-el-font-base: var(--wpec-button-font-family, var(--wpec-font-main, inherit));
+	background-color: var(--wpec-el-empty-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222)))) !important;
+	color: var(--wpec-el-empty-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(a.ec_cart_empty_button, .wpec-cart-empty__button):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-empty-hover-bg, var(--wpec-el-empty-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, var(--wpec-second-color, #666666))))) !important;
+	color: var(--wpec-el-empty-hover-color, var(--wpec-el-empty-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_success_continue_shopping_button > a, .wpec-thank-you__button) {
+	--wpec-el-font-base: var(--wpec-button-font-family, var(--wpec-font-main, inherit));
+	background-color: var(--wpec-el-tybtn-bg, var(--wpec-button-bg, #333333)) !important;
+	color: var(--wpec-el-tybtn-color, var(--wpec-button-color, #ffffff)) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_success_continue_shopping_button > a, .wpec-thank-you__button):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-tybtn-hover-bg, var(--wpec-el-tybtn-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, #555555)))) !important;
+	color: var(--wpec-el-tybtn-hover-color, var(--wpec-el-tybtn-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)))) !important;
+}
+/* The order confirmation's last link ( Continue shopping ) beside another one: its own colours, the other buttons' by default. */
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_success_continue_shopping_button > a:last-child:not(:first-child) {
+	background-color: var(--wpec-el-tybtn2-bg, var(--wpec-el-tybtn-bg, var(--wpec-button-bg, #333333))) !important;
+	color: var(--wpec-el-tybtn2-color, var(--wpec-el-tybtn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_success_continue_shopping_button > a:last-child:not(:first-child):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-tybtn2-hover-bg, var(--wpec-el-tybtn2-bg, var(--wpec-el-tybtn-hover-bg, var(--wpec-el-tybtn-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, #555555)))))) !important;
+	color: var(--wpec-el-tybtn2-hover-color, var(--wpec-el-tybtn2-color, var(--wpec-el-tybtn-hover-color, var(--wpec-el-tybtn-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff)))))) !important;
+}
+
+/*
+ * The kit's button corners and type ( round 11 ). Above EasyCart's own rules ( at most 0,2,1 ) and under the widgets' controls
+ * ( {{WRAPPER}} .x: 0,4,0 ), each falling back to the value EasyCart gives that button today.
+ */
+.wpec-el-cart-page.wpec-el-cart-page.wpec-el-cart-page :where(.ec_cart_button_row > .ec_cart_button, .ec_cart_button_column > .ec_cart_button) {
+	border-radius: var(--wpec-button-radius, 6px);
+	font-size: var(--wpec-button-font-size, 12px);
+	font-weight: var(--wpec-button-font-weight, normal);
+	text-transform: var(--wpec-button-text-transform, uppercase);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+}
+.wpec-el-cart-page.wpec-el-cart-page.wpec-el-cart-page :where(.ec_cart_table_checkout_button) {
+	border-radius: var(--wpec-button-radius, 50px);
+	font-size: var(--wpec-button-font-size, inherit);
+	font-weight: var(--wpec-button-font-weight, normal);
+	text-transform: var(--wpec-button-text-transform, inherit);
+	letter-spacing: var(--wpec-button-letter-spacing, inherit);
+}
+.wpec-el-cart-page.wpec-el-cart-page.wpec-el-cart-page :where(a.ec_cart_empty_button) {
+	border-radius: var(--wpec-button-radius, 6px);
+	font-size: var(--wpec-button-font-size, 18px);
+	font-weight: var(--wpec-button-font-weight, normal);
+	text-transform: var(--wpec-button-text-transform, none);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+}
+.wpec-el-cart-page.wpec-el-cart-page.wpec-el-cart-page :where(.ec_cart_success_continue_shopping_button > a) {
+	border-radius: var(--wpec-button-radius, 2px);
+	font-size: var(--wpec-button-font-size, inherit);
+	font-weight: var(--wpec-button-font-weight, bold);
+	text-transform: var(--wpec-button-text-transform, none);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+}
+
+/*
+ * "Please wait": the copy EasyCart shows while a request runs ( grey with !important there ). The classic checkout's submit
+ * inputs in a button row already took the buttons' colours ( the rule above matches them ), so they keep them by default.
+ */
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_button_column, .ec_cart_button_row) > div.ec_cart_button_working {
+	background-color: var(--wpec-el-btn-working-bg, #aaaaaa) !important;
+	color: var(--wpec-el-btn-working-color, #ffffff) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_button_row > input.ec_cart_button_working:not(#ec_cart_submit_order_working) {
+	background-color: var(--wpec-el-btn-working-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222)))) !important;
+	color: var(--wpec-el-btn-working-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+
+/* Place order ( round 11 ): its own colours, the Buttons section's until they are set */
+.wpec-el-cart-page.wpec-el-cart-page :is(#ec_cart_submit_order, .wpec-el-place-order) {
+	background-color: var(--wpec-el-place-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222)))) !important;
+	color: var(--wpec-el-place-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(#ec_cart_submit_order, .wpec-el-place-order):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-place-hover-bg, var(--wpec-el-place-bg, var(--wpec-el-btn-hover-bg, var(--wpec-el-btn-bg, var(--wpec-button-hover-bg, var(--wpec-button-bg, var(--wpec-second-color, #666666))))))) !important;
+	color: var(--wpec-el-place-hover-color, var(--wpec-el-place-color, var(--wpec-el-btn-hover-color, var(--wpec-el-btn-color, var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff))))))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(#ec_cart_submit_order, .wpec-el-place-order):is(:disabled, .wpec-protect-blocked) {
+	background-color: var(--wpec-el-place-disabled-bg, var(--wpec-el-place-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222))))) !important;
+	color: var(--wpec-el-place-disabled-color, var(--wpec-el-place-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff)))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_button_column > #ec_cart_submit_order_working {
+	background-color: var(--wpec-el-place-working-bg, #aaaaaa) !important;
+	color: var(--wpec-el-place-working-color, #ffffff) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_button_row > #ec_cart_submit_order_working {
+	background-color: var(--wpec-el-place-working-bg, var(--wpec-el-btn-bg, var(--wpec-button-bg, var(--wpec-main-color, #222222)))) !important;
+	color: var(--wpec-el-place-working-color, var(--wpec-el-btn-color, var(--wpec-button-color, #ffffff))) !important;
+}
+
+/* Cart line titles, checkout steps, quantity buttons, remove, print link */
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_title {
+	color: var(--wpec-el-title-color, var(--wpec-main-color, #222222)) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_title:is(:hover, :focus-visible) {
+	color: var(--wpec-el-title-color-hover, var(--wpec-el-title-color, var(--wpec-second-color, #666666))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page :is(.ec_cart_breadcrumb:not(.ec_inactive), .ec_cart_breadcrumb_item_v2) {
+	color: var(--wpec-el-steps-color, var(--wpec-main-color, #222222)) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_breadcrumb_item_v2:is(:hover, :focus-visible) {
+	color: var(--wpec-el-steps-color-hover, var(--wpec-el-steps-color, var(--wpec-second-color, #666666))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_breadcrumb:not(.ec_inactive) > a:is(:hover, :focus-visible) {
+	color: var(--wpec-el-steps-color-hover, var(--wpec-el-steps-color, var(--wpec-main-color, #222222))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_quantity_table > tbody > tr > td > :is(.ec_minus, .ec_plus, .ec_cartitem_update_button) {
+	background-color: var(--wpec-el-qty-bg, var(--wpec-main-color, #b9b9b9)) !important;
+	color: var(--wpec-el-qty-color, #ffffff) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_quantity_table > tbody > tr > td > :is(.ec_minus, .ec_plus, .ec_cartitem_update_button):is(:hover, :focus-visible) {
+	background-color: var(--wpec-el-qty-bg-hover, var(--wpec-el-qty-bg, var(--wpec-second-color, #a9a9a9))) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_delete {
+	color: var(--wpec-el-remove-color, #cccccc);
+	border-color: var(--wpec-el-remove-color, #cccccc) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cartitem_delete:is(:hover, :focus-visible) {
+	color: var(--wpec-el-remove-hover-color, #bd9292) !important;
+	border-color: var(--wpec-el-remove-hover-color, #bd9292) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_success_print_button_v2 > a {
+	color: var(--wpec-el-print-color, #333333) !important;
+}
+.wpec-el-cart-page.wpec-el-cart-page .ec_cart_success_print_button_v2 > a:is(:hover, :focus-visible) {
+	color: var(--wpec-el-print-color-hover, var(--wpec-el-print-color, #555555)) !important;
+}
+/* The * of a required field's label ( checkout.js wraps it ) keeps the label's colour until a colour is chosen. */
+.wpec-el-cart-page .wpec-required {
+	color: inherit;
+}
+
+/* 2. Hidden parts and the empty cart ------------------------------------------------------------------------------------ */
+
+.wpec-hide-coupon :is(.ec_cart_coupon_part, .ec_offer_codes_container),
+.wpec-hide-giftcard .ec_cart_giftcard_part,
+.wpec-hide-estimate .ec_cart_estimate_part,
+.wpec-hide-continue :is(.ec_cart_button_row_shopping, .ec_cart_table_shopping_button),
+.wpec-hide-steps :is(.ec_cart_breadcrumbs, .ec_cart_breadcrumbs_v2),
+.wpec-hide-cart-express :is(#ec-stripe-wallet-button, #paypal-button-container, #wp-easycart-square-apple-pay-button, #wp-easycart-square-google-pay-button),
+.wpec-hide-line-image .ec_cart_table_image,
+.wpec-hide-line-image td.ec_cartitem_image > img,
+.wpec-hide-line-options :is(td.ec_cartitem_details > dl, .ec_cart_table_details_content dl),
+.wpec-hide-line-price :is(th.ec_cartitem_head_price, td.ec_cartitem_price, .ec_cart_table_price, .ec_cart_table_mobile_price),
+.wpec-hide-line-remove :is(td.ec_cartitem_remove_column > .ec_cartitem_delete, .ec_cart_table .ec_cartitem_delete),
+.wpec-hide-icon .ec_order_success_loader,
+.wpec-hide-number .ec_cart_success_order_number,
+.wpec-hide-email .ec_cart_success_subtitle,
+.wpec-hide-links .ec_cart_success_continue_shopping_button,
+.wpec-hide-ty-details .ec_cart_success_continue_shopping_button > a[href*="order_details"],
+.wpec-hide-ty-continue .ec_cart_success_continue_shopping_button > a:last-child:not([href*="order_details"]),
+.wpec-hide-print .ec_cart_success_print_button_v2 {
+	display: none !important;
+}
+/* The classic cart's image and remove columns stay in the table ( its heading spans them ), empty and narrow. */
+.wpec-hide-line-image td.ec_cartitem_image,
+.wpec-hide-line-remove td.ec_cartitem_remove_column {
+	width: 0 !important;
+	padding: 0 !important;
+}
+.wpec-cart--no-title-link .ec_cartitem_title {
+	pointer-events: none;
+	cursor: text;
+}
+
+.wpec-cart-empty[hidden],
+.wpec-cart--empty :is(.ec_cart_empty, .ec_cart_empty_button_row) {
+	display: none !important;
+}
+.wpec-cart-empty {
+	clear: both;
+	padding: 32px 0;
+	text-align: center;
+}
+.wpec-cart-empty__text {
+	margin: 0 0 16px;
+	font-size: 1.125rem;
+	color: var(--wpec-muted-color, inherit);
+}
+.wpec-cart-empty__button {
+	display: inline-block;
+	padding: 12px 24px;
+	border-radius: var(--wpec-button-radius, 4px);
+	font-size: var(--wpec-button-font-size, inherit);
+	font-weight: var(--wpec-button-font-weight, inherit);
+	text-transform: var(--wpec-button-text-transform, none);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+	text-decoration: none !important;
+	line-height: 1.3;
+}
+.wpec-cart-loading {
+	min-height: 160px;
+	border-radius: var(--wpec-radius, 6px);
+	background: linear-gradient( 90deg, rgba(127,127,127,.08), rgba(127,127,127,.16), rgba(127,127,127,.08) );
+	background-size: 200% 100%;
+	animation: wpec-el-pulse 1.4s ease-in-out infinite;
+}
+@keyframes wpec-el-pulse {
+	0% { background-position: 100% 0; }
+	100% { background-position: -100% 0; }
+}
+.wpec-el-cart-page .wpec-checkout-sample .ec_cart_error_row {
+	display: block;
+}
+.wpec-cart-after {
+	clear: both;
+	margin-top: 24px;
+}
+
+/* Editor notes of the Cart widget on a one-page store's cart page: the one that fits the page ( a Checkout widget on it or not ). */
+body:not(:has( .elementor-widget-wp_easycart_checkout )) .wpec-cart-note--with-checkout,
+body:has( .elementor-widget-wp_easycart_checkout ) .wpec-cart-note--alone {
+	display: none;
+}
+
+/* 3a. Order summary ( also the items and totals of the order confirmation ) ----------------------------------------------- */
+
+.wpec-summary {
+	box-sizing: border-box;
+	padding: 20px;
+	border: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+	border-radius: var(--wpec-radius, 8px);
+}
+.wpec-summary[hidden] {
+	display: none !important;
+}
+.wpec-summary__heading {
+	margin: 0 0 12px;
+}
+.wpec-summary__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.wpec-summary__item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+}
+.wpec-summary__image {
+	flex: 0 0 56px;
+	width: 56px;
+}
+.wpec-summary__image img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: 4px;
+}
+.wpec-summary--no-images .wpec-summary__image,
+.wpec-summary--no-options .wpec-summary__options,
+.wpec-summary--no-totals .wpec-summary__totals {
+	display: none !important;
+}
+.wpec-summary__details {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+.wpec-summary__title {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+.wpec-summary__options,
+.wpec-summary__quantity {
+	font-size: .875em;
+	color: var(--wpec-muted-color, inherit);
+}
+.wpec-summary__price {
+	flex: 0 0 auto;
+	margin-inline-start: auto;
+	white-space: nowrap;
+}
+.wpec-summary__totals {
+	margin: 8px 0 0;
+	padding: 0;
+}
+.wpec-summary__line {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 0;
+}
+.wpec-summary__line dt,
+.wpec-summary__line dd {
+	margin: 0;
+	font: inherit;
+	color: inherit;
+}
+.wpec-summary__line dd {
+	text-align: end;
+	white-space: nowrap;
+}
+.wpec-summary__line--total {
+	margin-top: 6px;
+	padding-top: 10px;
+	border-top: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+	font-weight: 700;
+	font-size: 1.125em;
+}
+.wpec-summary.is-updating .wpec-summary__body {
+	opacity: .55;
+	transition: opacity .15s ease;
+}
+.wpec-summary__empty {
+	margin: 0;
+	color: var(--wpec-muted-color, inherit);
+}
+.wpec-summary__empty[hidden],
+.wpec-summary__edit-row[hidden] {
+	display: none !important;
+}
+.wpec-summary__edit-row {
+	margin: 12px 0 0;
+}
+.wpec-summary__edit {
+	text-decoration: underline;
+}
+
+/* 3b. Order confirmation additions -------------------------------------------------------------------------------------- */
+
+.wpec-thank-you__extras {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	clear: both;
+	margin: 20px 0 0;
+}
+.wpec-thank-you__message,
+.wpec-thank-you__section {
+	box-sizing: border-box;
+	flex: 1 1 100%;
+}
+.wpec-thank-you__section {
+	padding: 16px 18px;
+	border: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+	border-radius: var(--wpec-radius, 8px);
+}
+.wpec-thank-you__addresses {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+}
+.wpec-thank-you__address {
+	flex: 1 1 220px;
+}
+.wpec-thank-you__address address {
+	font-style: normal;
+	line-height: 1.6;
+}
+.wpec-thank-you__heading {
+	margin: 0 0 10px;
+	font-size: 1.05em;
+}
+.wpec-thank-you__button {
+	display: inline-block;
+	margin-top: 8px;
+	padding: 10px 24px;
+	border-radius: var(--wpec-button-radius, 4px);
+	font-size: var(--wpec-button-font-size, inherit);
+	font-weight: var(--wpec-button-font-weight, 600);
+	text-transform: var(--wpec-button-text-transform, none);
+	letter-spacing: var(--wpec-button-letter-spacing, normal);
+	text-decoration: none !important;
+}
+.wpec-thank-you__bank {
+	margin: 0 0 8px;
+	line-height: 1.6;
+}
+.wpec-thank-you__pay-note,
+.wpec-thank-you__account-text {
+	margin: 0;
+}
+.wpec-thank-you__meta-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 32px;
+	margin: 0;
+}
+.wpec-thank-you__meta-line {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.wpec-thank-you__meta-line dt,
+.wpec-thank-you__meta-line dd {
+	margin: 0;
+}
+.wpec-thank-you__meta-line dt {
+	font-size: .875em;
+	color: var(--wpec-muted-color, inherit);
+}
+
+/* 3c. Menu cart and mini cart ------------------------------------------------------------------------------------------ */
+
+.wpec-menu-cart {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+.wpec-menu-cart--hide-empty.wpec-menu-cart--empty {
+	display: none;
+}
+.wpec-menu-cart__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: inherit;
+	text-decoration: none !important;
+	cursor: pointer;
+	line-height: 1;
+	transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.wpec-menu-cart__toggle:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 3px;
+	border-radius: 2px;
+}
+.wpec-menu-cart__icon {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	font-size: 22px;
+}
+.wpec-menu-cart__icon svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+.wpec-menu-cart__count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-width: 1.6em;
+	height: 1.6em;
+	padding: 0 .35em;
+	border-radius: 999px;
+	background-color: var(--wpec-badge-bg, var(--e-global-color-accent, #dd0000));
+	color: var(--wpec-badge-color, #ffffff);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+}
+.wpec-menu-cart-count-badge .wpec-menu-cart__count,
+.wpec-menu-cart__icon > .wpec-menu-cart__count:only-child {
+	position: absolute;
+	top: -.7em;
+	inset-inline-end: -.9em;
+}
+.wpec-menu-cart-count-inline .wpec-menu-cart__count {
+	position: static;
+	margin-inline-start: .35em;
+}
+.wpec-menu-cart--empty .wpec-menu-cart__count {
+	opacity: .85;
+}
+/* Round 11: "Hide the count at 0" ( the --empty class only faded it ). */
+.wpec-menu-cart--hide-zero.wpec-menu-cart--empty .wpec-menu-cart__count {
+	display: none;
+}
+.wpec-menu-cart__subtotal {
+	font-size: 14px;
+	white-space: nowrap;
+}
+
+.wpec-mini-cart[hidden] {
+	display: none !important;
+}
+.wpec-mini-cart__inner {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	width: 340px;
+	max-width: calc( 100vw - 24px );
+	padding: 18px;
+	background: var(--wpec-panel-color, #ffffff);
+	color: var(--wpec-text-color, #222222);
+	border: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+	border-radius: var(--wpec-radius, 8px);
+	box-shadow: 0 12px 32px rgba(0,0,0,.14);
+	text-align: start;
+}
+.wpec-mini-cart__inner:focus {
+	outline: none;
+}
+.wpec-mini-cart__remove-icon {
+	display: none;
+}
+/*
+ * The dropdown lines up with the icon ( round 11 ): mini-cart.js measures the icon's distance from each side of the widget
+ * ( --wpec-mc-start / -end / -center ); before it does, the widget's edge, as before.
+ */
+.wpec-menu-cart--dropdown .wpec-mini-cart {
+	position: absolute;
+	top: calc( 100% + var(--wpec-mc-offset-y, 10px) );
+	inset-inline-end: calc( var(--wpec-mc-end, 0px) - var(--wpec-mc-offset-x, 0px) );
+	z-index: var(--wpec-mc-z, 9990);
+}
+.wpec-menu-cart--dropdown.wpec-menu-cart--drop-start .wpec-mini-cart {
+	inset-inline-end: auto;
+	inset-inline-start: calc( var(--wpec-mc-start, 0px) + var(--wpec-mc-offset-x, 0px) );
+}
+.wpec-menu-cart--dropdown.wpec-menu-cart--drop-center .wpec-mini-cart {
+	inset-inline-end: auto;
+	left: calc( var(--wpec-mc-center, 50%) + var(--wpec-mc-offset-x, 0px) );
+	transform: translateX( -50% );
+}
+.wpec-menu-cart--panel .wpec-mini-cart {
+	position: fixed;
+	inset: 0;
+	z-index: var(--wpec-mc-z, 99990);
+}
+/*
+ * 6.0.2: signed-in staff see the WordPress toolbar ( fixed, z-index 99999 ) over the page's top. The panel starts below it;
+ * on phones the toolbar scrolls with the page, so there the panel covers it instead.
+ */
+body.admin-bar .wpec-menu-cart--panel .wpec-mini-cart {
+	top: var(--wp-admin--admin-bar--height, 32px);
+}
+@media screen and (max-width: 782px) {
+	body.admin-bar .wpec-menu-cart--panel .wpec-mini-cart {
+		top: var(--wp-admin--admin-bar--height, 46px);
+	}
+}
+@media screen and (max-width: 600px) {
+	body.admin-bar .wpec-menu-cart--panel .wpec-mini-cart {
+		top: 0;
+		z-index: 100000;
+	}
+}
+.wpec-mini-cart__overlay {
+	position: absolute;
+	inset: 0;
+	background-color: rgba(0,0,0,.45);
+	opacity: 0;
+	transition: opacity .25s ease;
+}
+:where(.wpec-menu-cart--panel) .wpec-mini-cart__inner {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 400px;
+	max-width: 100vw;
+	border-radius: 0;
+	border-width: 0;
+	transition: transform .3s ease;
+}
+.wpec-menu-cart--side-right .wpec-mini-cart__inner {
+	right: 0;
+	transform: translateX( 100% );
+}
+.wpec-menu-cart--side-left .wpec-mini-cart__inner {
+	left: 0;
+	transform: translateX( -100% );
+}
+.wpec-mini-cart.is-open .wpec-mini-cart__inner,
+.wpec-menu-cart--open .wpec-mini-cart__inner {
+	transform: none;
+}
+.wpec-mini-cart.is-open .wpec-mini-cart__overlay,
+.wpec-menu-cart--open .wpec-mini-cart__overlay {
+	opacity: 1;
+}
+.wpec-mini-cart__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 12px;
+}
+.wpec-mini-cart__title {
+	font-weight: 700;
+	font-size: 1.1em;
+}
+.wpec-mini-cart__close,
+.wpec-mini-cart__remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	font-size: 22px;
+	line-height: 1;
+	cursor: pointer;
+}
+.wpec-mini-cart__remove {
+	width: 28px;
+	height: 28px;
+	font-size: 18px;
+	color: var(--wpec-muted-color, #666666);
+}
+:is(.wpec-mini-cart__close, .wpec-mini-cart__remove) > span {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+:is(.wpec-mini-cart__close, .wpec-mini-cart__remove) svg {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+.wpec-mini-cart__close:is(:hover, :focus-visible),
+.wpec-mini-cart__remove:is(:hover, :focus-visible) {
+	background: rgba(127,127,127,.14);
+}
+.wpec-mini-cart__close:focus-visible,
+.wpec-mini-cart__remove:focus-visible,
+.wpec-mini-cart__button:focus-visible,
+.wpec-mini-cart__name:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+.wpec-mini-cart__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+:where(.wpec-menu-cart--panel) .wpec-mini-cart__body {
+	max-height: none;
+}
+.wpec-mini-cart__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.wpec-mini-cart__item {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--wpec-border-color, rgba(0,0,0,.12));
+}
+.wpec-mini-cart__item.is-busy {
+	opacity: .5;
+	pointer-events: none;
+}
+.wpec-mini-cart__image {
+	flex: 0 0 56px;
+	width: 56px;
+}
+.wpec-mini-cart__image img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: 4px;
+}
+.wpec-menu-cart--no-images .wpec-mini-cart__image,
+.wpec-menu-cart--no-options .wpec-mini-cart__options {
+	display: none !important;
+}
+.wpec-mini-cart__details {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.wpec-mini-cart__name {
+	color: inherit;
+	font-weight: 600;
+	text-decoration: none !important;
+	overflow-wrap: anywhere;
+}
+.wpec-mini-cart__options,
+.wpec-mini-cart__meta {
+	font-size: .85em;
+	color: var(--wpec-muted-color, #666666);
+}
+.wpec-mini-cart__total {
+	flex: 0 0 auto;
+	white-space: nowrap;
+	font-weight: 600;
+}
+/* Quantity buttons of a Menu Cart line ( round 11 ) */
+.wpec-mini-cart__qty {
+	display: inline-flex;
+	align-items: stretch;
+	align-self: flex-start;
+	margin-top: 6px;
+	border: 1px solid var(--wpec-border-color, rgba(0,0,0,.2));
+	border-radius: var(--wpec-button-radius, 4px);
+	overflow: hidden;
+}
+.wpec-mini-cart__qty button {
+	width: 30px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font-size: 15px;
+	line-height: 28px;
+	cursor: pointer;
+}
+.wpec-mini-cart__qty button:is(:hover, :focus-visible) {
+	background: rgba(127,127,127,.14);
+}
+.wpec-mini-cart__qty button:focus-visible,
+.wpec-mini-cart__qty input:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -2px;
+}
+.wpec-mini-cart__qty button[disabled] {
+	opacity: .4;
+	cursor: default;
+}
+.wpec-mini-cart__qty input {
+	width: 40px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	text-align: center;
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+.wpec-mini-cart__qty input::-webkit-outer-spin-button,
+.wpec-mini-cart__qty input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+.wpec-mini-cart__empty {
+	margin: 12px 0;
+	color: var(--wpec-muted-color, #666666);
+}
+.wpec-mini-cart__empty[hidden],
+.wpec-mini-cart__footer[hidden] {
+	display: none !important;
+}
+.wpec-mini-cart__footer {
+	margin-top: 12px;
+}
+.wpec-mini-cart__subtotal {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 0 12px;
+	font-weight: 700;
+}
+.wpec-mini-cart__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.wpec-mini-cart__button {
+	flex: 1 1 120px;
+	box-sizing: border-box;
+	padding: 11px 16px;
+	border: 1px solid transparent;
+	border-radius: var(--wpec-button-radius, 4px);
+	text-align: center;
+	text-decoration: none !important;
+	line-height: 1.3;
+	font-weight: 600;
+}
+.wpec-menu-cart--buttons-auto .wpec-mini-cart__button {
+	flex: 0 0 auto;
+}
+.wpec-mini-cart__button--cart {
+	border-color: var(--wpec-border-color, rgba(0,0,0,.2));
+	background: transparent;
+	color: inherit;
+}
+.wpec-mini-cart__button--checkout {
+	background: var(--wpec-button-bg, var(--e-global-color-accent, #1d1d1d));
+	color: var(--wpec-button-color, #ffffff);
+}
+.wpec-mini-cart__button--checkout:is(:hover, :focus-visible) {
+	background: var(--wpec-button-hover-bg, var(--wpec-button-bg, var(--e-global-color-accent, #000000)));
+	color: var(--wpec-button-hover-color, var(--wpec-button-color, #ffffff));
+}
+.wpec-mini-cart .screen-reader-text,
+.wpec-side-cart .screen-reader-text {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+html.wpec-mini-cart-locked {
+	overflow: hidden;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wpec-mini-cart__inner,
+	.wpec-mini-cart__overlay,
+	.wpec-summary.is-updating .wpec-summary__body,
+	.wpec-cart-loading,
+	.wpec-menu-cart__toggle {
+		transition: none !important;
+		animation: none !important;
+	}
+}

@@ -36,14 +36,27 @@ if ( ! class_exists( 'wp_easycart_admin_subscriber_table' ) ) :
 			$this->set_add_new_css( 'ecv2-btn ecv2-btn-primary' );
 			$this->set_label( __( 'Subscriber', 'wp-easycart' ), __( 'Subscribers', 'wp-easycart' ) );
 			$this->set_view_modes( array( 'table', 'spreadsheet' ) );
-			$this->set_list_columns( array(
+			$columns = array(
 				array( 'name' => 'email', 'label' => __( 'Email', 'wp-easycart' ), 'format' => 'sub_email', 'linked' => true ),
 				array( 'select' => "TRIM( CONCAT( ec_subscriber.first_name, ' ', ec_subscriber.last_name ) ) AS full_name", 'name' => 'full_name', 'label' => __( 'Name', 'wp-easycart' ), 'format' => 'sub_name', 'orderby' => 'ec_subscriber.last_name' ),
 				array( 'select' => '( SELECT u.user_id FROM ec_user u WHERE u.email = ec_subscriber.email LIMIT 1 ) AS customer_id', 'name' => 'customer_id', 'label' => __( 'Account', 'wp-easycart' ), 'format' => 'sub_account', 'tablet_hide' => true ),
-				array( 'name' => 'subscriber_id', 'label' => __( 'ID', 'wp-easycart' ), 'format' => 'int', 'is_id' => true, 'laptop_hide' => true ),
-				array( 'name' => 'first_name', 'format' => 'hidden', 'label' => '' ),
-				array( 'name' => 'last_name', 'format' => 'hidden', 'label' => '' ),
-			) );
+			);
+			/* 6.0.2: when and where each address signed up ( the consent record, once the database update has added it ). */
+			if ( class_exists( 'wp_easycart_subscribers' ) && wp_easycart_subscribers::columns_ready() ) {
+				$columns[] = array( 'name' => 'date_added', 'label' => __( 'Signed up', 'wp-easycart' ), 'format' => 'sub_signed_up', 'tablet_hide' => true );
+				$columns[] = array( 'name' => 'source', 'format' => 'hidden', 'label' => '' );
+			}
+			$columns[] = array( 'name' => 'subscriber_id', 'label' => __( 'ID', 'wp-easycart' ), 'format' => 'int', 'is_id' => true, 'laptop_hide' => true );
+			$columns[] = array( 'name' => 'first_name', 'format' => 'hidden', 'label' => '' );
+			$columns[] = array( 'name' => 'last_name', 'format' => 'hidden', 'label' => '' );
+			/**
+			 * The subscribers list's columns. A column with a format this list does not draw is drawn by the action
+			 * wp_easycart_admin_subscriber_list_cell_<format>( $result, $col ).
+			 *
+			 * @since 6.0.2
+			 * @param array $columns Columns ( name, label, format, select, orderby, tablet_hide, laptop_hide ).
+			 */
+			$this->set_list_columns( apply_filters( 'wp_easycart_admin_subscriber_list_columns', $columns ) );
 			$this->set_spreadsheet_columns( array(
 				array( 'name' => 'email', 'label' => __( 'Email', 'wp-easycart' ), 'format' => 'string', 'ss_editable' => true ),
 				array( 'name' => 'first_name', 'label' => __( 'First name', 'wp-easycart' ), 'format' => 'string', 'ss_editable' => true ),
@@ -121,7 +134,44 @@ if ( ! class_exists( 'wp_easycart_admin_subscriber_table' ) ) :
 				case 'sub_account':
 					echo $result->customer_id ? '<a class="ecv2-chip ecv2-chip-green" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-users&subpage=accounts&ec_admin_form_action=edit&user_id=' . (int) $result->customer_id ) ) . '">' . esc_html__( 'customer', 'wp-easycart' ) . '</a>' : '<span class="ecv2-sub">' . esc_html__( 'email only', 'wp-easycart' ) . '</span>';
 					break;
-				default: parent::print_cell_content( $result, $col );
+				case 'sub_signed_up':
+					$this->print_signed_up( $result );
+					break;
+				default:
+					if ( isset( $col['format'] ) && has_action( 'wp_easycart_admin_subscriber_list_cell_' . $col['format'] ) ) {
+						/**
+						 * Draw a cell of a column an extension added ( wp_easycart_admin_subscriber_list_columns ) with its own format.
+						 *
+						 * @since 6.0.2
+						 * @param object $result The subscriber's row.
+						 * @param array  $col    The column.
+						 */
+						do_action( 'wp_easycart_admin_subscriber_list_cell_' . $col['format'], $result, $col );
+					} else {
+						parent::print_cell_content( $result, $col );
+					}
+			}
+		}
+
+		/**
+		 * Signed up: the date ( store time, full date and time on hover ) and where the sign-up came from. Sign-ups from before
+		 * WP EasyCart 6.0.2 have no record.
+		 *
+		 * @since 6.0.2
+		 * @param object $result Subscriber row.
+		 */
+		private function print_signed_up( $result ) {
+			$value = isset( $result->date_added ) ? (string) $result->date_added : '';
+			$ts    = ( '' !== $value && 0 !== strpos( $value, '0000-00-00' ) ) ? strtotime( $value ) : 0;
+			if ( $ts <= 0 ) {
+				echo '<span class="ecv2-sub" title="' . esc_attr__( 'Sign-up dates are recorded from WP EasyCart 6.0.2 on.', 'wp-easycart' ) . '">&mdash;</span>';
+				return;
+			}
+			$ts += $this->date_diff;
+			echo '<span class="ecv2-date" title="' . esc_attr( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts ) ) . '">' . esc_html( $this->format_relative_date( $ts, time() + $this->date_diff ) ) . '</span>';
+			$label = ( isset( $result->source ) && class_exists( 'wp_easycart_subscribers' ) ) ? wp_easycart_subscribers::source_label( (string) $result->source ) : '';
+			if ( '' !== $label ) {
+				echo '<br /><span class="ecv2-sub">' . esc_html( $label ) . '</span>';
 			}
 		}
 		protected function print_spreadsheet_cell( $result, $col ) { echo esc_html( wp_unslash( (string) $result->{ $col['name'] } ) ); }
@@ -170,17 +220,27 @@ if ( ! class_exists( 'wp_easycart_admin_subscriber_table' ) ) :
 			if ( self::exists( $email ) ) { return new WP_Error( 'dupe', __( 'That address is already subscribed.', 'wp-easycart' ) ); }
 			$first = sanitize_text_field( $first );
 			$last  = sanitize_text_field( $last );
-			$wpdb->insert( 'ec_subscriber', array( 'email' => $email, 'first_name' => $first, 'last_name' => $last ) );
+			if ( class_exists( 'wp_easycart_subscribers' ) && wp_easycart_subscribers::columns_ready() ) {
+				/* 6.0.2: the consent record ( source admin, or import while ecv2_subscriber_import() runs ). */
+				$consent = wp_easycart_subscribers::consent( $email );
+				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_subscriber ( email, first_name, last_name, date_added, source, ip_address, user_id ) VALUES ( %s, %s, %s, NOW(), %s, %s, %d )', $email, $first, $last, $consent['source'], $consent['ip_address'], $consent['user_id'] ) );
+			} else {
+				$wpdb->insert( 'ec_subscriber', array( 'email' => $email, 'first_name' => $first, 'last_name' => $last ) );
+			}
 			$subscriber_id = (int) $wpdb->insert_id;
 			/* Same arguments as the storefront newsletter forms ( email, full name ): PRO's mailing-list sync and the activity log
 			   read them, and PRO registers for 2 arguments ( passing only an id fatals on PHP 8 after the row is saved ). */
 			do_action( 'wpeasycart_subscriber_added', $email, trim( $first . ' ' . $last ) );
+			if ( $subscriber_id && class_exists( 'wp_easycart_subscribers' ) ) {
+				wp_easycart_subscribers::fire( $email, 'subscribed', array( 'subscriber_id' => $subscriber_id, 'first_name' => $first, 'last_name' => $last ) );
+			}
 			return $subscriber_id;
 		}
 	}
 
-	/* Every subscriber change ( add, inline edit, delete, import — insert() fires the added action ) invalidates the tile count. */
-	foreach ( array( 'wpeasycart_subscriber_added', 'wpeasycart_subscriber_updated', 'wpeasycart_subscriber_deleting' ) as $ecv2_sub_hook ) {
+	/* Every subscriber change ( add, inline edit, delete, import — insert() fires the added action; 6.0.2: and any change
+	   announced by wp_easycart_subscribers ) invalidates the tile count. */
+	foreach ( array( 'wpeasycart_subscriber_added', 'wpeasycart_subscriber_updated', 'wpeasycart_subscriber_deleting', 'wp_easycart_subscriber_changed' ) as $ecv2_sub_hook ) {
 		add_action( $ecv2_sub_hook, array( 'wp_easycart_admin_subscriber_table', 'clear_invalid_cache' ) );
 	}
 	unset( $ecv2_sub_hook );
@@ -191,6 +251,30 @@ function ecv2_sub_guard( $get = false ) {
 	if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_users' ) ) { wp_send_json_error( array( 'message' => __( 'Permission denied.', 'wp-easycart' ) ) ); }
 	if ( $get ) { if ( ! isset( $_GET['nonce'] ) || ! wp_verify_nonce( $_GET['nonce'], wp_easycart_admin_subscriber_table::NONCE ) ) { wp_die( 'Invalid nonce' ); } return; }
 	check_ajax_referer( wp_easycart_admin_subscriber_table::NONCE, 'nonce' );
+}
+
+/**
+ * Tick or untick the newsletter box ( ec_user.is_subscriber ) of the accounts with these subscribers' addresses.
+ *
+ * @since 6.0.2
+ * @param array $rows ec_subscriber rows ( arrays with email ).
+ * @param int   $flag 1 subscribed, 0 not.
+ */
+function ecv2_subscriber_account_flags( $rows, $flag ) {
+	global $wpdb;
+	$flag = $flag ? 1 : 0;
+	$done = array();
+	foreach ( (array) $rows as $r ) {
+		$email = ( is_array( $r ) && isset( $r['email'] ) ) ? trim( (string) $r['email'] ) : '';
+		if ( '' === $email || isset( $done[ strtolower( $email ) ] ) ) {
+			continue;
+		}
+		$done[ strtolower( $email ) ] = true;
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM ec_user WHERE email = %s AND is_subscriber != %d', $email, $flag ) ) as $user_id ) {
+			$wpdb->update( 'ec_user', array( 'is_subscriber' => $flag ), array( 'user_id' => (int) $user_id ), array( '%d' ), array( '%d' ) );
+			wp_cache_delete( 'wpeasycart-user-' . (int) $user_id, 'wpeasycart-user' );
+		}
+	}
 }
 
 add_action( 'wp_ajax_ecv2_subscriber_add', 'ecv2_subscriber_add' );
@@ -211,8 +295,22 @@ function ecv2_subscriber_inline_update() {
 		$other = wp_easycart_admin_subscriber_table::exists( $value ); if ( $other && $other !== $id ) { wp_send_json_error( array( 'message' => __( 'Another subscriber already has that address.', 'wp-easycart' ) ) ); }
 	}
 	$old = $wpdb->get_var( $wpdb->prepare( "SELECT $field FROM ec_subscriber WHERE subscriber_id = %d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $field is whitelisted via in_array( ..., array( 'email', 'first_name', 'last_name' ), true ) above.
+	$before = $wpdb->get_row( $wpdb->prepare( 'SELECT email, first_name, last_name FROM ec_subscriber WHERE subscriber_id = %d', $id ) );
 	$wpdb->update( 'ec_subscriber', array( $field => $value ), array( 'subscriber_id' => $id ) );
 	do_action( 'wpeasycart_subscriber_updated', $id );
+	/* 6.0.2: one event for the change ( names, or the email with old_email ). */
+	if ( $before && (string) $old !== $value && class_exists( 'wp_easycart_subscribers' ) ) {
+		wp_easycart_subscribers::fire(
+			'email' === $field ? $value : trim( (string) $before->email ),
+			'updated',
+			array(
+				'subscriber_id' => $id,
+				'first_name'    => 'first_name' === $field ? $value : (string) $before->first_name,
+				'last_name'     => 'last_name' === $field ? $value : (string) $before->last_name,
+				'old_email'     => 'email' === $field ? trim( (string) $before->email ) : '',
+			)
+		);
+	}
 	wp_send_json_success( array( 'display_value' => $value, 'old_value' => $old ) );
 }
 
@@ -224,6 +322,21 @@ function ecv2_subscriber_bulk() {
 	$rows = $wpdb->get_results( 'SELECT * FROM ec_subscriber WHERE subscriber_id IN ( ' . implode( ',', $ids ) . ' )', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ids is an intval()-mapped list built above.
 	foreach ( $rows as $r ) { do_action( 'wpeasycart_subscriber_deleting', (int) $r['subscriber_id'] ); }
 	$wpdb->query( 'DELETE FROM ec_subscriber WHERE subscriber_id IN ( ' . implode( ',', $ids ) . ' )' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ids is an intval()-mapped list built above.
+	/* 6.0.2: a delete here is an unsubscribe everywhere: the same hooks as ec_db::remove_subscriber(), the activity log's, and the event.
+	   The matching account's newsletter box is unticked too ( as wp_easycart_subscribers::remove() does ), or the next My Account
+	   save would sign the address up again. */
+	ecv2_subscriber_account_flags( $rows, 0 );
+	foreach ( $rows as $r ) {
+		$email = trim( (string) $r['email'] );
+		if ( '' === $email ) {
+			continue;
+		}
+		do_action( 'wpeasycart_remove_subscriber', $email );
+		do_action( 'wpeasycart_subscriber_deleted', $email, (int) $r['subscriber_id'] );
+		if ( class_exists( 'wp_easycart_subscribers' ) ) {
+			wp_easycart_subscribers::fire( $email, 'unsubscribed', array( 'subscriber_id' => (int) $r['subscriber_id'], 'first_name' => (string) $r['first_name'], 'last_name' => (string) $r['last_name'] ) );
+		}
+	}
 	/* translators: %d: number of subscribers deleted. */
 	$message = sprintf( _n( 'Deleted %d subscriber.', 'Deleted %d subscribers.', count( $rows ), 'wp-easycart' ), count( $rows ) );
 	/* 6.0.1: shared store, on an option rather than a transient — see wp_easycart_admin_undo::store(). The list reloads
@@ -244,8 +357,20 @@ function ecv2_subscriber_restore_rows( $rows ) {
 	if ( ! $rows || ! is_array( $rows ) ) {
 		return new WP_Error( 'gone', __( 'This deletion can no longer be undone.', 'wp-easycart' ) );
 	}
+	/* 6.0.2: the accounts' newsletter boxes are ticked again, as the delete unticked them. */
+	ecv2_subscriber_account_flags( $rows, 1 );
 	foreach ( $rows as $r ) {
 		$wpdb->replace( 'ec_subscriber', $r );
+		/* 6.0.2: putting an address back subscribes it again, as far as everything listening is concerned. */
+		$email = isset( $r['email'] ) ? trim( (string) $r['email'] ) : '';
+		if ( '' !== $email ) {
+			$first = isset( $r['first_name'] ) ? (string) $r['first_name'] : '';
+			$last  = isset( $r['last_name'] ) ? (string) $r['last_name'] : '';
+			do_action( 'wpeasycart_subscriber_added', $email, trim( $first . ' ' . $last ) );
+			if ( class_exists( 'wp_easycart_subscribers' ) ) {
+				wp_easycart_subscribers::fire( $email, 'subscribed', array( 'subscriber_id' => isset( $r['subscriber_id'] ) ? (int) $r['subscriber_id'] : 0, 'first_name' => $first, 'last_name' => $last ) );
+			}
+		}
 	}
 	wp_easycart_admin_subscriber_table::clear_invalid_cache();
 	/* translators: %d: number of subscribers put back. */
@@ -301,7 +426,14 @@ add_action( 'wp_ajax_ecv2_subscriber_import', 'ecv2_subscriber_import' );
 function ecv2_subscriber_import() {
 	ecv2_sub_guard();
 	$a = ecv2_subscriber_import_analyze( json_decode( wp_unslash( isset( $_POST['rows'] ) ? $_POST['rows'] : '[]' ), true ) );
+	/* 6.0.2: imported sign-ups are recorded as source import. */
+	if ( class_exists( 'wp_easycart_subscribers' ) ) {
+		wp_easycart_subscribers::set_source( 'import' );
+	}
 	$n = 0; foreach ( $a['new'] as $r ) { if ( ! is_wp_error( wp_easycart_admin_subscriber_table::insert( $r['email'], $r['first'], $r['last'] ) ) ) { $n++; } }
+	if ( class_exists( 'wp_easycart_subscribers' ) ) {
+		wp_easycart_subscribers::set_source( '' );
+	}
 	wp_send_json_success( array( 'imported' => $n, 'existing' => $a['existing'], 'invalid' => $a['invalid'], 'message' => sprintf( __( 'Imported %1$d subscribers · %2$d already subscribed · %3$d invalid.', 'wp-easycart' ), $n, $a['existing'], count( $a['invalid'] ) ) ) );
 }
 

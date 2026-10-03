@@ -6,7 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 include_once( EC_PLUGIN_DIRECTORY . '/admin/template/products/shared/editor-lite-parts.php' );
 $r = $this->r; $p = $this->product;
 $list_url = admin_url( 'admin.php?page=wp-easycart-products&subpage=reviews' );
-$who = trim( (string) $r->reviewer_name ); if ( '' === $who && $this->user ) { $who = $this->user->display_name; }
+$who = wp_easycart_admin_review_table::reviewer_label( $r );
+$reviewer_email = isset( $r->reviewer_email ) ? trim( (string) $r->reviewer_email ) : '';
 $ts = strtotime( $r->date_submitted );
 $product_url = $p ? admin_url( 'admin.php?page=wp-easycart-products&subpage=products&ec_admin_form_action=edit&product_id=' . (int) $p->product_id ) : '';
 $product_img = wp_easycart_admin_catalog_v2_product_thumb( $p );
@@ -98,7 +99,9 @@ ecv2_lite_header( array(
 
 		<?php ecv2_lite_card_open( 'rvv2-reviewer', __( 'Reviewer', 'wp-easycart' ), $this->user ? __( 'Registered customer', 'wp-easycart' ) : ( $who ? __( 'Guest', 'wp-easycart' ) : __( 'Anonymous', 'wp-easycart' ) ) ); ?>
 		<?php if ( $this->user ) { ?>
-			<div class="ecos-u" style="border:0;padding:0 0 10px"><div class="ecos-u-main"><b><?php echo esc_html( $this->user->display_name ); ?></b><span class="ecv2-sub"><?php echo esc_html( $this->user->user_email ); ?></span></div><a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-users&subpage=accounts&s=' . rawurlencode( $this->user->user_email ) ) ); ?>"><?php esc_html_e( 'Customer record', 'wp-easycart' ); ?></a></div>
+			<div class="ecos-u" style="border:0;padding:0 0 10px"><div class="ecos-u-main"><b><?php echo esc_html( '' !== $this->user->display_name ? $this->user->display_name : ( '' !== $this->user->user_email ? $this->user->user_email : sprintf( /* translators: %d: customer account ID. */ __( 'Customer #%d', 'wp-easycart' ), $this->user->user_id ) ) ); ?></b><?php if ( '' !== $this->user->display_name && '' !== $this->user->user_email ) { ?><span class="ecv2-sub"><?php echo esc_html( $this->user->user_email ); ?></span><?php } ?></div><a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="<?php echo esc_url( $this->user->edit_url ); ?>"><?php esc_html_e( 'Customer record', 'wp-easycart' ); ?></a></div>
+		<?php } else if ( '' !== $reviewer_email ) { ?>
+			<div class="ecos-u" style="border:0;padding:0 0 10px"><div class="ecos-u-main"><b><?php echo esc_html( $who ); ?></b><?php if ( $who !== $reviewer_email ) { ?><span class="ecv2-sub"><?php echo esc_html( $reviewer_email ); ?></span><?php } ?></div></div>
 		<?php } ?>
 		<?php if ( $this->other_reviews ) { ?>
 			<div class="ecos-hint" style="margin-bottom:6px"><?php echo esc_html( sprintf( _n( '%d other review by this reviewer', '%d other reviews by this reviewer', count( $this->other_reviews ), 'wp-easycart' ), count( $this->other_reviews ) ) ); ?></div>

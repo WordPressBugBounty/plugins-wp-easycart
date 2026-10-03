@@ -3,6 +3,9 @@ class ec_paypal extends ec_third_party{
 
 	public $available_url;
 
+	/** @var string 6.0.2: why the last refund_express_charge() was refused, for the merchant ( '' = declined, or nothing said ). */
+	public $refund_error = '';
+
 	public function get_available_url() {
 		if ( ! isset( $this->available_url ) ) {
 			$this->available_url = "https://connect.wpeasycart.com";
@@ -65,7 +68,7 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"lc\" id=\"lc\" type=\"hidden\" value=\"" . esc_attr( $paypal_lc ) . "\" />";
 		echo "<input name=\"charset\" id=\"charset\" type=\"hidden\" value=\"" . esc_attr( $paypal_charset ) . "\" />";
 		echo "<input name=\"rm\" id=\"rm\" type=\"hidden\" value=\"2\" />";
-		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
+		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( wp_easycart_hook_url( 'paypal-webhook' ) ) ."\" />";
 		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 
@@ -282,7 +285,7 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"lc\" id=\"lc\" type=\"hidden\" value=\"" . esc_attr( $paypal_lc ) . "\" />";
 		echo "<input name=\"charset\" id=\"charset\" type=\"hidden\" value=\"" . esc_attr( $paypal_charset ) . "\" />";
 		echo "<input name=\"rm\" id=\"rm\" type=\"hidden\" value=\"2\" />";
-		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
+		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( wp_easycart_hook_url( 'paypal-webhook' ) ) ."\" />";
 		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 
@@ -463,7 +466,7 @@ class ec_paypal extends ec_third_party{
 		echo "<input name=\"business\" id=\"business\" type=\"hidden\" value=\"" . esc_attr( $paypal_email ) . "\" />";
 		echo "<input name=\"currency_code\" id=\"currency_code\" type=\"hidden\" value=\"" . esc_attr( strtoupper( $paypal_currency_code ) ) . "\" />";
 		echo "<input name=\"lc\" id=\"lc\" type=\"hidden\" value=\"" . esc_attr( $paypal_lc ) . "\" />";
-		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( get_site_url() . '?wpeasycarthook=paypal-webhook' ) ."\" />";
+		echo "<input name=\"notify_url\" id=\"notify_url\" type=\"hidden\" value=\"". esc_url( wp_easycart_hook_url( 'paypal-webhook' ) ) ."\" />";
 		echo "<input type=\"hidden\" name=\"return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $this->order_id ) ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"cancel_return\" value=\"". esc_attr( wpeasycart_links()->get_cart_page( 'checkout_payment' ) ) . "\" />";
 		echo "<input type=\"hidden\" name=\"cmd\" value=\"_xclick-subscriptions\" />";
@@ -510,120 +513,28 @@ class ec_paypal extends ec_third_party{
 		echo "<SCRIPT data-cfasync=\"false\" LANGUAGE=\"Javascript\">document.ec_paypal_standard_auto_form.submit();</SCRIPT>";
 	}
 
+	/**
+	 * Register this store for PayPal notifications in the mode in use.
+	 *
+	 * 6.0.2: the work moved to wp_easycart_paypal_webhooks::register(), which also keeps what came of it for the
+	 * Payments drawer ( a store on WP EasyCart Connect is registered with its own key, kept once Connect confirms it ).
+	 * Kept for anything that still calls it.
+	 *
+	 * @return array wp_easycart_paypal_webhooks::register() answer ( empty without it ).
+	 */
 	public function create_webhook( ){
-
-		// Include the DB
-		$db = new ec_db( );
-
-		// Personal APP Only
-		if( ( get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_sandbox_merchant_id' ) == '' ) || 
-			( !get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_production_merchant_id' ) == '' ) ){
-
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? 'https://api.sandbox.paypal.com/v1/notifications/webhooks/' : 'https://api.paypal.com/v1/notifications/webhooks/';
-			$access_token = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_access_token' ) : get_option( 'ec_option_paypal_production_access_token' );
-
-			$headr = array( 
-				'Content-Type' => 'application/json',
-				'Authorization' => 'Bearer ' . $access_token,
-				'PayPal-Partner-Attribution-Id' => 'LevelFourDevelopment_SP_PPM'
-			);
-
-			$transaction_data = (object) array( 
-				"url" 			=> get_site_url() . '?wpeasycarthook=paypal-webhook',
-				"event_types"	=> array(
-					(object) array(
-						"name"	=> "PAYMENT.AUTHORIZATION.CREATED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.AUTHORIZATION.VOIDED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.CAPTURE.COMPLETED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.CAPTURE.REFUNDED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.SALE.COMPLETED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.SALE.REFUNDED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.SALE.PENDING"
-					),
-					(object) array(
-						"name"	=> "CHECKOUT.ORDER.PROCESSED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.ORDER.CANCELLED"
-					),
-					(object) array(
-						"name"	=> "PAYMENT.ORDER.CREATED"
-					)
-				)
-			);
-
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
-					'method' => 'POST',
-					'headers' => $headr,
-					'body' => json_encode( $transaction_data ),
-					'timeout' => 30
-				)
-			);
-			if( is_wp_error( $response ) ){
-				$db->insert_response( $order_id, 1, "PayPal API Webhook CURL ERROR", $response->get_error_message( ) );
-				$response = json_encode( (object) array( "error" => $response->get_error_message( ) ) );
-			}else{
-				$db->insert_response( $order_id, 0, "PayPal API Webhook Response", print_r( $response, true ) );
-			}
-
-			$json = json_decode( $response['body'] );
-			if( isset( $json->id ) ){
-				( get_option( 'ec_option_paypal_use_sandbox' ) ) ? update_option( 'ec_option_paypal_sandbox_webhook_id', $json->id ) : update_option( 'ec_option_paypal_production_webhook_id', $json->id );
-			}
-
-		// WP EasyCart APP		
-		}else{ 
-
-			$is_sandbox = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? 1 : 0;
-			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$webhook_url = get_site_url() . '?wpeasycarthook=paypal-webhook';
-
-			$url = $this->get_available_url( ) . "/paypal-v2/webhook-create.php?is_sandbox=".$is_sandbox."&merchantID=".$merchant_id."&webhookURL=".$webhook_url;
-
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
-					'method' => 'GET',
-					'timeout' => 30
-				)
-			);
-			if( is_wp_error( $response ) ){
-				$db->insert_response( 0, 1, "PayPal API Webhook V2 CURL ERROR", $response->get_error_message( ) );
-				$response = json_encode( (object) array( "error" => $response->get_error_message( ) ) );
-			}else{
-				$db->insert_response( 0, 0, "PayPal API Webhook V2 Response", print_r( $response, true ) );
-			}
-
-			$json = json_decode( $response['body'] );
-			if( isset( $json->webhook_id ) )
-				( get_option( 'ec_option_paypal_use_sandbox' ) ) ? update_option( 'ec_option_paypal_wpeasycart_sandbox_webhook_id', $json->webhook_id ) : update_option( 'ec_option_paypal_wpeasycart_production_webhook_id', $json->webhook_id );
-
+		if ( class_exists( 'wp_easycart_paypal_webhooks' ) ) {
+			return wp_easycart_paypal_webhooks::register( array( 'context' => 'legacy' ) );
 		}
-
+		return array();
 	}
 
 	public function create_order( $is_payment = false ) {
-		// Check Web Hook
-		if( ( get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_sandbox_webhook_id' ) == '' ) || 
-			( !get_option( 'ec_option_paypal_use_sandbox' ) &&  get_option( 'ec_option_paypal_production_webhook_id' ) == '' ) 
-		){
-			$this->create_webhook( );
+		// 6.0.2: notifications are registered once ( when the account is connected, from the Payments drawer ). A checkout
+		// only asks WP-Cron to register when nothing is registered for the mode and nothing was tried in the last hour; it
+		// used to call WP EasyCart Connect on every checkout of a store connected through it ( it checked the own-app id ).
+		if ( class_exists( 'wp_easycart_paypal_webhooks' ) ) {
+			wp_easycart_paypal_webhooks::ensure( 'checkout' );
 		}
 
 		// Do a Token Check First
@@ -670,14 +581,14 @@ class ec_paypal extends ec_third_party{
 		}else{ 
 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-create-order_v2.php?merchantID=" . $merchant_id : $this->get_available_url( ) . "/paypal-v2/production-create-order_v2.php?merchantID=" . $merchant_id;
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( create_order ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'create_order',
+				array( 'merchantID' => $merchant_id ),
+				json_encode( $transaction_data ),
+				array(
 					'method' => 'POST',
-					'body' => json_encode( $transaction_data ),
 					'timeout' => 30
 				)
 			);
@@ -726,8 +637,9 @@ class ec_paypal extends ec_third_party{
 		}
 		$cartpage = new ec_cartpage( );
 		if ( isset( $selected_rate['id'] ) && $cartpage->shipping->is_valid_shipping_method( $selected_rate['id'] ) ) {
-			$GLOBALS['ec_cart_data']->cart_data->shipping_method = sanitize_text_field( preg_replace( '/[^a-zA-Z0-9]/', '', $selected_rate['id'] ) );
-			$selected_rate_id = preg_replace( '/[^a-zA-Z0-9]/', '', $selected_rate['id'] );
+			// 6.0.2: the checked id keeps : _ - . ( a fulfillment partner's group:<provider>:<code>, an extension's <slug>_<code> ),
+			// so the choice is saved as made; any other id is saved as before.
+			$GLOBALS['ec_cart_data']->cart_data->shipping_method = sanitize_text_field( preg_replace( '/[^a-zA-Z0-9:_\-\.]/', '', $selected_rate['id'] ) );
 		}
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		wp_cache_flush();
@@ -791,14 +703,14 @@ class ec_paypal extends ec_third_party{
 		// WP EasyCart APP
 		}else{ 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-update-order_v2.php?merchantID=" . $merchant_id . "&orderID=" . $order_id : $this->get_available_url( ) . "/paypal-v2/production-update-order_v2.php?merchantID=" . $merchant_id . "&orderID=" . $order_id;
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( update_order ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'update_order',
+				array( 'merchantID' => $merchant_id, 'orderID' => $order_id ),
+				json_encode( $transaction_data ),
+				array(
 					'method' => 'POST',
-					'body' => json_encode( $transaction_data ),
 					'timeout' => 30
 				)
 			);
@@ -1248,12 +1160,13 @@ class ec_paypal extends ec_third_party{
 		}else{
 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-order-verify.php?paypalOrderID=" . $paypal_order_id . "&merchantID=" . $merchant_id : $this->get_available_url( ) . "/paypal-v2/production-order-verify.php?paypalOrderID=" . $paypal_order_id . "&merchantID=" . $merchant_id;
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( order_status ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'order_status',
+				array( 'paypalOrderID' => $paypal_order_id, 'merchantID' => $merchant_id ),
+				null,
+				array(
 					'method' => 'GET',
 					'timeout' => 30
 				)
@@ -1319,18 +1232,18 @@ class ec_paypal extends ec_third_party{
 		}else{
 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-order-submit.php?paypalOrderID=" . $paypal_order_id . "&merchantID=" . $merchant_id : $this->get_available_url( ) . "/paypal-v2/production-order-submit.php?paypalOrderID=" . $paypal_order_id . "&merchantID=" . $merchant_id;
 
 			$transaction_data = (object) array( 
 				"disbursement_mode" => "INSTANT"
 			);
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( order_pay ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'order_pay',
+				array( 'paypalOrderID' => $paypal_order_id, 'merchantID' => $merchant_id ),
+				json_encode( $transaction_data ),
+				array(
 					'method' => 'POST',
-					'body' => json_encode( $transaction_data ),
 					'timeout' => 30
 				)
 			);
@@ -1423,15 +1336,15 @@ class ec_paypal extends ec_third_party{
 		}else{
 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$webhook_url = get_site_url() . '?wpeasycarthook=paypal-webhook';
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-payment-submit.php?merchantID=" . $merchant_id . "&webhookURL=" . $webhook_url . "&paypalPaymentID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_POST['paypal_payment_id'] ) ) : $this->get_available_url( ) . "/paypal-v2/production-payment-submit.php?merchantID=" . $merchant_id . "&webhookURL=" . $webhook_url . "&paypalPaymentID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_POST['paypal_payment_id'] ) );
+			$webhook_url = wp_easycart_hook_url( 'paypal-webhook' );
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( payment_execute ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'payment_execute',
+				array( 'merchantID' => $merchant_id, 'webhookURL' => $webhook_url, 'paypalPaymentID' => preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_POST['paypal_payment_id'] ) ) ),
+				json_encode( $transaction_data ),
+				array(
 					'method' => 'POST',
-					'body' => json_encode( $transaction_data ),
 					'timeout' => 30
 				)
 			);
@@ -1511,13 +1424,14 @@ class ec_paypal extends ec_third_party{
 		// WP EasyCart APP
 		}else{
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$webhook_url = get_site_url() . '?wpeasycarthook=paypal-webhook';
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url() . "/paypal-v2/sandbox-payment-submit_v2.php?merchantID=" . $merchant_id . "&webhookURL=" . $webhook_url . "&orderID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $paypal_order_id ) ) : $this->get_available_url() . "/paypal-v2/production-payment-submit_v2.php?merchantID=" . $merchant_id . "&webhookURL=" . $webhook_url . "&orderID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $paypal_order_id ) );
+			$webhook_url = wp_easycart_hook_url( 'paypal-webhook' );
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( capture ), signed with the store's key.
+			$response = wp_easycart_paypal_connect::request(
+				'capture',
+				array( 'merchantID' => $merchant_id, 'webhookURL' => $webhook_url, 'orderID' => preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $paypal_order_id ) ) ),
+				null,
+				array(
 					'method' => 'POST',
 					'timeout' => 30
 				)
@@ -1636,16 +1550,15 @@ class ec_paypal extends ec_third_party{
 				( !get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_production_merchant_id' ) != '' ) ){
 
 				// Send data to EasyCart to handle Webhooks
-				$is_sandbox = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? 1 : 0;
 				$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-				$webhook_url = get_site_url() . '?wpeasycarthook=paypal-webhook';
+				$webhook_url = wp_easycart_hook_url( 'paypal-webhook' );
 
-				$url = $this->get_available_url( ) . "/paypal-v2/webhook-add.php?orderID=".$paypal_order_id."&is_sandbox=".$is_sandbox."&merchantID=".$merchant_id."&webhookURL=".$webhook_url;
-
-				$request = new WP_Http;
-				$response = $request->request( 
-					$url, 
-					array( 
+				// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( add_order; the mode replaces is_sandbox ), signed with the store's key.
+				$response = wp_easycart_paypal_connect::request(
+					'add_order',
+					array( 'orderID' => $paypal_order_id, 'merchantID' => $merchant_id, 'webhookURL' => $webhook_url ),
+					null,
+					array(
 						'method' => 'GET',
 						'timeout' => 30
 					)
@@ -1666,6 +1579,7 @@ class ec_paypal extends ec_third_party{
 	}
 
 	public function refund_express_charge( $order_id, $key, $amount ){
+		$this->refund_error = '';
 
 		// Do a Token Check First
 		$this->handle_token( );
@@ -1682,8 +1596,7 @@ class ec_paypal extends ec_third_party{
 			( !get_option( 'ec_option_paypal_use_sandbox' ) && get_option( 'ec_option_paypal_production_merchant_id' ) != '' ) ){
 
 			$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-			$webhook_url = get_site_url() . '?wpeasycarthook=paypal-webhook';
-			$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $this->get_available_url( ) . "/paypal-v2/sandbox-order-refund.php?merchantID=".$merchant_id."&webhookURL=".$webhook_url."&orderID=" . $key : $this->get_available_url( ) . "/paypal-v2/production-order-refund.php?merchantID=".$merchant_id."&webhookURL=".$webhook_url."&orderID=" . $key;
+			$webhook_url = wp_easycart_hook_url( 'paypal-webhook' );
 
 			$paypal_currency = get_option( 'ec_option_paypal_currency_code' );
 			$transaction_data = (object) array( 
@@ -1694,12 +1607,14 @@ class ec_paypal extends ec_third_party{
 				"invoice_number"			=> $order_id
 			);
 
-			$request = new WP_Http;
-			$response = $request->request( 
-				$url, 
-				array( 
+			// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( refund ), signed with the store's key. Connect refunds only for a
+			// call signed with the key it holds for this store, once the store has one.
+			$response = wp_easycart_paypal_connect::request(
+				'refund',
+				array( 'merchantID' => $merchant_id, 'webhookURL' => $webhook_url, 'orderID' => $key ),
+				json_encode( $transaction_data ),
+				array(
 					'method' => 'POST',
-					'body' => json_encode( $transaction_data ),
 					'timeout' => 30
 				)
 			);
@@ -1708,6 +1623,10 @@ class ec_paypal extends ec_third_party{
 				$response = json_encode( (object) array( "error" => $response->get_error_message( ) ) );
 			}else{
 				$db->insert_response( $order_id, 0, "PayPal Express Refund Response", print_r( $response, true ) );
+				if ( wp_easycart_paypal_connect::signature_refused( $response ) ) {
+					// 6.0.2: Connect refused the call's signature ( the store's key is not the one it holds ): say so, not "declined".
+					$this->refund_error = wp_easycart_paypal_connect::refund_signature_text();
+				}
 			}
 
 		}else{
@@ -1924,6 +1843,11 @@ function wp_easycart_ajax_init_paypal_express( ){
 	if ( ! wp_verify_nonce( sanitize_text_field( $_POST['ec_cart_form_nonce'] ), 'wp-easycart-paypal-init-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ) {
 		die();
 	}
+	/* 6.0.2 checkout protection: PayPal's card button can be used for card testing too. */
+	if ( class_exists( 'wp_easycart_checkout_guard' ) && is_wp_error( wp_easycart_checkout_guard::check( 'paypal', array( 'gateway' => 'paypal' ) ) ) ) {
+		echo esc_attr( 'error' );
+		die();
+	}
 	ob_start();
 	$GLOBALS['ec_cart_data']->cart_data->payment_method = 'third_party';
 	$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -1971,6 +1895,9 @@ function wp_easycart_ajax_complete_paypal_express( ){
 	$paypal = new ec_paypal();
 	$response =  $paypal->capture_order( sanitize_text_field( $_POST['token'] ) );
 	if ( ! $response ) {
+		if ( class_exists( 'wp_easycart_checkout_guard' ) ) { /* 6.0.2 checkout protection counts the failed capture */
+			wp_easycart_checkout_guard::record_decline( 'paypal', array( 'gateway' => 'paypal', 'reason' => 'capture_failed' ) );
+		}
 		echo esc_attr( 'error' );
 	} else {
 		echo esc_url_raw( $response );
@@ -2032,12 +1959,13 @@ function wpeasycart_paypal_express_authorized( ){
 			}else{
 
 				$merchant_id = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? get_option( 'ec_option_paypal_sandbox_merchant_id' ) : get_option( 'ec_option_paypal_production_merchant_id' );
-				$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $paypal->get_available_url( ) . "/paypal-v2/sandbox-payment-verify.php?paypalPaymentID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['paymentID'] ) ) . "&merchantID=" . $merchant_id : $paypal->get_available_url( ) . "/paypal-v2/production-payment-verify.php?paypalPaymentID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['paymentID'] ) ) . "&merchantID=" . $merchant_id;
 
-				$request = new WP_Http;
-				$response = $request->request( 
-					$url, 
-					array( 
+				// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( payment_verify ), signed with the store's key.
+				$response = wp_easycart_paypal_connect::request(
+					'payment_verify',
+					array( 'paypalPaymentID' => preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['paymentID'] ) ), 'merchantID' => $merchant_id ),
+					null,
+					array(
 						'method' => 'GET',
 						'timeout' => 30
 					)
@@ -2104,12 +2032,12 @@ function wpeasycart_paypal_express_authorized( ){
 
 				// WP EasyCart APP
 				}else{
-					$url = ( get_option( 'ec_option_paypal_use_sandbox' ) ) ? $paypal->get_available_url( ) . "/paypal-v2/sandbox-payment-order-verify.php?paypalOrderID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['orderID'] ) ) : $paypal->get_available_url( ) . "/paypal-v2/production-payment-order-verify.php?paypalOrderID=" . preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['orderID'] ) );
-
-					$request = new WP_Http;
-					$response = $request->request( 
-						$url, 
-						array( 
+					// 6.0.2: WP EasyCart Connect's /paypal-v3/ relay ( payment_order_verify ), signed with the store's key.
+					$response = wp_easycart_paypal_connect::request(
+						'payment_order_verify',
+						array( 'paypalOrderID' => preg_replace( "/[^A-Za-z0-9\-]/", '', sanitize_text_field( $_GET['orderID'] ) ) ),
+						null,
+						array(
 							'method' => 'GET',
 							'timeout' => 30
 						)
@@ -2152,9 +2080,7 @@ function wpeasycart_paypal_express_partner_authorized( ){
 		update_option( 'ec_option_paypal_enable_pay_now', 1 );
 		update_option( 'ec_option_paypal_sandbox_app_id', '' );
 		update_option( 'ec_option_paypal_sandbox_secret', '' );
-		update_option( 'ec_option_paypal_sandbox_merchant_id', preg_replace( "/[^A-Za-z0-9]/", '', sanitize_text_field( $_GET['merchantIdInPayPal'] ) ) );
-		$paypal = new ec_paypal( );
-		$paypal->create_webhook( );
+		wpeasycart_paypal_onboarded( 'sandbox', preg_replace( "/[^A-Za-z0-9]/", '', sanitize_text_field( $_GET['merchantIdInPayPal'] ) ) );
 		do_action( 'wpeasycart_third_party_payment_updated', get_option( 'ec_option_payment_third_party' ) );
 		wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=payment' );
 		die( );
@@ -2168,9 +2094,7 @@ function wpeasycart_paypal_express_partner_authorized( ){
 		update_option( 'ec_option_paypal_enable_pay_now', 1 );
 		update_option( 'ec_option_paypal_production_app_id', '' );
 		update_option( 'ec_option_paypal_production_secret', '' );
-		update_option( 'ec_option_paypal_production_merchant_id', preg_replace( "/[^A-Za-z0-9]/", '', sanitize_text_field( $_GET['merchantIdInPayPal'] ) ) );
-		$paypal = new ec_paypal( );
-		$paypal->create_webhook( );
+		wpeasycart_paypal_onboarded( 'production', preg_replace( "/[^A-Za-z0-9]/", '', sanitize_text_field( $_GET['merchantIdInPayPal'] ) ) );
 		do_action( 'wpeasycart_third_party_payment_updated', get_option( 'ec_option_payment_third_party' ) );
 		if( isset( $_GET['is_wizard'] ) && $_GET['is_wizard'] == 'true' ){
 			wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3' );
@@ -2182,8 +2106,44 @@ function wpeasycart_paypal_express_partner_authorized( ){
 	}
 }
 
+if ( ! function_exists( 'wpeasycart_paypal_onboarded' ) ) {
+	/**
+	 * A PayPal account came back from WP EasyCart Connect's onboarding: keep its merchant id and register it for
+	 * notifications with a new key.
+	 *
+	 * 6.0.2: a different account than before starts clean ( the old account's registration and key belonged to it ), so a
+	 * registration whose answer is lost can never leave the old key turning the new account's notifications away.
+	 *
+	 * @since 6.0.2
+	 * @param string $mode        sandbox | production.
+	 * @param string $merchant_id PayPal merchant id ( letters and digits ).
+	 * @return void
+	 */
+	function wpeasycart_paypal_onboarded( $mode, $merchant_id ) {
+		$option = ( 'sandbox' === $mode ) ? 'ec_option_paypal_sandbox_merchant_id' : 'ec_option_paypal_production_merchant_id';
+		$before = (string) get_option( $option );
+		update_option( $option, $merchant_id );
+		if ( ! class_exists( 'wp_easycart_paypal_webhooks' ) ) {
+			return;
+		}
+		if ( $before !== (string) $merchant_id ) {
+			wp_easycart_paypal_webhooks::forget( $mode );
+		}
+		wp_easycart_paypal_webhooks::register(
+			array(
+				'rotate'  => true,
+				'context' => 'connect',
+			)
+		);
+	}
+}
+
 add_action( 'wp_head', 'wp_easycart_init_paypal_marketing' );
 function wp_easycart_init_paypal_marketing( ){
+	/* 6.0.2: "0" is what the PayPal panel's save stored when it had no container id ( see update_paypal() ); it is not one. */
+	if ( in_array( (string) get_option( get_option( 'ec_option_paypal_use_sandbox' ) == '1' ? 'ec_option_paypal_marketing_solution_cid_sandbox' : 'ec_option_paypal_marketing_solution_cid_production' ), array( '', '0' ), true ) ) {
+		return;
+	}
 	if( get_option( 'ec_option_paypal_use_sandbox' ) == '1' && get_option( 'ec_option_paypal_marketing_solution_cid_sandbox' ) != '' ){
 		echo '<!-- PayPal BEGIN -->';
 		echo '<script>';

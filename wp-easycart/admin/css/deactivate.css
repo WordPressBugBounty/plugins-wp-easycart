@@ -8,10 +8,16 @@
 .ec-admin-deactivate-box-list > li{ margin-bottom:6px; }
 .ec-admin-deactivate-box-list > li > label{ cursor:pointer; }
 .ec-admin-deactivate-box-list > li > label > span{ }
-.ec-admin-deactivate-box-list > li > label > span > input{ border-radius:50%; margin-right:4px; line-height:10px; border:1px solid #b4b9be; background:#FFF; color:#555; clear:none; cursor:pointer; display:inline-block; height:16px; margin:-4px 4px 0 0; outline:0; padding:0 !important; text-align:center; vertical-align:middle; width:16px; min-width:16px; -webkit-appearance:none; box-shadow:inset 0 1px 2px rgba(0,0,0,0.1); transition:.05s border-color ease-in-out; }
+/* 6.0.2: the radios draw their own centred dot. WordPress's checked dot ( floated, 1rem wide ) landed off-centre on this box: a half moon. */
+.ec-admin-deactivate-box-list > li > label > span > input[type="radio"]{ -webkit-appearance:none; -moz-appearance:none; appearance:none; position:relative; box-sizing:border-box; display:inline-block; width:16px; min-width:16px; height:16px; margin:-3px 8px 0 0; padding:0 !important; border:1px solid #8c8f94; border-radius:50%; background:#fff; color:#50575e; box-shadow:none; line-height:0; text-align:left; vertical-align:middle; cursor:pointer; outline:0; transition:.05s border-color ease-in-out; }
+.ec-admin-deactivate-box-list > li > label > span > input[type="radio"]:checked{ border-color:var( --wp-admin-theme-color, #2271b1 ); }
+.ec-admin-deactivate-box-list > li > label > span > input[type="radio"]:checked::before{ content:""; position:absolute; top:50%; left:50%; float:none; display:block; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%; background:var( --wp-admin-theme-color, #2271b1 ); line-height:0; }
+.ec-admin-deactivate-box-list > li > label > span > input[type="radio"]:focus{ border-color:var( --wp-admin-theme-color, #2271b1 ); box-shadow:0 0 0 1px var( --wp-admin-theme-color, #2271b1 ); outline:2px solid transparent; }
 .ec-admin-deactivate-reason{ display:none; margin:3px 0 3px 22px; }
 .ec-admin-deactivate-reason-title{ }
 .ec-admin-deactivate-reason > input{ width:100%; }
 .ec-admin-deactivate-box-footer{ border-top:1px solid #eeeeee; text-align:right; background:#fefefe; padding:20px; }
-.ec-admin-deactivate-box-footer > label{ float:left; cursor:poitner; }
+.ec-admin-deactivate-box-footer > label{ float:left; cursor:pointer; }
+/* 6.0.2: the note says what Submit sends, on its own line above the buttons. */
+.ec-admin-deactivate-box-footer > label.ec-admin-deactivate-anonymous{ display:block; float:none; margin:0 0 14px; text-align:left; font-size:12px; line-height:1.5; color:#50575e; cursor:default; }
 .ec-admin-deactivate-box-footer > a{ margin:0 7px !important; }

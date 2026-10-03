@@ -12,6 +12,12 @@
  * Rows save one at a time through the ecv2_shipping_rate_* handlers below,
  * each opened by ecv2_settings_guard().
  *
+ * 6.0.2: each table is a list of rows ( an icon or carrier badge, the key settings
+ * and Edit ); Edit and Add open one side drawer ( built by settings-shipping-rates-v2.js
+ * on <body> ) that holds every setting of the row. print_list(), print_row() and the
+ * badge helpers are public so WP EasyCart PRO draws its live-rate list the same way
+ * ( it checks method_exists() first and keeps its older grid with an older WP EasyCart ).
+ *
  * Loaded from admin/admin-init.php ( so the handlers exist on admin-ajax ) and
  * required again from the declaration ( so the render callables exist when the
  * registry loads it outside the admin bootstrap, e.g. the migration-map
@@ -165,6 +171,19 @@ class wp_easycart_admin_shipping_rates_v2 {
 	}
 
 	/**
+	 * A zone's name for a row, or a note when the zone was deleted after the row was saved.
+	 *
+	 * @since 6.0.2
+	 * @param int $zone_id ec_shippingrate.zone_id.
+	 * @return string
+	 */
+	public static function zone_name( $zone_id ) {
+		$zones = self::zones();
+		$zone_id = (int) $zone_id;
+		return isset( $zones[ $zone_id ] ) ? $zones[ $zone_id ] : __( 'Deleted zone', 'wp-easycart' );
+	}
+
+	/**
 	 * The rows of one table. Flat rates come back in their checkout order; the
 	 * trigger tables in ascending trigger order, the way the storefront walks them.
 	 */
@@ -221,10 +240,46 @@ class wp_easycart_admin_shipping_rates_v2 {
 		return number_format( (float) $amount, 2, '.', '' );
 	}
 
+	/**
+	 * Money as the store shows it ( symbol on its side, decimal and grouping marks ), for the row summaries. Never
+	 * converted to a shopper's display currency.
+	 *
+	 * @since 6.0.2
+	 * @param float $amount Amount in the store currency.
+	 * @return string Plain text.
+	 */
+	public static function money_display( $amount ) {
+		if ( class_exists( 'ec_currency' ) && function_exists( 'get_option' ) ) {
+			self::symbol(); // instantiates ec_currency so its static format settings are set.
+			return ec_currency::get_currency_display( (float) $amount, false );
+		}
+		return self::symbol() . number_format( (float) $amount, 2 );
+	}
+
+	/** Is the currency symbol written before the amount ( ec_option_currency_symbol_location )? @since 6.0.2 */
+	public static function symbol_first() {
+		if ( ! function_exists( 'get_option' ) ) {
+			return true;
+		}
+		return (bool) get_option( 'ec_option_currency_symbol_location', '1' ); // read as ec_currency reads it.
+	}
+
 	/** A weight or count for an input: trailing zeros dropped. */
 	public static function plain_number( $value ) {
 		$text = rtrim( rtrim( number_format( (float) $value, 3, '.', '' ), '0' ), '.' );
 		return ( '' === $text || '-0' === $text ) ? '0' : $text;
+	}
+
+	/**
+	 * The unit product weights are entered in ( the setup wizard's ec_option_paypal_weight_unit, as the option editor
+	 * and the box library read it ).
+	 *
+	 * @since 6.0.2
+	 * @return string kg | lb
+	 */
+	public static function weight_unit() {
+		$unit = function_exists( 'get_option' ) ? (string) get_option( 'ec_option_paypal_weight_unit' ) : '';
+		return ( 'kgs' === $unit || 'kg' === $unit ) ? 'kg' : 'lb';
 	}
 
 	/** The columns of a table, in display order: field, kind ( text | money | weight | int | percent | zone ), heading. */
@@ -290,7 +345,7 @@ class wp_easycart_admin_shipping_rates_v2 {
 	}
 
 	/* ------------------------------------------------------------------ */
-	/* Render                                                              */
+	/* Render: active method                                               */
 	/* ------------------------------------------------------------------ */
 
 	/** What each method does, for the active-method card ( method => sentence ). */
@@ -438,6 +493,10 @@ class wp_easycart_admin_shipping_rates_v2 {
 		<?php
 	}
 
+	/* ------------------------------------------------------------------ */
+	/* Render: rate lists ( 6.0.2 )                                        */
+	/* ------------------------------------------------------------------ */
+
 	/** Section render for each of the five tables: the section slug is the type. */
 	public static function render_section( $page, $section ) {
 		$type = self::type_for_section( isset( $section['slug'] ) ? $section['slug'] : '' );
@@ -447,104 +506,711 @@ class wp_easycart_admin_shipping_rates_v2 {
 		self::render_table( $type );
 	}
 
-	/** The editable table for one type. */
+	/**
+	 * One table as a list of rows ( 6.0.2: was a grid of inputs ). The .ecsr wrapper and its data-type / data-active
+	 * are what the page script collapses for the methods that are not in use.
+	 */
 	public static function render_table( $type ) {
-		$types   = self::types();
-		$rows    = self::rates( $type );
-		$columns = self::columns( $type );
-		$active  = ( $types[ $type ]['method'] === self::method() ) ? '1' : '0';
+		$types = self::types();
+		if ( ! isset( $types[ $type ] ) ) {
+			return;
+		}
+		$rows   = self::rates( $type );
+		$active = ( self::method() === $types[ $type ]['method'] ) ? '1' : '0';
+		$items  = array();
+		foreach ( $rows as $row ) {
+			$items[] = self::row_args( $type, self::row_data( $type, $row ) );
+		}
 		?>
 		<div class="ecsr" data-type="<?php echo esc_attr( $type ); ?>" data-active="<?php echo esc_attr( $active ); ?>">
 			<p class="ecsr-desc"><?php echo esc_html( $types[ $type ]['desc'] ); ?></p>
-			<div class="ecsr-scroll">
-				<table class="ecsr-table ecsr-table-<?php echo esc_attr( $type ); ?>">
-					<thead>
-						<tr>
-							<?php foreach ( $columns as $column ) : ?>
-								<th class="ecsr-th-<?php echo esc_attr( $column[1] ); ?>"><?php echo esc_html( $column[2] ); ?></th>
-							<?php endforeach; ?>
-							<th class="ecsr-th-state"><span class="screen-reader-text"><?php esc_html_e( 'Status', 'wp-easycart' ); ?></span></th>
-							<th class="ecsr-th-del"><span class="screen-reader-text"><?php esc_html_e( 'Delete', 'wp-easycart' ); ?></span></th>
-						</tr>
-					</thead>
-					<tbody class="ecsr-body">
-						<?php foreach ( $rows as $row ) : ?>
-							<?php self::render_row( $type, self::row_data( $type, $row ), '' ); ?>
-						<?php endforeach; ?>
-						<?php self::render_row( $type, self::row_data( $type, null ), 'ecsr-tpl' ); ?>
-						<tr class="ecsr-empty"<?php echo empty( $rows ) ? '' : ' hidden'; ?>><td colspan="<?php echo (int) count( $columns ) + 2; ?>"><?php esc_html_e( 'No rates yet. Add the first one below.', 'wp-easycart' ); ?></td></tr>
-					</tbody>
-					<tfoot>
-						<tr class="ecsr-new">
-							<?php foreach ( $columns as $column ) : ?>
-								<td class="ecsr-cell ecsr-cell-<?php echo esc_attr( $column[1] ); ?>" data-label="<?php echo esc_attr( $column[2] ); ?>"><?php self::render_control( $type, $column, self::row_data( $type, null ), true ); ?></td>
-							<?php endforeach; ?>
-							<td colspan="2" class="ecsr-cell-add"><button type="button" class="ecv2-btn ecv2-btn-primary ecsr-add"><?php esc_html_e( 'Add rate', 'wp-easycart' ); ?></button></td>
-						</tr>
-					</tfoot>
-				</table>
-			</div>
+			<?php
+			self::print_list(
+				array(
+					'type'     => $type,
+					'label'    => $types[ $type ]['title'],
+					'head'     => self::list_head( $type ),
+					'rows'     => $items,
+					'empty'    => self::empty_text( $type ),
+					'add'      => self::add_text( $type ),
+					'sortable' => ( 'flat' === $type ),
+				)
+			);
+			?>
 		</div>
 		<?php
 	}
 
-	private static function render_row( $type, $data, $extra_class ) {
-		$columns = self::columns( $type );
+	/**
+	 * Column headings over a table's rows: array( first column, array( one per fact ) ). The facts of every row of the
+	 * table ( summary() ) follow the same order.
+	 *
+	 * @since 6.0.2
+	 * @param string $type Table type.
+	 * @return array
+	 */
+	public static function list_head( $type ) {
+		switch ( $type ) {
+			case 'flat':
+				return array( __( 'Method', 'wp-easycart' ), array( __( 'Rate', 'wp-easycart' ), __( 'Free shipping at', 'wp-easycart' ), __( 'Zone', 'wp-easycart' ) ) );
+			case 'percentage':
+				return array( __( 'Applies from', 'wp-easycart' ), array( __( 'Charge', 'wp-easycart' ), __( 'Zone', 'wp-easycart' ) ) );
+			default:
+				return array( __( 'Applies from', 'wp-easycart' ), array( __( 'Rate', 'wp-easycart' ), __( 'Zone', 'wp-easycart' ) ) );
+		}
+	}
+
+	/** The empty-state sentence of a table. @since 6.0.2 */
+	private static function empty_text( $type ) {
+		if ( 'flat' === $type ) {
+			return __( 'No shipping methods yet. Add the first one, for example Standard delivery.', 'wp-easycart' );
+		}
+		return __( 'No rates yet. Add the first one, starting from 0 so every order gets a rate.', 'wp-easycart' );
+	}
+
+	/** The Add button of a table. @since 6.0.2 */
+	private static function add_text( $type ) {
+		return 'flat' === $type ? __( 'Add method', 'wp-easycart' ) : __( 'Add rate', 'wp-easycart' );
+	}
+
+	/**
+	 * What a row of a table shows: its title and its facts ( label => value, in list_head() order ).
+	 *
+	 * @since 6.0.2
+	 * @param string $type Table type.
+	 * @param array  $data row_data().
+	 * @return array { title, sub, facts: array of array( label, value, muted ) }
+	 */
+	public static function summary( $type, $data ) {
+		$head    = self::list_head( $type );
+		$labels  = $head[1];
+		$rate    = (float) $data['rate'];
+		$trigger = (float) $data['trigger'];
+		$zone    = self::zone_name( $data['zone_id'] );
+		$sub     = '';
+		if ( 'percentage' === $type ) {
+			/* translators: %s: a percentage, e.g. 10 ( for 10% ). */
+			$charge = sprintf( __( '%s%%', 'wp-easycart' ), self::plain_number( $rate ) );
+		} else {
+			$charge = ( $rate > 0 ) ? self::money_display( $rate ) : __( 'Free', 'wp-easycart' );
+		}
+		switch ( $type ) {
+			case 'flat':
+				$title = '' !== trim( (string) $data['label'] ) ? (string) $data['label'] : __( 'Unnamed method', 'wp-easycart' );
+				$free  = ( '' !== (string) $data['free_at'] ) ? self::money_display( (float) $data['free_at'] ) : '';
+				$facts = array(
+					array( $labels[0], $charge, false ),
+					array( $labels[1], '' !== $free ? $free : __( 'Never', 'wp-easycart' ), '' === $free ),
+					array( $labels[2], $zone, false ),
+				);
+				return array(
+					'title' => $title,
+					'sub'   => $sub,
+					'facts' => $facts,
+				);
+			case 'weight':
+				if ( $trigger <= 0 ) {
+					$title = __( 'Any weight', 'wp-easycart' );
+				} else {
+					/* translators: 1: a weight, e.g. 5, 2: its unit, lb or kg. */
+					$title = sprintf( __( 'Orders from %1$s %2$s', 'wp-easycart' ), self::plain_number( $trigger ), self::weight_unit() );
+				}
+				break;
+			case 'quantity':
+				$count = (int) round( $trigger );
+				if ( $count <= 0 ) {
+					$title = __( 'Any number of items', 'wp-easycart' );
+				} else {
+					/* translators: %s: a number of items. */
+					$title = sprintf( _n( 'Orders from %s item', 'Orders from %s items', $count, 'wp-easycart' ), number_format( $count ) );
+				}
+				break;
+			default: // price, percentage.
+				if ( $trigger <= 0 ) {
+					$title = __( 'Any cart total', 'wp-easycart' );
+				} else {
+					/* translators: %s: an amount of money. */
+					$title = sprintf( __( 'Cart total from %s', 'wp-easycart' ), self::money_display( $trigger ) );
+				}
+		}
+		return array(
+			'title' => $title,
+			'sub'   => $sub,
+			'facts' => array(
+				array( $labels[0], $charge, false ),
+				array( $labels[1], $zone, false ),
+			),
+		);
+	}
+
+	/**
+	 * print_row() arguments for one row of a free table.
+	 *
+	 * @since 6.0.2
+	 * @param string $type Table type.
+	 * @param array  $data row_data().
+	 * @return array
+	 */
+	public static function row_args( $type, $data ) {
+		$summary = self::summary( $type, $data );
+		return array(
+			'id'       => (int) $data['id'],
+			'type'     => $type,
+			'badge'    => self::type_badge( $type ),
+			'title'    => $summary['title'],
+			'sub'      => $summary['sub'],
+			'facts'    => $summary['facts'],
+			'data'     => $data,
+			'sortable' => ( 'flat' === $type ),
+			'lead'     => ( 'flat' === $type ),
+			'help'     => 'ecsr_move_help_' . $type, // print_list() prints it under a sortable list.
+		);
+	}
+
+	/**
+	 * One row's markup, for the AJAX answers ( the page swaps it in after a save ).
+	 *
+	 * @since 6.0.2
+	 * @param string $type Table type.
+	 * @param array  $data row_data().
+	 * @return string
+	 */
+	public static function row_html( $type, $data ) {
+		ob_start();
+		self::print_row( self::row_args( $type, $data ) );
+		return trim( (string) ob_get_clean() );
+	}
+
+	/**
+	 * A list of rows with its headings, empty state and Add button. Shared with WP EasyCart PRO's live-rate list.
+	 * The page script ( settings-shipping-rates-v2.js, window.ecsr.list ) finds it by .ecsr-rows[data-type].
+	 *
+	 * @since 6.0.2
+	 * @param array $args {
+	 *     @type string $type     data-type of the list ( a table type, or 'live' ).
+	 *     @type string $label    Accessible name of the list.
+	 *     @type array  $head     array( first column heading, array( fact headings ) ).
+	 *     @type array  $rows     print_row() arguments, one per row.
+	 *     @type string $empty    Empty-state sentence.
+	 *     @type string $add      Add button text ( '' for none ).
+	 *     @type bool   $sortable Rows can be dragged ( and moved with the arrow keys ) into order.
+	 *     @type string $id       Optional id of the wrapper.
+	 *     @type string $after    Optional HTML printed after the list ( already escaped ).
+	 *     @type bool   $headings Print the column headings ( false for a list under another one ).
+	 * }
+	 */
+	public static function print_list( $args ) {
+		$args  = array_merge(
+			array(
+				'type'     => '',
+				'label'    => '',
+				'head'     => array( '', array() ),
+				'rows'     => array(),
+				'empty'    => '',
+				'add'      => '',
+				'sortable' => false,
+				'id'       => '',
+				'after'    => '',
+				'headings' => true,
+			),
+			(array) $args
+		);
+		$facts = isset( $args['head'][1] ) ? (array) $args['head'][1] : array();
+		$empty = empty( $args['rows'] );
+		$help  = 'ecsr_move_help_' . sanitize_key( $args['type'] );
 		?>
-		<tr class="ecsr-row<?php echo '' !== $extra_class ? ' ' . esc_attr( $extra_class ) : ''; ?>" data-id="<?php echo (int) $data['id']; ?>" data-type="<?php echo esc_attr( $type ); ?>"<?php echo 'ecsr-tpl' === $extra_class ? ' hidden' : ''; ?>>
-			<?php foreach ( $columns as $column ) : ?>
-				<td class="ecsr-cell ecsr-cell-<?php echo esc_attr( $column[1] ); ?>" data-label="<?php echo esc_attr( $column[2] ); ?>"><?php self::render_control( $type, $column, $data, false ); ?></td>
-			<?php endforeach; ?>
-			<td class="ecsr-cell-state"><span class="ecsr-state" aria-live="polite"></span></td>
-			<td class="ecsr-cell-del"><button type="button" class="ecsr-del" title="<?php esc_attr_e( 'Delete this rate', 'wp-easycart' ); ?>" aria-label="<?php esc_attr_e( 'Delete this rate', 'wp-easycart' ); ?>">×</button></td>
-		</tr>
+		<div class="ecsr-rows<?php echo $args['sortable'] ? ' is-sortable' : ''; ?>"<?php echo '' !== $args['id'] ? ' id="' . esc_attr( $args['id'] ) . '"' : ''; ?> data-type="<?php echo esc_attr( $args['type'] ); ?>" data-facts="<?php echo (int) count( $facts ); ?>" style="--ecsr-facts:<?php echo (int) max( 1, count( $facts ) ); ?>">
+			<?php if ( $args['headings'] ) : ?>
+				<div class="ecsr-list-head" aria-hidden="true"<?php echo $empty ? ' hidden' : ''; ?>>
+					<?php if ( $args['sortable'] ) : ?><span class="ecsr-h-lead"></span><?php endif; ?>
+					<span class="ecsr-h-badge"></span>
+					<span class="ecsr-h-main"><?php echo esc_html( isset( $args['head'][0] ) ? $args['head'][0] : '' ); ?></span>
+					<?php foreach ( $facts as $fact ) : ?>
+						<span class="ecsr-h-fact"><?php echo esc_html( $fact ); ?></span>
+					<?php endforeach; ?>
+					<span class="ecsr-h-actions"></span>
+				</div>
+			<?php endif; ?>
+			<ul class="ecsr-list" aria-label="<?php echo esc_attr( $args['label'] ); ?>"<?php echo $empty ? ' hidden' : ''; ?>>
+				<?php
+				foreach ( $args['rows'] as $row ) {
+					$row['sortable'] = ! empty( $args['sortable'] ) && empty( $row['readonly'] ) && ( ! isset( $row['sortable'] ) || $row['sortable'] );
+					$row['lead']     = ! empty( $args['sortable'] );
+					$row['help']     = $help;
+					self::print_row( $row );
+				}
+				?>
+			</ul>
+			<?php if ( $args['sortable'] ) : ?>
+				<p class="screen-reader-text" id="<?php echo esc_attr( $help ); ?>"><?php esc_html_e( 'Use the up and down arrow keys to move it. The new order is saved right away.', 'wp-easycart' ); ?></p>
+			<?php endif; ?>
+			<div class="ecsr-empty-state"<?php echo $empty ? '' : ' hidden'; ?>>
+				<span class="ecsr-empty-ic" aria-hidden="true"><?php echo self::icon_svg( 'truck' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG from wp_easycart_admin_settings_icons. ?></span>
+				<p><?php echo esc_html( $args['empty'] ); ?></p>
+				<?php if ( '' !== $args['add'] ) : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-primary ecsr-add"><?php echo self::plus_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?><?php echo esc_html( $args['add'] ); ?></button>
+				<?php endif; ?>
+			</div>
+			<?php if ( '' !== $args['add'] ) : ?>
+				<div class="ecsr-list-foot"<?php echo $empty ? ' hidden' : ''; ?>>
+					<button type="button" class="ecv2-btn ecsr-add"><?php echo self::plus_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?><?php echo esc_html( $args['add'] ); ?></button>
+				</div>
+			<?php endif; ?>
+			<?php echo $args['after']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the caller's escaped HTML. ?>
+		</div>
 		<?php
 	}
 
-	/** One input. $is_new marks the "Add rate" row ( no value, hint placeholders ). */
-	private static function render_control( $type, $column, $data, $is_new ) {
-		list( $field, $kind, $heading ) = $column;
-		$value  = isset( $data[ $field ] ) ? $data[ $field ] : '';
-		$symbol = self::symbol();
-		$class  = 'ecv2-input ecsr-in';
-		switch ( $kind ) {
-			case 'zone':
-				?>
-				<select class="ecv2-select ecsr-in" data-field="zone_id" aria-label="<?php echo esc_attr( $heading ); ?>">
-					<?php foreach ( self::zones() as $zone_id => $zone_name ) : ?>
-						<option value="<?php echo (int) $zone_id; ?>"<?php selected( (int) $value, (int) $zone_id ); ?>><?php echo esc_html( $zone_name ); ?></option>
+	/**
+	 * One row: badge, title ( and a second line ), chips, the key settings, Edit and Delete. Shared with PRO.
+	 *
+	 * @since 6.0.2
+	 * @param array $args {
+	 *     @type int    $id       Row id ( data-id ).
+	 *     @type string $type     data-type.
+	 *     @type string $badge    Badge HTML ( type_badge(), carrier_badge(), provider_badge() ).
+	 *     @type string $title    Title ( text ).
+	 *     @type string $sub      Second line ( text ).
+	 *     @type array  $chips    array( array( text, tone: '' | warn | muted ) ).
+	 *     @type array  $facts    array( array( label, value, muted ) ), in the list's heading order.
+	 *     @type string $note     Text shown across the facts instead of them ( read-only rows ).
+	 *     @type array  $data     The row's values for the drawer ( data-row JSON ).
+	 *     @type string $name     Name the Edit / Delete buttons say ( default the title ).
+	 *     @type bool   $sortable Show the drag handle.
+	 *     @type bool   $lead     The list has a handle column ( a row without a handle keeps the space ).
+	 *     @type string $help     Id of the handle's keyboard help text.
+	 *     @type bool   $readonly No Edit or Delete ( e.g. services an extension manages ).
+	 *     @type array  $link     Read-only rows: array( url, text ).
+	 * }
+	 */
+	public static function print_row( $args ) {
+		$args = array_merge(
+			array(
+				'id'       => 0,
+				'type'     => '',
+				'badge'    => '',
+				'title'    => '',
+				'sub'      => '',
+				'chips'    => array(),
+				'facts'    => array(),
+				'note'     => '',
+				'data'     => array(),
+				'name'     => '',
+				'sortable' => false,
+				'lead'     => false,
+				'help'     => '',
+				'readonly' => false,
+				'link'     => array(),
+			),
+			(array) $args
+		);
+		$name     = '' !== $args['name'] ? $args['name'] : $args['title'];
+		$readonly = ! empty( $args['readonly'] );
+		$lead     = ! empty( $args['lead'] ) || ! empty( $args['sortable'] );
+		$json     = function_exists( 'wp_json_encode' ) ? wp_json_encode( $args['data'] ) : json_encode( $args['data'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- the migration-map generator loads this file outside WordPress.
+		?>
+		<li class="ecsr-item<?php echo $readonly ? ' is-readonly' : ''; ?>" data-id="<?php echo esc_attr( (string) $args['id'] ); ?>" data-type="<?php echo esc_attr( $args['type'] ); ?>" data-row="<?php echo esc_attr( (string) $json ); ?>">
+			<?php if ( $lead ) : ?>
+				<span class="ecsr-item-lead">
+					<?php if ( ! empty( $args['sortable'] ) && ! $readonly ) : ?>
+						<?php /* translators: %s: name of a shipping rate or service. */ ?>
+						<button type="button" class="ecsr-grip" aria-label="<?php echo esc_attr( sprintf( __( 'Move %s', 'wp-easycart' ), $name ) ); ?>"<?php echo '' !== $args['help'] ? ' aria-describedby="' . esc_attr( $args['help'] ) . '"' : ''; ?> title="<?php esc_attr_e( 'Drag to reorder', 'wp-easycart' ); ?>"><?php echo self::grip_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?></button>
+					<?php endif; ?>
+				</span>
+			<?php endif; ?>
+			<span class="ecsr-item-badge"><?php echo $args['badge']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built by the escaped badge helpers. ?></span>
+			<div class="ecsr-item-main">
+				<span class="ecsr-item-title"><?php echo esc_html( $args['title'] ); ?></span>
+				<?php if ( '' !== $args['sub'] || ! empty( $args['chips'] ) ) : ?>
+					<span class="ecsr-item-sub">
+						<?php if ( '' !== $args['sub'] ) : ?><span class="ecsr-item-subtext"><?php echo esc_html( $args['sub'] ); ?></span><?php endif; ?>
+						<?php foreach ( (array) $args['chips'] as $chip ) : ?>
+							<?php $tone = isset( $chip[1] ) ? sanitize_key( $chip[1] ) : ''; ?>
+							<span class="ecsr-chip<?php echo '' !== $tone ? ' is-' . esc_attr( $tone ) : ''; ?>"><?php echo esc_html( isset( $chip[0] ) ? $chip[0] : '' ); ?></span>
+						<?php endforeach; ?>
+					</span>
+				<?php endif; ?>
+			</div>
+			<div class="ecsr-item-facts<?php echo '' !== $args['note'] ? ' has-note' : ''; ?>">
+				<?php if ( '' !== $args['note'] ) : ?>
+					<span class="ecsr-item-note"><?php echo esc_html( $args['note'] ); ?></span>
+				<?php else : ?>
+					<?php foreach ( (array) $args['facts'] as $fact ) : ?>
+						<span class="ecsr-fact<?php echo ! empty( $fact[2] ) ? ' is-muted' : ''; ?>"><span class="ecsr-fact-l"><?php echo esc_html( $fact[0] ); ?></span> <span class="ecsr-fact-v"><?php echo esc_html( $fact[1] ); ?></span></span>
 					<?php endforeach; ?>
-				</select>
-				<?php
-				break;
-			case 'text':
-				?>
-				<input type="text" class="<?php echo esc_attr( $class ); ?>" data-field="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="<?php echo esc_attr( $is_new ? __( 'e.g. Standard delivery', 'wp-easycart' ) : '' ); ?>" aria-label="<?php echo esc_attr( $heading ); ?>" autocomplete="off" />
-				<?php
-				break;
-			case 'int':
-				$placeholder = ( 'order' === $field ) ? '0' : '1';
-				?>
-				<span class="ecsr-in-wrap ecsr-in-short"><input type="number" step="1" min="0" class="<?php echo esc_attr( $class ); ?>" data-field="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>" aria-label="<?php echo esc_attr( $heading ); ?>" /></span>
-				<?php
-				break;
-			case 'weight':
-				?>
-				<span class="ecsr-in-wrap ecsr-in-short"><input type="number" step="0.01" min="0" class="<?php echo esc_attr( $class ); ?>" data-field="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="0" aria-label="<?php echo esc_attr( $heading ); ?>" /></span>
-				<?php
-				break;
-			case 'percent':
-				?>
-				<span class="ecsr-in-wrap ecsr-in-short has-unit"><input type="number" step="0.01" min="0" class="<?php echo esc_attr( $class ); ?>" data-field="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="0" aria-label="<?php echo esc_attr( $heading ); ?>" /><span class="ecsr-affix">%</span></span>
-				<?php
-				break;
-			default: // money
-				$placeholder = ( 'free_at' === $field ) ? __( 'Never', 'wp-easycart' ) : self::money( 0 );
-				?>
-				<span class="ecsr-in-wrap<?php echo '' !== $symbol ? ' has-prefix' : ''; ?>"><?php if ( '' !== $symbol ) : ?><span class="ecsr-affix"><?php echo esc_html( $symbol ); ?></span><?php endif; ?><input type="number" step="0.01" min="0" class="<?php echo esc_attr( $class ); ?>" data-field="<?php echo esc_attr( $field ); ?>" value="<?php echo esc_attr( $value ); ?>" placeholder="<?php echo esc_attr( $placeholder ); ?>" aria-label="<?php echo esc_attr( $heading ); ?>" /></span>
-				<?php
-		}
+				<?php endif; ?>
+			</div>
+			<div class="ecsr-item-actions">
+				<?php if ( $readonly ) : ?>
+					<?php if ( ! empty( $args['link'][0] ) ) : ?>
+						<a class="ecv2-btn ecv2-btn-sm ecsr-item-link" href="<?php echo esc_url( $args['link'][0] ); ?>"><?php echo esc_html( isset( $args['link'][1] ) ? $args['link'][1] : __( 'Settings', 'wp-easycart' ) ); ?></a>
+					<?php endif; ?>
+				<?php else : ?>
+					<?php /* translators: %s: name of a shipping rate or service. */ ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecsr-edit" aria-label="<?php echo esc_attr( sprintf( __( 'Edit %s', 'wp-easycart' ), $name ) ); ?>"><?php echo self::edit_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?><span><?php esc_html_e( 'Edit', 'wp-easycart' ); ?></span></button>
+					<?php /* translators: %s: name of a shipping rate or service. */ ?>
+					<button type="button" class="ecsr-remove" aria-label="<?php echo esc_attr( sprintf( __( 'Delete %s', 'wp-easycart' ), $name ) ); ?>" title="<?php esc_attr_e( 'Delete', 'wp-easycart' ); ?>"><?php echo self::icon_svg( 'trash' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG from wp_easycart_admin_settings_icons. ?></button>
+				<?php endif; ?>
+			</div>
+		</li>
+		<?php
 	}
+
+	/* ------------------------------------------------------------------ */
+	/* Badges ( 6.0.2 )                                                    */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * The carriers a row can show a badge for: key => array( name, mark, bg, fg ) and optionally 'logo' ( an image URL ).
+	 * WP EasyCart ships no carrier artwork, so the built-in carriers are drawn as a tile in the carrier's colour with the
+	 * short form of its name ( the colours of the carrier headings on Settings › Shipping settings ). Filter
+	 * wp_easycart_shipping_rate_carriers adds a carrier or gives one an image.
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	public static function carriers() {
+		$carriers = array(
+			'ups'        => array(
+				'name' => 'UPS',
+				'mark' => 'UPS',
+				'bg'   => '#351c15',
+				'fg'   => '#ffb500',
+			),
+			'usps'       => array(
+				'name' => 'USPS',
+				'mark' => 'USPS',
+				'bg'   => '#333366',
+				'fg'   => '#ffffff',
+			),
+			'fedex'      => array(
+				'name' => 'FedEx',
+				'mark' => 'FedEx',
+				'bg'   => '#4d148c',
+				'fg'   => '#ffffff',
+			),
+			'dhl'        => array(
+				'name' => 'DHL',
+				'mark' => 'DHL',
+				'bg'   => '#ffcc00',
+				'fg'   => '#d40511',
+			),
+			'auspost'    => array(
+				'name' => __( 'Australia Post', 'wp-easycart' ),
+				'mark' => 'AP',
+				'bg'   => '#dc1928',
+				'fg'   => '#ffffff',
+			),
+			'canadapost' => array(
+				'name' => __( 'Canada Post', 'wp-easycart' ),
+				'mark' => 'CP',
+				'bg'   => '#c8102e',
+				'fg'   => '#ffffff',
+			),
+		);
+		return function_exists( 'apply_filters' ) ? (array) apply_filters( 'wp_easycart_shipping_rate_carriers', $carriers ) : $carriers;
+	}
+
+	/**
+	 * A carrier key from a live rate's flag column ( is_ups_based → ups ) or a key.
+	 *
+	 * @since 6.0.2
+	 * @param string $flag Flag column or key.
+	 * @return string
+	 */
+	public static function carrier_key( $flag ) {
+		$key = strtolower( (string) $flag );
+		if ( 0 === strpos( $key, 'is_' ) ) {
+			$key = substr( $key, 3 );
+		}
+		if ( '_based' === substr( $key, -6 ) ) {
+			$key = substr( $key, 0, -6 );
+		}
+		return preg_replace( '/[^a-z0-9_\-]/', '', $key );
+	}
+
+	/**
+	 * A carrier's name ( carriers() ), or the fallback.
+	 *
+	 * @since 6.0.2
+	 * @param string $key      Carrier key or flag column.
+	 * @param string $fallback Name when the carrier is not known.
+	 * @return string
+	 */
+	public static function carrier_name( $key, $fallback = '' ) {
+		$carriers = self::carriers();
+		$key      = self::carrier_key( $key );
+		return ( isset( $carriers[ $key ]['name'] ) && '' !== (string) $carriers[ $key ]['name'] ) ? (string) $carriers[ $key ]['name'] : $fallback;
+	}
+
+	/**
+	 * Badge for a carrier ( live rates ). An unknown carrier gets a grey tile with its initials.
+	 *
+	 * @since 6.0.2
+	 * @param string $key   Carrier key or flag column.
+	 * @param string $name  Name for an unknown carrier.
+	 * @param string $class Extra class ( e.g. is-small ).
+	 * @return string
+	 */
+	public static function carrier_badge( $key, $name = '', $class = '' ) {
+		$carriers = self::carriers();
+		$key      = self::carrier_key( $key );
+		if ( isset( $carriers[ $key ] ) && is_array( $carriers[ $key ] ) ) {
+			$carrier = $carriers[ $key ];
+			return self::badge_tile(
+				isset( $carrier['mark'] ) ? (string) $carrier['mark'] : '',
+				isset( $carrier['bg'] ) ? (string) $carrier['bg'] : '',
+				isset( $carrier['fg'] ) ? (string) $carrier['fg'] : '',
+				isset( $carrier['name'] ) ? (string) $carrier['name'] : $name,
+				isset( $carrier['logo'] ) ? (string) $carrier['logo'] : '',
+				trim( 'is-carrier is-' . $key . ' ' . $class )
+			);
+		}
+		return self::badge_tile( self::initials( '' !== $name ? $name : $key ), '', '', $name, '', trim( 'is-carrier ' . $class ) );
+	}
+
+	/**
+	 * Badge for a rate service an extension provides ( e.g. WP EasyCart for Shippo ): the logo tile its Extensions card
+	 * shows, else its initials.
+	 *
+	 * @since 6.0.2
+	 * @param string $slug  Provider slug ( the extension's catalog slug when they match ).
+	 * @param string $name  Provider name.
+	 * @param string $logo  Optional image URL the provider gives.
+	 * @return string
+	 */
+	public static function provider_badge( $slug, $name, $logo = '' ) {
+		$carriers = self::carriers();
+		$slug     = self::carrier_key( $slug );
+		if ( '' === $logo && isset( $carriers[ $slug ] ) ) {
+			return self::carrier_badge( $slug, $name );
+		}
+		$mark  = '';
+		$color = '';
+		if ( class_exists( 'wp_easycart_admin_extensions' ) && method_exists( 'wp_easycart_admin_extensions', 'get' ) ) {
+			$ext = wp_easycart_admin_extensions::get( $slug );
+			if ( is_array( $ext ) ) {
+				$mark  = isset( $ext['logo'] ) ? substr( (string) $ext['logo'], 0, 3 ) : '';
+				$color = isset( $ext['color'] ) ? (string) $ext['color'] : '';
+			}
+		}
+		return self::badge_tile( '' !== $mark ? $mark : self::initials( $name ), $color, '#ffffff', $name, $logo, 'is-provider' );
+	}
+
+	/**
+	 * Badge for a free table's rows: its line icon.
+	 *
+	 * @since 6.0.2
+	 * @param string $type Table type.
+	 * @return string
+	 */
+	public static function type_badge( $type ) {
+		$types = self::types();
+		$icon  = isset( $types[ $type ]['icon'] ) ? $types[ $type ]['icon'] : 'truck';
+		return '<span class="ecsr-badge is-type is-' . esc_attr( $type ) . '" aria-hidden="true">' . self::icon_svg( $icon, 'ecsr-badge-svg' ) . '</span>';
+	}
+
+	/** Two letters for a name ( "Fast Ship" → FS, "Shippo" → Sh ). */
+	private static function initials( $name ) {
+		$words = preg_split( '/[\s\-_]+/', trim( (string) $name ) );
+		$words = array_values( array_filter( (array) $words, 'strlen' ) );
+		if ( count( $words ) >= 2 ) {
+			return strtoupper( substr( $words[0], 0, 1 ) . substr( $words[1], 0, 1 ) );
+		}
+		return isset( $words[0] ) ? ucfirst( substr( $words[0], 0, 2 ) ) : '?';
+	}
+
+	/** A badge tile: an image, or short text on a colour. */
+	private static function badge_tile( $mark, $bg, $fg, $title, $logo, $class ) {
+		$bg    = function_exists( 'sanitize_hex_color' ) ? sanitize_hex_color( $bg ) : $bg;
+		$fg    = function_exists( 'sanitize_hex_color' ) ? sanitize_hex_color( $fg ) : $fg;
+		$style = '';
+		if ( $bg ) {
+			$style .= '--ecsr-badge-bg:' . $bg . ';';
+		}
+		if ( $fg ) {
+			$style .= '--ecsr-badge-fg:' . $fg . ';';
+		}
+		$mark  = (string) $mark;
+		$size  = strlen( $mark ) >= 5 ? ' is-long' : ( strlen( $mark ) >= 4 ? ' is-wide' : '' );
+		$inner = ( '' !== $logo )
+			? '<img src="' . esc_url( $logo ) . '" alt="" loading="lazy" />'
+			: '<span class="ecsr-badge-mark' . $size . '">' . esc_html( $mark ) . '</span>';
+		return '<span class="ecsr-badge ' . esc_attr( trim( $class . ( '' !== $logo ? ' is-logo' : '' ) ) ) . '"' . ( '' !== $style ? ' style="' . esc_attr( $style ) . '"' : '' ) . ( '' !== $title ? ' title="' . esc_attr( $title ) . '"' : '' ) . ' aria-hidden="true">' . $inner . '</span>';
+	}
+
+	/** A line icon from the settings icon set. */
+	private static function icon_svg( $name, $class = 'ecsr-ic' ) {
+		return class_exists( 'wp_easycart_admin_settings_icons' ) ? wp_easycart_admin_settings_icons::svg( $name, $class ) : '';
+	}
+
+	/** Pencil for Edit. */
+	private static function edit_svg() {
+		return '<svg class="ecsr-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+	}
+
+	/** Plus for Add. */
+	private static function plus_svg() {
+		return '<svg class="ecsr-ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+	}
+
+	/** Six dots for the drag handle. */
+	private static function grip_svg() {
+		return '<svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="2.5" cy="3" r="1.5"/><circle cx="7.5" cy="3" r="1.5"/><circle cx="2.5" cy="8" r="1.5"/><circle cx="7.5" cy="8" r="1.5"/><circle cx="2.5" cy="13" r="1.5"/><circle cx="7.5" cy="13" r="1.5"/></svg>';
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Drawer ( 6.0.2 )                                                    */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * What the drawer shows for each free table: its titles and fields. settings-shipping-rates-v2.js builds the drawer
+	 * from this ( ecsr_vars.types ); the field names are the request keys of ecv2_shipping_rate_add / _update.
+	 * Field kinds: text, money, weight, int, percent, zone.
+	 *
+	 * @since 6.0.2
+	 * @return array type => array( add, edit, save, hint, badge, fields )
+	 */
+	public static function drawer_types() {
+		$types = self::types();
+		$zone  = array(
+			'name' => 'zone_id',
+			'kind' => 'zone',
+		);
+		$rate  = array(
+			'name'        => 'rate',
+			'kind'        => 'money',
+			'label'       => __( 'Rate', 'wp-easycart' ),
+			'placeholder' => self::money( 0 ),
+		);
+		$from  = __( 'Applies from this amount until a row with a higher amount takes over.', 'wp-easycart' );
+		$out   = array(
+			'flat'       => array(
+				'add'    => __( 'Add a shipping method', 'wp-easycart' ),
+				'edit'   => __( 'Edit shipping method', 'wp-easycart' ),
+				'save'   => __( 'Add method', 'wp-easycart' ),
+				'fields' => array(
+					array(
+						'name'        => 'label',
+						'kind'        => 'text',
+						'label'       => __( 'Method name', 'wp-easycart' ),
+						'hint'        => __( 'What shoppers see at checkout.', 'wp-easycart' ),
+						'placeholder' => __( 'e.g. Standard delivery', 'wp-easycart' ),
+						'required'    => true,
+					),
+					array_merge( $rate, array( 'hint' => __( 'What the shopper pays for this method.', 'wp-easycart' ) ) ),
+					array(
+						'name'        => 'free_at',
+						'kind'        => 'money',
+						'label'       => __( 'Free shipping at', 'wp-easycart' ),
+						'hint'        => __( 'The method becomes free once the cart total reaches this amount. Leave it empty to always charge the rate.', 'wp-easycart' ),
+						'placeholder' => __( 'Never', 'wp-easycart' ),
+						'optional'    => true,
+					),
+					array(
+						'name'  => 'order',
+						'kind'  => 'int',
+						'label' => __( 'Position', 'wp-easycart' ),
+						'hint'  => __( 'Methods are listed from the lowest number up. You can also drag them into order in the list.', 'wp-easycart' ),
+					),
+					array_merge( $zone, array( 'hint' => __( 'Only addresses in this zone are offered this method.', 'wp-easycart' ) ) ),
+				),
+			),
+			'price'      => array(
+				'add'    => __( 'Add a cart total rate', 'wp-easycart' ),
+				'edit'   => __( 'Edit cart total rate', 'wp-easycart' ),
+				'fields' => array(
+					array(
+						'name'        => 'trigger',
+						'kind'        => 'money',
+						'label'       => __( 'Cart total from', 'wp-easycart' ),
+						'hint'        => $from,
+						'placeholder' => self::money( 0 ),
+					),
+					$rate,
+					$zone,
+				),
+			),
+			'weight'     => array(
+				'add'    => __( 'Add a weight rate', 'wp-easycart' ),
+				'edit'   => __( 'Edit weight rate', 'wp-easycart' ),
+				'fields' => array(
+					array(
+						'name'        => 'trigger',
+						'kind'        => 'weight',
+						'label'       => __( 'Order weight from', 'wp-easycart' ),
+						'hint'        => __( 'Applies from this weight until a row with a higher weight takes over. In the unit your products are weighed in.', 'wp-easycart' ),
+						'placeholder' => '0',
+						'unit'        => self::weight_unit(),
+					),
+					$rate,
+					$zone,
+				),
+			),
+			'quantity'   => array(
+				'add'    => __( 'Add a quantity rate', 'wp-easycart' ),
+				'edit'   => __( 'Edit quantity rate', 'wp-easycart' ),
+				'fields' => array(
+					array(
+						'name'        => 'trigger',
+						'kind'        => 'int',
+						'label'       => __( 'Items in the cart from', 'wp-easycart' ),
+						'hint'        => __( 'Applies from this many items until a row with a higher count takes over.', 'wp-easycart' ),
+						'placeholder' => '0',
+					),
+					$rate,
+					$zone,
+				),
+			),
+			'percentage' => array(
+				'add'    => __( 'Add a percentage rate', 'wp-easycart' ),
+				'edit'   => __( 'Edit percentage rate', 'wp-easycart' ),
+				'fields' => array(
+					array(
+						'name'        => 'trigger',
+						'kind'        => 'money',
+						'label'       => __( 'Cart total from', 'wp-easycart' ),
+						'hint'        => $from,
+						'placeholder' => self::money( 0 ),
+					),
+					array(
+						'name'        => 'rate',
+						'kind'        => 'percent',
+						'label'       => __( 'Percent of the cart total', 'wp-easycart' ),
+						'hint'        => __( 'Shipping costs this share of the cart total.', 'wp-easycart' ),
+						'placeholder' => '0',
+					),
+					$zone,
+				),
+			),
+		);
+		foreach ( $out as $type => $def ) {
+			$out[ $type ]['hint']  = $types[ $type ]['title'];
+			$out[ $type ]['badge'] = self::type_badge( $type );
+			if ( ! isset( $def['save'] ) ) {
+				$out[ $type ]['save'] = __( 'Add rate', 'wp-easycart' );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * The zones for the drawer's picker, in order: array( array( id, name ) ).
+	 *
+	 * @since 6.0.2
+	 * @return array
+	 */
+	public static function zone_options() {
+		$out = array();
+		foreach ( self::zones() as $zone_id => $zone_name ) {
+			$out[] = array( (int) $zone_id, (string) $zone_name );
+		}
+		return $out;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Render: locked live rates                                           */
+	/* ------------------------------------------------------------------ */
 
 	/**
 	 * html row inside the locked live-rates section: says what PRO adds and shows
@@ -555,42 +1221,40 @@ class wp_easycart_admin_shipping_rates_v2 {
 		if ( self::pro_on() ) {
 			return;
 		}
-		$symbol = self::symbol();
 		$mock = array(
-			array( 'UPS', 'Ground', __( 'UPS Ground', 'wp-easycart' ), '', '75.00' ),
-			array( 'USPS', 'Priority Mail', __( 'Priority Mail ( 1–3 days )', 'wp-easycart' ), '', '' ),
-			array( 'FedEx', '2Day', __( 'FedEx 2Day', 'wp-easycart' ), '24.00', '' ),
+			array( 'ups', __( 'UPS Ground', 'wp-easycart' ), 'UPS Ground', __( 'Carrier rate', 'wp-easycart' ), self::money_display( 75 ) ),
+			array( 'usps', __( 'Priority Mail ( 1–3 days )', 'wp-easycart' ), 'USPS Priority Mail', __( 'Carrier rate', 'wp-easycart' ), __( 'Never', 'wp-easycart' ) ),
+			array( 'fedex', __( 'FedEx 2Day', 'wp-easycart' ), 'FedEx 2Day', self::money_display( 24 ), __( 'Never', 'wp-easycart' ) ),
 		);
+		$rows = array();
+		foreach ( $mock as $m ) {
+			$rows[] = array(
+				'id'    => 0,
+				'type'  => 'mock',
+				'badge' => self::carrier_badge( $m[0] ),
+				'title' => $m[1],
+				'sub'   => $m[2],
+				'facts' => array(
+					array( __( 'Price', 'wp-easycart' ), $m[3], false ),
+					array( __( 'Free shipping at', 'wp-easycart' ), $m[4], __( 'Never', 'wp-easycart' ) === $m[4] ),
+					array( __( 'Zone', 'wp-easycart' ), __( 'Any destination', 'wp-easycart' ), false ),
+				),
+			);
+		}
 		?>
 		<p class="ecst-row-desc"><?php esc_html_e( 'Quote real rates from Australia Post, Canada Post, DHL, FedEx, UPS or USPS at checkout. Choose which services shoppers see, rename them, fix a price instead of the carrier’s, add free-shipping thresholds and drag them into order.', 'wp-easycart' ); ?></p>
-		<div class="ecsr ecsr-live ecsr-mock" aria-hidden="true">
-			<div class="ecsr-live-list">
-				<div class="ecsr-lrow ecsr-lhead">
-					<span class="ecsr-lc-grip"></span>
-					<span class="ecsr-lc-carrier"><?php esc_html_e( 'Carrier', 'wp-easycart' ); ?></span>
-					<span class="ecsr-lc-service"><?php esc_html_e( 'Service', 'wp-easycart' ); ?></span>
-					<span class="ecsr-lc-label"><?php esc_html_e( 'Shown as', 'wp-easycart' ); ?></span>
-					<span class="ecsr-lc-override"><?php esc_html_e( 'Fixed price', 'wp-easycart' ); ?></span>
-					<span class="ecsr-lc-free"><?php esc_html_e( 'Free shipping at', 'wp-easycart' ); ?></span>
-					<span class="ecsr-lc-zone"><?php esc_html_e( 'Zone', 'wp-easycart' ); ?></span>
-				</div>
-				<div class="ecsr-live-body">
-					<?php foreach ( $mock as $m ) : ?>
-						<div class="ecsr-row ecsr-lrow">
-							<span class="ecsr-lc ecsr-lc-grip"><span class="ecsr-grip">⋮⋮</span></span>
-							<div class="ecsr-lc ecsr-lc-carrier" data-label="<?php esc_attr_e( 'Carrier', 'wp-easycart' ); ?>"><select class="ecv2-select" disabled><option><?php echo esc_html( $m[0] ); ?></option></select></div>
-							<div class="ecsr-lc ecsr-lc-service" data-label="<?php esc_attr_e( 'Service', 'wp-easycart' ); ?>"><select class="ecv2-select" disabled><option><?php echo esc_html( $m[1] ); ?></option></select></div>
-							<div class="ecsr-lc ecsr-lc-label" data-label="<?php esc_attr_e( 'Shown as', 'wp-easycart' ); ?>"><input type="text" class="ecv2-input" value="<?php echo esc_attr( $m[2] ); ?>" disabled /></div>
-							<div class="ecsr-lmore">
-								<span class="ecsr-lc ecsr-lc-override"><span class="ecsr-llabel"><?php esc_html_e( 'Fixed price', 'wp-easycart' ); ?></span><span class="ecsr-in-wrap has-prefix"><span class="ecsr-affix"><?php echo esc_html( $symbol ); ?></span><input type="text" class="ecv2-input" value="<?php echo esc_attr( $m[3] ); ?>" placeholder="<?php esc_attr_e( 'Carrier rate', 'wp-easycart' ); ?>" disabled /></span></span>
-								<span class="ecsr-lc ecsr-lc-free"><span class="ecsr-llabel"><?php esc_html_e( 'Free shipping at', 'wp-easycart' ); ?></span><span class="ecsr-in-wrap has-prefix"><span class="ecsr-affix"><?php echo esc_html( $symbol ); ?></span><input type="text" class="ecv2-input" value="<?php echo esc_attr( $m[4] ); ?>" placeholder="<?php esc_attr_e( 'Never', 'wp-easycart' ); ?>" disabled /></span></span>
-								<span class="ecsr-lc ecsr-lc-zone"><span class="ecsr-llabel"><?php esc_html_e( 'Zone', 'wp-easycart' ); ?></span><select class="ecv2-select" disabled><option><?php esc_html_e( 'Any destination', 'wp-easycart' ); ?></option></select></span>
-							</div>
-							<span class="ecsr-lc ecsr-lc-del"><span class="ecsr-del">×</span></span>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</div>
+		<div class="ecsr ecsr-live ecsr-mock" aria-hidden="true" inert>
+			<?php
+			self::print_list(
+				array(
+					'type'     => 'mock',
+					'label'    => __( 'Live carrier rates', 'wp-easycart' ),
+					'head'     => array( __( 'Service', 'wp-easycart' ), array( __( 'Price', 'wp-easycart' ), __( 'Free shipping at', 'wp-easycart' ), __( 'Zone', 'wp-easycart' ) ) ),
+					'rows'     => $rows,
+					'sortable' => true,
+				)
+			);
+			?>
 		</div>
 		<?php
 	}
@@ -607,29 +1271,54 @@ class wp_easycart_admin_shipping_rates_v2 {
 		$css = plugins_url( '/admin/css/', EC_PLUGIN_DIRECTORY . '/wpeasycart.php' );
 		$js  = plugins_url( '/admin/js/', EC_PLUGIN_DIRECTORY . '/wpeasycart.php' );
 		wp_enqueue_style( 'wp_easycart_admin_settings_shipping_rates_v2_css', $css . 'settings-shipping-rates-v2.css', array( 'wp_easycart_admin_settings_page_v2_css' ), EC_CURRENT_VERSION );
-		wp_enqueue_script( 'wp_easycart_admin_settings_shipping_rates_v2_js', $js . 'settings-shipping-rates-v2.js', array( 'jquery', 'wp_easycart_admin_settings_page_v2_js' ), EC_CURRENT_VERSION, true );
-		wp_localize_script( 'wp_easycart_admin_settings_shipping_rates_v2_js', 'ecsr_vars', array(
-			'ajax'   => admin_url( 'admin-ajax.php' ),
-			'nonce'  => class_exists( 'wp_easycart_admin_settings_registry' ) ? wp_create_nonce( wp_easycart_admin_settings_registry::NONCE ) : '',
-			'method' => self::method(),
-			'i18n'   => array(
-				'saving'        => __( 'Saving…', 'wp-easycart' ),
-				'saved'         => __( 'Saved', 'wp-easycart' ),
-				'failed'        => __( 'Could not save', 'wp-easycart' ),
-				'added'         => __( 'Rate added.', 'wp-easycart' ),
-				'deleted'       => __( 'Rate deleted.', 'wp-easycart' ),
-				'not_in_use'    => __( 'Not in use', 'wp-easycart' ),
-				'show'          => __( 'Show', 'wp-easycart' ),
-				'hide'          => __( 'Hide', 'wp-easycart' ),
-				'label_needed'  => __( 'Give the method a name first.', 'wp-easycart' ),
-				'number_needed' => __( 'Enter a number.', 'wp-easycart' ),
-				'confirm_title' => __( 'Delete this rate?', 'wp-easycart' ),
-				'confirm_text'  => __( 'Shoppers will no longer be offered it. This cannot be undone.', 'wp-easycart' ),
-				/* translators: %s: shipping method name, e.g. "By weight". */
-				'method_saved'  => __( 'Shipping method changed to %s.', 'wp-easycart' ),
-				'method_failed' => __( 'The shipping method could not be changed.', 'wp-easycart' ),
-			),
-		) );
+		wp_enqueue_script( 'wp_easycart_admin_settings_shipping_rates_v2_js', $js . 'settings-shipping-rates-v2.js', array( 'jquery', 'jquery-ui-sortable', 'wp_easycart_admin_settings_page_v2_js' ), EC_CURRENT_VERSION, true );
+		$zones_url = class_exists( 'wp_easycart_admin_settings_registry' ) ? wp_easycart_admin_settings_registry::page_url( 'shipping-settings' ) . '#ecst-sec-zones' : admin_url( 'admin.php?page=wp-easycart-settings&subpage=shipping-settings' );
+		wp_localize_script(
+			'wp_easycart_admin_settings_shipping_rates_v2_js',
+			'ecsr_vars',
+			array(
+				'ajax'         => admin_url( 'admin-ajax.php' ),
+				'nonce'        => class_exists( 'wp_easycart_admin_settings_registry' ) ? wp_create_nonce( wp_easycart_admin_settings_registry::NONCE ) : '',
+				'method'       => self::method(),
+				'symbol'       => self::symbol(),
+				'symbol_first' => self::symbol_first() ? 1 : 0,
+				'weight_unit'  => self::weight_unit(),
+				'zones'        => self::zone_options(),
+				'zones_url'    => $zones_url,
+				'types'        => self::drawer_types(),
+				'i18n'         => array(
+					'saving'        => __( 'Saving…', 'wp-easycart' ),
+					'saved'         => __( 'Saved', 'wp-easycart' ),
+					'failed'        => __( 'Could not save', 'wp-easycart' ),
+					'added'         => __( 'Rate added.', 'wp-easycart' ),
+					'deleted'       => __( 'Rate deleted.', 'wp-easycart' ),
+					'not_in_use'    => __( 'Not in use', 'wp-easycart' ),
+					'show'          => __( 'Show', 'wp-easycart' ),
+					'hide'          => __( 'Hide', 'wp-easycart' ),
+					'label_needed'  => __( 'Give the method a name first.', 'wp-easycart' ),
+					'number_needed' => __( 'Enter a number of 0 or more.', 'wp-easycart' ),
+					'required'      => __( 'This is required.', 'wp-easycart' ),
+					'confirm_title' => __( 'Delete this rate?', 'wp-easycart' ),
+					'confirm_text'  => __( 'Shoppers will no longer be offered it. This cannot be undone.', 'wp-easycart' ),
+					/* translators: %s: shipping method name, e.g. "By weight". */
+					'method_saved'  => __( 'Shipping method changed to %s.', 'wp-easycart' ),
+					'method_failed' => __( 'The shipping method could not be changed.', 'wp-easycart' ),
+					'close'         => __( 'Close', 'wp-easycart' ),
+					'cancel'        => __( 'Cancel', 'wp-easycart' ),
+					'save'          => __( 'Save changes', 'wp-easycart' ),
+					'delete'        => __( 'Delete', 'wp-easycart' ),
+					'optional'      => __( 'Optional', 'wp-easycart' ),
+					'zone'          => __( 'Zone', 'wp-easycart' ),
+					'manage_zones'  => __( 'Manage zones', 'wp-easycart' ),
+					'discard_title' => __( 'Discard your changes?', 'wp-easycart' ),
+					'discard_text'  => __( 'What you changed in this panel has not been saved.', 'wp-easycart' ),
+					'discard'       => __( 'Discard', 'wp-easycart' ),
+					'order_saved'   => __( 'Order saved.', 'wp-easycart' ),
+					/* translators: 1: new position, 2: number of rows. */
+					'moved'         => __( 'Moved to position %1$d of %2$d.', 'wp-easycart' ),
+				),
+			)
+		);
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -716,7 +1405,10 @@ class wp_easycart_admin_shipping_rates_v2 {
 		return $type;
 	}
 
-	/** POST type + row values → inserts a row of that type. Ports the classic add_shipping_*() methods. */
+	/**
+	 * POST type + row values → inserts a row of that type. Ports the classic add_shipping_*() methods.
+	 * 6.0.2: the answer also carries the new row's markup ( html ).
+	 */
 	public static function ajax_add() {
 		ecv2_settings_guard();
 		global $wpdb;
@@ -745,14 +1437,19 @@ class wp_easycart_admin_shipping_rates_v2 {
 		}
 		self::flush();
 		do_action( 'wpeasycart_shipping_rate_added', $id );
+		$row = self::row_data( $type, self::rate( $type, $id ) );
 		wp_send_json_success( array(
 			'id'      => $id,
-			'row'     => self::row_data( $type, self::rate( $type, $id ) ),
+			'row'     => $row,
+			'html'    => self::row_html( $type, $row ),
 			'message' => __( 'Rate added.', 'wp-easycart' ),
 		) );
 	}
 
-	/** POST type, id + row values → updates that row. Ports the classic update_shipping_*_triggers() methods, one row at a time. */
+	/**
+	 * POST type, id + row values → updates that row. Ports the classic update_shipping_*_triggers() methods, one row
+	 * at a time. 6.0.2: the answer also carries the row's markup ( html ).
+	 */
 	public static function ajax_update() {
 		ecv2_settings_guard();
 		global $wpdb;
@@ -786,9 +1483,11 @@ class wp_easycart_admin_shipping_rates_v2 {
 			) );
 		}
 		self::flush();
+		$row = self::row_data( $type, self::rate( $type, $id ) );
 		wp_send_json_success( array(
 			'id'      => $id,
-			'row'     => self::row_data( $type, self::rate( $type, $id ) ),
+			'row'     => $row,
+			'html'    => self::row_html( $type, $row ),
 			'message' => __( 'Saved.', 'wp-easycart' ),
 		) );
 	}

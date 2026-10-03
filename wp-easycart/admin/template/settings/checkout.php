@@ -16,6 +16,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! function_exists( 'ecst_checkout_render_fields_link' ) ) {
+	/** 6.0.2: where the store's own checkout questions are added ( Settings › Checkout fields ). */
+	function ecst_checkout_render_fields_link() {
+		$url = function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=wp-easycart-settings&subpage=checkout-fields' ) : '';
+		echo '<p class="ecst-moved">' . esc_html__( 'Need to ask something else, such as a delivery date, a tax ID or how the shopper heard about you? Add your own questions on Settings › Checkout fields.', 'wp-easycart' ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Open Checkout fields', 'wp-easycart' ) . ' &rarr;</a></p>';
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_settings_onepage_warning' ) ) {
+	/**
+	 * One-page checkout switched on while the store takes a payment method it cannot handle yet: the store keeps the
+	 * classic checkout ( wp_easycart_onepage_incompatible() ), and this says so.
+	 *
+	 * @since 6.0.2
+	 * @param mixed $value New value.
+	 * @return string Warning, or ''.
+	 */
+	function wp_easycart_settings_onepage_warning( $value ) {
+		$names = ( $value && function_exists( 'wp_easycart_onepage_incompatible' ) ) ? wp_easycart_onepage_incompatible() : array();
+		if ( ! $names ) {
+			return '';
+		}
+		/* translators: %s: payment method names. */
+		return sprintf( __( '%s cannot take payments on the one-page checkout yet, so your store keeps the classic checkout until you use another payment method.', 'wp-easycart' ), implode( ', ', $names ) );
+	}
+}
+
 if ( ! function_exists( 'ecv2_checkout_link_target_label' ) ) {
 	/**
 	 * Title and type hint for a page or post a legal link points at.
@@ -185,7 +212,8 @@ return array(
 	'slug'        => 'checkout',
 	'title'       => __( 'Checkout', 'wp-easycart' ),
 	'description' => __( 'What shoppers see in the cart, what the checkout form asks for, order numbers and statuses, stock alerts and pickup scheduling.', 'wp-easycart' ),
-	'group'       => 'store-setup',
+	'group'       => 'cart-checkout',
+	'order'       => 10,
 	'icon'        => 'cart',
 	'docs'        => array( 'settings', 'checkout', 'settings' ),
 	'legacy'      => array( 'checkout' ),
@@ -360,12 +388,13 @@ return array(
 				),
 				'ec_option_onepage_checkout' => array(
 					'type'     => 'toggle',
-					'label'    => __( 'One-page checkout (beta)', 'wp-easycart' ),
-					'desc'     => __( 'Shows the whole checkout on a single page without reloads. Beta: may not work with every payment or shipping feature.', 'wp-easycart' ),
+					'label'    => __( 'One-page checkout', 'wp-easycart' ),
+					'desc'     => __( 'Shows the whole checkout on a single page without reloads.', 'wp-easycart' ),
+					'validate' => 'wp_easycart_settings_onepage_warning',
 					'default'  => 0,
 					'advanced' => true,
 					'pro'      => true,
-					'keywords' => array( 'single page', 'one page', 'no reload', 'beta' ),
+					'keywords' => array( 'single page', 'one page', 'no reload' ),
 					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'One Page Checkout (Beta)', 'note' => 'hidden in the classic admin ( PRO hook disabled ), saveable by key' ),
 				),
 				'ec_option_onepage_checkout_tabbed' => array(
@@ -407,6 +436,7 @@ return array(
 		'checkout-form' => array(
 			'title'  => __( 'Checkout form', 'wp-easycart' ),
 			'hint'   => __( 'Which details shoppers are asked for', 'wp-easycart' ),
+			'render' => 'ecst_checkout_render_fields_link', /* 6.0.2 */
 			'fields' => array(
 				'ec_option_use_contact_name' => array(
 					'type'     => 'toggle',

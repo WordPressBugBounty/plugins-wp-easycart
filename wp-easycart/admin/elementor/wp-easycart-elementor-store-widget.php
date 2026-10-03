@@ -210,7 +210,15 @@ if ( $wpec_elem_title ) {
 	$heading_html = $wpec_elem_title;
 
 	if ( $wpec_elem_title_link && isset( $wpec_elem_title_link['url'] ) && $wpec_elem_title_link['url'] ) {
-		$heading_html = sprintf( '<a href="%1$s"' . ( $wpec_elem_title_link['is_external'] ? ' target="nofollow"' : '' ) . ( $wpec_elem_title_link['nofollow'] ? ' rel="_blank"' : '' ) . '>%2$s</a>', esc_url( $wpec_elem_title_link['url'] ), $heading_html );
+		/* 6.0.2: "Open in new window" printed target="nofollow" and "Add nofollow" printed rel="_blank". */
+		$wpec_elem_title_rel = array();
+		if ( ! empty( $wpec_elem_title_link['nofollow'] ) ) {
+			$wpec_elem_title_rel[] = 'nofollow';
+		}
+		if ( ! empty( $wpec_elem_title_link['is_external'] ) ) {
+			$wpec_elem_title_rel[] = 'noopener';
+		}
+		$heading_html = sprintf( '<a href="%1$s"' . ( ! empty( $wpec_elem_title_link['is_external'] ) ? ' target="_blank"' : '' ) . ( count( $wpec_elem_title_rel ) ? ' rel="' . implode( ' ', $wpec_elem_title_rel ) . '"' : '' ) . '>%2$s</a>', esc_url( $wpec_elem_title_link['url'] ), $heading_html );
 	}
 
 	$heading_html = '<h2 class="heading-title">' . $heading_html . '</h2>';
@@ -374,7 +382,10 @@ if ( '' !== $image_hover_effect ) {
 
 $more_atts['paging'] = ( 'yes' == $paging ) ? 1 : 0;
 $more_atts['sorting'] = ( 'yes' == $sorting ) ? 1 : 0;
-$more_atts['sorting_default'] = $sorting_default;
+/* 6.0.2: with sorting off this setting is inactive ( null ) and reached the shortcode as the string "null". That already
+ * sorted in the admin order, the same as '0', which is kept ( a string: ec_filter::add_filter_atts() ignores an int 0 on
+ * PHP 7 and would fall back to the store's default sort ); on PHP 8 it also added &filternum=null to every paging link. */
+$more_atts['sorting_default'] = ( null === $sorting_default ) ? '0' : $sorting_default;
 $more_atts['sidebar'] = ( 'yes' == $sidebar ) ? 1 : 0;
 $more_atts['sidebar_position'] = $sidebar_position;
 $more_atts['sidebar_filter_clear'] = ( 'yes' == $sidebar_filter_clear ) ? 1 : 0;
@@ -394,11 +405,8 @@ if ( $spacing ) {
 	$more_atts['spacing'] = ( is_array( $spacing ) ) ? esc_attr( $spacing['size'] ) : esc_attr( $spacing );
 }
 
-$extra_atts = ' ';
-foreach ( $more_atts as $key => $value ) {
-	$extra_atts .= $key . '=' . json_encode( $value ) . ' ';
-}
+$extra_atts = wp_easycart_elementor_shortcode_atts( $more_atts );
 
 $extra_atts . "'";
-echo do_shortcode( '[ec_store ' . $extra_atts . ']' );
+echo wp_easycart_elementor_do_shortcode( '[ec_store ' . $extra_atts . ']' );
 echo '</div>';

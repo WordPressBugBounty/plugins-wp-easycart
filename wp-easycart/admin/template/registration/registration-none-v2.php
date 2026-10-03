@@ -17,8 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 $ecreg_status    = class_exists( 'wp_easycart_admin_pro_gate' ) ? wp_easycart_admin_pro_gate::pro_status() : array( 'installed' => false, 'active' => false, 'version' => '' );
 $ecreg_installed = ! empty( $ecreg_status['installed'] );
 $ecreg_active    = ! empty( $ecreg_status['active'] );
-$ecreg_trial_url = self_admin_url( 'admin.php?page=wp-easycart-registration&ec_trial=start' );
-$ecreg_install   = self_admin_url( 'admin.php?page=wp-easycart-registration&ec_install=pro' );
+$ecreg_trial_url = wp_easycart_admin()->pro_install_url( 'trial' );
+$ecreg_install   = wp_easycart_admin()->pro_install_url( 'install' );
 $ecreg_activate  = wp_easycart_admin()->get_pro_activation_link();
 $ecreg_pricing   = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::plan_url( 'pro', 'default' ) : 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
@@ -31,7 +31,7 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 			<h2 class="ecv2-page-title"><?php esc_html_e( 'Registration & activation', 'wp-easycart' ); ?></h2>
 		</div>
 		<div class="ecv2-page-header-right">
-			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'none' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <?php esc_html_e( 'Help', 'wp-easycart' ); ?></a>
+			<a href="<?php echo esc_url( wp_easycart_admin()->helpsystem->print_docs_url( 'settings', 'registration', 'none' ) ); ?>" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label"><?php esc_html_e( 'Help', 'wp-easycart' ); ?></span></a>
 		</div>
 	</div>
 

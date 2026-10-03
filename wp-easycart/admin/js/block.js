@@ -38,144 +38,269 @@ jQuery( document ).ready( function( ){
 			{ value: 'length', label: wp_easycart_admin_block_language['length'] },
 		];
 		
+		/* 6.0.2: the save every block was made with until 6.0.2 ( exact copy, kept for deprecated below ). It read two
+		 * attributes that never existed ( membership_product, store_table_categories ), so Membership blocks said
+		 * productid="undefined" and Store Table blocks categoryid="undefined". */
+		function WPEasyCartShortcodeSaveV1( props ) {
+			var attributes = props.attributes;
+			if( attributes.shortcode_type == "ec_store" ){
+				var storeShortcode = '[ec_store';
+				
+				if( attributes.store_category != '' )
+					storeShortcode += ' groupid="' + attributes.store_category + '"';
+				else if( attributes.store_manufacturer != '' )
+					storeShortcode += ' manufacturerid="' + attributes.store_manufacturer + '"';
+				else if( attributes.store_product != '' )
+					storeShortcode += ' modelnumber="' + attributes.store_product + '"';
+				else if( attributes.store_menulevel3 != '' )
+					storeShortcode += ' subsubmenuid="' + attributes.store_menulevel3 + '"';
+				else if( attributes.store_menulevel2 != '' )
+					storeShortcode += ' submenuid="' + attributes.store_menulevel2 + '"';
+				else if( attributes.store_menulevel1 != '' )
+					storeShortcode += ' menuid="' + attributes.store_menulevel1 + '"';
+				
+				return storeShortcode + ']';
+				
+			}else if( attributes.shortcode_type == "ec_account" ){
+				var accountShortcode = '[ec_account';
+				
+				if( attributes.account_redirect != '' )
+					accountShortcode += ' redirect="' + attributes.account_redirect + '"';
+					
+				return accountShortcode + ']';
+				
+			}else if( attributes.shortcode_type == "ec_categories" ){
+				return '[ec_categories groupid="' + attributes.categories_category + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_category_view" ){
+				return '[ec_category_view groupid="' + attributes.category_view_category + '" columns="' + attributes.category_view_columns + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_store_table" ){
+				return '[ec_store_table productid="' + attributes.store_table_products + '" menuid="' + attributes.store_table_menulevel1 + '" submenuid="' + attributes.store_table_menulevel2 + '" subsubmenuid="' + attributes.store_table_menulevel3 + '" categoryid="' + attributes.store_table_categories + '" labels="' + attributes.store_table_label1 + ',' + attributes.store_table_label2 + ',' + attributes.store_table_label3 + ',' + attributes.store_table_label4 + ',' + attributes.store_table_label5 + '" columns="' + attributes.store_table_column1 + ',' + attributes.store_table_column2 + ',' + attributes.store_table_column3 + ',' + attributes.store_table_column4 + ',' + attributes.store_table_column5 + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_product" ){
+				return '[ec_product productid="' + attributes.product_product + '" style="' + attributes.product_display_type + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_addtocart" ){
+				return '[ec_addtocart productid="' + attributes.addtocart_product + '" background_add="' + attributes.addtocart_background_add + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_cartdisplay" ){
+				return '[ec_cartdisplay]';
+				
+			}else if( attributes.shortcode_type == "ec_membership" ){
+				return '[ec_membership productid="' + attributes.membership_product + '"]MEMBER CONTENT HERE[/ec_membership][ec_membership_alt productid="' + attributes.membership_product + '"]NON-MEMBER NOTICE HERE[/ec_membership_alt]';
+			
+			}else{
+				return "["+attributes.shortcode_type+"]";
+			}
+		}
+
+		function WPEasyCartShortcodeSave( props ) {
+			var attributes = props.attributes;
+			if( attributes.shortcode_type == "ec_store" ){
+				var storeShortcode = '[ec_store';
+				
+				if( attributes.store_category != '' )
+					storeShortcode += ' groupid="' + attributes.store_category + '"';
+				else if( attributes.store_manufacturer != '' )
+					storeShortcode += ' manufacturerid="' + attributes.store_manufacturer + '"';
+				else if( attributes.store_product != '' )
+					storeShortcode += ' modelnumber="' + attributes.store_product + '"';
+				else if( attributes.store_menulevel3 != '' )
+					storeShortcode += ' subsubmenuid="' + attributes.store_menulevel3 + '"';
+				else if( attributes.store_menulevel2 != '' )
+					storeShortcode += ' submenuid="' + attributes.store_menulevel2 + '"';
+				else if( attributes.store_menulevel1 != '' )
+					storeShortcode += ' menuid="' + attributes.store_menulevel1 + '"';
+				
+				return storeShortcode + ']';
+				
+			}else if( attributes.shortcode_type == "ec_account" ){
+				var accountShortcode = '[ec_account';
+				
+				if( attributes.account_redirect != '' )
+					accountShortcode += ' redirect="' + attributes.account_redirect + '"';
+					
+				return accountShortcode + ']';
+				
+			}else if( attributes.shortcode_type == "ec_categories" ){
+				return '[ec_categories groupid="' + attributes.categories_category + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_category_view" ){
+				return '[ec_category_view groupid="' + attributes.category_view_category + '" columns="' + attributes.category_view_columns + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_store_table" ){
+				return '[ec_store_table productid="' + attributes.store_table_products + '" menuid="' + attributes.store_table_menulevel1 + '" submenuid="' + attributes.store_table_menulevel2 + '" subsubmenuid="' + attributes.store_table_menulevel3 + '" categoryid="' + attributes.store_table_category + '" labels="' + attributes.store_table_label1 + ',' + attributes.store_table_label2 + ',' + attributes.store_table_label3 + ',' + attributes.store_table_label4 + ',' + attributes.store_table_label5 + '" columns="' + attributes.store_table_column1 + ',' + attributes.store_table_column2 + ',' + attributes.store_table_column3 + ',' + attributes.store_table_column4 + ',' + attributes.store_table_column5 + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_product" ){
+				return '[ec_product productid="' + attributes.product_product + '" style="' + attributes.product_display_type + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_addtocart" ){
+				return '[ec_addtocart productid="' + attributes.addtocart_product + '" background_add="' + attributes.addtocart_background_add + '"]';
+				
+			}else if( attributes.shortcode_type == "ec_cartdisplay" ){
+				return '[ec_cartdisplay]';
+				
+			}else if( attributes.shortcode_type == "ec_membership" ){
+				var membershipAttributes = ' productid="' + attributes.membership_products + '"';
+				if ( attributes.membership_roles && String( attributes.membership_roles ) !== '' ) {
+					membershipAttributes += ' userroles="' + attributes.membership_roles + '"';
+				}
+				return '[ec_membership' + membershipAttributes + ']MEMBER CONTENT HERE[/ec_membership][ec_membership_alt' + membershipAttributes + ']NON-MEMBER NOTICE HERE[/ec_membership_alt]';
+			
+			}else{
+				return "["+attributes.shortcode_type+"]";
+			}
+		}
+
+		/* 6.0.2: the attributes every saved block was made with ( the deprecated save below parses with them ). */
+		var WPEasyCartShortcodeAttributesV1 = {
+			shortcode_type: {
+				type: 'select',
+				default: 'ec_store'
+			},
+			store_filter_type: {
+				typle: 'select',
+				default: ''
+			},
+			store_category: {
+				type: 'select',
+				default: '',
+			},
+			store_manufacturer: {
+				type: 'select',
+				default: '',
+			},
+			store_menulevel1: {
+				type: 'select',
+				default: '',
+			},
+			store_menulevel2: {
+				type: 'select',
+				default: '',
+			},
+			store_menulevel3: {
+				type: 'select',
+				default: '',
+			},
+			store_product: {
+				type: 'select',
+				default: '',
+			},
+			account_redirect: {
+				type: 'url',
+				default: '',
+			},
+			categories_category: {
+				type: 'select',
+				default: '0',
+			},
+			category_view_category: {
+				type: 'select',
+				default: '0',
+			},
+			category_view_columns: {
+				type: 'select',
+				default: '3',
+			},
+			store_table_products: {
+				type: 'select',
+				default: '',
+			},
+			store_table_menulevel1: {
+				type: 'select',
+				default: '',
+			},
+			store_table_menulevel2: {
+				type: 'select',
+				default: '',
+			},
+			store_table_menulevel3: {
+				type: 'select',
+				default: '',
+			},
+			store_table_category: {
+				type: 'select',
+				default: '',
+			},
+			store_table_label1: {
+				type: 'string',
+				default: '',
+			},
+			store_table_column1: {
+				type: 'select',
+				default: '',
+			},
+			store_table_label2: {
+				type: 'string',
+				default: '',
+			},
+			store_table_column2: {
+				type: 'select',
+				default: '',
+			},
+			store_table_label3: {
+				type: 'string',
+				default: '',
+			},
+			store_table_column3: {
+				type: 'select',
+				default: '',
+			},
+			store_table_label4: {
+				type: 'string',
+				default: '',
+			},
+			store_table_column4: {
+				type: 'select',
+				default: '',
+			},
+			store_table_label5: {
+				type: 'string',
+				default: '',
+			},
+			store_table_column5: {
+				type: 'select',
+				default: '',
+			},
+			store_table_link_label: {
+				type: 'string',
+				default: '',
+			},
+			product_product: {
+				type: 'select',
+				default: '',
+			},
+			product_display_type: {
+				type: 'select',
+				default: '',
+			},
+			addtocart_product: {
+				type: 'select',
+				default: '',
+			},
+			addtocart_background_add: {
+				type: 'select',
+				default: '',
+			},
+			membership_products: {
+				type: 'select',
+				default: '',
+			}
+		};
+		/* 6.0.2: membership_roles = the user roles that also get access ( [ec_membership userroles="..."] ). */
+		var WPEasyCartShortcodeAttributes = jQuery.extend( {}, WPEasyCartShortcodeAttributesV1, {
+			membership_roles: {
+				type: 'select',
+				default: '',
+			}
+		} );
+
 		blocks.registerBlockType('wp-easycart/shortcode', {
 			title: 'WP EasyCart', // The title of our block.
 			icon: 'cart', // Dashicon icon for our block
 			category: 'wp-easycart', // The category of the block.
-			attributes: { // Necessary for saving block content.
-				shortcode_type: {
-					type: 'select',
-					default: 'ec_store'
-				},
-				store_filter_type: {
-					typle: 'select',
-					default: ''
-				},
-				store_category: {
-					type: 'select',
-					default: '',
-				},
-				store_manufacturer: {
-					type: 'select',
-					default: '',
-				},
-				store_menulevel1: {
-					type: 'select',
-					default: '',
-				},
-				store_menulevel2: {
-					type: 'select',
-					default: '',
-				},
-				store_menulevel3: {
-					type: 'select',
-					default: '',
-				},
-				store_product: {
-					type: 'select',
-					default: '',
-				},
-				account_redirect: {
-					type: 'url',
-					default: '',
-				},
-				categories_category: {
-					type: 'select',
-					default: '0',
-				},
-				category_view_category: {
-					type: 'select',
-					default: '0',
-				},
-				category_view_columns: {
-					type: 'select',
-					default: '3',
-				},
-				store_table_products: {
-					type: 'select',
-					default: '',
-				},
-				store_table_menulevel1: {
-					type: 'select',
-					default: '',
-				},
-				store_table_menulevel2: {
-					type: 'select',
-					default: '',
-				},
-				store_table_menulevel3: {
-					type: 'select',
-					default: '',
-				},
-				store_table_category: {
-					type: 'select',
-					default: '',
-				},
-				store_table_label1: {
-					type: 'string',
-					default: '',
-				},
-				store_table_column1: {
-					type: 'select',
-					default: '',
-				},
-				store_table_label2: {
-					type: 'string',
-					default: '',
-				},
-				store_table_column2: {
-					type: 'select',
-					default: '',
-				},
-				store_table_label3: {
-					type: 'string',
-					default: '',
-				},
-				store_table_column3: {
-					type: 'select',
-					default: '',
-				},
-				store_table_label4: {
-					type: 'string',
-					default: '',
-				},
-				store_table_column4: {
-					type: 'select',
-					default: '',
-				},
-				store_table_label5: {
-					type: 'string',
-					default: '',
-				},
-				store_table_column5: {
-					type: 'select',
-					default: '',
-				},
-				store_table_link_label: {
-					type: 'string',
-					default: '',
-				},
-				product_product: {
-					type: 'select',
-					default: '',
-				},
-				product_display_type: {
-					type: 'select',
-					default: '',
-				},
-				addtocart_product: {
-					type: 'select',
-					default: '',
-				},
-				addtocart_background_add: {
-					type: 'select',
-					default: '',
-				},
-				membership_products: {
-					type: 'select',
-					default: '',
-				}
-			},
+			attributes: WPEasyCartShortcodeAttributes, // Necessary for saving block content.
 			edit: function( props ) {
                 var focus = props.isSelected;
 				var attributes = props.attributes;
@@ -370,25 +495,10 @@ jQuery( document ).ready( function( ){
 					props.setAttributes( { category_view_columns: changedVal } );
 				}
 				
-				function onChangeStoreTableProducts( e ){
-					var val = e.target.value;
-					
-					var start_arr = props.attributes.store_table_products;
-					console.log( start_arr );
-					if( !start_arr ){
-						start_arr = [];
-					}
-					if( start_arr.includes( val ) ){
-						var f_index = start_arr.indexOf( val );
-						if( f_index > -1 ){
-							start_arr.splice( f_index, 1 );
-						}
-						e.target.checked = false;
-					}else{
-						e.target.checked = true;
-						start_arr.push( val );
-					}
-					props.setAttributes({ store_table_products: start_arr });
+				function onChangeStoreTableProducts( changedVal ){
+					/* 6.0.2: the multiple SelectControl passes the chosen values and the TextControl its text; this read
+					 * an event ( e.target ) and threw, so no product could be picked. */
+					props.setAttributes( { store_table_products: changedVal } );
 				}
 				
 				function onChangeStoreTableMenulevel1( changedVal ){
@@ -404,7 +514,8 @@ jQuery( document ).ready( function( ){
 				}
 				
 				function onChangeStoreTableCategory( changedVal ){
-					props.setAttributes( { store_table_categories: changedVal } );
+					/* 6.0.2: the declared attribute ( store_table_categories was never saved, so the table said categoryid="undefined" ). */
+					props.setAttributes( { store_table_category: changedVal } );
 				}
 				
 				function onChangeStoreTableLabel1( changedVal ){
@@ -469,6 +580,10 @@ jQuery( document ).ready( function( ){
 				
 				function onChangeMembershipProducts( changedVal ){
 					props.setAttributes( { membership_products: changedVal } );
+				}
+
+				function onChangeMembershipRoles( changedVal ){
+					props.setAttributes( { membership_roles: changedVal } );
 				}
 				
 				function selected_shortcode_type( ){
@@ -857,7 +972,7 @@ jQuery( document ).ready( function( ){
 							className: ( ( attributes.shortcode_type != 'ec_store_table' ) ? 'hidden ' : '' ) + 'wp-easycart-store-table-shortcode wp-easycart-block-item',
 							type: 'string',
 							label: wp_easycart_admin_block_language['categories-to-display'],
-							value: attributes.store_table_categories,
+							value: attributes.store_table_category,
 							onChange: onChangeStoreTableCategory,
 							multiple: 'multiple',
 							options: wp_easycart_categories
@@ -869,7 +984,7 @@ jQuery( document ).ready( function( ){
 							className: ( ( attributes.shortcode_type != 'ec_store_table' ) ? 'hidden ' : '' ) + 'wp-easycart-store-table-shortcode wp-easycart-block-item',
 							tagName: 'input',
 							label: wp_easycart_admin_block_language['enter-category-ids'],
-							value: attributes.store_table_categories,
+							value: attributes.store_table_category,
 							onChange: onChangeStoreTableCategory
 						}
 					),
@@ -1080,62 +1195,30 @@ jQuery( document ).ready( function( ){
 							value: attributes.membership_products,
 							onChange: onChangeMembershipProducts
 						}
+					),
+					/* 6.0.2: user roles that also get access ( the shortcode's userroles ), saved only when some are chosen. */
+					focus && typeof wp_easycart_user_roles !== 'undefined' && wp_easycart_user_roles.length > 0 && el(
+						SelectControl,
+						{
+							className: ( ( attributes.shortcode_type != 'ec_membership' ) ? 'hidden ' : '' ) + 'wp-easycart-membership-shortcode wp-easycart-block-item',
+							type: 'string',
+							label: wp_easycart_admin_block_language['membership-roles'] || 'User roles with access',
+							value: attributes.membership_roles,
+							onChange: onChangeMembershipRoles,
+							multiple:'multiple',
+							options: wp_easycart_user_roles
+						}
 					)
 				];
 			},
-			save: function( props ) {
-				var attributes = props.attributes;
-				if( attributes.shortcode_type == "ec_store" ){
-					var storeShortcode = '[ec_store';
-					
-					if( attributes.store_category != '' )
-						storeShortcode += ' groupid="' + attributes.store_category + '"';
-					else if( attributes.store_manufacturer != '' )
-						storeShortcode += ' manufacturerid="' + attributes.store_manufacturer + '"';
-					else if( attributes.store_product != '' )
-						storeShortcode += ' modelnumber="' + attributes.store_product + '"';
-					else if( attributes.store_menulevel3 != '' )
-						storeShortcode += ' subsubmenuid="' + attributes.store_menulevel3 + '"';
-					else if( attributes.store_menulevel2 != '' )
-						storeShortcode += ' submenuid="' + attributes.store_menulevel2 + '"';
-					else if( attributes.store_menulevel1 != '' )
-						storeShortcode += ' menuid="' + attributes.store_menulevel1 + '"';
-					
-					return storeShortcode + ']';
-					
-				}else if( attributes.shortcode_type == "ec_account" ){
-					var accountShortcode = '[ec_account';
-					
-					if( attributes.account_redirect != '' )
-						accountShortcode += ' redirect="' + attributes.account_redirect + '"';
-						
-					return accountShortcode + ']';
-					
-				}else if( attributes.shortcode_type == "ec_categories" ){
-					return '[ec_categories groupid="' + attributes.categories_category + '"]';
-					
-				}else if( attributes.shortcode_type == "ec_category_view" ){
-					return '[ec_category_view groupid="' + attributes.category_view_category + '" columns="' + attributes.category_view_columns + '"]';
-					
-				}else if( attributes.shortcode_type == "ec_store_table" ){
-					return '[ec_store_table productid="' + attributes.store_table_products + '" menuid="' + attributes.store_table_menulevel1 + '" submenuid="' + attributes.store_table_menulevel2 + '" subsubmenuid="' + attributes.store_table_menulevel3 + '" categoryid="' + attributes.store_table_categories + '" labels="' + attributes.store_table_label1 + ',' + attributes.store_table_label2 + ',' + attributes.store_table_label3 + ',' + attributes.store_table_label4 + ',' + attributes.store_table_label5 + '" columns="' + attributes.store_table_column1 + ',' + attributes.store_table_column2 + ',' + attributes.store_table_column3 + ',' + attributes.store_table_column4 + ',' + attributes.store_table_column5 + '"]';
-					
-				}else if( attributes.shortcode_type == "ec_product" ){
-					return '[ec_product productid="' + attributes.product_product + '" style="' + attributes.product_display_type + '"]';
-					
-				}else if( attributes.shortcode_type == "ec_addtocart" ){
-					return '[ec_addtocart productid="' + attributes.addtocart_product + '" background_add="' + attributes.addtocart_background_add + '"]';
-					
-				}else if( attributes.shortcode_type == "ec_cartdisplay" ){
-					return '[ec_cartdisplay]';
-					
-				}else if( attributes.shortcode_type == "ec_membership" ){
-					return '[ec_membership productid="' + attributes.membership_product + '"]MEMBER CONTENT HERE[/ec_membership][ec_membership_alt productid="' + attributes.membership_product + '"]NON-MEMBER NOTICE HERE[/ec_membership_alt]';
-				
-				}else{
-					return "["+attributes.shortcode_type+"]";
+			save: WPEasyCartShortcodeSave,
+			/* 6.0.2: blocks saved with the old save open as valid and take the fixed shortcode on their next save. */
+			deprecated: [
+				{
+					attributes: WPEasyCartShortcodeAttributesV1,
+					save: WPEasyCartShortcodeSaveV1
 				}
-			}
+			]
 		} );
 	} )(
 	   window.wp.blocks,

@@ -230,7 +230,22 @@ $single_use_key_names = apply_filters(
 	)
 );
 
+/*
+ * 6.0.2: order columns an extension adds ( WP EasyCart PRO: order sources ), placed before the per-line and fee columns so
+ * every row lines up. Their values come from filter wp_easycart_order_export_order_values, once per chunk.
+ */
+$wpec_order_keys = array_values( array_filter( array_map( 'strval', (array) apply_filters( 'wp_easycart_order_export_order_keys', array() ) ) ) );
+foreach ( $wpec_order_keys as $wpec_order_key ) {
+	$keys[] = $wpec_order_key;
+}
+
 $keys[] = 'advanced_product_options';
+
+/* 6.0.2: one column per checkout field ( before the fee columns, which each row adds last ). */
+$checkout_field_columns = class_exists( 'wp_easycart_order_fields' ) ? wp_easycart_order_fields::export_columns() : array();
+foreach ( $checkout_field_columns as $checkout_field_column ) {
+	$keys[] = $checkout_field_column;
+}
 
 $fee_types = apply_filters( 'wp_easycart_order_export_fee_types', $wpdb->get_results( 'SELECT fee_label FROM ec_order_fee GROUP BY fee_label ORDER BY fee_label ASC' ) );
 $fee_type_keys = array();
@@ -453,10 +468,24 @@ while ( true ) {
 		}
 	}
 
+	/* Checkout field answers, one query for the chunk. */
+	$fields_by_order = $checkout_field_columns ? wp_easycart_order_fields::export_values( $chunk_order_ids, $checkout_field_columns ) : array();
+
+	/* 6.0.2: the extension columns' values for the chunk ( order id => key => value ). */
+	$wpec_order_values = $wpec_order_keys ? (array) apply_filters( 'wp_easycart_order_export_order_values', array(), $chunk_order_ids, $wpec_order_keys ) : array();
+
 	/* Write the chunk. */
 	foreach ( $orders as $order_row ) {
 		$order_id = (int) $order_row['order_id'];
+		if ( isset( $fields_by_order[ $order_id ] ) ) {
+			$order_row = array_merge( $order_row, $fields_by_order[ $order_id ] );
+		}
 		$order_row['gateway_response'] = isset( $response_by_order[ $order_id ] ) ? wp_easycart_export_orders_csv_gateway_response( $order_row['order_gateway'], $response_by_order[ $order_id ] ) : '';
+		foreach ( $wpec_order_keys as $wpec_order_key ) {
+			$wpec_value = ( isset( $wpec_order_values[ $order_id ] ) && is_array( $wpec_order_values[ $order_id ] ) && isset( $wpec_order_values[ $order_id ][ $wpec_order_key ] ) ) ? (string) $wpec_order_values[ $order_id ][ $wpec_order_key ] : '';
+			/* A spreadsheet must never read these as formulas ( campaign tags come from a link anyone can make ). */
+			$order_row[ $wpec_order_key ] = ( '' !== $wpec_value && false !== strpos( "=+-@\t\r", $wpec_value[0] ) ) ? "'" . $wpec_value : $wpec_value;
+		}
 
 		/* An order with no line items still exports one row, as before. */
 		$lines = isset( $details_by_order[ $order_id ] ) ? $details_by_order[ $order_id ] : array( array() );

@@ -15,7 +15,7 @@ if ( ! isset( $cartpage ) ) {
 		<?php } else { ?>
 		gtag( "event", "view_cart", {
 		<?php }?>
-			currency: "<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>",
+			currency: "<?php echo esc_attr( wp_easycart_base_currency_code() ); ?>",
 			value: <?php echo esc_attr( number_format( $cartpage->order_totals->grand_total, 2, '.', '' ) ); ?>,
 			coupon_code: "<?php echo esc_attr( $cartpage->coupon_code ); ?>",
 			items: [
@@ -200,9 +200,9 @@ if ( ! isset( $cartpage ) ) {
 				<?php }?>
 				<div class="ec_cartitem_delete<?php if ( wp_easycart_offers_active() && $cartpage->cart->cart[ $cartitem_index ]->free_gift_offer_id > 0 ) { ?> ec_offer_locked_control<?php } ?>" id="ec_cartitem_delete_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>" onclick="ec_cartitem_delete( '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>', '<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->model_number ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-delete-cart-item-' . (int) $cartpage->cart->cart[$cartitem_index]->cartitem_id ) ); ?>' );<?php
 				if ( '' != get_option( 'ec_option_google_ga4_property_id' ) ) {
-					echo 'ec_ga4_remove_from_cart( \'' . esc_attr( $cartpage->cart->cart[$cartitem_index]->model_number ) . '\', \'' . esc_attr( str_replace( "'", "\'", $cartpage->cart->cart[$cartitem_index]->title ) ) . '\', jQuery( document.getElementById( \'ec_quantity_' . esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ) . '\' ) ).val(), \'' . esc_attr( number_format( $cartpage->cart->cart[$cartitem_index]->unit_price, 2, '.', '' ) ) . '\', \'' . esc_attr( $GLOBALS['currency']->get_currency_code( ) ) . '\' );';
+					echo 'ec_ga4_remove_from_cart( \'' . esc_attr( $cartpage->cart->cart[$cartitem_index]->model_number ) . '\', \'' . esc_attr( str_replace( "'", "\'", $cartpage->cart->cart[$cartitem_index]->title ) ) . '\', jQuery( document.getElementById( \'ec_quantity_' . esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ) . '\' ) ).val(), \'' . esc_attr( number_format( $cartpage->cart->cart[$cartitem_index]->unit_price, 2, '.', '' ) ) . '\', \'' . esc_attr( wp_easycart_base_currency_code() ) . '\' );';
 				}
-				?>">Remove</div>
+				?>"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'remove' ) ); ?></div>
 				<div class="ec_cartitem_deleting" id="ec_cartitem_deleting_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"></div>
 			</div>
 			<div class="ec_cart_table_column_total ec_cart_table_total" id="ec_cartitem_total_<?php echo esc_attr( $cartpage->cart->cart[$cartitem_index]->cartitem_id ); ?>"><?php echo wp_easycart_escape_html( $cartpage->cart->cart[$cartitem_index]->get_total( ) ); ?></div>
@@ -256,7 +256,7 @@ if ( ! isset( $cartpage ) ) {
 			<span class="ec_cart_table_subtotal_amount"><?php echo esc_attr( $cartpage->get_subtotal( ) ); ?></span>
 		</div>
 
-		<div class="ec_cart_table_message">Shipping, taxes, and discount codes calculated at checkout.</div>
+		<div class="ec_cart_table_message"><?php echo wp_kses_post( wp_easycart_language()->get_text( 'cart_onepage', 'checkout_note' ) ); ?></div>
 
 		<?php if( apply_filters( 'wpeasycart_show_checkout_button', true ) ){ ?>
 		<div class="ec_cart_table_checkout_button_row">
@@ -266,13 +266,8 @@ if ( ! isset( $cartpage ) ) {
 					$checkout_page_url .= $cartpage->permalink_divider . 'eccheckout=information';
 				}
 			?>
-			<a class="ec_cart_table_checkout_button" href="<?php echo esc_url_raw( $checkout_page_url ); ?>" onclick="return true; return wp_easycart_goto_page_v2( 'information', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-goto-cart-page-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"<?php if( trim( get_option( 'ec_option_fb_pixel' ) ) != '' ){ ?> onclick="fbq('track', 'InitiateCheckout', {value: <?php echo number_format( $cartpage->order_totals->grand_total, 2, '.', '' ); ?>, currency: '<?php echo esc_attr( $GLOBALS['currency']->get_currency_code( ) ); ?>', num_items: '<?php echo esc_attr( $cartpage->cart->total_items ); ?>', contents: [<?php
-				for( $i=0; $i<count( $cartpage->cart->cart ); $i++ ){
-					if( $i > 0 )
-						echo ", ";
-					echo "{ id: '" . esc_js( $cartpage->cart->cart[$i]->product_id ) . "', quantity: " . esc_js( $cartpage->cart->cart[$i]->quantity ) . ", price: " . esc_js( $cartpage->cart->cart[$i]->unit_price ) . " }";
-				}		
-				?>]});"<?php }?><?php do_action( 'wpeasycart_checkout_button_ahref' ); ?>><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout' ); ?>
+			<?php /* 6.0.2: InitiateCheckout fires when checkout starts ( wp_easycart_meta_initiate_checkout() ), not on this button. */ ?>
+			<a class="ec_cart_table_checkout_button" href="<?php echo esc_url_raw( $checkout_page_url ); ?>" onclick="return true;"<?php do_action( 'wpeasycart_checkout_button_ahref' ); ?>><?php echo wp_easycart_language( )->get_text( 'cart', 'cart_checkout' ); ?>
 				<div class="wp-easycart-ld-ring wp-easycart-ld-spin" style="color:#fff"></div>
 			</a>
 		</div>

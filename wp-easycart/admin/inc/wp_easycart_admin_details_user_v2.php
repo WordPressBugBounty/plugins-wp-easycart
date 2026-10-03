@@ -9,9 +9,10 @@
  *
  * Saving intentionally delegates to the existing wp_easycart_admin_users
  * insert_user() / update_user() handlers via a single AJAX endpoint that
- * posts the full form: those handlers own the WP-account sync, subscriber
- * sync, password backup, QuickBooks push, and wpeasycart_account_updated
- * hook, and we must not fork that logic. Dirty tracking governs UX only.
+ * posts the full form: those handlers own the subscriber sync, password
+ * backup, QuickBooks push, and the wpeasycart_account_added / _updated and
+ * wpeasycart_password_set hooks ( WordPress User Sync follows them ), and we
+ * must not fork that logic. Dirty tracking governs UX only.
  *
  * PRO layers (Activity, address book, notes timeline, tags, anonymize,
  * merge) hook the wp_easycart_admin_user_details_v2_* actions/filters
@@ -152,11 +153,32 @@ if ( ! class_exists( 'wp_easycart_admin_details_user_v2' ) ) :
 			return $wpdb->get_results( 'SELECT role_label, admin_access FROM ec_role ORDER BY role_label ASC' );
 		}
 
+		/**
+		 * The WordPress user linked to this customer ( 6.0.2: the link, not a matching email ).
+		 *
+		 * @return WP_User|false
+		 */
 		public function get_wp_user() {
+			if ( empty( $this->user->user_id ) || ! class_exists( 'wp_easycart_wordpress_users' ) ) {
+				return false;
+			}
+			$wp_user_id = wp_easycart_wordpress_users::wp_user_for( (int) $this->user->user_id );
+			return $wp_user_id ? get_userdata( $wp_user_id ) : false;
+		}
+
+		/**
+		 * A WordPress user with this customer's email who is not linked to it.
+		 *
+		 * @since 6.0.2
+		 * @return WP_User|false
+		 */
+		public function get_wp_user_same_email() {
 			if ( empty( $this->user->email ) ) {
 				return false;
 			}
-			return get_user_by( 'email', $this->user->email );
+			$wp_user = get_user_by( 'email', $this->user->email );
+			$linked  = $this->get_wp_user();
+			return ( $wp_user && ( ! $linked || (int) $linked->ID !== (int) $wp_user->ID ) ) ? $wp_user : false;
 		}
 
 		public function has_legacy_hash_backup() {
@@ -175,13 +197,39 @@ if ( ! class_exists( 'wp_easycart_admin_details_user_v2' ) ) :
 			echo '<span class="ecv2-user-avatar' . esc_attr( '' !== $size_class ? ' ' . $size_class : '' ) . '" id="ecudv2_header_avatar" style="background:hsl(' . esc_attr( $hue ) . ',55%,45%);">' . esc_html( $initials ) . '</span>';
 		}
 
+		/**
+		 * A date the database wrote ( Registered, Last login ) in the site's time zone.
+		 *
+		 * @since 6.0.2 bug round 14: shown in site time, as the customers list shows it ( it read the database's clock, hours off
+		 *              on a server whose MySQL time zone is not the site's ).
+		 * @param string|null $value       Database date and time.
+		 * @param string      $empty_label Shown when there is none.
+		 * @return string HTML.
+		 */
 		public function nullable_date( $value, $empty_label ) {
 			$ts = ( null !== $value && '' !== $value && '0000-00-00 00:00:00' !== $value ) ? strtotime( $value ) : 0;
 			if ( $ts <= 0 ) {
 				/* translators: %s: date tracking began. */
 				return '<span class="ecv2-date-empty" title="' . esc_attr( sprintf( __( 'Tracking for this field began %s.', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), strtotime( $this->tracking_start ) ) ) ) . '">' . esc_html( $empty_label ) . '</span>';
 			}
-			return '<span class="ecv2-date">' . esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts ) ) . '</span>';
+			return '<span class="ecv2-date">' . esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts + $this->date_diff() ) ) . '</span>';
+		}
+
+		/**
+		 * Seconds to add to a database time to read it in the site's time zone ( the customers list's own offset,
+		 * wp_easycart_admin_table_v2: the site's UTC offset less the database clock's ).
+		 *
+		 * @since 6.0.2 bug round 14
+		 * @return int
+		 */
+		private function date_diff() {
+			static $diff = null;
+			if ( null === $diff ) {
+				global $wpdb;
+				$now_db = strtotime( (string) $wpdb->get_var( 'SELECT NOW()' ) );
+				$diff   = (int) round( (float) get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) - ( $now_db ? $now_db - time() : 0 );
+			}
+			return $diff;
 		}
 
 		/**

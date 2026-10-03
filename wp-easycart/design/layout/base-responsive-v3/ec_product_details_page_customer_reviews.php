@@ -49,6 +49,7 @@
 			<div class="ec_details_option_row_error" id="ec_details_review_error_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>">
 				<span class=""><?php echo wp_easycart_language( )->get_text( 'customer_review', 'review_error' ); ?></span>
 			</div>
+			<?php /* 6.0.2: shown when the store could not save the review ( ec_submit_product_review() ). */ $wpec_review_save_error = wp_easycart_language( )->get_text( 'customer_review', 'customer_review_save_error' ); ?><div class="ec_details_option_row_error" id="ec_details_review_save_error_<?php echo esc_attr( $product->product_id ); ?>_<?php echo esc_attr( $wpeasycart_addtocart_shortcode_rand ); ?>"><?php echo ( '' != $wpec_review_save_error ) ? $wpec_review_save_error : esc_html__( 'Your review could not be saved. Please refresh the page and try again.', 'wp-easycart' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the language class escapes its text. ?></div>
 			<div class="ec_details_customer_reviews_row ec_details_customer_reviews_label_ele">
 				<?php echo wp_easycart_language( )->get_text( 'customer_review', 'product_details_your_review_title' ); ?>
 			</div>

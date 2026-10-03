@@ -787,8 +787,35 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 			return ! get_option( 'ec_option_wpeasycart_terms_accepted' ) && '' != apply_filters( 'wp_easycart_admin_lock_icon', 'true' );
 		}
 
+		/**
+		 * The free edition's offers: Start 14-day trial, Try Pro free, the locked live rates card.
+		 *
+		 * @since 6.0.2 Never for a store with a Pro or Premium license or a trial, current or lapsed: WP EasyCart PRO hid them
+		 *              only during a trial, so paying stores were offered the trial.
+		 * @return bool
+		 */
 		public function show_upsell() {
+			if ( class_exists( 'wp_easycart_admin_edition' ) && 'free' !== wp_easycart_admin_edition::tier() ) {
+				return false;
+			}
 			return '' != apply_filters( 'wp_easycart_trial_start_content', 'true' );
+		}
+
+		/**
+		 * The badge on the Stripe, Square and PayPal cards: the WP EasyCart fee those gateways charge right now, read the way
+		 * the gateways read it ( 2% on Free and on a lapsed license, none while a license or trial is active ).
+		 *
+		 * @since 6.0.2 Before, it followed show_upsell(), so a paying store saw "2% fee on Free" and a lapsed one "No EasyCart fees".
+		 * @return string
+		 */
+		public function connect_fee_badge() {
+			if ( 0 >= (float) apply_filters( 'wp_easycart_stripe_connect_fee_rate', 2 ) ) {
+				return __( 'No EasyCart fees', 'wp-easycart' );
+			}
+			if ( class_exists( 'wp_easycart_admin_edition' ) && wp_easycart_admin_edition::is_lapsed() ) {
+				return __( '2% fee until you renew', 'wp-easycart' );
+			}
+			return __( '2% fee on Free', 'wp-easycart' );
 		}
 
 		/* =====================================================================

@@ -306,12 +306,9 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				$shipping_id = $wpdb->insert_id;
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET default_billing_address_id = %d, default_shipping_address_id = %d WHERE user_id = %d', $billing_id, $shipping_id, $user_id ) );
 
-				if ( $is_subscriber ) {
-					$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_subscriber WHERE ec_subscriber.email = %s', $email ) );
-					$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_subscriber( email, first_name, last_name ) VALUES( %s, %s, %s )', $email, $first_name, $last_name ) );
-				} else {
-					$remove_subscriber = $wpdb->query( $wpdb->prepare( 'DELETE FROM ec_subscriber WHERE email = %s', $email ) );
-				}
+				/* 6.0.2: through ec_db ( wp_easycart_subscribers ), so the newsletter hooks fire and an existing sign-up keeps its
+				   consent record; a new account saved unticked leaves an existing newsletter sign-up alone. */
+				wp_easycart_subscribers::sync_account( $email, $is_subscriber, $first_name, $last_name, null );
 
 				if ( function_exists( 'mymail' ) ) {
 					mymail( 'subscribers' )->add(
@@ -325,12 +322,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 					);
 				}
 
-				if ( file_exists( '../../../../wp-easycart-quickbooks/QuickBooks.php' ) ) {
-					$quickbooks = new ec_quickbooks();
-					$quickbooks->add_user( $user_id );
-				}
-
-				do_action( 'wpeasycart_account_added', $user_id, $email, wp_unslash( $_POST['password'] ) ); // XSS OK. Do not sanitize password.
+				do_action( 'wpeasycart_account_added', $user_id, $email, ( isset( $_POST['password'] ) ? $_POST['password'] : '' ), 'admin' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- passwords are used as typed, never sanitized ( 6.0.2 ).
 
 				return array( 'success' => 'user-inserted' );
 
@@ -387,6 +379,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 			$shipping_phone = ( isset( $_POST['shipping_phone'] ) ) ? sanitize_text_field( wp_unslash( $_POST['shipping_phone'] ) ) : '';
 
 			$old_email = $wpdb->get_var( $wpdb->prepare( 'SELECT email FROM ec_user WHERE user_id = %d', $user_id ) );
+			$was_subscriber = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT is_subscriber FROM ec_user WHERE user_id = %d', $user_id ) ); /* 6.0.2: see the newsletter sync below */
 
 			if ( strtolower( $old_email ) != strtolower( $email ) ) {
 				$duplicate = $wpdb->query( $wpdb->prepare( 'SELECT * FROM ec_user WHERE ec_user.email = %s', $email ) );
@@ -411,12 +404,9 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_address SET first_name = %s, last_name = %s, company_name = %s, address_line_1 = %s, address_line_2 = %s, city = %s, state = %s, zip = %s, country = %s, phone = %s WHERE address_id = %d', $shipping_first_name, $shipping_last_name, $shipping_company_name, $shipping_address_line_1, $shipping_address_line_2, $shipping_city, $shipping_state, $shipping_zip, $shipping_country, $shipping_phone, $default_shipping_address_id ) );
 			}
 
-			if ( $is_subscriber ) {
-				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_subscriber WHERE ec_subscriber.email = %s', $email ) );
-				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_subscriber( email, first_name , last_name ) VALUES( %s, %s, %s )', $email, $first_name, $last_name ) );
-			} else {
-				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_subscriber WHERE ec_subscriber.email = %s', $email ) );
-			}
+			/* 6.0.2: through ec_db ( wp_easycart_subscribers ), acting on what changed: the subscription follows a changed email,
+			   keeps its consent record ( it used to be deleted and inserted again on every save ) and the newsletter hooks fire. */
+			wp_easycart_subscribers::sync_account( $email, $is_subscriber, $first_name, $last_name, (bool) $was_subscriber, (string) $old_email );
 
 			if ( '' == $password ) {
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET email = %s, first_name = %s, last_name = %s, user_level = %s, is_subscriber = %d, exclude_tax = %d, exclude_shipping = %d, allow_shipping_bypass = %d, is_stripe_test_user = %d, user_notes = %s, vat_registration_number = %s, email_other = %s WHERE ec_user.user_id = %d', $email, $first_name, $last_name, $user_level, $is_subscriber, $exclude_tax, $exclude_shipping, $allow_shipping_bypass, $is_stripe_test_user, $user_notes, $vat_registration_number, $email_other, $user_id ) );
@@ -428,11 +418,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				if ( function_exists( 'wp_easycart_maintain_admin_password_backup' ) ) {
 					wp_easycart_maintain_admin_password_backup( $user_id, $password );
 				}
-			}
-
-			if ( file_exists( '../../../../wp-easycart-quickbooks/QuickBooks.php' ) ) {
-				$quickbooks = new ec_quickbooks();
-				$quickbooks->update_user_admin( $user_id );
+				wp_easycart_wordpress_users::password_set( $user_id, wp_slash( $password ), 'admin' ); /* 6.0.2: WordPress User Sync */
 			}
 
 			do_action( 'wpeasycart_account_updated', $user_id );
@@ -466,6 +452,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				}
 			}
 			do_action( 'wpeasycart_admin_login_as_user', (int) $user->user_id, get_current_user_id() ); // Audit hook.
+			wp_easycart_wordpress_users::impersonate( (int) $user->user_id ); /* 6.0.2: while the WordPress login leads, the storefront shows this customer until the admin signs out of the store */
 			
 			$GLOBALS['ec_cart_data']->cart_data->user_id = (int) $user->user_id;
 			$GLOBALS['ec_cart_data']->cart_data->email = sanitize_email( $user->email );
@@ -618,6 +605,7 @@ if ( ! class_exists( 'wp_easycart_admin_users' ) ) :
 				if ( $user ) {
 					$scrambled = wp_easycart_hash_password( bin2hex( random_bytes( 32 ) ) );
 					$wpdb->query( $wpdb->prepare( 'UPDATE ec_user SET password = %s WHERE user_id = %d', $scrambled, (int) $bulk_id ) );
+					wp_easycart_wordpress_users::password_reset_forced( (int) $bulk_id ); /* 6.0.2: the linked WordPress password stops working too */
 					$user->password = $scrambled;
 
 					$token = wp_easycart_generate_password_reset_token( $user );

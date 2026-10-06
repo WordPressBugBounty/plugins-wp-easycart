@@ -793,7 +793,7 @@ a.ecdv2-activity-row-main:hover { color:var(--ecv2-primary-hover); }
 .ecdv2-legacy-pro .ec_admin_stock_notification_view table.wp-list-table td a:hover { text-decoration:underline; }
 
 /* --- Per-variant quantity grid ( the other half of the Variation Inventory
-   card ); high specificity to beat shell.php's admin-color !important and
+   card ); high specificity to beat admin-frame.php's admin-color !important and
    ID-scoped to beat admin.css striping. --- */
 .ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin:0 0 14px; padding:12px 14px; background:var(--ecv2-g50); border:1px solid var(--ecv2-g200); border-radius:var(--ecv2-r); }
 .ecdv2-legacy-pro #ec_admin_add_new_optionitem_quantity_row h3 { width:100%; margin:0 0 2px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ecv2-g500); }
@@ -1277,7 +1277,7 @@ a.ecdv2-offer-name:hover { color:var(--ecv2-primary-hover); }
 }
 
 /* ==================================================================
-   Mobile: the editor rail as a slide-out ( shell-v2.js adds the burger,
+   Mobile: the editor rail as a slide-out ( admin-frame-v2.js adds the burger,
    the panel head and the scrim ). Desktop keeps the sticky column, so
    everything here lives inside the phone media query. @since 6.0.0
 ================================================================== */

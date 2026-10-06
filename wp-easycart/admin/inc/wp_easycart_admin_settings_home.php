@@ -47,7 +47,7 @@ class wp_easycart_admin_settings_home {
 			'pricepoint'        => array( 'group' => 'appearance', 'order' => 40, 'icon' => 'filter', 'title' => __( 'Price points', 'wp-easycart' ), 'description' => __( 'Price ranges shoppers filter by.', 'wp-easycart' ) ),
 			'schedule'          => array( 'group' => 'store', 'order' => 50, 'icon' => 'clock', 'title' => __( 'Schedule & locations', 'wp-easycart' ), 'description' => __( 'Opening hours, holidays and pickup windows, plus the store locations shoppers pick up from.', 'wp-easycart' ), 'plan' => 'pro', 'aliases' => array( 'location' ) ),
 			'third-party'       => array( 'group' => 'advanced', 'order' => 20, 'icon' => 'admin-plugins', 'title' => __( 'Third party', 'wp-easycart' ), 'description' => __( 'Google Analytics, Amazon, DecoNetwork.', 'wp-easycart' ) ),
-			'cart-importer'     => array( 'group' => 'advanced', 'order' => 30, 'icon' => 'download', 'title' => __( 'Cart importer', 'wp-easycart' ), 'description' => __( 'Bring products in from Square or another cart.', 'wp-easycart' ) ),
+			'cart-importer'     => array( 'group' => 'advanced', 'order' => 30, 'icon' => 'download', 'title' => __( 'Import products', 'wp-easycart' ), 'description' => __( 'Bring products in from WooCommerce, Square or a CSV file.', 'wp-easycart' ), 'url' => admin_url( 'admin.php?page=wp-easycart-products&subpage=import' ) ), /* 6.0.3: Products › Import */
 			'logs'              => array( 'group' => 'advanced', 'order' => 90, 'icon' => 'editor-ul', 'title' => __( 'Log entries', 'wp-easycart' ), 'description' => __( 'Gateway and webhook responses for troubleshooting.', 'wp-easycart' ) ),
 		);
 		$pages = apply_filters( 'wp_easycart_settings_home_catalog', $pages );

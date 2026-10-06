@@ -793,7 +793,7 @@ function wp_easycart_admin_close_slideout( id ){
 }
 
 /* HELP VIDEOS */
-/* 6.0.0: the shell lightbox ( shell-v2.js ) replaces these when it loads; these remain for screens without the V2 shell. */
+/* 6.0.0: the shell lightbox ( admin-frame-v2.js ) replaces these when it loads; these remain for screens without the V2 shell. */
 function wp_easycart_admin_open_video_help( video_id, title ){
 	if ( 'function' === typeof window.ecsh_video_open ) {
 		return window.ecsh_video_open( video_id, title );

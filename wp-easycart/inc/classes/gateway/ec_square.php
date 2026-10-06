@@ -1044,14 +1044,13 @@ class ec_square extends ec_gateway{
 	function insert_option( $object, $sync = true, $skip_existing = false ){
 		if ( $this->allowed_at_location( $object ) && ! $object->is_deleted ){
 			global $wpdb;
-			if( $sync || $skip_existing ){
-				$option = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_option WHERE square_id = %s", $object->id ) );
-				if( $option ){
-					if( $skip_existing ){
-						return array( 'success' => 'option-skipped' );
-					}
-					return $this->update_option( $object, $option, $sync );
+			/* 6.0.3: looked up always ( with "Update items already imported" off, a run made everything again ); found = skipped unless updating. */
+			$option = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_option WHERE square_id = %s", $object->id ) );
+			if( $option ){
+				if( $skip_existing || ! $sync ){
+					return array( 'success' => 'option-skipped' );
 				}
+				return $this->update_option( $object, $option, $sync );
 			}
 
 			$option_name = ( isset( $object->modifier_list_data->name ) ) ? $object->modifier_list_data->name : '';
@@ -1219,14 +1218,13 @@ class ec_square extends ec_gateway{
 	function insert_option_item( $object, $option_id, $sync = true, $skip_existing = false ) {
 		if( $this->allowed_at_location( $object ) && !$object->is_deleted ){
 			global $wpdb;
-			if( $sync || $skip_existing ){
-				$optionitem = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_optionitem WHERE square_id = %s", $object->id ) );
-				if( $optionitem ){
-					if( $skip_existing ){
-						return array( 'success' => 'optionitem-skipped' );
-					}
-					return $this->update_option_item( $object, $optionitem );
+			/* 6.0.3: looked up always ( with "Update items already imported" off, a run made everything again ); found = skipped unless updating. */
+			$optionitem = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_optionitem WHERE square_id = %s", $object->id ) );
+			if( $optionitem ){
+				if( $skip_existing || ! $sync ){
+					return array( 'success' => 'optionitem-skipped' );
 				}
+				return $this->update_option_item( $object, $optionitem );
 			}
 			$optionitem_name = $object->modifier_data->name;
 			$optionitem_price = ( isset( $object->modifier_data->price_money ) ) ? $object->modifier_data->price_money->amount : 0;
@@ -1287,14 +1285,13 @@ class ec_square extends ec_gateway{
 			$short_description = "";
 			$square_id = $object->id;
 
-			if( $sync || $skip_existing ){
-				$category = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_category WHERE square_id = %s", $square_id ) );
-				if( $category ){
-					if( $skip_existing ){
-						return array( 'success' => 'category-skipped' );
-					}
-					return $this->update_category( $object, $category );
+			/* 6.0.3: looked up always ( with "Update items already imported" off, a run made everything again ); found = skipped unless updating. */
+			$category = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM ec_category WHERE square_id = %s", $square_id ) );
+			if( $category ){
+				if( $skip_existing || ! $sync ){
+					return array( 'success' => 'category-skipped' );
 				}
+				return $this->update_category( $object, $category );
 			}
 
 			$wpdb->query( $wpdb->prepare( "INSERT INTO ec_category( featured_category, category_name, parent_id, image, short_description, priority, square_id ) VALUES( %d, %s, %d, %s, %s, %d, %s )", $featured_category, $category_name, $parent_id, $image, $short_description, $priority, $square_id ) );
@@ -1341,14 +1338,13 @@ class ec_square extends ec_gateway{
 			$square_id = $object->id;
 			$stock_quantity = 0;
 
-			if( $sync || $skip_existing ){
-				$product = $wpdb->get_row( $wpdb->prepare( "SELECT product_id, post_id, option_id_1, model_number FROM ec_product WHERE square_id = %s", $square_id ) );
-				if( $product ){
-					if( $skip_existing ){
-						return array( 'success' => 'product-skipped' );
-					}
-					return $this->update_product( $object, $product, $sync_inventory );
+			/* 6.0.3: looked up always ( with "Update items already imported" off, a run made everything again ); found = skipped unless updating. */
+			$product = $wpdb->get_row( $wpdb->prepare( "SELECT product_id, post_id, option_id_1, model_number FROM ec_product WHERE square_id = %s", $square_id ) );
+			if( $product ){
+				if( $skip_existing || ! $sync ){
+					return array( 'success' => 'product-skipped' );
 				}
+				return $this->update_product( $object, $product, $sync_inventory );
 			}
 
 			$location_id = ( get_option( 'ec_option_square_is_sandbox' ) ) ? get_option( 'ec_option_square_sandbox_location_id' ) : get_option( 'ec_option_square_location_id' );
@@ -1490,76 +1486,9 @@ class ec_square extends ec_gateway{
 			// Maybe Add Option Item Images
 			$this->insert_basic_option_item_images( $object, $option_id_1, $product_id );
 
-			// Maybe Update Inventory
-			if ( $sync_inventory ) {
-				$wpdb->query( $wpdb->prepare( "DELETE FROM ec_optionitemquantity WHERE product_id = %d", $product_id ) );
-				if( count( $option_items ) > 0 ){
-					$optionitem_added_count = 0;
-					foreach( $option_items as $optionitem ){
-						if( $this->allowed_at_location( $optionitem ) && ! $optionitem->is_deleted ){
-							$optionitem_square_id = ( isset( $optionitem->item_variation_data->item_option_values ) || 'ITEM_VARIATION' == $optionitem->type ) ? $optionitem->id : $optionitem->item_variation_data->item_id;
-							$item_stock_tracking_enabled = 0;
-							$option_item_quantity = 0;
-							$option_item_price = ( isset( $optionitem->item_variation_data->price_money->amount ) ) ? ( $optionitem->item_variation_data->price_money->amount / 100 ) : 0;
-							$option_item_sku = ( isset( $optionitem->item_variation_data->sku ) ) ? $optionitem->item_variation_data->sku : '';
-							$option_item_id_1 = $option_item_id_2 = $option_item_id_3 = $option_item_id_4 = $option_item_id_5 = 0;
-							if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 0 ) {
-								$option_item_id_1 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[0]->item_option_value_id, $option_id_1 ) );
-							} else if ( ! isset( $optionitem->item_variation_data->item_option_values ) ) {
-								$option_item_id_1 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->id, $option_id_1 ) );
-							}
-							if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 1 ) {
-								$option_item_id_2 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[1]->item_option_value_id, $option_id_2 ) );
-							}
-							if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 2 ) {
-								$option_item_id_3 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[2]->item_option_value_id, $option_id_3 ) );
-							}
-							if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 3 ) {
-								$option_item_id_4 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[3]->item_option_value_id, $option_id_4 ) );
-							}
-							if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 4 ) {
-								$option_item_id_5 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[4]->item_option_value_id, $option_id_5 ) );
-							}
-							$option_item_quantity = 10000;
-							if( isset( $optionitem->item_variation_data ) && isset( $optionitem->item_variation_data->location_overrides ) && is_array( $optionitem->item_variation_data->location_overrides ) ){
-								for( $j=0; $j<count( $optionitem->item_variation_data->location_overrides ); $j++ ){
-									if( $optionitem->item_variation_data->location_overrides[$j]->location_id == $location_id ){
-										if( $optionitem->item_variation_data->location_overrides[$j]->track_inventory ){
-											$option_item_quantity = $this->get_variance_stock_quantity( $optionitem->id );
-											$item_stock_tracking_enabled = 1;
-										} else {
-											$option_item_quantity = 1;
-										}
-										$stock_quantity += $option_item_quantity;
-									}
-								}
-							}
-							$wpdb->query( $wpdb->prepare( "INSERT INTO ec_optionitemquantity( product_id, optionitem_id_1, optionitem_id_2, optionitem_id_3, optionitem_id_4, optionitem_id_5, quantity, price, sku, is_stock_tracking_enabled, square_id ) VALUES( %d, %d, %d, %d, %d, %d, %s, %s, %s, %d, %s )", $product_id, $option_item_id_1, $option_item_id_2, $option_item_id_3, $option_item_id_4, $option_item_id_5, $option_item_quantity, $option_item_price, $option_item_sku, $item_stock_tracking_enabled, $optionitem_square_id ) );
-							$optionitem_added_count++;
-						}
-					}
-
-				// When only 1 option item, we apply the price adjustment and quantity to the base product
-				}else if( count( $option_items ) == 1 && $use_optionitem_quantity_tracking ){
-					$model_number = ( isset( $option_items[0]->item_variation_data->sku ) ) ? $option_items[0]->item_variation_data->sku :'';
-					$price = ( isset( $option_items[0]->item_variation_data->price_money ) ) ? $option_items[0]->item_variation_data->price_money->amount / 100 : -1;
-					$show_stock_quantity = 1;
-					$use_optionitem_quantity_tracking = 0;
-					$stock_quantity = $this->get_variance_stock_quantity( $option_items[0]->id );
-					$single_variant_id = $option_items[0]->id;
-				}
-
-				// Maybe add quantity data
-				if ( $use_optionitem_quantity_tracking ){
-					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 1, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d, stock_quantity = %d WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $stock_quantity, $product_id ) );
-
-				} else if ( $show_stock_quantity ) {
-					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 1, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d, stock_quantity = %d, square_variation_id = %s WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $stock_quantity, $single_variant_id, $product_id ) );
-
-				} else {
-					$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 0, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $product_id ) );
-				}
-			}
+			/* 6.0.3: the variations are written whether or not stock is imported ( "Only add new items" and a store without
+			 * inventory sync turned stock off, and every variable item arrived as one product at its lowest price ). */
+			$this->save_variations( $object, $product_id, array( $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5 ), $sync_inventory, $location_id, true );
 
 			// Maybe add Modifiers
 			if( isset( $object->item_data->modifier_list_info ) ){
@@ -1597,6 +1526,12 @@ class ec_square extends ec_gateway{
 
 	function update_product( $object, $product, $sync_inventory = true ){
 		global $wpdb;
+		/* 6.0.3: no item, no update. Square answers nothing for an item it deleted, or when it does not answer at all, and
+		 * WP EasyCart PRO's "Sync from Square" passed that on: the product was saved with no title, description, price,
+		 * images or variations. */
+		if ( ! is_object( $object ) || ! isset( $object->id ) || ! isset( $object->item_data ) || ! is_object( $object->item_data ) || ! is_object( $product ) || empty( $product->product_id ) ) {
+			return array( 'error' => 'item-missing' );
+		}
 		$square_id = $object->id;
 		$stock_quantity = 0;
 
@@ -1734,73 +1669,8 @@ class ec_square extends ec_gateway{
 		// Maybe Add Option Item Images
 		$this->insert_basic_option_item_images( $object, $option_id_1, $product->product_id );
 
-		// Maybe Update Inventory
-		if ( $sync_inventory ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM ec_optionitemquantity WHERE product_id = %d", $product_id ) );
-			if( count( $option_items ) > 1 ){
-				$optionitem_added_count = 0;
-				foreach( $option_items as $optionitem ){
-					if( $this->allowed_at_location( $optionitem ) && ! $optionitem->is_deleted ){
-						$optionitem_square_id = ( isset( $optionitem->item_variation_data->item_option_values ) || 'ITEM_VARIATION' == $optionitem->type ) ? $optionitem->id : $optionitem->item_variation_data->item_id;
-						$item_stock_tracking_enabled = 0;
-						$option_item_quantity = 0;
-						$option_item_price = 0;
-						if ( isset( $optionitem->item_variation_data->price_money ) && isset( $optionitem->item_variation_data->price_money->amount ) ) {
-							$option_item_price = $optionitem->item_variation_data->price_money->amount / 100;
-						}
-						$option_item_sku = ( isset( $optionitem->item_variation_data->sku ) ) ? $optionitem->item_variation_data->sku : '';
-						$option_item_id_1 = $option_item_id_2 = $option_item_id_3 = $option_item_id_4 = $option_item_id_5 = 0;
-						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 0 ) {
-							$option_item_id_1 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[0]->item_option_value_id, $option_id_1 ) );
-						} else if ( ! isset( $optionitem->item_variation_data->item_option_values ) ) {
-							$option_item_id_1 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->id, $option_id_1 ) );
-						}
-						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 1 ) {
-							$option_item_id_2 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[1]->item_option_value_id, $option_id_2 ) );
-						}
-						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 2 ) {
-							$option_item_id_3 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[2]->item_option_value_id, $option_id_3 ) );
-						}
-						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 3 ) {
-							$option_item_id_4 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[3]->item_option_value_id, $option_id_4 ) );
-						}
-						if ( isset( $optionitem->item_variation_data->item_option_values ) && count( $optionitem->item_variation_data->item_option_values ) > 4 ) {
-							$option_item_id_5 = $wpdb->get_var( $wpdb->prepare( "SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d", $optionitem->item_variation_data->item_option_values[4]->item_option_value_id, $option_id_5 ) );
-						}
-						$option_item_quantity = 10000;
-						if ( $this->variation_tracks_inventory( $optionitem, $location_id ) ) {
-							$option_item_quantity = $this->get_variance_stock_quantity( $optionitem->id );
-							$item_stock_tracking_enabled = 1;
-						} else {
-							$option_item_quantity = 1;
-						}
-						$stock_quantity += $option_item_quantity;
-						$wpdb->query( $wpdb->prepare( "INSERT INTO ec_optionitemquantity( product_id, optionitem_id_1, optionitem_id_2, optionitem_id_3, optionitem_id_4, optionitem_id_5, quantity, price, sku, is_stock_tracking_enabled, square_id ) VALUES( %d, %d, %d, %d, %d, %d, %s, %s, %s, %d, %s )", $product_id, $option_item_id_1, $option_item_id_2, $option_item_id_3, $option_item_id_4, $option_item_id_5, $option_item_quantity, $option_item_price, $option_item_sku, $item_stock_tracking_enabled, $optionitem_square_id ) );
-						$optionitem_added_count++;
-					}
-				}
-
-			// When only 1 option item, we apply the price adjustment and quantity to the base product
-			}else if( count( $option_items ) == 1 && $use_optionitem_quantity_tracking ){
-				$model_number = ( isset( $option_items[0]->item_variation_data->sku ) ) ? $option_items[0]->item_variation_data->sku :'';
-				$price = ( isset( $option_items[0]->item_variation_data->price_money ) ) ? $option_items[0]->item_variation_data->price_money->amount / 100 : -1;
-				$show_stock_quantity = 1;
-				$use_optionitem_quantity_tracking = 0;
-				$stock_quantity = $this->get_variance_stock_quantity( $option_items[0]->id );
-				$single_variant_id = $option_items[0]->id;
-			}
-
-			// Maybe add quantity data
-			if ( $use_optionitem_quantity_tracking ){
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 1, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d, stock_quantity = %d WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $stock_quantity, $product_id ) );
-
-			} else if ( $show_stock_quantity ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 1, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d, stock_quantity = %d, square_variation_id = %s WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $stock_quantity, $single_variant_id, $product_id ) );
-
-			} else {
-				$wpdb->query( $wpdb->prepare( "UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 0, option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d WHERE product_id = %d", $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5, $product_id ) );
-			}
-		}
+		/* 6.0.3: the variations follow Square with or without stock ( save_variations() ). */
+		$this->save_variations( $object, $product_id, array( $option_id_1, $option_id_2, $option_id_3, $option_id_4, $option_id_5 ), $sync_inventory, $location_id, false );
 
 		// Maybe add Modifiers
 		$modifiers = $wpdb->get_results( $wpdb->prepare( 'SELECT ec_option_to_product.option_id FROM ec_option_to_product, ec_option WHERE ec_option_to_product.product_id = %d AND ec_option.option_id = ec_option_to_product.option_id AND ec_option.square_id != ""', $product_id ) );
@@ -1845,6 +1715,134 @@ class ec_square extends ec_gateway{
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $wpdb->prefix . 'posts SET post_status = %s, post_modified = NOW( ), post_modified_gmt = UTC_TIMESTAMP( ) WHERE ID = %d', $target_status, $product->post_id ) );
 			clean_post_cache( $product->post_id );
 			ec_db::product_cache_changed();
+		}
+	}
+
+	/**
+	 * Write a Square item's variations onto its product ( 6.0.3 ).
+	 *
+	 * An item with two or more variations: one variant row per variation the location sells, matched to the row it had
+	 * by its Square variation id and updated in place ( a row's Google attributes, weight, cost, image and on / off switch
+	 * stay; before, every row was deleted and made again ). Price and SKU always follow Square. Stock follows Square only
+	 * with $sync_inventory; without it a row keeps its stock, and a new row starts untracked. Rows Square no longer has are
+	 * deleted. An item with one variation is the product itself: its variation id goes on the product
+	 * ( square_variation_id, which stock updates and the web sale push use ). The product's option sets are set either way.
+	 *
+	 * Before 6.0.3 the variations were written only when stock was imported, so "Only add new items" and a store without
+	 * inventory sync brought every variable item in as one product at its lowest price.
+	 *
+	 * @since 6.0.3
+	 * @param object $object         Square ITEM.
+	 * @param int    $product_id     Product.
+	 * @param int[]  $option_ids     The product's option sets, slot 1 first.
+	 * @param bool   $sync_inventory Copy Square's stock.
+	 * @param string $location_id    Square location.
+	 * @param bool   $is_new         The product was just made.
+	 */
+	private function save_variations( $object, $product_id, $option_ids, $sync_inventory, $location_id, $is_new ) {
+		global $wpdb;
+		$product_id = (int) $product_id;
+		$option_ids = array_pad( array_values( array_map( 'intval', (array) $option_ids ) ), 5, 0 );
+		$all        = ( isset( $object->item_data->variations ) && is_array( $object->item_data->variations ) ) ? $object->item_data->variations : array();
+		$usable     = array();
+		foreach ( $all as $variation ) {
+			if ( is_object( $variation ) && isset( $variation->id ) && isset( $variation->item_variation_data ) && $this->allowed_at_location( $variation ) && empty( $variation->is_deleted ) ) {
+				$usable[] = $variation;
+			}
+		}
+		$slots_sql = $wpdb->prepare( 'option_id_1 = %d, option_id_2 = %d, option_id_3 = %d, option_id_4 = %d, option_id_5 = %d', $option_ids[0], $option_ids[1], $option_ids[2], $option_ids[3], $option_ids[4] );
+		/* Variant rows for two or more variations, and for one that uses Square's item options ( its option sets list every
+		 * value; the row says which one is sold ). */
+		$use_rows = ( count( $all ) > 1 ) || ( 1 === count( $all ) && is_object( $all[0] ) && ! empty( $all[0]->item_variation_data->item_option_values ) );
+
+		if ( $use_rows ) {
+			$rows = array();
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT optionitemquantity_id, square_id FROM ec_optionitemquantity WHERE product_id = %d ORDER BY optionitemquantity_id ASC', $product_id ) ) as $row ) {
+				if ( '' !== (string) $row->square_id && ! isset( $rows[ (string) $row->square_id ] ) ) {
+					$rows[ (string) $row->square_id ] = (int) $row->optionitemquantity_id;
+				}
+			}
+			$kept     = array();
+			$tracking = 0;
+			foreach ( $usable as $variation ) {
+				$data  = $variation->item_variation_data;
+				$items = array( 0, 0, 0, 0, 0 );
+				if ( isset( $data->item_option_values ) && is_array( $data->item_option_values ) && count( $data->item_option_values ) > 0 ) {
+					for ( $i = 0; $i < 5 && $i < count( $data->item_option_values ); $i++ ) {
+						$value_id    = isset( $data->item_option_values[ $i ]->item_option_value_id ) ? $data->item_option_values[ $i ]->item_option_value_id : '';
+						$items[ $i ] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d', $value_id, $option_ids[ $i ] ) );
+					}
+				} elseif ( ! isset( $data->item_option_values ) ) {
+					$items[0] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT optionitem_id FROM ec_optionitem WHERE square_id = %s AND option_id = %d', $variation->id, $option_ids[0] ) );
+				}
+				$columns = array(
+					'optionitem_id_1' => $items[0],
+					'optionitem_id_2' => $items[1],
+					'optionitem_id_3' => $items[2],
+					'optionitem_id_4' => $items[3],
+					'optionitem_id_5' => $items[4],
+					'price'           => ( isset( $data->price_money ) && isset( $data->price_money->amount ) ) ? $data->price_money->amount / 100 : 0,
+					'sku'             => isset( $data->sku ) ? substr( (string) $data->sku, 0, 255 ) : '',
+					'square_id'       => (string) $variation->id,
+				);
+				$tracks  = $this->variation_tracks_inventory( $variation, $location_id );
+				$row_id  = isset( $rows[ (string) $variation->id ] ) ? $rows[ (string) $variation->id ] : 0;
+				if ( $sync_inventory ) {
+					$columns['is_stock_tracking_enabled'] = $tracks ? 1 : 0;
+					$columns['quantity']                  = $tracks ? (int) $this->get_variance_stock_quantity( $variation->id ) : 1;
+					if ( $tracks ) {
+						$tracking = 1;
+					}
+				} elseif ( ! $row_id ) {
+					$columns['is_stock_tracking_enabled'] = 0;
+					$columns['quantity']                  = 0;
+				}
+				if ( $row_id ) {
+					$wpdb->update( 'ec_optionitemquantity', $columns, array( 'optionitemquantity_id' => $row_id ) );
+				} else {
+					$columns['product_id'] = $product_id;
+					$wpdb->insert( 'ec_optionitemquantity', $columns );
+					$row_id = (int) $wpdb->insert_id;
+				}
+				if ( $row_id ) {
+					$kept[] = $row_id;
+				}
+			}
+			if ( $kept ) {
+				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemquantity WHERE product_id = %d AND optionitemquantity_id NOT IN ( ' . implode( ',', array_map( 'intval', $kept ) ) . ' )', $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- (int) ids.
+			} else {
+				$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemquantity WHERE product_id = %d', $product_id ) );
+			}
+			if ( $sync_inventory ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_optionitem_quantity_tracking = %d, show_stock_quantity = 0, ' . $slots_sql . " , square_variation_id = '' WHERE product_id = %d", $tracking, $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $slots_sql is prepared above.
+				if ( class_exists( 'wp_easycart_variants' ) ) {
+					wp_easycart_variants::forget( $product_id );
+					wp_easycart_variants::rollup_stock( $product_id );
+				}
+			} else {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET ' . $slots_sql . ( $is_new ? ', use_optionitem_quantity_tracking = 0' : '' ) . " , square_variation_id = '' WHERE product_id = %d", $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $slots_sql is prepared above.
+				if ( class_exists( 'wp_easycart_variants' ) ) {
+					wp_easycart_variants::forget( $product_id );
+				}
+			}
+			return;
+		}
+
+		/* No variation, or one: the product itself. Its variation id goes on the product only while Square counts its stock
+		 * ( web sales are sent to Square for a product carrying one ), as before. */
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ec_optionitemquantity WHERE product_id = %d', $product_id ) );
+		$single  = ( 1 === count( $usable ) ) ? $usable[0] : null;
+		$tracked = ( $single && $this->variation_tracks_inventory( $single, $location_id ) );
+		$link    = $tracked ? $wpdb->prepare( ', square_variation_id = %s', (string) $single->id ) : '';
+		if ( $sync_inventory && $tracked ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 1, stock_quantity = %d, ' . $slots_sql . $link . ' WHERE product_id = %d', (int) $this->get_variance_stock_quantity( $single->id ), $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $slots_sql and $link are prepared above.
+		} elseif ( $sync_inventory ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_optionitem_quantity_tracking = 0, show_stock_quantity = 0, ' . $slots_sql . ' WHERE product_id = %d', $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $slots_sql is prepared above.
+		} else {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET use_optionitem_quantity_tracking = 0, ' . $slots_sql . $link . ' WHERE product_id = %d', $product_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $slots_sql and $link are prepared above.
+		}
+		if ( class_exists( 'wp_easycart_variants' ) ) {
+			wp_easycart_variants::forget( $product_id );
 		}
 	}
 

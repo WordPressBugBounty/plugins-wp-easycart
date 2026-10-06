@@ -55,7 +55,7 @@
 		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
 			<?php echo wp_easycart_order_pay::text( 'account_pay_waiting', __( 'This order is waiting for payment.', 'wp-easycart' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?>
 		</div>
-		<?php } else if ( ! $this->order->is_approved ) { ?>
+		<?php } else if ( ! $this->order->is_approved && wp_easycart_show_payment_pending_notice( $this->order ) ) { /* 6.0.3: the store can switch it off */ ?>
 		<div class="ec_cart_notice_row" style="margin-bottom:20px;">
 			<?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?>
 		</div>

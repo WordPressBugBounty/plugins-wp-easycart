@@ -266,12 +266,92 @@ if ( ! class_exists( 'wp_easycart_language' ) ) :
 					foreach ( $new_sub_keys as $new_sub_key ) {
 						if ( !in_array( $new_sub_key, $current_sub_keys ) ) {
 							self::$language_data->{$file_name}->options->{$new_key}->options->{$new_sub_key} = $new_language_object->options->{$new_key}->options->{$new_sub_key};
+						} else {
+							self::refresh_phrase( $file_name, $new_key, $new_sub_key, $new_language_object->options->{$new_key}->options->{$new_sub_key} );
 						}
 					}
 				}
 
 			}
 
+		}
+
+		/**
+		 * A phrase the store never changed takes the language file's wording. Phrases added in 6.0.2 were copied into every
+		 * language file in English, and a few translations had lost a [token] the code fills in; a store that merged them keeps
+		 * that copy, because updates only add missing keys. A phrase still reading as the English ( en-us.txt ), or as one of
+		 * those broken translations ( replaced_phrases() ), is replaced; anything a store wrote itself stays.
+		 *
+		 * @since 6.0.3
+		 * @param string $file_name Language file ( without .txt ).
+		 * @param string $section   Section key.
+		 * @param string $key       Phrase key.
+		 * @param object $new_item  The phrase in the language file.
+		 */
+		private function refresh_phrase( $file_name, $section, $key, $new_item ) {
+			if ( 'en-us' === $file_name || ! is_object( $new_item ) || ! isset( $new_item->value ) ) {
+				return;
+			}
+			$current = self::$language_data->{$file_name}->options->{$section}->options->{$key};
+			if ( ! is_object( $current ) || ! isset( $current->value ) ) {
+				return;
+			}
+			$now = self::phrase_text( $current->value );
+			if ( self::phrase_text( $new_item->value ) === $now ) {
+				return;
+			}
+			$english    = self::english_phrase( $section, $key );
+			$replaced   = self::replaced_phrases();
+			$id         = $file_name . ' ' . $section . '.' . $key;
+			$is_english = ( null !== $english && self::phrase_text( $english ) === $now );
+			$is_broken  = ( isset( $replaced[ $id ] ) && md5( $now ) === $replaced[ $id ] );
+			if ( $is_english || $is_broken ) {
+				$current->value = $new_item->value;
+			}
+		}
+
+		/**
+		 * A stored phrase as text, for comparing: without the backslashes saves put before quotes, entities decoded.
+		 *
+		 * @param string $value Phrase.
+		 * @return string
+		 */
+		private static function phrase_text( $value ) {
+			return trim( html_entity_decode( preg_replace( '/\\\\+(?=")/', '', (string) $value ), ENT_QUOTES, 'UTF-8' ) );
+		}
+
+		/**
+		 * A phrase's English in en-us.txt, or null.
+		 *
+		 * @param string $section Section key.
+		 * @param string $key     Phrase key.
+		 * @return string|null
+		 */
+		private function english_phrase( $section, $key ) {
+			static $english = null;
+			if ( null === $english ) {
+				$english = self::get_language_file_decoded( 'en-us.txt' );
+			}
+			if ( is_object( $english ) && isset( $english->options->{$section}->options->{$key}->value ) ) {
+				return $english->options->{$section}->options->{$key}->value;
+			}
+			return null;
+		}
+
+		/**
+		 * Translations earlier language files shipped with a lost [token] ( the pickup date, the terms and privacy links, the
+		 * product name ): md5 of the text as phrase_text() reads it, keyed "<file> <section>.<key>".
+		 *
+		 * @return array
+		 */
+		private static function replaced_phrases() {
+			return array(
+				'german ec_errors.preorder_message'                                     => '18a4579ce8e8d1d9a2ab5f69f2c33b97',
+				'ch-tr cart_payment_information.cart_payment_information_checkout_text' => 'd830353399e88695bc841f07921bce19',
+				'ch-tr ec_success.store_added_to_cart'                                  => '9c6a3ba681288c7821731bb1ee7f7e9f',
+				'fr-fr cart_payment_information.cart_payment_information_checkout_text' => '31abf776af2345cc6bfe5ac8a9172b87',
+				'greek cart_payment_information.cart_payment_information_checkout_text' => '9d5b5848a531fbaea45d20723c2cae80',
+			);
 		}
 
 		private function add_new_language_file( $file_name ) {

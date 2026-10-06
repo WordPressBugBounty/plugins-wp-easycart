@@ -133,3 +133,15 @@ table.ecv2pi-sample td.ecv2pi-col-action .ecv2-sub { white-space:normal; min-wid
 	.ecv2pi-file a { margin-left:30px; }
 	table.ecv2pi-sample th, table.ecv2pi-sample td { padding-left:8px; padding-right:8px; }
 }
+
+/* 6.0.3: the header's Import menu ( a CSV file, or Products › Import ) and the start screen of a store with no products. */
+.ecv2-imp-menu { position:relative; display:inline-block; }
+.ecv2-imp-menu > summary { list-style:none; }
+.ecv2-imp-menu > summary::-webkit-details-marker { display:none; }
+.ecv2-imp-menu-list { position:absolute; right:0; top:calc( 100% + 4px ); z-index:50; min-width:220px; display:flex; flex-direction:column; padding:6px; background:#fff; border:1px solid var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-r, 8px); box-shadow:var(--ecv2-shlg, 0 10px 15px -3px rgba(0,0,0,.1)); }
+.ecv2-imp-menu-list > button, .ecv2-imp-menu-list > a { display:block; width:100%; padding:8px 10px; border:0; border-radius:6px; background:none; color:var(--ecv2-g800, #1f2937); font:inherit; font-size:13px; text-align:left; text-decoration:none; cursor:pointer; }
+.ecv2-imp-menu-list > button:hover, .ecv2-imp-menu-list > a:hover, .ecv2-imp-menu-list > button:focus-visible, .ecv2-imp-menu-list > a:focus-visible { background:var(--ecv2-g100, #f3f4f6); outline:none; }
+.ecv2-empty-start { display:flex; flex-direction:column; align-items:center; gap:6px; padding:18px 12px; text-align:center; }
+.ecv2-empty-start b { font-size:15px; color:var(--ecv2-g900, #111827); }
+.ecv2-empty-start > span { font-size:13px; color:var(--ecv2-g500, #6b7280); }
+.ecv2-empty-start .ecv2-empty-start-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }

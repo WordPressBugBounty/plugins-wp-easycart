@@ -87,7 +87,7 @@
 .ecpt-tip:last-child { border-bottom: 0; }
 .ecpt-tip b { color: var( --ecv2-g900, #111827 ); }
 
-/* 6.0.2: the protection banner uses the shell notice card ( .wpec-pro-notice in shell-v2.css ). */
+/* 6.0.2: the protection banner uses the shell notice card ( .wpec-pro-notice in admin-frame-v2.css ). */
 
 @media ( max-width: 900px ) {
 	.ecpt-status { grid-template-columns: 1fr; }

@@ -33,7 +33,7 @@ if ( ! $priv_id ) {
 $from_email = $wizard::real_option( 'ec_option_order_from_email' ) ? $wizard::real_option( 'ec_option_order_from_email' ) : get_option( 'admin_email' );
 $bcc        = $wizard::real_option( 'ec_option_bcc_email_addresses' ) ? $wizard::real_option( 'ec_option_bcc_email_addresses' ) : get_option( 'admin_email' );
 $tracking   = get_option( 'ec_option_allow_tracking' );
-$tracking_on = ( '-1' != $tracking ); /* unset or pending counts as on-by-default here; the merchant confirms */
+$tracking_on = ( '1' === (string) $tracking ); /* 6.0.3: never ticked for the merchant ( opt-in only ); ticked only when the store already shares */
 $state      = $wizard->get_checklist_state();
 
 $icon_ok   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>';
@@ -183,9 +183,9 @@ $icon_warn = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 			</div>
 		</div>
 		<div class="ecwz-frow">
-			<div class="ecwz-lab"><?php esc_html_e( 'Help improve EasyCart', 'wp-easycart' ); ?><small><?php esc_html_e( 'Anonymous usage data: plugin and PHP versions, which features are enabled. Never customer or order data.', 'wp-easycart' ); ?></small></div>
+			<div class="ecwz-lab"><?php esc_html_e( 'Help improve EasyCart', 'wp-easycart' ); ?><small><?php esc_html_e( 'Anonymous usage data, once a week: versions, which features are on, and rough store size. Never customer or order data.', 'wp-easycart' ); ?></small></div>
 			<div class="ecwz-val ecwz-val-toggle">
-				<label class="ecwz-tg-row"><span class="ecwz-tg"><input type="checkbox" name="allow_tracking" value="1"<?php checked( $tracking_on ); ?>><span></span></span><span class="ecwz-t"><?php esc_html_e( 'Share basic usage data', 'wp-easycart' ); ?></span> <a href="https://www.wpeasycart.com/terms-and-conditions/" target="_blank" rel="noopener noreferrer" class="ecwz-lnk ecwz-lnk-sm"><?php esc_html_e( 'What\'s sent?', 'wp-easycart' ); ?></a></label>
+				<label class="ecwz-tg-row"><span class="ecwz-tg"><input type="checkbox" name="allow_tracking" value="1"<?php checked( $tracking_on ); ?>><span></span></span><span class="ecwz-t"><?php esc_html_e( 'Share basic usage data', 'wp-easycart' ); ?></span> <a href="https://connect.wpeasycart.com/logging/logging.php?about=1" target="_blank" rel="noopener noreferrer" class="ecwz-lnk ecwz-lnk-sm"><?php esc_html_e( 'What\'s sent?', 'wp-easycart' ); ?></a></label>
 			</div>
 		</div>
 	</div>

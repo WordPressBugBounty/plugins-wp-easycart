@@ -29,7 +29,7 @@ $ecsq_return    = rawurlencode( esc_url_raw( admin_url() ) . '?ec_admin_form_act
 			<div><?php esc_html_e( 'Square offers the ability to pay with a credit card directly on your website. Adding Square gives your shopping cart a more professional look and increases conversions.', 'wp-easycart' ); ?></div>
 			<?php if ( $ecsq_active ) { ?>
 				<div class="ecsq-actions">
-					<a href="admin.php?page=wp-easycart-settings&amp;subpage=cart-importer" target="_blank"><?php esc_html_e( 'Import products from Square', 'wp-easycart' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=square' ) ); ?>" target="_blank"><?php esc_html_e( 'Import products from Square', 'wp-easycart' ); ?></a>
 					<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-renew' ), 'wp-easycart-payment-square-renew' ) ); ?>"><?php esc_html_e( 'Renew access', 'wp-easycart' ); ?></a>
 					<a class="ecsq-danger" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment&ec_admin_form_action=square-disconnect' ), 'wp-easycart-payment-square-disconnect' ) ); ?>"><?php esc_html_e( 'Disconnect', 'wp-easycart' ); ?></a>
 				</div>

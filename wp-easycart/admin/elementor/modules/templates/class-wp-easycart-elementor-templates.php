@@ -538,9 +538,10 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Templates' ) ) :
 				return;
 			}
 			$frontend = \Elementor\Plugin::$instance->frontend;
-			/* A store page drawn with a theme page template ends the request on template_redirect ( ec_fix_store_template(),
-			 * priority 1 ) before Elementor's own setup ( priority 10 ): without it the page has no kit body class, font links
-			 * or frontend scripts. init() only adds hooks, and those it needs run after this one. */
+			/* WP EasyCart 6.0.2 ended store item requests drawn with a theme page template on template_redirect ( priority 1 ),
+			 * before Elementor's own setup ( priority 10 ); 6.0.3 no longer does ( ec_fix_store_template() is a template_include
+			 * filter ), but a theme or plugin that still ends the request early would leave the page with no kit body class, font
+			 * links or frontend scripts. init() only adds hooks, and those it needs run after this one. */
 			if ( method_exists( $frontend, 'init' ) && false === has_action( 'wp_footer', array( $frontend, 'wp_footer' ) ) ) {
 				$frontend->init();
 			}

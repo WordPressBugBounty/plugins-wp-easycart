@@ -46,6 +46,7 @@ class wp_easycart_admin_payment_v2 {
 	private static $catalog  = null;
 	private static $status   = array();
 	private static $enqueued = false;
+	private static $pro_active = null;
 
 	/* ------------------------------------------------------------------ */
 	/* Edition                                                             */
@@ -53,11 +54,10 @@ class wp_easycart_admin_payment_v2 {
 
 	/** PRO installed, active and licensed ( the gate ). Every free-edition element hides when true. */
 	public static function pro_active() {
-		static $active = null;
-		if ( null === $active ) {
-			$active = class_exists( 'wp_easycart_admin_pro_gate' ) && wp_easycart_admin_pro_gate::is_enabled();
+		if ( null === self::$pro_active ) {
+			self::$pro_active = class_exists( 'wp_easycart_admin_pro_gate' ) && wp_easycart_admin_pro_gate::is_enabled();
 		}
-		return (bool) $active;
+		return (bool) self::$pro_active;
 	}
 
 	/** Plan name for copy ( wp_easycart_admin_edition::plan_name(), 'Pro/Premium' when the helper is not loaded ). */
@@ -79,27 +79,43 @@ class wp_easycart_admin_payment_v2 {
 		return sprintf( __( '%s is included with Pro and Premium licenses.', 'wp-easycart' ), $gw['label'] );
 	}
 
+	/**
+	 * Refusal sentence for a gateway a licensed but older WP EasyCart PRO cannot run.
+	 *
+	 * @since 6.0.3
+	 * @param array $gw Catalog entry.
+	 * @return string
+	 */
+	private static function update_message( $gw ) {
+		/* translators: 1: gateway name, 2: version number, e.g. 6.0.2. */
+		return sprintf( __( 'Update WP EasyCart PRO to %2$s or newer to use %1$s.', 'wp-easycart' ), $gw['label'], $gw['min_version'] );
+	}
+
 	/** Free edition: EasyCart Connect terms must be accepted before PayPal / Stripe / Square. */
 	public static function terms_gate() {
 		return ! self::pro_active() && ! get_option( 'ec_option_wpeasycart_terms_accepted' );
 	}
 
-	/** Free edition: the 2% application-fee note applies. */
+	/** Free edition: the 2% application-fee note applies ( 6.0.3: only while the fee is charged, as the setup wizard's badge reads it ). */
 	public static function show_fee_note() {
-		return ! self::pro_active();
+		return ! self::pro_active() && 0 < (float) apply_filters( 'wp_easycart_stripe_connect_fee_rate', 2 );
 	}
 
 	/* ------------------------------------------------------------------ */
 	/* Catalog                                                             */
 	/* ------------------------------------------------------------------ */
 
-	/** Slot labels, in card order. */
+	/**
+	 * The ways to pay ( slots ), in line order, named in the words shoppers would use.
+	 *
+	 * @since 6.0.3 Card payments, Checkout buttons, Wallets, Pay later ( were Live gateway, Third-party checkout, Bill later, Wallet ).
+	 */
 	public static function roles() {
 		return array(
-			'live'        => array( 'label' => __( 'Live gateway', 'wp-easycart' ), 'hint' => __( 'Cards entered on your checkout page', 'wp-easycart' ), 'empty' => __( 'No live gateway', 'wp-easycart' ), 'empty_hint' => __( 'Shoppers cannot pay by card on your site until you connect one.', 'wp-easycart' ) ),
-			'third_party' => array( 'label' => __( 'Third-party checkout', 'wp-easycart' ), 'hint' => __( 'Shoppers finish paying on the provider’s site', 'wp-easycart' ), 'empty' => __( 'No third-party checkout', 'wp-easycart' ), 'empty_hint' => __( 'PayPal and similar providers redirect the shopper to pay, then bring them back.', 'wp-easycart' ) ),
-			'manual'      => array( 'label' => __( 'Bill later', 'wp-easycart' ), 'hint' => __( 'Order now, pay you offline', 'wp-easycart' ), 'empty' => __( 'Bill later', 'wp-easycart' ), 'empty_hint' => '' ),
-			'wallet'      => array( 'label' => __( 'Wallet', 'wp-easycart' ), 'hint' => __( 'Pay with a stored account alongside the gateways above', 'wp-easycart' ), 'empty' => __( 'No wallet', 'wp-easycart' ), 'empty_hint' => '' ),
+			'live'        => array( 'label' => __( 'Card payments', 'wp-easycart' ), 'hint' => __( 'Cards entered on your checkout page', 'wp-easycart' ) ),
+			'third_party' => array( 'label' => __( 'Checkout buttons', 'wp-easycart' ), 'hint' => __( 'Shoppers finish paying on the provider’s site', 'wp-easycart' ) ),
+			'wallet'      => array( 'label' => __( 'Wallets', 'wp-easycart' ), 'hint' => __( 'Pay with a stored account alongside the gateways above', 'wp-easycart' ) ),
+			'manual'      => array( 'label' => __( 'Pay later', 'wp-easycart' ), 'hint' => __( 'Order now, pay you offline', 'wp-easycart' ) ),
 		);
 	}
 
@@ -114,7 +130,9 @@ class wp_easycart_admin_payment_v2 {
 	 *   drawer ( bool: has a settings form ), connect ( bool: OAuth-style onboarding ),
 	 *   enable_key ( wallet role: the on/off option ),
 	 *   creds ( option names that must all be non-empty ), creds_any ( at least one non-empty ),
-	 *   test ( option name, or array( key, on, off ) ), facts ( option => label, shown on the card ).
+	 *   test ( option name, or array( key, on, off ) ), facts ( option => label, shown on the card ),
+	 *   note ( 6.0.3: one short line in the gateway list, searched too ), min_version ( 6.0.3: the WP EasyCart PRO version that
+	 *   runs it; an older licensed PRO shows Update instead of the gateway ).
 	 */
 	public static function catalog() {
 		if ( null !== self::$catalog ) {
@@ -122,7 +140,7 @@ class wp_easycart_admin_payment_v2 {
 		}
 		$free = array(
 			'stripe_connect' => array( 'label' => 'Stripe', 'role' => 'live', 'connect' => true, 'docs' => 'stripe', 'desc' => __( 'Cards, Apple Pay, Google Pay, Link and local payment methods, entered on your checkout page.', 'wp-easycart' ), 'keywords' => array( 'stripe connect', 'apple pay', 'google pay', 'klarna', 'affirm' ) ),
-			'square'         => array( 'label' => 'Square', 'role' => 'live', 'connect' => true, 'docs' => 'square', 'desc' => __( 'Cards on your site, with inventory and products kept in step with your Square account.', 'wp-easycart' ), 'keywords' => array( 'square', 'pos', 'sync' ) ),
+			'square'         => array( 'label' => 'Square', 'role' => 'live', 'connect' => true, 'docs' => 'square', 'desc' => __( 'Cards on your site, with your Square items brought into your store in a few clicks.', 'wp-easycart' ), 'keywords' => array( 'square', 'pos', 'sync' ) ),
 			'paypal'         => array( 'label' => 'PayPal', 'role' => 'third_party', 'connect' => true, 'docs' => 'paypal', 'desc' => __( 'PayPal, Venmo and Pay Later buttons. No SSL certificate required.', 'wp-easycart' ), 'keywords' => array( 'paypal', 'venmo', 'pay later', 'express' ) ),
 			'manual'         => array( 'label' => __( 'Bill later', 'wp-easycart' ), 'role' => 'manual', 'drawer' => false, 'docs' => 'manual', 'desc' => __( 'The order is placed and you collect payment yourself: bank transfer, cheque, pay on pickup.', 'wp-easycart' ), 'keywords' => array( 'manual', 'direct deposit', 'offline', 'invoice' ) ),
 			'amazonpay'      => array( 'label' => 'Amazon Pay', 'role' => 'wallet', 'pro' => true, 'enable_key' => 'ec_option_amazonpay_enable', 'docs' => 'amazonpay', 'desc' => __( 'Shoppers pay with the address and card stored in their Amazon account.', 'wp-easycart' ), 'creds' => array( 'ec_option_amazonpay_store_id', 'ec_option_amazonpay_merchant_id', 'ec_option_amazonpay_public_key', 'ec_option_amazonpay_private_key' ), 'test' => 'ec_option_amazonpay_is_sandbox', 'facts' => array( 'ec_option_amazonpay_merchant_id' => __( 'Merchant ID', 'wp-easycart' ), 'ec_option_amazonpay_region' => __( 'Region', 'wp-easycart' ), 'ec_option_amazonpay_currency' => __( 'Currency', 'wp-easycart' ) ) ),
@@ -182,6 +200,59 @@ class wp_easycart_admin_payment_v2 {
 			$catalog[ $key ]['drawer'] = false;
 			$catalog[ $key ]['desc']   = __( 'Configured in code through the EasyCart gateway hooks; nothing to enter here.', 'wp-easycart' );
 		}
+		/* 6.0.3: one short line per gateway in the list ( what it is, or where it works ); searched too, so "Canada" finds Moneris. */
+		$notes = array(
+			'stripe_connect'            => __( 'Cards, Apple Pay, Google Pay and Link', 'wp-easycart' ),
+			'square'                    => __( 'Cards, plus your Square items brought into your store', 'wp-easycart' ),
+			'paypal'                    => __( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' ),
+			'amazonpay'                 => __( 'Shoppers pay with their Amazon account', 'wp-easycart' ),
+			'authorize'                 => __( 'United States, Canada, UK, Europe, Australia', 'wp-easycart' ),
+			'beanstream'                => __( 'Canada', 'wp-easycart' ),
+			'braintree'                 => __( 'Cards and PayPal, many countries', 'wp-easycart' ),
+			'cardpointe'                => __( 'United States', 'wp-easycart' ),
+			'chronopay'                 => __( 'Older card gateway', 'wp-easycart' ),
+			'virtualmerchant'           => __( 'United States, Canada', 'wp-easycart' ),
+			'eway'                      => __( 'Australia, New Zealand', 'wp-easycart' ),
+			'firstdata'                 => __( 'United States', 'wp-easycart' ),
+			'goemerchant'               => __( 'United States', 'wp-easycart' ),
+			'intuit'                    => __( 'QuickBooks Payments, United States', 'wp-easycart' ),
+			'migs'                      => __( 'Mastercard bank gateway, Asia Pacific and Middle East', 'wp-easycart' ),
+			'moneris_ca'                => __( 'Canada', 'wp-easycart' ),
+			'moneris_us'                => __( 'United States', 'wp-easycart' ),
+			'nmi'                       => __( 'United States, works with many processors', 'wp-easycart' ),
+			'sagepay'                   => __( 'United Kingdom, Ireland', 'wp-easycart' ),
+			'sagepayus'                 => __( 'United States', 'wp-easycart' ),
+			'payline'                   => __( 'Older card gateway', 'wp-easycart' ),
+			'paymentexpress'            => __( 'New Zealand, Australia ( Windcave )', 'wp-easycart' ),
+			'paypal_pro'                => __( 'Older PayPal card gateway', 'wp-easycart' ),
+			'paypal_payments_pro'       => __( 'Older PayPal card gateway', 'wp-easycart' ),
+			'paypoint'                  => __( 'United Kingdom', 'wp-easycart' ),
+			'paytrace'                  => __( 'United States', 'wp-easycart' ),
+			'realex'                    => __( 'Ireland, United Kingdom ( Global Payments )', 'wp-easycart' ),
+			'securepay'                 => __( 'Australia', 'wp-easycart' ),
+			'stripe'                    => __( 'Stripe with keys you enter by hand; Stripe above replaces it', 'wp-easycart' ),
+			'securenet'                 => __( 'United States', 'wp-easycart' ),
+			'custom'                    => __( 'Set up in code', 'wp-easycart' ),
+			'2checkout_thirdparty'      => __( 'Worldwide ( now Verifone )', 'wp-easycart' ),
+			'cashfree'                  => __( 'India', 'wp-easycart' ),
+			'dwolla_thirdparty'         => __( 'United States bank transfers', 'wp-easycart' ),
+			'nets'                      => __( 'Nordic countries', 'wp-easycart' ),
+			'payfast_thirdparty'        => __( 'South Africa', 'wp-easycart' ),
+			'payfort'                   => __( 'Middle East ( Amazon Payment Services )', 'wp-easycart' ),
+			'paymentexpress_thirdparty' => __( 'New Zealand, Australia ( Windcave )', 'wp-easycart' ),
+			'realex_thirdparty'         => __( 'Ireland, United Kingdom ( Global Payments )', 'wp-easycart' ),
+			'redsys'                    => __( 'Spain', 'wp-easycart' ),
+			'sagepay_paynow_za'         => __( 'South Africa', 'wp-easycart' ),
+			'skrill'                    => __( 'Worldwide wallet', 'wp-easycart' ),
+			'custom_thirdparty'         => __( 'Set up in code', 'wp-easycart' ),
+		);
+		foreach ( $notes as $key => $note ) {
+			if ( isset( $catalog[ $key ] ) ) {
+				$catalog[ $key ]['note'] = $note;
+			}
+		}
+		/* 6.0.3: gateways a WP EasyCart PRO older than this does not have ( its settings form and payment code are missing ). */
+		$catalog['paytrace']['min_version'] = '6.0.2';
 		$catalog = apply_filters( 'wp_easycart_payment_gateway_catalog', $catalog );
 		$pro_active = self::pro_active();
 		$clean = array();
@@ -191,21 +262,23 @@ class wp_easycart_admin_payment_v2 {
 				continue;
 			}
 			$gw = wp_parse_args( $gw, array(
-				'label'      => $key,
-				'role'       => 'live',
-				'desc'       => '',
-				'docs'       => $key,
-				'pro'        => false,
-				'available'  => null,
-				'file'       => '',
-				'drawer'     => true,
-				'connect'    => false,
-				'enable_key' => '',
-				'creds'      => array(),
-				'creds_any'  => array(),
-				'test'       => '',
-				'facts'      => array(),
-				'keywords'   => array(),
+				'label'       => $key,
+				'role'        => 'live',
+				'desc'        => '',
+				'docs'        => $key,
+				'pro'         => false,
+				'available'   => null,
+				'file'        => '',
+				'drawer'      => true,
+				'connect'     => false,
+				'enable_key'  => '',
+				'creds'       => array(),
+				'creds_any'   => array(),
+				'test'        => '',
+				'facts'       => array(),
+				'keywords'    => array(),
+				'note'        => '',
+				'min_version' => '',
 			) );
 			if ( ! in_array( $gw['role'], array( 'live', 'third_party', 'manual', 'wallet' ), true ) ) {
 				$gw['role'] = 'live';
@@ -248,7 +321,7 @@ class wp_easycart_admin_payment_v2 {
 		$partners = array(
 			'live'        => array(
 				'stripe_connect' => __( 'Cards, Apple Pay, Google Pay, Link and local payment methods on your checkout page.', 'wp-easycart' ),
-				'square'         => __( 'Cards on your site, with products and inventory kept in step with your Square account.', 'wp-easycart' ),
+				'square'         => __( 'Cards on your site, with your Square items brought into your store in a few clicks.', 'wp-easycart' ),
 			),
 			'third_party' => array(
 				'paypal' => __( 'PayPal, Venmo and Pay Later buttons that shoppers already know.', 'wp-easycart' ),
@@ -275,6 +348,21 @@ class wp_easycart_admin_payment_v2 {
 	/** A PRO gateway is locked until PRO marks it available ( catalog filter, or the gate as a fallback ). */
 	public static function is_locked( $gw ) {
 		return ! empty( $gw['pro'] ) && empty( $gw['available'] );
+	}
+
+	/**
+	 * A licensed WP EasyCart PRO that is older than the gateway's min_version: the store updates PRO, it never sees a plan
+	 * lock for it ( the admin's "Update, never upsell" rule ).
+	 *
+	 * @since 6.0.3
+	 * @param array $gw Catalog entry.
+	 * @return bool
+	 */
+	public static function needs_update( $gw ) {
+		if ( empty( $gw['min_version'] ) || self::is_locked( $gw ) || ! self::pro_active() || ! defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ) {
+			return false;
+		}
+		return version_compare( (string) WP_EASYCART_ADMIN_PRO_VERSION, (string) $gw['min_version'], '<' );
 	}
 
 	/** Key of the gateway that currently fills a slot, or ''. */
@@ -470,9 +558,12 @@ class wp_easycart_admin_payment_v2 {
 
 		$s = apply_filters( 'wp_easycart_payment_gateway_status', $s, $gw );
 
-		$s['ready'] = $s['connected'] || $s['live_ready'] || $s['test_ready'];
+		$s['ready']  = $s['connected'] || $s['live_ready'] || $s['test_ready'];
+		$s['update'] = self::needs_update( $gw );
 		if ( $s['locked'] ) {
 			$s['state'] = 'locked';
+		} elseif ( $s['update'] ) {
+			$s['state'] = 'update';
 		} elseif ( $s['enabled'] && $s['connected'] ) {
 			$s['state'] = 'connected';
 		} elseif ( $s['enabled'] ) {
@@ -758,35 +849,46 @@ class wp_easycart_admin_payment_v2 {
 			'page'        => self::PAGE,
 			'user'        => (int) get_current_user_id(),
 			'terms_nonce' => wp_create_nonce( 'wp-easycart-terms-accept' ),
+			'terms_url'   => 'https://www.wpeasycart.com/terms-and-conditions/',
 			'i18n'        => array(
-				'loading'        => __( 'Loading settings…', 'wp-easycart' ),
-				'load_failed'    => __( 'Could not load this gateway’s settings.', 'wp-easycart' ),
-				'close'          => __( 'Close', 'wp-easycart' ),
-				'docs'           => __( 'Docs', 'wp-easycart' ),
-				'save'           => __( 'Save', 'wp-easycart' ),
-				'saving'         => __( 'Saving…', 'wp-easycart' ),
-				'drawer_note'    => __( 'Changes save from the controls in this form.', 'wp-easycart' ),
-				'save_on'        => __( 'Save and turn on', 'wp-easycart' ),
-				'saved'          => __( 'Settings saved.', 'wp-easycart' ),
-				'unsaved'        => __( 'Unsaved changes', 'wp-easycart' ),
-				'no_changes'     => __( 'No unsaved changes', 'wp-easycart' ),
-				'confirm_leave'  => __( 'You have unsaved changes in this drawer. Close it and lose them?', 'wp-easycart' ),
-				'fix_fields'     => __( 'Check the highlighted fields.', 'wp-easycart' ),
-				'show'           => __( 'Show', 'wp-easycart' ),
-				'hide'           => __( 'Hide', 'wp-easycart' ),
-				'copy'           => __( 'Copy', 'wp-easycart' ),
-				'copied'         => __( 'Copied', 'wp-easycart' ),
+				'loading'          => __( 'Loading settings…', 'wp-easycart' ),
+				'load_failed'      => __( 'Could not load this gateway’s settings.', 'wp-easycart' ),
+				'close'            => __( 'Close', 'wp-easycart' ),
+				'cancel'           => __( 'Cancel', 'wp-easycart' ),
+				'docs'             => __( 'Docs', 'wp-easycart' ),
+				'save'             => __( 'Save', 'wp-easycart' ),
+				'saving'           => __( 'Saving…', 'wp-easycart' ),
+				'drawer_note'      => __( 'Changes save from the controls in this form.', 'wp-easycart' ),
+				'save_on'          => __( 'Save and turn on', 'wp-easycart' ),
+				'saved'            => __( 'Settings saved.', 'wp-easycart' ),
+				'unsaved'          => __( 'Unsaved changes', 'wp-easycart' ),
+				'confirm_leave'    => __( 'You have unsaved changes in this drawer. Close it and lose them?', 'wp-easycart' ),
+				'show'             => __( 'Show', 'wp-easycart' ),
+				'hide'             => __( 'Hide', 'wp-easycart' ),
+				'copy'             => __( 'Copy', 'wp-easycart' ),
+				'copied'           => __( 'Copied', 'wp-easycart' ),
 				/* translators: %s: gateway name. */
-				'legacy_selects' => __( 'Saving this form also makes %s the gateway for its slot.', 'wp-easycart' ),
-				'manual_title'   => __( 'Bill later wording', 'wp-easycart' ),
-				'working'        => __( 'Working…', 'wp-easycart' ),
-				'opening'        => __( 'Opening…', 'wp-easycart' ),
-				'request_failed' => __( 'Request failed.', 'wp-easycart' ),
-				'confirm_off'    => __( 'Turn this gateway off? Shoppers will no longer see it at checkout.', 'wp-easycart' ),
-				'confirm_swap'   => __( 'This replaces your current gateway in this slot. Continue?', 'wp-easycart' ),
-				'terms_first'    => __( 'Accept the EasyCart Connect terms first.', 'wp-easycart' ),
-				'browse'         => __( 'Browse gateways', 'wp-easycart' ),
-				'collapse'       => __( 'Hide list', 'wp-easycart' ),
+				'legacy_selects'   => __( 'Saving this form also makes %s the gateway for its slot.', 'wp-easycart' ),
+				'manual_title'     => __( 'Bill later wording', 'wp-easycart' ),
+				'working'          => __( 'Working…', 'wp-easycart' ),
+				'opening'          => __( 'Opening…', 'wp-easycart' ),
+				'request_failed'   => __( 'Request failed.', 'wp-easycart' ),
+				'confirm_off'      => __( 'Turn this gateway off? Shoppers will no longer see it at checkout.', 'wp-easycart' ),
+				'confirm_swap'     => __( 'This replaces your current gateway in this slot. Continue?', 'wp-easycart' ),
+				'confirm_live'     => __( 'Take live payments? Real cards are charged from now on.', 'wp-easycart' ),
+				'confirm_all_live' => __( 'Switch all active gateways to live mode? Real cards will be charged from now on.', 'wp-easycart' ),
+				'tabs_label'       => __( 'Settings sections', 'wp-easycart' ),
+				'terms_title'      => __( 'EasyCart Connect terms', 'wp-easycart' ),
+				'terms_text'       => __( 'The Free edition includes unlimited products, orders and accounts plus Bill later. PayPal, Stripe and Square are available through EasyCart Connect with a 2% EasyCart fee on each sale. Upgrading to Pro or Premium removes the fee and unlocks 30+ more gateways.', 'wp-easycart' ),
+				/* translators: 1: opening link tag, 2: closing link tag. */
+				'terms_agree'      => __( 'I agree to the WP EasyCart %1$sterms and privacy policy%2$s.', 'wp-easycart' ),
+				'terms_accept'     => __( 'Accept and continue', 'wp-easycart' ),
+				'older_show'       => __( 'Show older gateways', 'wp-easycart' ),
+				'older_hide'       => __( 'Hide older gateways', 'wp-easycart' ),
+				/* translators: %s: what was typed in the gateway search. */
+				'no_match'         => __( 'No gateway matches “%s”.', 'wp-easycart' ),
+				'rec_done'         => __( 'Every recommended gateway is already on. Choose All to see the rest.', 'wp-easycart' ),
+				'none_left'        => __( 'Every gateway in this group is already active.', 'wp-easycart' ),
 			),
 		) );
 	}
@@ -795,543 +897,581 @@ class wp_easycart_admin_payment_v2 {
 	/* Rendering ( never enqueues )                                        */
 	/* ------------------------------------------------------------------ */
 
-	/** Section "Active gateways": flash, terms gate, test-mode banner, one card per slot. */
-	public static function render_active( $page, $section ) {
-		$gate  = self::terms_gate();
-		$tests = self::test_mode_gateways();
-		self::render_flash();
-		if ( $gate ) {
-			self::render_terms();
-		}
-		if ( $tests ) {
-			$names = array();
-			foreach ( $tests as $key ) {
-				$gw = self::gateway( $key );
-				$names[] = $gw['label'];
+	/**
+	 * Gateways listed first in "Add or change a gateway" ( the Recommended filter ), in this order. Keys missing from the
+	 * catalog are dropped.
+	 *
+	 * @since 6.0.3
+	 * @return array gateway keys
+	 */
+	public static function recommended() {
+		$keys = apply_filters( 'wp_easycart_payment_recommended_gateways', array( 'stripe_connect', 'square', 'paypal', 'amazonpay', 'authorize' ) );
+		$keep = array();
+		foreach ( (array) $keys as $key ) {
+			$key = sanitize_key( (string) $key );
+			if ( '' !== $key && self::gateway( $key ) && ! in_array( $key, $keep, true ) ) {
+				$keep[] = $key;
 			}
-			?>
-			<div class="ecpay-banner" id="ecpay_test_banner" role="status">
-				<span class="dashicons dashicons-warning" aria-hidden="true"></span>
-				<div class="ecpay-banner-text">
-					<b><?php echo esc_html( sprintf( _n( '%s is in test mode', '%s are in test mode', count( $names ), 'wp-easycart' ), implode( ', ', $names ) ) ); ?></b>
-					<span><?php esc_html_e( 'Orders are not charged. Switch back to live before you open the store.', 'wp-easycart' ); ?></span>
-				</div>
-				<button type="button" class="ecv2-btn ecv2-btn-primary ecpay-banner-btn" data-ecpay-test-off="1"><?php esc_html_e( 'Turn off test mode', 'wp-easycart' ); ?></button>
+		}
+		return $keep;
+	}
+
+	/**
+	 * Rarely chosen gateways: listed under "Older gateways", closed until the merchant opens the group or searches. They
+	 * stay fully usable, and one already selected shows as usual.
+	 *
+	 * @since 6.0.3
+	 * @return array gateway keys
+	 */
+	public static function older() {
+		$keys = apply_filters(
+			'wp_easycart_payment_older_gateways',
+			array( 'stripe', 'paypal_pro', 'paypal_payments_pro', 'chronopay', 'migs', 'payline', 'paypoint', 'paymentexpress', 'paymentexpress_thirdparty', 'realex', 'realex_thirdparty', 'sagepay', 'sagepayus', 'securenet', 'firstdata', 'virtualmerchant', 'nets', 'dwolla_thirdparty', '2checkout_thirdparty', 'custom', 'custom_thirdparty' )
+		);
+		return array_values( array_filter( array_map( 'sanitize_key', array_map( 'strval', (array) $keys ) ), 'strlen' ) );
+	}
+
+	/** Customer words for a gateway's state, the dot beside them, and the line's one-sentence detail. */
+	private static function line_state( $key, $s, $gw ) {
+		switch ( $s['state'] ) {
+			case 'locked':
+				/* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */
+				return array( 'dot' => 'bad', 'text' => sprintf( __( '%s license needed', 'wp-easycart' ), self::plan_name() ), 'detail' => sprintf( __( 'This gateway is still selected but needs an active %s license to process payments.', 'wp-easycart' ), self::plan_name() ) );
+			case 'update':
+				/* translators: %s: version number, e.g. 6.0.2. */
+				return array( 'dot' => 'warn', 'text' => __( 'Needs a newer WP EasyCart PRO', 'wp-easycart' ), 'detail' => sprintf( __( 'WP EasyCart PRO %s or newer runs this gateway.', 'wp-easycart' ), $gw['min_version'] ) );
+			case 'connected':
+				if ( 'manual' === $gw['role'] ) {
+					return array( 'dot' => 'on', 'text' => __( 'On', 'wp-easycart' ), 'detail' => self::line_detail( $key, $s, $gw ) );
+				}
+				return array( 'dot' => $s['test'] ? 'test' : 'on', 'text' => $s['test'] ? __( 'Connected · Test mode', 'wp-easycart' ) : __( 'Connected · Live', 'wp-easycart' ), 'detail' => self::line_detail( $key, $s, $gw ) );
+			case 'incomplete':
+				return array( 'dot' => 'warn', 'text' => __( 'Selected, not set up', 'wp-easycart' ), 'detail' => $gw['connect'] ? __( 'Connect your account to start taking payments.', 'wp-easycart' ) : __( 'Finish its settings to start taking payments.', 'wp-easycart' ) );
+		}
+		if ( 'manual' === $gw['role'] ) {
+			return array( 'dot' => 'off', 'text' => __( 'Off', 'wp-easycart' ), 'detail' => __( 'Shoppers order now and pay you offline: bank transfer, cheque or at pickup.', 'wp-easycart' ) );
+		}
+		return array( 'dot' => 'off', 'text' => __( 'Off', 'wp-easycart' ), 'detail' => '' );
+	}
+
+	/** The line under a gateway's name: its account and the choices that matter, from the card facts ( never secrets ). */
+	private static function line_detail( $key, $s, $gw ) {
+		if ( 'manual' === $key ) {
+			/* translators: 1: the pay-later option name shoppers see, 2: who it is offered to ( Everyone, or role names ). */
+			return sprintf( __( 'Shown as “%1$s” · offered to %2$s', 'wp-easycart' ), self::manual_title(), self::manual_roles_text() );
+		}
+		$prefer = array(
+			'stripe_connect' => array( __( 'Currency', 'wp-easycart' ), __( 'Business country', 'wp-easycart' ), __( 'Extra methods', 'wp-easycart' ) ),
+			'square'         => array( __( 'Merchant name', 'wp-easycart' ), __( 'Location', 'wp-easycart' ), __( 'Digital wallets', 'wp-easycart' ) ),
+			'paypal'         => array( __( 'Account email', 'wp-easycart' ), __( 'Merchant ID', 'wp-easycart' ), __( 'Extra buttons', 'wp-easycart' ) ),
+		);
+		$skip  = array( __( 'Accounts', 'wp-easycart' ), __( 'Webhook URL', 'wp-easycart' ), __( 'Notifications', 'wp-easycart' ), __( 'Access renews', 'wp-easycart' ), __( 'Checkout', 'wp-easycart' ) );
+		$parts = array();
+		if ( isset( $prefer[ $key ] ) ) {
+			foreach ( $prefer[ $key ] as $label ) {
+				if ( isset( $s['facts'][ $label ] ) && '' !== (string) $s['facts'][ $label ] ) {
+					$parts[] = (string) $s['facts'][ $label ];
+				}
+			}
+			if ( 'paypal' === $key && 3 === count( $parts ) && isset( $s['facts'][ __( 'Account email', 'wp-easycart' ) ] ) ) {
+				unset( $parts[1] ); /* the email names the account; the merchant ID only when there is no email */
+			}
+		} else {
+			foreach ( (array) $s['facts'] as $label => $value ) {
+				if ( ! in_array( $label, $skip, true ) && '' !== (string) $value ) {
+					$parts[] = (string) $value;
+				}
+				if ( count( $parts ) >= 2 ) {
+					break;
+				}
+			}
+		}
+		return implode( ' · ', $parts );
+	}
+
+	/** One short line for a gateway in the list: what it is, or where it works ( searched too ). */
+	private static function tile_note( $gw ) {
+		if ( '' !== $gw['note'] ) {
+			return $gw['note'];
+		}
+		return $gw['desc'];
+	}
+
+	/** Small inline SVGs ( fixed markup ). */
+	private static function svg( $name ) {
+		switch ( $name ) {
+			case 'lock':
+				return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>';
+			case 'more':
+				return '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>';
+			case 'search':
+				return '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>';
+		}
+		return '';
+	}
+
+	/** A Connect link: inert ( aria-disabled ) while the EasyCart Connect terms wait, then the onboarding URL. */
+	private static function connect_link( $url, $label, $classes, $gate, $extra = '' ) {
+		return '<a class="' . esc_attr( $classes . ' ecpay-connect' ) . '" href="' . ( $gate ? '#' : esc_url( $url ) ) . '" data-href="' . esc_url( $url ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . $extra . '>' . esc_html( $label ) . '</a>';
+	}
+
+	/** The ⋯ menu of a line. $items: array of HTML strings ( menu items ) and '-' separators. */
+	private static function render_menu( $id, $label, $items ) {
+		$items = array_values( array_filter( $items, 'strlen' ) );
+		while ( $items && '-' === $items[0] ) {
+			array_shift( $items );
+		}
+		while ( $items && '-' === end( $items ) ) {
+			array_pop( $items );
+		}
+		if ( ! $items ) {
+			return;
+		}
+		?>
+		<div class="ecpay-menu-wrap">
+			<button type="button" class="ecv2-btn ecv2-btn-sm ecpay-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="<?php echo esc_attr( $id ); ?>" aria-label="<?php echo esc_attr( $label ); ?>" title="<?php echo esc_attr( $label ); ?>"><?php echo self::svg( 'more' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?></button>
+			<div class="ecpay-menu" id="<?php echo esc_attr( $id ); ?>" role="menu" hidden>
+				<?php
+				foreach ( $items as $item ) {
+					echo '-' === $item ? '<div class="ecpay-menu-sep" role="separator"></div>' : $item; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- items are built from escaped parts in render_line().
+				}
+				?>
 			</div>
-			<?php
-		}
-		/* Partner-first chooser per slot: shown open when the slot is empty, hidden behind "Change gateway" when it is filled.
-		 * Taking cards comes first ( above the cards ); the optional third-party checkout follows them. */
-		$choosers = array();
-		foreach ( array( 'live', 'third_party' ) as $role ) {
-			if ( self::partners( $role ) ) {
-				$choosers[ $role ] = true;
-			}
-		}
-		if ( isset( $choosers['live'] ) ) {
-			self::render_chooser( 'live', $gate );
-		}
-		echo '<div class="ecpay-cards">';
-		foreach ( self::roles() as $role => $meta ) {
+		</div>
+		<?php
+	}
+
+	/** One menu item: a button carrying the page's data-ecpay-* action attributes ( attributes already escaped ). */
+	private static function menu_button( $label, $attrs, $danger = false ) {
+		return '<button type="button" role="menuitem" class="ecpay-menu-item' . ( $danger ? ' is-danger' : '' ) . '" ' . $attrs . '>' . esc_html( $label ) . '</button>';
+	}
+
+	/** One menu item that leaves the page ( Connect, Reconnect, Renew access, Disconnect ). */
+	private static function menu_link( $label, $href, $attrs = '', $danger = false ) {
+		return '<a role="menuitem" class="ecpay-menu-item' . ( $danger ? ' is-danger' : '' ) . '" href="' . esc_url( $href ) . '" ' . $attrs . '>' . esc_html( $label ) . '</a>';
+	}
+
+	/** The page summary ( moved beside the page title by the script ): one pill per way to pay that is on. */
+	private static function render_summary() {
+		$roles = self::roles();
+		echo '<div class="ecpay-summary" id="ecpay_summary" aria-label="' . esc_attr__( 'Payment summary', 'wp-easycart' ) . '">';
+		foreach ( $roles as $role => $meta ) {
 			$key = self::active( $role );
 			if ( '' === $key ) {
-				if ( 'wallet' === $role ) {
-					/* 6.0.1: the wallet slot used to be dropped entirely until a wallet was switched on, so on the
-					   free edition Amazon Pay appeared nowhere on this page unless the merchant thought to expand
-					   "Browse gateways". It gets its own card now: an upsell while it is locked, a Set up button
-					   once it is not. */
-					self::render_wallet_card( $meta, $gate );
-					continue;
+				if ( 'live' === $role ) {
+					echo '<span class="ecpay-sum" title="' . esc_attr( $meta['label'] ) . '"><i class="ecpay-dot is-bad" aria-hidden="true"></i>' . esc_html__( 'No card payments', 'wp-easycart' ) . '</span>';
 				}
-				if ( isset( $choosers[ $role ] ) ) {
-					continue; /* Live / third-party: the chooser stands in for the empty card. */
-				}
-				self::render_empty_card( $role, $meta );
 				continue;
 			}
-			self::render_card( $role, $meta, $key, $gate, isset( $choosers[ $role ] ) );
+			$gw = self::gateway( $key );
+			$s  = self::status( $key );
+			if ( 'manual' === $role && ! $s['enabled'] ) {
+				continue;
+			}
+			if ( 'wallet' === $role && ! $s['enabled'] ) {
+				continue;
+			}
+			$state = self::line_state( $key, $s, $gw );
+			echo '<span class="ecpay-sum" title="' . esc_attr( $meta['label'] . ': ' . $state['text'] ) . '"><i class="ecpay-dot is-' . esc_attr( $state['dot'] ) . '" aria-hidden="true"></i>' . esc_html( $gw['label'] ) . '<span class="screen-reader-text"> · ' . esc_html( $state['text'] ) . '</span></span>';
 		}
 		echo '</div>';
-		if ( isset( $choosers['third_party'] ) ) {
-			self::render_chooser( 'third_party', $gate );
+	}
+
+	/** One line while any selected gateway is in sandbox / test mode. */
+	private static function render_test_notice() {
+		$tests = self::test_mode_gateways();
+		if ( ! $tests ) {
+			return;
 		}
-		if ( self::show_fee_note() ) {
-			?>
-			<p class="ecpay-fee-note"><?php esc_html_e( 'Free edition: Bill later is free to use. PayPal, Stripe and Square are offered through EasyCart Connect with a 2% application fee on top of the provider’s own fees.', 'wp-easycart' ); ?> <a href="#" onclick="ecst.upsell( 'payment_fees' ); return false;"><?php /* translators: %s: plan name, Pro/Premium on the free edition. */ echo esc_html( sprintf( __( 'Upgrade to %s to remove the fee and unlock 30+ gateways', 'wp-easycart' ), self::plan_name() ) ); ?> →</a></p>
-			<?php
+		$names = array();
+		foreach ( $tests as $key ) {
+			$gw      = self::gateway( $key );
+			$names[] = $gw['label'];
+		}
+		?>
+		<div class="ecpay-notice" id="ecpay_test_banner" role="status">
+			<span class="ecpay-notice-text">
+				<b>
+				<?php
+				/* translators: %s: comma-separated gateway names. */
+				echo esc_html( sprintf( _n( 'Test mode is on for %s.', 'Test mode is on for %s.', count( $names ), 'wp-easycart' ), implode( ', ', $names ) ) );
+				?>
+				</b>
+				<?php esc_html_e( 'Checkout works, but no real money moves.', 'wp-easycart' ); ?>
+			</span>
+			<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-test-off="1"><?php esc_html_e( 'Take live payments', 'wp-easycart' ); ?></button>
+		</div>
+		<?php
+	}
+
+	/** Section "How customers pay": flash, the test-mode line and one line per way to pay. */
+	public static function render_active( $page, $section ) {
+		$gate = self::terms_gate();
+		self::render_flash();
+		self::render_summary();
+		self::render_test_notice();
+		echo '<div class="ecpay-lines" role="list">';
+		foreach ( self::roles() as $role => $meta ) {
+			$key = self::active( $role );
+			if ( 'wallet' === $role && '' !== $key ) {
+				$s = self::status( $key );
+				if ( ! $s['enabled'] ) {
+					$key = ''; /* a wallet that is off is a suggestion on the empty line ( or, while locked, a row in the list ) */
+				}
+			}
+			if ( '' === $key ) {
+				self::render_empty_line( $role, $meta, $gate );
+				continue;
+			}
+			self::render_line( $role, $meta, $key, $gate );
+		}
+		echo '</div>';
+	}
+
+	/** One line: the slot in customer words, the gateway, its state, Manage ( or the step that is missing ) and the ⋯ menu. */
+	private static function render_line( $role, $meta, $key, $gate ) {
+		$gw    = self::gateway( $key );
+		$s     = self::status( $key );
+		$state = self::line_state( $key, $s, $gw );
+		$urls  = $gw['connect'] ? self::connect_urls( $key ) : array();
+		$items = array();
+		/* translators: %s: gateway name. */
+		$menu_label = sprintf( __( 'More actions for %s', 'wp-easycart' ), $gw['label'] );
+		?>
+		<div class="ecpay-line is-<?php echo esc_attr( $s['state'] ); ?>" role="listitem" data-role="<?php echo esc_attr( $role ); ?>" data-gateway="<?php echo esc_attr( $key ); ?>">
+			<span class="ecpay-line-slot"><?php echo esc_html( $meta['label'] ); ?></span>
+			<div class="ecpay-line-gw">
+				<?php self::render_logo( $key, $gw ); ?>
+				<div class="ecpay-line-text">
+					<strong><?php echo esc_html( $gw['label'] ); ?></strong>
+					<span class="ecpay-state"><i class="ecpay-dot is-<?php echo esc_attr( $state['dot'] ); ?>" aria-hidden="true"></i><?php echo esc_html( $state['text'] ); ?></span>
+					<?php if ( '' !== $state['detail'] ) : ?><span class="ecpay-line-detail"><?php echo esc_html( $state['detail'] ); ?></span><?php endif; ?>
+				</div>
+			</div>
+			<div class="ecpay-line-act">
+				<?php
+				if ( 'locked' === $s['state'] ) {
+					echo '<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( \'' . esc_js( $key ) . '\' ); return false;">' . self::svg( 'lock' ) . ' ' . esc_html( self::pro_badge() ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG, escaped parts.
+				} elseif ( 'update' === $s['state'] ) {
+					echo '<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="' . esc_url( self_admin_url( 'plugins.php' ) ) . '">' . esc_html__( 'Update WP EasyCart PRO →', 'wp-easycart' ) . '</a>';
+				} elseif ( 'manual' === $role ) {
+					echo '<button type="button" class="ecv2-btn ecv2-btn-sm' . ( $s['enabled'] ? '' : ' ecv2-btn-primary' ) . '" data-ecpay-manual="1">' . esc_html( $s['enabled'] ? __( 'Manage', 'wp-easycart' ) : __( 'Set up', 'wp-easycart' ) ) . '</button>';
+				} elseif ( $gw['connect'] && ! $s['connected'] && ! $s['live_ready'] && ! empty( $urls['live'] ) ) {
+					echo self::connect_link( $urls['live'], $s['test'] ? __( 'Connect live account', 'wp-easycart' ) : __( 'Connect', 'wp-easycart' ), 'ecv2-btn ecv2-btn-sm ecv2-btn-primary', $gate ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+				} elseif ( ! $s['ready'] && $gw['drawer'] ) {
+					echo '<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="' . esc_attr( $key ) . '">' . esc_html( empty( $s['started'] ) ? __( 'Connect', 'wp-easycart' ) : __( 'Finish setup', 'wp-easycart' ) ) . '</button>';
+				} elseif ( $gw['drawer'] ) {
+					echo '<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="' . esc_attr( $key ) . '">' . esc_html__( 'Manage', 'wp-easycart' ) . '</button>';
+				}
+
+				if ( 'manual' === $role ) {
+					$items[] = self::menu_button( $s['enabled'] ? __( 'Turn off', 'wp-easycart' ) : __( 'Turn on', 'wp-easycart' ), 'data-ecpay-toggle="manual" data-on="' . ( $s['enabled'] ? '0' : '1' ) . '"' );
+				} elseif ( 'locked' === $s['state'] || 'update' === $s['state'] ) {
+					if ( 'wallet' !== $role ) {
+						$items[] = self::menu_button( __( 'Replace with another gateway', 'wp-easycart' ), 'data-ecpay-choose="' . esc_attr( $role ) . '"' );
+					}
+					$items[] = '-';
+					$items[] = self::menu_button( __( 'Turn off', 'wp-easycart' ), 'data-ecpay-toggle="' . esc_attr( $key ) . '" data-on="0"' );
+				} else {
+					if ( $s['enabled'] && $s['test'] && $s['live_ready'] ) {
+						$items[] = self::menu_button( __( 'Take live payments', 'wp-easycart' ), 'data-ecpay-mode="' . esc_attr( $key ) . '" data-mode="live"' );
+					} elseif ( $s['enabled'] && ! $s['test'] && $s['test_ready'] && 'stripe' !== $key ) {
+						$items[] = self::menu_button( __( 'Switch to test mode', 'wp-easycart' ), 'data-ecpay-mode="' . esc_attr( $key ) . '" data-mode="test"' );
+					}
+					if ( $gw['connect'] && ! empty( $urls ) ) {
+						if ( $s['ready'] && ! $s['test_ready'] && ! empty( $urls['test'] ) ) {
+							$items[] = '<a role="menuitem" class="ecpay-menu-item ecpay-connect" href="' . ( $gate ? '#' : esc_url( $urls['test'] ) ) . '" data-href="' . esc_url( $urls['test'] ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . '>' . esc_html__( 'Connect a sandbox account', 'wp-easycart' ) . '</a>';
+						}
+						if ( $s['ready'] ) {
+							$env     = ( ( $s['test'] && $s['test_ready'] ) || ! $s['live_ready'] ) ? 'test' : 'live';
+							$items[] = '<a role="menuitem" class="ecpay-menu-item ecpay-connect" href="' . ( $gate ? '#' : esc_url( $urls[ $env ] ) ) . '" data-href="' . esc_url( $urls[ $env ] ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . '>' . esc_html__( 'Reconnect', 'wp-easycart' ) . '</a>';
+							if ( 'square' === $key ) {
+								$items[] = self::menu_link( __( 'Renew access', 'wp-easycart' ), wp_nonce_url( add_query_arg( array( 'ec_admin_form_action' => 'square-renew' ), admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ), 'wp-easycart-payment-square-renew' ), 'data-ecpay-nav="1"' );
+							}
+						}
+					}
+					if ( 'wallet' !== $role ) {
+						$items[] = self::menu_button( __( 'Replace with another gateway', 'wp-easycart' ), 'data-ecpay-choose="' . esc_attr( $role ) . '"' );
+					}
+					$items[] = '-';
+					if ( $s['enabled'] ) {
+						$items[] = self::menu_button( __( 'Turn off', 'wp-easycart' ), 'data-ecpay-toggle="' . esc_attr( $key ) . '" data-on="0"' );
+					} elseif ( $s['ready'] ) {
+						$items[] = self::menu_button( __( 'Turn on', 'wp-easycart' ), 'data-ecpay-toggle="' . esc_attr( $key ) . '" data-on="1"' );
+					}
+					if ( $gw['connect'] && $s['ready'] ) {
+						$env        = ( ( $s['test'] && $s['test_ready'] ) || ! $s['live_ready'] ) ? 'test' : 'live';
+						$disconnect = self::disconnect_url( $key, $env );
+						if ( '' !== $disconnect ) {
+							/* translators: 1: gateway name, 2: sandbox or live. */
+							$confirm = sprintf( __( 'Disconnect %1$s ( %2$s )? The stored keys are removed from this site; revoke access from your %1$s account too.', 'wp-easycart' ), $gw['label'], ( 'test' === $env ) ? __( 'sandbox', 'wp-easycart' ) : __( 'live', 'wp-easycart' ) );
+							$items[] = self::menu_link( __( 'Disconnect', 'wp-easycart' ), $disconnect, 'data-ecpay-confirm="' . esc_attr( $confirm ) . '"', true );
+						}
+					}
+				}
+				self::render_menu( 'ecpay_menu_' . $role, $menu_label, $items );
+				?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/** A way to pay with nothing chosen: the recommended choices as one-click suggestions, and the full list one click away. */
+	private static function render_empty_line( $role, $meta, $gate ) {
+		$suggest = array();
+		if ( 'wallet' === $role ) {
+			foreach ( self::catalog() as $key => $gw ) {
+				if ( 'wallet' === $gw['role'] && ! self::is_locked( $gw ) && ! self::needs_update( $gw ) ) {
+					$suggest[ $key ] = '';
+				}
+			}
+			if ( ! $suggest ) {
+				return; /* Free: Amazon Pay lives in the gateway list ( locked ) instead of an empty line */
+			}
+		} elseif ( 'live' === $role || 'third_party' === $role ) {
+			$suggest = self::partners( $role );
+		}
+		$empty = array(
+			'live'        => __( 'Shoppers can’t pay by card on your site yet.', 'wp-easycart' ),
+			'third_party' => __( 'Optional: PayPal and similar buttons beside your card payments.', 'wp-easycart' ),
+			'wallet'      => __( 'Optional: a stored wallet beside your card payments.', 'wp-easycart' ),
+		);
+		$more  = array(
+			'live'        => __( 'All card gateways', 'wp-easycart' ),
+			'third_party' => __( 'All checkout buttons', 'wp-easycart' ),
+		);
+		$rec   = self::recommended();
+		?>
+		<div class="ecpay-line is-empty" role="listitem" data-role="<?php echo esc_attr( $role ); ?>">
+			<span class="ecpay-line-slot"><?php echo esc_html( $meta['label'] ); ?></span>
+			<div class="ecpay-line-gw">
+				<div class="ecpay-line-text">
+					<?php if ( $suggest ) : ?>
+						<div class="ecpay-suggest">
+							<?php foreach ( $suggest as $key => $benefit ) : ?>
+								<?php self::render_suggestion( $key, $role, $gate, isset( $rec[0] ) && $rec[0] === $key ); ?>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+					<?php if ( isset( $empty[ $role ] ) ) : ?><span class="ecpay-line-detail"><?php echo esc_html( $empty[ $role ] ); ?></span><?php endif; ?>
+				</div>
+			</div>
+			<div class="ecpay-line-act">
+				<?php if ( isset( $more[ $role ] ) ) : ?>
+					<button type="button" class="ecst-link" data-ecpay-choose="<?php echo esc_attr( $role ); ?>"><?php echo esc_html( $more[ $role ] ); ?> &darr;</button>
+				<?php endif; ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/** One suggestion chip on an empty line: Connect ( Stripe, Square, PayPal ), Use ( set up already ), or Set up. */
+	private static function render_suggestion( $key, $role, $gate, $is_first ) {
+		$gw = self::gateway( $key );
+		$s  = $gw ? self::status( $key ) : false;
+		if ( ! $gw || ! $s ) {
+			return;
+		}
+		ob_start();
+		self::render_logo( $key, $gw );
+		$logo = ob_get_clean();
+		$tag  = $is_first ? '<span class="ecpay-rec">' . esc_html__( 'Recommended', 'wp-easycart' ) . '</span>' : '';
+		if ( $s['locked'] ) {
+			echo '<button type="button" class="ecpay-suggest-btn is-locked" onclick="ecst.upsell( \'' . esc_js( $key ) . '\' ); return false;">' . $logo . esc_html( $gw['label'] ) . ' ' . self::svg( 'lock' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts, static SVG.
+			return;
+		}
+		if ( $s['ready'] ) {
+			/* translators: %s: gateway name. */
+			echo '<button type="button" class="ecpay-suggest-btn" data-ecpay-toggle="' . esc_attr( $key ) . '" data-on="1" data-swap="0">' . $logo . esc_html( sprintf( __( 'Use %s', 'wp-easycart' ), $gw['label'] ) ) . $tag . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+			return;
+		}
+		$urls = $gw['connect'] ? self::connect_urls( $key ) : array();
+		if ( ! empty( $urls['live'] ) ) {
+			/* translators: %s: gateway name. */
+			echo '<a class="ecpay-suggest-btn ecpay-connect" href="' . ( $gate ? '#' : esc_url( $urls['live'] ) ) . '" data-href="' . esc_url( $urls['live'] ) . '"' . ( $gate ? ' aria-disabled="true"' : '' ) . '>' . $logo . esc_html( sprintf( __( 'Connect %s', 'wp-easycart' ), $gw['label'] ) ) . $tag . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+			return;
+		}
+		if ( $gw['drawer'] ) {
+			/* translators: %s: gateway name. */
+			echo '<button type="button" class="ecpay-suggest-btn" data-ecpay-open="' . esc_attr( $key ) . '">' . $logo . esc_html( sprintf( __( 'Set up %s', 'wp-easycart' ), $gw['label'] ) ) . $tag . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
 		}
 	}
 
-	/** Section "More gateways": a one-line summary, expanding in place to the full list. */
+	/** Section "Add or change a gateway": search, filters, the gateway tiles ( older ones folded away ) and the plan notes. */
 	public static function render_more( $page, $section ) {
 		$gate   = self::terms_gate();
 		$active = array();
 		foreach ( array_keys( self::roles() ) as $role ) {
 			$key = self::active( $role );
-			if ( '' !== $key ) {
-				$active[ $key ] = true;
+			if ( '' !== $key && ( 'manual' !== $role ) ) {
+				$s = self::status( $key );
+				if ( $s['enabled'] ) {
+					$active[ $key ] = true;
+				}
 			}
 		}
-		$groups = array(
-			'live'        => array( 'label' => __( 'Card gateways ( live )', 'wp-easycart' ), 'rows' => array() ),
-			'third_party' => array( 'label' => __( 'Third-party checkout', 'wp-easycart' ), 'rows' => array() ),
-			'wallet'      => array( 'label' => __( 'Wallets', 'wp-easycart' ), 'rows' => array() ),
-		);
+		$rec    = self::recommended();
+		$older  = array_flip( self::older() );
+		$counts = array( 'live' => 0, 'third_party' => 0, 'wallet' => 0 );
+		$tiles  = array();
+		$locked = 0;
 		foreach ( self::catalog() as $key => $gw ) {
-			if ( isset( $active[ $key ] ) || 'manual' === $gw['role'] || ! isset( $groups[ $gw['role'] ] ) ) {
+			if ( isset( $active[ $key ] ) || ! isset( $counts[ $gw['role'] ] ) ) {
 				continue;
 			}
-			$groups[ $gw['role'] ]['rows'][ $key ] = $gw;
-		}
-		$parts = array();
-		if ( ! empty( $groups['live']['rows'] ) ) {
-			$parts[] = sprintf( _n( '%d more card gateway', '%d more card gateways', count( $groups['live']['rows'] ), 'wp-easycart' ), count( $groups['live']['rows'] ) );
-		}
-		if ( ! empty( $groups['third_party']['rows'] ) ) {
-			$parts[] = sprintf( _n( '%d third-party checkout', '%d third-party checkouts', count( $groups['third_party']['rows'] ), 'wp-easycart' ), count( $groups['third_party']['rows'] ) );
-		}
-		if ( ! empty( $groups['wallet']['rows'] ) ) {
-			$parts[] = sprintf( _n( '%d wallet', '%d wallets', count( $groups['wallet']['rows'] ), 'wp-easycart' ), count( $groups['wallet']['rows'] ) );
-		}
-		if ( ! $parts ) {
-			echo '<div class="ecpay-more-empty">' . esc_html__( 'Every gateway is already active.', 'wp-easycart' ) . '</div>';
-			return;
-		}
-		$last    = array_pop( $parts );
-		$summary = $parts ? sprintf( __( '%1$s and %2$s available', 'wp-easycart' ), implode( ', ', $parts ), $last ) : sprintf( __( '%s available', 'wp-easycart' ), $last );
-		?>
-		<div class="ecpay-more" id="ecpay_more">
-			<div class="ecpay-more-summary" id="ecpay_more_summary">
-				<span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
-				<b><?php echo esc_html( $summary ); ?></b>
-				<span class="ecst-grow"></span>
-				<button type="button" class="ecv2-btn ecv2-btn-sm" id="ecpay_more_toggle" aria-expanded="false" aria-controls="ecpay_more_list"><?php esc_html_e( 'Browse gateways', 'wp-easycart' ); ?></button>
-			</div>
-			<div class="ecpay-more-list" id="ecpay_more_list" hidden>
-				<div class="ecpay-more-filter" role="tablist">
-					<button type="button" class="ecpay-pill is-on" data-ecpay-filter="all"><?php esc_html_e( 'All', 'wp-easycart' ); ?></button>
-					<?php foreach ( $groups as $role => $group ) : ?>
-						<?php if ( ! empty( $group['rows'] ) ) : ?>
-							<button type="button" class="ecpay-pill" data-ecpay-filter="<?php echo esc_attr( $role ); ?>"><?php echo esc_html( $group['label'] ); ?> <em><?php echo (int) count( $group['rows'] ); ?></em></button>
-						<?php endif; ?>
-					<?php endforeach; ?>
-				</div>
-				<?php foreach ( $groups as $role => $group ) : ?>
-					<?php if ( empty( $group['rows'] ) ) { continue; } ?>
-					<div class="ecpay-more-group" data-role="<?php echo esc_attr( $role ); ?>">
-						<h4><?php echo esc_html( $group['label'] ); ?></h4>
-						<?php foreach ( $group['rows'] as $key => $gw ) : ?>
-							<?php $s = self::status( $key ); ?>
-							<div class="ecpay-more-row<?php echo $s['locked'] ? ' is-locked' : ''; ?>" data-gateway="<?php echo esc_attr( $key ); ?>" data-search="<?php echo esc_attr( strtolower( $gw['label'] . ' ' . implode( ' ', (array) $gw['keywords'] ) ) ); ?>">
-								<?php self::render_logo( $key, $gw ); ?>
-								<div class="ecpay-more-text">
-									<b><?php echo esc_html( $gw['label'] ); ?><?php if ( $s['locked'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( self::pro_badge() ); ?></span><?php endif; ?></b>
-									<?php if ( '' !== $gw['desc'] ) : ?><span><?php echo esc_html( $gw['desc'] ); ?></span><?php endif; ?>
-								</div>
-								<div class="ecpay-more-chips">
-									<?php if ( ! $s['locked'] && $s['ready'] ) : ?><span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Set up, off', 'wp-easycart' ); ?></span><?php endif; ?>
-									<?php if ( ! $s['locked'] && $s['ready'] && $s['test'] ) : ?><span class="ecv2-chip ecv2-chip-amber"><?php esc_html_e( 'Test keys', 'wp-easycart' ); ?></span><?php endif; ?>
-								</div>
-								<div class="ecpay-more-act">
-									<?php if ( $s['locked'] ) : ?>
-										<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $key ); ?>' ); return false;">🔒 <?php echo esc_html( self::pro_badge() ); ?></button>
-									<?php elseif ( $gw['connect'] && ! $s['ready'] ) : ?>
-										<?php $urls = self::connect_urls( $key ); ?>
-										<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['live'] ); ?>" data-href="<?php echo esc_url( $urls['live'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
-										<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['test'] ); ?>" data-href="<?php echo esc_url( $urls['test'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Try sandbox', 'wp-easycart' ); ?></a>
-									<?php elseif ( $s['ready'] ) : ?>
-										<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1" data-swap="<?php echo ( '' !== self::active( $gw['role'] ) && 'wallet' !== $gw['role'] ) ? '1' : '0'; ?>"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
-										<?php if ( $gw['drawer'] ) : ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></button><?php endif; ?>
-									<?php elseif ( $gw['drawer'] ) : ?>
-										<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Set up', 'wp-easycart' ); ?></button>
-									<?php else : ?>
-										<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1" data-swap="<?php echo ( '' !== self::active( $gw['role'] ) ) ? '1' : '0'; ?>"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
-									<?php endif; ?>
-								</div>
-							</div>
-						<?php endforeach; ?>
-					</div>
-				<?php endforeach; ?>
-				<div class="ecpay-more-empty" id="ecpay_more_empty" hidden><?php esc_html_e( 'Every gateway in this group is already active.', 'wp-easycart' ); ?></div>
-			</div>
-		</div>
-		<?php
-	}
-
-	private static function render_card( $role, $meta, $key, $gate, $can_change = false ) {
-		$gw = self::gateway( $key );
-		$s  = self::status( $key );
-		$state_chip = self::state_chip( $s, $gw );
-		$urls = $gw['connect'] ? self::connect_urls( $key ) : array();
-		?>
-		<article class="ecpay-card is-<?php echo esc_attr( $s['state'] ); ?>" data-role="<?php echo esc_attr( $role ); ?>" data-gateway="<?php echo esc_attr( $key ); ?>">
-			<div class="ecpay-card-role"><?php echo esc_html( $meta['label'] ); ?><?php if ( '' !== $meta['hint'] ) : ?><span><?php echo esc_html( $meta['hint'] ); ?></span><?php endif; ?></div>
-			<div class="ecpay-card-head">
-				<?php self::render_logo( $key, $gw ); ?>
-				<div class="ecpay-card-title">
-					<h4><?php echo esc_html( $gw['label'] ); ?></h4>
-					<?php if ( '' !== $gw['desc'] ) : ?><span><?php echo esc_html( $gw['desc'] ); ?></span><?php endif; ?>
-				</div>
-			</div>
-			<div class="ecpay-chips">
-				<span class="ecv2-chip <?php echo esc_attr( $state_chip['class'] ); ?>"><?php echo esc_html( $state_chip['label'] ); ?></span>
-				<?php if ( $s['enabled'] && ! $s['locked'] && 'manual' !== $role ) : ?>
-					<span class="ecv2-chip <?php echo $s['test'] ? 'ecv2-chip-amber' : 'ecv2-chip-brand'; ?>"><?php echo $s['test'] ? esc_html__( 'Test mode', 'wp-easycart' ) : esc_html__( 'Live', 'wp-easycart' ); ?></span>
-				<?php endif; ?>
-			</div>
-			<?php if ( $s['locked'] ) : ?>
-				<p class="ecpay-card-note"><?php /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ echo esc_html( sprintf( __( 'This gateway is still selected but needs an active %s license to process payments.', 'wp-easycart' ), self::plan_name() ) ); ?></p>
-			<?php elseif ( ! empty( $s['facts'] ) ) : ?>
-				<dl class="ecpay-facts">
-					<?php foreach ( $s['facts'] as $label => $value ) : ?>
-						<div><dt><?php echo esc_html( $label ); ?></dt><dd><?php echo esc_html( $value ); ?></dd></div>
-					<?php endforeach; ?>
-				</dl>
-			<?php endif; ?>
-			<div class="ecpay-card-actions">
-				<?php if ( $s['locked'] ) : ?>
-					<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $key ); ?>' ); return false;">🔒 <?php echo esc_html( self::pro_badge() ); ?></button>
-					<span class="ecst-grow"></span>
-					<?php if ( $can_change ) : ?>
-						<?php self::render_change_button( $role ); ?>
-					<?php endif; ?>
-					<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="0"><?php esc_html_e( 'Turn off', 'wp-easycart' ); ?></button>
-				<?php else : ?>
-					<?php if ( 'manual' === $role ) : ?>
-						<button type="button" class="ecv2-btn ecv2-btn-sm<?php echo $s['enabled'] ? '' : ' ecv2-btn-primary'; ?>" data-ecpay-toggle="manual" data-on="<?php echo $s['enabled'] ? '0' : '1'; ?>"><?php echo $s['enabled'] ? esc_html__( 'Turn off', 'wp-easycart' ) : esc_html__( 'Turn on', 'wp-easycart' ); ?></button>
-						<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-manual="1"><?php esc_html_e( 'Edit instructions', 'wp-easycart' ); ?></button>
-					<?php else : ?>
-						<?php if ( $gw['connect'] && ! $s['connected'] ) : ?>
-							<?php if ( ! $s['live_ready'] ) : ?>
-								<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['live'] ); ?>" data-href="<?php echo esc_url( $urls['live'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php echo $s['test'] ? esc_html__( 'Connect live account', 'wp-easycart' ) : esc_html__( 'Connect', 'wp-easycart' ); ?></a>
-							<?php endif; ?>
-							<?php if ( ! $s['test_ready'] ) : ?>
-								<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['test'] ); ?>" data-href="<?php echo esc_url( $urls['test'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Try sandbox', 'wp-easycart' ); ?></a>
-							<?php endif; ?>
-						<?php elseif ( ! $s['ready'] && $gw['drawer'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( empty( $s['started'] ) ? __( 'Connect', 'wp-easycart' ) : __( 'Finish setup', 'wp-easycart' ) ); ?></button>
-						<?php endif; ?>
-						<?php if ( $s['ready'] && $gw['drawer'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></button>
-						<?php endif; ?>
-						<?php if ( $s['enabled'] && $s['test'] && $s['live_ready'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-mode="<?php echo esc_attr( $key ); ?>" data-mode="live"><?php esc_html_e( 'Switch to live', 'wp-easycart' ); ?></button>
-						<?php elseif ( $s['enabled'] && ! $s['test'] && $s['test_ready'] && 'stripe' !== $key ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" data-ecpay-mode="<?php echo esc_attr( $key ); ?>" data-mode="test"><?php esc_html_e( 'Switch to sandbox', 'wp-easycart' ); ?></button>
-						<?php endif; ?>
-						<?php if ( $gw['connect'] && $s['ready'] ) : ?>
-							<?php $env = ( $s['test'] && $s['test_ready'] ) || ! $s['live_ready'] ? 'test' : 'live'; ?>
-							<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="<?php echo $gate ? '#' : esc_url( $urls[ $env ] ); ?>" data-href="<?php echo esc_url( $urls[ $env ] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Reconnect', 'wp-easycart' ); ?></a>
-							<?php $disconnect = self::disconnect_url( $key, $env ); ?>
-							<?php if ( '' !== $disconnect ) : ?>
-								<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecv2-btn-danger-ghost" href="<?php echo esc_url( $disconnect ); ?>" data-ecpay-confirm="<?php echo esc_attr( sprintf( __( 'Disconnect %1$s ( %2$s )? The stored keys are removed from this site; revoke access from your %1$s account too.', 'wp-easycart' ), $gw['label'], ( 'test' === $env ) ? __( 'sandbox', 'wp-easycart' ) : __( 'live', 'wp-easycart' ) ) ); ?>"><?php esc_html_e( 'Disconnect', 'wp-easycart' ); ?></a>
-							<?php endif; ?>
-							<?php if ( 'square' === $key ) : ?>
-								<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'ec_admin_form_action' => 'square-renew' ), admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ), 'wp-easycart-payment-square-renew' ) ); ?>" data-ecpay-nav="1"><?php esc_html_e( 'Renew access', 'wp-easycart' ); ?></a>
-							<?php endif; ?>
-						<?php endif; ?>
-						<span class="ecst-grow"></span>
-						<?php if ( $can_change ) : ?>
-							<?php self::render_change_button( $role ); ?>
-						<?php endif; ?>
-						<?php if ( $s['enabled'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="0"><?php esc_html_e( 'Turn off', 'wp-easycart' ); ?></button>
-						<?php elseif ( $s['ready'] ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
-						<?php endif; ?>
-					<?php endif; ?>
-				<?php endif; ?>
-			</div>
-		</article>
-		<?php
-	}
-
-	/** "Change gateway" on a filled live / third-party card: reveals that slot's partner-first chooser. */
-	private static function render_change_button( $role ) {
-		?>
-		<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" data-ecpay-change="<?php echo esc_attr( $role ); ?>" aria-controls="<?php echo esc_attr( 'ecpay_chooser_' . $role ); ?>" aria-expanded="false"><?php esc_html_e( 'Change gateway', 'wp-easycart' ); ?></button>
-		<?php
-	}
-
-	/**
-	 * Partner-first chooser for one slot: the partner gateways side by side at equal weight, then a
-	 * quieter "Other gateway" tile that opens the full "More gateways" list filtered to the slot.
-	 * Open when the slot is empty; rendered hidden behind "Change gateway" when a gateway fills it.
-	 * Presentation only: every action reuses the existing Connect URLs, drawer and toggle handlers.
-	 *
-	 * @since 6.0.0
-	 */
-	private static function render_chooser( $role, $gate ) {
-		$partners = self::partners( $role );
-		if ( ! $partners ) {
-			return;
-		}
-		$current    = self::active( $role );
-		$current_gw = '' !== $current ? self::gateway( $current ) : false;
-		$changing   = (bool) $current_gw;
-
-		/* The "Other" tile: every gateway for this slot that is not a partner. */
-		$others     = array();
-		$any_locked = false;
-		foreach ( self::catalog() as $key => $gw ) {
-			if ( $gw['role'] !== $role || isset( $partners[ $key ] ) ) {
-				continue;
-			}
-			$others[ $key ] = $gw;
+			$tiles[ $key ] = $gw;
+			$counts[ $gw['role'] ]++;
 			if ( self::is_locked( $gw ) ) {
-				$any_locked = true;
+				$locked++;
 			}
 		}
-		$current_is_other = $changing && isset( $others[ $current ] );
-		$names            = array();
-		foreach ( $others as $key => $gw ) {
-			if ( $key === $current || 'custom' === $key || 'custom_thirdparty' === $key ) {
-				continue;
-			}
-			$names[] = $gw['label'];
-			if ( count( $names ) >= 3 ) {
-				break;
+		/* Recommended first ( in their order ), then the rest in catalog order. */
+		$sorted = array();
+		foreach ( $rec as $key ) {
+			if ( isset( $tiles[ $key ] ) ) {
+				$sorted[ $key ] = $tiles[ $key ];
 			}
 		}
-		$listed = count( $others ) - ( $current_is_other ? 1 : 0 );
-		$rest   = $listed - count( $names );
-
-		if ( 'live' === $role ) {
-			$title = $changing ? __( 'Change how you take cards', 'wp-easycart' ) : __( 'Choose how you take cards', 'wp-easycart' );
-			/* translators: %s: name of the gateway currently selected. */
-			$hint  = $changing ? sprintf( __( '%s takes cards now. Picking another gateway replaces it for new orders.', 'wp-easycart' ), $current_gw['label'] ) : __( 'Shoppers cannot pay by card on your site until you connect a gateway. Cards are entered right on your checkout page.', 'wp-easycart' );
-			$see   = __( 'See all card gateways', 'wp-easycart' );
-		} else {
-			$title = $changing ? __( 'Change your third-party checkout', 'wp-easycart' ) : __( 'Add a third-party checkout', 'wp-easycart' );
-			/* translators: %s: name of the third-party checkout currently selected. */
-			$hint  = $changing ? sprintf( __( '%s is your third-party checkout now. Picking another replaces it.', 'wp-easycart' ), $current_gw['label'] ) : __( 'Optional, alongside your card gateway: shoppers finish paying on the provider’s site, then come back to your store.', 'wp-easycart' );
-			$see   = __( 'See all third-party checkouts', 'wp-easycart' );
-		}
-		$id = 'ecpay_chooser_' . $role;
+		$tiles   = $sorted + $tiles;
+		$filters = array(
+			'recommended' => __( 'Recommended', 'wp-easycart' ),
+			'live'        => __( 'Card payments', 'wp-easycart' ),
+			'third_party' => __( 'Checkout buttons', 'wp-easycart' ),
+			'wallet'      => __( 'Wallets', 'wp-easycart' ),
+			'all'         => __( 'All', 'wp-easycart' ),
+		);
 		?>
-		<div class="ecpay-chooser<?php echo $changing ? ' is-change' : ''; ?>" id="<?php echo esc_attr( $id ); ?>" data-role="<?php echo esc_attr( $role ); ?>" role="group" aria-labelledby="<?php echo esc_attr( $id . '_title' ); ?>"<?php echo $changing ? ' hidden' : ''; ?>>
-			<div class="ecpay-chooser-head">
-				<div class="ecpay-chooser-titles">
-					<h4 id="<?php echo esc_attr( $id . '_title' ); ?>" tabindex="-1"><?php echo esc_html( $title ); ?><?php if ( ! $changing && 'third_party' === $role ) : ?> <span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Optional', 'wp-easycart' ); ?></span><?php endif; ?></h4>
-					<span><?php echo esc_html( $hint ); ?></span>
-				</div>
-				<?php if ( $changing ) : ?>
-					<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-change-cancel="<?php echo esc_attr( $role ); ?>">
-						<?php
-						/* translators: %s: name of the gateway currently selected. */
-						echo esc_html( sprintf( __( 'Keep %s', 'wp-easycart' ), $current_gw['label'] ) );
-						?>
-					</button>
-				<?php endif; ?>
-			</div>
-			<div class="ecpay-chooser-grid is-n<?php echo (int) count( $partners ); ?>" role="list">
-				<?php foreach ( $partners as $key => $benefit ) : ?>
-					<?php self::render_partner( $key, $benefit, $current, $gate ); ?>
-				<?php endforeach; ?>
-				<?php if ( $listed > 0 || $current_is_other ) : ?>
-					<div class="ecpay-partner is-other<?php echo $current_is_other ? ' is-current' : ''; ?>" role="listitem">
-						<div class="ecpay-partner-mark is-other"><span class="dashicons dashicons-screenoptions" aria-hidden="true"></span><span class="ecpay-partner-word"><?php esc_html_e( 'Other gateway', 'wp-easycart' ); ?></span></div>
-						<p class="ecpay-partner-benefit">
+		<div class="ecpay-catalog" id="ecpay_catalog" data-filter="recommended">
+			<?php if ( ! $tiles ) : ?>
+				<div class="ecpay-cat-empty"><?php esc_html_e( 'Every gateway is already active.', 'wp-easycart' ); ?></div>
+			<?php else : ?>
+				<div class="ecpay-cat-tools">
+					<label class="ecpay-search" for="ecpay_search">
+						<?php echo self::svg( 'search' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?>
+						<span class="screen-reader-text"><?php esc_html_e( 'Search gateways', 'wp-easycart' ); ?></span>
+						<input type="search" id="ecpay_search" placeholder="<?php esc_attr_e( 'Search gateways, e.g. Moneris or Canada', 'wp-easycart' ); ?>" autocomplete="off" aria-controls="ecpay_tiles" />
+					</label>
+					<div class="ecpay-filters" role="group" aria-label="<?php esc_attr_e( 'Filter gateways', 'wp-easycart' ); ?>">
+						<?php foreach ( $filters as $filter => $label ) : ?>
 							<?php
-							if ( $names && $rest > 0 ) {
-								/* translators: 1: comma-separated gateway names, 2: number of further gateways. */
-								echo esc_html( sprintf( _n( '%1$s and %2$d more.', '%1$s and %2$d more.', $rest, 'wp-easycart' ), implode( ', ', $names ), $rest ) );
-							} elseif ( $names ) {
-								echo esc_html( implode( ', ', $names ) . '.' );
-							} else {
-								esc_html_e( 'Every other gateway EasyCart supports.', 'wp-easycart' );
-							}
-							if ( $any_locked ) {
-								/* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */
-								echo ' ' . esc_html( sprintf( __( 'Most need a %s license.', 'wp-easycart' ), self::plan_name() ) );
+							if ( isset( $counts[ $filter ] ) && ! $counts[ $filter ] ) {
+								continue;
 							}
 							?>
+							<button type="button" class="ecpay-filter<?php echo 'recommended' === $filter ? ' is-on' : ''; ?>" data-ecpay-filter="<?php echo esc_attr( $filter ); ?>" aria-pressed="<?php echo 'recommended' === $filter ? 'true' : 'false'; ?>"><?php echo esc_html( $label ); ?><?php if ( isset( $counts[ $filter ] ) ) : ?> <em><?php echo (int) $counts[ $filter ]; ?></em><?php endif; ?></button>
+						<?php endforeach; ?>
+					</div>
+				</div>
+				<?php if ( $locked > 0 && ! self::pro_active() ) : ?>
+					<div class="ecpay-pro-note">
+						<p>
+							<b>
+							<?php
+							/* translators: 1: number of gateways, 2: plan name, Pro or Premium ( Pro/Premium when no license is known ). */
+							echo esc_html( sprintf( _n( '%1$d more gateway comes with %2$s.', '%1$d more gateways come with %2$s.', $locked, 'wp-easycart' ), $locked, self::plan_name() ) );
+							?>
+							</b>
+							<?php echo esc_html( self::show_fee_note() ? __( 'The 2% platform fee goes away too. Open a locked gateway for a short preview.', 'wp-easycart' ) : __( 'Open a locked gateway for a short preview.', 'wp-easycart' ) ); ?>
 						</p>
-						<?php if ( $current_is_other ) : ?>
-							<div class="ecpay-partner-chips">
-								<span class="ecv2-chip ecv2-chip-brand">
-									<?php
-									/* translators: %s: name of the gateway currently selected. */
-									echo esc_html( sprintf( __( 'Current: %s', 'wp-easycart' ), $current_gw['label'] ) );
-									?>
-								</span>
-							</div>
-						<?php endif; ?>
-						<?php if ( $listed > 0 ) : ?>
-							<div class="ecpay-partner-act"><button type="button" class="ecst-link" data-ecpay-choose="<?php echo esc_attr( $role ); ?>"><?php echo esc_html( $see ); ?> &rarr;</button></div>
-						<?php endif; ?>
+						<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" onclick="ecst.upsell( 'payment_fees' ); return false;"><?php esc_html_e( 'See plans', 'wp-easycart' ); ?></button>
 					</div>
 				<?php endif; ?>
-			</div>
-		</div>
-		<?php
-	}
-
-	/** One partner tile in the chooser. Same gates and handlers as the card and the "More gateways" row. */
-	private static function render_partner( $key, $benefit, $current, $gate ) {
-		$gw = self::gateway( $key );
-		$s  = self::status( $key );
-		if ( ! $gw || ! $s ) {
-			return;
-		}
-		$is_current = ( $key === $current );
-		$urls       = $gw['connect'] ? self::connect_urls( $key ) : array();
-		$swap       = ( '' !== $current ) ? '1' : '0';
-		?>
-		<div class="ecpay-partner<?php echo $is_current ? ' is-current' : ''; ?><?php echo $s['locked'] ? ' is-locked' : ''; ?>" role="listitem" data-gateway="<?php echo esc_attr( $key ); ?>" data-label="<?php echo esc_attr( $gw['label'] ); ?>">
-			<div class="ecpay-partner-mark"><?php self::render_partner_mark( $key, $gw ); ?><?php if ( $s['locked'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( self::pro_badge() ); ?></span><?php endif; ?></div>
-			<?php if ( '' !== $benefit ) : ?><p class="ecpay-partner-benefit"><?php echo esc_html( $benefit ); ?></p><?php endif; ?>
-			<?php if ( $is_current ) : ?>
-				<div class="ecpay-partner-chips"><span class="ecv2-chip ecv2-chip-brand"><?php esc_html_e( 'Current', 'wp-easycart' ); ?></span></div>
-			<?php elseif ( ! $s['locked'] && $s['ready'] ) : ?>
-				<div class="ecpay-partner-chips">
-					<span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Account connected', 'wp-easycart' ); ?></span>
-					<?php if ( ! $s['live_ready'] && $s['test_ready'] ) : ?><span class="ecv2-chip ecv2-chip-amber"><?php esc_html_e( 'Sandbox only', 'wp-easycart' ); ?></span><?php endif; ?>
+				<div class="ecpay-tiles" id="ecpay_tiles" role="list">
+					<?php foreach ( $tiles as $key => $gw ) : ?>
+						<?php self::render_tile( $key, $gw, $gate, in_array( $key, $rec, true ), isset( $older[ $key ] ) ); ?>
+					<?php endforeach; ?>
 				</div>
+				<div class="ecpay-older-row">
+					<button type="button" class="ecst-link" id="ecpay_older_toggle" aria-expanded="false" hidden></button>
+				</div>
+				<p class="ecpay-cat-empty" id="ecpay_cat_empty" role="status" hidden></p>
 			<?php endif; ?>
-			<div class="ecpay-partner-act">
-				<?php if ( $s['locked'] ) : ?>
-					<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $key ); ?>' ); return false;">🔒 <?php echo esc_html( self::pro_badge() ); ?></button>
-				<?php elseif ( $is_current ) : ?>
-					<?php if ( $gw['drawer'] ) : ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></button><?php endif; ?>
-				<?php elseif ( $s['ready'] ) : ?>
-					<button type="button" class="ecv2-btn ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1" data-swap="<?php echo esc_attr( $swap ); ?>">
-						<?php
-						/* translators: %s: gateway name. */
-						echo esc_html( sprintf( __( 'Use %s', 'wp-easycart' ), $gw['label'] ) );
-						?>
-					</button>
-					<?php if ( $gw['connect'] && ! $s['live_ready'] && ! empty( $urls['live'] ) ) : ?>
-						<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['live'] ); ?>" data-href="<?php echo esc_url( $urls['live'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Connect live account', 'wp-easycart' ); ?></a>
-					<?php elseif ( $gw['drawer'] ) : ?>
-						<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></button>
-					<?php endif; ?>
-				<?php elseif ( $gw['connect'] && ! empty( $urls['live'] ) ) : ?>
-					<a class="ecv2-btn ecv2-btn-primary ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['live'] ); ?>" data-href="<?php echo esc_url( $urls['live'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>>
-						<?php
-						/* translators: %s: gateway name. */
-						echo esc_html( sprintf( __( 'Connect %s', 'wp-easycart' ), $gw['label'] ) );
-						?>
-					</a>
-					<?php if ( ! empty( $urls['test'] ) ) : ?>
-						<a class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecpay-connect" href="<?php echo $gate ? '#' : esc_url( $urls['test'] ); ?>" data-href="<?php echo esc_url( $urls['test'] ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Try sandbox', 'wp-easycart' ); ?></a>
-					<?php endif; ?>
-				<?php elseif ( $gw['drawer'] ) : ?>
-					<button type="button" class="ecv2-btn ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $key ); ?>">
-						<?php
-						/* translators: %s: gateway name. */
-						echo esc_html( sprintf( __( 'Set up %s', 'wp-easycart' ), $gw['label'] ) );
-						?>
-					</button>
-				<?php endif; ?>
-			</div>
+			<?php if ( self::show_fee_note() ) : ?>
+				<p class="ecpay-fee-note">
+					<b><?php esc_html_e( 'Free plan:', 'wp-easycart' ); ?></b>
+					<?php esc_html_e( 'EasyCart Connect adds a 2% fee to Stripe, Square and PayPal payments, on top of the provider’s own fees.', 'wp-easycart' ); ?>
+					<a href="#" onclick="ecst.upsell( 'payment_fees' ); return false;">
+					<?php
+					/* translators: %s: plan name, Pro/Premium on the free edition. */
+					echo esc_html( sprintf( __( '%s removes it', 'wp-easycart' ), self::plan_name() ) );
+					?>
+					&rarr;</a>
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
 
-	/**
-	 * Partner mark: the logo files the plugin already ships ( admin/images, the base theme's PayPal image ),
-	 * falling back to the neutral lettermark plus the gateway name.
-	 */
-	private static function render_partner_mark( $key, $gw ) {
-		/* path relative to the plugin root, CSS modifier, print the name beside the image. */
-		$marks = array(
-			'stripe_connect' => array( 'admin/images/Stripe Logo (blue).png', 'is-wordmark is-stripe', false ),
-			'square'         => array( 'admin/images/square-logo.png', 'is-icon', true ),
-			'paypal'         => array( 'design/theme/base-responsive-v3/images/paypal.jpg', 'is-wordmark is-paypal', false ),
-		);
-		if ( isset( $marks[ $key ] ) && defined( 'EC_PLUGIN_DIRECTORY' ) && file_exists( EC_PLUGIN_DIRECTORY . '/' . $marks[ $key ][0] ) ) {
-			$mark = $marks[ $key ];
-			echo '<img class="ecpay-partner-img ' . esc_attr( $mark[1] ) . '" src="' . esc_url( plugins_url( $mark[0], EC_PLUGIN_DIRECTORY . '/wpeasycart.php' ) ) . '" alt="' . ( $mark[2] ? '' : esc_attr( $gw['label'] ) ) . '" />';
-			if ( $mark[2] ) {
-				echo '<span class="ecpay-partner-word">' . esc_html( $gw['label'] ) . '</span>';
-			}
-			return;
+	/** One gateway in the list: logo, name, one short line, and the action that fits its state. */
+	private static function render_tile( $key, $gw, $gate, $is_rec, $is_older ) {
+		$s       = self::status( $key );
+		$note    = self::tile_note( $gw );
+		$classes = array( 'ecpay-tile' );
+		if ( $s['locked'] ) {
+			$classes[] = 'is-locked';
 		}
-		self::render_logo( $key, $gw );
-		echo '<span class="ecpay-partner-word">' . esc_html( $gw['label'] ) . '</span>';
-	}
-
-	/**
-	 * The Wallet slot when no wallet is switched on: the first wallet the catalog knows about, shown as an
-	 * upsell when it is locked and as a "Set up" card when it is available. Keeps Amazon Pay on the page for
-	 * every edition instead of only inside the collapsed "More gateways" list.
-	 *
-	 * @since 6.0.1
-	 * @param array $meta Role meta from roles().
-	 * @param bool  $gate True while the EasyCart Connect terms still have to be accepted.
-	 * @return void
-	 */
-	private static function render_wallet_card( $meta, $gate ) {
-		$wallet_key = '';
-		$wallet     = array();
-		foreach ( self::catalog() as $key => $gw ) {
-			if ( 'wallet' === $gw['role'] ) {
-				$wallet_key = $key;
-				$wallet     = $gw;
-				break;
-			}
-		}
-		if ( '' === $wallet_key ) {
-			return;
-		}
-		$status = self::status( $wallet_key );
+		$search = strtolower( $gw['label'] . ' ' . $note . ' ' . implode( ' ', (array) $gw['keywords'] ) . ' ' . $key );
 		?>
-		<article class="ecpay-card is-empty<?php echo $status['locked'] ? ' is-locked' : ''; ?>" data-role="wallet" data-gateway="<?php echo esc_attr( $wallet_key ); ?>">
-			<div class="ecpay-card-role"><?php echo esc_html( $meta['label'] ); ?><?php if ( '' !== $meta['hint'] ) : ?><span><?php echo esc_html( $meta['hint'] ); ?></span><?php endif; ?></div>
-			<div class="ecpay-card-head">
-				<?php self::render_logo( $wallet_key, $wallet ); ?>
-				<div class="ecpay-card-title">
-					<h4><?php echo esc_html( $wallet['label'] ); ?><?php if ( $status['locked'] ) : ?> <span class="ecst-pro-tag"><?php echo esc_html( self::pro_badge() ); ?></span><?php endif; ?></h4>
-					<?php if ( '' !== $wallet['desc'] ) : ?><span><?php echo esc_html( $wallet['desc'] ); ?></span><?php endif; ?>
-				</div>
-			</div>
-			<div class="ecpay-chips"><span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Off', 'wp-easycart' ); ?></span></div>
-			<div class="ecpay-card-actions">
-				<?php if ( $status['locked'] ) : ?>
-					<button type="button" class="ecst-pro-btn" onclick="ecst.upsell( '<?php echo esc_js( $wallet_key ); ?>' ); return false;">&#128274; <?php echo esc_html( self::pro_badge() ); ?></button>
-				<?php elseif ( $status['ready'] ) : ?>
-					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $wallet_key ); ?>" data-on="1" data-swap="0"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
-					<?php if ( $wallet['drawer'] ) : ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $wallet_key ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></button><?php endif; ?>
-				<?php elseif ( $wallet['drawer'] ) : ?>
-					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-open="<?php echo esc_attr( $wallet_key ); ?>"<?php echo $gate ? ' aria-disabled="true"' : ''; ?>><?php esc_html_e( 'Set up', 'wp-easycart' ); ?></button>
+		<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" role="listitem" data-gateway="<?php echo esc_attr( $key ); ?>" data-role="<?php echo esc_attr( $gw['role'] ); ?>"<?php echo $is_rec ? ' data-rec="1"' : ''; ?><?php echo $is_older ? ' data-older="1"' : ''; ?> data-search="<?php echo esc_attr( $search ); ?>">
+			<?php self::render_logo( $key, $gw ); ?>
+			<div class="ecpay-tile-text">
+				<b><?php echo esc_html( $gw['label'] ); ?><?php if ( $is_rec && ! $s['locked'] ) : ?> <span class="ecpay-rec"><?php esc_html_e( 'Recommended', 'wp-easycart' ); ?></span><?php endif; ?></b>
+				<?php if ( '' !== $note ) : ?><span><?php echo esc_html( $note ); ?></span><?php endif; ?>
+				<?php if ( ! $s['locked'] && 'update' !== $s['state'] && $s['ready'] ) : ?>
+					<span class="ecpay-tile-state"><?php echo esc_html( $s['test'] ? __( 'Set up with test keys, off', 'wp-easycart' ) : __( 'Set up, off', 'wp-easycart' ) ); ?></span>
 				<?php endif; ?>
 			</div>
-		</article>
-		<?php
-	}
-
-	private static function render_empty_card( $role, $meta ) {
-		?>
-		<article class="ecpay-card is-empty" data-role="<?php echo esc_attr( $role ); ?>">
-			<div class="ecpay-card-role"><?php echo esc_html( $meta['label'] ); ?><?php if ( '' !== $meta['hint'] ) : ?><span><?php echo esc_html( $meta['hint'] ); ?></span><?php endif; ?></div>
-			<div class="ecpay-card-head">
-				<span class="ecpay-logo is-empty" aria-hidden="true">?</span>
-				<div class="ecpay-card-title">
-					<h4><?php echo esc_html( $meta['empty'] ); ?></h4>
-					<?php if ( '' !== $meta['empty_hint'] ) : ?><span><?php echo esc_html( $meta['empty_hint'] ); ?></span><?php endif; ?>
-				</div>
+			<div class="ecpay-tile-act">
+				<?php if ( $s['locked'] ) : ?>
+					<?php /* translators: 1: gateway name, 2: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ ?>
+					<button type="button" class="ecpay-lock-btn" onclick="ecst.upsell( '<?php echo esc_js( $key ); ?>' ); return false;" aria-label="<?php echo esc_attr( sprintf( __( '%1$s comes with %2$s. See what’s included', 'wp-easycart' ), $gw['label'], self::plan_name() ) ); ?>" title="<?php echo esc_attr( self::pro_badge() ); ?>"><?php echo self::svg( 'lock' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static SVG. ?></button>
+				<?php elseif ( 'update' === $s['state'] ) : ?>
+					<a class="ecv2-btn ecv2-btn-sm" href="<?php echo esc_url( self_admin_url( 'plugins.php' ) ); ?>"><?php esc_html_e( 'Update WP EasyCart PRO →', 'wp-easycart' ); ?></a>
+				<?php elseif ( $gw['connect'] && ! $s['ready'] ) : ?>
+					<?php $urls = self::connect_urls( $key ); ?>
+					<?php echo self::connect_link( $urls['live'], __( 'Connect', 'wp-easycart' ), 'ecv2-btn ecv2-btn-sm ecv2-btn-primary', $gate ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts. ?>
+					<?php if ( ! empty( $urls['test'] ) ) : ?>
+						<?php echo self::connect_link( $urls['test'], __( 'Try sandbox', 'wp-easycart' ), 'ecv2-btn ecv2-btn-sm ecv2-btn-ghost', $gate ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts. ?>
+					<?php endif; ?>
+				<?php elseif ( $s['ready'] ) : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1" data-swap="<?php echo ( 'wallet' !== $gw['role'] && '' !== self::active( $gw['role'] ) ) ? '1' : '0'; ?>"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
+					<?php if ( $gw['drawer'] ) : ?><button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Settings', 'wp-easycart' ); ?></button><?php endif; ?>
+				<?php elseif ( $gw['drawer'] ) : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-open="<?php echo esc_attr( $key ); ?>"><?php esc_html_e( 'Set up', 'wp-easycart' ); ?></button>
+				<?php else : ?>
+					<button type="button" class="ecv2-btn ecv2-btn-sm" data-ecpay-toggle="<?php echo esc_attr( $key ); ?>" data-on="1" data-swap="<?php echo ( '' !== self::active( $gw['role'] ) ) ? '1' : '0'; ?>"><?php esc_html_e( 'Turn on', 'wp-easycart' ); ?></button>
+				<?php endif; ?>
 			</div>
-			<div class="ecpay-chips"><span class="ecv2-chip ecv2-chip-gray"><?php esc_html_e( 'Nothing selected', 'wp-easycart' ); ?></span></div>
-			<div class="ecpay-card-actions">
-				<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" data-ecpay-choose="<?php echo esc_attr( $role ); ?>"><?php esc_html_e( 'Choose a gateway', 'wp-easycart' ); ?></button>
-			</div>
-		</article>
+		</div>
 		<?php
 	}
 
 	private static function render_logo( $key, $gw ) {
 		$brands = array(
 			'stripe_connect'      => array( '#635bff', 'S' ),
-			'stripe'              => array( '#635bff', 'S' ),
-			'square'              => array( '#000000', '▢' ),
+			'stripe'              => array( '#8a85ff', 'S1' ),
+			'square'              => array( '#1c1c1c', 'Sq' ),
 			'paypal'              => array( '#003087', 'PP' ),
-			'paypal_pro'          => array( '#003087', 'PP' ),
-			'paypal_payments_pro' => array( '#003087', 'PP' ),
-			'manual'              => array( '#374151', '$' ),
-			'amazonpay'           => array( '#ff9900', 'a' ),
-			'authorize'           => array( '#0b3b5c', 'A' ),
-			'braintree'           => array( '#111827', 'B' ),
+			'paypal_pro'          => array( '#3b5998', 'PF' ),
+			'paypal_payments_pro' => array( '#3b5998', 'PP' ),
+			'manual'              => array( '#475569', '$' ),
+			'amazonpay'           => array( '#232f3e', 'a' ),
+			'authorize'           => array( '#1b5e9c', 'AN' ),
+			'braintree'           => array( '#111827', 'BT' ),
+			'moneris_ca'          => array( '#b0121b', 'Mo' ),
+			'moneris_us'          => array( '#b0121b', 'Mo' ),
+			'nmi'                 => array( '#0b3d91', 'NM' ),
+			'paytrace'            => array( '#0066b3', 'PT' ),
+			'eway'                => array( '#c2410c', 'eW' ),
+			'securepay'           => array( '#0077a8', 'SP' ),
+			'beanstream'          => array( '#0b2a4a', 'Bb' ),
+			'cardpointe'          => array( '#0a4d8c', 'CP' ),
+			'intuit'              => array( '#237a17', 'In' ),
+			'payfast_thirdparty'  => array( '#b3122a', 'PF' ),
+			'redsys'              => array( '#a50d26', 'Rs' ),
+			'skrill'              => array( '#862165', 'Sk' ),
+			'cashfree'            => array( '#5a2ee0', 'CF' ),
+			'payfort'             => array( '#00739e', 'Pf' ),
 		);
 		$brand = isset( $brands[ $key ] ) ? $brands[ $key ] : array( '', strtoupper( substr( $gw['label'], 0, 1 ) ) );
 		echo '<span class="ecpay-logo"' . ( '' !== $brand[0] ? ' style="background:' . esc_attr( $brand[0] ) . ';color:#fff"' : '' ) . ' aria-hidden="true">' . esc_html( $brand[1] ) . '</span>';
@@ -1341,6 +1481,8 @@ class wp_easycart_admin_payment_v2 {
 		switch ( $s['state'] ) {
 			case 'locked':
 				return array( 'class' => 'ecv2-chip-red', /* translators: %s: plan name, Pro or Premium ( Pro/Premium when no license is known ). */ 'label' => sprintf( __( '%s license needed', 'wp-easycart' ), self::plan_name() ) );
+			case 'update':
+				return array( 'class' => 'ecv2-chip-amber', 'label' => __( 'Needs a newer WP EasyCart PRO', 'wp-easycart' ) );
 			case 'connected':
 				return array( 'class' => 'ecv2-chip-green', 'label' => ( 'manual' === $gw['role'] ) ? __( 'On', 'wp-easycart' ) : __( 'Connected', 'wp-easycart' ) );
 			case 'incomplete':
@@ -1374,25 +1516,9 @@ class wp_easycart_admin_payment_v2 {
 		if ( '' === $text ) {
 			return;
 		}
-		echo '<div class="ecpay-flash is-' . esc_attr( $kind ) . '">' . esc_html( $text ) . '</div>';
-	}
-
-	/** Free edition terms gate ( replaces the legacy full-page overlay ): Connect buttons stay disabled until accepted. */
-	private static function render_terms() {
-		?>
-		<div class="ecpay-terms" id="ecpay_terms">
-			<div class="ecpay-terms-head">
-				<b><?php esc_html_e( 'EasyCart Connect terms', 'wp-easycart' ); ?></b>
-				<span class="ecv2-chip ecv2-chip-amber"><?php esc_html_e( 'Required for PayPal, Stripe and Square', 'wp-easycart' ); ?></span>
-			</div>
-			<p><?php esc_html_e( 'The Free edition includes unlimited products, orders and accounts plus Bill later. PayPal, Stripe and Square are available through EasyCart Connect with a 2% EasyCart fee on each sale. Upgrading to Pro or Premium removes the fee and unlocks 30+ more gateways.', 'wp-easycart' ); ?></p>
-			<label class="ecpay-terms-row">
-				<input type="checkbox" id="ecpay_terms_agree" value="1" />
-				<span><?php echo wp_kses( sprintf( __( 'I agree to the WP EasyCart %1$sterms and privacy policy%2$s.', 'wp-easycart' ), '<a href="https://www.wpeasycart.com/terms-and-conditions/" target="_blank" rel="noopener noreferrer">', '</a>' ), array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ) ) ); ?></span>
-				<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" id="ecpay_terms_accept" disabled><?php esc_html_e( 'Accept and continue', 'wp-easycart' ); ?></button>
-			</label>
-		</div>
-		<?php
+		/* 6.0.3: a store that just connected Square is one click from bringing its Square items in. */
+		$link = ( 'square-connected' === $success ) ? ' <a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=square' ) ) . '">' . esc_html__( 'Bring your Square items into your store', 'wp-easycart' ) . '</a>' : '';
+		echo '<div class="ecpay-flash is-' . esc_attr( $kind ) . '">' . esc_html( $text ) . $link . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $link is built from escaped parts.
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -1412,6 +1538,9 @@ class wp_easycart_admin_payment_v2 {
 		}
 		if ( self::is_locked( $gw ) && $on ) {
 			return new WP_Error( 'ecpay_locked', self::locked_message( $gw ) );
+		}
+		if ( self::needs_update( $gw ) && $on ) {
+			return new WP_Error( 'ecpay_update', self::update_message( $gw ) );
 		}
 		$s = self::status( $key, true );
 		if ( $on && ! $s['ready'] ) {
@@ -1937,13 +2066,14 @@ class wp_easycart_admin_payment_v2 {
 	/**
 	 * What the drawer header and footer need to reflect a gateway's current state.
 	 *
-	 * @return array enabled, test, connected, state, state_label, state_class, mode_label, can_enable, swap ( turning it on replaces the slot's gateway )
+	 * @since 6.0.3 detail: the line under the gateway name on the page ( its account and main choices ).
+	 * @return array enabled, test, connected, state, state_label, state_class, mode_label, detail, can_enable, swap ( turning it on replaces the slot's gateway )
 	 */
 	public static function drawer_state( $key ) {
 		$gw = self::gateway( $key );
 		$s  = $gw ? self::status( $key, true ) : false;
 		if ( ! $gw || ! $s ) {
-			return array( 'enabled' => false, 'test' => false, 'connected' => false, 'state' => '', 'state_label' => '', 'state_class' => '', 'mode_label' => '', 'can_enable' => false, 'swap' => false );
+			return array( 'enabled' => false, 'test' => false, 'connected' => false, 'state' => '', 'state_label' => '', 'state_class' => '', 'mode_label' => '', 'detail' => '', 'can_enable' => false, 'swap' => false );
 		}
 		$chip = self::state_chip( $s, $gw );
 		return array(
@@ -1954,12 +2084,17 @@ class wp_easycart_admin_payment_v2 {
 			'state_label' => $chip['label'],
 			'state_class' => $chip['class'],
 			'mode_label'  => ( $s['enabled'] && ! $s['locked'] && 'manual' !== $gw['role'] ) ? ( $s['test'] ? __( 'Test mode', 'wp-easycart' ) : __( 'Live', 'wp-easycart' ) ) : '',
-			'can_enable'  => ! $s['enabled'] && ! $s['locked'] && in_array( $gw['role'], array( 'live', 'third_party', 'wallet' ), true ),
+			'detail'      => ( 'connected' === $s['state'] ) ? self::line_detail( $key, $s, $gw ) : '',
+			'can_enable'  => ! $s['enabled'] && ! $s['locked'] && ! $s['update'] && in_array( $gw['role'], array( 'live', 'third_party', 'wallet' ), true ),
 			'swap'        => ! $s['enabled'] && in_array( $gw['role'], array( 'live', 'third_party' ), true ) && '' !== self::active( $gw['role'] ),
 		);
 	}
 
-	/** The two page sections ( cards and "More gateways" ) rendered fresh, for replacing them in place. */
+	/**
+	 * The two page sections ( the lines and the gateway list ) rendered fresh, for replacing them in place.
+	 *
+	 * @since 6.0.3 subs: the "Subscriptions need Stripe" row, which follows the card gateway.
+	 */
 	public static function sections_html() {
 		self::$status = array();
 		ob_start();
@@ -1968,11 +2103,21 @@ class wp_easycart_admin_payment_v2 {
 		ob_start();
 		self::render_more( array(), array() );
 		$more = ob_get_clean();
+		if ( ! function_exists( 'ecst_payment_render_subscriptions' ) && class_exists( 'wp_easycart_admin_settings_registry' ) ) {
+			wp_easycart_admin_settings_registry::pages(); /* loads the declarations, Settings › Payment with its subscriptions row among them */
+		}
+		ob_start();
+		if ( function_exists( 'ecst_payment_render_subscriptions' ) ) {
+			ecst_payment_render_subscriptions();
+		}
+		$subs = ob_get_clean();
 		return array(
 			'active' => $active,
 			'more'   => $more,
+			'subs'   => $subs,
 		);
 	}
+
 	public static function form_file( $gw ) {
 		if ( '' !== $gw['file'] ) {
 			return $gw['file'];
@@ -1990,6 +2135,9 @@ class wp_easycart_admin_payment_v2 {
 		}
 		if ( self::is_locked( $gw ) ) {
 			wp_send_json_error( array( 'message' => self::locked_message( $gw ) ) );
+		}
+		if ( self::needs_update( $gw ) ) {
+			wp_send_json_error( array( 'message' => self::update_message( $gw ) ) );
 		}
 		if ( ! $gw['drawer'] ) {
 			wp_send_json_error( array( 'message' => __( 'This gateway has no settings form.', 'wp-easycart' ) ) );
@@ -2172,10 +2320,15 @@ class wp_easycart_admin_payment_v2 {
 			'title' => __( 'Bill later wording', 'wp-easycart' ),
 			'role'  => __( 'Bill later', 'wp-easycart' ),
 			'docs'  => $gw ? self::docs_url( $gw ) : '',
+			'state' => self::drawer_state( 'manual' ),
 		) );
 	}
 
-	/** POST title, message → saves the Bill later wording. */
+	/**
+	 * POST title, message, roles → saves the Bill later wording.
+	 *
+	 * @since 6.0.3 enable=1 also turns Bill later on ( Save and turn on ); answers with the redrawn sections instead of a reload.
+	 */
 	public static function ajax_manual_save() {
 		ecv2_settings_guard();
 		$title   = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
@@ -2189,10 +2342,21 @@ class wp_easycart_admin_payment_v2 {
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
-		wp_send_json_success( array( 'message' => $result, 'reload' => true ) );
+		if ( isset( $_POST['enable'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['enable'] ) ) && ! get_option( 'ec_option_use_direct_deposit' ) ) {
+			$turned = self::set_enabled( 'manual', true );
+			if ( ! is_wp_error( $turned ) ) {
+				$result = __( 'Bill later wording saved and turned on.', 'wp-easycart' );
+			}
+		}
+		self::$status = array();
+		wp_send_json_success( array( 'message' => $result, 'state' => self::drawer_state( 'manual' ), 'sections' => self::sections_html() ) );
 	}
 
-	/** POST gateway, on=1|0 ( or mode=live|test ) → switches the gateway; page reloads on success. */
+	/**
+	 * POST gateway, on=1|0 ( or mode=live|test ) → switches the gateway.
+	 *
+	 * @since 6.0.3 Answers with the redrawn sections; the page no longer reloads.
+	 */
 	public static function ajax_toggle() {
 		ecv2_settings_guard();
 		$key  = isset( $_POST['gateway'] ) ? sanitize_key( wp_unslash( $_POST['gateway'] ) ) : '';
@@ -2209,7 +2373,24 @@ class wp_easycart_admin_payment_v2 {
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
-		wp_send_json_success( array( 'message' => $result, 'reload' => true ) );
+		wp_send_json_success( array( 'message' => $result, 'sections' => self::sections_html() ) );
+	}
+
+	/**
+	 * POST → every selected gateway in sandbox / test mode goes live where a live account exists ( the page's test-mode line ).
+	 *
+	 * @since 6.0.3 Replaces the declared section action, so the page has one test-mode control.
+	 */
+	public static function ajax_test_off() {
+		ecv2_settings_guard();
+		$result = self::action_test_mode_off();
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+		wp_send_json_success( array(
+			'message'  => is_string( $result ) ? $result : __( 'Every gateway is taking live payments.', 'wp-easycart' ),
+			'sections' => self::sections_html(),
+		) );
 	}
 
 	/**
@@ -2256,5 +2437,6 @@ add_action( 'wp_ajax_ecv2_payment_state', array( 'wp_easycart_admin_payment_v2',
 add_action( 'wp_ajax_ecv2_payment_manual_form', array( 'wp_easycart_admin_payment_v2', 'ajax_manual_form' ) );
 add_action( 'wp_ajax_ecv2_payment_manual_save', array( 'wp_easycart_admin_payment_v2', 'ajax_manual_save' ) );
 add_action( 'wp_ajax_ecv2_payment_toggle', array( 'wp_easycart_admin_payment_v2', 'ajax_toggle' ) );
+add_action( 'wp_ajax_ecv2_payment_test_off', array( 'wp_easycart_admin_payment_v2', 'ajax_test_off' ) );
 
 endif;

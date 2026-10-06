@@ -32,11 +32,8 @@
  * wp_easycart_has_marketing_consent() ); 6.0.2 says which banner it found and how
  * to check it.
  *
- * The cart importer is a tool, not a set of options: its section has no
- * fields. Its 'render' prints the importer rebuilt in the V2 look ( source
- * cards, rows, notices ) on top of the unchanged AJAX handlers, nonces, form
- * targets and admin/js/cart-importer.js; its 'enqueue' loads that script plus
- * a thin adapter and scoped styles. Render callables never enqueue.
+ * 6.0.3: importing moved to Products › Import ( wp_easycart_admin_import ); the
+ * cart importer section points there.
  *
  * @since 6.0.0
  */
@@ -375,255 +372,21 @@ if ( ! function_exists( 'wp_easycart_settings_integrations_consent_css' ) ) {
 	}
 }
 
-if ( ! function_exists( 'wp_easycart_settings_integrations_enqueue_cart_importer' ) ) {
-	/**
-	 * Section 'enqueue' ( runs on admin_enqueue_scripts through the engine ): the
-	 * classic Square batch importer script with the language strings the classic
-	 * page router localized, plus a thin adapter and scoped styles for the V2
-	 * markup printed by the render callable. cart-importer.js is untouched: the
-	 * rebuilt markup keeps every element id and the two inner class hooks
-	 * ( .ec_admin_progress_bar > div, .ec_admin_process_status > span ) it uses.
-	 */
-	function wp_easycart_settings_integrations_enqueue_cart_importer( $page, $section ) {
-		if ( ! wp_script_is( 'wp_easycart_admin_cart_importer_js', 'registered' ) ) {
-			wp_register_script( 'wp_easycart_admin_cart_importer_js', plugins_url( 'wp-easycart/admin/js/cart-importer.js', EC_PLUGIN_DIRECTORY ), array( 'jquery' ), EC_CURRENT_VERSION, true );
-			wp_localize_script( 'wp_easycart_admin_cart_importer_js', 'wp_easycart_cart_importer_language', array(
-				'inventory-items-synced'      => __( 'Items Have Synced Inventory', 'wp-easycart' ),
-				'all-inventory-items-synced'  => __( 'All Item Inventory Synced.', 'wp-easycart' ),
-				'modifier-items-imported'     => __( 'Modifier Items Imported', 'wp-easycart' ),
-				'all-modifiers-imported'      => __( 'All Modifiers Imported, Starting Modifier Items.', 'wp-easycart' ),
-				'modifiers-imported'          => __( 'Modifiers Imported', 'wp-easycart' ),
-				'all-modifier-items-imported' => __( 'All Modifier Items Imported, Starting Categories', 'wp-easycart' ),
-				'items-imported'              => __( 'Items Imported', 'wp-easycart' ),
-				'all-products-imported'       => __( 'All Products Imported!', 'wp-easycart' ),
-				'categories-imported'         => __( 'Categories Imported', 'wp-easycart' ),
-				'all-categories-imported'     => __( 'All Categories Imported!', 'wp-easycart' ),
-				'customers-imported'          => __( 'Customers Imported', 'wp-easycart' ),
-				'all-customers-imported'      => __( 'All Customers Imported!', 'wp-easycart' ),
-			) );
-			/* 6.0.2: the Shopify import calls send this; ecv2_shopify_import_precheck() ( admin/inc/wp_easycart_admin_cart_importer.php ) and PRO's ecv2_shopify_import_guard() check it. */
-			wp_localize_script(
-				'wp_easycart_admin_cart_importer_js',
-				'wp_easycart_cart_importer',
-				array(
-					'shopify_nonce' => wp_create_nonce( 'wp-easycart-shopify-import' ),
-				)
-			);
-		}
-		wp_enqueue_script( 'wp_easycart_admin_cart_importer_js' );
-		/* Adapter: source cards switch panels; the "only new" switch gets the V2 toggle look ( cart-importer.js already listens to its change event ). */
-		wp_add_inline_script( 'wp_easycart_admin_cart_importer_js', 'jQuery( function( $ ) {
-	var $wrap = $( "#ecimp" );
-	if ( ! $wrap.length ) { return; }
-	function ecimp_show( src ) {
-		var $btn = $wrap.find( ".ecimp-src[data-src=\"" + src + "\"]" );
-		if ( ! $btn.length ) { $btn = $wrap.find( ".ecimp-src" ).first(); src = $btn.data( "src" ); }
-		$wrap.find( ".ecimp-src" ).removeClass( "is-on" ).attr( "aria-selected", "false" );
-		$btn.addClass( "is-on" ).attr( "aria-selected", "true" );
-		$wrap.find( ".ecimp-panel" ).prop( "hidden", true );
-		$wrap.find( "#ecimp-panel-" + src ).prop( "hidden", false );
-		try { window.localStorage.setItem( "ecimp_src", src ); } catch ( e ) {}
-	}
-	$wrap.on( "click", ".ecimp-src", function() { ecimp_show( $( this ).data( "src" ) ); } );
-	$wrap.on( "change", ".ecimp-toggle input", function() { $( this ).closest( ".ecst-toggle" ).toggleClass( "is-on", this.checked ); } );
-	var start = $wrap.data( "src" ) || "";
-	if ( "" === start ) { try { start = window.localStorage.getItem( "ecimp_src" ) || ""; } catch ( e ) {} }
-	ecimp_show( start || "square" );
-} );' );
-		wp_add_inline_style( 'wp_easycart_admin_settings_page_v2_css', '#ecimp .ecimp-srcs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-#ecimp .ecimp-src{display:flex;flex-direction:column;gap:2px;min-width:150px;padding:10px 14px;border:1px solid var(--ecv2-g300);border-radius:var(--ecv2-r);background:#fff;cursor:pointer;text-align:left;font:inherit;color:inherit}
-#ecimp .ecimp-src b{font-size:13px;color:var(--ecv2-g900)}
-#ecimp .ecimp-src span{font-size:11.5px;color:var(--ecv2-g500)}
-#ecimp .ecimp-src.is-on{border-color:var(--ecst-accent);background:var(--ecst-accent-soft);box-shadow:0 0 0 1px var(--ecst-accent)}
-#ecimp .ecimp-panel{border:1px solid var(--ecv2-g200);border-radius:var(--ecv2-r);background:#fff;overflow:hidden}
-#ecimp .ecimp-panel[hidden]{display:none}
-#ecimp .ecimp-row{display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);gap:16px 24px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--ecv2-g100);position:relative}
-#ecimp .ecimp-row:last-child{border-bottom:0}
-#ecimp .ecimp-row.is-child{padding-left:40px;background:var(--ecv2-g50)}
-#ecimp .ecimp-row.is-child:before{content:"";position:absolute;left:24px;top:0;bottom:0;border-left:2px solid var(--ecst-accent-soft)}
-#ecimp .ecimp-row .ecst-row-control{justify-content:flex-start}
-#ecimp .ecimp-intro{padding:12px 16px;border-bottom:1px solid var(--ecv2-g100)}
-#ecimp .ecimp-foot{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--ecv2-g100);background:var(--ecv2-g50);flex-wrap:wrap}
-#ecimp .ecimp-notice{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:var(--ecv2-rs);font-size:12.5px;line-height:1.45;margin:0 0 12px;border:1px solid}
-#ecimp .ecimp-notice:last-child{margin-bottom:0}
-#ecimp .ecimp-notice.is-ok{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
-#ecimp .ecimp-notice.is-warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
-#ecimp .ecimp-notice.is-danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}
-#ecimp .ecimp-notice.is-info{background:var(--ecv2-g50);border-color:var(--ecv2-g200);color:var(--ecv2-g700)}
-#ecimp .ecimp-notice a{color:inherit;font-weight:600}
-#ecimp .ecimp-notice .dashicons{font-size:16px;width:16px;height:16px;flex-shrink:0;margin-top:1px}
-#ecimp .ecimp-list{margin:6px 0 0 18px;padding:0;font-size:12px;color:var(--ecv2-g500);line-height:1.5}
-#ecimp .ecimp-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ecv2-g900);cursor:pointer}
-#ecimp .ecimp-progress{width:100%}
-#ecimp .ec_admin_progress_bar{float:none;min-height:0;height:8px;border-radius:4px;background:var(--ecv2-g200)!important;overflow:hidden}
-#ecimp .ec_admin_progress_bar>div{min-height:0;height:8px;padding:0;border-radius:4px;background:var(--ecst-accent);background-image:none;box-shadow:none;transition:width .4s ease}
-#ecimp .ec_admin_progress_bar>div:after{display:none}
-#ecimp .ec_admin_process_status{float:none;text-align:left;font-size:12px;color:var(--ecv2-g500);margin-top:6px}' );
-	}
-}
-
 if ( ! function_exists( 'wp_easycart_settings_integrations_render_cart_importer' ) ) {
 	/**
-	 * Section body: the cart importer rebuilt in the V2 look. Same AJAX handlers,
-	 * nonces, form targets and admin/js/cart-importer.js as the classic page; only
-	 * the markup changed. Source cards: Square ( batch AJAX importer ), WooCommerce
-	 * ( batch AJAX importer since 6.0.0: ec_admin_ajax_woo_import ), osCommerce ( POST form -> the classic
-	 * template's inline import, run here with its output discarded ), Shopify
-	 * ( discontinued notice ). Never enqueues; see the section 'enqueue'.
+	 * Section body: 6.0.3 moved importing to Products › Import ( wp_easycart_admin_import: WooCommerce, Square and CSV files,
+	 * with a trial, progress, a report and an undo ). The osCommerce importer and the Shopify notice are gone; this section
+	 * points there.
 	 */
 	function wp_easycart_settings_integrations_render_cart_importer( $page, $section ) {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only result flags set by the importer redirects / form targets.
-		$ec_success = isset( $_GET['ec_success'] ) ? sanitize_key( wp_unslash( $_GET['ec_success'] ) ) : '';
-		$ec_action  = isset( $_GET['ec_action'] ) ? sanitize_key( wp_unslash( $_GET['ec_action'] ) ) : '';
-		// phpcs:enable
-		$open = '';
-		if ( 'woo-imported' === $ec_success ) {
-			$open = 'woo';
-		} elseif ( 'oscommerce-imported' === $ec_success || 'import-oscommerce-products' === $ec_action ) {
-			$open = 'oscommerce';
-		}
-		$oscommerce_ran = false;
-		if ( 'import-oscommerce-products' === $ec_action && current_user_can( 'manage_options' ) ) {
-			/* The classic osCommerce template runs its import inline when this flag is present. Run it for its
-			   side effects only; its markup ( and the header() redirect that could never succeed mid-page ) is discarded. */
-			ob_start();
-			include EC_PLUGIN_DIRECTORY . '/admin/template/settings/cart-importer/oscommerce-import.php';
-			ob_end_clean();
-			$oscommerce_ran = true;
-		}
-		$square_ready = ( 'square' === get_option( 'ec_option_payment_process_method' ) ) && ( get_option( 'ec_option_square_is_sandbox' ) ? '' !== (string) get_option( 'ec_option_square_sandbox_access_token' ) : '' !== (string) get_option( 'ec_option_square_access_token' ) );
-		$square_scope = true;
-		if ( $square_ready && class_exists( 'ec_square' ) ) {
-			$square       = new ec_square();
-			$square_scope = $square->has_inventory_scope();
-		}
-		$sources = array(
-			'square'     => array( __( 'Square', 'wp-easycart' ), __( 'Catalogue, modifiers and stock', 'wp-easycart' ) ),
-			'woo'        => array( __( 'WooCommerce', 'wp-easycart' ), __( 'Products, categories, attributes', 'wp-easycart' ) ),
-			'oscommerce' => array( __( 'osCommerce', 'wp-easycart' ), __( 'Same database only', 'wp-easycart' ) ),
-			'shopify'    => array( __( 'Shopify', 'wp-easycart' ), __( 'No longer available', 'wp-easycart' ) ),
-		);
+		$url = class_exists( 'wp_easycart_admin_import' ) ? wp_easycart_admin_import::url() : admin_url( 'admin.php?page=wp-easycart-products&subpage=import' );
 		?>
-		<div id="ecimp" data-src="<?php echo esc_attr( $open ); ?>">
-			<input type="hidden" id="wpec_cart_importer_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-importer' ) ); ?>" />
-			<p class="ecst-row-desc" style="margin:0 0 10px;"><?php esc_html_e( 'Each importer adds to your catalogue; nothing already in EasyCart is deleted. Back up first and run an import only once unless it says otherwise.', 'wp-easycart' ); ?></p>
-			<div class="ecimp-srcs" role="tablist">
-				<?php foreach ( $sources as $src => $labels ) : ?>
-					<button type="button" class="ecimp-src" role="tab" aria-selected="false" data-src="<?php echo esc_attr( $src ); ?>"><b><?php echo esc_html( $labels[0] ); ?></b><span><?php echo esc_html( $labels[1] ); ?></span></button>
-				<?php endforeach; ?>
+		<div class="ecst-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+			<div class="ecst-row-text">
+				<span class="ecst-label"><?php esc_html_e( 'Importing moved to Products › Import', 'wp-easycart' ); ?></span>
+				<span class="ecst-row-desc"><?php esc_html_e( 'Bring products in from WooCommerce on this site, from Square or from a CSV file, try ten first, and see a report of everything that came across.', 'wp-easycart' ); ?></span>
 			</div>
-
-			<div class="ecimp-panel" id="ecimp-panel-square" hidden>
-				<?php if ( ! $square_ready ) : ?>
-					<div class="ecimp-intro" style="border-bottom:0;"><div class="ecimp-notice is-warn"><span class="dashicons dashicons-warning"></span><span><?php esc_html_e( 'Square is not connected yet. Choose Square as the live gateway under Settings > Payment and connect your account, then come back here to import.', 'wp-easycart' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' ) ); ?>"><?php esc_html_e( 'Open payment settings', 'wp-easycart' ); ?></a></span></div></div>
-				<?php else : ?>
-					<div class="ecimp-intro">
-						<?php if ( ! $square_scope ) : ?>
-							<div class="ecimp-notice is-danger"><span class="dashicons dashicons-lock"></span><span><?php esc_html_e( 'Inventory permission missing. Square needs an extra authorisation before stock counts can be read.', 'wp-easycart' ); ?> <a href="<?php echo esc_url( 'https://connect.wpeasycart.com/' . ( get_option( 'ec_option_square_is_sandbox' ) ? 'square-sandbox' : 'square-v2' ) . '/?url=' . rawurlencode( admin_url( '?ec_admin_form_action=handle-square' ) ) . '&state=' . wp_rand( 1000000, 9999999 ) ); ?>"><?php esc_html_e( 'Grant inventory access', 'wp-easycart' ); ?></a></span></div>
-						<?php endif; ?>
-						<p class="ecst-row-desc" style="margin:0;"><?php esc_html_e( 'Runs in small batches so slower servers keep up. If it stops part-way, raise your server max execution time and run it again.', 'wp-easycart' ); ?></p>
-					</div>
-					<div class="ecimp-row" id="wpeasycart_square_only_new_toggle_row">
-						<div class="ecst-row-text">
-							<label class="ecst-label" for="wpeasycart_square_only_new"><?php esc_html_e( 'Only add new items from Square', 'wp-easycart' ); ?></label>
-							<span class="ecst-row-desc"><?php esc_html_e( 'Skips anything already imported. Existing items are not modified in any way.', 'wp-easycart' ); ?></span>
-						</div>
-						<div class="ecst-row-control">
-							<label class="ecst-toggle ecimp-toggle" for="wpeasycart_square_only_new"><input type="checkbox" id="wpeasycart_square_only_new" value="1" /><span class="ecst-toggle-track"><span class="ecst-toggle-knob"></span></span></label>
-						</div>
-					</div>
-					<div id="wpeasycart_square_full_import_options">
-						<div class="ecimp-row is-child">
-							<div class="ecst-row-text"><label class="ecst-label" for="wpeasycart_square_sync_matches"><?php esc_html_e( 'Update items already imported', 'wp-easycart' ); ?></label><span class="ecst-row-desc"><?php esc_html_e( 'Square to EasyCart: overwrites previously imported categories, options and products with the current Square data.', 'wp-easycart' ); ?></span></div>
-							<div class="ecst-row-control"><label class="ecimp-check"><input type="checkbox" id="wpeasycart_square_sync_matches" value="1" checked="checked" /> <?php esc_html_e( 'Sync matches', 'wp-easycart' ); ?></label></div>
-						</div>
-						<div class="ecimp-row is-child">
-							<div class="ecst-row-text"><label class="ecst-label" for="wpeasycart_square_import_products"><?php esc_html_e( 'Import products', 'wp-easycart' ); ?></label><span class="ecst-row-desc"><?php esc_html_e( 'Products plus the categories, option sets and modifiers they need.', 'wp-easycart' ); ?></span></div>
-							<div class="ecst-row-control"><label class="ecimp-check"><input type="checkbox" id="wpeasycart_square_import_products" value="1" checked="checked" /> <?php esc_html_e( 'Products', 'wp-easycart' ); ?></label></div>
-						</div>
-						<div class="ecimp-row is-child">
-							<div class="ecst-row-text"><label class="ecst-label" for="wpeasycart_square_import_inventory"><?php esc_html_e( 'Import inventory', 'wp-easycart' ); ?></label><span class="ecst-row-desc"><?php esc_html_e( 'Copies Square stock counts onto the matching products and variants.', 'wp-easycart' ); ?></span></div>
-							<div class="ecst-row-control"><label class="ecimp-check"><input type="checkbox" id="wpeasycart_square_import_inventory" value="1" checked="checked" /> <?php esc_html_e( 'Stock', 'wp-easycart' ); ?></label></div>
-						</div>
-						<div class="ecimp-intro" style="border-bottom:0;">
-							<div class="ecimp-notice is-danger" id="wpeasycart_square_import_something_required" style="display:none;"><span class="dashicons dashicons-warning"></span><span><?php esc_html_e( 'Choose products, inventory, or both.', 'wp-easycart' ); ?></span></div>
-							<div class="ecimp-notice is-warn" id="wpeasycart_square_import_overwrite_notice"><span class="dashicons dashicons-info"></span><span><?php esc_html_e( 'Importing overwrites any changes you made to products, categories, options or stock that were previously imported from Square.', 'wp-easycart' ); ?></span></div>
-						</div>
-					</div>
-					<div class="ecimp-intro" id="wpeasycart_square_only_new_notice" style="display:none;border-bottom:0;">
-						<div class="ecimp-notice is-info"><span class="dashicons dashicons-info"></span><span><?php esc_html_e( 'Only new items are added. Categories, options, option items, products and inventory previously imported from Square are left untouched.', 'wp-easycart' ); ?></span></div>
-					</div>
-					<div class="ecimp-foot">
-						<button type="button" class="ecv2-btn ecv2-btn-primary" id="wpeasycart_square_start_button" onclick="wpeasycart_start_square_import(); return false;"><?php esc_html_e( 'Import from Square', 'wp-easycart' ); ?></button>
-						<button type="button" class="ecv2-btn ecv2-btn-busy" id="wpeasycart_square_processing_button" style="display:none;" disabled="disabled"><span class="dashicons dashicons-update ecv2-spin"></span><?php esc_html_e( 'Importing...', 'wp-easycart' ); ?></button>
-						<div class="ecimp-progress" id="wpeasycart_square_import_progress_bar" style="display:none;">
-							<div class="ec_admin_progress_bar"><div style="width:10%;"></div></div>
-							<div class="ec_admin_process_status"><span><?php esc_html_e( 'Importer running', 'wp-easycart' ); ?></span></div>
-						</div>
-						<div id="wpeasycart_square_inventory_sync_progress_bar" style="display:none;"></div>
-					</div>
-				<?php endif; ?>
-			</div>
-
-			<div class="ecimp-panel" id="ecimp-panel-woo" hidden>
-				<div>
-					<?php /* Batched AJAX importer ( since 6.0.0 ): ec_admin_ajax_woo_import in admin/inc/wp_easycart_admin_cart_importer.php, driven by wpeasycart_start_woo_import() in admin/js/cart-importer.js. */ ?>
-					<input type="hidden" id="wpec_woo_importer_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-woo-importer-settings' ) ); ?>" />
-					<div class="ecimp-intro">
-						<div class="ecimp-notice is-ok" id="wpeasycart_woo_import_done" <?php echo ( 'woo-imported' === $ec_success ) ? '' : 'style="display:none;"'; ?>><span class="dashicons dashicons-yes"></span><span><?php esc_html_e( 'Your WooCommerce store has been imported. Not every extension can be carried over, so check the products and add anything missing by hand.', 'wp-easycart' ); ?></span></div>
-						<div class="ecimp-notice is-danger" id="wpeasycart_woo_import_error" style="display:none;"><span class="dashicons dashicons-warning"></span><span class="ecimp-msg"></span></div>
-						<?php if ( ! class_exists( 'WooCommerce' ) ) : ?>
-							<div class="ecimp-notice is-warn"><span class="dashicons dashicons-warning"></span><span><?php esc_html_e( 'WooCommerce is not active on this site. Install and activate it so its data can be read, then run the import.', 'wp-easycart' ); ?></span></div>
-						<?php endif; ?>
-						<p class="ecst-row-desc" style="margin:0;"><?php esc_html_e( 'Reads the WooCommerce data on this WordPress install and creates EasyCart records from it:', 'wp-easycart' ); ?></p>
-						<ul class="ecimp-list">
-							<li><?php esc_html_e( 'Product categories, and attributes as option sets, connected to products the way Woo has them', 'wp-easycart' ); ?></li>
-							<li><?php esc_html_e( 'Products: title, descriptions, regular and sale price, taxable, virtual, SKU ( a random model number if empty ), stock, downloads with their limits and expiry, reviews', 'wp-easycart' ); ?></li>
-							<li><?php esc_html_e( 'Up to five images from the gallery, or the featured image', 'wp-easycart' ); ?></li>
-							<li><?php esc_html_e( 'Published products that are visible in the catalog arrive active; drafts, pending, scheduled, private and hidden products arrive inactive', 'wp-easycart' ); ?></li>
-						</ul>
-					</div>
-					<div class="ecimp-foot">
-						<?php if ( class_exists( 'WooCommerce' ) ) : ?>
-							<button type="button" class="ecv2-btn ecv2-btn-primary" id="wpeasycart_woo_start_button" onclick="wpeasycart_start_woo_import(); return false;"><?php esc_html_e( 'Import WooCommerce data', 'wp-easycart' ); ?></button>
-							<button type="button" class="ecv2-btn ecv2-btn-busy" id="wpeasycart_woo_processing_button" style="display:none;" disabled="disabled"><span class="dashicons dashicons-update ecv2-spin"></span><?php esc_html_e( 'Importing...', 'wp-easycart' ); ?></button>
-						<?php else : ?>
-							<button type="button" class="ecv2-btn" disabled="disabled"><?php esc_html_e( 'Import WooCommerce data', 'wp-easycart' ); ?></button>
-						<?php endif; ?>
-						<span class="ecst-row-desc"><?php esc_html_e( 'Runs 50 products per request so large stores finish without a server timeout. Keep this tab open until it reports done. If it stops, run it again: it continues where it stopped. Running it again later adds only the products that are new in WooCommerce; products it already imported are left as they are.', 'wp-easycart' ); ?></span>
-						<div class="ecimp-progress" id="wpeasycart_woo_import_progress_bar" style="display:none;" data-l-starting="<?php esc_attr_e( 'Copying categories and option sets...', 'wp-easycart' ); ?>" data-l-products="<?php esc_attr_e( 'products imported', 'wp-easycart' ); ?>" data-l-done="<?php esc_attr_e( 'All products imported.', 'wp-easycart' ); ?>" data-l-skipped="<?php /* translators: %d: number of products. */ esc_attr_e( '%d were already imported and were left as they are.', 'wp-easycart' ); ?>" data-l-error="<?php esc_attr_e( 'The import stopped because the server did not answer. Run it again to continue where it stopped; products already imported are kept and not imported twice.', 'wp-easycart' ); ?>">
-							<div class="ec_admin_progress_bar"><div style="width:2%;"></div></div>
-							<div class="ec_admin_process_status"><span><?php esc_html_e( 'Importer running', 'wp-easycart' ); ?></span></div>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="ecimp-panel" id="ecimp-panel-oscommerce" hidden>
-				<form action="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-settings&subpage=cart-importer&ec_action=import-oscommerce-products' ) ); ?>" method="POST" enctype="multipart/form-data" novalidate="novalidate">
-					<div class="ecimp-intro">
-						<?php if ( $oscommerce_ran || 'oscommerce-imported' === $ec_success ) : ?>
-							<div class="ecimp-notice is-ok"><span class="dashicons dashicons-yes"></span><span><?php esc_html_e( 'Your osCommerce store has been imported. osCommerce has many extensions, so check the data and add anything missing by hand.', 'wp-easycart' ); ?></span></div>
-						<?php endif; ?>
-						<div class="ecimp-notice is-danger"><span class="dashicons dashicons-warning"></span><span><?php esc_html_e( 'Only use this if osCommerce shares this WordPress database. Without its tables the import stops with a server error and you will need the browser back button.', 'wp-easycart' ); ?></span></div>
-						<p class="ecst-row-desc" style="margin:0;"><?php esc_html_e( 'Creates EasyCart records from the osCommerce tables:', 'wp-easycart' ); ?></p>
-						<ul class="ecimp-list">
-							<li><?php esc_html_e( 'Categories, manufacturers, option sets and option item price changes', 'wp-easycart' ); ?></li>
-							<li><?php esc_html_e( 'Products: stock, model number, weight, image name, manufacturer, title and description, connected to their option sets and categories', 'wp-easycart' ); ?></li>
-						</ul>
-					</div>
-					<div class="ecimp-foot">
-						<button type="submit" class="ecv2-btn ecv2-btn-primary"><?php esc_html_e( 'Import osCommerce data', 'wp-easycart' ); ?></button>
-					</div>
-				</form>
-			</div>
-
-			<div class="ecimp-panel" id="ecimp-panel-shopify" hidden>
-				<div class="ecimp-intro" style="border-bottom:0;">
-					<div class="ecimp-notice is-info"><span class="dashicons dashicons-info"></span><span><?php esc_html_e( 'Shopify discontinued the private app system this importer relied on, so there is no longer a way to pull your data out of Shopify automatically. Export a product CSV from Shopify and use the product importer under Products instead.', 'wp-easycart' ); ?></span></div>
-					<?php do_action( 'wp_easycart_admin_shopify_import_end' ); ?>
-				</div>
-			</div>
+			<div class="ecst-row-control"><a class="ecv2-btn ecv2-btn-primary" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Open the importer', 'wp-easycart' ); ?></a></div>
 		</div>
 		<?php
 	}
@@ -1269,10 +1032,9 @@ return array(
 
 		'cart-importer' => array(
 			'title'  => __( 'Cart importer', 'wp-easycart' ),
-			'hint'   => __( 'Bring products in from Square, WooCommerce or osCommerce', 'wp-easycart' ),
-			'fields'  => array(),
-			'enqueue' => 'wp_easycart_settings_integrations_enqueue_cart_importer',
-			'render'  => 'wp_easycart_settings_integrations_render_cart_importer',
+			'hint'   => __( 'Now under Products › Import: WooCommerce, Square and CSV files', 'wp-easycart' ),
+			'fields' => array(),
+			'render' => 'wp_easycart_settings_integrations_render_cart_importer',
 		),
 	),
 );

@@ -10,6 +10,8 @@ class ec_discount {
 	public $shipping_discount;
 	public $coupon_code;
 	public $giftcard_code;
+	public $giftcard_balance = 0; /* 6.0.3: what the card holds ( settle_giftcard() ) */
+	public $giftcard_items_total = 0; /* 6.0.3: gift cards bought in this order, which a gift card never pays for */
 	public $shipping_subtotal;
 	public $coupon_first_failed;
 
@@ -40,10 +42,36 @@ class ec_discount {
 	private function set_discounts() {
 		$this->coupon_discount = $this->get_coupon_discount();
 		$this->giftcard_discount = $this->get_giftcard_discount();
+		$this->set_discount_total();
+	}
+
+	private function set_discount_total() {
 		$this->discount_total = $this->coupon_discount + $this->giftcard_discount;
 		if ( isset( $this->cart->cart_promo_discount ) ) {
 			$this->discount_total += $this->cart->cart_promo_discount;
 		}
+	}
+
+	/**
+	 * Adds a discount worked out outside this class ( the Offers engine's ) before the gift card takes its share, so a gift
+	 * card pays only what the order still costs. Callers used to add it to coupon_discount and discount_total after the gift
+	 * card had been worked out on the full price: a $129 product offered at $39 took $131.73 from the card and left a grand
+	 * total of -$90.
+	 *
+	 * @since 6.0.3
+	 *
+	 * @param float $amount The discount.
+	 */
+	public function add_discount( $amount ) {
+		$amount = (float) $amount;
+		if ( 0.0 === $amount ) {
+			return;
+		}
+		$this->coupon_discount += $amount;
+		if ( ! empty( $this->giftcard_code ) ) {
+			$this->giftcard_discount = $this->get_giftcard_discount();
+		}
+		$this->set_discount_total();
 	}
 
 	private function get_coupon_discount() {
@@ -218,6 +246,10 @@ class ec_discount {
 		return ( $a->unit_price < $b->unit_price ) ? 1 : -1;
 	}
 
+	/**
+	 * A first estimate of the gift card's share, on the total the caller passed. ec_order_totals settles the real share once
+	 * the grand total is known ( settle_giftcard() ).
+	 */
 	private function get_giftcard_discount() {
 		$giftcard_row = $this->mysqli->redeem_gift_card( $this->giftcard_code );
 		$cart_giftcards_total = 0;
@@ -226,6 +258,8 @@ class ec_discount {
 				$cart_giftcards_total += $this->cart->cart[$i]->total_price;
 			}
 		}
+		$this->giftcard_items_total = (float) $cart_giftcards_total;
+		$this->giftcard_balance = ( $giftcard_row ) ? max( 0, (float) $giftcard_row->amount ) : 0;
 
 		if ( $giftcard_row ) {
 			if ( get_option( 'ec_option_gift_card_shipping_allowed' ) ) {
@@ -242,6 +276,37 @@ class ec_discount {
 		} else {
 			return 0;
 		}
+	}
+
+	/**
+	 * The gift card's share once the order's grand total is known ( ec_order_totals ). A gift card is paid last, like a payment:
+	 * it pays what the order still costs ( shipping, tax, fees and tips included ), never more than its balance and never a gift
+	 * card bought in the same order. With "Gift cards cover the grand total" off it pays the products only.
+	 *
+	 * @since 6.0.3
+	 *
+	 * @param float $owed     The grand total before the gift card.
+	 * @param int   $decimals The currency's decimals.
+	 * @return float The gift card's share.
+	 */
+	public function settle_giftcard( $owed, $decimals = 2 ) {
+		if ( $this->giftcard_balance <= 0 ) {
+			return (float) $this->giftcard_discount;
+		}
+		$decimals = (int) $decimals;
+		$cents    = pow( 10, $decimals );
+		/* The other discounts as the Discounts row shows them: a 10% offer on $99.95 is $9.995, shown and charged as $10.00. */
+		$others = round( (float) $this->discount_total - (float) $this->giftcard_discount, $decimals );
+		$cap    = (float) $owed - $this->giftcard_items_total;
+		if ( ! get_option( 'ec_option_gift_card_shipping_allowed' ) ) {
+			$cap = min( $cap, (float) $this->cart_subtotal - $others - $this->giftcard_items_total );
+		}
+		$balance = floor( $this->giftcard_balance * $cents + 0.000001 ) / $cents; /* whole cents only: a share never rounds above the card */
+		$most    = round( max( 0, min( $balance, $cap ) ), $decimals );
+		$share = (float) apply_filters( 'wp_easycart_giftcard_share', $most, $owed, $this ); /* a filter may lower the share, never raise it */
+		$this->giftcard_discount = max( 0, min( $share, $most ) );
+		$this->set_discount_total();
+		return $this->giftcard_discount;
 	}
 
 	public function discount_shipping( $shipping_rate ) {

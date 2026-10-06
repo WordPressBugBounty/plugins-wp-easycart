@@ -907,6 +907,13 @@ class wp_easycart_admin_shipping_rates_v2 {
 				'bg'   => '#c8102e',
 				'fg'   => '#ffffff',
 			),
+			/* 6.0.3: WP EasyCart PRO's Royal Mail rates ( a rate provider, slug royalmail ): provider_badge() finds it here. */
+			'royalmail'  => array(
+				'name' => __( 'Royal Mail', 'wp-easycart' ),
+				'mark' => 'RM',
+				'bg'   => '#da202a',
+				'fg'   => '#ffffff',
+			),
 		);
 		return function_exists( 'apply_filters' ) ? (array) apply_filters( 'wp_easycart_shipping_rate_carriers', $carriers ) : $carriers;
 	}

@@ -24,6 +24,10 @@
  *   'deactivate_effect'  Optional. One sentence on what the store loses while it is deactivated.
  *   'note'               Optional. One sentence shown under the version message.
  *   'download_url'       Optional. Where to download the release manually.
+ *   'install_url'        Optional ( 6.0.3 ). A one-click install of the latest release over the active copy, offered when
+ *                        WordPress lists no update for it, or one without a package ( WP EasyCart PRO hides its own update
+ *                        while its license has lapsed ).
+ *   'install_note'       Optional ( 6.0.3 ). One sentence on why WordPress lists no update and what comes after the install.
  *
  * @since 6.0.0
  */
@@ -50,6 +54,69 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 		public static function init() {
 			add_action( 'admin_notices', array( __CLASS__, 'print_admin_notice' ) );
 			add_action( 'network_admin_notices', array( __CLASS__, 'print_admin_notice' ) );
+			add_filter( 'upgrader_pre_download', array( __CLASS__, 'pro_update_package' ), 10, 4 );
+		}
+
+		/**
+		 * An outdated WP EasyCart PRO's update always downloads ( 6.0.3 ). While the copy installed is older than this release
+		 * loads, WordPress's update of it ( this page's Update now, the Plugins screen, a bulk update ) falls back to the public
+		 * latest WP EasyCart PRO, the package "Install the latest version" uses, when the listed package is refused or missing.
+		 * An old copy can list an update saved while its license was active ( or saved by a newer copy ), whose licensed download
+		 * Connect refuses once the license has lapsed ( "Download failed. Forbidden" ), and the license form lives in the PRO this
+		 * lock keeps from loading. A current copy is left alone: its updates follow its license.
+		 *
+		 * @since 6.0.3
+		 * @param bool|string|WP_Error $reply      An earlier filter's answer.
+		 * @param string               $package    The package WordPress lists.
+		 * @param object|null          $upgrader   The WP_Upgrader at work.
+		 * @param array                $hook_extra What is being upgraded ( 'plugin' => basename ).
+		 * @return bool|string|WP_Error The downloaded file, the last download error, or $reply for WordPress to download it.
+		 */
+		public static function pro_update_package( $reply, $package, $upgrader = null, $hook_extra = array() ) {
+			if ( false !== $reply || ! is_array( $hook_extra ) || empty( $hook_extra['plugin'] ) || wp_easycart_admin_pro_gate::PRO_BASENAME !== $hook_extra['plugin'] ) {
+				return $reply;
+			}
+			if ( ! function_exists( 'wp_easycart_admin' ) || ! method_exists( wp_easycart_admin(), 'pro_needs_update' ) || ! method_exists( wp_easycart_admin(), 'pro_package_url' ) || ! wp_easycart_admin()->pro_needs_update() ) {
+				return $reply;
+			}
+			$package = is_string( $package ) ? $package : '';
+			if ( '' !== $package && ! preg_match( '!^https?://!i', $package ) ) {
+				return $reply; /* a local file: WordPress takes it as it is */
+			}
+			if ( ! function_exists( 'download_url' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+			}
+			$skin     = ( is_object( $upgrader ) && isset( $upgrader->skin ) && is_object( $upgrader->skin ) && method_exists( $upgrader->skin, 'feedback' ) ) ? $upgrader->skin : null;
+			$packages = array( wp_easycart_admin()->pro_package_url( 'repair' ) );
+			if ( defined( 'wp_easycart_admin::PRO_PACKAGE_URL_LEGACY' ) ) {
+				$packages[] = wp_easycart_admin::PRO_PACKAGE_URL_LEGACY;
+			}
+			if ( '' !== $package ) {
+				if ( $skin ) {
+					$skin->feedback( 'downloading_package', $package );
+				}
+				$file = download_url( $package, 300 );
+				if ( ! is_wp_error( $file ) ) {
+					return $file;
+				}
+				if ( $skin ) {
+					/* translators: %s: why the download failed, e.g. "Forbidden". */
+					$skin->feedback( esc_html( sprintf( __( 'That download did not go through ( %s ), so the latest WP EasyCart PRO comes from its public package instead, as Install the latest version does.', 'wp-easycart' ), $file->get_error_message() ) ) );
+				}
+			}
+			$error = null;
+			foreach ( $packages as $url ) {
+				if ( $skin ) {
+					$skin->feedback( 'downloading_package', $url );
+				}
+				$file = download_url( $url, 300 );
+				if ( ! is_wp_error( $file ) ) {
+					return $file;
+				}
+				$error = $file;
+			}
+			$failed = ( is_object( $upgrader ) && ! empty( $upgrader->strings['download_failed'] ) ) ? $upgrader->strings['download_failed'] : __( 'Download failed.', 'wp-easycart' );
+			return new WP_Error( 'download_failed', $failed, $error ? $error->get_error_message() : '' );
 		}
 
 		/**
@@ -66,7 +133,9 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 					'status'            => array( __CLASS__, 'pro_status' ),
 					'deactivate_effect' => self::pro_deactivate_effect(),
 					'note'              => self::pro_note(),
-					'download_url'      => 'https://www.wpeasycart.com/my-account/',
+					'download_url'      => self::pro_download_url(),
+					'install_url'       => self::pro_install_link(),
+					'install_note'      => __( 'WP EasyCart PRO only lists its updates while its license is active, so a lapsed license leaves nothing to update here. The latest version installs without a license: then renew it, or enter a new license key, on the Registration page.', 'wp-easycart' ),
 				),
 			);
 
@@ -94,6 +163,39 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 				return __( 'Your store keeps running on WP EasyCart, but Pro and Premium features such as extra payment gateways, live shipping rates, subscriptions and offers are off until WP EasyCart PRO is updated and activated again.', 'wp-easycart' );
 			}
 			return __( 'Your store keeps running on WP EasyCart, but Pro features such as extra payment gateways, live shipping rates, subscriptions and offers are off until WP EasyCart PRO is updated and activated again.', 'wp-easycart' );
+		}
+
+		/**
+		 * The one-click installer for the latest WP EasyCart PRO ( it replaces an outdated copy and keeps it active ), for an
+		 * account that may install and activate plugins on a site that allows it.
+		 *
+		 * @since 6.0.3
+		 * @return string
+		 */
+		private static function pro_install_link() {
+			if ( ! function_exists( 'wp_easycart_admin' ) || ! method_exists( wp_easycart_admin(), 'pro_install_url' ) ) {
+				return '';
+			}
+			if ( ! current_user_can( 'install_plugins' ) || ! current_user_can( 'activate_plugins' ) ) {
+				return '';
+			}
+			if ( function_exists( 'wp_is_file_mod_allowed' ) ? ! wp_is_file_mod_allowed( 'wp_easycart_install_pro' ) : ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
+				return '';
+			}
+			return wp_easycart_admin()->pro_install_url( 'install' );
+		}
+
+		/**
+		 * The latest WP EasyCart PRO as a .zip ( Connect's public package, no license needed ), else the account page.
+		 *
+		 * @since 6.0.3
+		 * @return string
+		 */
+		private static function pro_download_url() {
+			if ( function_exists( 'wp_easycart_admin' ) && method_exists( wp_easycart_admin(), 'pro_package_url' ) ) {
+				return wp_easycart_admin()->pro_package_url( 'manual' );
+			}
+			return 'https://www.wpeasycart.com/my-account/';
 		}
 
 		/**
@@ -153,6 +255,8 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 						'deactivate_effect' => '',
 						'note'              => '',
 						'download_url'      => '',
+						'install_url'       => '',
+						'install_note'      => '',
 					)
 				);
 				if ( '' === $requirement['deactivate_name'] ) {
@@ -227,7 +331,8 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 		}
 
 		/**
-		 * One-click update link when WordPress already knows about the update, else ''.
+		 * One-click update link when WordPress already knows about the update and has a package for it, else ''. An update
+		 * listed without one ( WP EasyCart PRO on a lapsed license ) only ends in "Update package not available" ( 6.0.3 ).
 		 *
 		 * @param string $basename Plugin basename.
 		 * @return string
@@ -238,6 +343,11 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 			}
 			$updates = get_site_transient( 'update_plugins' );
 			if ( ! is_object( $updates ) || empty( $updates->response ) || ! isset( $updates->response[ $basename ] ) ) {
+				return '';
+			}
+			$listed  = $updates->response[ $basename ];
+			$package = is_object( $listed ) && isset( $listed->package ) ? $listed->package : ( is_array( $listed ) && isset( $listed['package'] ) ? $listed['package'] : '' );
+			if ( ! is_string( $package ) || '' === trim( $package ) ) {
 				return '';
 			}
 			return wp_nonce_url( self_admin_url( 'update.php?action=upgrade-plugin&plugin=' . rawurlencode( $basename ) ), 'upgrade-plugin_' . $basename );
@@ -309,6 +419,41 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 		}
 
 		/**
+		 * What the one-click installer reported ( ?ec_pro_error= ): it returns to the registration page, which this page
+		 * replaces while the admin is paused, so its message is shown here.
+		 *
+		 * @since 6.0.3
+		 */
+		private static function print_install_messages() {
+			if ( ! function_exists( 'wp_easycart_admin' ) || ! method_exists( wp_easycart_admin(), 'pro_install_messages' ) ) {
+				return;
+			}
+			foreach ( (array) wp_easycart_admin()->pro_install_messages( array() ) as $message ) {
+				if ( ! is_array( $message ) || empty( $message['text'] ) ) {
+					continue;
+				}
+				$tone = ( isset( $message['tone'] ) && 'warning' === $message['tone'] ) ? 'warning' : 'error';
+				echo '<div class="ec-compat-lock-message is-' . esc_attr( $tone ) . '" role="alert"><p><strong>' . esc_html( $message['text'] ) . '</strong>';
+				if ( ! empty( $message['detail'] ) ) {
+					echo ' ' . esc_html( $message['detail'] );
+				}
+				echo '</p>';
+				if ( ! empty( $message['actions'] ) && is_array( $message['actions'] ) ) {
+					echo '<p class="ec-compat-lock-links">';
+					foreach ( $message['actions'] as $action ) {
+						if ( empty( $action['url'] ) || empty( $action['label'] ) ) {
+							continue;
+						}
+						$target = ! empty( $action['target'] ) ? ' target="' . esc_attr( $action['target'] ) . '" rel="noopener noreferrer"' : '';
+						echo '<a class="button' . ( ! empty( $action['primary'] ) ? ' button-primary' : '' ) . '" href="' . esc_url( $action['url'] ) . '"' . $target . '>' . esc_html( $action['label'] ) . '</a> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $target is built from esc_attr() above.
+					}
+					echo '</p>';
+				}
+				echo '</div>';
+			}
+		}
+
+		/**
 		 * The page shown in place of every EasyCart admin screen.
 		 */
 		public static function render_page() {
@@ -337,6 +482,11 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 				.ec-compat-lock-option .button-primary:hover, .ec-compat-lock-option .button-primary:focus { background: var(--ec-brand-hover, #135e96); border-color: var(--ec-brand-hover, #135e96); color: var(--ec-on-brand, #fff); }
 				.ec-compat-lock-links { font-size: 13px; }
 				.ec-compat-lock-foot { margin: 20px 0 0; font-size: 13px; color: #6b7280; }
+				.ec-compat-lock-message { border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; padding: 12px 16px; margin: 0 0 16px; }
+				.ec-compat-lock-message.is-warning { border-color: #fde68a; background: #fffbeb; }
+				.ec-compat-lock-message p { margin: 0 0 8px; }
+				.ec-compat-lock-message p:last-child { margin-bottom: 0; }
+				.ec-compat-lock-links .button { margin: 0 6px 6px 0; }
 				@media (max-width: 640px) { .ec-compat-lock { margin: 24px auto; } .ec-compat-lock-card { padding: 20px; } .ec-compat-lock-options { grid-template-columns: 1fr; } }
 			</style>
 			<div class="wrap ec-compat-lock">
@@ -344,6 +494,7 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 					<span class="ec-compat-lock-icon"><span class="dashicons dashicons-update" aria-hidden="true"></span></span>
 					<h1><?php esc_html_e( 'One more update to finish', 'wp-easycart' ); ?></h1>
 					<p class="ec-compat-lock-lead"><?php esc_html_e( 'WP EasyCart was updated, but a plugin that works with it is on a version that does not match. The WP EasyCart admin is paused until they match, so nothing breaks while you manage your store.', 'wp-easycart' ); ?></p>
+					<?php self::print_install_messages(); ?>
 					<?php
 					foreach ( $conflicts as $conflict ) {
 						$update_url     = self::update_url( $conflict['basename'] );
@@ -360,13 +511,22 @@ if ( ! class_exists( 'wp_easycart_admin_compat_lock' ) ) :
 										<?php /* translators: %s: required version. */ ?>
 										<p><?php echo esc_html( sprintf( __( 'An update is ready. Install version %s or newer and everything comes back as it was.', 'wp-easycart' ), $conflict['min_version'] ) ); ?></p>
 										<a class="button button-primary" href="<?php echo esc_url( $update_url ); ?>"><?php esc_html_e( 'Update now', 'wp-easycart' ); ?></a>
+									<?php } elseif ( '' !== $conflict['install_url'] ) { ?>
+										<?php /* translators: %s: plugin name. */ ?>
+										<p><?php echo esc_html( sprintf( __( 'Install the latest %s over this copy in one click; it stays active and everything comes back as it was.', 'wp-easycart' ), $conflict['name'] ) ); ?><?php echo '' !== $conflict['install_note'] ? ' ' . esc_html( $conflict['install_note'] ) : ''; ?></p>
+										<span class="ec-compat-lock-links">
+											<a class="button button-primary" href="<?php echo esc_url( $conflict['install_url'] ); ?>"><?php esc_html_e( 'Install the latest version', 'wp-easycart' ); ?></a>
+											<?php if ( '' !== $conflict['download_url'] ) { ?>
+												<a class="button" href="<?php echo esc_url( $conflict['download_url'] ); ?>"><?php esc_html_e( 'Download .zip', 'wp-easycart' ); ?></a>
+											<?php } ?>
+										</span>
 									<?php } elseif ( current_user_can( 'update_plugins' ) ) { ?>
 										<?php /* translators: %s: required version. */ ?>
 										<p><?php echo esc_html( sprintf( __( 'Install version %s or newer from the Plugins screen. If no update is listed, download the latest release from your account and upload it under Plugins > Add New.', 'wp-easycart' ), $conflict['min_version'] ) ); ?></p>
 										<span class="ec-compat-lock-links">
 											<a class="button button-primary" href="<?php echo esc_url( self::plugins_url() ); ?>"><?php esc_html_e( 'Go to Plugins', 'wp-easycart' ); ?></a>
 											<?php if ( '' !== $conflict['download_url'] ) { ?>
-												<a class="button" href="<?php echo esc_url( $conflict['download_url'] ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Download from my account', 'wp-easycart' ); ?></a>
+												<a class="button" href="<?php echo esc_url( $conflict['download_url'] ); ?>"><?php esc_html_e( 'Download the latest release', 'wp-easycart' ); ?></a>
 											<?php } ?>
 										</span>
 									<?php } else { ?>

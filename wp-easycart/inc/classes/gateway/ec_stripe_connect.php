@@ -270,6 +270,46 @@ class ec_stripe_connect extends ec_gateway {
 		}
 	}
 
+	/**
+	 * The subscription checkout can take its card in Stripe's Payment Element ( 6.0.3 ): this class attaches a payment method
+	 * ( pm_ ) to the customer and bills the subscription to it. ec_cartpage::subscription_payment_element_ready() asks.
+	 *
+	 * @since 6.0.3
+	 * @return bool
+	 */
+	public function accepts_payment_methods() {
+		return true;
+	}
+
+	/**
+	 * One Stripe API request ( 6.0.3 ): wp_easycart_subscription_changes uses it for invoice previews, pending updates and
+	 * subscription schedules.
+	 *
+	 * @param string $method GET | POST | DELETE.
+	 * @param string $path   Path under /v1/, such as 'subscriptions/sub_123'.
+	 * @param array  $data   Parameters.
+	 * @return object|WP_Error Stripe's answer, or WP_Error with Stripe's code and message.
+	 */
+	public function api( $method, $path, $data = array() ) {
+		$url    = 'https://api.stripe.com/v1/' . ltrim( (string) $path, '/' );
+		$method = strtoupper( (string) $method );
+		if ( 'GET' === $method ) {
+			$response = $this->call_stripe_get( $url, (array) $data );
+		} elseif ( 'DELETE' === $method ) {
+			$response = $this->call_stripe_delete( $url );
+		} else {
+			$response = $this->call_stripe( $url, (array) $data );
+		}
+		$json = json_decode( (string) $response );
+		if ( '' === (string) $response || ! is_object( $json ) ) {
+			return new WP_Error( 'stripe_unreachable', 'Stripe did not answer.' );
+		}
+		if ( isset( $json->error ) ) {
+			return new WP_Error( ( isset( $json->error->code ) && '' !== (string) $json->error->code ) ? (string) $json->error->code : 'stripe_error', isset( $json->error->message ) ? (string) $json->error->message : 'Stripe refused the request.', $json->error );
+		}
+		return $json;
+	}
+
 	public function get_active_subscription_list( $user, $limit = 25, $offset = 0 ) {
 		$data = $this->get_subscription_list_data( $user, $limit, $offset );
 		$response = $this->call_stripe_get( 'https://api.stripe.com/v1/customers/' . $user->stripe_customer_id . '/subscriptions', $data );
@@ -1604,6 +1644,11 @@ class ec_stripe_connect extends ec_gateway {
 
 			if( is_string( $card ) && substr( $card, 0, 5 ) == 'card_' ){
 				$gateway_data["default_payment_method"]	= $card;
+			}
+			/* 6.0.3: a payment method from the Payment Element ( pm_ ) is billed as one, never as a source. */
+			if ( is_string( $card ) && 0 === strpos( $card, 'pm_' ) ) {
+				$gateway_data['default_payment_method'] = $card;
+				unset( $gateway_data['default_source'] );
 			}
 
 		}else{

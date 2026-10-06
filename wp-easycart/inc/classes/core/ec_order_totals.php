@@ -35,15 +35,6 @@ class ec_order_totals {
 		} else {
 			$this->tax_total = number_format( $tax->tax_total, $GLOBALS['currency']->get_decimal_length(), '.', '' );
 		}
-		// Percentage flex-fees calculated on the order total subtract the full discount ( coupon + gift card ).
-		if ( is_object( $discount ) && isset( $discount->discount_total ) && method_exists( $tax, 'set_fee_discount_total' ) ) {
-			$tax->set_fee_discount_total( $discount->discount_total );
-		}
-		$this->fee_total = 0;
-		for ( $i = 0; $i < count( $tax->fees ); $i++ ) {
-			$this->fee_total += $tax->fees[ $i ]->amount;
-		}
-		$this->fee_total = number_format( $this->fee_total, $GLOBALS['currency']->get_decimal_length( ), '.', '' );
 		$this->duty_total = number_format( $tax->duty_total, $GLOBALS['currency']->get_decimal_length(), '.', '' );
 		$this->vat_total = number_format( $tax->vat_total, $GLOBALS['currency']->get_decimal_length(), '.', '' );
 		$this->gst_total = number_format( $tax->gst, $GLOBALS['currency']->get_decimal_length(), '.', '' );
@@ -61,10 +52,58 @@ class ec_order_totals {
 				$this->vat_total = number_format( 0, $GLOBALS['currency']->get_decimal_length(), '.', '' );
 			}
 		}
+		// 6.0.3: the gift card pays last, like a payment, on the real grand total ( fees, tips and VAT included ).
+		$this->settle_giftcard( $discount, $tax );
+		// Percentage flex-fees calculated on the order total subtract the full discount ( coupon + gift card ).
+		if ( is_object( $discount ) && isset( $discount->discount_total ) && method_exists( $tax, 'set_fee_discount_total' ) ) {
+			$tax->set_fee_discount_total( $discount->discount_total );
+		}
+		$this->fee_total = number_format( $this->sum_fees( $tax ), $GLOBALS['currency']->get_decimal_length( ), '.', '' );
 		$this->discount_total = number_format( $discount->discount_total, $GLOBALS['currency']->get_decimal_length( ), '.', '' );
 		$this->shipping_total = $this->shipping_total - $discount->shipping_discount;
 		$this->grand_total = number_format( $this->get_grand_total( $tax ), $GLOBALS['currency']->get_decimal_length( ), '.', '' );
 		$this->set_converted_grand_total( $tax );
+	}
+
+	private function sum_fees( $tax ) {
+		$total = 0;
+		for ( $i = 0; $i < count( $tax->fees ); $i++ ) {
+			$total += $tax->fees[ $i ]->amount;
+		}
+		return $total;
+	}
+
+	/**
+	 * The gift card's share of this order ( ec_discount::settle_giftcard() ): what the order costs after every other discount,
+	 * with the fees worked out on what the card leaves to pay ( a card processing fee is charged only on what a card pays ).
+	 *
+	 * @since 6.0.3
+	 *
+	 * @param ec_discount $discount The order's discounts.
+	 * @param ec_tax      $tax      The order's taxes and fees.
+	 */
+	private function settle_giftcard( $discount, $tax ) {
+		if ( ! is_object( $discount ) || ! method_exists( $discount, 'settle_giftcard' ) || empty( $discount->giftcard_balance ) ) {
+			return;
+		}
+		$decimals = $GLOBALS['currency']->get_decimal_length();
+		$others   = (float) $discount->discount_total - (float) $discount->giftcard_discount;
+		if ( method_exists( $tax, 'set_fee_discount_total' ) ) {
+			$tax->set_fee_discount_total( $others + (float) $discount->giftcard_balance );
+		}
+		$gross = (float) $this->sub_total + (float) $this->shipping_total - (float) $discount->shipping_discount + (float) $this->tax_total + (float) $this->gst_total + (float) $this->pst_total + (float) $this->hst_total + round( $this->sum_fees( $tax ), $decimals ) + (float) $this->duty_total + (float) $this->tip_total;
+		if ( ! $tax->vat_included ) {
+			$gross += (float) $this->vat_total;
+		}
+		$gross = round( $gross, $decimals );
+		/* The other discounts as the Discounts row rounds them ( an offer can leave half a cent: 10% of $99.95 ), so a card that covers
+		 * the order brings the grand total to exactly zero, never -$0.01. */
+		$owed = $gross - round( $others, $decimals );
+		$discount->settle_giftcard( $owed, $decimals );
+		$over = round( round( (float) $discount->discount_total, $decimals ) - $gross, $decimals );
+		if ( $over > 0 ) {
+			$discount->settle_giftcard( $owed - $over, $decimals );
+		}
 	}
 
 	private function get_grand_total( $tax ) {

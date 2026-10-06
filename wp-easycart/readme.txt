@@ -4,7 +4,7 @@ Tags: shopping cart, store, e-commerce, paypal, square
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 6.0.2
+Stable tag: 6.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,7 +57,7 @@ It suits online shops that ship, restaurants, cafés and bakeries taking pickup 
 * No WP EasyCart fee on your sales, and 30+ more payment gateways.
 * One-page checkout, your own checkout questions, and gift orders.
 * Subscriptions, digital downloads and gift cards.
-* Live shipping rates from UPS, FedEx, USPS, DHL, Canada Post and Australia Post, plus store schedules and pickup locations.
+* Live shipping rates from UPS, FedEx, USPS, DHL, Canada Post and Australia Post, Royal Mail prices for UK shops, plus store schedules and pickup locations.
 * Automatic sales tax from TaxCloud or TaxJar.
 * Coupons, promotions and abandoned cart emails.
 * Order editing and refunds, invoices and credit notes, payment terms, and orders you create for phone customers.
@@ -154,7 +154,7 @@ Please report security issues through the [Patchstack Vulnerability Disclosure P
 
 WP EasyCart connects to these services only when you use the feature that needs them.
 
-* **WP EasyCart Connect** ( connect.wpeasycart.com ) connects your Stripe, Square and PayPal accounts and passes their payment notifications to your store, installs WP EasyCart PRO when you start a trial or add a license, and, only if you choose to share anonymous usage data, receives it. [Privacy policy](https://www.wpeasycart.com/privacy-policy/), [terms](https://www.wpeasycart.com/terms-and-conditions/).
+* **WP EasyCart Connect** ( connect.wpeasycart.com ) connects your Stripe, Square and PayPal accounts and passes their payment notifications to your store, installs WP EasyCart PRO when you start a trial or add a license, and, only if you choose to share anonymous usage data, receives a weekly summary of how the store is set up ( no customer or order details ); turning sharing off deletes what it kept. [Privacy policy](https://www.wpeasycart.com/privacy-policy/), [terms](https://www.wpeasycart.com/terms-and-conditions/).
 * **WP EasyCart demo data** ( support.wpeasycart.com ) supplies sample products and images when you install demo data from the setup wizard.
 * **Stripe** processes card and wallet payments when you connect Stripe. It receives the order total and the customer's payment and billing details. [Privacy policy](https://stripe.com/privacy), [terms](https://stripe.com/legal).
 * **Square** processes payments when you connect Square. It receives the order total and the customer's payment and billing details. [Privacy policy](https://squareup.com/legal/general/privacy), [terms](https://squareup.com/legal/general/ua).
@@ -165,6 +165,56 @@ WP EasyCart connects to these services only when you use the feature that needs 
 * **Amazon S3** serves download files you choose to store there.
 
 == Changelog ==
+= 6.0.3 =
+* New Feature - Import your store from WooCommerce or Square ( Products › Import ): products with their variations, categories, brands, pictures, stock and reviews, ten products to try first, a report of everything that came across, a one-click undo, and old WooCommerce addresses that keep working.
+* New Feature - Sell subscriptions from a pricing table on any page or in Elementor: up to four plans, each sold monthly and yearly, as cards or a compare table, with a monthly / yearly switch, the yearly saving shown, a list of what each plan includes and any free trial, and an offer to switch to yearly for monthly subscribers, and the choice to let customers buy more than one, for licenses or seats.
+* New Feature - Subscribers get a reminder email before a yearly renewal and before a free trial ends, each with the date, the price and a link to cancel.
+* New Feature - Changing plan in My Account shows what the change costs and when it starts before the subscriber confirms: an upgrade is paid first, a change can wait until the renewal date, and a waiting change can be cancelled.
+* New Feature - Move current subscribers to a new price: each is emailed the old price, the new price and the date first, and pays the new price from a renewal at least the notice you choose away.
+* New Feature - Royal Mail at checkout for UK shops: 1st and 2nd Class, Signed For, Tracked 24 and 48, Special Delivery, and International Standard, Tracked and Economy, priced by each parcel's size, weight and destination from Royal Mail's Online or Post Office prices, which change over on the day Royal Mail changes them.
+* Improvement - Reports show subscriptions by plan and billing period and how many pay yearly, and monthly recurring revenue counts paying subscriptions the same way everywhere.
+* Improvement - Choose whether receipts, the order confirmation page and My Account say a payment is still being processed, for stores that take bank transfer, invoice or pay on pickup.
+* Improvement - Cancelling an order puts its stock and any gift card balance it used back, each with its own setting.
+* Improvement - Add New creates a product as live or as a draft, with its variations and modifiers picked together.
+* Improvement - reCAPTCHA keys are tested before spam protection switches on, so a wrong key can never lock shoppers out of signing in.
+* Improvement - The Payments settings page is easier to scan: one line for each way customers pay, a gateway list you can search by name or country with the recommended gateways first, and one Save button in each gateway's settings.
+* Improvement - Sharing anonymous usage data is clearer: a page lists exactly what is sent, and turning it off deletes what was shared.
+* Improvement - Elementor: account forms in a popup open again to show their message or the password reset form, and the Cart and Order Summary widgets load the shopper's cart after the page, so no page cache can hold it.
+* Improvement - EasyCart › Extensions says when an extension needs WP EasyCart Premium installed to update, and when Premium can't be installed in one click it says why and offers its download and the install steps instead of sending you to your account.
+* Improvement - Invoice PDFs, packing slips and other printed documents use tighter print spacing, so a typical invoice fits on one page, and a long item list now continues onto the next page instead of leaving the first page part empty.
+* Improvement - When a label service such as Stamps.com, Shippo or ShipStation is connected, Buy label is the main button where you ship an order.
+* Improvement - When WP EasyCart PRO is too old for WP EasyCart, one click installs its latest version, and its update from the Plugins screen goes through, even while its license has lapsed, so you can renew or enter a new license key.
+* Improvement - The subscription checkout takes the card in the same Stripe payment form as the regular checkout, in your Stripe theme and layout, with the same progress card while the payment goes through, and a cleaner look that says when a free trial ends, what the first payment will be after any coupon, and what the subscription renews at when a coupon covers only the first payment.
+* Improvement - A customer who may buy a subscription again sees the one they already have, with a link to manage it, above the subscription form.
+* Improvement - A subscription in its free trial shows Trial in My Account, with when the trial ends and the first payment, instead of a payment date for the free trial; changing plan during the trial keeps it a trial and no longer records an empty $0 order.
+* Improvement - Translations brought up to date: the admin in Danish, German, Spanish, French and Italian, and the storefront phrases in every language, including the Elementor widgets, checkout fields and shipping notes that still showed in English.
+* Bug Fix - Cancelling a subscription from My Account no longer notifies integrations such as Zapier twice.
+* Bug Fix - Stripe's "trial ending soon" notice now emails the subscriber.
+* Bug Fix - Connecting Square from the setup wizard now keeps the connection.
+* Bug Fix - Importing from Square keeps every item's variations and their prices even without stock, and running it again no longer adds every item a second time.
+* Bug Fix - Export All on the products list exports only the products the list shows when it is filtered or searched, such as one manufacturer's products, and each product's picture columns show the picture the store shows.
+* Bug Fix - Store pages show a product's first picture instead of the "image not found" picture when its gallery starts with a picture added before the gallery.
+* Bug Fix - Cart reminder and review request emails, subscription renewals, items added to an order by hand, free gift and bundle choices, the [ec_product] shortcode, the products list and quick edit show the picture the store shows, never an old picture left behind by the product's gallery.
+* Bug Fix - Error and success messages on the store, cart, checkout, subscription and account pages have a cleaner look, and a message no longer pushes the subscription page's billing choices out of place.
+* Bug Fix - Subscriptions always charge the product's current price: a changed price or billing period no longer keeps billing the old one, and saving a subscription product in Stripe test mode no longer creates extra Stripe products.
+* Bug Fix - One-time option charges on a subscription are charged once with the first payment instead of every billing period.
+* Bug Fix - Changing plan in My Account keeps the subscription's quantity, no longer offers products that are switched off, and says when a different billing schedule is charged right away.
+* Bug Fix - Members on a free trial, or who cancelled but paid through the end of their period, keep access to members-only content.
+* Bug Fix - Subscriptions billed every few days can be saved, and billing periods read correctly in every language, such as "/3 months" and "for 2 years".
+* Bug Fix - Product, category and brand pages that use the store page's theme template now load like every other page, so other plugins' redirects, page caching and Elementor's own styles work there too.
+* Bug Fix - Elementor: closing the cart panel that opens after adding a product no longer leaves the page unable to scroll on sites with a sticky header, and a cart icon hidden while the cart is empty now opens on the first add.
+* Bug Fix - The Renew license item in the WP EasyCart menu opens the renewal page for your license again.
+* Bug Fix - On the Registration page of an ended license, Deactivate on this site now releases the license instead of switching off WP EasyCart PRO, and a new license key can be entered there.
+* Bug Fix - Royal Mail is back in the order screen's carrier list, which now offers the major carriers for your country first and lets you type any other carrier, with a tracking link in the shipped email for each one it knows.
+* Bug Fix - Store Status no longer says no live rates are set up when all of them come from a rate service such as Shippo or ShipStation.
+* Bug Fix - The admin screens keep their layout on hosts whose firewall blocks any file with "shell" in its name.
+* Bug Fix - Receipts, shipped emails, password emails and invoices greet the customer at the same size as the rest of the text, without a stray colon after "Dear".
+* Bug Fix - Percentage offers take whole cents off, so the offer in the cart totals, the item's price in the cart and the product page's price always agree.
+* Bug Fix - Gift cards pay exactly what an order still costs, like any other payment: the price after an offer plus shipping, tax, fees and tips, so a card is never charged more than the order and the total never goes below zero.
+* Bug Fix - Subscription product pages no longer refuse Sign Up when the product shows a stock count of zero.
+* Bug Fix - Deleting WP EasyCart removes all of its database tables, including those for reports, imports and pricing tables.
+* Bug Fix - A subscription checkout now only shows and charges the options and quantity chosen for that subscription, never ones picked for another earlier in the same visit, and asks for any required options that were never chosen.
+
 = 6.0.2 =
 * New Feature - Redesigned order screen: see where every order stands, ship it in one step with tracking and an email to the customer, tick off items as you pack, and move between orders with search and keyboard shortcuts.
 * New Feature - Boxes and packages: save the boxes you ship in, have new orders packed automatically, and track every package through to a new Delivered status.

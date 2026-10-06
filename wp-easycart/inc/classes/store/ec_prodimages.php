@@ -99,7 +99,7 @@ class ec_prodimages {
 				if ( substr( $this->image3, 0, 7 ) == 'http://' || substr( $this->image3, 0, 8 ) == 'https://' ){
 					return $this->image3;
 				} else {
-					return plugins_url( "/wp-easycart-data/products/pics3/" . $cartitem_data->image3, EC_PLUGIN_DATA_DIRECTORY );
+					return plugins_url( "/wp-easycart-data/products/pics3/" . $this->image3, EC_PLUGIN_DATA_DIRECTORY ); /* 6.0.3: it read an undefined $cartitem_data */
 				}
 			} else if( 'image4' == $this->product_images[0] ) {
 				if ( substr( $this->image4, 0, 7 ) == 'http://' || substr( $this->image4, 0, 8 ) == 'https://' ){

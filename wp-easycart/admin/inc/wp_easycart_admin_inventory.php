@@ -433,7 +433,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 
 			$output = fopen( 'php://output', 'w' );
 
-			fputcsv( $output, array_values( self::export_header() ) );
+			fputcsv( $output, array_values( self::export_header() ), ',', '"', '\\' );
 
 			/* Optional: only items that track stock ( the ones an import can change ). Nonce checked in process_export_inventory(). */
 			$tracked_only = ( isset( $_GET['tracked'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['tracked'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified by verify_access() in process_export_inventory().
@@ -486,7 +486,7 @@ if ( ! class_exists( 'wp_easycart_admin_inventory' ) ) :
 				 * @param object $row     The database row.
 				 */
 				$csv_row = apply_filters( 'wp_easycart_admin_inventory_export_row', $csv_row, $row );
-				fputcsv( $output, $csv_row );
+				fputcsv( $output, $csv_row, ',', '"', '\\' );
 			};
 
 			/* Literal WHERE fragments picked by the boolean above; they carry no input. */

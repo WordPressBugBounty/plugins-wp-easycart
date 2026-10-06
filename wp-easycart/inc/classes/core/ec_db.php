@@ -4563,12 +4563,30 @@ class ec_db{
 	
 	public static function insert_stripe_subscription( $subscription, $product, $user, $card, $quantity ){
 		$price = ( isset( $subscription->total ) ) ? round( $subscription->total / 100, 2 ) : $product->price;
-		$sql = "INSERT INTO ec_subscription( subscription_type, title, user_id, email, first_name, last_name, user_country, product_id, price, payment_length, payment_period, payment_duration, stripe_subscription_id, last_payment_date, next_payment_date, quantity ) VALUES( 'stripe', %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %d, %s, %s, %s, %d )";
-		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->user_id, $user->email, $user->billing->first_name, $user->billing->last_name, $user->billing->country, $product->product_id, $price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $subscription->id, $subscription->current_period_start, $subscription->current_period_end, $quantity ) );
+		/* 6.0.3: the model number is kept too ( Zapier and the admin read it ). */
+		$sql = "INSERT INTO ec_subscription( subscription_type, title, user_id, email, first_name, last_name, user_country, product_id, model_number, price, payment_length, payment_period, payment_duration, stripe_subscription_id, last_payment_date, next_payment_date, quantity ) VALUES( 'stripe', %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s, %d, %s, %s, %s, %d )";
+		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->user_id, $user->email, $user->billing->first_name, $user->billing->last_name, $user->billing->country, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $subscription->id, $subscription->current_period_start, $subscription->current_period_end, $quantity ) );
 		
 		return self::$mysqli->insert_id;
 	}
 	
+	/**
+	 * The picture a renewal line saves when there is no earlier line to copy it from: the product's image1 as it is, or the
+	 * picture the store shows when the product has a gallery or per-option pictures ( image1 can be an old picture there ).
+	 *
+	 * @since 6.0.3
+	 * @param object $subscription get_stripe_subscription() row ( product_id, image1 ).
+	 * @return string
+	 */
+	public static function subscription_picture( $subscription ) {
+		$saved = ( isset( $subscription->image1 ) ) ? (string) $subscription->image1 : '';
+		if ( ! class_exists( 'wp_easycart_product_image' ) || empty( $subscription->product_id ) ) {
+			return $saved;
+		}
+		$picture = wp_easycart_product_image::line_picture( wp_easycart_product_image::product_row( (int) $subscription->product_id ) );
+		return ( '' !== $picture ) ? $picture : $saved;
+	}
+
 	/**
 	 * A line of a subscription order or renewal was inserted: wp_easycart_order_detail_inserted fires for it as it does for a
 	 * checkout line, with the stored line in place of the cart line ( plus the subscription's option item ids as
@@ -4889,7 +4907,9 @@ class ec_db{
 	}
 	
 	public static function find_subscription_match( $email, $product_id ){
-		$sql = "SELECT ec_subscription.subscription_id FROM ec_subscription, ec_product WHERE ec_subscription.email = %s AND ec_subscription.subscription_status = 'Active' AND ec_subscription.product_id = %d AND ec_product.product_id = ec_subscription.product_id AND ec_product.allow_multiple_subscription_purchases = 0";
+		/* 6.0.3: a trial or a subscription cancelled at the end of its period still holds the product. */
+		$statuses = ( function_exists( 'wp_easycart_subscription_member_status_sql' ) ) ? wp_easycart_subscription_member_status_sql() : " = 'Active'";
+		$sql = "SELECT ec_subscription.subscription_id FROM ec_subscription, ec_product WHERE ec_subscription.email = %s AND ec_subscription.subscription_status" . $statuses . " AND ec_subscription.product_id = %d AND ec_product.product_id = ec_subscription.product_id AND ec_product.allow_multiple_subscription_purchases = 0";
 		return self::$mysqli->get_results( self::$mysqli->prepare( $sql, $email, $product_id ) );
 	}
 
@@ -4925,21 +4945,24 @@ class ec_db{
 		$sql = "SELECT ec_product.subscription_plan_id FROM ec_subscription, ec_product WHERE ec_subscription.subscription_id = %d AND ec_product.product_id = ec_subscription.product_id";
 		$plan_id = self::$mysqli->get_var( self::$mysqli->prepare( $sql, $subscription_id ) );
 		if( $plan_id != 0 ){
-			$sql = "SELECT ec_product.title, ec_product.product_id, ec_product.price, ec_product.subscription_bill_length, ec_product.subscription_bill_period, ec_product.subscription_bill_duration,  ec_subscription_plan.can_downgrade FROM ec_product, ec_subscription_plan WHERE ec_product.subscription_plan_id = %d AND ec_subscription_plan.subscription_plan_id = ec_product.subscription_plan_id ORDER BY ec_product.price ASC";
-			return self::$mysqli->get_results( self::$mysqli->prepare( $sql, $plan_id ) );
+			/* 6.0.3: a product switched off in the store, or no longer a subscription, is not a choice; the subscription's own
+			 * product always stays in the list ( the choices are read from its place in the price order ). */
+			$current = (int) self::$mysqli->get_var( self::$mysqli->prepare( "SELECT product_id FROM ec_subscription WHERE subscription_id = %d", $subscription_id ) );
+			$sql = "SELECT ec_product.title, ec_product.product_id, ec_product.price, ec_product.subscription_bill_length, ec_product.subscription_bill_period, ec_product.subscription_bill_duration,  ec_subscription_plan.can_downgrade FROM ec_product, ec_subscription_plan WHERE ec_product.subscription_plan_id = %d AND ec_subscription_plan.subscription_plan_id = ec_product.subscription_plan_id AND ( ec_product.product_id = %d OR ( ec_product.is_subscription_item = 1 AND ec_product.activate_in_store = 1 ) ) ORDER BY ec_product.price ASC";
+			return self::$mysqli->get_results( self::$mysqli->prepare( $sql, $plan_id, $current ) );
 		}else{
 			return array( );
 		}
 	}
 	
 	public static function upgrade_subscription( $subscription_id, $product, $quantity ){
-		$sql = "UPDATE ec_subscription SET title = %s, product_id = %d, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
-		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $product->product_id, $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
+		$sql = "UPDATE ec_subscription SET title = %s, product_id = %d, model_number = %s, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
+		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
 	}
 	
 	public static function update_subscription( $subscription_id, $user, $product, $card, $quantity ){
-		$sql = "UPDATE ec_subscription SET title = %s, email = %s, first_name = %s, last_name = %s, product_id = %d, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
-		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->email, $user->billing->first_name, $user->billing->last_name, $product->product_id, $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
+		$sql = "UPDATE ec_subscription SET title = %s, email = %s, first_name = %s, last_name = %s, product_id = %d, model_number = %s, price = %s, payment_length = %d, payment_period = %s, payment_duration = %s, quantity = %s WHERE subscription_id = %d";
+		self::$mysqli->query( self::$mysqli->prepare( $sql, $product->title, $user->email, $user->billing->first_name, $user->billing->last_name, $product->product_id, ( isset( $product->model_number ) ? $product->model_number : '' ), $product->price, $product->subscription_bill_length, $product->subscription_bill_period, $product->subscription_bill_duration, $quantity, $subscription_id ) );
 	}
 	
 	public static function get_webhook( $webhook_id ){
@@ -5137,7 +5160,7 @@ class ec_db{
 					'unit_price'	=> ( $sub_row->amount / 100 ),
 					'total_price'	=> ( $sub_row->amount / 100 ),
 					'quantity'		=> 1,
-					'image1'		=> ( $first_orderdetail_row && isset( $first_orderdetail_row->image1 ) ) ? $first_orderdetail_row->image1 : $subscription->image1,
+					'image1'		=> ( $first_orderdetail_row && isset( $first_orderdetail_row->image1 ) ) ? $first_orderdetail_row->image1 : self::subscription_picture( $subscription ), /* 6.0.3: the picture the store shows */
 					'is_shippable'	=> ( $subscription->is_shippable && 'invoiceitem' != $sub_row->type ) ? $subscription->is_shippable : 0, /* 6.0.2: an invoice item ( a fee, a proration ) is never shipped. */
 					
 					'optionitem_id_1' => ( $first_orderdetail_row && $sub_row->type != 'invoiceitem' ) ? $first_orderdetail_row->optionitem_id_1 : 0,
@@ -5301,7 +5324,7 @@ class ec_db{
 								'unit_price'	=> $subscription->price,
 								'total_price'	=> $subscription->price,
 								'quantity'		=> 1,
-								'image1'		=> ( $subscription->image1 ) ? $subscription->image1 : '' ),
+								'image1'		=> self::subscription_picture( $subscription ) ), /* 6.0.3: the picture the store shows */
 						array( '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ) );
 		/* 6.0.2: the line records its fulfillment partner and cost like every other subscription line. */
 		if ( $failed_line ) {
@@ -6176,13 +6199,13 @@ class ec_db{
 		
 		if( get_option( 'ec_option_search_title' ) || get_option( 'ec_option_search_model_number' ) ){
 			if( get_option( 'ec_option_search_title' ) && get_option( 'ec_option_search_model_number' ) ){
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s OR ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s OR ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . ( function_exists( 'wp_easycart_unlisted_sql' ) ? wp_easycart_unlisted_sql( 'ec_product' ) : '' ) . " LIMIT 10"; /* 6.0.3: not plan group products */
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%', '%' . $search_val . '%' ) );
 			}else if( get_option( 'ec_option_search_title' ) ){
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.title LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . ( function_exists( 'wp_easycart_unlisted_sql' ) ? wp_easycart_unlisted_sql( 'ec_product' ) : '' ) . " LIMIT 10"; /* 6.0.3: not plan group products */
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%' ) );
 			}else{
-				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . " LIMIT 10";
+				$sql = "SELECT ec_product.title FROM ec_product WHERE ( ec_product.model_number LIKE %s ) AND ec_product.activate_in_store = 1" . $role_sql . ( function_exists( 'wp_easycart_unlisted_sql' ) ? wp_easycart_unlisted_sql( 'ec_product' ) : '' ) . " LIMIT 10"; /* 6.0.3: not plan group products */
 				$products = self::$mysqli->get_results( self::$mysqli->prepare( $sql, '%' . $search_val . '%' ) );
 			}
 			$results_array = array_merge( $results_array, $products );

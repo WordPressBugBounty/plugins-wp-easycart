@@ -362,7 +362,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_import' ) ) :
 			if ( ! $fh ) {
 				return array( 'error' => __( 'The uploaded file could not be opened.', 'wp-easycart' ) );
 			}
-			$raw = fgetcsv( $fh );
+			$raw = fgetcsv( $fh, 0, ',', '"', '\\' );
 			if ( self::is_blank_row( $raw ) ) {
 				fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- streamed read.
 				return array( 'error' => __( 'The file is empty — the first row must be the column names.', 'wp-easycart' ) );
@@ -520,7 +520,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_import' ) ) :
 			};
 
 			$row_no = 0;
-			while ( false !== ( $row = fgetcsv( $fh ) ) ) {
+			while ( false !== ( $row = fgetcsv( $fh, 0, ',', '"', '\\' ) ) ) {
 				$row_no++;
 				$model = ( is_array( $row ) && $classify && isset( $row[ $idx['model_number'] ] ) ) ? (string) $row[ $idx['model_number'] ] : '';
 				$blank = self::is_blank_row( $row );

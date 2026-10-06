@@ -1,4 +1,4 @@
-/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in admin-frame-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin — Customers List V2 (FREE).
  *

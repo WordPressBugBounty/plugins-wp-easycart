@@ -321,6 +321,8 @@ if ( ! function_exists( 'ecv2_option_set_search' ) ) :
 	 * POST: q, page ( 1-based ), wp_easycart_nonce ( 'wp-easycart-ecv2-option-set-search' ).
 	 * Answers { results: [ { id, text, option_name, item_count } ], more }. Basic
 	 * ( combo / swatch ) sets only; PRO may widen the type list through the filter.
+	 * 6.0.3: kind=modifier lists modifier ( advanced ) sets instead, with option_type and type_label,
+	 * for the Add New panel; modifiers are Pro, so a store without it gets none.
 	 *
 	 * @since 6.0.0
 	 */
@@ -334,14 +336,18 @@ if ( ! function_exists( 'ecv2_option_set_search' ) ) :
 		$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
 		$per_page = 30;
 		$offset   = ( $page - 1 ) * $per_page;
-		$types    = (array) apply_filters( 'wp_easycart_admin_ecv2_option_set_search_types', array( 'basic-combo', 'basic-swatch' ) );
+		$modifiers = ( isset( $_POST['kind'] ) && 'modifier' === sanitize_key( wp_unslash( $_POST['kind'] ) ) );
+		if ( $modifiers && '' !== apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) ) {
+			wp_send_json_success( array( 'results' => array(), 'more' => false ) );
+		}
+		$types    = $modifiers ? array( 'basic-combo', 'basic-swatch' ) : (array) apply_filters( 'wp_easycart_admin_ecv2_option_set_search_types', array( 'basic-combo', 'basic-swatch' ) );
 		$types    = array_values( array_filter( array_map( 'sanitize_key', $types ) ) );
 		if ( empty( $types ) ) {
 			$types = array( 'basic-combo', 'basic-swatch' );
 		}
 		$type_sql = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 		$args     = $types;
-		$where    = 'WHERE o.option_type IN ( ' . $type_sql . ' )';
+		$where    = 'WHERE o.option_type ' . ( $modifiers ? 'NOT IN' : 'IN' ) . ' ( ' . $type_sql . ' )';
 		/* 6.0.2: sets that belong to one product stay out of the shared pickers, except in that product's own editor. */
 		if ( class_exists( 'wp_easycart_product_writer' ) ) {
 			$where .= wp_easycart_product_writer::shared_sets_sql( 'o', isset( $_POST['product_id'] ) ? (int) $_POST['product_id'] : 0 );
@@ -352,7 +358,7 @@ if ( ! function_exists( 'ecv2_option_set_search' ) ) :
 		}
 		$args[] = $per_page + 1;
 		$args[] = $offset;
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.option_id, o.option_name, ( SELECT COUNT(*) FROM ec_optionitem i WHERE i.option_id = o.option_id ) AS item_count FROM ec_option o ' . $where . ' ORDER BY o.option_name ASC LIMIT %d OFFSET %d', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is literal SQL with %s / %d placeholders only; every value is passed through $args.
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.option_id, o.option_name, o.option_type, ( SELECT COUNT(*) FROM ec_optionitem i WHERE i.option_id = o.option_id ) AS item_count FROM ec_option o ' . $where . ' ORDER BY o.option_name ASC LIMIT %d OFFSET %d', $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is literal SQL with %s / %d placeholders only; every value is passed through $args.
 		$more = ( count( $rows ) > $per_page );
 		if ( $more ) {
 			array_pop( $rows );
@@ -360,12 +366,18 @@ if ( ! function_exists( 'ecv2_option_set_search' ) ) :
 		$results = array();
 		foreach ( $rows as $r ) {
 			$name = wp_unslash( (string) $r->option_name );
-			$results[] = array(
+			$result = array(
 				'id'          => (int) $r->option_id,
 				'text'        => $name . ' (' . (int) $r->item_count . ')',
 				'option_name' => $name,
 				'item_count'  => (int) $r->item_count,
 			);
+			if ( $modifiers ) {
+				$meta                  = class_exists( 'wp_easycart_admin_option_table' ) ? wp_easycart_admin_option_table::type_meta( (string) $r->option_type ) : array( 'label' => (string) $r->option_type );
+				$result['option_type'] = (string) $r->option_type;
+				$result['type_label']  = (string) $meta['label'];
+			}
+			$results[] = $result;
 		}
 		wp_send_json_success( array( 'results' => $results, 'more' => $more ) );
 	}

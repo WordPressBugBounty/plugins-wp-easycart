@@ -124,7 +124,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 			}
 			update_option( 'ec_option_setup_wizard_step', $this->step );
 
-			include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/wizard/shell.php' );
+			include( EC_PLUGIN_DIRECTORY . '/admin/template/settings/wizard/wizard-frame.php' );
 		}
 
 		public function load_navigation() {
@@ -624,7 +624,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 				$sub   = __( 'Optional. Bring in your Square catalogue, modifiers and stock', 'wp-easycart' );
 			} else {
 				$label = __( 'Import your products from WooCommerce', 'wp-easycart' );
-				$sub   = class_exists( 'WooCommerce' ) ? __( 'Optional. Bring in products, categories and attributes from this site', 'wp-easycart' ) : __( 'Optional. Reactivate WooCommerce so the importer can read your products', 'wp-easycart' );
+				$sub   = __( 'Optional. Bring in products, categories and attributes from this site', 'wp-easycart' ); /* 6.0.3: the importer reads WooCommerce's data with the plugin switched off too */
 			}
 
 			return array(
@@ -633,7 +633,7 @@ if ( ! class_exists( 'wp_easycart_admin_setup_wizard' ) ) :
 				'done'         => $done,
 				'optional'     => true,
 				'action_label' => __( 'Open importer', 'wp-easycart' ),
-				'action_url'   => admin_url( 'admin.php?page=wp-easycart-settings&subpage=integrations#ecst-sec-cart-importer' ),
+				'action_url'   => admin_url( 'admin.php?page=wp-easycart-products&subpage=import' . ( $has_square && ! $has_woo ? '&source=square' : ( $has_woo && ! $has_square ? '&source=woocommerce' : '' ) ) ), /* 6.0.3 */
 				'sources'      => array_keys(
 					array_filter(
 						array(

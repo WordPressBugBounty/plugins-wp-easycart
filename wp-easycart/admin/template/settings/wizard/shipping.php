@@ -75,8 +75,12 @@ $fmt = function( $n ) use ( $symbol ) {
 
 			<?php if ( $upsell ) { ?>
 			<div class="ecwz-ccard is-locked">
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub">UPS · USPS · FedEx · DHL · Canada Post · Australia Post</span></div></div>
-				<p><?php esc_html_e( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ); ?></p>
+				<?php
+				/* 6.0.3: a UK store is offered Royal Mail first ( priced from Royal Mail's price lists, not quoted live ). */
+				$ecwz_uk = class_exists( 'wp_easycart_carriers' ) && method_exists( 'wp_easycart_carriers', 'store_country' ) && 'GB' === wp_easycart_carriers::store_country();
+				?>
+				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g400,#9ca3af)">&#8635;</span><div><h4><?php esc_html_e( 'Live carrier rates', 'wp-easycart' ); ?></h4><span class="ecwz-sub"><?php echo esc_html( $ecwz_uk ? 'Royal Mail · DHL · UPS · FedEx' : 'UPS · USPS · FedEx · DHL · Royal Mail · Canada Post · Australia Post' ); ?></span></div></div>
+				<p><?php echo esc_html( $ecwz_uk ? __( 'Royal Mail prices worked out from each parcel’s size, weight and destination, and live quotes from DHL, UPS and FedEx.', 'wp-easycart' ) : __( 'Real-time quotes from the carrier at checkout, based on box weight and destination.', 'wp-easycart' ) ); ?></p>
 				<div class="ecwz-ccard-act">
 					<span class="ecwz-badge ecwz-badge-amber"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( wp_easycart_admin()->pro_install_url( 'trial' ) ); ?>" target="_blank"><?php esc_html_e( 'Try free for 14 days', 'wp-easycart' ); ?></a>

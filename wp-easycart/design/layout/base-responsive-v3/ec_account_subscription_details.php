@@ -11,7 +11,8 @@
  * Available: $this ( ec_accountpage ), $this->subscription ( ec_subscription ), $GLOBALS['ec_user'].
  */
 $ec_sub             = $this->subscription;
-$ec_sub_status      = $ec_sub->get_status_key();
+$ec_sub_status      = $ec_sub->get_display_status_key(); /* 6.0.3: trialing during a free trial */
+$ec_sub_trial       = $ec_sub->in_trial();
 $ec_sub_ended       = $ec_sub->is_canceled();
 $ec_sub_can_payment = $ec_sub->can_update_payment_method();
 $ec_sub_can_plan    = $ec_sub->can_change_plan();
@@ -44,6 +45,8 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 	<div class="ec_account_subscription_v2_notice is-canceling"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_canceling_notice', 'This subscription will not renew. It stays active until the end of the current billing period.' ) ); ?></div>
 	<?php } else if ( 'past_due' == $ec_sub_status && $ec_sub_can_payment ) { ?>
 	<div class="ec_account_subscription_v2_notice is-past-due"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_past_due_notice', 'Your last payment did not go through. Update your payment method to keep this subscription active.' ) ); ?></div>
+	<?php } else if ( $ec_sub_trial && $ec_sub_next ) { ?>
+	<div class="ec_account_subscription_v2_notice is-trial"><?php echo wp_easycart_escape_html( str_replace( array( '[date]', '[price]' ), array( esc_html( ec_subscription::format_date( $ec_sub_next ) ), esc_html( $ec_sub_price['amount'] ) ), ec_subscription::get_text( 'subscription_details_trial_notice', 'Your free trial ends on [date]. Your first payment of [price] is taken then.' ) ) ); ?></div>
 	<?php } ?>
 
 	<div class="ec_account_subscription_v2_grid">
@@ -72,7 +75,7 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 			<dl class="ec_account_subscription_v2_facts">
 				<?php if ( $ec_sub_next && in_array( $ec_sub_status, array( 'active', 'trialing', 'past_due', 'incomplete' ), true ) ) { ?>
 				<div class="ec_account_subscription_v2_fact ec_account_subscription_row_next_bill">
-					<dt><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_next_billing' ) ); ?></dt>
+					<dt><?php echo wp_easycart_escape_html( $ec_sub_trial ? ec_subscription::get_text( 'subscription_details_trial_ends', 'Trial ends' ) : wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_next_billing' ) ); ?></dt>
 					<dd><?php echo esc_html( ec_subscription::format_date( $ec_sub_next ) ); ?></dd>
 				</div>
 				<?php } else if ( $ec_sub_next && 'canceling' == $ec_sub_status ) { ?>
@@ -86,7 +89,7 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 					<dd><?php echo esc_html( ec_subscription::format_date( $ec_sub_next ) ); ?></dd>
 				</div>
 				<?php } ?>
-				<?php if ( $ec_sub_last ) { ?>
+				<?php if ( $ec_sub_last && ( ! $ec_sub_trial || $ec_sub->has_paid() ) ) { /* 6.0.3: a trial's $0 invoice is not a payment */ ?>
 				<div class="ec_account_subscription_v2_fact">
 					<dt><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_last_payment' ) ); ?></dt>
 					<dd><?php echo esc_html( ec_subscription::format_date( $ec_sub_last ) ); ?></dd>
@@ -142,21 +145,42 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 			<?php $this->display_subscription_update_form_start(); ?>
 
 			<?php if ( $ec_sub_can_plan ) { ?>
-			<?php $ec_sub_choices = $ec_sub->get_plan_choices(); ?>
-			<div class="ec_account_subscription_upgrade_row ec_account_subscription_v2_card ec_account_subscription_v2_panel" id="ec_account_subscription_v2_plan_panel" role="region" aria-labelledby="ec_account_subscription_v2_plan_heading" data-current-plan="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" data-current-quantity="<?php echo esc_attr( max( 1, (int) $ec_sub->quantity ) ); ?>">
+			<?php
+			$ec_sub_choices   = $ec_sub->get_plan_choices();
+			/* 6.0.3: changes are previewed and confirmed ( wp_easycart_subscription_changes ); each plan says when it starts. */
+			$ec_sub_previewed = ( class_exists( 'wp_easycart_subscription_changes' ) && wp_easycart_subscription_changes::active() );
+			$ec_sub_intervals = array();
+			foreach ( $ec_sub_choices as $ec_sub_choice ) {
+				$ec_sub_intervals[ $ec_sub_choice['interval'] ] = true;
+			}
+			/* Monthly / Yearly tabs when the plans are sold both ways ( a plan group ). */
+			$ec_sub_tabs = ( 2 === count( $ec_sub_intervals ) && isset( $ec_sub_intervals['M1'] ) && isset( $ec_sub_intervals['Y1'] ) );
+			$ec_sub_tab  = ( 'Y1' === $ec_sub->bill_period . max( 1, (int) $ec_sub->bill_length ) ) ? 'Y1' : 'M1';
+			?>
+			<div class="ec_account_subscription_upgrade_row ec_account_subscription_v2_card ec_account_subscription_v2_panel" id="ec_account_subscription_v2_plan_panel" role="region" aria-labelledby="ec_account_subscription_v2_plan_heading" data-current-plan="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" data-current-quantity="<?php echo esc_attr( max( 1, (int) $ec_sub->quantity ) ); ?>" data-current-interval="<?php echo esc_attr( $ec_sub->bill_period . max( 1, (int) $ec_sub->bill_length ) ); ?>"<?php echo ( $ec_sub_previewed ) ? ' data-change-preview="1" data-subscription="' . esc_attr( (int) $ec_sub->subscription_id ) . '"' : ''; ?>>
 				<h4 class="ec_account_subscription_v2_card_title ec_account_subscription_v2_panel_title" id="ec_account_subscription_v2_plan_heading" tabindex="-1"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_change_plan' ) ); ?></h4>
 
 				<input type="hidden" name="ec_selected_plan" id="ec_selected_plan" value="<?php echo esc_attr( (int) $ec_sub->product_id ); ?>" />
 
 				<?php if ( count( $ec_sub_choices ) > 0 ) { ?>
+				<?php if ( $ec_sub_tabs ) { ?>
+				<div class="ec_account_subscription_v2_tabs" role="tablist" aria-label="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_change_plan' ) ) ); ?>">
+					<?php foreach ( array( 'M1' => 'subscription_change_monthly', 'Y1' => 'subscription_change_yearly' ) as $ec_sub_tab_key => $ec_sub_tab_text ) { ?>
+					<button type="button" role="tab" class="ec_account_subscription_v2_tab<?php echo ( $ec_sub_tab === $ec_sub_tab_key ) ? ' is-active' : ''; ?>" data-ec-sub-tab="<?php echo esc_attr( $ec_sub_tab_key ); ?>" aria-selected="<?php echo ( $ec_sub_tab === $ec_sub_tab_key ) ? 'true' : 'false'; ?>"><?php echo esc_html( wp_easycart_subscription_changes::text( $ec_sub_tab_text ) ); ?></button>
+					<?php } ?>
+				</div>
+				<?php } ?>
 				<fieldset class="ec_account_subscription_v2_plans">
 					<legend class="ec_account_subscription_v2_sr"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'subscription_details_change_plan' ) ); ?></legend>
 					<?php foreach ( $ec_sub_choices as $ec_sub_choice ) { ?>
-					<label class="ec_account_subscription_v2_plan<?php echo ( $ec_sub_choice['current'] ) ? ' is-current is-selected' : ''; ?>">
-						<input type="radio" name="ec_account_subscription_plan_choice" value="<?php echo esc_attr( $ec_sub_choice['product_id'] ); ?>"<?php checked( $ec_sub_choice['current'] ); ?> />
+					<label class="ec_account_subscription_v2_plan<?php echo ( $ec_sub_choice['current'] ) ? ' is-current is-selected' : ''; ?>"<?php echo ( isset( $ec_sub_choice['interval'] ) ) ? ' data-interval="' . esc_attr( $ec_sub_choice['interval'] ) . '"' : ''; ?><?php echo ( $ec_sub_tabs && $ec_sub_choice['interval'] !== $ec_sub_tab ) ? ' hidden' : ''; ?>>
+						<input type="radio" name="ec_account_subscription_plan_choice" value="<?php echo esc_attr( $ec_sub_choice['product_id'] ); ?>"<?php checked( $ec_sub_choice['current'] ); ?><?php echo ( isset( $ec_sub_choice['interval'] ) ) ? ' data-interval="' . esc_attr( $ec_sub_choice['interval'] ) . '"' : ''; ?><?php echo ( isset( $ec_sub_choice['when'] ) ) ? ' data-when="' . esc_attr( $ec_sub_choice['when'] ) . '"' : ''; ?> />
 						<span class="ec_account_subscription_v2_plan_text">
 							<span class="ec_account_subscription_v2_plan_name"><?php echo wp_easycart_escape_html( $ec_sub_choice['title'] ); ?></span>
 							<span class="ec_account_subscription_v2_plan_price"><?php echo esc_html( $ec_sub_choice['amount'] ); ?><span class="ec_account_subscription_v2_period"><?php echo esc_html( $ec_sub_choice['period'] ); ?></span></span>
+							<?php if ( $ec_sub_previewed && ! empty( $ec_sub_choice['note'] ) ) { ?>
+							<span class="ec_account_subscription_v2_plan_note is-<?php echo esc_attr( $ec_sub_choice['when'] ); ?>"><?php echo esc_html( $ec_sub_choice['note'] ); ?></span>
+							<?php } ?>
 						</span>
 						<?php if ( $ec_sub_choice['current'] ) { ?>
 						<span class="ec_account_subscription_v2_plan_tag"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_current_plan', 'Current plan' ) ); ?></span>
@@ -178,10 +202,24 @@ $ec_sub_title = wp_easycart_language()->convert_text( $ec_sub->title );
 				</div>
 				<?php } ?>
 
+				<?php if ( $ec_sub_previewed ) { ?>
+				<?php /* 6.0.3: Review change asks Stripe what the change costs and when it starts; the customer confirms it here. */ ?>
+				<div class="ec_account_subscription_v2_review" role="status" aria-live="polite" hidden>
+					<p class="ec_account_subscription_v2_review_text"></p>
+					<div class="ec_account_subscription_v2_actions">
+						<button type="button" class="ec_account_subscription_v2_primary" data-ec-sub-change-confirm="1"><?php echo esc_html( wp_easycart_subscription_changes::text( 'subscription_change_confirm' ) ); ?></button>
+						<button type="button" class="ec_account_subscription_v2_secondary" data-ec-sub-change-back="1"><?php echo esc_html( wp_easycart_subscription_changes::text( 'subscription_change_back' ) ); ?></button>
+					</div>
+				</div>
+				<div class="ec_account_subscription_v2_field_error ec_account_subscription_v2_change_error" role="alert" hidden></div>
+				<?php } else { ?>
 				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info"><?php /* 6.0.2: says what a plan change really does ( Stripe applies it at once; with proration the difference is on the next bill ) */ echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_plan_notice', 'Plan changes take effect right away. Your next bill shows the new price and any charge or credit for the rest of the current period.' ) ); ?></div>
+				<?php /* 6.0.3: a plan that bills on another interval is charged at once ( Stripe starts a new billing period ); ec-account-subscriptions.js shows this one instead. */ ?>
+				<div class="ec_account_subscription_details_notice ec_account_subscription_v2_info ec_account_subscription_v2_interval_notice" style="display:none;"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_interval_notice', 'This plan bills on a different schedule, so it starts a new billing period today: you pay the new price now, less the unused part of your current period.' ) ); ?></div>
+				<?php } ?>
 
-				<div class="ec_account_subscription_v2_actions">
-					<input type="submit" class="ec_account_subscription_v2_primary" data-ec-sub-save="plan" disabled="disabled" value="<?php echo esc_attr( wp_easycart_language()->get_text( 'account_subscriptions', 'save_changes_button' ) ); ?>" onclick="return ( typeof ec_account_subscription_save_plan === 'function' ) ? ec_account_subscription_save_plan( this, <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' ) : ec_update_subscription_info( <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' );" />
+				<div class="ec_account_subscription_v2_actions ec_account_subscription_v2_plan_actions">
+					<input type="submit" class="ec_account_subscription_v2_primary" data-ec-sub-save="plan" disabled="disabled" value="<?php echo esc_attr( ( $ec_sub_previewed ) ? wp_easycart_subscription_changes::text( 'subscription_change_review' ) : wp_easycart_language()->get_text( 'account_subscriptions', 'save_changes_button' ) ); ?>" onclick="return ( typeof ec_account_subscription_save_plan === 'function' ) ? ec_account_subscription_save_plan( this, <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' ) : ec_update_subscription_info( <?php echo esc_attr( (int) $ec_sub->subscription_id ); ?>, '<?php echo esc_attr( $ec_sub_update_nonce ); ?>' );" />
 					<button type="button" class="ec_account_subscription_v2_secondary" data-ec-sub-close="plan" onclick="if ( typeof ec_account_subscription_close_panel !== 'function' ) { jQuery( '.ec_account_subscription_upgrade_row' ).hide(); jQuery( '.ec_account_subscription_details_plan_change' ).show(); }"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_close', 'Close' ) ); ?></button>
 				</div>
 			</div>

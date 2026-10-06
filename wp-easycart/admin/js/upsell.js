@@ -86,6 +86,8 @@
 			return;
 		}
 		apply( $popup.find( '.ecv2-upsell' ), key, feature );
+		$popup.attr( 'data-upsell-feature', feature || '' );
+		track( 'open', key, feature );
 		$popup.stop( true, true ).css( 'display', 'flex' ).hide().fadeIn( 160 );
 		$( 'body' ).addClass( 'ecv2-upsell-lock' );
 		window.requestAnimationFrame( function() {
@@ -93,6 +95,15 @@
 			if ( hl ) { hl.scrollIntoView( { block: 'nearest' } ); }
 			$popup.find( '.ecv2-upsell-x' ).trigger( 'focus' );
 		} );
+	}
+
+	/* 6.0.3: on a store that shares usage data ( V.track, printed only then ), which locked feature was opened and which button
+	   was used: keys from the upsell catalog, nothing else ( wp_easycart_admin_tracking::ajax_upsell() ). */
+	function track( what, key, feature ) {
+		if ( ! V.track || ! V.track.nonce || ! key ) { return; }
+		try {
+			$.post( V.track.ajax, { action: 'ecv2_tracking_upsell', nonce: V.track.nonce, context: key, feature: feature || '', what: what } );
+		} catch ( err ) { /* never in the way */ }
 	}
 
 	function close() {
@@ -122,6 +133,12 @@
 		return false;
 	};
 	window.hide_pro_required = close;
+
+	$( document ).on( 'click', '#ec_admin_upsell_popup [data-upsell-plan-card], #ec_admin_premium_popup [data-upsell-plan-card], #ec_admin_upsell_popup [data-upsell-update-link], #ec_admin_upsell_popup .ecv2-upsell-trial, #ec_admin_upsell_popup [data-upsell-trial]', function() {
+		var $popup = $( this ).closest( '#ec_admin_upsell_popup, #ec_admin_premium_popup' );
+		var what = $( this ).is( '[data-upsell-update-link]' ) ? 'update' : ( $( this ).is( '[data-upsell-plan-card]' ) ? String( $( this ).attr( 'data-upsell-plan-card' ) ) : 'trial' );
+		track( what, $popup.find( '.ecv2-upsell' ).attr( 'data-upsell-context' ), $popup.attr( 'data-upsell-feature' ) );
+	} );
 
 	$( document ).on( 'click', '#ec_admin_upsell_popup, #ec_admin_premium_popup', function( e ) {
 		if ( e.target === this ) { close(); }

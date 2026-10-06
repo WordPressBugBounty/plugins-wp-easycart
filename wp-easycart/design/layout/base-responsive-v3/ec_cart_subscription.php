@@ -136,11 +136,23 @@ function ec_admin_save_cart_options() {
 <?php }// Close editor content ?>
 
 <?php do_action( 'wp_easycart_subscription_top', $product ); ?>
+<?php /* 6.0.3: a WP EasyCart PRO plan group's monthly / yearly choice for this tier ( links to the other interval's page ). */ ?>
+<?php do_action( 'wpeasycart_subscription_page_plan_choices', $product ); ?>
 
 <section class="ec_cart_page ec_cart_subscription">
 
 	<?php if ( $product->is_subscription_item && $product->trial_period_days > 0 ) { ?>
-	<div class="ec_cart_success"><?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_1' ); ?> <?php echo esc_attr( $product->trial_period_days ); ?> <?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_2' ); ?></div>
+	<?php
+	/* 6.0.3: the free trial as a notice like My Account's ( when it ends and what the first payment is, with the code taken off when
+	   Stripe takes it off that payment: wp_easycart_subscription_trial_text() ), not a grey box. The lines below are for a page drawn
+	   without it. */
+	$ec_sub_trial_ends = time() + (int) $product->trial_period_days * DAY_IN_SECONDS; /* format_date() shows it in the site's time zone */
+	$ec_sub_trial_pays = $GLOBALS['currency']->get_currency_display( ( (float) $product->price + ( isset( $option_total ) ? (float) $option_total : 0 ) ) * max( 1, (int) $subscription_quantity ) );
+	?>
+	<div class="ec_subscription_trial" role="note">
+		<strong class="ec_subscription_trial_title"><?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_1' ); ?> <?php echo esc_attr( $product->trial_period_days ); ?> <?php echo wp_easycart_language()->get_text( 'product_page', 'product_page_start_trial_2' ); ?></strong>
+		<span class="ec_subscription_trial_text"><?php echo esc_html( ! empty( $subscription_trial_text ) ? $subscription_trial_text : str_replace( array( '[date]', '[price]' ), array( ec_subscription::format_date( $ec_sub_trial_ends ), wp_strip_all_tags( html_entity_decode( (string) $ec_sub_trial_pays, ENT_QUOTES, 'UTF-8' ) ) ), ec_subscription::get_text( 'subscription_details_trial_notice', 'Your free trial ends on [date]. Your first payment of [price] is taken then.' ) ) ); ?></span>
+	</div>
 	<?php }?>
 
 	<div class="ec_cart_left">
@@ -329,6 +341,7 @@ function ec_admin_save_cart_options() {
 				<div class="ec_cart_price_row_label"><?php echo esc_attr( apply_filters( 'wp_easycart_subscription_grand_total_label', wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' ), $product ) ); ?></div>
 				<div class="ec_cart_price_row_total" id="ec_cart_total_mobile"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $grand_total ) ); ?></div>
 			</div>
+			<div class="ec_subscription_renewal" id="ec_cart_renewal_note_mobile" role="note"<?php if ( empty( $subscription_renewal_note ) ) { ?> style="display:none;"<?php } ?>><?php echo esc_html( isset( $subscription_renewal_note ) ? $subscription_renewal_note : '' ); ?></div> <?php /* 6.0.3: what it renews at when the code comes off the first payment only */ ?>
 
 			<?php do_action( 'wp_easycart_cart_subscription_after_grand_total', $product ); ?>
 
@@ -343,19 +356,15 @@ function ec_admin_save_cart_options() {
 			<input type="hidden" name="ec_cart_form_action" value="process_update_subscription_quantity" />
 			<input type="hidden" name="ec_cart_form_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-subscription-update-item-' . $product->product_id ) ); ?>" />
 			<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->product_id ); ?>" />
-			<table class="ec_cartitem_quantity_table ec_subscription_table">
-				<tbody>
-					<tr>
-						<td class="ec_minus_column">
-							<input type="button" value="-" class="ec_minus" onclick="ec_minus_quantity( '<?php echo esc_attr( $product->product_id ); ?>', <?php echo esc_attr( $product->min_purchase_quantity ); ?> );" /></td>
-						<td class="ec_quantity_column"><input type="number" value="<?php echo esc_attr( $subscription_quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $product->product_id ); ?>" name="ec_quantity" autocomplete="off" step="1" min="<?php if ( $product->min_purchase_quantity > 0 ) { echo esc_attr( $product->min_purchase_quantity ); } else { echo '1'; } ?>" class="ec_quantity" /></td>
-						<td class="ec_plus_column"><input type="button" value="+" class="ec_plus" onclick="ec_plus_quantity( '<?php echo esc_attr( $product->product_id ); ?>', <?php echo esc_attr( $product->show_stock_quantity ); ?>, <?php if ( $product->max_purchase_quantity > 0 ) { echo esc_attr( $product->max_purchase_quantity ); } else if ( $product->show_stock_quantity ) { echo esc_attr( $product->stock_quantity ); } else { echo '10000000'; } ?> );" /></td>
-					</tr>
-					<tr>
-						<td colspan="3"><input type="submit" class="ec_cartitem_update_button" id="ec_cartitem_update_<?php echo esc_attr( $product->product_id ); ?>" value="<?php echo wp_easycart_language()->get_text( 'cart', 'cart_item_update_button' )?>" /></td>
-					</tr>
-				</tbody>
-			</table>
+			<?php /* 6.0.3: a quantity stepper with Update beside it; the + button stops only at a real limit ( wp_easycart_subscription_quantity_max() ). */ $ec_sub_max = wp_easycart_subscription_quantity_max( $product ); ?>
+			<div class="ec_subscription_quantity">
+				<div class="ec_subscription_stepper">
+					<input type="button" value="&minus;" class="ec_minus" onclick="ec_minus_quantity( '<?php echo esc_attr( $product->product_id ); ?>', <?php echo esc_attr( $product->min_purchase_quantity ); ?> );" />
+					<input type="number" value="<?php echo esc_attr( $subscription_quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $product->product_id ); ?>" name="ec_quantity" autocomplete="off" step="1" min="<?php if ( $product->min_purchase_quantity > 0 ) { echo esc_attr( $product->min_purchase_quantity ); } else { echo '1'; } ?>"<?php if ( $ec_sub_max > 0 ) { ?> max="<?php echo esc_attr( $ec_sub_max ); ?>"<?php } ?> class="ec_quantity" aria-label="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'product_details', 'product_details_quantity' ) ) ); ?>" />
+					<input type="button" value="+" class="ec_plus" onclick="ec_plus_quantity( '<?php echo esc_attr( $product->product_id ); ?>', <?php echo ( $ec_sub_max > 0 ) ? '1' : '0'; ?>, <?php echo ( $ec_sub_max > 0 ) ? esc_attr( $ec_sub_max ) : '10000000'; ?> );" />
+				</div>
+				<input type="submit" class="ec_cartitem_update_button" id="ec_cartitem_update_<?php echo esc_attr( $product->product_id ); ?>" value="<?php echo wp_easycart_language()->get_text( 'cart', 'cart_item_update_button' )?>" />
+			</div>
 			</form>
 			<?php }?>
 
@@ -366,12 +375,14 @@ function ec_admin_save_cart_options() {
 
 			<div class="ec_cart_error_message" id="ec_coupon_error_mobile"></div>
 			<div class="ec_cart_success_message" id="ec_coupon_success_mobile"<?php if ( isset( $this->coupon ) ) {?> style="display:block;"<?php }?>><?php if ( isset( $this->coupon ) ) { if ( $this->discount->coupon_matches <= 0 ) { echo wp_easycart_language()->get_text( 'cart_coupons', 'coupon_not_applicable' ); } else { echo wp_easycart_language()->convert_text( $this->coupon->message ); } } ?></div>
+			<div class="ec_subscription_coupon">
 			<div class="ec_cart_input_row">
 				<input type="text" name="ec_coupon_code_mobile" id="ec_coupon_code_mobile" value="<?php if ( isset( $this->coupon ) ) { echo esc_attr( $this->coupon_code ); } ?>" placeholder="<?php echo wp_easycart_language()->get_text( 'cart_coupons', 'cart_enter_coupon' )?>" />
 			</div>
 			<div class="ec_cart_button_row">
 				<div class="ec_cart_button" id="ec_apply_coupon_mobile" onclick="ec_apply_subscription_coupon( '<?php echo esc_attr( $product->product_id ); ?>', '<?php echo esc_attr( $product->manufacturer_id ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-subscription-coupon-code-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>', true );"><?php echo wp_easycart_language()->get_text( 'cart_coupons', 'cart_apply_coupon' ); ?></div>
 				<div class="ec_cart_button_working" id="ec_applying_coupon_mobile"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
+			</div>
 			</div>
 			<?php }?>
 
@@ -385,18 +396,11 @@ function ec_admin_save_cart_options() {
 
 		<?php if ( '' == $GLOBALS['ec_cart_data']->cart_data->user_id ) { ?>
 		
-		<div id="ec_cart_create_account_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-			<style>
-			@keyframes rotation{
-				0%  { transform:rotate(0deg); }
-				100%{ transform:rotate(359deg); }
-			}
-			</style>
-			<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-				<div class="paypal-checkout-loader">
-					<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-				</div>
-				<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'create_account_please_wait' )?></div>
+		<?php /* 6.0.3: every wait on this page looks like the payment card ( .wpec-busy in ec-store.css ); the position stays inline for store copies of ec-store.css from before it. */ ?>
+		<div id="ec_cart_create_account_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+			<div class="wpec-busy-card" role="status" aria-live="polite">
+				<span class="wpec-busy-spinner" aria-hidden="true"></span>
+				<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'create_account_please_wait' ); ?></span>
 			</div>
 		</div>
 
@@ -469,18 +473,10 @@ function ec_admin_save_cart_options() {
 			<?php }?>
 		</div>
 
-		<div id="ec_cart_login_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-			<style>
-			@keyframes rotation{
-				0%  { transform:rotate(0deg); }
-				100%{ transform:rotate(359deg); }
-			}
-			</style>
-			<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-				<div class="paypal-checkout-loader">
-					<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-				</div>
-				<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'login_please_wait' )?></div>
+		<div id="ec_cart_login_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+			<div class="wpec-busy-card" role="status" aria-live="polite">
+				<span class="wpec-busy-spinner" aria-hidden="true"></span>
+				<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'login_please_wait' ); ?></span>
 			</div>
 		</div>
 
@@ -552,18 +548,10 @@ function ec_admin_save_cart_options() {
 
 		<?php }?>
 
-		<div id="ec_cart_address_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-			<style>
-			@keyframes rotation{
-				0%  { transform:rotate(0deg); }
-				100%{ transform:rotate(359deg); }
-			}
-			</style>
-			<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-				<div class="paypal-checkout-loader">
-					<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-				</div>
-				<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'address_please_wait' )?></div>
+		<div id="ec_cart_address_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+			<div class="wpec-busy-card" role="status" aria-live="polite">
+				<span class="wpec-busy-spinner" aria-hidden="true"></span>
+				<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'address_please_wait' ); ?></span>
 			</div>
 		</div>
 
@@ -815,18 +803,10 @@ function ec_admin_save_cart_options() {
 			<?php do_action( 'wpeasycart_checkout_fields', 'subscription', $this, $product ); /* 6.0.2: extensions ( e.g. an age check ); the server asks wpeasycart_subscription_checkout_errors before charging */ ?>
 
 			<?php if( get_option( 'ec_option_collect_shipping_for_subscriptions' ) && get_option( 'ec_option_use_shipping' ) && $product->is_shippable ){ ?>
-			<div id="ec_cart_subscription_shipping_methods_loader" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-				<style>
-				@keyframes rotation{
-					0%  { transform:rotate(0deg); }
-					100%{ transform:rotate(359deg); }
-				}
-				</style>
-				<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-					<div class="paypal-checkout-loader">
-						<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-					</div>
-					<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'shipping_methods_please_wait' )?></div>
+			<div id="ec_cart_subscription_shipping_methods_loader" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+				<div class="wpec-busy-card" role="status" aria-live="polite">
+					<span class="wpec-busy-spinner" aria-hidden="true"></span>
+					<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'shipping_methods_please_wait' ); ?></span>
 				</div>
 			</div>
 			<div class="ec_cart_header">
@@ -854,18 +834,11 @@ function ec_admin_save_cart_options() {
 					<div id="ec_card_errors" role="alert" style="color:rgb(181, 41, 41); float:left; width:100%; margin-top:5px; text-align:center; background:rgb(241, 241, 241);"></div>
 				</div>
 
-				<div id="stripe-success-cover" style="display:none; cursor:default; position:fixed; top:0; left:0; width:100%; height:100%; z-index:999999; background-color: rgba(0, 0, 0, 0.8); color:#FFF;">
-					<style>
-					@keyframes rotation{
-						0%  { transform:rotate(0deg); }
-						100%{ transform:rotate(359deg); }
-					}
-					</style>
-					<div style='font-family: "HelveticaNeue", "HelveticaNeue-Light", "Helvetica Neue Light", helvetica, arial, sans-serif; font-size: 14px; text-align: center; -webkit-box-sizing: border-box; -moz-box-sizing: border-box; -ms-box-sizing: border-box; box-sizing: border-box; width: 350px; top: 50%; left: 50%; position: absolute; margin-left: -165px; margin-top: -80px; cursor: pointer; text-align: center; background:#EFEFEF; border-radius:10px; padding:25px;'>
-						<div class="paypal-checkout-loader">
-							<div style="height: 30px; width: 30px; display: inline-block; box-sizing: content-box; opacity: 1; filter: alpha(opacity=100); -webkit-animation: rotation .7s infinite linear; -moz-animation: rotation .7s infinite linear; -o-animation: rotation .7s infinite linear; animation: rotation .7s infinite linear; border-left: 8px solid rgba(0, 0, 0, .2); border-right: 8px solid rgba(0, 0, 0, .2); border-bottom: 8px solid rgba(0, 0, 0, .2); border-top: 8px solid #fff; border-radius: 100%;"></div>
-						</div>
-						<div style="float:left; width:100%; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Ubuntu,sans-serif; margin-top:10px; color:#222; font-size:18px;"><?php echo wp_easycart_language( )->get_text( 'cart_payment_information', 'cart_please_wait' )?></div>
+				<?php /* 6.0.3: the payment card's look ( .wpec-busy ); the position stays inline for store copies of ec-store.css from before it. */ ?>
+				<div id="stripe-success-cover" class="wpec-busy ec_subscription_wait" style="display:none; position:fixed; top:0; right:0; bottom:0; left:0; z-index:999990;">
+					<div class="wpec-busy-card" role="status" aria-live="polite">
+						<span class="wpec-busy-spinner" aria-hidden="true"></span>
+						<span class="wpec-busy-status"><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_please_wait' ); ?></span>
 					</div>
 				</div>
 				<script><?php
@@ -879,8 +852,49 @@ function ec_admin_save_cart_options() {
 					$pkey = apply_filters( 'wp_easycart_stripe_connect_publishable_key', $pkey );
 					?>
 					jQuery( document.getElementById( 'stripe-success-cover' ) ).appendTo( document.body );
+					<?php
+					/* 6.0.3: Stripe's Payment Element, as in the regular checkout ( the store's theme, layout and language ); the card it
+					   makes is saved for the subscription. A store whose Stripe class is too old keeps the card field below. */
+					$wpec_sub_pe = method_exists( $this, 'subscription_payment_element_ready' ) && $this->subscription_payment_element_ready();
+					if ( $wpec_sub_pe ) {
+						$this->print_stripe_locale_mapper();
+					}
+					?>
 					try {
 						var stripe = Stripe( '<?php echo esc_attr( $pkey ); ?>' );
+						<?php if ( $wpec_sub_pe ) { ?>
+						var elements = stripe.elements( {
+							mode: 'setup',
+							currency: '<?php echo esc_attr( strtolower( ( '' !== (string) get_option( 'ec_option_stripe_currency' ) ) ? (string) get_option( 'ec_option_stripe_currency' ) : 'usd' ) ); ?>',
+							paymentMethodCreation: 'manual',
+							paymentMethodTypes: [ 'card' ],
+							appearance: {
+								theme: '<?php echo esc_attr( get_option( 'ec_option_stripe_payment_theme' ) ); ?>',
+							},
+							locale: <?php echo $this->get_stripe_element_locale_js(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a JS expression built from escaped values. ?>
+						} );
+						var card = elements.create( 'payment', {
+							<?php if ( 'accordion' == get_option( 'ec_option_stripe_payment_layout' ) ) { ?>layout: {
+								type: 'accordion',
+								defaultCollapsed: false,
+								radios: false,
+								spacedAccordionItems: false
+							},<?php } else { ?>layout: {
+								type: 'tabs',
+								defaultCollapsed: false
+							},<?php } ?>
+							wallets: {
+								applePay: 'never',
+								googlePay: 'never'
+							},
+							fields: {
+								billingDetails: {
+									name: 'never',
+									address: 'never'
+								}
+							}
+						} );
+						<?php } else { ?>
 						var elements = stripe.elements();
 						var style = {
 							base: {
@@ -898,6 +912,7 @@ function ec_admin_save_cart_options() {
 							}
 						};
 						var card = elements.create( 'card', {style: style, hidePostalCode: true} );
+						<?php } ?>
 						card.mount( '#ec_stripe_card_row' );
 						card.addEventListener( 'change', function( event ) {
 							var displayError = document.getElementById( 'ec_card_errors' );
@@ -918,6 +933,9 @@ function ec_admin_save_cart_options() {
 								jQuery( document.getElementById( 'ec_cart_submit_order' ) ).hide();
 								jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).show();
 								jQuery( document.getElementById( 'stripe-success-cover' ) ).show();
+								if ( window.wpeasycart_checkout_busy ) { /* 6.0.3: the checkout's busy card ( ec-checkout-busy.js ) in place of the old cover; it ends when an error shows Submit again */
+									window.wpeasycart_checkout_busy.lock( 'payment' );
+								}
 								jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).hide();
 								jQuery( document.getElementById( 'ec_card_errors' ) ).hide();
 								var first_name = jQuery( document.getElementById( 'ec_cart_billing_first_name' ) ).val();
@@ -1041,7 +1059,42 @@ function ec_admin_save_cart_options() {
 								if ( jQuery( document.getElementById( 'ec_cart_is_subscriber' ) ).length && jQuery( document.getElementById( 'ec_cart_is_subscriber' ) ).is( ':checked' ) ) {
 									ec_cart_is_subscriber = 1;
 								}
-								stripe.createToken( card, additionalData ).then( function( result ) {
+								<?php if ( $wpec_sub_pe ) { ?>
+								/* The Payment Element makes a payment method with the billing details on this page; it carries the card's
+								   brand, last 4 and expiry the order records, as a token did. */
+								var wpec_billing = {
+									name: name,
+									address: {
+										line1: address1,
+										line2: address2,
+										city: city,
+										state: state,
+										postal_code: zip,
+										country: country
+									}
+								};
+								if ( email ) {
+									wpec_billing.email = email;
+								}
+								if ( phone ) {
+									wpec_billing.phone = phone;
+								}
+								var wpec_card_made = elements.submit().then( function( submitted ) {
+									if ( submitted.error ) {
+										return { error: submitted.error };
+									}
+									return stripe.createPaymentMethod( { elements: elements, params: { billing_details: wpec_billing } } ).then( function( made ) {
+										if ( made.error ) {
+											return { error: made.error };
+										}
+										var pm_card = made.paymentMethod.card || {};
+										return { token: { id: made.paymentMethod.id, card: { name: name, last4: pm_card.last4 || '', exp_month: pm_card.exp_month || '', exp_year: pm_card.exp_year || '', brand: pm_card.brand || '' } } };
+									} );
+								} );
+								<?php } else { ?>
+								var wpec_card_made = stripe.createToken( card, additionalData );
+								<?php } ?>
+								wpec_card_made.then( function( result ) {
 									if ( result.error ) {
 										var errorElement = document.getElementById( 'ec_card_errors' );
 										errorElement.textContent = result.error.message;
@@ -1119,6 +1172,9 @@ function ec_admin_save_cart_options() {
 												jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn().html( subscription_result.error.message );
 											} else {
 												if ( subscription_result.status == 'open' ) {
+													<?php if ( $wpec_sub_pe ) { ?>
+													stripe.confirmCardPayment( subscription_result.clientSecret, { payment_method: token.id } ).then( function( result ) {
+													<?php } else { ?>
 													stripe.handleCardPayment( subscription_result.clientSecret, card, {
 														payment_method_data: {
 															billing_details: {
@@ -1135,6 +1191,7 @@ function ec_admin_save_cart_options() {
 															}
 														}
 													} ).then( function( result ) {
+													<?php } ?>
 														if ( result.error ) {
 															jQuery( document.getElementById( 'ec_cart_submit_order' ) ).show();
 															jQuery( document.getElementById( 'ec_cart_submit_order_working' ) ).hide();
@@ -1142,6 +1199,9 @@ function ec_admin_save_cart_options() {
 															jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn().find( 'div' ).html( result.error.message );
 															jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn().html( result.error.message );
 														} else {
+															if ( window.wpeasycart_checkout_busy ) {
+																window.wpeasycart_checkout_busy.status( 'finishing' );
+															}
 															var data = {
 																action: 'ec_ajax_get_stripe_complete_payment_subscription',
 																subscription_id: subscription_result.subscription_id,
@@ -1172,6 +1232,9 @@ function ec_admin_save_cart_options() {
 													jQuery( document.getElementById( 'ec_stripe_dynamic_error' ) ).fadeIn().find( 'div' ).html( result.error.message );
 													jQuery( document.getElementById( 'ec_card_errors' ) ).fadeIn().html( result.error.message );
 												} else {
+													if ( window.wpeasycart_checkout_busy ) {
+														window.wpeasycart_checkout_busy.status( 'finishing' );
+													}
 													var data = {
 														action: 'ec_ajax_get_stripe_complete_payment_subscription',
 														subscription_id: subscription_result.subscription_id,
@@ -1276,14 +1339,13 @@ function ec_admin_save_cart_options() {
 
 			<?php if ( get_option( 'ec_option_show_subscriber_feature' ) ) { ?>
 			<div class="ec_cart_input_row ec_agreement_section">
-				<input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" value="1" />
-				<?php echo wp_easycart_language()->get_text( 'account_register', 'account_register_subscribe' )?>
+				<label class="ec_subscription_choice" for="ec_cart_is_subscriber"><input type="checkbox" name="ec_cart_is_subscriber" id="ec_cart_is_subscriber" value="1" /> <span><?php echo wp_easycart_language()->get_text( 'account_register', 'account_register_subscribe' )?></span></label>
 			</div>
 			<?php }?>
 
 			<?php if ( get_option( 'ec_option_require_terms_agreement' ) ) { ?>
 			<div class="ec_cart_input_row ec_agreement_section">
-				<input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1"  /> <?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?>
+				<label class="ec_subscription_choice" for="ec_terms_agree"><input type="checkbox" name="ec_terms_agree" id="ec_terms_agree" value="1" /> <span><?php echo wp_easycart_language()->get_text( 'cart_payment_information', 'cart_payment_review_agree' )?></span></label>
 			</div>
 			<?php } else { ?>
 				<input type="hidden" name="ec_terms_agree" id="ec_terms_agree" value="2"  />
@@ -1489,6 +1551,7 @@ function ec_admin_save_cart_options() {
 			<div class="ec_cart_price_row_label"><?php echo esc_attr( apply_filters( 'wp_easycart_subscription_grand_total_label', wp_easycart_language()->get_text( 'cart_totals', 'cart_totals_grand_total' ), $product ) ); ?></div>
 			<div class="ec_cart_price_row_total" id="ec_cart_total"><?php echo esc_attr( $GLOBALS['currency']->get_currency_display( $grand_total ) ); ?></div>
 		</div>
+		<div class="ec_subscription_renewal" id="ec_cart_renewal_note" role="note"<?php if ( empty( $subscription_renewal_note ) ) { ?> style="display:none;"<?php } ?>><?php echo esc_html( isset( $subscription_renewal_note ) ? $subscription_renewal_note : '' ); ?></div>
 
 		<?php do_action( 'wp_easycart_cart_subscription_after_grand_total', $product ); ?>
 
@@ -1503,19 +1566,15 @@ function ec_admin_save_cart_options() {
 		<input type="hidden" name="ec_cart_form_action" value="process_update_subscription_quantity" />
 		<input type="hidden" name="ec_cart_form_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wp-easycart-cart-subscription-update-item-' . $product->product_id ) ); ?>" />
 		<input type="hidden" name="product_id" value="<?php echo esc_attr( $product->product_id ); ?>" />
-		<table class="ec_cartitem_quantity_table ec_subscription_table">
-			<tbody>
-				<tr>
-					<td class="ec_minus_column">
-						<input type="button" value="-" class="ec_minus" onclick="ec_minus_quantity( '<?php echo esc_attr( $product->product_id ); ?>-2', <?php echo esc_attr( $product->min_purchase_quantity ); ?> );" /></td>
-					<td class="ec_quantity_column"><input type="number" value="<?php echo esc_attr( $subscription_quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $product->product_id ); ?>-2" name="ec_quantity" autocomplete="off" step="1" min="<?php if ( $product->min_purchase_quantity > 0 ) { echo esc_attr( $product->min_purchase_quantity ); } else { echo '1'; } ?>" class="ec_quantity" /></td>
-					<td class="ec_plus_column"><input type="button" value="+" class="ec_plus" onclick="ec_plus_quantity( '<?php echo esc_attr( $product->product_id ); ?>-2', <?php echo esc_attr( $product->show_stock_quantity ); ?>, <?php if ( $product->max_purchase_quantity > 0 ) { echo esc_attr( $product->max_purchase_quantity ); } else if ( $product->show_stock_quantity ) { echo esc_attr( $product->stock_quantity ); } else { echo '10000000'; } ?> );" /></td>
-				</tr>
-				<tr>
-					<td colspan="3"><input type="submit" class="ec_cartitem_update_button" id="ec_cartitem_update_<?php echo esc_attr( $product->product_id ); ?>-2" value="<?php echo wp_easycart_language()->get_text( 'cart', 'cart_item_update_button' )?>" /></td>
-				</tr>
-			</tbody>
-		</table>
+		<?php /* 6.0.3: as the phone summary above ( the stepper, + stops only at a real limit ). */ $ec_sub_max = wp_easycart_subscription_quantity_max( $product ); ?>
+		<div class="ec_subscription_quantity">
+			<div class="ec_subscription_stepper">
+				<input type="button" value="&minus;" class="ec_minus" onclick="ec_minus_quantity( '<?php echo esc_attr( $product->product_id ); ?>-2', <?php echo esc_attr( $product->min_purchase_quantity ); ?> );" />
+				<input type="number" value="<?php echo esc_attr( $subscription_quantity ); ?>" id="ec_quantity_<?php echo esc_attr( $product->product_id ); ?>-2" name="ec_quantity" autocomplete="off" step="1" min="<?php if ( $product->min_purchase_quantity > 0 ) { echo esc_attr( $product->min_purchase_quantity ); } else { echo '1'; } ?>"<?php if ( $ec_sub_max > 0 ) { ?> max="<?php echo esc_attr( $ec_sub_max ); ?>"<?php } ?> class="ec_quantity" aria-label="<?php echo esc_attr( wp_strip_all_tags( wp_easycart_language()->get_text( 'product_details', 'product_details_quantity' ) ) ); ?>" />
+				<input type="button" value="+" class="ec_plus" onclick="ec_plus_quantity( '<?php echo esc_attr( $product->product_id ); ?>-2', <?php echo ( $ec_sub_max > 0 ) ? '1' : '0'; ?>, <?php echo ( $ec_sub_max > 0 ) ? esc_attr( $ec_sub_max ) : '10000000'; ?> );" />
+			</div>
+			<input type="submit" class="ec_cartitem_update_button" id="ec_cartitem_update_<?php echo esc_attr( $product->product_id ); ?>-2" value="<?php echo wp_easycart_language()->get_text( 'cart', 'cart_item_update_button' )?>" />
+		</div>
 		</form>
 		<?php } ?>
 
@@ -1526,12 +1585,14 @@ function ec_admin_save_cart_options() {
 
 		<div class="ec_cart_error_message" id="ec_coupon_error"></div>
 		<div class="ec_cart_success_message" id="ec_coupon_success"<?php if ( isset( $this->coupon ) ) {?> style="display:block;"<?php }?>><?php if ( isset( $this->coupon ) ) { if ( $this->discount->coupon_matches <= 0 ) { echo wp_easycart_language()->get_text( 'cart_coupons', 'coupon_not_applicable' ); } else { echo wp_easycart_language()->convert_text( $this->coupon->message ); } } ?></div>
+		<div class="ec_subscription_coupon">
 		<div class="ec_cart_input_row">
 			<input type="text" name="ec_coupon_code" id="ec_coupon_code" value="<?php if ( isset( $this->coupon ) ) { echo esc_attr( $this->coupon_code ); } ?>" placeholder="<?php echo wp_easycart_language()->get_text( 'cart_coupons', 'cart_enter_coupon' )?>" />
 		</div>
 		<div class="ec_cart_button_row">
 			<div class="ec_cart_button" id="ec_apply_coupon" onclick="ec_apply_subscription_coupon( '<?php echo esc_attr( $product->product_id ); ?>', '<?php echo esc_attr( $product->manufacturer_id ); ?>', '<?php echo esc_attr( wp_create_nonce( 'wp-easycart-redeem-subscription-coupon-code-' . $GLOBALS['ec_cart_data']->ec_cart_id ) ); ?>' );"><?php echo wp_easycart_language()->get_text( 'cart_coupons', 'cart_apply_coupon' ); ?></div>
 			<div class="ec_cart_button_working" id="ec_applying_coupon"><?php echo wp_easycart_language()->get_text( 'cart', 'cart_please_wait' )?></div>
+		</div>
 		</div>
 		<?php }?>
 

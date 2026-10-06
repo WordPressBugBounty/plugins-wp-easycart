@@ -57,6 +57,14 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 		private static $rows_cache = array();
 
 		/**
+		 * The label services an extension offers for an order, per order and request ( label_services() ).
+		 *
+		 * @since 6.0.3
+		 * @var array
+		 */
+		private static $services_cache = array();
+
+		/**
 		 * Hooks.
 		 */
 		public static function init() {
@@ -344,7 +352,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 			if ( $rows ) {
 				$html .= '<div class="ecodv2-label-pkgs" id="ecodv2_label_pkgs" data-order-id="' . esc_attr( (string) $order_id ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-order-packages' ) ) . '" data-need="' . esc_attr__( 'Enter a tracking number for at least one package.', 'wp-easycart' ) . '" data-fail="' . esc_attr__( 'The tracking numbers could not be saved. Reload the order and try again.', 'wp-easycart' ) . '">';
 				if ( $open > 1 ) {
-					$html .= '<label class="ecodv2-label-all"><span>' . esc_html__( 'Carrier for every package', 'wp-easycart' ) . '</span> <select id="ecodv2_label_carrier_all">' . $options . '</select></label>';
+					$html .= '<label class="ecodv2-label-all"><span>' . esc_html__( 'Carrier for every package', 'wp-easycart' ) . '</span> <select id="ecodv2_label_carrier_all" data-wpec-carrier="1">' . $options . '</select></label>';
 				}
 				$html .= '<ol class="ecodv2-label-pkg-list">';
 				foreach ( $rows as $row ) {
@@ -365,7 +373,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 						$html .= '<div class="ecodv2-label-pkg-row">'
 							/* translators: %d: package number. */
 							. '<label class="screen-reader-text" for="ecodv2_lp_carrier_' . esc_attr( (string) $number ) . '">' . esc_html( sprintf( __( 'Carrier for package %d', 'wp-easycart' ), $number ) ) . '</label>'
-							. '<select class="ecodv2-label-pkg-carrier" id="ecodv2_lp_carrier_' . esc_attr( (string) $number ) . '">' . $options . '</select>'
+							. '<select class="ecodv2-label-pkg-carrier" id="ecodv2_lp_carrier_' . esc_attr( (string) $number ) . '" data-wpec-carrier="1">' . $options . '</select>'
 							/* translators: %d: package number. */
 							. '<label class="screen-reader-text" for="ecodv2_lp_tracking_' . esc_attr( (string) $number ) . '">' . esc_html( sprintf( __( 'Tracking number for package %d', 'wp-easycart' ), $number ) ) . '</label>'
 							. '<input type="text" class="ecodv2-label-pkg-tracking" id="ecodv2_lp_tracking_' . esc_attr( (string) $number ) . '" placeholder="' . esc_attr__( 'Paste tracking number…', 'wp-easycart' ) . '" autocomplete="off" spellcheck="false" />'
@@ -379,7 +387,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 					. '<span class="ecodv2-eyebrow">' . esc_html__( 'Tracking', 'wp-easycart' ) . '</span>'
 					. '<div class="ecodv2-label-after-row">'
 					. '<label class="screen-reader-text" for="ecodv2_label_carrier_sel">' . esc_html__( 'Carrier', 'wp-easycart' ) . '</label>'
-					. '<select id="ecodv2_label_carrier_sel">' . $options . '</select>'
+					. '<select id="ecodv2_label_carrier_sel" data-wpec-carrier="1">' . $options . '</select>'
 					. '<label class="screen-reader-text" for="ecodv2_label_tracking">' . esc_html__( 'Tracking number', 'wp-easycart' ) . '</label>'
 					. '<input type="text" id="ecodv2_label_tracking" placeholder="' . esc_attr__( 'Paste tracking number…', 'wp-easycart' ) . '" value="' . esc_attr( trim( (string) $order->tracking_number ) ) . '" autocomplete="off" spellcheck="false" />'
 					. '</div></div>';
@@ -745,7 +753,96 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 		 * @param int $order_id Order.
 		 */
 		public static function forget_rows( $order_id ) {
-			unset( self::$rows_cache[ (int) $order_id ] );
+			unset( self::$rows_cache[ (int) $order_id ], self::$services_cache[ (int) $order_id ] );
+		}
+
+		/**
+		 * The label services extensions offer for an order ( WP EasyCart for Stamps.com, Shippo, ShipStation ): the rows of the
+		 * Fulfill window's label step, and the Ship panel's key label button ( label_buyers() ). Asked once per order and request.
+		 *
+		 * @since 6.0.3 ( the filter is from 6.0.2; order-details.php asked it itself )
+		 * @param object $order Order row.
+		 * @return array slug => row.
+		 */
+		public static function label_services( $order ) {
+			$order_id = ( is_object( $order ) && isset( $order->order_id ) ) ? (int) $order->order_id : 0;
+			if ( ! isset( self::$services_cache[ $order_id ] ) ) {
+				/**
+				 * Label services an extension draws itself in the Fulfill window. A row keyed shippo, stamps or shipstation replaces
+				 * the built-in link for that service. A row whose onclick buys this order's label in the page ( a cta, no url ) is
+				 * also the Ship panel's key button ( 6.0.3; 'buy' => true | false says so outright ).
+				 *
+				 * @since 6.0.2
+				 * @param array  $rows  slug => array( name, sub, logo ( two letters ), color, cta, onclick | url, integrated ( bool ), buy ( bool, 6.0.3 ) ).
+				 * @param object $order Order row.
+				 */
+				$rows                              = apply_filters( 'wp_easycart_ecv2_label_services', array(), $order );
+				self::$services_cache[ $order_id ] = is_array( $rows ) ? $rows : array();
+			}
+			return self::$services_cache[ $order_id ];
+		}
+
+		/**
+		 * The label services that can buy this order's label right on the order screen: a row with a call to action and an onclick
+		 * ( the extension's label window ), not a link elsewhere ( Connect, Settings, Open Shippo ) and not a row with nothing to do
+		 * ( a fulfillment partner ships it all ). A row's 'buy' says so outright.
+		 *
+		 * @since 6.0.3
+		 * @param object $order Order row.
+		 * @return array Each slug, name, logo, color, onclick.
+		 */
+		public static function label_buyers( $order ) {
+			$buyers = array();
+			foreach ( self::label_services( $order ) as $slug => $row ) {
+				if ( ! is_array( $row ) || empty( $row['name'] ) ) {
+					continue;
+				}
+				$onclick = isset( $row['onclick'] ) ? trim( (string) $row['onclick'] ) : '';
+				$cta     = isset( $row['cta'] ) ? trim( (string) $row['cta'] ) : '';
+				$url     = isset( $row['url'] ) ? trim( (string) $row['url'] ) : '';
+				$buys    = isset( $row['buy'] ) ? (bool) $row['buy'] : ( '' !== $cta && '' === $url && '' !== $onclick && ! preg_match( '/^return\s+false\s*;?$/i', $onclick ) );
+				if ( ! $buys || '' === $onclick ) {
+					continue;
+				}
+				$color    = ( isset( $row['color'] ) && sanitize_hex_color( (string) $row['color'] ) ) ? (string) $row['color'] : '#6b7280';
+				$buyers[] = array(
+					'slug'    => sanitize_key( (string) $slug ),
+					'name'    => (string) $row['name'],
+					'logo'    => isset( $row['logo'] ) ? substr( (string) $row['logo'], 0, 3 ) : '',
+					'color'   => $color,
+					'onclick' => $onclick,
+				);
+			}
+			return $buyers;
+		}
+
+		/**
+		 * The Ship panel's key label button: with one label service ready to buy this order's label, its Buy label ( the
+		 * extension's own label window ); with several, Buy a label, which opens the Fulfill window where each is listed; with
+		 * none, ''. A store with Stamps.com connected bought labels through a small "Make a label" link under the form.
+		 *
+		 * @since 6.0.3
+		 * @param object $order Order row.
+		 * @return string
+		 */
+		public static function label_button_html( $order ) {
+			$buyers = self::label_buyers( $order );
+			if ( ! $buyers ) {
+				return '';
+			}
+			if ( 1 === count( $buyers ) ) {
+				$buyer = $buyers[0];
+				return '<button type="button" class="ecv2-btn ecv2-btn-primary ecodv2-ship-label" id="ecodv2_ship_label" data-service="' . esc_attr( $buyer['slug'] ) . '"'
+					/* translators: %s: a label service, e.g. Stamps.com. */
+					. ' aria-label="' . esc_attr( sprintf( __( 'Buy a label with %s', 'wp-easycart' ), $buyer['name'] ) ) . '" onclick="' . esc_attr( $buyer['onclick'] ) . '">'
+					. ( '' !== $buyer['logo'] ? '<span class="ecodv2-ship-label-logo" style="background:' . esc_attr( $buyer['color'] ) . ';" aria-hidden="true">' . esc_html( $buyer['logo'] ) . '</span>' : '' )
+					. '<span class="ecodv2-ship-label-text">' . esc_html__( 'Buy label', 'wp-easycart' ) . '<small>' . esc_html( $buyer['name'] ) . '</small></span></button>';
+			}
+			$names = implode( ', ', wp_list_pluck( $buyers, 'name' ) );
+			return '<button type="button" class="ecv2-btn ecv2-btn-primary ecodv2-ship-label" id="ecodv2_ship_label" data-service=""'
+				/* translators: %s: label services, e.g. Stamps.com, Shippo. */
+				. ' aria-label="' . esc_attr( sprintf( __( 'Buy a label: %s', 'wp-easycart' ), $names ) ) . '" onclick="ecodv2_fulfill_open(); return false;">'
+				. '<span class="ecodv2-ship-label-text">' . esc_html__( 'Buy a label', 'wp-easycart' ) . '<small>' . esc_html( $names ) . '</small></span></button>';
 		}
 
 		/**
@@ -1093,47 +1190,71 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 		}
 
 		/**
-		 * The carriers the Fulfill window and the Ship form offer, and the one the order's shipping method points to.
+		 * The carriers the Fulfill window and the Ship form offer, and the one the order's carrier field starts on.
+		 *
+		 * 6.0.3: the list is wp_easycart_carriers ( the major carriers worldwide, the store's country and recent orders first ) with
+		 * Other… for any carrier's name; the Fulfill window's "make it at the carrier" links are the carriers with a label site.
 		 *
 		 * @param object $order Order row.
-		 * @return array defs ( key => label, sub, url, configured, keywords ), suggested ( key or '' ), options ( <option> list ).
+		 * @return array defs ( key => label, sub, url, configured, keywords: the label sites ), suggested ( a defs key or '' ),
+		 *               selected ( the carrier name the fields start on ), options ( <option> list ).
 		 */
 		public static function label_carriers( $order ) {
-			$defs = array(
-				'usps'       => array( 'label' => 'USPS', 'sub' => __( 'Click-N-Ship', 'wp-easycart' ), 'url' => 'https://cns.usps.com/', 'configured' => ( ! empty( get_option( 'ec_option_usps_v3_client_id' ) ) ), 'keywords' => 'usps|priority|ground advantage|first-class|first class|media mail|parcel select|click' ),
-				'ups'        => array( 'label' => 'UPS', 'sub' => __( 'Ship', 'wp-easycart' ), 'url' => 'https://www.ups.com/ship/guided', 'configured' => ( ! empty( get_option( 'ec_option_ups_token_info' ) ) ), 'keywords' => 'ups|2nd day air|second day air|next day air|3 day select|worldwide' ),
-				'fedex'      => array( 'label' => 'FedEx', 'sub' => __( 'Ship Manager', 'wp-easycart' ), 'url' => 'https://www.fedex.com/en-us/shipping.html', 'configured' => ( ! empty( get_option( 'ec_option_fedex_api_key' ) ) ), 'keywords' => 'fedex|home delivery|smartpost|2day|overnight' ),
-				'dhl'        => array( 'label' => 'DHL', 'sub' => __( 'MyDHL+', 'wp-easycart' ), 'url' => 'https://mydhl.express.dhl/', 'configured' => ( ! empty( get_option( 'ec_option_dhl_account_number' ) ) ), 'keywords' => 'dhl|express worldwide|express easy' ),
-				'canadapost' => array( 'label' => __( 'Canada Post', 'wp-easycart' ), 'sub' => __( 'Ship Online', 'wp-easycart' ), 'url' => 'https://www.canadapost-postescanada.ca/cpc/en/business/shipping.page', 'configured' => false, 'keywords' => 'canada post|xpresspost|expedited parcel|regular parcel' ),
-				'auspost'    => array( 'label' => __( 'AusPost', 'wp-easycart' ), 'sub' => __( 'MyPost', 'wp-easycart' ), 'url' => 'https://auspost.com.au/mypost-business', 'configured' => false, 'keywords' => 'australia post|auspost|parcel post|express post|satchel' ),
+			$sites = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::label_sites() : array();
+			$setup = array(
+				'usps'  => 'ec_option_usps_v3_client_id',
+				'ups'   => 'ec_option_ups_token_info',
+				'fedex' => 'ec_option_fedex_api_key',
+				'dhl'   => 'ec_option_dhl_account_number',
 			);
+			$defs  = array();
+			foreach ( $sites as $key => $entry ) {
+				$defs[ $key ] = array(
+					'label'      => (string) $entry['name'],
+					'sub'        => (string) $entry['label_sub'],
+					'url'        => (string) $entry['label_url'],
+					'configured' => isset( $setup[ $key ] ) && ! empty( get_option( $setup[ $key ] ) ),
+					'keywords'   => (string) $entry['keywords'],
+				);
+			}
 			/**
-			 * The carriers the order screen's Fulfill window links to and its tracking fields list.
+			 * The carriers the order screen's Fulfill window links to ( where a label is made ).
 			 *
 			 * @since 6.0.2
-			 * @param array  $defs  key => array( label, sub, url, configured, keywords ( | separated, matched against the order's
-			 *                      carrier and shipping method ) ).
+			 * @param array  $defs  key => array( label, sub, url, configured, keywords ( | separated ) ).
 			 * @param object $order Order row.
 			 */
-			$defs      = (array) apply_filters( 'wp_easycart_ecv2_label_carriers', $defs, $order );
-			$guess     = strtolower( trim( (string) $order->shipping_carrier . ' ' . (string) $order->shipping_method ) );
+			$defs     = (array) apply_filters( 'wp_easycart_ecv2_label_carriers', $defs, $order );
+			$selected = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::suggested( $order ) : trim( (string) $order->shipping_carrier );
+			/* A label site that matches the order's own carrier is marked Suggested ( only when the method or the order names it ). */
 			$suggested = '';
+			$named     = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::suggested( $order, false ) : '';
 			foreach ( $defs as $key => $def ) {
-				foreach ( explode( '|', isset( $def['keywords'] ) ? (string) $def['keywords'] : '' ) as $word ) {
-					if ( '' !== $word && false !== strpos( $guess, $word ) ) {
-						$suggested = (string) $key;
-						break 2;
-					}
+				if ( '' !== $named && isset( $def['label'] ) && strtolower( (string) $def['label'] ) === strtolower( $named ) ) {
+					$suggested = (string) $key;
+					break;
 				}
 			}
-			$options = '';
-			foreach ( $defs as $key => $def ) {
-				$options .= '<option value="' . esc_attr( $def['label'] ) . '"' . ( (string) $key === $suggested ? ' selected="selected"' : '' ) . '>' . esc_html( $def['label'] ) . '</option>';
+			/* Names an extension adds ( the label sites filter, the orders list's carrier filter ) are offered too. */
+			$extra = function_exists( 'ecv2_order_carrier_suggestions' ) ? (array) ecv2_order_carrier_suggestions() : array();
+			foreach ( $defs as $def ) {
+				if ( isset( $def['label'] ) ) {
+					$extra[] = (string) $def['label'];
+				}
 			}
-			$options .= '<option value="">' . esc_html__( 'Other', 'wp-easycart' ) . '</option>';
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				$options = wp_easycart_carriers::options_html( $selected, $extra );
+			} else {
+				$options = '';
+				foreach ( array_unique( array_merge( array( 'USPS', 'UPS', 'FedEx', 'DHL', 'Canada Post', 'Royal Mail', 'Australia Post' ), $extra ) ) as $name ) {
+					$options .= '<option value="' . esc_attr( $name ) . '"' . ( strtolower( (string) $name ) === strtolower( $selected ) ? ' selected="selected"' : '' ) . '>' . esc_html( $name ) . '</option>';
+				}
+				$options .= '<option value="">' . esc_html__( 'Other', 'wp-easycart' ) . '</option>';
+			}
 			return array(
 				'defs'      => $defs,
 				'suggested' => $suggested,
+				'selected'  => $selected,
 				'options'   => $options,
 			);
 		}
@@ -1331,25 +1452,34 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 				}
 				$carriers = self::label_carriers( $order );
 				$email    = trim( (string) $order->user_email );
+				/* 6.0.3: a label service that can buy this order's label ( Stamps.com, Shippo, ShipStation ) is the key button, and
+				   Ship order ( typing the tracking in ) the second one. */
+				$label_btn = self::label_button_html( $order );
+				$go_class  = 'ecv2-btn' . ( '' === $label_btn ? ' ecv2-btn-primary' : '' ) . ' ecodv2-ship-go';
 				if ( count( $open ) > 1 ) {
 					$body = '<div class="ecodv2-ship-many">'
 						/* translators: %d: number of packages. */
 						. '<span>' . esc_html( sprintf( _n( '%d package to ship', '%d packages to ship', count( $open ), 'wp-easycart' ), count( $open ) ) ) . '</span>'
-						. '<button type="button" class="ecv2-btn ecv2-btn-primary ecodv2-ship-go" id="ecodv2_ship_go" data-ship-many="1" onclick="ecodv2_fulfill_tracking(); return false;"><span class="dashicons dashicons-airplane" aria-hidden="true"></span> ' . esc_html__( 'Add tracking for each package', 'wp-easycart' ) . '</button>'
+						. $label_btn
+						. '<button type="button" class="' . esc_attr( $go_class ) . '" id="ecodv2_ship_go" data-ship-many="1" onclick="ecodv2_fulfill_tracking(); return false;"><span class="dashicons dashicons-airplane" aria-hidden="true"></span> ' . esc_html__( 'Add tracking for each package', 'wp-easycart' ) . '</button>'
 						. '</div>';
 				} else {
 					$package = $open ? $open[0] : null;
 					$body    = '<div class="ecodv2-ship" id="ecodv2_ship" data-order-id="' . esc_attr( (string) $order_id ) . '"'
 						. ( $package ? ' data-package-index="' . esc_attr( (string) (int) $package['index'] ) . '" data-shipment-id="' . esc_attr( (string) (int) $package['shipment_id'] ) . '" data-packages-nonce="' . esc_attr( wp_create_nonce( 'wp-easycart-ecv2-order-packages' ) ) . '"' : '' ) . '>'
-						. '<div class="ecodv2-ship-field ecodv2-ship-carrier"><label for="ecodv2_ship_carrier">' . esc_html__( 'Carrier', 'wp-easycart' ) . '</label><select id="ecodv2_ship_carrier">' . $carriers['options'] . '</select></div>'
+						. '<div class="ecodv2-ship-field ecodv2-ship-carrier"><label for="ecodv2_ship_carrier">' . esc_html__( 'Carrier', 'wp-easycart' ) . '</label><select id="ecodv2_ship_carrier" data-wpec-carrier="1">' . $carriers['options'] . '</select></div>'
 						. '<div class="ecodv2-ship-field ecodv2-ship-tracking"><label for="ecodv2_ship_tracking">' . esc_html__( 'Tracking number', 'wp-easycart' ) . '</label>'
 						. '<div class="ecodv2-ship-input"><input type="text" id="ecodv2_ship_tracking" placeholder="' . esc_attr__( 'Paste or scan a tracking number', 'wp-easycart' ) . '" autocomplete="off" spellcheck="false" inputmode="text" />'
 						. '<button type="button" class="ecodv2-ship-scan" id="ecodv2_ship_scan" hidden aria-label="' . esc_attr__( 'Scan a tracking barcode with the camera', 'wp-easycart' ) . '" title="' . esc_attr__( 'Scan a tracking barcode', 'wp-easycart' ) . '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9v6M11 9v6M14 9v6M17 9v6"/></svg></button></div></div>'
 						. ( '' !== $email ? '<label class="ecodv2-ship-email" title="' . esc_attr( sprintf( /* translators: %s: the customer's email address. */ __( 'The shipped email goes to %s', 'wp-easycart' ), $email ) ) . '"><input type="checkbox" id="ecodv2_ship_email" checked="checked" /> ' . esc_html( '' !== $name ? sprintf( /* translators: %s: customer's name. */ __( 'Email %s', 'wp-easycart' ), $name ) : __( 'Email the customer', 'wp-easycart' ) ) . '</label>' : '' )
-						. '<button type="button" class="ecv2-btn ecv2-btn-primary ecodv2-ship-go" id="ecodv2_ship_go" onclick="ecodv2_ship(); return false;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg> ' . esc_html__( 'Ship order', 'wp-easycart' ) . ' <kbd class="ecodv2-kbd ecodv2-kbd-on">' . esc_html__( 'Enter', 'wp-easycart' ) . '</kbd></button>'
+						. $label_btn
+						. '<button type="button" class="' . esc_attr( $go_class ) . '" id="ecodv2_ship_go" onclick="ecodv2_ship(); return false;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg> ' . esc_html__( 'Ship order', 'wp-easycart' ) . ' <kbd class="ecodv2-kbd ecodv2-kbd-on">' . esc_html__( 'Enter', 'wp-easycart' ) . '</kbd></button>'
 						. '</div>';
 				}
-				$links = '<button type="button" class="ecodv2-next-link" onclick="ecodv2_fulfill_open(); return false;">' . esc_html__( 'Make a label', 'wp-easycart' ) . '</button>'
+				$buyers = count( self::label_buyers( $order ) );
+				$links  = ( 0 === $buyers ? '<button type="button" class="ecodv2-next-link" onclick="ecodv2_fulfill_open(); return false;">' . esc_html__( 'Make a label', 'wp-easycart' ) . '</button>' : '' )
+					/* 6.0.3: the Fulfill window still lists the carriers' own sites and the other services. */
+					. ( 1 === $buyers ? '<button type="button" class="ecodv2-next-link" onclick="ecodv2_fulfill_open(); return false;">' . esc_html__( 'More label options', 'wp-easycart' ) . '</button>' : '' )
 					. '<a class="ecodv2-next-link" href="' . esc_url( self::packing_slip_url( $order_id ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Print packing slip', 'wp-easycart' ) . '</a>'
 					. ( $rows ? '<button type="button" class="ecodv2-next-link" onclick="ecodv2_edit_packages(); return false;">' . esc_html__( 'Edit packages', 'wp-easycart' ) . '</button>' : '' )
 					. ( ( count( $open ) <= 1 && '' !== $email ) ? '<span class="ecodv2-next-note">' . esc_html( '' !== $name ? sprintf( /* translators: %s: customer's name. */ __( 'The order is marked shipped and %s gets the tracking in one step.', 'wp-easycart' ), $name ) : __( 'The order is marked shipped and the customer gets the tracking in one step.', 'wp-easycart' ) ) . '</span>' : '' );
@@ -1573,6 +1703,19 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 				$def = $carriers[ $key ];
 			} elseif ( '' !== $key && isset( $fallback[ $key ] ) ) {
 				$def = array_combine( array( 'mark', 'bg', 'fg' ), explode( '|', $fallback[ $key ] ) );
+			}
+			/* 6.0.3: the carrier list's own marks ( Royal Mail and the others the order screen offers ). */
+			if ( empty( $def ) && class_exists( 'wp_easycart_carriers' ) ) {
+				$ck = wp_easycart_carriers::find( $name );
+				if ( '' !== $ck ) {
+					$entry = wp_easycart_carriers::catalog()[ $ck ];
+					$key   = '' !== $key ? $key : $ck;
+					$def   = array(
+						'mark' => (string) $entry['mark'],
+						'bg'   => (string) $entry['bg'],
+						'fg'   => (string) $entry['fg'],
+					);
+				}
 			}
 			$mark = isset( $def['mark'] ) ? (string) $def['mark'] : '';
 			if ( '' === $mark && '' !== $name ) {
@@ -1932,7 +2075,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 			if ( ! $order ) {
 				return new WP_Error( 'order', __( 'The order could not be found.', 'wp-easycart' ) );
 			}
-			$carrier  = trim( sanitize_text_field( (string) $args['carrier'] ) );
+			$carrier  = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::clean( $args['carrier'] ) : trim( sanitize_text_field( (string) $args['carrier'] ) );
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				wp_easycart_carriers::saved( $carrier );
+			}
 			$tracking = trim( sanitize_text_field( (string) $args['tracking'] ) );
 			$mark     = (bool) $args['mark'];
 			$notify   = (bool) $args['notify'];
@@ -2054,7 +2200,10 @@ if ( ! class_exists( 'wp_easycart_admin_order_screen' ) ) :
 			if ( ! $order ) {
 				return false;
 			}
-			$carrier  = trim( sanitize_text_field( (string) $carrier ) );
+			$carrier  = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::clean( $carrier ) : trim( sanitize_text_field( (string) $carrier ) );
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				wp_easycart_carriers::saved( $carrier );
+			}
 			$tracking = trim( sanitize_text_field( (string) $tracking ) );
 			$old      = trim( (string) $order->tracking_number );
 			if ( $old === $tracking && trim( (string) $order->shipping_carrier ) === $carrier ) {

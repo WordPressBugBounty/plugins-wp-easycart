@@ -324,6 +324,8 @@ class ec_user{
 			return false;
 		}
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare ( 'SELECT * FROM ec_subscription WHERE subscription_status = "Active" AND product_id = %d AND user_id = %d', $product_id, $this->user_id ) );
+		/* 6.0.3: a free trial, or a subscription cancelled at the end of its period, still holds the product. */
+		$statuses = ( function_exists( 'wp_easycart_subscription_member_statuses' ) ) ? wp_easycart_subscription_member_statuses() : array( 'Active' );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_subscription WHERE subscription_status IN ( ' . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ' ) AND product_id = %d AND user_id = %d', array_merge( $statuses, array( $product_id, $this->user_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one %s placeholder per status, bound by prepare().
 	}
 }

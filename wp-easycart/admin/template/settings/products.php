@@ -971,6 +971,13 @@ return array(
 					'keywords' => array( 'reserve', 'unit', 'hours', 'minutes' ),
 					'legacy'   => array( 'page' => 'products', 'section' => 'Product Inventory Options', 'label' => 'Cart Stock: Unit' ),
 				),
+				'ec_option_cancel_restock' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Put stock back when an order is cancelled', 'wp-easycart' ),
+					'desc'     => __( 'A cancelled order’s items go back into stock, unless the order has shipped. Moving the order back to a paid status takes them again.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'restock', 'cancel', 'cancelled order', 'return stock', 'inventory' ),
+				),
 				'ec_option_enable_inventory_notification' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Let shoppers ask for a back-in-stock email', 'wp-easycart' ),

@@ -40,7 +40,7 @@ $ed::open(
 );
 
 $ed::section_start( array( 'top' => 16 ) );
-$ed::heading( wp_kses_post( rtrim( trim( $ec_pw_lang->get_text( 'account_forgot_password_email', 'account_forgot_password_email_dear' ) ), ':,' ) ) . ( '' !== $ec_pw_name ? ' ' . esc_html( $ec_pw_name ) : '' ) . ',' );
+$ed::greeting( wp_kses_post( $ec_pw_lang->get_text( 'account_forgot_password_email', 'account_forgot_password_email_dear' ) ), $ec_pw_name ); /* 6.0.3: text size, not a headline */
 
 if ( '' !== $ec_pw_reset ) {
 	$ed::paragraph( wp_kses_post( $ec_pw_intro ) );

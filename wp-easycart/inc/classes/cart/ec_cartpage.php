@@ -216,8 +216,7 @@ class ec_cartpage {
 		// Shipping
 		$sales_tax_discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, 0.00, $this->coupon_code, "", 0 );
 		if ( null !== $this->offer_result ) {
-			$sales_tax_discount->coupon_discount += $this->offer_result->discount_total;
-			$sales_tax_discount->discount_total += $this->offer_result->discount_total;
+			$sales_tax_discount->add_discount( $this->offer_result->discount_total );
 		}
 		$GLOBALS['wpeasycart_current_coupon_discount'] = $sales_tax_discount->coupon_discount;
 		$this->shipping = new ec_shipping( $this->cart->shipping_subtotal, $this->cart->weight, $this->cart->store_shippable_items /* 6.0.2: the units the store ships */, 'RADIO', $GLOBALS['ec_user']->freeshipping, $this->cart->length, $this->cart->width, $this->cart->height, $this->cart->cart );
@@ -225,8 +224,7 @@ class ec_cartpage {
 		// Tax (no VAT here)
 		$sales_tax_discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, "", 0 );
 		if ( null !== $this->offer_result ) {
-			$sales_tax_discount->coupon_discount += $this->offer_result->discount_total;
-			$sales_tax_discount->discount_total += $this->offer_result->discount_total;
+			$sales_tax_discount->add_discount( $this->offer_result->discount_total );
 		}
 		if ( $sales_tax_discount->shipping_discount > 0 ) {
 			$shipping_price_tax = ( $shipping_price > $sales_tax_discount->shipping_discount ) ? $shipping_price - $sales_tax_discount->shipping_discount : 0;
@@ -250,8 +248,7 @@ class ec_cartpage {
 		// Discount for Coupon
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $total_without_vat_or_discount );
 		if ( null !== $this->offer_result ) {
-			$this->discount->coupon_discount += $this->offer_result->discount_total;
-			$this->discount->discount_total += $this->offer_result->discount_total;
+			$this->discount->add_discount( $this->offer_result->discount_total ); /* 6.0.3: before the gift card takes its share */
 		}
 		// Amount to Apply VAT on
 		$promotion = new ec_promotion();
@@ -267,8 +264,7 @@ class ec_cartpage {
 		$grand_total = ( $this->cart->subtotal + $this->tax->tax_total + $this->tax->pst + $this->tax->hst + $this->tax->gst + $shipping_price + $this->tax->duty_total );
 		$this->discount = new ec_discount( $this->cart, $this->cart->discountable_subtotal, $shipping_price, $this->coupon_code, $this->gift_card, $grand_total );
 		if ( null !== $this->offer_result ) {
-			$this->discount->coupon_discount += $this->offer_result->discount_total;
-			$this->discount->discount_total += $this->offer_result->discount_total;
+			$this->discount->add_discount( $this->offer_result->discount_total ); /* 6.0.3: before the gift card takes its share */
 		}
 		// Order Totals
 		$this->order_totals = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $this->tax, $this->discount );
@@ -337,75 +333,8 @@ class ec_cartpage {
 		if ( substr_count( $this->cart_page, '?' ) )					$this->permalink_divider = "&";
 		else														$this->permalink_divider = "?";
 
-		// Subscription Options
-		$this->subscription_option1 = $this->subscription_option2 = $this->subscription_option3 = $this->subscription_option4 = $this->subscription_option5 = 0;
-
-		if ( ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option1 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option1 != "" ) || 
-			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option2 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option2 != "" ) || 
-			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option3 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option3 != "" ) || 
-			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option4 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option4 != "" ) || 
-			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option5 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option5 != "" ) ) {
-
-			$optionitem_list = $GLOBALS['ec_options']->get_all_optionitems();
-
-			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option1 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option1 != "" ) {
-				$this->subscription_option1 = $GLOBALS['ec_cart_data']->cart_data->subscription_option1;
-			}
-
-			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option2 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option2 != "" ) {
-				$this->subscription_option2 = $GLOBALS['ec_cart_data']->cart_data->subscription_option2;
-			}
-
-			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option3 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option3 != "" ) {
-				$this->subscription_option3 = $GLOBALS['ec_cart_data']->cart_data->subscription_option3;
-			}
-
-			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option4 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option4 != "" ) {
-				$this->subscription_option4 = $GLOBALS['ec_cart_data']->cart_data->subscription_option4;
-			}
-
-			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option5 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option5 != "" ) {
-				$this->subscription_option5 = $GLOBALS['ec_cart_data']->cart_data->subscription_option5;
-			}
-
-			foreach( $optionitem_list as $option_item ) {
-				if ( $option_item->optionitem_id == $this->subscription_option1 ) {
-					$this->subscription_option1_name = $option_item->optionitem_name;
-					$this->subscription_option1_label = $option_item->option_label;
-
-				}
-
-				if ( $option_item->optionitem_id == $this->subscription_option2 ) {
-					$this->subscription_option2_name = $option_item->optionitem_name;
-					$this->subscription_option2_label = $option_item->option_label;
-
-				}
-
-				if ( $option_item->optionitem_id == $this->subscription_option3 ) {
-					$this->subscription_option3_name = $option_item->optionitem_name;
-					$this->subscription_option3_label = $option_item->option_label;
-
-				}
-
-				if ( $option_item->optionitem_id == $this->subscription_option4 ) {
-					$this->subscription_option4_name = $option_item->optionitem_name;
-					$this->subscription_option4_label = $option_item->option_label;
-
-				}
-
-				if ( $option_item->optionitem_id == $this->subscription_option5 ) {
-					$this->subscription_option5_name = $option_item->optionitem_name;
-					$this->subscription_option5_label = $option_item->option_label;
-				}
-			}
-
-		}
-
-		// Subscription Advanced Options
-		if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option ) && $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option != "" )
-			$this->subscription_advanced_options = maybe_unserialize( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option );
-		else
-			$this->subscription_advanced_options = "";
+		// Subscription Options ( 6.0.3: load_subscription_options(), read again after guard_subscription_options() )
+		$this->load_subscription_options();
 
 		// Check for downloads in cart
 		$this->has_downloads = false;
@@ -926,6 +855,104 @@ class ec_cartpage {
 		echo "</div>";
 	}
 
+	/**
+	 * The subscription choices in the checkout session, as the subscription paths read them ( 6.0.3: out of the constructor, so
+	 * guard_subscription_options() can read them again after it puts the session right ).
+	 *
+	 * @since 6.0.3
+	 */
+	public function load_subscription_options() {
+		$this->subscription_option1_name = $this->subscription_option2_name = $this->subscription_option3_name = $this->subscription_option4_name = $this->subscription_option5_name = '';
+		$this->subscription_option1_label = $this->subscription_option2_label = $this->subscription_option3_label = $this->subscription_option4_label = $this->subscription_option5_label = '';
+		$this->subscription_option1 = $this->subscription_option2 = $this->subscription_option3 = $this->subscription_option4 = $this->subscription_option5 = 0;
+
+		if ( ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option1 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option1 != "" ) || 
+			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option2 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option2 != "" ) || 
+			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option3 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option3 != "" ) || 
+			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option4 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option4 != "" ) || 
+			( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option5 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option5 != "" ) ) {
+
+			$optionitem_list = $GLOBALS['ec_options']->get_all_optionitems();
+
+			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option1 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option1 != "" ) {
+				$this->subscription_option1 = $GLOBALS['ec_cart_data']->cart_data->subscription_option1;
+			}
+
+			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option2 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option2 != "" ) {
+				$this->subscription_option2 = $GLOBALS['ec_cart_data']->cart_data->subscription_option2;
+			}
+
+			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option3 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option3 != "" ) {
+				$this->subscription_option3 = $GLOBALS['ec_cart_data']->cart_data->subscription_option3;
+			}
+
+			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option4 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option4 != "" ) {
+				$this->subscription_option4 = $GLOBALS['ec_cart_data']->cart_data->subscription_option4;
+			}
+
+			if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_option5 ) && $GLOBALS['ec_cart_data']->cart_data->subscription_option5 != "" ) {
+				$this->subscription_option5 = $GLOBALS['ec_cart_data']->cart_data->subscription_option5;
+			}
+
+			foreach( $optionitem_list as $option_item ) {
+				if ( $option_item->optionitem_id == $this->subscription_option1 ) {
+					$this->subscription_option1_name = $option_item->optionitem_name;
+					$this->subscription_option1_label = $option_item->option_label;
+
+				}
+
+				if ( $option_item->optionitem_id == $this->subscription_option2 ) {
+					$this->subscription_option2_name = $option_item->optionitem_name;
+					$this->subscription_option2_label = $option_item->option_label;
+
+				}
+
+				if ( $option_item->optionitem_id == $this->subscription_option3 ) {
+					$this->subscription_option3_name = $option_item->optionitem_name;
+					$this->subscription_option3_label = $option_item->option_label;
+
+				}
+
+				if ( $option_item->optionitem_id == $this->subscription_option4 ) {
+					$this->subscription_option4_name = $option_item->optionitem_name;
+					$this->subscription_option4_label = $option_item->option_label;
+
+				}
+
+				if ( $option_item->optionitem_id == $this->subscription_option5 ) {
+					$this->subscription_option5_name = $option_item->optionitem_name;
+					$this->subscription_option5_label = $option_item->option_label;
+				}
+			}
+
+		}
+
+		// Subscription Advanced Options
+		if ( isset( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option ) && $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option != "" )
+			$this->subscription_advanced_options = maybe_unserialize( $GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option );
+		else
+			$this->subscription_advanced_options = "";
+	}
+
+	/**
+	 * Make the session's subscription choices this product's own before a subscription path reads them ( 6.0.3,
+	 * wp_easycart_subscription_options::guard() ): choices made for another product, or that do not belong to this one, go.
+	 *
+	 * @since 6.0.3
+	 * @param object|array $product The subscription product ( ec_product or its row ).
+	 * @return array guard()'s answer ( status ok | choose ).
+	 */
+	public function guard_subscription_options( $product ) {
+		if ( ! class_exists( 'wp_easycart_subscription_options' ) ) {
+			return array( 'status' => 'ok', 'changed' => false, 'removed' => array(), 'missing' => array() );
+		}
+		$answer = wp_easycart_subscription_options::guard( $product );
+		if ( ! empty( $answer['changed'] ) ) {
+			$this->load_subscription_options();
+		}
+		return $answer;
+	}
+
 	public function display_subscription_page( $subscription_product_id = false ) {
 		$this->display_cart_error();
 
@@ -944,6 +971,15 @@ class ec_cartpage {
 				$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
 			}
 
+			/* 6.0.3 ( D10 ): a subscriber who opens another plan of the plan group they subscribe to is sent to Change plan. */
+			if ( count( $products ) > 0 && class_exists( 'wp_easycart_subscription_changes' ) ) {
+				$existing_subscription = wp_easycart_subscription_changes::existing_for( $products[0], $GLOBALS['ec_user'] );
+				if ( $existing_subscription > 0 ) {
+					wp_easycart_subscription_changes::print_existing_notice( $existing_subscription, $products[0] );
+					return;
+				}
+			}
+
 			if ( count( $products ) > 0 && ! $products[0]['allow_multiple_subscription_purchases'] && $GLOBALS['ec_user']->has_active_subscription( $products[0]['product_id'] ) ) {
 				echo '<div class="ec_subscription_purchased">' . wp_easycart_language()->get_text( 'cart_login', 'cart_subscription_already_purchased' ) . '</div>';
 				return;
@@ -954,6 +990,16 @@ class ec_cartpage {
 			if ( count( $products ) > 0 && class_exists( 'wp_easycart_subscription_gateway' ) && ! wp_easycart_subscription_gateway::ready() ) {
 				wp_easycart_subscription_gateway::print_unavailable_page();
 				return;
+			}
+
+			/* 6.0.3: only choices made for this product, on its product page, reach the page ( and the totals, Stripe and the order
+			 * after it ); a subscription that still needs choices sends the shopper back to choose them. */
+			if ( count( $products ) > 0 ) {
+				$wpec_options_check = $this->guard_subscription_options( $products[0] );
+				if ( 'choose' === $wpec_options_check['status'] && class_exists( 'wp_easycart_subscription_options' ) ) {
+					wp_easycart_subscription_options::print_choose_notice( $products[0] );
+					return;
+				}
 			}
 
 			if ( count( $products ) > 0 ) {
@@ -1269,6 +1315,23 @@ class ec_cartpage {
 					$grand_total = ( ( $product->price + $option_total + $product->subscription_signup_fee ) * $subscription_quantity ) + $option_total_onetime - $discount_amount + $tax_total + $hst_total + $gst_total + $pst_total + $shipping_total;
 				} else {
 					$grand_total = ( ( $product->price + $option_total + $product->subscription_signup_fee ) * $subscription_quantity ) + $option_total_onetime - $discount_amount + $vat_total + $tax_total + $hst_total + $pst_total + $gst_total + $shipping_total;
+				}
+
+				/* 6.0.3: a code that comes off the first payment only ( or the first months ) says what the subscription renews at, and a
+				 * free trial's line names the first payment with the code taken off when Stripe takes it off that payment. */
+				$wpec_sub_plan             = array(
+					'code'           => isset( $this->coupon ) ? $this->coupon_code : '',
+					'quantity'       => $subscription_quantity,
+					'option_total'   => $option_total,
+					'shipping_total' => $shipping_total,
+					'taxed'          => ( $tax_total + $hst_total + $gst_total + $pst_total > 0 ) || ( $vat_total > 0 && ! $ec_tax->vat_included ),
+				);
+				$subscription_renewal_note = function_exists( 'wp_easycart_subscription_renewal_note' ) ? wp_easycart_subscription_renewal_note( $product, $wpec_sub_plan ) : '';
+				$subscription_trial_text   = function_exists( 'wp_easycart_subscription_trial_text' ) ? wp_easycart_subscription_trial_text( $product, $wpec_sub_plan ) : '';
+
+				/* 6.0.3: a customer who may buy this again ( licenses, seats ) is reminded of what they already have, with a link to manage it. */
+				if ( ! empty( $products[0]['allow_multiple_subscription_purchases'] ) && class_exists( 'wp_easycart_subscription_changes' ) && method_exists( 'wp_easycart_subscription_changes', 'owned_for' ) ) {
+					wp_easycart_subscription_changes::print_owned_notice( wp_easycart_subscription_changes::owned_for( $products[0], $GLOBALS['ec_user'] ) );
 				}
 
 				if ( file_exists( EC_PLUGIN_DATA_DIRECTORY . '/design/layout/' . get_option( 'ec_option_base_layout' ) . '/ec_cart_subscription.php' ) ) {
@@ -2718,7 +2781,7 @@ class ec_cartpage {
 		$previous  = ec_tax::use_fee_payment_type( 'card' );
 		$tax       = clone $this->tax;
 		$tax->fees = $tax->calculate_fees();
-		$totals    = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $tax, $this->discount );
+		$totals    = new ec_order_totals( $this->cart, $GLOBALS['ec_user'], $this->shipping, $tax, clone $this->discount ); /* 6.0.3: the gift card is settled on these totals, never on the page's */
 		ec_tax::use_fee_payment_type( $previous );
 		return $totals;
 	}
@@ -4079,6 +4142,21 @@ class ec_cartpage {
 		}
 
 		return $return_arr;
+	}
+
+	/**
+	 * The subscription page shows Stripe's Payment Element, as the regular checkout does ( the store's theme, layout and language ),
+	 * when the store's Stripe class takes payment methods: WP EasyCart PRO 6.0.3 or newer on the Stripe gateway, any Stripe
+	 * Connect store. Otherwise ( an older WP EasyCart PRO ) it keeps the card field. Filter wp_easycart_subscription_payment_element.
+	 *
+	 * @since 6.0.3
+	 * @return bool
+	 */
+	public function subscription_payment_element_ready() {
+		$method = (string) get_option( 'ec_option_payment_process_method' );
+		$class  = ( 'stripe' === $method ) ? 'ec_stripe' : ( ( 'stripe_connect' === $method ) ? 'ec_stripe_connect' : '' );
+		$ready  = '' !== $class && class_exists( $class ) && method_exists( $class, 'api' ) && method_exists( $class, 'accepts_payment_methods' );
+		return (bool) apply_filters( 'wp_easycart_subscription_payment_element', $ready );
 	}
 
 	public function print_stripe_locale_mapper() {
@@ -7379,6 +7457,7 @@ class ec_cartpage {
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
 		$product = new ec_product( $products[0] );
 		$this->cart->cart = array( $product );
+		$this->guard_subscription_options( $products[0] ); /* 6.0.3: the first order records this product's own choices only */
 		$subscription_cart = array();
 
 		$subscription_row = $this->mysqli->get_subscription_row( (int) $_POST['subscription_id'] );
@@ -7704,9 +7783,23 @@ class ec_cartpage {
 				$this->mysqli->cancel_stripe_subscription( $subscription->stripe_subscription_id );
 			}
 
+			self::forget_subscription_options(); /* 6.0.3 */
 			return esc_url_raw( wpeasycart_links()->get_cart_page( 'checkout_success', array( 'order_id' => (int) $order_id ) ) );
 		} else {
+			self::forget_subscription_options(); /* 6.0.3 */
 			return esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription->subscription_id ) ) );
+		}
+	}
+
+	/**
+	 * A subscription was bought: its choices leave the checkout session, so the next subscription page starts clean ( 6.0.3 ).
+	 *
+	 * @since 6.0.3
+	 */
+	public static function forget_subscription_options() {
+		if ( class_exists( 'wp_easycart_subscription_options' ) ) {
+			wp_easycart_subscription_options::clear();
+			$GLOBALS['ec_cart_data']->save_session_to_db();
 		}
 	}
 
@@ -7717,6 +7810,7 @@ class ec_cartpage {
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
 		$product = new ec_product( $products[0] );
 		$this->cart->cart = array( $product );
+		$this->guard_subscription_options( $products[0] ); /* 6.0.3: this product's own choices only; missing ones stop it at subscription_errors() below */
 		$subscription_cart = array();
 
 		$quantity = 1;
@@ -7740,6 +7834,7 @@ class ec_cartpage {
 		$subscription_plan_quantities = array();
 		$optionitem_list = $GLOBALS['ec_options']->get_all_optionitems();
 		$is_override_price = false;
+		$override_option_item = null;
 
 		foreach( $optionitem_list as $option_item ) {
 			$found = false;
@@ -7755,8 +7850,7 @@ class ec_cartpage {
 						'' == $option_item->stripe_plan_id || 
 						! $option_plan_exists || 
 						in_array( $option_item->stripe_plan_id, $subscription_plan_options ) ||
-						$option_plan_exists->amount != (int) ( $option_item->optionitem_price * 100 ) || 
-						$option_plan_exists->nickname != wp_easycart_language()->convert_text( $option_item->optionitem_name )
+						! wp_easycart_subscription_prices::plan_fits( $option_plan_exists, $option_item->optionitem_price, $option_item->optionitem_name, $product )
 					) {
 						$stripe_plan = $stripe->insert_option_as_plan( $product, $option_item );
 						if ( $stripe_plan ) {
@@ -7794,8 +7888,7 @@ class ec_cartpage {
 						'' == $option_item->stripe_plan_id || 
 						! $option_plan_exists || 
 						in_array( $option_item->stripe_plan_id, $subscription_plan_options ) ||
-						$option_plan_exists->amount != (int) ( $option_item->optionitem_price * 100 ) || 
-						$option_plan_exists->nickname != wp_easycart_language()->convert_text( $option_item->optionitem_name )
+						! wp_easycart_subscription_prices::plan_fits( $option_plan_exists, $option_item->optionitem_price, $option_item->optionitem_name, $product )
 					) {
 						$stripe_plan = $stripe->insert_option_as_plan( $product, $option_item );
 						if ( $stripe_plan ) {
@@ -7824,78 +7917,20 @@ class ec_cartpage {
 					}
 					$subscription_plan_options[] = $option_item->stripe_plan_id;
 				} else if ( $option_item && $option_item->optionitem_price_onetime > 0 ) {
-					$option_plan_exists = false;
-					if ( $option_item->stripe_plan_id && '' != $option_item->stripe_plan_id ) {
-						$option_plan_exists = $stripe->get_plan( (object) array( 'subscription_unique_id' => $option_item->stripe_plan_id ) );
-					}
-					if ( 
-						! $option_item->stripe_plan_id || 
-						'' == $option_item->stripe_plan_id || 
-						! $option_plan_exists || 
-						in_array( $option_item->stripe_plan_id, $subscription_plan_options ) ||
-						$option_plan_exists->amount != (int) ( $option_item->optionitem_price_onetime * 100 ) || 
-						$option_plan_exists->nickname != wp_easycart_language()->convert_text( $option_item->optionitem_name )
-					) {
-						$stripe_plan = $stripe->insert_option_as_plan( $product, $option_item );
-						if ( $stripe_plan ) {
-							$wpdb->query( $wpdb->prepare( "UPDATE ec_optionitem SET stripe_plan_id = %d WHERE optionitem_id = %d", $stripe_plan->id, $option_item->optionitem_id ) );
-							$option_item->stripe_plan_id = $stripe_plan->id;
-						}
-					}
-					$option_price_onetime_adjustment += $option_item->optionitem_price_onetime;
-					$subscription_plan_quantities[] = 1;
-					$subscription_plan_options[] = $option_item->stripe_plan_id;
+					/* 6.0.3: a one-time option is charged once, with the first payment ( the customer balance below, as the sign-up
+					 * fee is ), as the subscription page shows it. It went to Stripe as a recurring item and was billed every period. */
+					$onetime_price = ( 'number' == $option['option_type'] ) ? $option_item->optionitem_price_onetime * (int) $option['optionitem_value'] : $option_item->optionitem_price_onetime;
+					$option_price_onetime_adjustment += $onetime_price;
 					$subscription_cart[] = (object) array(
 						'vat_enabled' => ( $product->vat_rate != 0 ),
 						'is_taxable' => $product->is_taxable,
-						'item_total' => $option_item->optionitem_price_onetime,
+						'item_total' => $onetime_price,
 						'item_discount' => 0,
 					);
 				} else if ( $option_item && $option_item->optionitem_price_override > 0 ) {
 					$product->price = $option_item->optionitem_price_override;
 					$product->title .= ' ' . $option_item->optionitem_name;
-					$override_stripe_price_ids = $wpdb->get_var( $wpdb->prepare( 'SELECT stripe_price_id FROM ec_option_to_product WHERE product_id = %d AND option_id = %d', $product->product_id, $option_item->option_id ) );
-					$option_item->stripe_price_id = '';
-					$override_stripe_price_ids_arr = array();
-					if ( isset( $override_stripe_price_ids ) && is_string( $override_stripe_price_ids ) && '' != $override_stripe_price_ids ) {
-						$override_stripe_price_ids_arr = json_decode( $override_stripe_price_ids );
-						if ( is_array( $override_stripe_price_ids_arr ) ) {
-							foreach ( $override_stripe_price_ids_arr as $override_stripe_price_ids_arr_item ) {
-								if ( is_object( $override_stripe_price_ids_arr_item ) && isset( $override_stripe_price_ids_arr_item->optionitem_id ) && isset( $override_stripe_price_ids_arr_item->stripe_price_id ) && $override_stripe_price_ids_arr_item->optionitem_id == $option_item->optionitem_id ) {
-									$option_item->stripe_price_id = $override_stripe_price_ids_arr_item->stripe_price_id;
-								}
-							}
-						}
-					}
-					if ( '' == $option_item->stripe_price_id ) {
-						$stripe_price_new = $stripe->insert_price( $product, $option_item->optionitem_name );
-						$option_item->stripe_price_id = $stripe_price_new->id;
-						$product->stripe_default_price_id = $stripe_price_new->id;
-						$override_stripe_price_ids_arr[] = (object) array(
-							'optionitem_id' => $option_item->optionitem_id,
-							'stripe_price_id' => $stripe_price_new->id,
-						);
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_option_to_product SET stripe_price_id = %s WHERE product_id = %d AND option_id = %d', json_encode( $override_stripe_price_ids_arr ), $product->product_id, $option_item->option_id ) );
-					} else {
-						$product->stripe_default_price_id = $option_item->stripe_price_id;
-						$price_check = $stripe->get_price( $product->stripe_default_price_id );
-						if ( ! $price_check ) {
-							$stripe_price_new = $stripe->insert_price( $product );
-							$option_item->stripe_price_id = $stripe_price_new->id;
-							$product->stripe_default_price_id = $stripe_price_new->id;
-							$override_stripe_price_ids_new_arr = array();
-							foreach ( $override_stripe_price_ids_arr as $override_stripe_price_ids_arr_item ) {
-								if ( is_object( $override_stripe_price_ids_arr_item ) && isset( $override_stripe_price_ids_arr_item->optionitem_id ) && isset( $override_stripe_price_ids_arr_item->stripe_price_id ) && $override_stripe_price_ids_arr_item->optionitem_id != $option_item->optionitem_id ) {
-									$override_stripe_price_ids_new_arr[] = $override_stripe_price_ids_arr_item;
-								}
-							}
-							$override_stripe_price_ids_new_arr[] = (object) array(
-								'optionitem_id' => $option_item->optionitem_id,
-								'stripe_price_id' => $stripe_price_new->id,
-							);
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_option_to_product SET stripe_price_id = %s WHERE product_id = %d AND option_id = %d', json_encode( $override_stripe_price_ids_new_arr ), $product->product_id, $option_item->option_id ) );
-						}
-					}
+					$override_option_item = $option_item; /* 6.0.3: its Stripe price is checked against this price below ( ensure() ) */
 					$is_override_price = true;
 				}
 				if ( $option_item && $option_item->optionitem_weight > 0 ) {
@@ -7919,6 +7954,7 @@ class ec_cartpage {
 			'item_discount' => 0,
 		);
 
+		$stripe_unit_price = $product->price; /* 6.0.3: what the product's own Stripe item bills; the recurring options are items of their own */
 		$product->price = $product->price + $option_price_adjustment;
 
 		if ( get_option( 'ec_option_collect_shipping_for_subscriptions' ) && get_option( 'ec_option_use_shipping' ) && $product->is_shippable ) {
@@ -8373,6 +8409,12 @@ class ec_cartpage {
 		$customer_insert_test = false;
 
 		$customer_balance_adj = $initial_fee;
+		/* 6.0.3: one-time option charges, with their share of the tax, come with the first payment. */
+		if ( $option_price_onetime_adjustment > 0 ) {
+			$onetime_taxed_base = $product->price * $quantity + $option_price_onetime_adjustment - $discount_total;
+			$onetime_tax = ( $onetime_taxed_base > 0 ) ? round( $option_price_onetime_adjustment * ( $this->order_totals->tax_total / $onetime_taxed_base ), 2 ) : 0;
+			$customer_balance_adj += $option_price_onetime_adjustment + $onetime_tax;
+		}
 		if ( ! $product->subscription_shipping_recurring ) {
 			$customer_balance_adj += $shipping_total + $this->tax->shipping_tax_total + $this->tax->shipping_vat_total - $shipping_discount;
 		}
@@ -8404,32 +8446,30 @@ class ec_cartpage {
 			return array( 'error' => 'customer_error' );
 		}
 
-		$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-		$product_check = $stripe->get_product( $product->stripe_product_id );
-		if ( ! $product_check ) {
-			$stripe_product_new = $stripe->insert_product( $product );
-			$product->stripe_product_id = $stripe_product_new->id;
-			$product->stripe_default_price_id = $stripe_product_new->default_price;
-			if ( ! $is_sandbox ) {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-			} else {
-				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-			}
-		} else {
-			$price_check = $stripe->get_price( $product->stripe_default_price_id );
-			if ( ! $price_check ) {
-				$stripe_price_new = $stripe->insert_price( $product );
-				$product->stripe_default_price_id = $stripe_price_new->id;
-				if ( ! $is_sandbox ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-				} else {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-				}
-			}
+		/* 6.0.3: the Stripe price is checked against what the product bills ( amount, interval, currency ) before it is used, and
+		 * a new one made when it changed; it was only checked to exist, so a changed price kept charging the old one. */
+		$stripe_price_id = wp_easycart_subscription_prices::ensure(
+			$product,
+			$stripe,
+			array(
+				'amount'      => $stripe_unit_price,
+				'option_item' => $override_option_item,
+			)
+		);
+		if ( ! $stripe_price_id ) {
+			return array( 'error' => 'subscription_fail' );
 		}
 
 		// Add customer to payment intent
-		$card_response = $stripe->insert_card( $GLOBALS['ec_user'], sanitize_text_field( $_POST['stripeToken'] ) );
+		/* 6.0.3: the Payment Element sends a payment method ( pm_ ), attached to the customer; the card field of a theme's copy of
+		 * the page sends a token ( tok_ ), added as a card as before. */
+		$wpec_card_token = isset( $_POST['stripeToken'] ) ? sanitize_text_field( wp_unslash( $_POST['stripeToken'] ) ) : '';
+		if ( 0 === strpos( $wpec_card_token, 'pm_' ) && method_exists( $stripe, 'api' ) && method_exists( $stripe, 'accepts_payment_methods' ) ) {
+			$wpec_attached = $stripe->api( 'POST', 'payment_methods/' . rawurlencode( $wpec_card_token ) . '/attach', array( 'customer' => $GLOBALS['ec_user']->stripe_customer_id ) );
+			$card_response = ( ! is_wp_error( $wpec_attached ) && isset( $wpec_attached->id ) ) ? (string) $wpec_attached->id : false;
+		} else {
+			$card_response = $stripe->insert_card( $GLOBALS['ec_user'], $wpec_card_token );
+		}
 		if ( ! $card_response ) {
 			return array( 'error' => 'payment_fail' );
 		}
@@ -9967,6 +10007,9 @@ class ec_cartpage {
 		}
 
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.model_number = %s", $model_number ), "", "", "" );
+		if ( count( $products ) > 0 ) {
+			$this->guard_subscription_options( $products[0] ); /* 6.0.3: this product's own choices only; missing ones stop it at subscription_errors() below */
+		}
 
 		$user_error = false;
 		if ( isset( $_POST['ec_contact_email'] ) ) {
@@ -10326,29 +10369,8 @@ class ec_cartpage {
 							}
 
 							if ( $card_result ) { //Card Submitted Successfully
-								$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-								$product_check = $stripe->get_product( $product->stripe_product_id );
-								if ( ! $product_check ) {
-									$stripe_product_new = $stripe->insert_product( $product );
-									$product->stripe_product_id = $stripe_product_new->id;
-									$product->stripe_default_price_id = $stripe_product_new->default_price;
-									if ( ! $is_sandbox ) {
-										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-									} else {
-										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-									}
-								} else {
-									$price_check = $stripe->get_price( $product->stripe_default_price_id );
-									if ( ! $price_check ) {
-										$stripe_price_new = $stripe->insert_price( $product );
-										$product->stripe_default_price_id = $stripe_price_new->id;
-										if ( ! $is_sandbox ) {
-											$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-										} else {
-											$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-										}
-									}
-								}
+								/* 6.0.3: the Stripe price is checked against the product before it is used ( wp_easycart_subscription_prices ). */
+								wp_easycart_subscription_prices::ensure( $product, $stripe );
 
 								if ( $product->is_shippable ) {
 									$ship_price_total = $product->price * $quantity;
@@ -10494,6 +10516,9 @@ class ec_cartpage {
 						$GLOBALS['ec_cart_data']->cart_data->subscription_option5 = "";
 
 						$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = "";
+						if ( class_exists( 'wp_easycart_subscription_options' ) ) {
+							wp_easycart_subscription_options::clear(); /* 6.0.3: the quantity and the product they were for too */
+						}
 
 						$GLOBALS['ec_cart_data']->cart_data->billing_first_name = "";
 						$GLOBALS['ec_cart_data']->cart_data->billing_last_name = "";
@@ -10876,6 +10901,10 @@ class ec_cartpage {
 			$quantity = (int) $_POST['ec_quantity'];
 		}
 
+		/* 6.0.3: the choices below are made for this product ( wp_easycart_subscription_options ): a quantity left from another goes. */
+		if ( class_exists( 'wp_easycart_subscription_options' ) ) {
+			wp_easycart_subscription_options::claim( $product_id );
+		}
 		$GLOBALS['ec_cart_data']->cart_data->subscription_quantity = $quantity;
 
 		$GLOBALS['ec_cart_data']->cart_data->subscription_option1 = "";
@@ -10916,6 +10945,7 @@ class ec_cartpage {
 			}
 		}
 
+		$option_vals = array(); /* 6.0.3: a product without modifiers saved an undefined value here */
 		if ( $use_advanced_optionset || $use_both_option_types ) {
 			$option_vals = $this->get_advanced_option_vals( $product_id, $cart_id );
 			if ( ! empty( $this->option_input_errors ) ) {
@@ -10924,7 +10954,7 @@ class ec_cartpage {
 			}
 		}
 
-		$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
+		$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = $option_vals ? maybe_serialize( $option_vals ) : '';
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 
 		header( "location: " . esc_url_raw( wpeasycart_links()->get_cart_page( 'subscription_info', array( 'subscription' => esc_attr( $product->model_number ) ) ) ) );

@@ -857,18 +857,9 @@ class ec_product {
 
 		$output = apply_filters( 'wp_easycart_product_details_price_post_num', $output, $this->product_id, $rand_id );
 		if ( $this->is_subscription_item ) {
-			$ret_string = '';
-			$ret_string .= '/';
-			if ( $this->subscription_bill_length > 1 ) {
-				$ret_string .= esc_attr( $this->subscription_bill_length . " " . $this->get_subscription_period_name( ) . "s" );
-			} else {
-				$ret_string .= esc_attr( $this->get_subscription_period_name( ) );
-			}
-
-			if( $this->subscription_bill_duration > 0 ){
-				$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . esc_attr( $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( ) );
-
-			}
+			/* 6.0.3: one wording with My Account and the subscription page ( wp_easycart_subscription_period_text(): "/3 months",
+			 * "for 2 years"; it said "/3 mos" and "for 3 year" ). */
+			$ret_string = esc_attr( wp_easycart_subscription_period_text( $this->subscription_bill_length, $this->subscription_bill_period, $this->subscription_bill_duration ) );
 			$ret_string = apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 			$output .= "</span><span class=\"ec_product_price\">" . $ret_string;
 		}
@@ -886,16 +877,7 @@ class ec_product {
 		if ( ! $price ) {
 			$price = $this->price;
 		}
-		$ret_string = "/"; 
-		if( $this->subscription_bill_length > 1 ){
-			$ret_string .= $this->subscription_bill_length . " " . $this->get_subscription_period_name( ) . "s";
-		}else{
-			$ret_string .= $this->get_subscription_period_name( );
-		}
-
-		if( $this->subscription_bill_duration > 0 ){
-			$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( );
-		}
+		$ret_string = wp_easycart_subscription_period_text( $this->subscription_bill_length, $this->subscription_bill_period, $this->subscription_bill_duration ); /* 6.0.3 */
 
 		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 
@@ -905,16 +887,7 @@ class ec_product {
 
 	public function get_option_price_formatted( $price, $subscription_quantity = 1 ){
 
-		$ret_string = "/"; 
-		if( $this->subscription_bill_length > 1 ){
-			$ret_string .= $this->subscription_bill_length . " " . $this->get_subscription_period_name( ) . "s";
-		}else{
-			$ret_string .= $this->get_subscription_period_name( );
-		}
-
-		if( $this->subscription_bill_duration > 0 ){
-			$ret_string .= ' ' . wp_easycart_language( )->get_text( 'product_details', 'product_details_subscription_duration_divider' ) . ' ' . $this->subscription_bill_duration . ' ' . $this->get_subscription_period_name_full( );
-		}
+		$ret_string = wp_easycart_subscription_period_text( $this->subscription_bill_length, $this->subscription_bill_period, $this->subscription_bill_duration ); /* 6.0.3 */
 
 		$ret_string = $GLOBALS['currency']->get_currency_display( $price * $subscription_quantity  ) . apply_filters( 'wp_easycart_subscription_price_formatting', $ret_string, $this->model_number, $this->product_id );
 
@@ -2080,11 +2053,23 @@ class ec_product {
 	}
 
 	public function get_product_single_image( ){
+		/* 6.0.3: with a gallery or per-option pictures, the picture the store shows first ( image1 can be an old picture there ). */
+		if ( ( $this->use_optionitem_images || count( $this->images->product_images ) > 0 ) && class_exists( 'wp_easycart_product_image' ) ) {
+			$option_rows = array();
+			if ( $this->use_optionitem_images ) {
+				foreach ( (array) $this->images->imageset as $imageset ) {
+					$option_rows[] = self::picture_row( $imageset );
+				}
+			}
+			return wp_easycart_product_image::main_url( self::picture_row( $this->images ), 'large', $option_rows );
+		}
 		$thumb = "";
+		// 6.0.3: a file name is looked for in wp-easycart-data, then in the plugin's own folder ( file_exists() was asked about
+		// an address, which is never true, so every file name pointed at the plugin's folder ).
 		if( $this->use_optionitem_images ){
 			if( substr( $this->images->imageset[0]->image1, 0, 7 ) == 'http://' || substr( $this->images->imageset[0]->image1, 0, 8 ) == 'https://' ){
 				$thumb = $this->images->imageset[0]->image1;
-			}else if( file_exists( plugins_url( "wp-easycart-data/products/pics1/" . $this->images->imageset[0]->image1, EC_PLUGIN_DATA_DIRECTORY ) ) ){
+			}else if( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $this->images->imageset[0]->image1 ) ){
 				$thumb = plugins_url( "wp-easycart-data/products/pics1/" . $this->images->imageset[0]->image1, EC_PLUGIN_DATA_DIRECTORY );
 			}else{
 				$thumb = plugins_url( "wp-easycart/products/pics1/" . $this->images->imageset[0]->image1, EC_PLUGIN_DIRECTORY );
@@ -2092,13 +2077,29 @@ class ec_product {
 		}else{
 			if( substr( $this->images->image1, 0, 7 ) == 'http://' || substr( $this->images->image1, 0, 8 ) == 'https://' ){
 				$thumb = $this->images->image1;
-			}else if( file_exists( plugins_url( "wp-easycart-data/products/pics1/" . $this->images->image1, EC_PLUGIN_DATA_DIRECTORY ) ) ){
+			}else if( file_exists( EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $this->images->image1 ) ){
 				$thumb = plugins_url( "wp-easycart-data/products/pics1/" . $this->images->image1, EC_PLUGIN_DATA_DIRECTORY );
 			}else if( !file_exists( $thumb ) ){
 				$thumb = plugins_url( "wp-easycart/products/pics1/" . $this->images->image1, EC_PLUGIN_DIRECTORY );
 			}
 		}
 		return $thumb;
+	}
+
+	/**
+	 * The picture columns of the product ( ec_prodimages ) or of an option choice ( ec_prodimageset ) as a row for
+	 * wp_easycart_product_image ( product_images as a comma list ).
+	 *
+	 * @since 6.0.3
+	 * @param object $images ec_prodimages or ec_prodimageset.
+	 * @return object
+	 */
+	private static function picture_row( $images ) {
+		$row = (object) array( 'product_images' => implode( ',', (array) $images->product_images ) );
+		for ( $slot = 1; $slot <= 5; $slot++ ) {
+			$row->{ 'image' . $slot } = (string) $images->{ 'image' . $slot };
+		}
+		return $row;
 	}
 
 	public function has_sale_price( ){
@@ -2410,14 +2411,16 @@ class ec_product {
 
 	public function get_first_image_url( ){
 
-		$test_src = EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $this->images->get_single_image( );
+		/* 6.0.3: the image1 file itself, as get_second_image_url() does. get_single_image() answers a whole address once the
+		   product has a gallery, so a gallery starting with the image1 entry showed the "not found" picture. */
+		$test_src = EC_PLUGIN_DATA_DIRECTORY . "/products/pics1/" . $this->images->image1;
 		$test_src2 = EC_PLUGIN_DATA_DIRECTORY . "/design/theme/" . get_option( 'ec_option_base_theme' ) . "/images/ec_image_not_found.jpg";
 
 		if ( substr( $this->images->image1, 0, 7 ) == 'http://' || substr( $this->images->image1, 0, 8 ) == 'https://' ) {
 			return $this->images->image1;
 
-		} else if ( file_exists( $test_src ) && !is_dir( $test_src ) ) {
-			return plugins_url( "/wp-easycart-data/products/pics1/" . $this->images->get_single_image( ), EC_PLUGIN_DATA_DIRECTORY );
+		} else if ( '' != $this->images->image1 && file_exists( $test_src ) && !is_dir( $test_src ) ) {
+			return plugins_url( "/wp-easycart-data/products/pics1/" . $this->images->image1, EC_PLUGIN_DATA_DIRECTORY );
 
 		} else if ( get_option( 'ec_option_product_image_default' ) && '' != get_option( 'ec_option_product_image_default' ) ) {
 			return get_option( 'ec_option_product_image_default' );

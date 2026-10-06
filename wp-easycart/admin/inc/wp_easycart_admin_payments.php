@@ -559,7 +559,9 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 			}
 
 			if ( $_GET['ec_admin_form_action'] == 'handle-square' && isset( $_GET['wpeasycart_square_failed'] ) ) {
-				if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
+				if ( isset( $_GET['goto'] ) && 'import' === $_GET['goto'] ) { /* 6.0.3: Products › Import */
+					wp_redirect( 'admin.php?page=wp-easycart-products&subpage=import&source=square&error=square-failed-to-connect' );
+				} else if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
 					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&error=square-failed-to-connect' );
 				} else {
 					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=payment&error=square-failed-to-connect' );
@@ -578,7 +580,12 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 				$refresh_token = ( isset( $_GET['refresh_token'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\._\~\+\/]/', '', sanitize_text_field( wp_unslash( $_GET['refresh_token'] ) ) ) : '';
 				$expires = ( isset( $_GET['expires'] ) ) ? preg_replace( '/[^A-Za-z0-9 \-\:]/', '', sanitize_text_field( wp_unslash( $_GET['expires'] ) ) ) : '';
 
-				update_option( 'ec_option_payment_process_method', 'square' );
+				/* 6.0.3: connected from Products › Import only to bring the catalog in: the payment gateway stays as it is
+				   ( a Stripe or PayPal store could not import from Square, since connecting made Square the gateway ). */
+				$for_import = ( isset( $_GET['goto'] ) && 'import' === $_GET['goto'] );
+				if ( ! $for_import ) {
+					update_option( 'ec_option_payment_process_method', 'square' );
+				}
 				if ( isset( $_GET['sandbox'] ) ) {
 					update_option( 'ec_option_square_is_sandbox', 1 );
 					update_option( 'ec_option_square_sandbox_application_id', '' );
@@ -593,16 +600,23 @@ if ( ! class_exists( 'wp_easycart_admin_payments' ) ) :
 					update_option( 'ec_option_square_refresh_token', $refresh_token );
 					update_option( 'ec_option_square_token_expires', $expires );
 				}
-				do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
+				if ( ! $for_import ) {
+					do_action( 'wpeasycart_live_gateway_updated', get_option( 'ec_option_payment_process_method' ) );
+				}
 
 				$square = new ec_square();
 				$square->set_currency();
+				if ( $for_import ) {
+					$square->get_location_id(); /* the first location when none is chosen yet ( the import reads its items and stock ) */
+				}
 
 				if ( !wp_next_scheduled( 'wp_easycart_square_renew_token' ) ) {
 					wp_schedule_event( time(), 'daily', 'wp_easycart_square_renew_token' );
 				}
 
-				if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
+				if ( $for_import ) {
+					wp_redirect( 'admin.php?page=wp-easycart-products&subpage=import&source=square&connected=1' );
+				} else if ( isset( $_GET['goto'] ) && $_GET['goto'] == 'wizard' ) {
 					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=setup-wizard&step=3&success=square-connected' );
 				} else {
 					wp_redirect( 'admin.php?page=wp-easycart-settings&subpage=payment&success=square-connected' );

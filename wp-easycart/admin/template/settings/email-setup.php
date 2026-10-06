@@ -208,6 +208,77 @@ if ( ! function_exists( 'ecst_email_subscription_test' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecst_email_render_reminder_status' ) ) {
+	/**
+	 * 6.0.3: when the subscription reminders last ran, when they run next, what they sent, and why none go out.
+	 */
+	function ecst_email_render_reminder_status() {
+		if ( ! class_exists( 'wp_easycart_subscription_reminders' ) ) {
+			return;
+		}
+		$ecst_r    = 'wp_easycart_subscription_reminders';
+		$ecst_fmt  = (string) get_option( 'date_format', 'F j, Y' ) . ' ' . (string) get_option( 'time_format', 'g:i a' );
+		$ecst_when = function ( $at ) use ( $ecst_fmt ) {
+			return function_exists( 'wp_date' ) ? (string) wp_date( $ecst_fmt, (int) $at ) : (string) date_i18n( $ecst_fmt, (int) $at );
+		};
+		echo '<div class="ecst-reminders">';
+		if ( ! $ecst_r::ready() ) {
+			echo '<p class="ecst-needs-note">' . esc_html__( 'Reminders start once the WP EasyCart database update has run.', 'wp-easycart' ) . '</p></div>';
+			return;
+		}
+		if ( class_exists( 'wp_easycart_subscription_gateway' ) && ! wp_easycart_subscription_gateway::ready() ) {
+			echo '<p class="ecst-needs-note">' . esc_html__( 'Each reminder is checked with Stripe before it goes out, and Stripe isn’t set up for the mode the store is in, so none are sent.', 'wp-easycart' ) . '</p>';
+		}
+		$ecst_state = $ecst_r::state();
+		$ecst_next  = wp_next_scheduled( $ecst_r::CRON );
+		$ecst_line  = $ecst_state['last_run'] ? sprintf( /* translators: %s: date and time. */ __( 'Last checked %s.', 'wp-easycart' ), $ecst_when( $ecst_state['last_run'] ) ) : __( 'Not checked yet.', 'wp-easycart' );
+		if ( $ecst_next ) {
+			$ecst_line .= ' ' . sprintf( /* translators: %s: date and time. */ __( 'Next check %s.', 'wp-easycart' ), $ecst_when( $ecst_next ) );
+		}
+		echo '<p>' . esc_html( $ecst_line ) . '</p>';
+		if ( $ecst_state['recent'] ) {
+			echo '<p>' . esc_html__( 'Last sent:', 'wp-easycart' ) . '</p><ul>';
+			foreach ( $ecst_state['recent'] as $ecst_sent ) {
+				$ecst_kind = ( 'trial' === $ecst_sent['kind'] ) ? __( 'trial reminder', 'wp-easycart' ) : __( 'renewal reminder', 'wp-easycart' );
+				/* translators: 1: subscription number, 2: trial reminder | renewal reminder, 3: the renewal or trial end date, 4: when it was sent. */
+				echo '<li>' . esc_html( sprintf( __( 'Subscription %1$d: %2$s for %3$s, sent %4$s', 'wp-easycart' ), (int) $ecst_sent['id'], $ecst_kind, function_exists( 'wp_date' ) ? wp_date( (string) get_option( 'date_format', 'F j, Y' ), (int) $ecst_sent['for'] ) : gmdate( 'Y-m-d', (int) $ecst_sent['for'] ), $ecst_when( $ecst_sent['sent'] ) ) ) . '</li>';
+			}
+			echo '</ul>';
+		}
+		echo '</div>';
+	}
+	function ecst_email_test_renewal_reminder() {
+		return ecst_email_subscription_test( 'renewal_reminder' );
+	}
+	function ecst_email_test_trial_reminder() {
+		return ecst_email_subscription_test( 'trial_reminder' );
+	}
+	/**
+	 * Send the reminders that are due now instead of at the next daily check.
+	 *
+	 * @return string|WP_Error
+	 */
+	function ecst_email_run_reminders() {
+		if ( ! class_exists( 'wp_easycart_subscription_reminders' ) ) {
+			return new WP_Error( 'ecst_reminders_missing', __( 'WP EasyCart is not fully loaded. Reload the page and try again.', 'wp-easycart' ) );
+		}
+		$ecst_result = wp_easycart_subscription_reminders::run();
+		if ( ! empty( $ecst_result['locked'] ) ) {
+			return new WP_Error( 'ecst_reminders_busy', __( 'A check is already running. Try again in a minute.', 'wp-easycart' ) );
+		}
+		/* translators: 1: renewal reminders sent, 2: trial reminders sent. */
+		$ecst_text = sprintf( __( 'Checked every subscription: %1$d renewal and %2$d trial reminders sent.', 'wp-easycart' ), (int) $ecst_result['renewal'], (int) $ecst_result['trial'] );
+		if ( (int) $ecst_result['retry'] > 0 ) {
+			/* translators: %d: subscriptions. */
+			$ecst_text .= ' ' . sprintf( _n( '%d could not be confirmed with Stripe and is tried again at the next check.', '%d could not be confirmed with Stripe and are tried again at the next check.', (int) $ecst_result['retry'], 'wp-easycart' ), (int) $ecst_result['retry'] );
+		}
+		if ( ! empty( $ecst_result['more'] ) ) {
+			$ecst_text .= ' ' . __( 'More are due: they go out within the hour.', 'wp-easycart' );
+		}
+		return $ecst_text;
+	}
+}
+
 if ( ! function_exists( 'ecst_email_sanitize_test_recipient' ) ) {
 	/** Empty ( use the signed-in admin ) or one valid address. */
 	function ecst_email_sanitize_test_recipient( $value ) {
@@ -721,6 +792,14 @@ return array(
 					'keywords' => array( 'receipt', 'images', 'thumbnails', 'line items' ),
 					'legacy'   => array( 'page' => 'email-setup', 'section' => 'Order Receipt Email Setup', 'label' => 'Product Images on Receipt' ),
 				),
+				/* 6.0.3: wp_easycart_show_payment_pending_notice() ( GitHub #128 ). */
+				'ec_option_show_payment_pending_notice' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Payment pending notice', 'wp-easycart' ),
+					'desc'     => __( 'Orders that are not approved yet say the payment is still being processed, on the receipt, the order confirmation page and the customer’s order details. Turn it off when buyers pay later, such as by bank transfer, invoice or on pickup.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'payment pending', 'payment processing', 'not approved', 'bank transfer', 'manual payment', 'pay on pickup', 'receipt notice' ),
+				),
 				'ec_option_upload_link_access' => array(
 					'type'     => 'select',
 					'label'    => __( 'Customer upload links in admin emails', 'wp-easycart' ),
@@ -796,6 +875,86 @@ return array(
 			'keywords' => array( 'pdf', 'invoice', 'receipt pdf' ),
 			'render'   => 'ecst_email_render_pdf_moved',
 		),
+		/* 6.0.3: reminders the law and the card networks ask for. Free and on by default ( plan tables D12 ): subscribers keep
+		   billing on a lapsed licence, so their reminders keep going too. wp_easycart_subscription_reminders sends them. */
+		'subscription-reminders' => array(
+			'title'   => __( 'Subscription reminders', 'wp-easycart' ),
+			'icon'    => 'clock',
+			'hint'    => __( 'Emails before a yearly renewal and before a free trial ends, each with the date, the price and a link to cancel', 'wp-easycart' ),
+			'fields'  => array(
+				'ec_option_subscription_renewal_reminder'      => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Remind subscribers before a yearly renewal', 'wp-easycart' ),
+					'desc'     => __( 'An email before a subscription billed yearly ( or less often ) renews. Several US states require one for yearly terms.', 'wp-easycart' ),
+					'default'  => '1',
+					'keywords' => array( 'renewal', 'reminder', 'annual', 'yearly', 'auto-renew', 'notice', 'subscription' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'New in 6.0.3', 'label' => 'Renewal reminder' ),
+				),
+				'ec_option_subscription_renewal_reminder_days' => array(
+					'type'     => 'number',
+					'label'    => __( 'Days before the renewal', 'wp-easycart' ),
+					'desc'     => __( '30 falls inside every US state rule for yearly renewals.', 'wp-easycart' ),
+					'default'  => '30',
+					'min'      => 5,
+					'max'      => 60,
+					'step'     => 1,
+					'parent'   => 'ec_option_subscription_renewal_reminder',
+					'keywords' => array( 'renewal', 'reminder', 'days' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'New in 6.0.3', 'label' => 'Renewal reminder days' ),
+				),
+				'ec_option_subscription_trial_reminder'        => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Remind subscribers before a free trial ends', 'wp-easycart' ),
+					'desc'     => __( 'An email before a trial turns into a paid subscription. Card networks ask for one on trials longer than a week; shorter trials get Stripe’s notice 3 days before.', 'wp-easycart' ),
+					'default'  => '1',
+					'keywords' => array( 'trial', 'reminder', 'free trial', 'visa', 'notice', 'subscription' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'New in 6.0.3', 'label' => 'Trial reminder' ),
+				),
+				'ec_option_subscription_trial_reminder_days'   => array(
+					'type'     => 'number',
+					'label'    => __( 'Days before the trial ends', 'wp-easycart' ),
+					'desc'     => __( 'At least 7, as card networks ask.', 'wp-easycart' ),
+					'default'  => '7',
+					'min'      => 7,
+					'max'      => 30,
+					'step'     => 1,
+					'parent'   => 'ec_option_subscription_trial_reminder',
+					'keywords' => array( 'trial', 'reminder', 'days' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'New in 6.0.3', 'label' => 'Trial reminder days' ),
+				),
+				'ecst_subscription_reminder_status'            => array(
+					'type'     => 'html',
+					'label'    => __( 'What was sent', 'wp-easycart' ),
+					'render'   => 'ecst_email_render_reminder_status',
+					'keywords' => array( 'reminder', 'sent', 'log' ),
+					'legacy'   => array( 'page' => 'email-setup', 'section' => 'New in 6.0.3', 'label' => 'Reminder status' ),
+				),
+			),
+			'actions' => array(
+				array(
+					'id'       => 'test_renewal_reminder',
+					'label'    => __( 'Renewal reminder', 'wp-easycart' ),
+					'desc'     => __( 'Send yourself the renewal reminder, built from your newest subscription.', 'wp-easycart' ),
+					'button'   => __( 'Send test', 'wp-easycart' ),
+					'callback' => 'ecst_email_test_renewal_reminder',
+				),
+				array(
+					'id'       => 'test_trial_reminder',
+					'label'    => __( 'Trial reminder', 'wp-easycart' ),
+					'desc'     => __( 'Send yourself the trial reminder, built from your newest subscription.', 'wp-easycart' ),
+					'button'   => __( 'Send test', 'wp-easycart' ),
+					'callback' => 'ecst_email_test_trial_reminder',
+				),
+				array(
+					'id'       => 'run_subscription_reminders',
+					'label'    => __( 'Send due reminders now', 'wp-easycart' ),
+					'desc'     => __( 'Checks every subscription now instead of at the next daily check. Nothing is sent twice.', 'wp-easycart' ),
+					'button'   => __( 'Check now', 'wp-easycart' ),
+					'callback' => 'ecst_email_run_reminders',
+				),
+			),
+		),
+
 		/* 6.0.0: subscription mail only goes out on a gateway event, so give the merchant a way to see each one. */
 		'subscription-emails' => array(
 			'title'   => __( 'Subscription emails', 'wp-easycart' ),

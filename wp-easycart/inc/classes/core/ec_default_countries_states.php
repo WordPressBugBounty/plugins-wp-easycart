@@ -7,7 +7,7 @@
  * Neither path ever changes or removes an existing row: rows are matched on iso2_cnt ( countries ) and on
  * country + code_sta ( regions ) and only missing ones are inserted. Nothing here runs during a plugin update.
  *
- * Countries follow ISO 3166-1 ( the list WooCommerce and Shopify ship, plus Kosovo ). Regions reference their
+ * Countries follow ISO 3166-1. Regions reference their
  * country by iso2_cnt so a country that was deleted and re-added with a new id still gets its regions back.
  *
  * @since 6.0.0 Extended to the full ISO list; region sets added for MX, ES, DE, NZ and IE; BR and IN completed.

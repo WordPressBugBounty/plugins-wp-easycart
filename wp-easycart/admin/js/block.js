@@ -21,8 +21,11 @@ jQuery( document ).ready( function( ){
 		  { value: 'ec_product', label: wp_easycart_admin_block_language['product-display'] },
 		  { value: 'ec_addtocart', label: wp_easycart_admin_block_language['add-to-cart-button'] },
 		  { value: 'ec_cartdisplay', label: wp_easycart_admin_block_language['cart-display'] },
-		  { value: 'ec_membership', label: wp_easycart_admin_block_language['membership-content'] }
+		  { value: 'ec_membership', label: wp_easycart_admin_block_language['membership-content'] },
+		  /* 6.0.3: a WP EasyCart PRO plan group's pricing table */
+		  { value: 'ec_plan_table', label: wp_easycart_admin_block_language['plan-table'] || 'Pricing table' }
 		];
+		var WPEasyCartPlanTables = [ { value: '', label: wp_easycart_admin_block_language['plan-table-choose'] || 'Choose a plan group' } ].concat( ( typeof wp_easycart_plan_tables !== 'undefined' && wp_easycart_plan_tables ) ? wp_easycart_plan_tables : [] );
 		var WPEasyCartTableColumns = [
 			{ value: 'product_id', label: wp_easycart_admin_block_language['product-id'] },
 			{ value: 'model_number', label: wp_easycart_admin_block_language['model-number'] },
@@ -141,6 +144,9 @@ jQuery( document ).ready( function( ){
 			}else if( attributes.shortcode_type == "ec_cartdisplay" ){
 				return '[ec_cartdisplay]';
 				
+			}else if( attributes.shortcode_type == "ec_plan_table" ){
+				return '[ec_plan_table id="' + ( parseInt( attributes.plan_table_id, 10 ) || 0 ) + '"]';
+
 			}else if( attributes.shortcode_type == "ec_membership" ){
 				var membershipAttributes = ' productid="' + attributes.membership_products + '"';
 				if ( attributes.membership_roles && String( attributes.membership_roles ) !== '' ) {
@@ -292,6 +298,11 @@ jQuery( document ).ready( function( ){
 		var WPEasyCartShortcodeAttributes = jQuery.extend( {}, WPEasyCartShortcodeAttributesV1, {
 			membership_roles: {
 				type: 'select',
+				default: '',
+			},
+			/* 6.0.3: the plan group of [ec_plan_table]. */
+			plan_table_id: {
+				type: 'string',
 				default: '',
 			}
 		} );
@@ -584,6 +595,10 @@ jQuery( document ).ready( function( ){
 
 				function onChangeMembershipRoles( changedVal ){
 					props.setAttributes( { membership_roles: changedVal } );
+				}
+
+				function onChangePlanTable( changedVal ){
+					props.setAttributes( { plan_table_id: changedVal } );
 				}
 				
 				function selected_shortcode_type( ){
@@ -1207,6 +1222,19 @@ jQuery( document ).ready( function( ){
 							onChange: onChangeMembershipRoles,
 							multiple:'multiple',
 							options: wp_easycart_user_roles
+						}
+					),
+					/* 6.0.3: which plan group's pricing table. */
+					focus && el(
+						SelectControl,
+						{
+							className: ( ( attributes.shortcode_type != 'ec_plan_table' ) ? 'hidden ' : '' ) + 'wp-easycart-plan-table-shortcode wp-easycart-block-item',
+							type: 'string',
+							label: wp_easycart_admin_block_language['plan-table-label'] || 'Plan group',
+							help: ( WPEasyCartPlanTables.length < 2 ) ? ( wp_easycart_admin_block_language['plan-table-none'] || '' ) : '',
+							value: attributes.plan_table_id,
+							onChange: onChangePlanTable,
+							options: WPEasyCartPlanTables
 						}
 					)
 				];

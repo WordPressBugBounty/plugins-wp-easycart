@@ -1757,7 +1757,7 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 		/**
 		 * The row's Fulfill and Mark picked up ( orders-v2.js, ecv2_order_open_ship() ): the order screen's Ship order in a
 		 * popover. An order with several packages to ship is sent to the order screen, where each package gets its number.
-		 * Moved to <body> by shell-v2.js ( data-ecv2-layer ).
+		 * Moved to <body> by admin-frame-v2.js ( data-ecv2-layer ).
 		 *
 		 * @since 6.0.2
 		 */
@@ -1770,11 +1770,17 @@ if ( ! class_exists( 'wp_easycart_admin_order_table' ) ) :
 			echo '<div class="ecv2-modal-field"><label class="ecv2-modal-label" for="ecv2-ship-tracking">' . esc_html__( 'Tracking number', 'wp-easycart' ) . '</label>';
 			echo '<input type="text" id="ecv2-ship-tracking" class="ecv2-input" placeholder="' . esc_attr__( 'Paste or scan a tracking number', 'wp-easycart' ) . '" autocomplete="off" spellcheck="false" /></div>';
 			echo '<div class="ecv2-modal-field"><label class="ecv2-modal-label" for="ecv2-ship-carrier">' . esc_html__( 'Carrier', 'wp-easycart' ) . '</label>';
-			echo '<select id="ecv2-ship-carrier" class="ecv2-select"><option value="">' . esc_html__( 'Select carrier', 'wp-easycart' ) . '</option>';
-			foreach ( ecv2_order_carrier_suggestions() as $carrier ) {
-				echo '<option value="' . esc_attr( $carrier ) . '">' . esc_html( $carrier ) . '</option>';
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				/* 6.0.3: the order screen's carriers ( the store's country and recent orders first ) and Other… for any name. */
+				$ecv2_default = wp_easycart_carriers::suggested();
+				echo '<select id="ecv2-ship-carrier" class="ecv2-select" data-wpec-carrier="1" data-default="' . esc_attr( $ecv2_default ) . '">' . wp_easycart_carriers::options_html( $ecv2_default, ecv2_order_carrier_suggestions() ) . '</select></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options_html() escapes every option.
+			} else {
+				echo '<select id="ecv2-ship-carrier" class="ecv2-select"><option value="">' . esc_html__( 'Select carrier', 'wp-easycart' ) . '</option>';
+				foreach ( ecv2_order_carrier_suggestions() as $carrier ) {
+					echo '<option value="' . esc_attr( $carrier ) . '">' . esc_html( $carrier ) . '</option>';
+				}
+				echo '</select></div>';
 			}
-			echo '</select></div>';
 			echo '<label class="ecv2-order-ship-check"><input type="checkbox" id="ecv2-ship-mark" checked="checked" /> ' . esc_html__( 'Mark the order as shipped', 'wp-easycart' ) . '</label>';
 			echo '<label class="ecv2-order-ship-check" id="ecv2-ship-email-row"><input type="checkbox" id="ecv2-ship-email" checked="checked" /> ' . esc_html__( 'Email the customer', 'wp-easycart' ) . '</label>';
 			echo '</div>';
@@ -2021,10 +2027,12 @@ function ecv2_order_toggle_viewed() {
 /* ---------------------------------------------------------------------- */
 
 /**
- * Shared carrier suggestions (PRO reuses the same filter for its fulfill popover).
+ * Shared carrier suggestions (PRO reuses the same filter for its fulfill popover). 6.0.3: wp_easycart_carriers' list ( the store's
+ * country and recent orders first ); a name the filter adds is offered too.
  */
 function ecv2_order_carrier_suggestions() {
-	return apply_filters( 'wp_easycart_ecv2_order_carriers', array( 'USPS', 'UPS', 'FedEx', 'DHL', 'Canada Post', 'Royal Mail', 'Australia Post', 'Other' ) );
+	$carriers = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::names() : array( 'USPS', 'UPS', 'FedEx', 'DHL', 'Canada Post', 'Royal Mail', 'Australia Post' );
+	return apply_filters( 'wp_easycart_ecv2_order_carriers', $carriers );
 }
 
 add_action( 'wp_ajax_ecv2_order_quick_edit_get', 'ecv2_order_quick_edit_get' );

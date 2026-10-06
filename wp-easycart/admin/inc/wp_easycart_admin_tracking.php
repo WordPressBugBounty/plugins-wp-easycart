@@ -14,7 +14,15 @@
  * turned on ( wp_easycart_tracking_option_changed() fires wpeasycart_admin_usage_tracking_accepted ) or off ( forget() ), and
  * after an update ( catch_up(): a store that opted in before 6.0.2 sends its setup once ).
  *
- * Filters: wp_easycart_tracking_url ( the receiver; '' sends nothing ), wp_easycart_tracking_event ( array, or false to drop ).
+ * 6.0.3: a weekly check-in ( checkin(): how the store is set up, which features are on, store size and health as bands, never
+ * exact counts or anything about customers or orders ), an update event ( updated() ), the getting-started steps ( milestone() ),
+ * clicks on locked features ( ajax_upsell(), from upsell.js ), a short list of settings changes ( setting_changed() ), and a
+ * forget event when sharing is turned off ( send_forget(): the receiver deletes what it kept for this install ). WP EasyCart
+ * activated before the store chose to share sends its activated event with the first batch.
+ *
+ * Filters: wp_easycart_tracking_url ( the receiver; '' sends nothing ), wp_easycart_tracking_event ( array, or false to drop ),
+ * wp_easycart_tracking_checkin_fields ( the check-in's fields; WP EasyCart PRO adds its own ), wp_easycart_tracking_settings ( the
+ * settings whose changes are counted ).
  *
  * @package wp-easycart
  */
@@ -57,6 +65,18 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 		/** Seconds a deactivation send may take ( it does not wait for the answer ). */
 		const DEACTIVATION_TIMEOUT = 2;
 
+		/** The weekly check-in's WP-Cron event ( 6.0.3 ). */
+		const CHECKIN_HOOK = 'wp_easycart_tracking_checkin';
+
+		/** Getting-started steps already sent ( autoload off, 6.0.3 ). */
+		const MILESTONES_OPTION = 'wp_easycart_tracking_milestones';
+
+		/** When WP EasyCart was activated while the store did not share yet ( its activated event waits for consent, 6.0.3 ). */
+		const ACTIVATED_OPTION = 'wp_easycart_tracking_activated';
+
+		/** When WP EasyCart was first activated ( 6.0.3; 0 = before this was recorded ). */
+		const INSTALLED_OPTION = 'wp_easycart_installed_at';
+
 		/** Events queued once while they wait ( an import fires product_inserted for every product ). */
 		const COALESCE = array( 'product_inserted' );
 
@@ -82,6 +102,13 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 		private $coalesced = array();
 
 		/**
+		 * Which of WP EasyCart's tables exist, asked once per check-in ( 6.0.3 ).
+		 *
+		 * @var array
+		 */
+		private $tables = array();
+
+		/**
 		 * The instance ( made, with its hooks, on first use ).
 		 *
 		 * @return wp_easycart_admin_tracking
@@ -105,6 +132,11 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			add_action( 'wpeasycart_admin_product_inserted', array( $this, 'product_inserted' ), 10, 1 );
 			add_action( 'wpeasycart_admin_demo_data_installed', array( $this, 'demo_data_installed' ) );
 			add_action( 'wpeasycart_pro_activated', array( $this, 'plugin_pro_activated' ) );
+			/* 6.0.3 */
+			add_action( 'wp_ajax_ecv2_tracking_upsell', array( $this, 'ajax_upsell' ) );
+			add_action( 'wp_easycart_settings_saved', array( $this, 'setting_changed' ), 10, 4 );
+			add_action( 'add_option_ec_option_setup_wizard_done', array( $this, 'wizard_done' ), 10, 0 );
+			add_action( 'update_option_ec_option_setup_wizard_done', array( $this, 'wizard_done' ), 10, 0 );
 		}
 
 		/** Whether the store chose to share usage data. Nothing is queued or sent otherwise. */
@@ -112,11 +144,17 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			return '1' === (string) get_option( 'ec_option_allow_tracking' );
 		}
 
-		/** Sharing turned off: the waiting events, the install id and the WP-Cron event go. */
+		/**
+		 * Sharing turned off: the receiver is asked to delete what it kept for this install ( 6.0.3 ), then the waiting events,
+		 * the install id, the steps sent and the WP-Cron events go.
+		 */
 		public static function forget() {
+			self::send_forget();
 			delete_option( self::QUEUE_OPTION );
 			delete_option( self::ID_OPTION );
+			delete_option( self::MILESTONES_OPTION );
 			wp_clear_scheduled_hook( self::HOOK );
+			wp_clear_scheduled_hook( self::CHECKIN_HOOK );
 		}
 
 		/** The store's setup at the moment sharing is turned on. */
@@ -160,6 +198,18 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 				'post_linking_type' => ( ! get_option( 'ec_option_use_old_linking_style' ) ) ? 'Permalinks' : 'Basic',
 			);
 			$this->send_tracking( 'access_granted', $init_data );
+
+			// 6.0.3: WP EasyCart was activated before the store chose to share ( consent comes after activation ): that activated
+			// event goes now, once, when it was within the last 30 days.
+			$activated = (int) get_option( self::ACTIVATED_OPTION, 0 );
+			if ( $activated > 0 ) {
+				delete_option( self::ACTIVATED_OPTION );
+				if ( time() - $activated < 30 * DAY_IN_SECONDS ) {
+					$this->send_tracking( 'activated', array( 'late' => 1 ) );
+				}
+			}
+			$this->checkin();
+			self::schedule_checkin();
 		}
 
 		/**
@@ -179,7 +229,7 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			$this->access_granted();
 		}
 
-		/** WP EasyCart was activated. */
+		/** WP EasyCart was activated ( a store that does not share yet is remembered by wp_easycart_tracking_activated() ). */
 		public function plugin_activated() {
 			$this->send_tracking( 'activated' );
 		}
@@ -304,6 +354,9 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 					'method' => $method,
 				)
 			);
+			if ( '' !== (string) $method && '0' !== (string) $method && ! self::live_in_test( (string) $method ) ) {
+				$this->milestone( 'gateway_live' );
+			}
 		}
 
 		/**
@@ -313,6 +366,7 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 		 */
 		public function product_inserted( $product_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- the hook passes it; only the event is sent.
 			$this->send_tracking( 'product_inserted' );
+			$this->milestone( 'first_product' );
 		}
 
 		/** The demo data was installed. */
@@ -621,6 +675,445 @@ if ( ! class_exists( 'wp_easycart_admin_tracking' ) ) :
 			}
 		}
 
+		// 6.0.3: check-in, update, getting started, interest, settings.
+
+		/**
+		 * The weekly check-in: how the store is set up and which features are on, with store size and health as bands
+		 * ( band() ), never exact counts, amounts, or anything about a customer or an order. Queued like any event.
+		 *
+		 * @return bool Whether it waits to be sent.
+		 */
+		public function checkin() {
+			if ( ! self::enabled() ) {
+				return false;
+			}
+			return $this->send_tracking( 'checkin', $this->snapshot() );
+		}
+
+		/**
+		 * The check-in's fields.
+		 *
+		 * @return array
+		 */
+		public function snapshot() {
+			global $wpdb;
+			$this->tables = array();
+			$live         = (string) get_option( 'ec_option_payment_process_method' );
+			$third        = (string) get_option( 'ec_option_payment_third_party' );
+			$lists        = $this->setup_lists();
+			$installed    = (int) get_option( self::INSTALLED_OPTION, 0 );
+			$first        = $this->table_exists( 'ec_order' ) ? (string) $wpdb->get_var( 'SELECT MIN( order_date ) FROM ec_order' ) : '';
+			$first_ts     = ( '' !== $first ) ? strtotime( $first ) : 0;
+			$summary      = get_option( 'wp_easycart_reports_summary' );
+			$tax          = class_exists( 'wp_easycart_tax_providers' ) && method_exists( 'wp_easycart_tax_providers', 'active_id' ) ? (string) wp_easycart_tax_providers::active_id() : '';
+
+			$data = array(
+				'live_gateway'     => ( '0' === $live ) ? '' : $live,
+				'live_test'        => ( '' !== $live && '0' !== $live && self::live_in_test( $live ) ) ? 1 : 0,
+				'third_party'      => ( '0' === $third ) ? '' : $third,
+				'manual'           => get_option( 'ec_option_use_direct_deposit' ) ? 1 : 0,
+				'wallet'           => get_option( 'ec_option_amazonpay_enable' ) ? 1 : 0,
+				'shipping_type'    => $lists['shipping_type'],
+				'carriers'         => implode( ',', $lists['carriers'] ),
+				'taxes'            => implode( ',', $lists['taxes'] ),
+				'tax_service'      => $tax,
+				'onepage'          => get_option( 'ec_option_onepage_checkout' ) ? 1 : 0,
+				'protection'       => sanitize_key( (string) get_option( 'ec_option_checkout_protection_level', 'standard' ) ),
+				'consent'          => sanitize_key( (string) get_option( 'ec_option_marketing_consent', 'off' ) ),
+				'pay_links'        => get_option( 'ec_option_order_pay_links' ) ? 1 : 0,
+				'reports_summary'  => ( is_array( $summary ) && ! empty( $summary['on'] ) ) ? 1 : 0,
+				'store_activity'   => ( '0' !== (string) get_option( 'ec_option_store_activity', '1' ) ) ? 1 : 0,
+				'elementor'        => defined( 'ELEMENTOR_VERSION' ) ? 1 : 0,
+				'extensions'       => implode( ',', self::extensions() ),
+				'products'         => self::band( $this->count( 'SELECT COUNT(*) FROM ec_product WHERE is_demo_item = 0', 'ec_product' ) ),
+				'orders_30d'       => self::band( $this->count( 'SELECT COUNT(*) FROM ec_order WHERE order_date >= DATE_SUB( NOW(), INTERVAL 30 DAY )', 'ec_order' ) ),
+				'customers'        => self::band( $this->count( 'SELECT COUNT(*) FROM ec_user', 'ec_user' ) ),
+				'subscriptions'    => self::band( $this->count( "SELECT COUNT(*) FROM ec_subscription WHERE subscription_status = 'Active'", 'ec_subscription' ) ),
+				'declines_7d'      => self::band( $this->count( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_checkout_event WHERE event_type = %s AND created_at >= %s', 'decline', gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS ) ), 'ec_checkout_event' ) ),
+				'blocks_7d'        => self::band( $this->count( $wpdb->prepare( 'SELECT COUNT(*) FROM ec_checkout_event WHERE event_type IN ( %s, %s ) AND created_at >= %s', 'stop', 'code_stop', gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS ) ), 'ec_checkout_event' ) ),
+				'wizard'           => get_option( 'ec_option_setup_wizard_done' ) ? 1 : 0,
+				'store_age'        => $installed > 0 ? self::days_band( time() - $installed ) : 'unknown',
+				'first_order_days' => ( $installed > 0 && $first_ts > 0 ) ? self::days_band( max( 0, $first_ts - $installed ) ) : ( $first_ts > 0 ? 'unknown' : 'none' ),
+				'milestones'       => implode( ',', $this->reached() ),
+			);
+			/**
+			 * The weekly check-in's fields ( WP EasyCart PRO adds its own ). Keep to keys, flags and bands: scrub() removes
+			 * personal fields, and the receiver keeps only the fields it knows.
+			 *
+			 * @since 6.0.3
+			 * @param array $data Fields.
+			 */
+			$data = apply_filters( 'wp_easycart_tracking_checkin_fields', $data );
+			return is_array( $data ) ? $data : array();
+		}
+
+		/**
+		 * The gateway, shipping, tax and carrier picture access_granted() and checkin() share.
+		 *
+		 * @return array shipping_type, taxes ( list ), carriers ( list ).
+		 */
+		private function setup_lists() {
+			global $wpdb;
+			$settings = $this->table_exists( 'ec_setting' ) ? $wpdb->get_row( 'SELECT * FROM ec_setting' ) : null;
+			$taxes    = $this->table_exists( 'ec_taxrate' ) ? $wpdb->get_row( 'SELECT SUM( tax_by_state ) AS state_count, SUM( tax_by_country ) AS country_count, SUM( tax_by_duty ) AS duty_count, SUM( tax_by_vat ) AS vat_count, SUM( tax_by_single_vat ) AS vat_single_count, SUM( tax_by_all ) AS global_count FROM ec_taxrate' ) : null;
+			$col      = function ( $row, $name ) {
+				return ( is_object( $row ) && isset( $row->{$name} ) ) ? (string) $row->{$name} : '';
+			};
+			$filled   = function ( $value ) {
+				return is_scalar( $value ) && '' !== trim( (string) $value ) && '0' !== (string) $value;
+			};
+			$tax_list = array();
+			foreach ( array(
+				'vat'     => array( 'vat_count', 'vat_single_count' ),
+				'duty'    => array( 'duty_count' ),
+				'state'   => array( 'state_count' ),
+				'country' => array( 'country_count' ),
+				'global'  => array( 'global_count' ),
+			) as $name => $cols ) {
+				foreach ( $cols as $c ) {
+					if ( (int) $col( $taxes, $c ) > 0 ) {
+						$tax_list[] = $name;
+						break;
+					}
+				}
+			}
+			if ( $filled( get_option( 'ec_option_tax_cloud_api_id' ) ) ) {
+				$tax_list[] = 'taxcloud';
+			}
+			if ( get_option( 'ec_option_enable_easy_canada_tax' ) ) {
+				$tax_list[] = 'canada';
+			}
+			$carriers = array();
+			$checks   = array(
+				'auspost'    => $filled( $col( $settings, 'auspost_api_key' ) ),
+				'canadapost' => $filled( $col( $settings, 'canadapost_username' ) ),
+				'dhl'        => $filled( $col( $settings, 'dhl_password' ) ) || $filled( get_option( 'ec_option_dhl_api_key' ) ),
+				'fedex'      => $filled( $col( $settings, 'fedex_key' ) ) || $filled( get_option( 'ec_option_fedex_api_key' ) ),
+				'ups'        => $filled( $col( $settings, 'ups_password' ) ) || ! empty( get_option( 'ec_option_ups_token_info' ) ),
+				'usps'       => $filled( $col( $settings, 'usps_user_name' ) ) || (bool) get_option( 'ec_option_usps_v3_enable' ),
+			);
+			foreach ( $checks as $name => $on ) {
+				if ( $on ) {
+					$carriers[] = $name;
+				}
+			}
+			return array(
+				'shipping_type' => $col( $settings, 'shipping_method' ),
+				'taxes'         => $tax_list,
+				'carriers'      => $carriers,
+			);
+		}
+
+		/**
+		 * Active WP EasyCart extensions, by folder ( wp-easycart-shipstation → shipstation ): plugin names, nothing about the store.
+		 *
+		 * @return array
+		 */
+		private static function extensions() {
+			$out = array();
+			foreach ( (array) get_option( 'active_plugins', array() ) as $plugin ) {
+				$folder = strtolower( (string) strtok( (string) $plugin, '/' ) );
+				if ( 0 === strpos( $folder, 'wp-easycart-' ) && ! in_array( $folder, array( 'wp-easycart-pro', 'wp-easycart-api' ), true ) ) {
+					$out[] = sanitize_key( substr( $folder, 12 ) );
+				} elseif ( in_array( $folder, array( 'affiliatewp-affiliate-product-rates' ), true ) ) {
+					$out[] = 'affiliatewp';
+				}
+			}
+			$out = array_values( array_unique( array_filter( $out ) ) );
+			sort( $out );
+			return array_slice( $out, 0, 20 );
+		}
+
+		/**
+		 * Whether the live gateway runs in sandbox / test mode ( the Connect gateways' own switches; others count as live ).
+		 *
+		 * @param string $method Gateway key.
+		 * @return bool
+		 */
+		private static function live_in_test( $method ) {
+			$flags = array(
+				'stripe_connect' => 'ec_option_stripe_connect_use_sandbox',
+				'square'         => 'ec_option_square_is_sandbox',
+				'authorize'      => 'ec_option_authorize_test_mode',
+				'braintree'      => 'ec_option_braintree_environment',
+				'paytrace'       => 'ec_option_paytrace_sandbox',
+			);
+			if ( ! isset( $flags[ $method ] ) ) {
+				return false;
+			}
+			$value = (string) get_option( $flags[ $method ] );
+			return 'braintree' === $method ? ( 'sandbox' === $value ) : ( '' !== $value && '0' !== $value );
+		}
+
+		/**
+		 * A count as a band: 0, 1-10, 11-100, 101-1000, 1000+ ( never the number itself ).
+		 *
+		 * @param int $n Count.
+		 * @return string
+		 */
+		public static function band( $n ) {
+			$n = (int) $n;
+			if ( $n <= 0 ) {
+				return '0';
+			}
+			if ( $n <= 10 ) {
+				return '1-10';
+			}
+			if ( $n <= 100 ) {
+				return '11-100';
+			}
+			return $n <= 1000 ? '101-1000' : '1000+';
+		}
+
+		/**
+		 * A length of time as a band of days: 0-1, 2-7, 8-30, 31-90, 91-365, 365+.
+		 *
+		 * @param int $seconds Seconds.
+		 * @return string
+		 */
+		public static function days_band( $seconds ) {
+			$days = (int) floor( max( 0, (int) $seconds ) / DAY_IN_SECONDS );
+			if ( $days <= 1 ) {
+				return '0-1';
+			}
+			if ( $days <= 7 ) {
+				return '2-7';
+			}
+			if ( $days <= 30 ) {
+				return '8-30';
+			}
+			if ( $days <= 90 ) {
+				return '31-90';
+			}
+			return $days <= 365 ? '91-365' : '365+';
+		}
+
+		/**
+		 * A count from one of WP EasyCart's tables, 0 when the table is not there.
+		 *
+		 * @param string $sql   Query ( prepared already when it has values ).
+		 * @param string $table Table it reads.
+		 * @return int
+		 */
+		private function count( $sql, $table ) {
+			global $wpdb;
+			if ( ! $this->table_exists( $table ) ) {
+				return 0;
+			}
+			$suppress = $wpdb->suppress_errors( true );
+			$n        = (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed queries, or prepared by the caller.
+			$wpdb->suppress_errors( $suppress );
+			return $n;
+		}
+
+		/**
+		 * Whether one of WP EasyCart's tables exists ( a fresh or half-upgraded install ).
+		 *
+		 * @param string $table Table.
+		 * @return bool
+		 */
+		private function table_exists( $table ) {
+			global $wpdb;
+			if ( ! isset( $this->tables[ $table ] ) ) {
+				$this->tables[ $table ] = ( $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) );
+			}
+			return $this->tables[ $table ];
+		}
+
+		/**
+		 * The getting-started steps this store has reached, read from its data ( so a store that shares later reports them too ).
+		 *
+		 * @return array
+		 */
+		private function reached() {
+			$steps = array();
+			if ( get_option( 'ec_option_setup_wizard_done' ) ) {
+				$steps[] = 'wizard_done';
+			}
+			if ( $this->count( 'SELECT COUNT(*) FROM ec_product WHERE is_demo_item = 0', 'ec_product' ) > 0 ) {
+				$steps[] = 'first_product';
+			}
+			$live  = (string) get_option( 'ec_option_payment_process_method' );
+			$third = (string) get_option( 'ec_option_payment_third_party' );
+			$card  = '' !== $live && '0' !== $live && ! self::live_in_test( $live );
+			$other = '' !== $third && '0' !== $third && ! ( 'paypal' === $third && get_option( 'ec_option_paypal_use_sandbox' ) );
+			if ( $card || $other ) {
+				$steps[] = 'gateway_live';
+			}
+			if ( $this->count( 'SELECT COUNT(*) FROM ec_order', 'ec_order' ) > 0 ) {
+				$steps[] = 'first_order';
+			}
+			return $steps;
+		}
+
+		/**
+		 * One getting-started step, sent once with how long after installing it came ( wizard_done, first_product, gateway_live,
+		 * first_order ).
+		 *
+		 * @param string $step Step.
+		 * @return bool Whether it waits to be sent.
+		 */
+		public function milestone( $step ) {
+			if ( ! self::enabled() ) {
+				return false;
+			}
+			$step = sanitize_key( $step );
+			$sent = get_option( self::MILESTONES_OPTION, array() );
+			$sent = is_array( $sent ) ? $sent : array();
+			if ( isset( $sent[ $step ] ) ) {
+				return false;
+			}
+			$sent[ $step ] = 1;
+			update_option( self::MILESTONES_OPTION, $sent, false );
+			$installed = (int) get_option( self::INSTALLED_OPTION, 0 );
+			return $this->send_tracking(
+				'milestone',
+				array(
+					'step' => $step,
+					'days' => $installed > 0 ? self::days_band( time() - $installed ) : 'unknown',
+				)
+			);
+		}
+
+		/** The setup wizard was finished ( or skipped with products already there ). */
+		public function wizard_done() {
+			if ( get_option( 'ec_option_setup_wizard_done' ) ) {
+				$this->milestone( 'wizard_done' );
+			}
+		}
+
+		/**
+		 * WP EasyCart was updated ( wpeasycart_update_check() ): the versions and a fresh check-in.
+		 *
+		 * @param string $from Version before ( EC_CURRENT_VERSION form, 6_0_2 ).
+		 * @param string $to   Version now.
+		 */
+		public function updated( $from, $to ) {
+			if ( ! self::enabled() ) {
+				return;
+			}
+			$this->send_tracking(
+				'updated',
+				array(
+					'from_version' => str_replace( '_', '.', (string) $from ),
+					'to_version'   => str_replace( '_', '.', (string) $to ),
+				)
+			);
+			$this->checkin();
+			self::schedule_checkin();
+		}
+
+		/**
+		 * AJAX ecv2_tracking_upsell ( upsell.js, only on stores that share ): a locked feature's preview was opened, or one of
+		 * its buttons used. context, feature and action ( open | pro | premium | trial | update ) are keys from the upsell catalog.
+		 */
+		public function ajax_upsell() {
+			ecv2_tracking_guard();
+			$context = isset( $_POST['context'] ) ? substr( sanitize_key( wp_unslash( $_POST['context'] ) ), 0, 40 ) : '';
+			$feature = isset( $_POST['feature'] ) ? substr( sanitize_key( wp_unslash( $_POST['feature'] ) ), 0, 40 ) : '';
+			$action  = isset( $_POST['what'] ) ? sanitize_key( wp_unslash( $_POST['what'] ) ) : 'open';
+			if ( ! in_array( $action, array( 'open', 'pro', 'premium', 'trial', 'update' ), true ) ) {
+				$action = 'open';
+			}
+			if ( '' !== $context ) {
+				$this->send_tracking(
+					'upsell_open',
+					array(
+						'context' => $context,
+						'feature' => $feature,
+						'action'  => $action,
+					)
+				);
+			}
+			wp_send_json_success();
+		}
+
+		/**
+		 * A setting on the short list changed ( wp_easycart_settings_saved ): its key and the chosen value, when that value is a
+		 * plain key ( on / off, a mode ). Text is never sent.
+		 *
+		 * @param string $key   Option.
+		 * @param mixed  $value Value saved.
+		 * @param mixed  $old   Value before.
+		 * @param string $page  Settings page.
+		 */
+		public function setting_changed( $key, $value, $old = null, $page = '' ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the hook passes it.
+			/**
+			 * The settings whose changes are counted ( option => short name ).
+			 *
+			 * @since 6.0.3
+			 * @param array $settings Settings.
+			 */
+			$list = apply_filters(
+				'wp_easycart_tracking_settings',
+				array(
+					'ec_option_onepage_checkout'          => 'onepage',
+					'ec_option_checkout_protection_level' => 'protection',
+					'ec_option_tax_provider'              => 'tax_service',
+					'ec_option_marketing_consent'         => 'consent',
+					'ec_option_allow_guest'               => 'guest_checkout',
+					'ec_option_order_pay_links'           => 'pay_links',
+					'ec_option_store_activity'            => 'store_activity',
+					'ec_option_enable_recaptcha'          => 'recaptcha',
+					'ec_option_cancel_restock'            => 'cancel_restock',
+					'ec_option_show_payment_pending_notice' => 'pending_notice',
+				)
+			);
+			if ( ! is_array( $list ) || ! isset( $list[ $key ] ) || ! is_scalar( $value ) || ( is_scalar( $old ) ? (string) $old : null ) === (string) $value ) {
+				return;
+			}
+			$plain = strtolower( (string) $value );
+			if ( ! preg_match( '/^[a-z0-9_-]{1,32}$/', $plain ) ) {
+				return;
+			}
+			$this->send_tracking(
+				'setting_changed',
+				array(
+					'setting' => sanitize_key( $list[ $key ] ),
+					'value'   => $plain,
+				)
+			);
+		}
+
+		/** The weekly check-in's WP-Cron event, while the store shares. */
+		public static function schedule_checkin() {
+			if ( self::enabled() && ! wp_next_scheduled( self::CHECKIN_HOOK ) ) {
+				wp_schedule_event( time() + DAY_IN_SECONDS, 'weekly', self::CHECKIN_HOOK );
+			}
+		}
+
+		/**
+		 * Sharing was turned off: one last request asks the receiver to delete what it kept for this install ( only when an
+		 * install id was ever made; it does not wait for the answer ).
+		 *
+		 * @return bool Whether a request went out.
+		 */
+		public static function send_forget() {
+			$id = (string) get_option( self::ID_OPTION );
+			if ( ! preg_match( '/^[0-9a-f]{32}$/', $id ) ) {
+				return false;
+			}
+			$self   = self::instance();
+			$item   = $self->event( 'forget', array(), true );
+			$result = $item ? $self->post(
+				array( $item ),
+				array(
+					'blocking' => false,
+					'timeout'  => self::DEACTIVATION_TIMEOUT,
+				)
+			) : 'off';
+			return 'off' !== $result;
+		}
+
+		/**
+		 * WP EasyCart is being deleted ( ec_uninstall() ): a store that shares says so, without waiting for the answer.
+		 *
+		 * @return bool
+		 */
+		public function deleted() {
+			return $this->send_now( 'deleted' );
+		}
+
 		/**
 		 * The plan, as the receiver knows it: FREE, PRO or PREMIUM, with -EXPIRED for a lapsed license.
 		 *
@@ -656,3 +1149,17 @@ if ( ! function_exists( 'wp_easycart_admin_tracking' ) ) {
 	}
 }
 wp_easycart_admin_tracking();
+
+if ( ! function_exists( 'ecv2_tracking_guard' ) ) {
+	/**
+	 * AJAX guard for the usage data beacons ( 6.0.3, upsell.js ): the nonce and an EasyCart admin.
+	 */
+	function ecv2_tracking_guard() {
+		if ( ! check_ajax_referer( 'wp-easycart-ecv2-tracking', 'nonce', false ) ) {
+			wp_send_json_error( array( 'message' => 'nonce' ), 403 );
+		}
+		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( 'wpec_manager' ) ) {
+			wp_send_json_error( array( 'message' => 'cap' ), 403 );
+		}
+	}
+}

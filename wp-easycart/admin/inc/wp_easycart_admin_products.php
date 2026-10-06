@@ -505,22 +505,9 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 			$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET post_id = %d WHERE product_id = %d', $post_id, $newid ) );
 
-			if ( $original_record->is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
-				if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-					$stripe = new ec_stripe();
-				} else if ( get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
-					$stripe = new ec_stripe_connect();
-				}
-				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, is_subscription_item, stripe_plan_added, subscription_unique_id, product_id, price, title, subscription_bill_period, subscription_bill_length, trial_period_days FROM ec_product WHERE product_id = %d', $newid ) );
-				$stripe_product = $stripe->insert_product( $product_row );
-				$stripe_price_id = $stripe_product->default_price;
-				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-				if ( ! $is_sandbox ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product, $stripe_price_id, $newid ) );
-				} else {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product, $stripe_price_id, $newid ) );
-				}
-			}
+			/* 6.0.3: the copy gets its own Stripe product when it is first sold or saved: wpeasycart_product_duplicated clears the
+			 * Stripe ids it copied ( wp_easycart_subscription_prices::forget_copied_ids() ). The copy used to save the whole Stripe
+			 * answer instead of its id, and share the original's Stripe product in the other mode. */
 
 			/**
 			 * A product was duplicated: its options, images and store page are copied. Extensions copy their own rows here
@@ -1037,7 +1024,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				}
 				$store_page = get_permalink( get_option( 'ec_option_storepage' ) );
 				if ( strstr( $store_page, '?' ) ) {
-					$guid = $store_page . '&model_number=' . $model_number;
+					$guid = $store_page . '&model_number=' . $sku; /* 6.0.3: the SKU just posted ( $model_number was never set here ) */
 				} else if ( substr( $store_page, strlen( $store_page ) - 1 ) == '/' ) {
 					$guid = $store_page . $post_slug;
 				} else {
@@ -1063,23 +1050,8 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_product( activate_in_store, show_on_startup, title, model_number, manufacturer_id, price, list_price, image1, post_id, use_advanced_optionset, use_both_option_types, option_id_1, option_id_2, option_id_3, option_id_4, option_id_5, is_shippable, weight, length, width, height, is_taxable, vat_rate, show_stock_quantity, stock_quantity, use_optionitem_quantity_tracking, is_giftcard, is_download, is_donation, is_subscription_item, is_deconetwork, inquiry_mode, catalog_mode, is_restaurant_type, is_preorder_type ) VALUES( %d, %d, %s, %s, %d, %s, %s, %s, %d, %d, 1, %d, %d, %d, %d, %d, %d, %s, %s, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d )', $activate_in_store, $show_on_startup, $title, $sku, $manufacturer, $price, $list_price, $image, $post_id, $use_advanced_optionset, $option1, $option2, $option3, $option4, $option5, $is_shippable, $weight, $length, $width, $height, $is_taxable, $vat_rate, $show_stock_quantity, $stock_quantity, $use_optionitem_quantity_tracking, $is_giftcard, $is_download, $is_donation, $is_subscription, $is_deconetwork, $is_inquiry, $is_seasonal, $is_restaurant_item, $is_preorder_item ) );
 				$product_id = $wpdb->insert_id;
 
-				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-				if ( $is_subscription ) {
-					if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) {
-						if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-							$stripe = new ec_stripe();
-						} else {
-							$stripe = new ec_stripe_connect();
-						}
-						$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT post_id, is_subscription_item, stripe_plan_added, subscription_unique_id, product_id, price, title, subscription_bill_period, subscription_bill_length, trial_period_days FROM ec_product WHERE product_id = %d', $product_id ) );
-						$stripe_product = $stripe->insert_product( $product_row );
-						$stripe_price_id = $stripe_product->default_price;
-						if ( ! $is_sandbox ) {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-						} else {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-						}
-					}
+				if ( $is_subscription && class_exists( 'wp_easycart_subscription_prices' ) ) {
+					wp_easycart_subscription_prices::sync( $product_id ); /* 6.0.3: Stripe ids saved for the mode in use */
 				}
 
 				$option_items_1 = ( 0 != (int) $option1 ) ? $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_optionitem WHERE option_id = %d', (int) $option1 ) ) : array();
@@ -1136,7 +1108,23 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 						}
 					}
 				}
-				$wpdb->query( $query );
+				if ( ! $first ) { /* 6.0.3: a product without option sets has no combinations ( the bare INSERT was an SQL error ) */
+					$wpdb->query( $query );
+				}
+
+				/* 6.0.3: modifiers ( advanced option sets, Pro ) picked with the variations in the Add New panel, in the order picked. */
+				$modifier_ids = isset( $_POST['ec_new_product_modifiers'] ) ? array_values( array_unique( array_filter( array_map( 'intval', explode( ',', sanitize_text_field( wp_unslash( $_POST['ec_new_product_modifiers'] ) ) ) ) ) ) ) : array();
+				if ( $modifier_ids && '' === apply_filters( 'wp_easycart_admin_lock_icon', 'locked' ) ) {
+					$modifier_order = 0;
+					foreach ( array_slice( $modifier_ids, 0, 50 ) as $modifier_id ) {
+						$modifier = $wpdb->get_row( $wpdb->prepare( 'SELECT option_id, option_type FROM ec_option WHERE option_id = %d', $modifier_id ) );
+						if ( ! $modifier || in_array( (string) $modifier->option_type, array( 'basic-combo', 'basic-swatch' ), true ) ) {
+							continue;
+						}
+						$wpdb->query( $wpdb->prepare( 'INSERT INTO ec_option_to_product( product_id, option_id, option_order ) VALUES( %d, %d, %d )', $product_id, $modifier_id, ++$modifier_order ) );
+						do_action( 'wp_easycart_option_to_product_created', $modifier_id, $product_id );
+					}
+				}
 
 				do_action( 'wpeasycart_product_added', $product_id, $sku );
 				do_action( 'wpeasycart_admin_product_inserted', $product_id, $sku );
@@ -1216,60 +1204,10 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 							wp_set_post_tags( $post_id, array( 'product' ), true );
 						}
 
-						$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-						if ( $product_row->is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
-							if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-								$stripe = new ec_stripe();
-							} else {
-								$stripe = new ec_stripe_connect();
-							}
-							if ( '' != $product_row->stripe_product_id ) {
-								$stripe_product = $stripe->get_product( $product_row->stripe_product_id );
-								$stripe_price = $stripe->get_price( $product_row->stripe_default_price_id );
-								if ( number_format( $product_row->price * 100, 0, '', '' ) != $stripe_price->unit_amount ) {
-									$new_stripe_price = $stripe->insert_price( $product_row );
-									$product_row->stripe_default_price_id = $new_stripe_price->id;
-									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $new_stripe_price->id, $product_row->product_id ) );
-								} else {
-									$stripe->update_price( $product_row );
-								}
-								if ( number_format( $product_row->price * 100, 0, '', '' ) != $stripe_price->unit_amount || $product_row->title != $stripe_product->name ) {
-									$stripe->update_product( $product_row );
-								}
-								
-							} else if ( $product_row->stripe_plan_added ) {
-								$stripe_arr = (object) array(
-									'product_id' => $product_row->product_id,
-									'title' => $product_row->title,
-									'trial_period_days' => $product_row->trial_period_days
-								);
-								if ( $product_row->subscription_unique_id ) {
-									$stripe_arr->product_id = $product_row->subscription_unique_id;
-								}
-								$plan = $stripe->get_plan( $stripe_arr );
-
-								if ( $plan === false || $price != ( $plan->amount / 100 ) ) {
-									$stripe_product = $stripe->insert_product( $product_row );
-									$stripe_price_id = $stripe_product->default_price;
-									if ( ! $is_sandbox ) {
-										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-									} else {
-										$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-									}
-
-								} else if ( $plan->name != $product_row->title ) {
-									$result = $stripe->update_product( $stripe_arr );
-								}
-
-							} else {
-								$stripe_product = $stripe->insert_product( $product_row );
-								$stripe_price_id = $stripe_product->default_price;
-								if ( ! $is_sandbox ) {
-									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-								} else {
-									$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-								}
-							}
+						/* 6.0.3: the Stripe price and name follow the product, with the ids of the mode in use ( this save wrote the live
+						 * price id in test mode, and checked a price it never fetched ). */
+						if ( $product_row->is_subscription_item && class_exists( 'wp_easycart_subscription_prices' ) ) {
+							wp_easycart_subscription_prices::sync( $product_id );
 						}
 						ec_db::product_cache_changed();
 						do_action( 'wpeasycart_product_updated', $product_id, $model_number );
@@ -2011,7 +1949,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 				$product_modifiers = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_option_to_product WHERE product_id = %d', $product_id ) );
 				$is_subscription_item = (int) $_POST['is_subscription_item'];
 				$subscription_bill_length = (int) $_POST['subscription_bill_length'];
-				$subscription_bill_period = wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['subscription_bill_period'] ) ), array( 'W', 'M', 'Y' ) );
+				$subscription_bill_period = wp_easycart_admin_verification()->filter_list( sanitize_text_field( wp_unslash( $_POST['subscription_bill_period'] ) ), array( 'D', 'W', 'M', 'Y' ) ); /* 6.0.3: days too ( the editor offers them; they saved as no period ) */
 				$subscription_bill_duration = (int) $_POST['subscription_bill_duration'];
 				$subscription_shipping_recurring = (int) $_POST['subscription_shipping_recurring'];
 				$subscription_recurring_email = (int) $_POST['subscription_recurring_email'];
@@ -2080,65 +2018,12 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					$subscription_plan_id = 0;
 				}
 
-				$intervals = array(
-					'day'	=> 'D',
-					'week'	=> 'W',
-					'month'	=> 'M',
-					'year'	=> 'Y'
-				);
-
 				$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET is_subscription_item = %d, subscription_bill_length = %s, subscription_bill_period = %s, subscription_bill_duration = %s, subscription_shipping_recurring = %d, subscription_recurring_email = %d, trial_period_days = %s, subscription_signup_fee = %s, allow_multiple_subscription_purchases = %s, subscription_prorate = %s, subscription_plan_id = %s, membership_page = %s WHERE product_id = %d', $is_subscription_item, $subscription_bill_length, $subscription_bill_period, $subscription_bill_duration, $subscription_shipping_recurring, $subscription_recurring_email, $trial_period_days, $subscription_signup_fee, $allow_multiple_subscription_purchases, $subscription_prorate, $subscription_plan_id, $membership_page, $product_id ) );
-				$product_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', $product_id ) );
 
-				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-				if ( $is_subscription_item && ( get_option( 'ec_option_payment_process_method' ) == 'stripe' || get_option( 'ec_option_payment_process_method' ) == 'stripe_connect' ) ) {
-					if ( get_option( 'ec_option_payment_process_method' ) == 'stripe' ) {
-						$stripe = new ec_stripe();
-					} else {
-						$stripe = new ec_stripe_connect();
-					}
-					if ( '' != $product_row->stripe_product_id ) {
-						$stripe_price = $stripe->get_price( $product_row->stripe_default_price_id );
-						if ( false === $stripe_price || number_format( $product_row->price * 100, 0, '', '' ) != $stripe_price->unit_amount || $intervals[ $stripe_price->recurring->interval ] != $subscription_bill_period || $stripe_price->recurring->interval_count != $subscription_bill_length ) {
-							$new_stripe_price = $stripe->insert_price( $product_row );
-							$product_row->stripe_default_price_id = $new_stripe_price->id;
-							$stripe->update_product( $product_row );
-							if ( ! $is_sandbox ) {
-								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $new_stripe_price->id, $product_id ) );
-							} else {
-								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $new_stripe_price->id, $product_id ) );
-							}
-						}
-					} else if ( $product_row->stripe_plan_added ) {
-						$stripe_arr = (object) array( 'product_id' => $product_row->product_id, 'title' => $product_row->title, 'trial_period_days' => $product_row->trial_period_days );
-						if ( $product_row->subscription_unique_id ) {
-							$stripe_arr->product_id = $product_row->subscription_unique_id;
-						}
-						$plan = $stripe->get_plan( $stripe_arr );
-
-						if ( $plan === false || ( $plan->amount / 100 ) != $product_row->price || $intervals[ $plan->interval ] != $subscription_bill_period || $plan->interval_count != $subscription_bill_length ) {
-							$stripe_product = $stripe->insert_product( $product_row );
-							$stripe_price_id = $stripe_product->default_price;
-							if ( ! $is_sandbox ) {
-								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-							} else {
-								$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-							}
-
-						} else if ( ( ! isset( $plan->trial_period_days ) && $trial_period_days != 0 ) || ( isset( $plan->trial_period_days ) && $trial_period_days != $plan->trial_period_days ) ) {
-							$stripe->update_plan( $stripe_arr );
-						}
-
-					} else {
-						$stripe_product = $stripe->insert_product( $product_row );
-						$stripe_price_id = $stripe_product->default_price;
-						if ( ! $is_sandbox ) {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-						} else {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product->id, $stripe_price_id, $product_id ) );
-						}
-
-					}
+				/* 6.0.3: a new Stripe price when the amount or the interval changed, with the ids of the mode in use ( this save read
+				 * the live ids in test mode, so every test-mode save made another Stripe product ). */
+				if ( $is_subscription_item && class_exists( 'wp_easycart_subscription_prices' ) ) {
+					wp_easycart_subscription_prices::sync( $product_id );
 				}
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT model_number FROM ec_product WHERE product_id = %d', $product_id ) );
 				if ( $product ) {
@@ -2290,7 +2175,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 					$valid_headers[] = $header[0];
 				}
 				$valid_headers[] = 'advanced_option_ids';
-				$this->headers = fgetcsv( $file );
+				$this->headers = fgetcsv( $file, 0, ',', '"', '\\' );
 
 				for ( $i = 0; $i < count( $this->headers ); $i++ ) {
 
@@ -2446,7 +2331,7 @@ if ( ! class_exists( 'wp_easycart_admin_products' ) ) :
 
 					for ( $current_row = 0; ! feof( $file ) && ! $eof_reached && $current_row < $this->limit; $current_row++ ) {
 
-						$this_row = fgetcsv( $file );
+						$this_row = fgetcsv( $file, 0, ',', '"', '\\' );
 
 						if ( ! is_array( $this_row ) || ! isset( $this_row[ $this->model_number_index ] ) || strlen( trim( $this_row[ $this->model_number_index ] ) ) <= 0 ) {
 							$eof_reached = true;
@@ -3694,7 +3579,7 @@ function ec_admin_ajax_save_product_details_subscription() {
 		return false;
 	}
 
-	$wpec_hold = ecv2_product_save_hold( '' );
+	$wpec_hold = ecv2_product_save_hold( 'subscription' ); /* 6.0.3: a plan group's products keep their billing */
 	wp_easycart_admin_products()->save_product_details_subscription();
 	ecv2_product_save_done( $wpec_hold );
 	die();
@@ -4141,6 +4026,26 @@ function ec_admin_ecv2_quick_edit_summary( $product ) {
 		}
 	}
 
+	/*
+	 * 6.0.3: the picture the store shows first, and what decides it when that is not image1 ( '' = image1, gallery, options ):
+	 * the slideout then shows this picture instead of offering an image1 the store would not show.
+	 */
+	$picture      = '';
+	$picture_from = '';
+	if ( class_exists( 'wp_easycart_product_image' ) ) {
+		$option_rows = ! empty( $product->use_optionitem_images ) ? wp_easycart_product_image::option_rows( $pid ) : array();
+		$gallery     = wp_easycart_product_image::tokens( $product );
+		$picture     = wp_easycart_product_image::main_url( $product, 'medium', $option_rows );
+		if ( $option_rows ) {
+			$picture_from = 'options';
+		} elseif ( $gallery && 'image1' !== $gallery[0] ) {
+			$picture_from = 'gallery';
+		}
+		if ( $gallery ) {
+			$image_count = count( $gallery ); /* the gallery's entries, not the columns behind it */
+		}
+	}
+
 	$manufacturer_name = ( (int) $product->manufacturer_id > 0 ) ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT name FROM ec_manufacturer WHERE manufacturer_id = %d', (int) $product->manufacturer_id ) ) : '';
 
 	return array(
@@ -4149,6 +4054,8 @@ function ec_admin_ecv2_quick_edit_summary( $product ) {
 		'option_sets'    => $option_sets,
 		'modifier_count' => $modifier_count,
 		'image_count'    => $image_count,
+		'picture'        => $picture,
+		'picture_from'   => $picture_from,
 		'nonces'         => array(
 			'price'  => wp_create_nonce( 'wp-easycart-ecv2-price-edit-' . $pid ),
 			'volume' => wp_create_nonce( 'wp-easycart-ecv2-volume-pricing-' . $pid ),

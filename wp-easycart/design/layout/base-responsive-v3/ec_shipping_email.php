@@ -110,7 +110,7 @@ $ec_ship_ctx = $ed::ctx();
 
 /* Greeting */
 $ed::section_start();
-$ed::heading( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_dear' ) ) . ' ' . esc_html( trim( $ec_ship_order->billing_first_name . ' ' . $ec_ship_order->billing_last_name ) ) . ',' );
+$ed::greeting( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_dear' ) ), trim( $ec_ship_order->billing_first_name . ' ' . $ec_ship_order->billing_last_name ) ); /* 6.0.3: text size, not a headline */
 $ed::paragraph( wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle1' ) ) . ' <strong style="color:#111827;">' . esc_html( $ec_ship_order_id ) . '</strong> ' . wp_kses_post( $ec_ship_lang->get_text( 'ec_shipping_email', 'shipping_subtitle2' ) ) );
 if ( $ec_ship_show( 'email' ) && '' !== (string) $ec_ship_order->user_email ) {
 	$ed::paragraph( esc_html( $ec_ship_order->user_email ), array( 'tone' => 'small', 'nolink' => true ) );

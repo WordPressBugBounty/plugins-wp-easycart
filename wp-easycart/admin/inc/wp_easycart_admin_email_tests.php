@@ -57,6 +57,17 @@ if ( ! class_exists( 'wp_easycart_admin_email_tests' ) ) :
 					'title'    => array( 'subscription_ended', 'subscription_ended_email_title' ),
 					'log_type' => 'subscription_ended',
 				),
+				/* 6.0.3: wp_easycart_subscription_reminders builds these ( subject and HTML ). */
+				'renewal_reminder' => array(
+					'label'    => __( 'Renewal reminder', 'wp-easycart' ),
+					'reminder' => 'renewal',
+					'log_type' => 'subscription_renewal_reminder',
+				),
+				'trial_reminder'   => array(
+					'label'    => __( 'Trial reminder', 'wp-easycart' ),
+					'reminder' => 'trial',
+					'log_type' => 'subscription_trial_reminder',
+				),
 				'failed'       => array(
 					'label'    => __( 'Payment failed', 'wp-easycart' ),
 					'template' => 'ec_cart_payment_failed.php',
@@ -105,12 +116,16 @@ if ( ! class_exists( 'wp_easycart_admin_email_tests' ) ) :
 				return new WP_Error( 'ec_email_test_core', __( 'WP EasyCart is not fully loaded, so the test could not be built.', 'wp-easycart' ) );
 			}
 
-			$built = ( 'failed' === $id ) ? self::build_payment_failed() : self::build_subscription_email( $type );
+			if ( isset( $type['reminder'] ) ) {
+				$built = self::build_reminder( $type['reminder'] );
+			} else {
+				$built = ( 'failed' === $id ) ? self::build_payment_failed() : self::build_subscription_email( $type );
+			}
 			if ( is_wp_error( $built ) ) {
 				return $built;
 			}
 
-			$subject = wp_strip_all_tags( wp_easycart_language()->get_text( $type['title'][0], $type['title'][1] ) );
+			$subject = isset( $built['subject'] ) ? (string) $built['subject'] : wp_strip_all_tags( wp_easycart_language()->get_text( $type['title'][0], $type['title'][1] ) );
 			if ( '' === trim( $subject ) ) {
 				$subject = $type['label'];
 			}
@@ -181,6 +196,30 @@ if ( ! class_exists( 'wp_easycart_admin_email_tests' ) ) :
 			return array(
 				'html'   => $html,
 				'source' => self::source_note( $row, $sample ),
+			);
+		}
+
+		/**
+		 * A renewal or trial reminder ( 6.0.3 ), dated as the daily check would send it.
+		 *
+		 * @param string $kind renewal | trial.
+		 * @return array|WP_Error html, subject, source.
+		 */
+		private static function build_reminder( $kind ) {
+			if ( ! class_exists( 'wp_easycart_subscription_reminders' ) ) {
+				return new WP_Error( 'ec_email_test_core', __( 'WP EasyCart is not fully loaded, so the test could not be built.', 'wp-easycart' ) );
+			}
+			$row      = self::subscription_row();
+			$settings = wp_easycart_subscription_reminders::settings();
+			$days     = ( 'trial' === $kind ) ? $settings['trial_days'] : $settings['renewal_days'];
+			$built    = wp_easycart_subscription_reminders::build( $kind, $row, time() + $days * DAY_IN_SECONDS );
+			if ( '' === $built['html'] ) {
+				return new WP_Error( 'ec_email_test_template', __( 'The email template could not be found. Reinstall WP EasyCart.', 'wp-easycart' ) );
+			}
+			return array(
+				'html'    => $built['html'],
+				'subject' => $built['subject'],
+				'source'  => self::source_note( $row, empty( $row->subscription_id ) ),
 			);
 		}
 

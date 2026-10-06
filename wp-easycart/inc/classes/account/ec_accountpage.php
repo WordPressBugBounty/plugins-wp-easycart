@@ -2128,70 +2128,25 @@ class ec_accountpage {
 		global $wpdb;
 		$products = $this->mysqli->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['ec_selected_plan'] ), "", "", "" );
 		if ( count( $products ) > 0 ) {
-			$product = new ec_product( $products[0] );
-			$payment_method = get_option( 'ec_option_payment_process_method' );
-			$success = false;
-			$plan_added = $product->stripe_plan_added;
 			$quantity = ( isset( $_POST['ec_quantity'] ) ) ? (int) $_POST['ec_quantity'] : 1;
-
-			if ( $payment_method == "stripe" ||$payment_method == "stripe_connect" ) {
-				$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-				if ( $payment_method == "stripe" ) {
-					$stripe = new ec_stripe();
-				} else {
-					$stripe = new ec_stripe_connect();
-				}
-		
-				$subscription = $this->mysqli->get_subscription_row( (int) $_POST['subscription_id'] );
-				$subscription_info = $stripe->get_subscription( $GLOBALS['ec_user']->stripe_customer_id, $subscription->stripe_subscription_id );
-				$subscription_item_id = false;
-				if ( $subscription_info ) {
-					$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
-				}
-
-				$product_check = $stripe->get_product( $product->stripe_product_id );
-				if ( ! $product_check ) {
-					$stripe_product_new = $stripe->insert_product( $product );
-					$product->stripe_product_id = $stripe_product_new->id;
-					$product->stripe_default_price_id = $stripe_product_new->default_price;
-					if ( ! $is_sandbox ) {
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-					} else {
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-					}
-				} else {
-					$price_check = $stripe->get_price( $product->stripe_default_price_id );
-					if ( ! $price_check ) {
-						$stripe_price_new = $stripe->insert_price( $product );
-						$product->stripe_default_price_id = $stripe_price_new->id;
-						if ( ! $is_sandbox ) {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-						} else {
-							$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-						}
-					}
-				}
-
-				$plan_added = true;
-				$plan_check = $stripe->get_plan( $product );
-				if ( ! $plan_check || $plan_check->amount != (int) ( $product->price * 100 ) ) {
-					$plan_added = $stripe->insert_plan( $product );
-					$this->mysqli->update_product_stripe_added( $product->product_id );
-				}
-
-				if ( ! $plan_added ) {
-					header( "location: " . esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $_POST['subscription_id'], 'account_error' => 'subscription_update_failed', 'errcode' => '01' ) ) ) );
-					die();
-				}
-			}
-
 			if ( get_option( 'ec_option_subscription_one_only' ) || $quantity < 1 ) {
 				$quantity = max( 1, (int) $subscription_check->quantity );
 			}
-			/* 6.0.0: the Stripe id comes from the verified subscription row, not the posted form. */
-			$success = $stripe->update_subscription( $product, $this->user, NULL, $subscription_check->stripe_subscription_id, NULL, $product->subscription_prorate, NULL, $quantity, $subscription_item_id );
-			if ( $success ) {
-				$this->mysqli->upgrade_subscription( (int) $_POST['subscription_id'], $product, $quantity );
+			/* 6.0.3: the same change as My Account's Change plan ( wp_easycart_change_subscription_plan() ). This form also made a
+			 * Stripe plan of the older kind on every change, and stopped with a fatal error when the store's gateway was not Stripe. */
+			if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+				/* 6.0.3: the plan's change rule applies here too ( a change that waits for renewal is scheduled ). */
+				$success = wp_easycart_subscription_changes::customer_change( $subscription_post_id, (int) $_POST['ec_selected_plan'], $quantity, $this->user );
+			} else {
+				$success = ( true === wp_easycart_change_subscription_plan(
+					$subscription_post_id,
+					(int) $_POST['ec_selected_plan'],
+					$quantity,
+					array(
+						'source' => 'customer',
+						'user'   => $this->user,
+					)
+				) );
 			}
 
 			$GLOBALS['ec_cart_data']->save_session_to_db();
@@ -2226,8 +2181,11 @@ class ec_accountpage {
 			$stripe = new ec_stripe();
 		else
 			$stripe = new ec_stripe_connect();
+		if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+			wp_easycart_subscription_changes::before_cancel( $subscription_id ); /* 6.0.3: a plan change waiting for renewal goes with it */
+		}
 		$cancel_success = $stripe->cancel_subscription( $this->user, $subscription_row->stripe_subscription_id );
-		do_action( 'wpeasycart_subscription_cancelled', $this->user->user_id, $subscription_id );
+		/* 6.0.3: wpeasycart_subscription_cancelled fires once, below, when Stripe cancelled it ( it fired here too, before the answer, so listeners such as Zapier saw every cancel twice and failed ones as well ). */
 		$GLOBALS['ec_cart_data']->save_session_to_db();
 		if ( $cancel_success ) {
 			do_action( 'wpeasycart_subscription_cancelled', $this->user->user_id, $subscription_id );

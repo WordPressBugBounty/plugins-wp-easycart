@@ -54,6 +54,15 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		/** Where Premium extensions were downloaded before WP EasyCart Premium. */
 		const ACCOUNT_URL = 'https://www.wpeasycart.com/my-account/';
 
+		/** 6.0.3: the current WP EasyCart Premium, no license needed ( connect's v1/latest ); see premium_zip_link(). */
+		const PREMIUM_ZIP_URL = 'https://connect.wpeasycart.com/premium/v1/latest/wp-easycart-premium.zip';
+
+		/** 6.0.3: the Premium members page on wpeasycart.com, with the steps to install WP EasyCart Premium by hand. */
+		const MEMBERS_URL = 'https://www.wpeasycart.com/premium-members-page/';
+
+		/** 6.0.3: the id of the banner that gets WP EasyCart Premium going; notices and cards link to it ( premium_route() ). */
+		const BANNER_ID = 'ecext-premium';
+
 		/** The admin-post action that puts an out-of-date extension's notice off for a week ( 6.0.2 ). */
 		const SNOOZE_ACTION = 'wp_easycart_extension_snooze';
 
@@ -136,8 +145,10 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		 * replacement_action() ), links ( link-only cards: label, url, and optional title and icon apple | android | desktop,
 		 * see icon_svg() ), features ( key => array( title, desc ) ), min_version
 		 * ( 6.0.2: an installed version older than this is out of date for this WP EasyCart: its card says Update and EasyCart
-		 * screens show update_note, see outdated() ), update_note ( why to update, in the store's words ), integrations ( 6.0.2:
-		 * bool, list the extension on Settings › Integrations, see print_integrations_section() ).
+		 * screens show update_note, see outdated() ), update_note ( why to update, in the store's words ), bridge ( 6.0.3: the
+		 * last release on the extension's own old update feed, when that is older than min_version: a store without a current
+		 * Premium license cannot get min_version, so it is out of date only below this, with bridge_note as its why ),
+		 * bridge_note, integrations ( 6.0.2: bool, list the extension on Settings › Integrations, see print_integrations_section() ).
 		 *
 		 * coming ( 6.0.2 ): announced but not released. The card says Coming soon with nothing to install, activate or download,
 		 * Integrations shows it without an action, and upsell surfaces list it as coming. WP EasyCart Premium replaces the status
@@ -434,6 +445,9 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 					'legacy_page' => 'ec-admin-tabs',
 					'min_version' => '3.0.0',
 					'update_note' => __( 'Version 3.0 edits tabs in the product editor, adds shared tabs, a tab designer with 36 blocks, industry templates and ten tab styles. Your tabs carry over and keep their look until you choose a new style, and they keep showing until you update.', 'wp-easycart' ),
+					/* 6.0.3: Tabs 1.x's own update feed ends at 1.0.11; Tabs 3 comes through WP EasyCart Premium. */
+					'bridge'      => '1.0.11',
+					'bridge_note' => __( 'Version 1.0.11 is an important update for the tabs you have now. They carry over unchanged.', 'wp-easycart' ),
 					'features'    => array(
 						'designer'  => array( __( 'A tab designer', 'wp-easycart' ), __( 'Build each product\'s tabs from 36 blocks, size charts to nutrition labels, beside a live preview.', 'wp-easycart' ) ),
 						'templates' => array( __( 'Templates for your industry', 'wp-easycart' ), __( 'Fourteen ready-made sets of tabs, from apparel to supplements, in one click.', 'wp-easycart' ) ),
@@ -558,6 +572,8 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 					'features'    => array(),
 					'min_version' => '',
 					'update_note' => '',
+					'bridge'      => '',
+					'bridge_note' => '',
 					'integrations' => false,
 				) );
 				$entry['integrations'] = (bool) $entry['integrations'];
@@ -699,31 +715,46 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		 * An installed extension older than the version this WP EasyCart needs ( the catalog's min_version ). It keeps
 		 * running; the card says Update and EasyCart screens show why ( outdated_notice() ).
 		 *
+		 * 6.0.3: a store without a current Premium license can only reach the extension's last release on its old update feed
+		 * ( the entry's bridge ), so for it that is the version to have. A store with one updates through WP EasyCart Premium;
+		 * while that is not active here, route says how to get it going ( premium_route() ).
+		 *
 		 * @since 6.0.2
 		 * @param string $slug Extension slug.
-		 * @return array|null version ( installed ), min_version, note, basename; null when up to date or not installed.
+		 * @return array|null version ( installed ), min_version ( the version to update to ), note, basename, route ( 6.0.3:
+		 *                    premium_route() when the update needs WP EasyCart Premium first, else null ); null when up to date
+		 *                    or not installed.
 		 */
 		public static function outdated( $slug ) {
 			$ext = self::get( $slug );
 			if ( ! $ext || '' === $ext['min_version'] || 'available' !== self::status( $ext ) ) {
 				return null;
 			}
+			$premium = ( 'active' === self::premium_state() );
+			$need    = (string) $ext['min_version'];
+			$note    = (string) $ext['update_note'];
+			if ( ! $premium && '' !== $ext['bridge'] ) {
+				$need = (string) $ext['bridge'];
+				$note = (string) $ext['bridge_note'];
+			}
 			$version = self::installed_version( $slug );
-			if ( '' === $version || version_compare( $version, $ext['min_version'], '>=' ) ) {
+			if ( '' === $version || version_compare( $version, $need, '>=' ) ) {
 				return null;
 			}
 			return array(
 				'version'     => $version,
-				'min_version' => (string) $ext['min_version'],
-				'note'        => (string) $ext['update_note'],
+				'min_version' => $need,
+				'note'        => $note,
 				'basename'    => self::installed( $slug ),
+				'route'       => $premium ? self::premium_route() : null,
 			);
 		}
 
 		/**
 		 * Where to update an extension: WP EasyCart Premium's Extensions page when it is active ( it updates Premium
-		 * extensions; ?update=<slug> asks it to update this one there and then, Premium 1.1.1 ), else the Plugins screen
-		 * filtered to the extension.
+		 * extensions; ?update=<slug> asks it to update this one there and then, Premium 1.1.1 ); 6.0.3: with a current
+		 * Premium license and WP EasyCart Premium not active yet, the step that gets it going ( premium_route() ), since the
+		 * extension's own update feed never offers the version it needs; else the Plugins screen filtered to the extension.
 		 *
 		 * @since 6.0.2
 		 * @param array $ext Catalog entry.
@@ -734,7 +765,55 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			if ( $plugin['active'] ) {
 				return self::url( '', array( 'update' => $ext['slug'] ) );
 			}
+			$route = self::premium_route();
+			if ( $route ) {
+				return $route['url'];
+			}
 			return self_admin_url( 'plugins.php?plugin_status=all&s=' . rawurlencode( $ext['name'] ) );
+		}
+
+		/**
+		 * With a current Premium license, the step that gets WP EasyCart Premium going here, the plugin that installs and
+		 * updates the extensions ( 6.0.3 ): Activate when it is installed, its one-click install when WP EasyCart PRO offers
+		 * it, else this page's banner, which says why it cannot be installed in one click and what to do instead.
+		 *
+		 * @since 6.0.3
+		 * @return array|null kind ( activate | install | banner ), label, url, why ( a sentence for notices ); null without a
+		 *                    current Premium license, or when WP EasyCart Premium is active.
+		 */
+		public static function premium_route() {
+			if ( 'active' !== self::premium_state() ) {
+				return null;
+			}
+			$plugin = self::premium_plugin();
+			if ( $plugin['active'] ) {
+				return null;
+			}
+			if ( $plugin['installed'] ) {
+				$activate = self::activate_url( self::PREMIUM_BASENAME );
+				return array(
+					'kind'  => 'activate',
+					'label' => __( 'Activate WP EasyCart Premium', 'wp-easycart' ),
+					'url'   => '' !== $activate ? $activate : self::url() . '#' . self::BANNER_ID,
+					'why'   => __( 'Extensions update through WP EasyCart Premium, which is installed on this site but not active.', 'wp-easycart' ),
+				);
+			}
+			$why     = __( 'Extensions update through WP EasyCart Premium, which is not installed on this site yet.', 'wp-easycart' );
+			$install = self::premium_install_url();
+			if ( '' !== $install ) {
+				return array(
+					'kind'  => 'install',
+					'label' => __( 'Install WP EasyCart Premium', 'wp-easycart' ),
+					'url'   => $install,
+					'why'   => $why,
+				);
+			}
+			return array(
+				'kind'  => 'banner',
+				'label' => __( 'Get WP EasyCart Premium', 'wp-easycart' ),
+				'url'   => self::url() . '#' . self::BANNER_ID,
+				'why'   => $why,
+			);
 		}
 
 		/**
@@ -766,7 +845,16 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 				);
 				/* 6.0.2: the shell's V2 notice ( it was an unstyled one-off with its own inline styles ). */
 				$actions = array();
-				if ( current_user_can( 'update_plugins' ) ) {
+				$detail  = $outdated['note'];
+				if ( $outdated['route'] ) {
+					/* 6.0.3: the update needs WP EasyCart Premium first: say so, and lead with that step. */
+					$detail    = trim( $detail . ' ' . $outdated['route']['why'] );
+					$actions[] = array(
+						'label'   => $outdated['route']['label'],
+						'url'     => $outdated['route']['url'],
+						'primary' => true,
+					);
+				} elseif ( current_user_can( 'update_plugins' ) ) {
 					$actions[] = array(
 						'label'   => __( 'Update', 'wp-easycart' ),
 						'url'     => self::update_url( $ext ),
@@ -782,7 +870,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 					/* translators: 1: extension name, 2: installed version, 3: needed version. */
 					sprintf( __( 'Update %1$s: version %2$s is out of date, %3$s is ready', 'wp-easycart' ), $ext['name'], $outdated['version'], $outdated['min_version'] ),
 					array(
-						'detail'      => $outdated['note'],
+						'detail'      => $detail,
 						'dismissible' => false,
 						'class'       => 'ecext-outdated',
 						'actions'     => $actions,
@@ -908,12 +996,39 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		}
 
 		/**
+		 * The current WP EasyCart Premium as a plain link ( 6.0.3, connect's v1/latest ). It needs no license, since WP EasyCart
+		 * Premium does nothing without an active Premium license, so it is offered where WP EasyCart PRO's licensed download
+		 * ( premium_download_url() ) is not. The store's site and versions ride along for the download count.
+		 *
+		 * @since 6.0.3
+		 * @return string
+		 */
+		public static function premium_zip_link() {
+			$args = array(
+				'source' => 'free',
+				'site'   => (string) preg_replace( '#^https?://#i', '', untrailingslashit( home_url() ) ),
+				'free'   => defined( 'EC_CURRENT_VERSION' ) ? str_replace( '_', '.', (string) EC_CURRENT_VERSION ) : '',
+				'pro'    => defined( 'WP_EASYCART_ADMIN_PRO_VERSION' ) ? (string) WP_EASYCART_ADMIN_PRO_VERSION : '',
+				'wp'     => (string) get_bloginfo( 'version' ),
+				'php'    => PHP_VERSION,
+			);
+			/**
+			 * The plain link to the current WP EasyCart Premium.
+			 *
+			 * @since 6.0.3
+			 * @param string $url The link.
+			 */
+			return (string) apply_filters( 'wp_easycart_premium_zip_link', add_query_arg( array_map( 'rawurlencode', $args ), self::PREMIUM_ZIP_URL ) );
+		}
+
+		/**
 		 * Why the one-click install of WP EasyCart Premium is not offered here, for the banner's words ( 6.0.2 ). Asked only
 		 * after premium_install_url() came back empty for a current Premium license.
 		 *
 		 * reason: offered | permission ( this user cannot install plugins ) | file_mods ( the site allows no installs from the
 		 * dashboard ) | update_pro ( WP EasyCart PRO is older than its one-click install ) | not_premium, expired, inactive,
-		 * not_found, not_offered ( the download server does not offer it to this license yet ) | site ( it knows the license by
+		 * not_found, legacy ( a v3 key ), license ( no key ) ( the download server's answer about the license, 6.0.3: each in its
+		 * own words on the banner ) | not_offered ( it does not offer it to this license yet ) | site ( it knows the license by
 		 * another site address ) | unreachable, server, rate ( no answer from it ) | unknown ( a WP EasyCart PRO that does not
 		 * say ). checked: when the download server was last asked ( timestamp, 0 = not known ).
 		 *
@@ -1053,7 +1168,15 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		public function refresh_message( $messages ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only: picks the note to show after the redirect.
 			if ( isset( $_GET['page'], $_GET['ecext_checked'] ) && self::PAGE === sanitize_key( wp_unslash( $_GET['page'] ) ) ) {
-				$messages[] = __( 'Checked again just now.', 'wp-easycart' );
+				/* 6.0.3: say what the check found when WP EasyCart Premium is what the store is waiting for. */
+				$route = self::premium_route();
+				if ( $route && 'install' === $route['kind'] ) {
+					$messages[] = __( 'Checked again just now. WP EasyCart Premium can be installed in one click: choose Install WP EasyCart Premium.', 'wp-easycart' );
+				} elseif ( $route && 'banner' === $route['kind'] ) {
+					$messages[] = __( 'Checked again just now. The download server still does not offer WP EasyCart Premium to this license; the note above the extensions says why and what to do.', 'wp-easycart' );
+				} else {
+					$messages[] = __( 'Checked again just now.', 'wp-easycart' );
+				}
 			}
 			return $messages;
 		}
@@ -1200,8 +1323,9 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 							'primary' => true,
 						)
 						: array(
-							'label'  => __( 'Download', 'wp-easycart' ),
-							'url'    => self::ACCOUNT_URL,
+							/* 6.0.3: the install steps; the account no longer carries the extensions. */
+							'label'  => __( 'How to install', 'wp-easycart' ),
+							'url'    => self::MEMBERS_URL,
 							'target' => '_blank',
 						);
 				}
@@ -1229,10 +1353,37 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			if ( $outdated ) {
 				/* translators: %s: version number. */
 				$card['chip']   .= ' <span class="ecext-chip is-update">' . esc_html( sprintf( __( 'Update to %s', 'wp-easycart' ), $outdated['min_version'] ) ) . '</span>';
-				/* translators: 1: installed version, 2: needed version. */
-				$card['status'] .= ( '' !== $card['status'] ? ' · ' : '' ) . esc_html( sprintf( __( 'v%1$s is out of date: update to v%2$s', 'wp-easycart' ), $outdated['version'], $outdated['min_version'] ) );
-				/* Every plan: the update that brings an extension up to date comes through its own update feed too. */
-				if ( current_user_can( 'update_plugins' ) ) {
+				/* 6.0.3: the version once ( Active · v1.0.10 · out of date … rather than v1.0.10 twice ). */
+				$said = ( false !== strpos( $card['status'], esc_html( 'v' . $outdated['version'] ) ) );
+				if ( $outdated['route'] ) {
+					/* 6.0.3: a current Premium license updates through WP EasyCart Premium, which is not active here yet. */
+					$card['status'] .= ( '' !== $card['status'] ? ' · ' : '' ) . esc_html(
+						$said
+							/* translators: %s: needed version. */
+							? sprintf( __( 'out of date: WP EasyCart Premium updates it to v%s', 'wp-easycart' ), $outdated['min_version'] )
+							/* translators: 1: installed version, 2: needed version. */
+							: sprintf( __( 'v%1$s is out of date: WP EasyCart Premium updates it to v%2$s', 'wp-easycart' ), $outdated['version'], $outdated['min_version'] )
+					);
+					array_unshift(
+						$card['actions'],
+						array(
+							'label'   => $outdated['route']['label'],
+							'url'     => $outdated['route']['url'],
+							'primary' => true,
+						)
+					);
+				} else {
+					$card['status'] .= ( '' !== $card['status'] ? ' · ' : '' ) . esc_html(
+						$said
+							/* translators: %s: needed version. */
+							? sprintf( __( 'out of date: update to v%s', 'wp-easycart' ), $outdated['min_version'] )
+							/* translators: 1: installed version, 2: needed version. */
+							: sprintf( __( 'v%1$s is out of date: update to v%2$s', 'wp-easycart' ), $outdated['version'], $outdated['min_version'] )
+					);
+				}
+				/* Every plan: the update that brings an extension up to date comes through its own update feed too ( 6.0.3: up to
+				   its bridge without a current Premium license; through WP EasyCart Premium with one, above, while it is not active ). */
+				if ( ! $outdated['route'] && current_user_can( 'update_plugins' ) ) {
 					array_unshift(
 						$card['actions'],
 						array(
@@ -1433,13 +1584,13 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			} elseif ( ! $plugin['installed'] ) {
 				$install = self::premium_install_url();
 				if ( '' !== $install ) {
-					$html = '<div class="ecext-banner is-install"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'Your Premium license includes every extension.', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Install WP EasyCart Premium, the plugin that installs, updates and manages them from this page. It takes one click.', 'wp-easycart' ) . '</span></div><div class="ecext-banner-actions">' . self::action_html( array( 'label' => __( 'Install WP EasyCart Premium', 'wp-easycart' ), 'url' => $install, 'primary' => true ) ) . '</div></div>';
+					$html = '<div class="ecext-banner is-install" id="' . esc_attr( self::BANNER_ID ) . '"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'Your Premium license includes every extension.', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Install WP EasyCart Premium, the plugin that installs, updates and manages them from this page. It takes one click.', 'wp-easycart' ) . '</span></div><div class="ecext-banner-actions">' . self::action_html( array( 'label' => __( 'Install WP EasyCart Premium', 'wp-easycart' ), 'url' => $install, 'primary' => true ) ) . '</div></div>';
 				} else {
 					$html = self::premium_fallback_banner();
 				}
 			} elseif ( ! $plugin['active'] ) {
 				$activate = self::activate_url( self::PREMIUM_BASENAME );
-				$html     = '<div class="ecext-banner is-install"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'WP EasyCart Premium is installed but not active.', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Activate it to install, update and manage your extensions from this page.', 'wp-easycart' ) . '</span></div><div class="ecext-banner-actions">' . ( '' !== $activate ? self::action_html( array( 'label' => __( 'Activate WP EasyCart Premium', 'wp-easycart' ), 'url' => $activate, 'primary' => true ) ) : '' ) . '</div></div>';
+				$html     = '<div class="ecext-banner is-install" id="' . esc_attr( self::BANNER_ID ) . '"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'WP EasyCart Premium is installed but not active.', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Activate it to install, update and manage your extensions from this page.', 'wp-easycart' ) . '</span></div><div class="ecext-banner-actions">' . ( '' !== $activate ? self::action_html( array( 'label' => __( 'Activate WP EasyCart Premium', 'wp-easycart' ), 'url' => $activate, 'primary' => true ) ) : '' ) . '</div></div>';
 			} else {
 				/* translators: %s: date the license ends. */
 				$html = '<div class="ecext-banner is-status"><span class="ecext-dot is-on" aria-hidden="true"></span><div class="ecext-banner-text"><span>' . esc_html( '' !== $end ? sprintf( __( 'Premium license, active until %s', 'wp-easycart' ), $end ) : __( 'Premium license, active', 'wp-easycart' ) ) . '</span></div></div>';
@@ -1458,9 +1609,13 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 		/**
 		 * The banner for a current Premium license when WP EasyCart Premium is not installed and its one-click install is
 		 * not offered ( 6.0.2 ). It used to send everyone to their account downloads; now it says why, and when the reason
-		 * can pass ( a license upgraded moments ago, no answer from the download server ) it leads with Check again, keeping
-		 * the account download as the second choice. On a site that allows no installs from the dashboard it leads with
-		 * WP EasyCart Premium as a .zip when WP EasyCart PRO offers one ( premium_download_url() ), with how to add it.
+		 * can pass ( a license upgraded moments ago, no answer from the download server ) it leads with Check again. On a site
+		 * that allows no installs from the dashboard it leads with WP EasyCart Premium as a .zip: WP EasyCart PRO's licensed
+		 * download when it offers one ( premium_download_url() ), else the plain link ( premium_zip_link(), 6.0.3 ). The second
+		 * choice is the install steps on the Premium members page ( 6.0.3: the account no longer carries Premium downloads ).
+		 * 6.0.3: every case says first that the extensions install and update through this plugin, which is not on the site yet,
+		 * and the download server's answer about the license ( not_premium, expired, inactive, not_found, legacy ) is said as it is,
+		 * leading with Check my license where waiting will not change it.
 		 *
 		 * @return string HTML.
 		 */
@@ -1468,8 +1623,8 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 			$status  = self::premium_install_status();
 			$check   = self::refresh_url();
 			$account = array(
-				'label'  => __( 'Download from my account', 'wp-easycart' ),
-				'url'    => self::ACCOUNT_URL,
+				'label'  => __( 'How to install', 'wp-easycart' ),
+				'url'    => self::MEMBERS_URL,
 				'target' => '_blank',
 			);
 			$again   = array(
@@ -1477,31 +1632,33 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 				'url'     => $check,
 				'primary' => true,
 			);
+			$license = array(
+				'label' => __( 'Check my license', 'wp-easycart' ),
+				'url'   => admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration' ),
+			);
+			$zip     = array(
+				'label' => __( 'Download WP EasyCart Premium ( .zip )', 'wp-easycart' ),
+				'url'   => self::premium_zip_link(),
+			);
+			/* 6.0.3: every case first says that the extensions need this plugin, which is not on the site yet. */
+			$lead    = __( 'Extensions install and update through the WP EasyCart Premium plugin, which is not on this site yet.', 'wp-easycart' );
 			$asked   = false;
 			$actions = array();
 			switch ( $status['reason'] ) {
 				case 'permission':
-					$text = __( 'A site administrator can install WP EasyCart Premium from this page in one click. It installs, updates and manages every extension.', 'wp-easycart' );
+					$text = __( 'A site administrator can install it from this page in one click.', 'wp-easycart' );
 					break;
 				case 'file_mods':
-					$zip              = self::premium_download_url();
-					$account['label'] = __( 'Open my account', 'wp-easycart' );
-					if ( '' !== $zip ) {
-						/* 6.0.2: WP EasyCart Premium as a .zip from WP EasyCart PRO, the account second. */
-						$text      = __( 'This site does not allow plugins to be installed from the dashboard. Download WP EasyCart Premium, unzip it into wp-content/plugins with your host\'s file manager or SFTP ( or add it the way this site is deployed ), then activate it on Plugins.', 'wp-easycart' );
-						$actions[] = array(
-							'label'   => __( 'Download WP EasyCart Premium ( .zip )', 'wp-easycart' ),
-							'url'     => $zip,
-							'primary' => true,
-						);
-					} else {
-						$text               = __( 'This site does not allow plugins to be installed from the dashboard. Download the extensions from your WP EasyCart account and add them the way this site is deployed.', 'wp-easycart' );
-						$account['primary'] = true;
-					}
-					$actions[] = $account;
+					/* 6.0.2: WP EasyCart Premium as a .zip from WP EasyCart PRO. 6.0.3: else the plain link, the steps second. */
+					$download       = self::premium_download_url();
+					$text           = __( 'This site does not allow plugins to be installed from the dashboard. Download WP EasyCart Premium, unzip it into wp-content/plugins with your host\'s file manager or SFTP ( or add it the way this site is deployed ), then activate it on Plugins.', 'wp-easycart' );
+					$zip['url']     = '' !== $download ? $download : $zip['url'];
+					$zip['primary'] = true;
+					$actions[]      = $zip;
+					$actions[]      = $account;
 					break;
 				case 'update_pro':
-					$text = __( 'Update WP EasyCart PRO to install WP EasyCart Premium in one click. It installs, updates and manages every extension from this page.', 'wp-easycart' );
+					$text = __( 'Update WP EasyCart PRO to install it in one click.', 'wp-easycart' );
 					if ( current_user_can( 'update_plugins' ) ) {
 						$actions[] = array(
 							'label'   => __( 'Update WP EasyCart PRO', 'wp-easycart' ),
@@ -1514,30 +1671,59 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 				case 'unreachable':
 				case 'server':
 				case 'rate':
-					$text      = __( 'This site could not get an answer from the WP EasyCart download server, so WP EasyCart Premium cannot be installed in one click right now. Check again in a few minutes, or download the extensions from your account.', 'wp-easycart' );
+					$text      = __( 'This site could not get an answer from the WP EasyCart download server, so it cannot be installed in one click right now. Check again in a few minutes.', 'wp-easycart' );
 					$asked     = true;
 					$actions[] = $again;
 					$actions[] = $account;
 					break;
 				case 'site':
-					$text      = __( 'The download server has your license registered to another site address, so WP EasyCart Premium cannot be installed in one click here. Activate your key on this site, then check again.', 'wp-easycart' );
+					$text      = __( 'The download server has your license registered to another site address, so it cannot be installed in one click here. Activate your key on this site, then check again.', 'wp-easycart' );
 					$asked     = true;
 					$actions[] = $again;
-					$actions[] = array(
-						'label' => __( 'Check my license', 'wp-easycart' ),
-						'url'   => admin_url( 'admin.php?page=wp-easycart-registration&subpage=registration' ),
-					);
+					$actions[] = $license;
 					$actions[] = $account;
 					break;
+				/* 6.0.3: the download server's own answer about the license, in words ( it used to read "may not have caught up" ). */
+				case 'not_premium':
+					$text      = __( 'The WP EasyCart download server has the license key on this site as a Pro license, so it does not offer WP EasyCart Premium yet. Upgraded moments ago? Check again in a few minutes.', 'wp-easycart' );
+					$asked     = true;
+					$actions[] = $again;
+					$actions[] = $license;
+					break;
+				case 'expired':
+					$text      = __( 'The WP EasyCart download server has your Premium license as expired. Renewed moments ago? Check again in a few minutes.', 'wp-easycart' );
+					$asked     = true;
+					$actions[] = $again;
+					$actions[] = $license;
+					break;
+				case 'inactive':
+					$text      = __( 'The WP EasyCart download server has your license as not active, so it does not offer WP EasyCart Premium. Check your license, or contact us to have it activated.', 'wp-easycart' );
+					$asked     = true;
+					$actions[] = $license;
+					$actions[] = $again;
+					break;
+				case 'not_found':
+				case 'license':
+					$text      = __( 'The WP EasyCart download server did not find the license key on this site. Check the key on the Registration page.', 'wp-easycart' );
+					$asked     = true;
+					$actions[] = $license;
+					$actions[] = $again;
+					break;
+				case 'legacy':
+					$text      = __( 'The license key on this site is an older key that no longer includes updates, so the WP EasyCart download server does not offer WP EasyCart Premium for it.', 'wp-easycart' );
+					$asked     = true;
+					$actions[] = $license;
+					break;
 				default:
-					/* not_premium, expired, inactive, not_found, not_offered, unknown: most often a license upgraded or renewed
-					   moments ago, before the download server caught up. */
-					$text      = __( 'Upgraded or renewed your license moments ago? The download server may not have caught up yet. Check again to install WP EasyCart Premium in one click.', 'wp-easycart' );
+					/* not_offered, unknown: most often a license upgraded or renewed moments ago, before the download server caught up. */
+					$text      = __( 'Upgraded or renewed your license moments ago? The download server may not have caught up yet. Check again to install it in one click, or download it and upload it on Plugins › Add New Plugin.', 'wp-easycart' );
 					$asked     = ( 'unknown' !== $status['reason'] );
 					$actions[] = $again;
+					$actions[] = $zip;
 					$actions[] = $account;
 					break;
 			}
+			$text = $lead . ' ' . $text;
 			$note = '';
 			if ( $asked && $status['checked'] > 0 && ( time() - $status['checked'] ) >= MINUTE_IN_SECONDS ) {
 				/* translators: %s: time since, e.g. "12 minutes". */
@@ -1553,7 +1739,7 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 				}
 				$buttons .= self::action_html( $action );
 			}
-			return '<div class="ecext-banner is-install" data-ecext-reason="' . esc_attr( $status['reason'] ) . '"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'Your Premium license includes every extension.', 'wp-easycart' ) . '</b><span>' . esc_html( $text ) . '</span>' . $note . '</div>' . ( '' !== $buttons ? '<div class="ecext-banner-actions">' . $buttons . '</div>' : '' ) . '</div>';
+			return '<div class="ecext-banner is-install" id="' . esc_attr( self::BANNER_ID ) . '" data-ecext-reason="' . esc_attr( $status['reason'] ) . '"><span class="ecext-banner-ic is-green" aria-hidden="true">+</span><div class="ecext-banner-text"><b>' . esc_html__( 'Your Premium license includes every extension.', 'wp-easycart' ) . '</b><span>' . esc_html( $text ) . '</span>' . $note . '</div>' . ( '' !== $buttons ? '<div class="ecext-banner-actions">' . $buttons . '</div>' : '' ) . '</div>';
 		}
 
 		/**
@@ -1790,7 +1976,8 @@ if ( ! class_exists( 'wp_easycart_admin_extensions' ) ) :
 				/* translators: %s: extension name. */
 				return array( 'label' => sprintf( __( 'Install %s', 'wp-easycart' ), $ext['name'] ), 'url' => $install, 'primary' => true );
 			}
-			return array( 'label' => __( 'Download from your account', 'wp-easycart' ), 'url' => self::ACCOUNT_URL, 'target' => '_blank' );
+			/* 6.0.3: the install steps; the account no longer carries the extensions. */
+			return array( 'label' => __( 'How to install', 'wp-easycart' ), 'url' => self::MEMBERS_URL, 'target' => '_blank' );
 		}
 
 		/**

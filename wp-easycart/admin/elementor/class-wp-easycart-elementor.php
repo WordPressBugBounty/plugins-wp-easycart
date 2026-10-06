@@ -253,6 +253,7 @@ class WP_EasyCart_Elementor {
 			'product-categories'                => array( 'shop', 'carousel' ),
 			'shop'                              => array( 'shop', 'shop' ),
 			'product-search'                    => array( 'shop', 'search' ),
+			'pricing-table'                     => array( 'shop', '' ),
 			'category-and-manufacturer-widgets' => array( 'category', 'widgets' ),
 			'cart'                              => array( 'cart', 'cart' ),
 			'checkout'                          => array( 'cart', 'checkout' ),

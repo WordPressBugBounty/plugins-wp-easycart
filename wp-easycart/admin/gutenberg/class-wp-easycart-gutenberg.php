@@ -136,6 +136,11 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 					'add-to-cart-button' => __( 'Add to Cart Button', 'wp-easycart' ),
 					'cart-display' => __( 'Cart Display', 'wp-easycart' ),
 					'membership-content' => __( 'Membership Content', 'wp-easycart' ),
+					/* 6.0.3: a plan group's pricing table ( WP EasyCart PRO ). */
+					'plan-table'         => __( 'Pricing table', 'wp-easycart' ),
+					'plan-table-label'   => __( 'Plan group', 'wp-easycart' ),
+					'plan-table-choose'  => __( 'Choose a plan group', 'wp-easycart' ),
+					'plan-table-none'    => __( 'Make a plan group in Products › Subscription plans ( WP EasyCart PRO ) first.', 'wp-easycart' ),
 					'product-id' => __( 'Product ID', 'wp-easycart' ),
 					'model-number' => __( 'Model Number', 'wp-easycart' ),
 					'title' => __( 'Title', 'wp-easycart' ),
@@ -245,10 +250,22 @@ if ( ! class_exists( 'Wp_Easycart_Gutenberg' ) ) :
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_products', $this->get_products_cdata() );
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_products_model', $this->get_products_model_cdata() );
 				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_user_roles', $this->get_user_roles_cdata() );
+				wp_localize_script( 'wp_easycart_block_js', 'wp_easycart_plan_tables', $this->get_plan_tables_cdata() ); /* 6.0.3 */
 
 				wp_register_style( 'wp_easycart_block_css', plugins_url( 'wp-easycart/admin/gutenberg/assets/css/block.css', EC_PLUGIN_DIRECTORY ), array(), EC_CURRENT_VERSION );
 				wp_enqueue_style( 'wp_easycart_block_css' );
 			}
+		}
+
+		/**
+		 * The plan groups for the Pricing table block ( 6.0.3, WP EasyCart PRO ).
+		 */
+		private function get_plan_tables_cdata() {
+			global $wpdb;
+			if ( ! function_exists( 'wp_easycart_plan_groups_ready' ) || ! wp_easycart_plan_groups_ready() ) {
+				return array();
+			}
+			return $wpdb->get_results( "SELECT CAST( subscription_plan_id AS CHAR ) AS value, plan_title AS label FROM ec_subscription_plan WHERE plan_kind = 'table' ORDER BY plan_title ASC LIMIT 500" );
 		}
 
 		/**

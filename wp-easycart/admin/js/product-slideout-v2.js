@@ -37,7 +37,8 @@
 		sku_touched: false,
 		ship_touched: false,
 		saving: false,
-		manager_open: false
+		manager_open: false,
+		preview: null            // 6.0.3: { value: the loaded image1, src: the picture the store shows }
 	};
 
 	/* ------------------------------------------------------------------ */
@@ -122,17 +123,14 @@
 		if ( state.mode !== 'create' ) { return; }
 		var t = val( 'ecpsv2_type' ), $h = $f( 'ecpsv2_type_hint' );
 		if ( ! V.is_pro ) { $h.text( L.type_pro_hint || 'Downloads, subscriptions, gift cards and more are ' + ( ( window.wp_easycart_edition && window.wp_easycart_edition.plan ) || 'Pro/Premium' ) + ' types.' ); return; }
-		if ( t === '5' || t === '6' ) { $h.text( L.type_stripe || 'Subscriptions and memberships bill through Stripe, Authorize.net or PayPal.' ); }
+		if ( t === '5' || t === '6' ) { $h.text( L.type_stripe || 'Subscriptions and memberships bill through Stripe.' ); }
 		else if ( DIGITAL_TYPES[ t ] ) { $h.text( L.type_digital || 'This type is delivered without shipping.' ); }
 		else { $h.text( '' ); }
 	}
 
 	function refresh_opt_count() {
 		if ( state.mode !== 'create' ) { return; }
-		var mode = val( 'ecpsv2_optmode' );
-		$f( 'ecpsv2_optrows' ).prop( 'hidden', mode !== '1' );
-		$f( 'ecpsv2_modifier_note' ).prop( 'hidden', mode !== '2' );
-		if ( mode !== '1' ) { $f( 'ecpsv2_opt_count' ).text( '' ); return; }
+		/* 6.0.3: variations and modifiers both show; there is no either / or choice any more. */
 		var visible = $( '#ecpsv2_opt_list .ecpsv2-opt-row' ).length, left = opt_max() - visible;
 		$f( 'ecpsv2_opt_count' ).text( left <= 0
 			? opt_max_label()
@@ -146,9 +144,19 @@
 		$box().toggleClass( 'is-dirty', dirty );
 	}
 
+	/* 6.0.3: Live / Draft follows the hidden #ecpsv2_status checkbox ( activate_in_store ); the create button says which. */
+	function refresh_publish() {
+		var live = checked( 'ecpsv2_status' );
+		$( '#ecpsv2_publish .ecpsv2-publish-opt' ).each( function() {
+			var on = ( $( this ).attr( 'data-live' ) === '1' ) === live;
+			$( this ).toggleClass( 'is-on', on ).attr( { 'aria-checked': on ? 'true' : 'false', tabindex: on ? '0' : '-1' } );
+		} );
+		$f( 'ecpsv2_create_btn' ).text( live ? ( L.create_live || 'Create product' ) : ( L.create_draft || 'Save as draft' ) );
+	}
+
 	function refresh_all() {
 		refresh_header(); refresh_sku_hint(); refresh_discount(); refresh_stock();
-		refresh_shipping(); refresh_type_hint(); refresh_opt_count(); refresh_dirty();
+		refresh_shipping(); refresh_type_hint(); refresh_opt_count(); refresh_publish(); refresh_dirty();
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -182,9 +190,10 @@
 			/* Tax is a hidden input when the Quick add panel setting is off; it still round-trips the loaded value. */
 			is_taxable:        val( 'ecpsv2_tax' ) || String( V.default_tax || '0' ),
 			product_type:      state.mode === 'create' ? val( 'ecpsv2_type' ) : '',
-			/* Options card absent ( "Variant fields" off ) => no options, all slots 0. */
-			option_type:       state.mode === 'create' ? ( val( 'ecpsv2_optmode' ) || '0' ) : '',
-			options:           state.mode === 'create' ? opt_ids() : []
+			/* Options card absent ( "Variant fields" off ) => no options, all slots 0. 6.0.3: 1 whenever a variation set is picked. */
+			option_type:       state.mode === 'create' ? ( $.grep( opt_ids(), function( id ) { return id !== '0'; } ).length ? '1' : '0' ) : '',
+			options:           state.mode === 'create' ? opt_ids() : [],
+			modifiers:         state.mode === 'create' ? mod_ids() : []
 		};
 	}
 
@@ -198,17 +207,20 @@
 		$f( 'ecpsv2_sort' ).val( '0' );
 		$f( 'ecpsv2_price' ).val( '' );
 		$f( 'ecpsv2_list_price' ).val( '' );
-		ecpsv2_set_image( '' );
+		apply_picture( '', {} );
 		$f( 'ecpsv2_stock' ).val( '0' );
 		$f( 'ecpsv2_qty' ).val( '' );
 		$f( 'ecpsv2_ship' ).prop( 'checked', false );
 		$f( 'ecpsv2_tax' ).val( V.default_tax || '0' );
 		$( '#ecpsv2_weight, #ecpsv2_length, #ecpsv2_width, #ecpsv2_height' ).val( '' );
-		$f( 'ecpsv2_optmode' ).val( '0' );
 		$f( 'ecpsv2_opt_list' ).empty();
 		opt_refresh();
 		opt_results_close();
 		$f( 'ecpsv2_opt_search' ).val( '' );
+		$f( 'ecpsv2_mod_list' ).empty();
+		mod_refresh();
+		mod_results_close();
+		$f( 'ecpsv2_mod_search' ).val( '' );
 		$( '.ecpsv2-err' ).prop( 'hidden', true );
 		$( '.ecv2-input.is-invalid, .ecpsv2-money.is-invalid' ).removeClass( 'is-invalid' );
 		state.sku_touched = false;
@@ -232,7 +244,7 @@
 		$f( 'ecpsv2_sort' ).val( p.sort_position || '0' );
 		$f( 'ecpsv2_price' ).val( p.price );
 		$f( 'ecpsv2_list_price' ).val( parseFloat( p.list_price ) > 0 ? p.list_price : '' );
-		ecpsv2_set_image( p.image1 || '' );
+		apply_picture( p.image1 || '', e );
 
 		var stock = parseInt( p.use_optionitem_quantity_tracking, 10 ) === 1 ? '2' : ( parseInt( p.show_stock_quantity, 10 ) === 1 ? '1' : '0' );
 		$f( 'ecpsv2_stock' ).val( stock );
@@ -291,7 +303,11 @@
 		if ( state.mode !== 'edit' || ! state.product_id ) { return; }
 		$.post( AJAX, { action: 'ec_admin_ajax_get_product_quick_edit', product_id: state.product_id }, function( data ) {
 			var p; try { p = JSON.parse( data ); } catch ( err ) { return; }
-			if ( p && p.ecv2 ) { apply_pro_summary( p.ecv2 ); }
+			if ( p && p.ecv2 ) {
+				apply_pro_summary( p.ecv2 );
+				/* 6.0.3: the gallery may have changed; an image picked and not saved yet stays. */
+				if ( ! state.preview || val( 'ecpsv2_image' ) === state.preview.value ) { apply_picture( p.image1 || '', p.ecv2 ); }
+			}
 		} );
 	}
 
@@ -380,14 +396,31 @@
 
 	window.ecpsv2_set_image = function( url ) {
 		url = url || '';
+		/* 6.0.3: the loaded value shows the picture the store shows ( a file name in products/pics1 is not an address ). */
+		var src = ( state.preview && url === state.preview.value && state.preview.src ) ? state.preview.src : url;
 		$f( 'ecpsv2_image' ).val( url );
-		$f( 'ecpsv2_thumb_img' ).attr( 'src', url ).prop( 'hidden', url === '' );
-		$f( 'ecpsv2_thumb_ph' ).prop( 'hidden', url !== '' );
-		$f( 'ecpsv2_thumb' ).toggleClass( 'has-image', url !== '' );
+		$f( 'ecpsv2_thumb_img' ).attr( 'src', src ).prop( 'hidden', src === '' );
+		$f( 'ecpsv2_thumb_ph' ).prop( 'hidden', src !== '' );
+		$f( 'ecpsv2_thumb' ).toggleClass( 'has-image', src !== '' );
 		$f( 'ecpsv2_img_remove' ).prop( 'hidden', url === '' );
-		$f( 'ecpsv2_img_name' ).text( url === '' ? ( L.no_image || 'No main image yet' ) : decodeURIComponent( url.split( '/' ).pop().split( '?' )[ 0 ] ) );
+		$f( 'ecpsv2_img_name' ).text( src === '' ? ( L.no_image || 'No main image yet' ) : decodeURIComponent( src.split( '/' ).pop().split( '?' )[ 0 ] ) );
 		refresh_dirty();
 	};
+
+	/*
+	 * 6.0.3: a product with a gallery ( or pictures per option ) shows the gallery's first picture, never image1, so a main
+	 * image chosen here would not show anywhere. The card then shows the store's picture and points to the Media tab;
+	 * image1 is saved as it was. e = the quick edit summary: picture ( the store's main picture ), picture_from.
+	 */
+	function apply_picture( image1, e ) {
+		var from = ( e && e.picture_from ) ? String( e.picture_from ) : '';
+		state.preview = { value: image1 || '', src: ( e && e.picture ) ? String( e.picture ) : '' };
+		$f( 'ecpsv2_img_actions' ).prop( 'hidden', from !== '' );
+		$f( 'ecpsv2_img_hint' ).prop( 'hidden', from !== '' );
+		$f( 'ecpsv2_img_managed' ).prop( 'hidden', from === '' );
+		$f( 'ecpsv2_img_managed_text' ).text( from === 'options' ? ( L.img_options || 'This product shows a picture for each option, so its main image is the first option’s picture.' ) : ( from !== '' ? ( L.img_gallery || 'This product shows its gallery, so its main image is the gallery’s first picture.' ) : '' ) );
+		ecpsv2_set_image( image1 || '' );
+	}
 
 	window.ecpsv2_pick_image = function() {
 		if ( ! window.wp || ! wp.media ) { return; }
@@ -637,10 +670,99 @@
 		$.each( opt_source(), function( i, o ) { known[ o.id ] = 1; } );
 		new MutationObserver( function() {
 			$.each( opt_source(), function( i, o ) {
-				if ( ! known[ o.id ] ) { known[ o.id ] = 1; if ( val( 'ecpsv2_optmode' ) === '1' ) { opt_add( o.id, o.name, 0 ); } }
+				if ( ! known[ o.id ] ) { known[ o.id ] = 1; if ( state.mode === 'create' ) { opt_add( o.id, o.name, 0 ); } }
 			} );
 			opt_refresh();
 		} ).observe( node, { childList: true } );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Modifiers ( create, Pro ): chips + search beside the variations     */
+	/* ------------------------------------------------------------------ */
+	/* 6.0.3: a product can have option sets and modifiers together ( use_both_option_types ). The panel used to ask for
+	 * one or the other and never saved the modifiers. Chips use .ecpsv2-mod-row, never .ecpsv2-opt-row ( which
+	 * option-set-slideout-v2.js counts as variation slots ). Search: ecv2_option_set_search with kind=modifier. The
+	 * group is printed only when modifiers are unlocked, so every helper tolerates an empty set. */
+
+	function mod_rows() { return $( '#ecpsv2_mod_list .ecpsv2-mod-row' ); }
+	function mod_ids() { return mod_rows().map( function() { return String( $( this ).data( 'id' ) ); } ).get(); }
+	function mod_add( id, name, type_label ) {
+		id = parseInt( id, 10 );
+		if ( ! id || ! $f( 'ecpsv2_mod_list' ).length || $( '#ecpsv2_mod_list .ecpsv2-mod-row[data-id="' + id + '"]' ).length ) { return; }
+		var $chip = $( '<span class="ecpsv2-mod-row ecpsv2-opt-chip" role="listitem">' ).attr( { 'data-id': id, title: L.drag || 'Drag to reorder' } );
+		$chip.append( $( '<span class="ecpsv2-opt-name">' ).text( name ) );
+		$chip.append( $( '<span class="ecpsv2-opt-c">' ).text( type_label || '' ).prop( 'hidden', ! type_label ) );
+		$chip.append( '<button type="button" class="ecpsv2-opt-rm" aria-label="' + esc( L.remove || 'Remove' ) + '">×</button>' );
+		$f( 'ecpsv2_mod_list' ).append( $chip );
+		mod_refresh();
+		refresh_dirty();
+	}
+	function mod_refresh() {
+		var n = mod_rows().length;
+		$f( 'ecpsv2_mod_empty' ).prop( 'hidden', n > 0 );
+		$f( 'ecpsv2_mod_count' ).text( n <= 0 ? '' : ( n === 1 ? ( L.mod_one || '1 modifier' ) : ( L.mod_many || '%d modifiers' ).replace( '%d', n ) ) );
+	}
+	var mod_timer = null, mod_seq = 0;
+	function mod_search( term, cb ) {
+		var my = ++mod_seq, nonce = $f( 'ecpsv2_mod_search_wrap' ).data( 'nonce' );
+		clearTimeout( mod_timer );
+		mod_timer = setTimeout( function() {
+			$.post( AJAX, { action: 'ecv2_option_set_search', kind: 'modifier', q: term, page: 1, wp_easycart_nonce: nonce }, function( r ) {
+				if ( my !== mod_seq ) { return; }
+				var out = [];
+				$.each( ( r && r.success && r.data && r.data.results ) ? r.data.results : [], function( i, o ) {
+					if ( parseInt( o.id, 10 ) > 0 ) { out.push( { id: parseInt( o.id, 10 ), name: String( o.option_name || o.text ), type: String( o.type_label || '' ) } ); }
+				} );
+				cb( out );
+			}, 'json' ).fail( function() { if ( my === mod_seq ) { cb( [] ); } } );
+		}, 250 );
+	}
+	function mod_results_open() {
+		var $in = $f( 'ecpsv2_mod_search' );
+		if ( ! $in.length ) { return; }
+		var raw = val( 'ecpsv2_mod_search' ), $ul = $f( 'ecpsv2_mod_results' );
+		$ul.empty().append( $( '<li class="ecpsv2-combo-note" aria-disabled="true">' ).text( L.searching || 'Searching…' ) ).prop( 'hidden', false );
+		$in.attr( 'aria-expanded', 'true' );
+		mod_search( raw, function( list ) {
+			if ( val( 'ecpsv2_mod_search' ) !== raw || $ul.is( '[hidden]' ) ) { return; }
+			var chosen = {};
+			mod_rows().each( function() { chosen[ $( this ).data( 'id' ) ] = 1; } );
+			$ul.empty();
+			$.each( list, function( i, o ) {
+				if ( chosen[ o.id ] ) { return; }
+				var $li = $( '<li role="option">' ).attr( { 'data-id': o.id, 'data-type': o.type } );
+				$li.append( $( '<span class="ecpsv2-opt-res-name">' ).text( o.name ) );
+				if ( o.type ) { $li.append( $( '<span class="ecpsv2-opt-res-count">' ).text( o.type ) ); }
+				$ul.append( $li );
+			} );
+			if ( ! $ul.children().length ) {
+				$ul.append( $( '<li class="ecpsv2-combo-note" aria-disabled="true">' ).text( L.mod_no_match || 'No modifiers match' ) );
+			}
+		} );
+	}
+	function mod_results_close() {
+		$f( 'ecpsv2_mod_results' ).prop( 'hidden', true ).empty();
+		$f( 'ecpsv2_mod_search' ).attr( 'aria-expanded', 'false' );
+	}
+	function mod_pick_result( $li ) {
+		var id = parseInt( $li.data( 'id' ), 10 ) || 0;
+		if ( ! id ) { return; }
+		mod_add( id, $li.find( '.ecpsv2-opt-res-name' ).text(), String( $li.attr( 'data-type' ) || '' ) );
+		$f( 'ecpsv2_mod_search' ).val( '' );
+		mod_results_close();
+		$f( 'ecpsv2_mod_search' ).trigger( 'focus' );
+	}
+	function mod_init_sortable() {
+		var $l = $f( 'ecpsv2_mod_list' );
+		if ( ! $l.length || ! $.fn.sortable ) { return; }
+		$l.sortable( {
+			items: '.ecpsv2-mod-row',
+			cancel: '.ecpsv2-opt-rm',
+			tolerance: 'pointer',
+			placeholder: 'ecpsv2-opt-chip ecpsv2-opt-placeholder',
+			forcePlaceholderSize: true,
+			update: function() { refresh_dirty(); }
+		} );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -729,6 +851,7 @@
 				ec_new_product_image: d.image1,
 				ec_new_product_option_type: d.option_type,
 				option1: d.options[ 0 ], option2: d.options[ 1 ], option3: d.options[ 2 ], option4: d.options[ 3 ], option5: d.options[ 4 ],
+				ec_new_product_modifiers: d.modifiers.join( ',' ),
 				ec_new_product_is_shippable: d.is_shippable,
 				ec_new_product_weight: d.weight, ec_new_product_length: d.length, ec_new_product_width: d.width, ec_new_product_height: d.height,
 				ec_new_product_is_taxable: d.is_taxable,
@@ -746,7 +869,7 @@
 				if ( r.manufacturer_id && d.manufacturer_name ) { manu_learn( r.manufacturer_id, d.manufacturer_name ); }
 				if ( next === 'edit' ) { window.location.href = full_editor_url( r.product_id ); return; }
 				if ( next === 'another' ) {
-					toast( ( L.created_named || '“%s” created.' ).replace( '%s', d.title ) );
+					toast( ( d.activate_in_store ? ( L.created_named || '“%s” created.' ) : ( L.created_draft || '“%s” saved as a draft.' ) ).replace( '%s', d.title ) );
 					reset_fields(); refresh_all(); $f( 'ecpsv2_title_input' ).trigger( 'focus' );
 					return;
 				}
@@ -860,8 +983,47 @@
 			if ( ! state.ship_touched && DIGITAL_TYPES[ val( 'ecpsv2_type' ) ] ) { $f( 'ecpsv2_ship' ).prop( 'checked', false ); }
 			refresh_type_hint(); refresh_shipping();
 		} );
-		$b.on( 'change', '#ecpsv2_optmode', function() { opt_refresh(); } );
 		$b.on( 'click', '#ecpsv2_opt_list .ecpsv2-opt-rm', function() { $( this ).closest( '.ecpsv2-opt-row' ).remove(); opt_refresh(); refresh_dirty(); } );
+
+		// 6.0.3: Live / Draft ( a radio group: click, or the arrow keys between the two ).
+		$b.on( 'click', '#ecpsv2_publish .ecpsv2-publish-opt', function() {
+			$f( 'ecpsv2_status' ).prop( 'checked', $( this ).attr( 'data-live' ) === '1' ).trigger( 'change' );
+			refresh_publish();
+		} );
+		$b.on( 'keydown', '#ecpsv2_publish .ecpsv2-publish-opt', function( e ) {
+			if ( [ 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown' ].indexOf( e.key ) === -1 ) { return; }
+			e.preventDefault();
+			var $other = $( '#ecpsv2_publish .ecpsv2-publish-opt' ).not( this ).first();
+			$other.trigger( 'click' ).trigger( 'focus' );
+		} );
+
+		// 6.0.3: modifiers ( Pro ), the same combobox contract as the option sets.
+		$b.on( 'click', '#ecpsv2_mod_list .ecpsv2-opt-rm', function() { $( this ).closest( '.ecpsv2-mod-row' ).remove(); mod_refresh(); refresh_dirty(); } );
+		$b.on( 'focus input', '#ecpsv2_mod_search', function() { mod_results_open(); } );
+		$b.on( 'mousedown', '#ecpsv2_mod_results li[data-id]', function( e ) { e.preventDefault(); mod_pick_result( $( this ) ); } );
+		$b.on( 'keydown', '#ecpsv2_mod_search', function( e ) {
+			var $ul = $f( 'ecpsv2_mod_results' ), $items = $ul.find( 'li[data-id]' ), $act = $items.filter( '.is-active' );
+			if ( e.key === 'ArrowDown' || e.key === 'ArrowUp' ) {
+				e.preventDefault();
+				if ( $ul.is( '[hidden]' ) ) { mod_results_open(); return; }
+				var i = $items.index( $act );
+				i = e.key === 'ArrowDown' ? Math.min( i + 1, $items.length - 1 ) : Math.max( i - 1, 0 );
+				$items.removeClass( 'is-active' ).eq( i ).addClass( 'is-active' );
+			} else if ( e.key === 'Enter' ) {
+				e.preventDefault();
+				if ( $act.length ) { mod_pick_result( $act ); }
+				else if ( $items.length === 1 ) { mod_pick_result( $items.first() ); }
+			} else if ( e.key === 'Escape' && ! $ul.is( '[hidden]' ) ) {
+				e.stopPropagation(); mod_results_close();
+			}
+		} );
+		$b.on( 'blur', '#ecpsv2_mod_search', function() { setTimeout( mod_results_close, 120 ); } );
+		// A modifier made from "+ Create a new modifier" joins the list ( variation sets arrive through #ec_new_product_option1 ).
+		$( document ).on( 'ecosv2:created', function( e, r ) {
+			if ( ! r || ! r.option_id || state.mode !== 'create' || ! $b.is( ':visible' ) ) { return; }
+			if ( r.option_type === 'basic-combo' || r.option_type === 'basic-swatch' ) { return; }
+			mod_add( r.option_id, r.option_name, '' );
+		} );
 
 		// Option-set search: same combobox contract as the brand picker.
 		$b.on( 'focus input', '#ecpsv2_opt_search', function() { opt_results_open(); } );
@@ -913,6 +1075,9 @@
 		opt_init_sortable();
 		opt_watch_source();
 		opt_refresh();
+		mod_init_sortable();
+		mod_refresh();
+		refresh_publish();
 		$b.on( 'change input', 'input, select', function() { refresh_dirty(); } );
 
 		$b.on( 'click', '#ecpsv2_manage_variants', function( e ) { e.preventDefault(); ecpsv2_open_manager( 'variants', this ); } );

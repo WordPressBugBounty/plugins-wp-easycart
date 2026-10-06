@@ -55,31 +55,31 @@
                 },
                 "shop_sold_out": {
                     "title": "Shop Widgets, Sold Out Badge",
-                    "value": "Sold out"
+                    "value": "Ausverkauft"
                 },
                 "shop_regular_price": {
                     "title": "Shop Widgets, Regular Price ( screen readers )",
-                    "value": "Regular price:"
+                    "value": "Regulärer Preis:"
                 },
                 "shop_sale_price": {
                     "title": "Shop Widgets, Sale Price ( screen readers )",
-                    "value": "Sale price:"
+                    "value": "Angebotspreis:"
                 },
                 "shop_rated": {
                     "title": "Shop Widgets, Rating ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Bewertet mit [rating] von 5"
                 },
                 "shop_review_one": {
                     "title": "Shop Widgets, One Review ( [count] )",
-                    "value": "[count] review"
+                    "value": "[count] Bewertung"
                 },
                 "shop_review_many": {
                     "title": "Shop Widgets, Reviews ( [count] )",
-                    "value": "[count] reviews"
+                    "value": "[count] Bewertungen"
                 },
                 "shop_options": {
                     "title": "Shop Widgets, Colour Swatches ( screen readers )",
-                    "value": "Available options"
+                    "value": "Verfügbare Optionen"
                 },
                 "shop_more_options": {
                     "title": "Shop Widgets, More Swatches ( [count] )",
@@ -87,71 +87,71 @@
                 },
                 "shop_adding": {
                     "title": "Shop Widgets, Adding to Cart",
-                    "value": "Adding\u2026"
+                    "value": "Wird hinzugefügt…"
                 },
                 "shop_added": {
                     "title": "Shop Widgets, Added Button",
-                    "value": "Added"
+                    "value": "Hinzugefügt"
                 },
                 "shop_added_note": {
                     "title": "Shop Widgets, Added to Cart ( [product] is the product name )",
-                    "value": "[product] was added to your cart."
+                    "value": "[product] wurde in Ihren Warenkorb gelegt."
                 },
                 "shop_add_failed": {
                     "title": "Shop Widgets, Could Not Add",
-                    "value": "This product could not be added. Opening the product page."
+                    "value": "Dieses Produkt konnte nicht hinzugefügt werden. Die Produktseite wird geöffnet."
                 },
                 "shop_quantity": {
                     "title": "Shop Widgets, Quantity Label",
-                    "value": "Quantity"
+                    "value": "Menge"
                 },
                 "shop_view_details": {
                     "title": "Shop Widgets, Quick View Details Link",
-                    "value": "View full details"
+                    "value": "Alle Details anzeigen"
                 },
                 "shop_close": {
                     "title": "Shop Widgets, Close Quick View",
-                    "value": "Close"
+                    "value": "Schließen"
                 },
                 "shop_loading": {
                     "title": "Shop Widgets, Loading",
-                    "value": "Loading\u2026"
+                    "value": "Wird geladen…"
                 },
                 "shop_load_more": {
                     "title": "Shop Widgets, Load More Button",
-                    "value": "Load more"
+                    "value": "Mehr laden"
                 },
                 "shop_loaded": {
                     "title": "Shop Widgets, More Products Loaded ( [count] )",
-                    "value": "[count] more products loaded"
+                    "value": "[count] weitere Produkte geladen"
                 },
                 "shop_page_nav": {
                     "title": "Shop Widgets, Page Numbers ( screen readers )",
-                    "value": "Product pages"
+                    "value": "Produktseiten"
                 },
                 "shop_page": {
                     "title": "Shop Widgets, Page Number ( [page] )",
-                    "value": "Page [page]"
+                    "value": "Seite [page]"
                 },
                 "shop_previous": {
                     "title": "Shop Widgets, Previous Page",
-                    "value": "Previous page"
+                    "value": "Vorherige Seite"
                 },
                 "shop_next": {
                     "title": "Shop Widgets, Next Page",
-                    "value": "Next page"
+                    "value": "Nächste Seite"
                 },
                 "shop_carousel_label": {
                     "title": "Shop Widgets, Carousel Name",
-                    "value": "Products"
+                    "value": "Produkte"
                 },
                 "shop_carousel_prev": {
                     "title": "Shop Widgets, Carousel Previous",
-                    "value": "Previous products"
+                    "value": "Vorherige Produkte"
                 },
                 "shop_carousel_next": {
                     "title": "Shop Widgets, Carousel Next",
-                    "value": "Next products"
+                    "value": "Nächste Produkte"
                 },
                 "shop_carousel_pause": {
                     "title": "Shop Widgets, Carousel Pause",
@@ -159,103 +159,103 @@
                 },
                 "shop_carousel_play": {
                     "title": "Shop Widgets, Carousel Play",
-                    "value": "Play"
+                    "value": "Abspielen"
                 },
                 "shop_carousel_slide": {
                     "title": "Shop Widgets, Carousel Slide ( [index] of [total] )",
-                    "value": "[index] of [total]"
+                    "value": "[index] von [total]"
                 },
                 "shop_carousel_go_to": {
                     "title": "Shop Widgets, Carousel Dot ( [index] )",
-                    "value": "Go to slide [index]"
+                    "value": "Gehe zu Folie [index]"
                 },
                 "shop_result_count": {
                     "title": "Shop Widgets, Results ( [start], [end], [total] )",
-                    "value": "Showing [start]\u2013[end] of [total] products"
+                    "value": "Zeige [start]–[end] von [total] Produkten"
                 },
                 "shop_result_all": {
                     "title": "Shop Widgets, All Results ( [total] )",
-                    "value": "Showing all [total] products"
+                    "value": "Zeige alle [total] Produkte"
                 },
                 "shop_result_one": {
                     "title": "Shop Widgets, One Result",
-                    "value": "Showing 1 product"
+                    "value": "Zeige 1 Produkt"
                 },
                 "shop_sort_by": {
                     "title": "Shop Widgets, Sort Label",
-                    "value": "Sort by"
+                    "value": "Sortieren nach"
                 },
                 "shop_sort_apply": {
                     "title": "Shop Widgets, Sort Button",
-                    "value": "Sort"
+                    "value": "Sortieren"
                 },
                 "shop_active_filters": {
                     "title": "Shop Widgets, Active Filters ( screen readers )",
-                    "value": "Active filters"
+                    "value": "Aktive Filter"
                 },
                 "shop_remove_filter": {
                     "title": "Shop Widgets, Remove Filter ( [filter] )",
-                    "value": "Remove filter: [filter]"
+                    "value": "Filter entfernen: [filter]"
                 },
                 "shop_clear_all": {
                     "title": "Shop Widgets, Clear All Filters",
-                    "value": "Clear all"
+                    "value": "Alle löschen"
                 },
                 "shop_chip_search": {
                     "title": "Shop Widgets, Search Filter ( [term] )",
-                    "value": "Search: [term]"
+                    "value": "Suche: [term]"
                 },
                 "shop_price": {
                     "title": "Shop Widgets, Price Filter Title",
-                    "value": "Price"
+                    "value": "Preis"
                 },
                 "shop_sign_in": {
                     "title": "Shop Widgets, Sign In Button",
-                    "value": "Sign in"
+                    "value": "Anmelden"
                 },
                 "shop_category_count_one": {
                     "title": "Shop Widgets, Category With One Product ( [count] )",
-                    "value": "[count] product"
+                    "value": "[count] Produkt"
                 },
                 "shop_category_count_many": {
                     "title": "Shop Widgets, Category Products ( [count] )",
-                    "value": "[count] products"
+                    "value": "[count] Produkte"
                 },
                 "shop_search_label": {
                     "title": "Shop Widgets, Search Label",
-                    "value": "Search products"
+                    "value": "Produkte suchen"
                 },
                 "shop_search_placeholder": {
                     "title": "Shop Widgets, Search Placeholder",
-                    "value": "Search products\u2026"
+                    "value": "Produkte suchen…"
                 },
                 "shop_search_button": {
                     "title": "Shop Widgets, Search Button",
-                    "value": "Search"
+                    "value": "Suchen"
                 },
                 "shop_search_suggestions": {
                     "title": "Shop Widgets, Suggestions ( screen readers )",
-                    "value": "Product suggestions"
+                    "value": "Produktvorschläge"
                 },
                 "shop_search_view_all": {
                     "title": "Shop Widgets, View All Results ( [term] )",
-                    "value": "View all results for \u201c[term]\u201d"
+                    "value": "Alle Ergebnisse für „[term]“ anzeigen"
                 },
                 "shop_search_none": {
                     "title": "Shop Widgets, No Suggestions ( [term] )",
-                    "value": "No products match \u201c[term]\u201d."
+                    "value": "Keine Produkte zu „[term]“ gefunden."
                 },
                 "shop_search_result": {
                     "title": "Shop Widgets, One Suggestion ( screen readers )",
-                    "value": "1 product found. Use the down arrow to choose it."
+                    "value": "1 Produkt gefunden. Wählen Sie es mit der Pfeiltaste nach unten aus."
                 },
                 "shop_search_results": {
                     "title": "Shop Widgets, Suggestions Found ( [count], screen readers )",
-                    "value": "[count] products found. Use the up and down arrows to choose one."
+                    "value": "[count] Produkte gefunden. Wählen Sie mit den Pfeiltasten nach oben und unten eines aus."
                 },
                 "shop_search_loading": {
                     "title": "Shop Widgets, Searching",
-                    "value": "Searching\u2026"
+                    "value": "Suche läuft…"
                 }
             }
         },
@@ -377,15 +377,15 @@
             "options": {
                 "category_product_count_one": {
                     "title": "Subcategories Widget: One Product",
-                    "value": "1 product"
+                    "value": "1 Produkt"
                 },
                 "category_product_count": {
                     "title": "Subcategories Widget: Product Count ( [count] is the number )",
-                    "value": "[count] products"
+                    "value": "[count] Produkte"
                 },
                 "categories_label": {
                     "title": "Subcategories Widget: List Name for Screen Readers",
-                    "value": "Categories"
+                    "value": "Kategorien"
                 }
             }
         },
@@ -394,7 +394,7 @@
             "options": {
                 "quick_view_gift_card_message": {
                     "title": "Geschenkkarte Nachricht Titel",
-                    "value": "SPECIAL MESSAGE"
+                    "value": "BESONDERE NACHRICHT"
                 },
                 "quick_view_gift_card_to_name": {
                     "title": "Geschenkkarte zu Name Titel",
@@ -777,6 +777,22 @@
                     "title": "Subscription Year Label",
                     "value": "Jahr"
                 },
+                "product_details_subscription_days": {
+                    "title": "Subscription Days Label",
+                    "value": "Tage"
+                },
+                "product_details_subscription_weeks": {
+                    "title": "Subscription Weeks Label",
+                    "value": "Wochen"
+                },
+                "product_details_subscription_years": {
+                    "title": "Subscription Years Label",
+                    "value": "Jahre"
+                },
+                "product_details_subscription_month_one": {
+                    "title": "Subscription Month Label, One Month",
+                    "value": "Monat"
+                },
                 "product_details_notify_subscribe_success": {
                     "title": "Stock Notification Subscribe Success",
                     "value": "Sie haben die Lagerbestandsmeldung f\u00fcr dieses Produkt abonniert!"
@@ -787,7 +803,7 @@
                 },
                 "product_details_notify_subscribe_email_placeholder": {
                     "title": "Stock Notification Subscribe Email Placeholder",
-                    "value": "your@email.com"
+                    "value": "ihre@email.de"
                 },
                 "product_details_notify_subscribe_button_title": {
                     "title": "Stock Notification Subscribe Button Title",
@@ -872,47 +888,47 @@
             "options": {
                 "added_to_cart": {
                     "title": "Add to Cart, Added Message",
-                    "value": "Added to your cart."
+                    "value": "In Ihren Warenkorb gelegt."
                 },
                 "view_cart": {
                     "title": "Add to Cart, View Cart Link",
-                    "value": "View cart"
+                    "value": "Warenkorb ansehen"
                 },
                 "buy_now": {
                     "title": "Add to Cart, Buy Now Button",
-                    "value": "Buy now"
+                    "value": "Jetzt kaufen"
                 },
                 "add_unconfirmed": {
                     "title": "Add to Cart, Add Not Confirmed",
-                    "value": "We could not confirm this was added. Please check your cart before you try again."
+                    "value": "Wir konnten nicht bestätigen, dass der Artikel hinzugefügt wurde. Bitte prüfen Sie Ihren Warenkorb, bevor Sie es erneut versuchen."
                 },
                 "quantity_label": {
                     "title": "Add to Cart, Quantity Label ( screen readers )",
-                    "value": "Quantity"
+                    "value": "Menge"
                 },
                 "decrease_quantity": {
                     "title": "Add to Cart, Minus Button ( screen readers )",
-                    "value": "Decrease quantity"
+                    "value": "Menge verringern"
                 },
                 "increase_quantity": {
                     "title": "Add to Cart, Plus Button ( screen readers )",
-                    "value": "Increase quantity"
+                    "value": "Menge erhöhen"
                 },
                 "in_stock": {
                     "title": "Stock, In Stock",
-                    "value": "In stock"
+                    "value": "Auf Lager"
                 },
                 "stock_count": {
                     "title": "Stock, Number in Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] auf Lager"
                 },
                 "low_stock": {
                     "title": "Stock, Low Stock ( [count] is the number )",
-                    "value": "Only [count] left"
+                    "value": "Nur noch [count] verfügbar"
                 },
                 "backorder": {
                     "title": "Stock, Available on Backorder",
-                    "value": "Available on backorder"
+                    "value": "Nachbestellung möglich"
                 },
                 "sku_label": {
                     "title": "SKU, Label",
@@ -928,79 +944,79 @@
                 },
                 "badge_new": {
                     "title": "Badges, New",
-                    "value": "New"
+                    "value": "Neu"
                 },
                 "badge_low_stock": {
                     "title": "Badges, Low Stock",
-                    "value": "Low stock"
+                    "value": "Geringer Bestand"
                 },
                 "badge_out_of_stock": {
                     "title": "Badges, Sold Out",
-                    "value": "Sold out"
+                    "value": "Ausverkauft"
                 },
                 "price_tiers_title": {
                     "title": "Price, Quantity Discounts Title",
-                    "value": "Buy more, save more"
+                    "value": "Mehr kaufen, mehr sparen"
                 },
                 "price_tiers_quantity": {
                     "title": "Price, Quantity Discounts Quantity Column",
-                    "value": "Quantity"
+                    "value": "Menge"
                 },
                 "price_tiers_price": {
                     "title": "Price, Quantity Discounts Price Column",
-                    "value": "Price each"
+                    "value": "Preis pro Stück"
                 },
                 "gallery_label": {
                     "title": "Gallery, Name ( screen readers, [product] is the product )",
-                    "value": "[product] images"
+                    "value": "Bilder von [product]"
                 },
                 "gallery_slide": {
                     "title": "Gallery, Image Position ( screen readers )",
-                    "value": "[number] of [count]"
+                    "value": "[number] von [count]"
                 },
                 "gallery_previous": {
                     "title": "Gallery, Previous Image",
-                    "value": "Previous image"
+                    "value": "Vorheriges Bild"
                 },
                 "gallery_next": {
                     "title": "Gallery, Next Image",
-                    "value": "Next image"
+                    "value": "Nächstes Bild"
                 },
                 "gallery_open": {
                     "title": "Gallery, Open Larger Image",
-                    "value": "Open larger image"
+                    "value": "Größeres Bild öffnen"
                 },
                 "gallery_close": {
                     "title": "Gallery, Close Larger Image",
-                    "value": "Close"
+                    "value": "Schließen"
                 },
                 "gallery_thumbnail": {
                     "title": "Gallery, Thumbnail ( [number] is the image )",
-                    "value": "Show image [number]"
+                    "value": "Bild [number] anzeigen"
                 },
                 "gallery_play": {
                     "title": "Gallery, Play Video",
-                    "value": "Play video"
+                    "value": "Video abspielen"
                 },
                 "gallery_thumbs_previous": {
                     "title": "Gallery, Thumbnail Strip Back Arrow ( screen readers )",
-                    "value": "Earlier thumbnails"
+                    "value": "Frühere Vorschaubilder"
                 },
                 "gallery_thumbs_next": {
                     "title": "Gallery, Thumbnail Strip Forward Arrow ( screen readers )",
-                    "value": "More thumbnails"
+                    "value": "Weitere Vorschaubilder"
                 },
                 "gallery_pause": {
                     "title": "Gallery, Pause Slideshow Button",
-                    "value": "Pause the slideshow"
+                    "value": "Diashow anhalten"
                 },
                 "gallery_resume": {
                     "title": "Gallery, Play Slideshow Button",
-                    "value": "Play the slideshow"
+                    "value": "Diashow starten"
                 },
                 "price_you_save": {
                     "title": "Product Price, You Save ( [amount] is the saving, [percent] the percentage )",
-                    "value": "You save [amount] ([percent]%)"
+                    "value": "Sie sparen [amount] ([percent] %)"
                 }
             }
         },
@@ -1085,7 +1101,7 @@
                 },
                 "customer_review_save_error": {
                     "title": "Store Review Error Not Saved",
-                    "value": "Your review could not be saved. Please refresh the page and try again."
+                    "value": "Ihre Bewertung konnte nicht gespeichert werden. Bitte laden Sie die Seite neu und versuchen Sie es erneut."
                 }
             }
         },
@@ -1094,63 +1110,63 @@
             "options": {
                 "rating_label": {
                     "title": "Product Rating: Screen Reader Text ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Bewertet mit [rating] von 5"
                 },
                 "review_count_one": {
                     "title": "Product Rating: One Review",
-                    "value": "1 review"
+                    "value": "1 Bewertung"
                 },
                 "review_count_many": {
                     "title": "Product Rating: Reviews ( [count] is the number )",
-                    "value": "[count] reviews"
+                    "value": "[count] Bewertungen"
                 },
                 "rating_none": {
                     "title": "Product Rating: No Reviews",
-                    "value": "No reviews yet"
+                    "value": "Noch keine Bewertungen"
                 },
                 "reviews_based_on_one": {
                     "title": "Product Reviews: Summary, One Review",
-                    "value": "Based on 1 review"
+                    "value": "Basierend auf 1 Bewertung"
                 },
                 "reviews_based_on_many": {
                     "title": "Product Reviews: Summary ( [count] is the number )",
-                    "value": "Based on [count] reviews"
+                    "value": "Basierend auf [count] Bewertungen"
                 },
                 "reviews_filter_group": {
                     "title": "Product Reviews: Star Filter Label",
-                    "value": "Filter reviews by rating"
+                    "value": "Bewertungen nach Sternen filtern"
                 },
                 "reviews_filter_button": {
                     "title": "Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )",
-                    "value": "Show [rating]-star reviews ([count])"
+                    "value": "[rating]-Sterne-Bewertungen anzeigen ([count])"
                 },
                 "reviews_filter_showing": {
                     "title": "Product Reviews: Filter On ( [rating] is the stars )",
-                    "value": "Showing [rating]-star reviews."
+                    "value": "[rating]-Sterne-Bewertungen werden angezeigt."
                 },
                 "reviews_filter_clear": {
                     "title": "Product Reviews: Show All Reviews",
-                    "value": "Show all reviews"
+                    "value": "Alle Bewertungen anzeigen"
                 },
                 "reviews_none": {
                     "title": "Product Reviews: No Reviews ( no form shown )",
-                    "value": "There are no reviews yet."
+                    "value": "Es gibt noch keine Bewertungen."
                 },
                 "reviews_sign_in": {
                     "title": "Product Reviews: Sign In Link",
-                    "value": "Sign in"
+                    "value": "Anmelden"
                 },
                 "review_star_one": {
                     "title": "Product Reviews: Form, 1 Star",
-                    "value": "1 star"
+                    "value": "1 Stern"
                 },
                 "review_star_many": {
                     "title": "Product Reviews: Form, Stars ( [rating] is the number )",
-                    "value": "[rating] stars"
+                    "value": "[rating] Sterne"
                 },
                 "breadcrumbs_label": {
                     "title": "Breadcrumbs: Screen Reader Label",
-                    "value": "Breadcrumb"
+                    "value": "Breadcrumb-Navigation"
                 },
                 "meta_sku": {
                     "title": "Product Meta: SKU Label",
@@ -1158,35 +1174,35 @@
                 },
                 "meta_category": {
                     "title": "Product Meta: One Category Label",
-                    "value": "Category:"
+                    "value": "Kategorie:"
                 },
                 "meta_brand": {
                     "title": "Product Meta: Brand Label",
-                    "value": "Brand:"
+                    "value": "Marke:"
                 },
                 "meta_tag": {
                     "title": "Product Meta: Tag Label",
-                    "value": "Tag:"
+                    "value": "Schlagwort:"
                 },
                 "share_facebook": {
                     "title": "Share Buttons: Facebook",
-                    "value": "Share on Facebook"
+                    "value": "Auf Facebook teilen"
                 },
                 "share_x": {
                     "title": "Share Buttons: X",
-                    "value": "Share on X"
+                    "value": "Auf X teilen"
                 },
                 "share_pinterest": {
                     "title": "Share Buttons: Pinterest",
-                    "value": "Pin on Pinterest"
+                    "value": "Auf Pinterest pinnen"
                 },
                 "share_linkedin": {
                     "title": "Share Buttons: LinkedIn",
-                    "value": "Share on LinkedIn"
+                    "value": "Auf LinkedIn teilen"
                 },
                 "share_email": {
                     "title": "Share Buttons: Email",
-                    "value": "Share by email"
+                    "value": "Per E-Mail teilen"
                 },
                 "share_email_label": {
                     "title": "Share Buttons: Email Button Text",
@@ -1194,95 +1210,95 @@
                 },
                 "share_copy": {
                     "title": "Share Buttons: Copy Link",
-                    "value": "Copy link"
+                    "value": "Link kopieren"
                 },
                 "share_copied": {
                     "title": "Share Buttons: Link Copied",
-                    "value": "Link copied"
+                    "value": "Link kopiert"
                 },
                 "share_whatsapp": {
                     "title": "Share Buttons: WhatsApp ( screen readers )",
-                    "value": "Share on WhatsApp"
+                    "value": "Auf WhatsApp teilen"
                 },
                 "share_telegram": {
                     "title": "Share Buttons: Telegram ( screen readers )",
-                    "value": "Share on Telegram"
+                    "value": "Auf Telegram teilen"
                 },
                 "share_reddit": {
                     "title": "Share Buttons: Reddit ( screen readers )",
-                    "value": "Share on Reddit"
+                    "value": "Auf Reddit teilen"
                 },
                 "share_threads": {
                     "title": "Share Buttons: Threads ( screen readers )",
-                    "value": "Share on Threads"
+                    "value": "Auf Threads teilen"
                 },
                 "share_bluesky": {
                     "title": "Share Buttons: Bluesky ( screen readers )",
-                    "value": "Share on Bluesky"
+                    "value": "Auf Bluesky teilen"
                 },
                 "share_sms_label": {
                     "title": "Share Buttons: Text Message Button",
-                    "value": "Text message"
+                    "value": "SMS"
                 },
                 "share_sms": {
                     "title": "Share Buttons: Text Message ( screen readers )",
-                    "value": "Share by text message"
+                    "value": "Per SMS teilen"
                 },
                 "share_print_label": {
                     "title": "Share Buttons: Print Button",
-                    "value": "Print"
+                    "value": "Drucken"
                 },
                 "share_print": {
                     "title": "Share Buttons: Print ( screen readers )",
-                    "value": "Print this page"
+                    "value": "Diese Seite drucken"
                 },
                 "share_native_label": {
                     "title": "Share Buttons: Device Share Menu Button",
-                    "value": "Share"
+                    "value": "Teilen"
                 },
                 "share_native": {
                     "title": "Share Buttons: Device Share Menu ( screen readers )",
-                    "value": "Share with an app on this device"
+                    "value": "Mit einer App auf diesem Gerät teilen"
                 },
                 "meta_stock": {
                     "title": "Product Meta: Stock Label",
-                    "value": "Availability:"
+                    "value": "Verfügbarkeit:"
                 },
                 "meta_in_stock": {
                     "title": "Product Meta: In Stock",
-                    "value": "In stock"
+                    "value": "Auf Lager"
                 },
                 "meta_stock_count": {
                     "title": "Product Meta: Units In Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] auf Lager"
                 },
                 "meta_backorder": {
                     "title": "Product Meta: On Backorder",
-                    "value": "Available on backorder"
+                    "value": "Nachbestellung möglich"
                 },
                 "meta_weight": {
                     "title": "Product Meta: Weight Label",
-                    "value": "Weight:"
+                    "value": "Gewicht:"
                 },
                 "meta_dimensions": {
                     "title": "Product Meta: Dimensions Label",
-                    "value": "Dimensions:"
+                    "value": "Abmessungen:"
                 },
                 "reviews_more": {
                     "title": "Product Reviews: Show More Link",
-                    "value": "Show more reviews"
+                    "value": "Weitere Bewertungen anzeigen"
                 },
                 "reviews_shown": {
                     "title": "Product Reviews: How Many Show ( [shown] and [total] are numbers )",
-                    "value": "Showing [shown] of [total] reviews."
+                    "value": "[shown] von [total] Bewertungen werden angezeigt."
                 },
                 "read_more": {
                     "title": "Description: Read More Button",
-                    "value": "Read more"
+                    "value": "Mehr lesen"
                 },
                 "read_less": {
                     "title": "Description: Show Less Button",
-                    "value": "Show less"
+                    "value": "Weniger anzeigen"
                 }
             }
         },
@@ -1504,7 +1520,7 @@
                 },
                 "cart_notice_emails_match": {
                     "title": "Cart, Notice, Shipping, Emails Match",
-                    "value": "Emails"
+                    "value": "E-Mail-Adressen"
                 },
                 "cart_notice_password": {
                     "title": "Cart, Notice, Password",
@@ -1671,6 +1687,18 @@
 				"coupon_first_only":{
 					"title":"Cart, Coupon Code First Order Only",
 					"value":"Dieser Gutschein kann nur für Ihre erste Bestellung verwendet werden"
+				},
+				"subscription_coupon_first_payment":{
+					"title":"Subscription, Discount on the First Payment Only ( 6.0.3 )",
+					"value":"Ihr Rabatt gilt nur f\u00fcr Ihre erste Zahlung. Danach verl\u00e4ngert sich das Abonnement zu [price]."
+				},
+				"subscription_coupon_months":{
+					"title":"Subscription, Discount for the First Months ( 6.0.3 )",
+					"value":"Ihr Rabatt gilt f\u00fcr die ersten [months] Monate. Danach verl\u00e4ngert sich das Abonnement zu [price]."
+				},
+				"subscription_renewal_plus_tax":{
+					"title":"Subscription, Renewal Price Plus Tax ( 6.0.3 )",
+					"value":"zzgl. Steuern"
 				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
@@ -1996,6 +2024,38 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Sie haben diesen Artikel bereits gekauft. Bitte besuchen Sie Ihr Konto, um Ihre aktiven Abonnements zu überprüfen."
 				},
+				"subscription_change_existing":{
+					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
+					"value":"Sie haben bereits ein Abonnement für diesen Tarif. Ändern Sie es in Ihrem Konto, statt ein zweites zu kaufen."
+				},
+				"subscription_change_existing_link":{
+					"title":"Subscription Page: Change My Plan Link ( 6.0.3 )",
+					"value":"Meinen Tarif ändern"
+				},
+				"subscription_owned_one":{
+					"title":"Subscription Page: Already Subscribed, One ( 6.0.3 )",
+					"value":"Sie haben bereits ein Abonnement für [title]. Kaufen Sie unten ein weiteres oder verwalten Sie Ihres in Ihrem Konto."
+				},
+				"subscription_owned_many":{
+					"title":"Subscription Page: Already Subscribed, Several ( 6.0.3 )",
+					"value":"Sie haben bereits [count] Abonnements für diesen Tarif. Kaufen Sie unten ein weiteres oder verwalten Sie sie in Ihrem Konto."
+				},
+				"subscription_owned_link_one":{
+					"title":"Subscription Page: Manage My Subscription Link ( 6.0.3 )",
+					"value":"Mein Abonnement verwalten"
+				},
+				"subscription_owned_link_many":{
+					"title":"Subscription Page: Manage My Subscriptions Link ( 6.0.3 )",
+					"value":"Meine Abonnements verwalten"
+				},
+				"subscription_choose_options":{
+					"title":"Subscription, Choose the Options First ( 6.0.3 )",
+					"value":"Bitte w\u00e4hlen Sie die Optionen f\u00fcr dieses Abonnement auf der Produktseite, bevor Sie zur Kasse gehen."
+				},
+				"subscription_choose_options_link":{
+					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
+					"value":"Optionen w\u00e4hlen"
+				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
 					"value":"Dieses Abonnement kann derzeit nicht online gekauft werden. Bitte kontaktieren Sie uns, um sich anzumelden."
@@ -2049,31 +2109,31 @@
 			"options":{
 				"cart_state_ca":{
 					"title":"Cart, State (Canada)",
-					"value":"Province"
+					"value":"Provinz"
 				},
 				"cart_zip_ca":{
 					"title":"Cart, Zip (Canada)",
-					"value":"Postal code"
+					"value":"Postleitzahl"
 				},
 				"cart_zip_gb":{
 					"title":"Cart, Zip (UK)",
-					"value":"Postcode"
+					"value":"Postleitzahl"
 				},
 				"cart_address_nl":{
 					"title":"Cart, Address (Netherlands)",
-					"value":"Street and house number"
+					"value":"Straße und Hausnummer"
 				},
 				"cart_zip_nl":{
 					"title":"Cart, Zip (Netherlands)",
-					"value":"Postal code"
+					"value":"Postleitzahl"
 				},
 				"cart_zip_ar":{
 					"title":"Cart, Zip (Argentina)",
-					"value":"Postal code"
+					"value":"Postleitzahl"
 				},
 				"cart_state_ar":{
 					"title":"Cart, State (Argentina)",
-					"value":"Province"
+					"value":"Provinz"
 				}
 			}
 		},
@@ -2821,67 +2881,67 @@
             "options": {
                 "mini_cart_title": {
                     "title": "Mini Cart, Title",
-                    "value": "Your cart"
+                    "value": "Ihr Warenkorb"
                 },
                 "view_cart": {
                     "title": "Mini Cart, View Cart Button",
-                    "value": "View cart"
+                    "value": "Warenkorb ansehen"
                 },
                 "close": {
                     "title": "Mini Cart, Close Button ( screen readers )",
-                    "value": "Close"
+                    "value": "Schließen"
                 },
                 "cart_button_label": {
                     "title": "Menu Cart, Button Name ( screen readers; [count] is the number of items )",
-                    "value": "Cart, [count] items"
+                    "value": "Warenkorb, [count] Artikel"
                 },
                 "remove_item": {
                     "title": "Mini Cart, Remove Button ( screen readers; [title] is the product )",
-                    "value": "Remove [title]"
+                    "value": "[title] entfernen"
                 },
                 "quantity_of": {
                     "title": "Side Cart, Quantity Box ( screen readers; [title] is the product )",
-                    "value": "Quantity of [title]"
+                    "value": "Menge von [title]"
                 },
                 "increase_quantity": {
                     "title": "Side Cart, Plus Button ( screen readers; [title] is the product )",
-                    "value": "Increase quantity of [title]"
+                    "value": "Menge von [title] erhöhen"
                 },
                 "decrease_quantity": {
                     "title": "Side Cart, Minus Button ( screen readers; [title] is the product )",
-                    "value": "Decrease quantity of [title]"
+                    "value": "Menge von [title] verringern"
                 },
                 "cart_updated": {
                     "title": "Mini Cart, Cart Updated ( screen readers )",
-                    "value": "Your cart was updated."
+                    "value": "Ihr Warenkorb wurde aktualisiert."
                 },
                 "item_added": {
                     "title": "Side Cart, Product Added ( screen readers; [title] is the product )",
-                    "value": "[title] was added to your cart."
+                    "value": "[title] wurde in Ihren Warenkorb gelegt."
                 },
                 "free_shipping_remaining": {
                     "title": "Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
-                    "value": "Spend [amount] more for free shipping"
+                    "value": "Noch [amount] bis zum kostenlosen Versand"
                 },
                 "free_shipping_available": {
                     "title": "Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
-                    "value": "Free shipping available"
+                    "value": "Kostenloser Versand verfügbar"
                 },
                 "confirmation_items": {
                     "title": "Order Confirmation, Products Heading",
-                    "value": "Your order"
+                    "value": "Ihre Bestellung"
                 },
                 "confirmation_payment": {
                     "title": "Order Confirmation, How to Pay Heading",
-                    "value": "How to pay"
+                    "value": "So bezahlen Sie"
                 },
                 "confirmation_pay_link_note": {
                     "title": "Order Confirmation, Pay Online Note",
-                    "value": "You can pay for this order online."
+                    "value": "Sie können diese Bestellung online bezahlen."
                 },
                 "confirmation_pay_now": {
                     "title": "Order Confirmation, Pay Now Button",
-                    "value": "Pay now"
+                    "value": "Jetzt bezahlen"
                 }
             }
         },
@@ -2935,6 +2995,30 @@
                 "subscription_trial_ending_email_title": {
                     "title": "Subscription Trial Email Title",
                     "value": "Ihre Testversion endet in 3 Tage"
+                },
+                "trial_reminder_email_title": {
+                    "title": "Trial Reminder Email Title ( 6.0.3 )",
+                    "value": "Ihre kostenlose Testphase endet am [date]"
+                },
+                "trial_reminder_message": {
+                    "title": "Trial Reminder Message ( 6.0.3 )",
+                    "value": "Ihre kostenlose Testphase für [title] endet am [date]. Danach beginnt Ihr Abonnement und Ihre Karte wird mit [price] belastet."
+                },
+                "trial_reminder_ends": {
+                    "title": "Trial Reminder, Trial Ends Label ( 6.0.3 )",
+                    "value": "Testphase endet"
+                },
+                "trial_reminder_then": {
+                    "title": "Trial Reminder, Then Label ( 6.0.3 )",
+                    "value": "Danach"
+                },
+                "trial_reminder_cancel": {
+                    "title": "Trial Reminder, How to Cancel ( 6.0.3 )",
+                    "value": "Doch nichts für Sie? Kündigen Sie vor dem [date] in Ihrem Konto, dann wird nichts berechnet."
+                },
+                "trial_reminder_link": {
+                    "title": "Trial Reminder Button ( 6.0.3 )",
+                    "value": "Abonnement verwalten"
                 }
             }
         },
@@ -2985,6 +3069,66 @@
 				"subscription_upcoming_email_title":{
 					"title":"Subscription Upcoming Email Title",
 					"value":"Ihr Abonnement wird bald erneuert"
+				},
+				"renewal_reminder_email_title":{
+					"title":"Renewal Reminder Email Title ( 6.0.3 )",
+					"value":"Ihr Abonnement verlängert sich am [date]"
+				},
+				"renewal_reminder_message":{
+					"title":"Renewal Reminder Message ( 6.0.3 )",
+					"value":"Ihr Abonnement für [title] verlängert sich am [date] automatisch."
+				},
+				"renewal_reminder_plan":{
+					"title":"Renewal Reminder, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"renewal_reminder_date":{
+					"title":"Renewal Reminder, Date Label ( 6.0.3 )",
+					"value":"Verlängerung am"
+				},
+				"renewal_reminder_price":{
+					"title":"Renewal Reminder, Price Label ( 6.0.3 )",
+					"value":"Preis bei Verlängerung"
+				},
+				"renewal_reminder_cancel":{
+					"title":"Renewal Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Wenn Sie nicht verlängern möchten, kündigen Sie vor dem [date] in Ihrem Konto. Dort können Sie auch Ihre Zahlungsmethode aktualisieren."
+				},
+				"renewal_reminder_link":{
+					"title":"Renewal Reminder Button ( 6.0.3 )",
+					"value":"Abonnement verwalten"
+				},
+				"price_change_email_title":{
+					"title":"Price Change Email Title ( 6.0.3 )",
+					"value":"Der Preis Ihres Abonnements ändert sich"
+				},
+				"price_change_message":{
+					"title":"Price Change Message ( 6.0.3 )",
+					"value":"Ab dem [date] kostet Ihr Abonnement für [title] [price] statt [old_price]."
+				},
+				"price_change_plan":{
+					"title":"Price Change, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"price_change_old":{
+					"title":"Price Change, Price Now Label ( 6.0.3 )",
+					"value":"Aktueller Preis"
+				},
+				"price_change_new":{
+					"title":"Price Change, New Price Label ( 6.0.3 )",
+					"value":"Neuer Preis"
+				},
+				"price_change_date":{
+					"title":"Price Change, Date Label ( 6.0.3 )",
+					"value":"Ab"
+				},
+				"price_change_cancel":{
+					"title":"Price Change, How to Cancel ( 6.0.3 )",
+					"value":"Bis dahin ändert sich nichts. Wenn Sie zum neuen Preis nicht weitermachen möchten, kündigen Sie vor dem [date] in Ihrem Konto."
+				},
+				"price_change_link":{
+					"title":"Price Change Button ( 6.0.3 )",
+					"value":"Abonnement verwalten"
 				}
 			}
 		},
@@ -3126,15 +3270,15 @@
             "options": {
                 "account_connect_order_email_title": {
                     "title": "Connect Order Email Subject and Heading",
-                    "value": "Add your order to your account"
+                    "value": "Fügen Sie Ihre Bestellung Ihrem Konto hinzu"
                 },
                 "account_connect_order_email_message": {
                     "title": "Connect Order Email Message ( [order_id] is the order number )",
-                    "value": "You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+                    "value": "Sie haben angefordert, die Bestellung [order_id] Ihrem Konto bei uns hinzuzufügen. Öffnen Sie den Link unten, während Sie in diesem Konto angemeldet sind. Wenn Sie dies nicht angefordert haben, können Sie diese E-Mail ignorieren."
                 },
                 "account_connect_order_email_link": {
                     "title": "Connect Order Email Link",
-                    "value": "Add the order to my account"
+                    "value": "Bestellung meinem Konto hinzufügen"
                 }
             }
         },
@@ -3200,7 +3344,7 @@
                 },
                 "nav_orders": {
                     "title": "Account Widgets, Menu, Orders",
-                    "value": "Orders"
+                    "value": "Bestellungen"
                 },
                 "nav_downloads": {
                     "title": "Account Widgets, Menu, Downloads",
@@ -3208,31 +3352,31 @@
                 },
                 "nav_subscriptions": {
                     "title": "Account Widgets, Menu, Subscriptions",
-                    "value": "Subscriptions"
+                    "value": "Abonnements"
                 },
                 "nav_addresses": {
                     "title": "Account Widgets, Menu, Addresses",
-                    "value": "Addresses"
+                    "value": "Adressen"
                 },
                 "nav_details": {
                     "title": "Account Widgets, Menu, Account Details",
-                    "value": "Account details"
+                    "value": "Kontodetails"
                 },
                 "nav_payment_methods": {
                     "title": "Account Widgets, Menu, Payment Methods",
-                    "value": "Payment methods"
+                    "value": "Zahlungsmethoden"
                 },
                 "nav_logout": {
                     "title": "Account Widgets, Menu, Sign Out",
-                    "value": "Sign out"
+                    "value": "Abmelden"
                 },
                 "nav_menu_label": {
                     "title": "Account Widgets, Menu Name ( screen readers, phone dropdown )",
-                    "value": "Account menu"
+                    "value": "Kontomenü"
                 },
                 "back_to_orders": {
                     "title": "Account Widgets, Back to Orders Link",
-                    "value": "Back to orders"
+                    "value": "Zurück zu den Bestellungen"
                 },
                 "downloads_title": {
                     "title": "Account Widgets, Downloads Title",
@@ -3240,47 +3384,47 @@
                 },
                 "downloads_none": {
                     "title": "Account Widgets, No Downloads",
-                    "value": "You have no downloads yet."
+                    "value": "Sie haben noch keine Downloads."
                 },
                 "downloads_order": {
                     "title": "Account Widgets, Downloads, Order Link",
-                    "value": "Order"
+                    "value": "Bestellung"
                 },
                 "downloads_expires": {
                     "title": "Account Widgets, Downloads, Available Until",
-                    "value": "Available until"
+                    "value": "Verfügbar bis"
                 },
                 "downloads_expired": {
                     "title": "Account Widgets, Downloads, Expired",
-                    "value": "This download has expired."
+                    "value": "Dieser Download ist abgelaufen."
                 },
                 "downloads_used_up": {
                     "title": "Account Widgets, Downloads, Limit Reached",
-                    "value": "No downloads left."
+                    "value": "Keine Downloads mehr verfügbar."
                 },
                 "payment_title": {
                     "title": "Account Widgets, Payment Methods Title",
-                    "value": "Payment methods"
+                    "value": "Zahlungsmethoden"
                 },
                 "payment_card": {
                     "title": "Account Widgets, Payment Methods, Card",
-                    "value": "Card"
+                    "value": "Karte"
                 },
                 "payment_card_note": {
                     "title": "Account Widgets, Payment Methods, Card Note",
-                    "value": "Used for your subscriptions."
+                    "value": "Wird für Ihre Abonnements verwendet."
                 },
                 "payment_none": {
                     "title": "Account Widgets, No Payment Method",
-                    "value": "You have no saved payment method."
+                    "value": "Sie haben keine gespeicherte Zahlungsmethode."
                 },
                 "signed_in_as": {
                     "title": "Account Widgets, Signed In As ( [name] is the customer's name )",
-                    "value": "You are signed in as [name]."
+                    "value": "Sie sind als [name] angemeldet."
                 },
                 "my_account": {
                     "title": "Account Widgets, My Account Button",
-                    "value": "My account"
+                    "value": "Mein Konto"
                 }
             }
         },
@@ -3431,7 +3575,7 @@
                 },
                 "account_personal_information_update_button": {
                     "title": "Benutzerkonto, Pers\u00f6nliche Informationen, Update Taste",
-                    "value": "UPDATE"
+                    "value": "AKTUALISIEREN"
                 },
                 "account_personal_information_cancel_link": {
                     "title": "Benutzerkonto, Pers\u00f6nliche Informationen, l\u00f6schen Link",
@@ -3468,7 +3612,7 @@
                 },
                 "account_password_update_button": {
                     "title": "Benutzerkonto, Passwort, Update Taste",
-                    "value": "UPDATE"
+                    "value": "AKTUALISIEREN"
                 },
                 "account_password_cancel_button": {
                     "title": "Benutzerkonto, Passwort, l\u00f6schen Link",
@@ -3529,7 +3673,7 @@
                 },
                 "account_billing_information_update_button": {
                     "title": "Benutzerkonto, Rechnungsinformationen, Update Taste",
-                    "value": "UPDATE"
+                    "value": "AKTUALISIEREN"
                 },
                 "account_billing_information_cancel": {
                     "title": "Benutzerkonto, Rechnungsinformationen, l\u00f6schen Link",
@@ -3590,7 +3734,7 @@
                 },
                 "account_shipping_information_update_button": {
                     "title": "Benutzerkonto, Versandinformationen, Update Taste",
-                    "value": "UPDATE"
+                    "value": "AKTUALISIEREN"
                 },
                 "account_shipping_information_cancel": {
                     "title": "Benutzerkonto, Versandinformationen, l\u00f6schen Link",
@@ -3897,7 +4041,7 @@
                 },
 				"account_orders_details_email":{
 					"title":"Account, Orders Details, Order Email Label",
-					"value":"Email:"
+					"value":"E-Mail:"
 				},
 				"account_orders_details_email_other":{
 					"title":"Account, Orders Details, Order Additional Email Label",
@@ -3975,6 +4119,126 @@
                 "subscription_details_plan_notice": {
                     "title": "Account, Subscription Details, Plan Change Notice",
                     "value": "Tarif\u00e4nderungen gelten sofort. Ihre n\u00e4chste Rechnung zeigt den neuen Preis sowie etwaige Nachberechnungen oder Gutschriften f\u00fcr den Rest des laufenden Zeitraums."
+                },
+                "subscription_details_interval_notice": {
+                    "title": "Account, Subscription Details, Billing Schedule Change Notice",
+                    "value": "Dieser Tarif wird in einem anderen Rhythmus abgerechnet, daher beginnt heute ein neuer Abrechnungszeitraum: Sie zahlen jetzt den neuen Preis, abz\u00fcglich des ungenutzten Teils Ihres aktuellen Zeitraums."
+                },
+                "subscription_details_trial_ends": {
+                    "title": "Account, Subscription Details, Trial Ends Label",
+                    "value": "Testphase endet"
+                },
+                "subscription_details_trial_notice": {
+                    "title": "Account, Subscription Details, Free Trial Notice",
+                    "value": "Ihre kostenlose Testphase endet am [date]. Ihre erste Zahlung von [price] wird dann eingezogen."
+                },
+                "subscription_change_review": {
+                    "title": "Change Plan: Review Button ( 6.0.3 )",
+                    "value": "\u00c4nderung pr\u00fcfen"
+                },
+                "subscription_change_confirm": {
+                    "title": "Change Plan: Confirm Button ( 6.0.3 )",
+                    "value": "\u00c4nderung best\u00e4tigen"
+                },
+                "subscription_change_back": {
+                    "title": "Change Plan: Back Button ( 6.0.3 )",
+                    "value": "Zur\u00fcck"
+                },
+                "subscription_change_now_charge": {
+                    "title": "Change Plan: Charged Now ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt. Sie zahlen heute [amount] f\u00fcr den Rest dieses Abrechnungszeitraums und danach [price] ab dem [date]."
+                },
+                "subscription_change_now_next": {
+                    "title": "Change Plan: Added to Next Payment ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt. [amount] f\u00fcr den Rest dieses Abrechnungszeitraums wird Ihrer n\u00e4chsten Zahlung am [date] hinzugef\u00fcgt."
+                },
+                "subscription_change_now_credit": {
+                    "title": "Change Plan: Credit on Next Payment ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt. [amount] f\u00fcr den ungenutzten Teil dieses Abrechnungszeitraums wird von Ihrer n\u00e4chsten Zahlung am [date] abgezogen."
+                },
+                "subscription_change_now_none": {
+                    "title": "Change Plan: Now, Nothing Extra ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt. Ihre n\u00e4chste Zahlung betr\u00e4gt [price] am [date]."
+                },
+                "subscription_change_now_interval": {
+                    "title": "Change Plan: New Billing Period ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt und heute beginnt ein neuer Abrechnungszeitraum. Sie zahlen heute [amount] und danach [price] ab dem [date]."
+                },
+                "subscription_change_trial": {
+                    "title": "Change Plan: During a Free Trial ( 6.0.3 )",
+                    "value": "Ihr Tarif \u00e4ndert sich jetzt. Ihre kostenlose Testphase endet weiterhin am [date], danach zahlen Sie [price]."
+                },
+                "subscription_change_renewal": {
+                    "title": "Change Plan: At Renewal ( 6.0.3 )",
+                    "value": "Sie behalten Ihren aktuellen Tarif bis zum [date]. Danach \u00e4ndert sich Ihr Tarif und Sie zahlen [price]."
+                },
+                "subscription_change_note_now": {
+                    "title": "Change Plan: Starts Now ( 6.0.3 )",
+                    "value": "Gilt ab sofort"
+                },
+                "subscription_change_note_renewal": {
+                    "title": "Change Plan: Starts on a Date ( 6.0.3 )",
+                    "value": "Gilt ab [date]"
+                },
+                "subscription_change_note_later": {
+                    "title": "Change Plan: Starts at Renewal ( 6.0.3 )",
+                    "value": "Gilt ab der Verl\u00e4ngerung"
+                },
+                "subscription_change_note_trial": {
+                    "title": "Change Plan: Starts Now During a Free Trial ( 6.0.3 )",
+                    "value": "Gilt ab sofort, kostenlos bis [date]"
+                },
+                "subscription_change_note_trial_end": {
+                    "title": "Change Plan: Starts Now and Ends the Free Trial ( 6.0.3 )",
+                    "value": "Gilt ab sofort und beendet Ihre kostenlose Testphase"
+                },
+                "subscription_change_pending": {
+                    "title": "Change Plan: Change Waiting ( 6.0.3 )",
+                    "value": "Ihr Tarif wechselt am [date] zu [title]."
+                },
+                "subscription_change_pending_payment": {
+                    "title": "Change Plan: Waiting for a Payment ( 6.0.3 )",
+                    "value": "Ihr Wechsel zu [title] wartet auf eine Zahlung."
+                },
+                "subscription_change_cancel": {
+                    "title": "Change Plan: Cancel the Change ( 6.0.3 )",
+                    "value": "Diese \u00c4nderung stornieren"
+                },
+                "subscription_change_cancelled": {
+                    "title": "Change Plan: Change Cancelled ( 6.0.3 )",
+                    "value": "Die \u00c4nderung wurde storniert. Sie behalten Ihren aktuellen Tarif."
+                },
+                "subscription_change_applied": {
+                    "title": "Change Plan: Plan Changed ( 6.0.3 )",
+                    "value": "Ihr Tarif wurde ge\u00e4ndert."
+                },
+                "subscription_change_scheduled": {
+                    "title": "Change Plan: Change Scheduled ( 6.0.3 )",
+                    "value": "Ihr Tarifwechsel ist geplant."
+                },
+                "subscription_change_declined": {
+                    "title": "Change Plan: Card Declined ( 6.0.3 )",
+                    "value": "Ihre Karte wurde abgelehnt, daher wurde Ihr Tarif nicht ge\u00e4ndert. Aktualisieren Sie Ihre Zahlungsmethode und versuchen Sie es erneut."
+                },
+                "subscription_change_error": {
+                    "title": "Change Plan: Error ( 6.0.3 )",
+                    "value": "Ihr Tarif konnte gerade nicht ge\u00e4ndert werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns."
+                },
+                "subscription_change_unavailable": {
+                    "title": "Change Plan: Not Available ( 6.0.3 )",
+                    "value": "Diese \u00c4nderung ist f\u00fcr Ihr Abonnement nicht verf\u00fcgbar."
+                },
+                "subscription_change_monthly": {
+                    "title": "Change Plan: Monthly Tab ( 6.0.3 )",
+                    "value": "Monatlich"
+                },
+                "subscription_change_yearly": {
+                    "title": "Change Plan: Yearly Tab ( 6.0.3 )",
+                    "value": "J\u00e4hrlich"
+                },
+                "subscription_change_price": {
+                    "title": "Change Plan: Price Changing ( 6.0.3 )",
+                    "value": "Ihr Preis \u00e4ndert sich ab dem [date] auf [price]. Bis dahin \u00e4ndert sich nichts."
                 },
                 "subscription_details_card_notice": {
                     "title": "Account, Subscription Details, Card Change Notice",
@@ -4303,7 +4567,7 @@
 				},
 				"preorder_message":{
 					"title":"Cart, Preorder for Pickup Message",
-					"value":"Bitte holen Sie Ihre Bestellung unbedingt am [Abholdatum] ab."
+					"value":"Bitte holen Sie Ihre Bestellung unbedingt am [pickup_date] ab."
 				},
 				"restaurant_message":{
 					"title":"Cart, Restaurant Pickup Message",
@@ -4315,15 +4579,15 @@
 				},
 				"order_claim_invalid":{
 					"title":"Connect Order, Link Not Valid",
-					"value":"That link is not valid or has expired. Ask for a new one from your account."
+					"value":"Dieser Link ist ungültig oder abgelaufen. Fordern Sie in Ihrem Konto einen neuen an."
 				},
 				"order_claim_sign_in":{
 					"title":"Connect Order, Sign In First",
-					"value":"Sign in to the account that asked for this link, then open the link again."
+					"value":"Melden Sie sich bei dem Konto an, das diesen Link angefordert hat, und öffnen Sie den Link dann erneut."
 				},
 				"order_claim_limit":{
 					"title":"Connect Order, Too Many Requests",
-					"value":"Too many requests. Please try again later."
+					"value":"Zu viele Anfragen. Bitte versuchen Sie es später erneut."
 				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
@@ -4416,7 +4680,7 @@
 				},
 				"order_claim_sent":{
 					"title":"Connect Order, Link Sent",
-					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
+					"value":"Falls diese Bestellung mit Ihrer E-Mail-Adresse aufgegeben wurde, haben wir Ihnen einen Link dazu gesendet. Öffnen Sie den Link, während Sie angemeldet sind, um die Bestellung Ihrem Konto hinzuzufügen."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -4673,7 +4937,7 @@
             "options":{
                 "details_title":{
                     "title":"Checkout Fields Answers Heading",
-                    "value":"Additional details"
+                    "value":"Weitere Angaben"
                 },
                 "optional":{
                     "title":"Optional Field Marker",
@@ -4681,79 +4945,79 @@
                 },
                 "select_placeholder":{
                     "title":"Dropdown First Choice",
-                    "value":"Choose…"
+                    "value":"Auswählen…"
                 },
                 "required_error":{
                     "title":"Required Field Error",
-                    "value":"Please fill in this field."
+                    "value":"Bitte füllen Sie dieses Feld aus."
                 },
                 "choose_error":{
                     "title":"Required Choice Error",
-                    "value":"Please choose an option."
+                    "value":"Bitte wählen Sie eine Option."
                 },
                 "email_error":{
                     "title":"Email Field Error",
-                    "value":"Please enter a valid email address."
+                    "value":"Bitte geben Sie eine gültige E-Mail-Adresse ein."
                 },
                 "phone_error":{
                     "title":"Phone Field Error",
-                    "value":"Please enter a valid phone number."
+                    "value":"Bitte geben Sie eine gültige Telefonnummer ein."
                 },
                 "number_error":{
                     "title":"Number Field Error",
-                    "value":"Please enter a number in the allowed range."
+                    "value":"Bitte geben Sie eine Zahl im zulässigen Bereich ein."
                 },
                 "date_error":{
                     "title":"Date Field Error",
-                    "value":"Please choose an available date."
+                    "value":"Bitte wählen Sie ein verfügbares Datum."
                 },
                 "format_error":{
                     "title":"Format Error",
-                    "value":"Please check the format of this answer."
+                    "value":"Bitte überprüfen Sie das Format dieser Antwort."
                 },
                 "length_error":{
                     "title":"Too Short Error",
-                    "value":"Please enter a longer answer."
+                    "value":"Bitte geben Sie eine längere Antwort ein."
                 },
                 "consent_error":{
                     "title":"Consent Error",
-                    "value":"Please accept to continue."
+                    "value":"Bitte stimmen Sie zu, um fortzufahren."
                 },
                 "checkout_error":{
                     "title":"Checkout Fields Notice",
-                    "value":"Please check the highlighted checkout fields."
+                    "value":"Bitte überprüfen Sie die markierten Felder an der Kasse."
                 },
                 "yes":{
                     "title":"Checkbox Ticked Answer",
-                    "value":"Yes"
+                    "value":"Ja"
                 },
                 "no":{
                     "title":"Checkbox Not Ticked Answer",
-                    "value":"No"
+                    "value":"Nein"
                 },
                 "accepted":{
                     "title":"Consent Accepted Answer",
-                    "value":"Accepted"
+                    "value":"Zugestimmt"
                 },
                 "after_payment_title":{
                     "title":"After Payment Heading",
-                    "value":"A few more details"
+                    "value":"Noch ein paar Angaben"
                 },
                 "after_payment_intro":{
                     "title":"After Payment Introduction",
-                    "value":"We still need a few details to complete your order."
+                    "value":"Wir benötigen noch ein paar Angaben, um Ihre Bestellung abzuschließen."
                 },
                 "after_payment_button":{
                     "title":"After Payment Save Button",
-                    "value":"Save details"
+                    "value":"Angaben speichern"
                 },
                 "after_payment_saved":{
                     "title":"After Payment Saved Message",
-                    "value":"Thank you. We have your details."
+                    "value":"Vielen Dank. Wir haben Ihre Angaben erhalten."
                 },
                 "after_payment_failed":{
                     "title":"After Payment Save Failed Message",
-                    "value":"Your details could not be saved. Reload the page and try again."
+                    "value":"Ihre Angaben konnten nicht gespeichert werden. Laden Sie die Seite neu und versuchen Sie es erneut."
                 }
             }
         },
@@ -4762,35 +5026,35 @@
             "options": {
 				"shipment_package":{
 					"title":"Package Label (tracking)",
-					"value":"Package %d"
+					"value":"Paket %d"
 				},
 				"shipment_packages_intro":{
 					"title":"Several Packages Intro",
-					"value":"Your order ships in %d packages. Each one has its own tracking number."
+					"value":"Ihre Bestellung wird in %d Paketen versendet. Jedes Paket hat eine eigene Tracking-Nummer."
 				},
 				"tracking_label_created":{
 					"title":"Tracking: Label Created",
-					"value":"Label created"
+					"value":"Versandetikett erstellt"
 				},
 				"tracking_in_transit":{
 					"title":"Tracking: In Transit",
-					"value":"In transit"
+					"value":"Unterwegs"
 				},
 				"tracking_out_for_delivery":{
 					"title":"Tracking: Out for Delivery",
-					"value":"Out for delivery"
+					"value":"In Zustellung"
 				},
 				"tracking_delivered":{
 					"title":"Tracking: Delivered",
-					"value":"Delivered"
+					"value":"Zugestellt"
 				},
 				"tracking_problem":{
 					"title":"Tracking: Delivery Problem",
-					"value":"Delivery problem"
+					"value":"Zustellproblem"
 				},
 				"tracking_returned":{
 					"title":"Tracking: Returned",
-					"value":"Returned to sender"
+					"value":"An Absender zurückgesendet"
 				},
                 "packing_slip_title": {
                     "title": "Packing Slip Title",
@@ -5163,43 +5427,43 @@
             "options": {
                 "declined": {
                     "title": "Payment Declined (simple message)",
-                    "value": "Your payment wasn't approved. Please check your card details or try a different card."
+                    "value": "Ihre Zahlung wurde nicht genehmigt. Bitte überprüfen Sie Ihre Kartendaten oder verwenden Sie eine andere Karte."
                 },
                 "paused_title": {
                     "title": "Paused: Title",
-                    "value": "Payments are paused for a little while."
+                    "value": "Zahlungen sind vorübergehend pausiert."
                 },
                 "paused": {
                     "title": "Paused: Message ([time] and [email] are filled in)",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+                    "value": "Zu Ihrer Sicherheit haben wir Zahlungen von diesem Gerät nach mehreren Versuchen pausiert. Bitte versuchen Sie es nach [time] erneut oder kontaktieren Sie uns unter [email], wir helfen Ihnen gern."
                 },
                 "paused_soon": {
                     "title": "Paused: Message Without a Time",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+                    "value": "Zu Ihrer Sicherheit haben wir Zahlungen von diesem Gerät nach mehreren Versuchen pausiert. Bitte versuchen Sie es etwas später erneut oder kontaktieren Sie uns unter [email], wir helfen Ihnen gern."
                 },
                 "check_title": {
                     "title": "Human Check: Title",
-                    "value": "Quick security check"
+                    "value": "Kurze Sicherheitsprüfung"
                 },
                 "check_needed": {
                     "title": "Human Check: Message",
-                    "value": "Please complete the security check below, then place your order again."
+                    "value": "Bitte schließen Sie die Sicherheitsprüfung unten ab und geben Sie dann Ihre Bestellung erneut auf."
                 },
                 "check_failed": {
                     "title": "Human Check: Failed",
-                    "value": "The security check didn't work. Please try it again."
+                    "value": "Die Sicherheitsprüfung hat nicht funktioniert. Bitte versuchen Sie es erneut."
                 },
                 "checking": {
                     "title": "Human Check: Checking",
-                    "value": "Checking…"
+                    "value": "Wird geprüft…"
                 },
                 "reload": {
                     "title": "Reload Needed",
-                    "value": "Please reload this page and try again."
+                    "value": "Bitte laden Sie diese Seite neu und versuchen Sie es erneut."
                 },
                 "code_paused": {
                     "title": "Too Many Codes Tried",
-                    "value": "Too many codes were tried. Please wait an hour before trying another code."
+                    "value": "Es wurden zu viele Codes ausprobiert. Bitte warten Sie eine Stunde, bevor Sie einen weiteren Code eingeben."
                 }
             }
         },
@@ -5208,7 +5472,7 @@
             "options": {
                 "being_made": {
                     "title": "Package Status: Being Made by a Partner",
-                    "value": "Being made"
+                    "value": "Wird angefertigt"
                 }
             }
         },
@@ -5217,11 +5481,11 @@
             "options": {
                 "variant_unavailable": {
                     "title": "Cart: Variant Switched Off",
-                    "value": "An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+                    "value": "Ein Artikel in Ihrem Warenkorb ist in der gewählten Option nicht mehr verfügbar. Bitte entfernen Sie ihn und wählen Sie eine andere Option."
                 },
                 "line_unavailable": {
                     "title": "Cart: Item Cannot Be Ordered",
-                    "value": "An item in your cart cannot be ordered right now. Please remove it or try again later."
+                    "value": "Ein Artikel in Ihrem Warenkorb kann derzeit nicht bestellt werden. Bitte entfernen Sie ihn oder versuchen Sie es später erneut."
                 },
                 "product_unavailable": {
                     "title": "Cart: Item Not Available To Order",
@@ -5403,43 +5667,43 @@
             "options": {
                 "ships_separately": {
                     "title": "Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
-                    "value": "[label] items ship separately ( [amount] )."
+                    "value": "Artikel von [label] werden separat versendet ( [amount] )."
                 },
                 "delivery_estimate": {
                     "title": "Note: Delivery Estimate ([days] is the delivery time)",
-                    "value": "Estimated delivery: [days]."
+                    "value": "Voraussichtliche Lieferung: [days]."
                 },
                 "delivery_days": {
                     "title": "Delivery Time ([days] is a number or a range)",
-                    "value": "[days] business days"
+                    "value": "[days] Werktage"
                 },
                 "pending": {
                     "title": "Note: No Address Yet ([label] is the partner)",
-                    "value": "[label] items ship separately. Their shipping is added once you enter your address."
+                    "value": "Artikel von [label] werden separat versendet. Der Versand dafür wird hinzugefügt, sobald Sie Ihre Adresse eingeben."
                 },
                 "unavailable": {
                     "title": "Note: No Shipping for This Address ([label] is the partner)",
-                    "value": "We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+                    "value": "Wir konnten den Versand für Artikel von [label] an diese Adresse nicht ermitteln. Bitte überprüfen Sie die Adresse oder versuchen Sie es gleich noch einmal."
                 },
                 "totals_included": {
                     "title": "Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
-                    "value": "Includes [label] shipping: [amount]"
+                    "value": "Inkl. Versand für [label]: [amount]"
                 },
                 "totals_pending": {
                     "title": "Totals: No Address Yet ([label] is the partner)",
-                    "value": "[label] shipping is added once you enter your address"
+                    "value": "Versand für [label] wird hinzugefügt, sobald Sie Ihre Adresse eingeben"
                 },
                 "totals_unavailable": {
                     "title": "Totals: No Shipping for This Address ([label] is the partner)",
-                    "value": "[label] shipping is unavailable for this address"
+                    "value": "Versand für [label] ist für diese Adresse nicht verfügbar"
                 },
                 "free": {
                     "title": "Partner Shipping Covered by Free Shipping",
-                    "value": "Free"
+                    "value": "Kostenlos"
                 },
                 "checkout_error": {
                     "title": "Checkout Error: Partner Shipping Unavailable",
-                    "value": "We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+                    "value": "Wir konnten den Versand für einige Ihrer Artikel nicht berechnen, daher wurde Ihre Bestellung nicht aufgegeben. Bitte überprüfen Sie Ihre Lieferadresse und versuchen Sie es erneut."
                 },
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",

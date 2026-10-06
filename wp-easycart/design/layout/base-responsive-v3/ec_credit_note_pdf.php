@@ -48,7 +48,7 @@ if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 	if ( '' === $ec_cn_seller ) {
 		$ec_cn_seller = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 	}
-	$ec_cn_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 18px 0;border-bottom:2px solid #1d2327;"><tr>';
+	$ec_cn_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 8px 0;border-bottom:2px solid #1d2327;"><tr>';
 	$ec_cn_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_cn_cell ) . '">' . ( $document->show( 'seller' ) ? nl2br( esc_html( $ec_cn_seller ) ) : '&nbsp;' ) . '</td>';
 	$ec_cn_head .= '<td width="45%" align="right" style="' . esc_attr( $ec_cn_cell . 'text-align:right;' ) . '">';
 	if ( $document->show( 'heading' ) ) {

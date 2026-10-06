@@ -3,7 +3,7 @@ do_action( 'wpeasycart_admin_load_init' );
 /* 6.0.1: EasyCart admin assets carry their file time in the version, so an update is picked up without a forced reload. */
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_asset_version.php' );
 // Load Helper Classes
-include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_shell_theme.php' );
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_frame_theme.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_upsell.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_verification.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_edition.php' );
@@ -32,6 +32,8 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_email_health.php' )
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_checkout_protection.php' );
 // 6.0.2: Settings › Search & AI ( status, crawler check ) and the product editor's Search & AI card ( save, preview ).
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_search_ai.php' );
+// 6.0.3: Settings › Accounts › reCAPTCHA key test ( AJAX ecv2_recaptcha_* ).
+include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_recaptcha.php' );
 // 6.0.2: the store page is also the front page ( notice, Store Status row, the Create Store page action on admin-post ).
 include_once( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_store_front_page.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_abandoned_cart_status.php' );
@@ -92,6 +94,7 @@ include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_users.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_user_role.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_subscribers.php' );
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_cart_importer.php' ); 
+include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_import.php' ); /* 6.0.3: Products › Import */
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_online_docs.php' ); 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_abandon_cart.php' ); 
 include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_store_status.php' ); 

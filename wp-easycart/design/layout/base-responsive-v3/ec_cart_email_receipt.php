@@ -129,7 +129,9 @@ if ( ! $this->is_approved && ( 7 == $this->orderstatus_id || 9 == $this->orderst
 } elseif ( ! $this->is_approved && 16 == $this->orderstatus_id ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- numeric strings from the database.
 	$ed::notice( wp_kses_post( $ec_receipt_lang->get_text( 'ec_errors', 'order_refunded' ) ), 'danger' );
 } elseif ( ! $this->is_approved ) {
-	$ed::notice( wp_kses_post( $ec_receipt_lang->get_text( 'ec_errors', 'payment_processing' ) ), 'warning' );
+	if ( wp_easycart_show_payment_pending_notice( $this ) ) { /* 6.0.3: the store can switch it off; payment received never shows for an order that is not approved */
+		$ed::notice( wp_kses_post( $ec_receipt_lang->get_text( 'ec_errors', 'payment_processing' ) ), 'warning' );
+	}
 } elseif ( 15 == $this->orderstatus_id ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- numeric strings from the database.
 	$ed::notice( wp_kses_post( $ec_receipt_lang->get_text( 'ec_success', 'payment_received' ) ), 'success' );
 }
@@ -150,7 +152,7 @@ do_action( 'wp_easycart_email_receipt_top', $this->order_id, $is_admin );
 
 /* Greeting, order number, intro lines */
 $ed::section_start();
-$ed::heading( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ) . ' ' . esc_html( trim( $this->billing_first_name . ' ' . $this->billing_last_name ) ) . ',' );
+$ed::greeting( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ), trim( $this->billing_first_name . ' ' . $this->billing_last_name ) ); /* 6.0.3: text size, not a headline */
 $ed::paragraph( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_2' ) ) . ' <strong style="color:#111827;white-space:nowrap;">' . esc_html( $this->order_id ) . ' &#8213; ' . esc_html( date_i18n( get_option( 'date_format' ), strtotime( $this->order_date ) ) ) . '</strong>' );
 $ed::paragraph( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_3' ) ) );
 $ed::paragraph( wp_kses_post( $ec_receipt_lang->get_text( 'cart_success', 'cart_payment_complete_line_4' ) ) );

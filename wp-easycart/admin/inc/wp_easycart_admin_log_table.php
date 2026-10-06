@@ -433,7 +433,7 @@ function ecv2_log_export() {
 	$where .= wp_easycart_admin_log_table::search_where( wp_easycart_admin_log_table::search_term() ); // Same matching as the list view; esc_like() + prepare() inside.
 	if ( ! headers_sent() ) { header( 'Content-Type: text/csv; charset=utf-8' ); header( 'Content-Disposition: attachment; filename="easycart-log-' . date( 'Ymd-Hi' ) . '.csv"' ); }
 	$out = fopen( 'php://output', 'w' );
-	fputcsv( $out, array( 'id', 'time', 'source', 'order_id', 'is_error', 'response' ) );
+	fputcsv( $out, array( 'id', 'time', 'source', 'order_id', 'is_error', 'response' ), ',', '"', '\\' );
 	/*
 	 * 6.0.0: streamed in keyset chunks of 500 ( response_id < last ) so the response_text blobs never sit in
 	 * memory together; the 5000-row ceiling of the old single query is kept.
@@ -442,7 +442,7 @@ function ecv2_log_export() {
 	while ( $sent < $max_rows ) {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT response_id, response_time, processor, order_id, is_error, response_text FROM ec_response $where AND response_id < %d ORDER BY response_id DESC LIMIT %d", $last_id, min( $chunk, $max_rows - $sent ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is assembled above from literals, $wpdb->prepare()'d fragments, and whitelisted/(int)-cast values only; the cursor and limit go through prepare().
 		if ( empty( $rows ) ) { break; }
-		foreach ( $rows as $r ) { $last_id = (int) $r['response_id']; $r['response_text'] = ec_logs::redact( $r['response_text'] ); fputcsv( $out, $r ); }
+		foreach ( $rows as $r ) { $last_id = (int) $r['response_id']; $r['response_text'] = ec_logs::redact( $r['response_text'] ); fputcsv( $out, $r, ',', '"', '\\' ); }
 		$sent += count( $rows );
 		fflush( $out );
 		if ( ob_get_level() ) { ob_flush(); }

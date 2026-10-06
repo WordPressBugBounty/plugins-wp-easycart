@@ -8,7 +8,7 @@
  * token-based skin: neutral card/typography structure matching admin-v2.css,
  * brand color (--ec-brand*) for every interactive element.
  *
- * Load AFTER admin.css, alongside shell-v2.css. Every selector is scoped
+ * Load AFTER admin.css, alongside admin-frame-v2.css. Every selector is scoped
  * under .ecsh-main so: (a) it only applies inside the new shell, and
  * (b) it outweighs admin.css without !important.
  *

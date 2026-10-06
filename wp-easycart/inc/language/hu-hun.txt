@@ -47,7 +47,7 @@
 			"options":{
 				"shop_sale":{
 					"title":"Shop Widgets, Sale Badge",
-					"value":"Sale"
+					"value":"Akció"
 				},
 				"shop_percent_off":{
 					"title":"Shop Widgets, Discount Badge ( [percent] is the discount )",
@@ -55,31 +55,31 @@
 				},
 				"shop_sold_out":{
 					"title":"Shop Widgets, Sold Out Badge",
-					"value":"Sold out"
+					"value":"Elfogyott"
 				},
 				"shop_regular_price":{
 					"title":"Shop Widgets, Regular Price ( screen readers )",
-					"value":"Regular price:"
+					"value":"Normál ár:"
 				},
 				"shop_sale_price":{
 					"title":"Shop Widgets, Sale Price ( screen readers )",
-					"value":"Sale price:"
+					"value":"Akciós ár:"
 				},
 				"shop_rated":{
 					"title":"Shop Widgets, Rating ( [rating] is the average )",
-					"value":"Rated [rating] out of 5"
+					"value":"Értékelés: [rating] az 5-ből"
 				},
 				"shop_review_one":{
 					"title":"Shop Widgets, One Review ( [count] )",
-					"value":"[count] review"
+					"value":"[count] értékelés"
 				},
 				"shop_review_many":{
 					"title":"Shop Widgets, Reviews ( [count] )",
-					"value":"[count] reviews"
+					"value":"[count] értékelés"
 				},
 				"shop_options":{
 					"title":"Shop Widgets, Colour Swatches ( screen readers )",
-					"value":"Available options"
+					"value":"Elérhető opciók"
 				},
 				"shop_more_options":{
 					"title":"Shop Widgets, More Swatches ( [count] )",
@@ -87,175 +87,175 @@
 				},
 				"shop_adding":{
 					"title":"Shop Widgets, Adding to Cart",
-					"value":"Adding\u2026"
+					"value":"Hozzáadás…"
 				},
 				"shop_added":{
 					"title":"Shop Widgets, Added Button",
-					"value":"Added"
+					"value":"Hozzáadva"
 				},
 				"shop_added_note":{
 					"title":"Shop Widgets, Added to Cart ( [product] is the product name )",
-					"value":"[product] was added to your cart."
+					"value":"Kosárba helyezve: [product]."
 				},
 				"shop_add_failed":{
 					"title":"Shop Widgets, Could Not Add",
-					"value":"This product could not be added. Opening the product page."
+					"value":"A terméket nem sikerült hozzáadni. Megnyitjuk a termékoldalt."
 				},
 				"shop_quantity":{
 					"title":"Shop Widgets, Quantity Label",
-					"value":"Quantity"
+					"value":"Mennyiség"
 				},
 				"shop_view_details":{
 					"title":"Shop Widgets, Quick View Details Link",
-					"value":"View full details"
+					"value":"Teljes leírás megtekintése"
 				},
 				"shop_close":{
 					"title":"Shop Widgets, Close Quick View",
-					"value":"Close"
+					"value":"Bezárás"
 				},
 				"shop_loading":{
 					"title":"Shop Widgets, Loading",
-					"value":"Loading\u2026"
+					"value":"Betöltés…"
 				},
 				"shop_load_more":{
 					"title":"Shop Widgets, Load More Button",
-					"value":"Load more"
+					"value":"Továbbiak betöltése"
 				},
 				"shop_loaded":{
 					"title":"Shop Widgets, More Products Loaded ( [count] )",
-					"value":"[count] more products loaded"
+					"value":"Még [count] termék betöltve"
 				},
 				"shop_page_nav":{
 					"title":"Shop Widgets, Page Numbers ( screen readers )",
-					"value":"Product pages"
+					"value":"Termékoldalak"
 				},
 				"shop_page":{
 					"title":"Shop Widgets, Page Number ( [page] )",
-					"value":"Page [page]"
+					"value":"[page]. oldal"
 				},
 				"shop_previous":{
 					"title":"Shop Widgets, Previous Page",
-					"value":"Previous page"
+					"value":"Előző oldal"
 				},
 				"shop_next":{
 					"title":"Shop Widgets, Next Page",
-					"value":"Next page"
+					"value":"Következő oldal"
 				},
 				"shop_carousel_label":{
 					"title":"Shop Widgets, Carousel Name",
-					"value":"Products"
+					"value":"Termékek"
 				},
 				"shop_carousel_prev":{
 					"title":"Shop Widgets, Carousel Previous",
-					"value":"Previous products"
+					"value":"Előző termékek"
 				},
 				"shop_carousel_next":{
 					"title":"Shop Widgets, Carousel Next",
-					"value":"Next products"
+					"value":"Következő termékek"
 				},
 				"shop_carousel_pause":{
 					"title":"Shop Widgets, Carousel Pause",
-					"value":"Pause"
+					"value":"Szüneteltetés"
 				},
 				"shop_carousel_play":{
 					"title":"Shop Widgets, Carousel Play",
-					"value":"Play"
+					"value":"Lejátszás"
 				},
 				"shop_carousel_slide":{
 					"title":"Shop Widgets, Carousel Slide ( [index] of [total] )",
-					"value":"[index] of [total]"
+					"value":"[index] / [total]"
 				},
 				"shop_carousel_go_to":{
 					"title":"Shop Widgets, Carousel Dot ( [index] )",
-					"value":"Go to slide [index]"
+					"value":"Ugrás ide: [index]. dia"
 				},
 				"shop_result_count":{
 					"title":"Shop Widgets, Results ( [start], [end], [total] )",
-					"value":"Showing [start]\u2013[end] of [total] products"
+					"value":"Megjelenítve: [start]–[end] / [total] termék"
 				},
 				"shop_result_all":{
 					"title":"Shop Widgets, All Results ( [total] )",
-					"value":"Showing all [total] products"
+					"value":"Összes termék megjelenítve: [total]"
 				},
 				"shop_result_one":{
 					"title":"Shop Widgets, One Result",
-					"value":"Showing 1 product"
+					"value":"1 termék megjelenítve"
 				},
 				"shop_sort_by":{
 					"title":"Shop Widgets, Sort Label",
-					"value":"Sort by"
+					"value":"Rendezés"
 				},
 				"shop_sort_apply":{
 					"title":"Shop Widgets, Sort Button",
-					"value":"Sort"
+					"value":"Rendezés"
 				},
 				"shop_active_filters":{
 					"title":"Shop Widgets, Active Filters ( screen readers )",
-					"value":"Active filters"
+					"value":"Aktív szűrők"
 				},
 				"shop_remove_filter":{
 					"title":"Shop Widgets, Remove Filter ( [filter] )",
-					"value":"Remove filter: [filter]"
+					"value":"Szűrő eltávolítása: [filter]"
 				},
 				"shop_clear_all":{
 					"title":"Shop Widgets, Clear All Filters",
-					"value":"Clear all"
+					"value":"Összes törlése"
 				},
 				"shop_chip_search":{
 					"title":"Shop Widgets, Search Filter ( [term] )",
-					"value":"Search: [term]"
+					"value":"Keresés: [term]"
 				},
 				"shop_price":{
 					"title":"Shop Widgets, Price Filter Title",
-					"value":"Price"
+					"value":"Ár"
 				},
 				"shop_sign_in":{
 					"title":"Shop Widgets, Sign In Button",
-					"value":"Sign in"
+					"value":"Bejelentkezés"
 				},
 				"shop_category_count_one":{
 					"title":"Shop Widgets, Category With One Product ( [count] )",
-					"value":"[count] product"
+					"value":"[count] termék"
 				},
 				"shop_category_count_many":{
 					"title":"Shop Widgets, Category Products ( [count] )",
-					"value":"[count] products"
+					"value":"[count] termék"
 				},
 				"shop_search_label":{
 					"title":"Shop Widgets, Search Label",
-					"value":"Search products"
+					"value":"Termékek keresése"
 				},
 				"shop_search_placeholder":{
 					"title":"Shop Widgets, Search Placeholder",
-					"value":"Search products\u2026"
+					"value":"Termékek keresése…"
 				},
 				"shop_search_button":{
 					"title":"Shop Widgets, Search Button",
-					"value":"Search"
+					"value":"Keresés"
 				},
 				"shop_search_suggestions":{
 					"title":"Shop Widgets, Suggestions ( screen readers )",
-					"value":"Product suggestions"
+					"value":"Termékjavaslatok"
 				},
 				"shop_search_view_all":{
 					"title":"Shop Widgets, View All Results ( [term] )",
-					"value":"View all results for \u201c[term]\u201d"
+					"value":"Az összes találat megtekintése: „[term]”"
 				},
 				"shop_search_none":{
 					"title":"Shop Widgets, No Suggestions ( [term] )",
-					"value":"No products match \u201c[term]\u201d."
+					"value":"Nincs találat erre: „[term]”."
 				},
 				"shop_search_result":{
 					"title":"Shop Widgets, One Suggestion ( screen readers )",
-					"value":"1 product found. Use the down arrow to choose it."
+					"value":"1 termék található. A kiválasztáshoz használja a lefelé nyilat."
 				},
 				"shop_search_results":{
 					"title":"Shop Widgets, Suggestions Found ( [count], screen readers )",
-					"value":"[count] products found. Use the up and down arrows to choose one."
+					"value":"[count] termék található. A kiválasztáshoz használja a felfelé és lefelé nyilakat."
 				},
 				"shop_search_loading":{
 					"title":"Shop Widgets, Searching",
-					"value":"Searching\u2026"
+					"value":"Keresés…"
 				}
 			}
 		},
@@ -377,15 +377,15 @@
 			"options":{
 				"category_product_count_one":{
 					"title":"Subcategories Widget: One Product",
-					"value":"1 product"
+					"value":"1 termék"
 				},
 				"category_product_count":{
 					"title":"Subcategories Widget: Product Count ( [count] is the number )",
-					"value":"[count] products"
+					"value":"[count] termék"
 				},
 				"categories_label":{
 					"title":"Subcategories Widget: List Name for Screen Readers",
-					"value":"Categories"
+					"value":"Kategóriák"
 				}
 			}
 		},
@@ -781,21 +781,37 @@
 					"title":"Előfizetési feliratkozási év cimke",
 					"value":"év"
 				},
+				"product_details_subscription_days":{
+					"title":"Subscription Days Label",
+					"value":"nap"
+				},
+				"product_details_subscription_weeks":{
+					"title":"Subscription Weeks Label",
+					"value":"hét"
+				},
+				"product_details_subscription_years":{
+					"title":"Subscription Years Label",
+					"value":"év"
+				},
+				"product_details_subscription_month_one":{
+					"title":"Subscription Month Label, One Month",
+					"value":"hónap"
+				},
 				"product_details_notify_subscribe_success":{
 					"title":"Stock Notification Subscribe Success",
-					"value":"You have been subscribed to stock notification of this product!"
+					"value":"Feliratkozott a termék készletértesítésére!"
 				},
 				"product_details_notify_subscribe_title":{
 					"title":"Stock Notification Subscribe Title",
-					"value":"Email when stock available"
+					"value":"Értesítés e-mailben, ha újra készleten lesz"
 				},
 				"product_details_notify_subscribe_email_placeholder":{
 					"title":"Stock Notification Subscribe Email Placeholder",
-					"value":"your@email.com"
+					"value":"email@pelda.hu"
 				},
 				"product_details_notify_subscribe_button_title":{
 					"title":"Stock Notification Subscribe Button Title",
-					"value":"Subscribe Now"
+					"value":"Feliratkozás"
 				},
 				"product_details_starting_at":{
 					"title":"Starting At Price",
@@ -876,47 +892,47 @@
 			"options":{
 				"added_to_cart":{
 					"title":"Add to Cart, Added Message",
-					"value":"Added to your cart."
+					"value":"Kosárba helyezve."
 				},
 				"view_cart":{
 					"title":"Add to Cart, View Cart Link",
-					"value":"View cart"
+					"value":"Kosár megtekintése"
 				},
 				"buy_now":{
 					"title":"Add to Cart, Buy Now Button",
-					"value":"Buy now"
+					"value":"Vásárlás most"
 				},
 				"add_unconfirmed":{
 					"title":"Add to Cart, Add Not Confirmed",
-					"value":"We could not confirm this was added. Please check your cart before you try again."
+					"value":"Nem tudtuk megerősíteni, hogy a termék a kosárba került. Kérjük, ellenőrizze a kosarát, mielőtt újra próbálkozik."
 				},
 				"quantity_label":{
 					"title":"Add to Cart, Quantity Label ( screen readers )",
-					"value":"Quantity"
+					"value":"Mennyiség"
 				},
 				"decrease_quantity":{
 					"title":"Add to Cart, Minus Button ( screen readers )",
-					"value":"Decrease quantity"
+					"value":"Mennyiség csökkentése"
 				},
 				"increase_quantity":{
 					"title":"Add to Cart, Plus Button ( screen readers )",
-					"value":"Increase quantity"
+					"value":"Mennyiség növelése"
 				},
 				"in_stock":{
 					"title":"Stock, In Stock",
-					"value":"In stock"
+					"value":"Készleten"
 				},
 				"stock_count":{
 					"title":"Stock, Number in Stock ( [count] is the number )",
-					"value":"[count] in stock"
+					"value":"[count] db készleten"
 				},
 				"low_stock":{
 					"title":"Stock, Low Stock ( [count] is the number )",
-					"value":"Only [count] left"
+					"value":"Már csak [count] db maradt"
 				},
 				"backorder":{
 					"title":"Stock, Available on Backorder",
-					"value":"Available on backorder"
+					"value":"Utánrendelhető"
 				},
 				"sku_label":{
 					"title":"SKU, Label",
@@ -924,7 +940,7 @@
 				},
 				"badge_sale":{
 					"title":"Badges, On Sale",
-					"value":"Sale"
+					"value":"Akció"
 				},
 				"badge_sale_percent":{
 					"title":"Badges, Discount ( [percent] is the number )",
@@ -932,79 +948,79 @@
 				},
 				"badge_new":{
 					"title":"Badges, New",
-					"value":"New"
+					"value":"Új"
 				},
 				"badge_low_stock":{
 					"title":"Badges, Low Stock",
-					"value":"Low stock"
+					"value":"Kevés készlet"
 				},
 				"badge_out_of_stock":{
 					"title":"Badges, Sold Out",
-					"value":"Sold out"
+					"value":"Elfogyott"
 				},
 				"price_tiers_title":{
 					"title":"Price, Quantity Discounts Title",
-					"value":"Buy more, save more"
+					"value":"Minél többet vesz, annál többet spórol"
 				},
 				"price_tiers_quantity":{
 					"title":"Price, Quantity Discounts Quantity Column",
-					"value":"Quantity"
+					"value":"Mennyiség"
 				},
 				"price_tiers_price":{
 					"title":"Price, Quantity Discounts Price Column",
-					"value":"Price each"
+					"value":"Egységár"
 				},
 				"gallery_label":{
 					"title":"Gallery, Name ( screen readers, [product] is the product )",
-					"value":"[product] images"
+					"value":"[product] képei"
 				},
 				"gallery_slide":{
 					"title":"Gallery, Image Position ( screen readers )",
-					"value":"[number] of [count]"
+					"value":"[number] / [count]"
 				},
 				"gallery_previous":{
 					"title":"Gallery, Previous Image",
-					"value":"Previous image"
+					"value":"Előző kép"
 				},
 				"gallery_next":{
 					"title":"Gallery, Next Image",
-					"value":"Next image"
+					"value":"Következő kép"
 				},
 				"gallery_open":{
 					"title":"Gallery, Open Larger Image",
-					"value":"Open larger image"
+					"value":"Nagyobb kép megnyitása"
 				},
 				"gallery_close":{
 					"title":"Gallery, Close Larger Image",
-					"value":"Close"
+					"value":"Bezárás"
 				},
 				"gallery_thumbnail":{
 					"title":"Gallery, Thumbnail ( [number] is the image )",
-					"value":"Show image [number]"
+					"value":"[number]. kép megjelenítése"
 				},
 				"gallery_play":{
 					"title":"Gallery, Play Video",
-					"value":"Play video"
+					"value":"Videó lejátszása"
 				},
 				"gallery_thumbs_previous":{
 					"title":"Gallery, Thumbnail Strip Back Arrow ( screen readers )",
-					"value":"Earlier thumbnails"
+					"value":"Korábbi bélyegképek"
 				},
 				"gallery_thumbs_next":{
 					"title":"Gallery, Thumbnail Strip Forward Arrow ( screen readers )",
-					"value":"More thumbnails"
+					"value":"További bélyegképek"
 				},
 				"gallery_pause":{
 					"title":"Gallery, Pause Slideshow Button",
-					"value":"Pause the slideshow"
+					"value":"Diavetítés szüneteltetése"
 				},
 				"gallery_resume":{
 					"title":"Gallery, Play Slideshow Button",
-					"value":"Play the slideshow"
+					"value":"Diavetítés lejátszása"
 				},
 				"price_you_save":{
 					"title":"Product Price, You Save ( [amount] is the saving, [percent] the percentage )",
-					"value":"You save [amount] ([percent]%)"
+					"value":"Megtakarítás: [amount] ([percent]%)"
 				}
 			}
 		},
@@ -1089,7 +1105,7 @@
 				},
 				"customer_review_save_error":{
 					"title":"Store Review Error Not Saved",
-					"value":"Your review could not be saved. Please refresh the page and try again."
+					"value":"Az értékelését nem sikerült elmenteni. Kérjük, frissítse az oldalt, és próbálja újra."
 				}
 			}
 		},
@@ -1098,63 +1114,63 @@
 			"options":{
 				"rating_label":{
 					"title":"Product Rating: Screen Reader Text ( [rating] is the average )",
-					"value":"Rated [rating] out of 5"
+					"value":"Értékelés: [rating] az 5-ből"
 				},
 				"review_count_one":{
 					"title":"Product Rating: One Review",
-					"value":"1 review"
+					"value":"1 értékelés"
 				},
 				"review_count_many":{
 					"title":"Product Rating: Reviews ( [count] is the number )",
-					"value":"[count] reviews"
+					"value":"[count] értékelés"
 				},
 				"rating_none":{
 					"title":"Product Rating: No Reviews",
-					"value":"No reviews yet"
+					"value":"Még nincs értékelés"
 				},
 				"reviews_based_on_one":{
 					"title":"Product Reviews: Summary, One Review",
-					"value":"Based on 1 review"
+					"value":"1 értékelés alapján"
 				},
 				"reviews_based_on_many":{
 					"title":"Product Reviews: Summary ( [count] is the number )",
-					"value":"Based on [count] reviews"
+					"value":"[count] értékelés alapján"
 				},
 				"reviews_filter_group":{
 					"title":"Product Reviews: Star Filter Label",
-					"value":"Filter reviews by rating"
+					"value":"Értékelések szűrése csillagok szerint"
 				},
 				"reviews_filter_button":{
 					"title":"Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )",
-					"value":"Show [rating]-star reviews ([count])"
+					"value":"[rating] csillagos értékelések megjelenítése ([count])"
 				},
 				"reviews_filter_showing":{
 					"title":"Product Reviews: Filter On ( [rating] is the stars )",
-					"value":"Showing [rating]-star reviews."
+					"value":"[rating] csillagos értékelések megjelenítve."
 				},
 				"reviews_filter_clear":{
 					"title":"Product Reviews: Show All Reviews",
-					"value":"Show all reviews"
+					"value":"Összes értékelés megjelenítése"
 				},
 				"reviews_none":{
 					"title":"Product Reviews: No Reviews ( no form shown )",
-					"value":"There are no reviews yet."
+					"value":"Még nincs értékelés."
 				},
 				"reviews_sign_in":{
 					"title":"Product Reviews: Sign In Link",
-					"value":"Sign in"
+					"value":"Bejelentkezés"
 				},
 				"review_star_one":{
 					"title":"Product Reviews: Form, 1 Star",
-					"value":"1 star"
+					"value":"1 csillag"
 				},
 				"review_star_many":{
 					"title":"Product Reviews: Form, Stars ( [rating] is the number )",
-					"value":"[rating] stars"
+					"value":"[rating] csillag"
 				},
 				"breadcrumbs_label":{
 					"title":"Breadcrumbs: Screen Reader Label",
-					"value":"Breadcrumb"
+					"value":"Navigációs útvonal"
 				},
 				"meta_sku":{
 					"title":"Product Meta: SKU Label",
@@ -1162,35 +1178,35 @@
 				},
 				"meta_category":{
 					"title":"Product Meta: One Category Label",
-					"value":"Category:"
+					"value":"Kategória:"
 				},
 				"meta_brand":{
 					"title":"Product Meta: Brand Label",
-					"value":"Brand:"
+					"value":"Márka:"
 				},
 				"meta_tag":{
 					"title":"Product Meta: Tag Label",
-					"value":"Tag:"
+					"value":"Címke:"
 				},
 				"share_facebook":{
 					"title":"Share Buttons: Facebook",
-					"value":"Share on Facebook"
+					"value":"Megosztás a Facebookon"
 				},
 				"share_x":{
 					"title":"Share Buttons: X",
-					"value":"Share on X"
+					"value":"Megosztás az X-en"
 				},
 				"share_pinterest":{
 					"title":"Share Buttons: Pinterest",
-					"value":"Pin on Pinterest"
+					"value":"Kitűzés a Pinteresten"
 				},
 				"share_linkedin":{
 					"title":"Share Buttons: LinkedIn",
-					"value":"Share on LinkedIn"
+					"value":"Megosztás a LinkedInen"
 				},
 				"share_email":{
 					"title":"Share Buttons: Email",
-					"value":"Share by email"
+					"value":"Megosztás e-mailben"
 				},
 				"share_email_label":{
 					"title":"Share Buttons: Email Button Text",
@@ -1198,95 +1214,95 @@
 				},
 				"share_copy":{
 					"title":"Share Buttons: Copy Link",
-					"value":"Copy link"
+					"value":"Link másolása"
 				},
 				"share_copied":{
 					"title":"Share Buttons: Link Copied",
-					"value":"Link copied"
+					"value":"Link átmásolva"
 				},
 				"share_whatsapp":{
 					"title":"Share Buttons: WhatsApp ( screen readers )",
-					"value":"Share on WhatsApp"
+					"value":"Megosztás a WhatsAppon"
 				},
 				"share_telegram":{
 					"title":"Share Buttons: Telegram ( screen readers )",
-					"value":"Share on Telegram"
+					"value":"Megosztás a Telegramon"
 				},
 				"share_reddit":{
 					"title":"Share Buttons: Reddit ( screen readers )",
-					"value":"Share on Reddit"
+					"value":"Megosztás a Redditen"
 				},
 				"share_threads":{
 					"title":"Share Buttons: Threads ( screen readers )",
-					"value":"Share on Threads"
+					"value":"Megosztás a Threadsen"
 				},
 				"share_bluesky":{
 					"title":"Share Buttons: Bluesky ( screen readers )",
-					"value":"Share on Bluesky"
+					"value":"Megosztás a Blueskyn"
 				},
 				"share_sms_label":{
 					"title":"Share Buttons: Text Message Button",
-					"value":"Text message"
+					"value":"SMS"
 				},
 				"share_sms":{
 					"title":"Share Buttons: Text Message ( screen readers )",
-					"value":"Share by text message"
+					"value":"Megosztás SMS-ben"
 				},
 				"share_print_label":{
 					"title":"Share Buttons: Print Button",
-					"value":"Print"
+					"value":"Nyomtatás"
 				},
 				"share_print":{
 					"title":"Share Buttons: Print ( screen readers )",
-					"value":"Print this page"
+					"value":"Az oldal nyomtatása"
 				},
 				"share_native_label":{
 					"title":"Share Buttons: Device Share Menu Button",
-					"value":"Share"
+					"value":"Megosztás"
 				},
 				"share_native":{
 					"title":"Share Buttons: Device Share Menu ( screen readers )",
-					"value":"Share with an app on this device"
+					"value":"Megosztás az eszközön lévő alkalmazással"
 				},
 				"meta_stock":{
 					"title":"Product Meta: Stock Label",
-					"value":"Availability:"
+					"value":"Elérhetőség:"
 				},
 				"meta_in_stock":{
 					"title":"Product Meta: In Stock",
-					"value":"In stock"
+					"value":"Készleten"
 				},
 				"meta_stock_count":{
 					"title":"Product Meta: Units In Stock ( [count] is the number )",
-					"value":"[count] in stock"
+					"value":"[count] db készleten"
 				},
 				"meta_backorder":{
 					"title":"Product Meta: On Backorder",
-					"value":"Available on backorder"
+					"value":"Utánrendelhető"
 				},
 				"meta_weight":{
 					"title":"Product Meta: Weight Label",
-					"value":"Weight:"
+					"value":"Súly:"
 				},
 				"meta_dimensions":{
 					"title":"Product Meta: Dimensions Label",
-					"value":"Dimensions:"
+					"value":"Méretek:"
 				},
 				"reviews_more":{
 					"title":"Product Reviews: Show More Link",
-					"value":"Show more reviews"
+					"value":"További értékelések megjelenítése"
 				},
 				"reviews_shown":{
 					"title":"Product Reviews: How Many Show ( [shown] and [total] are numbers )",
-					"value":"Showing [shown] of [total] reviews."
+					"value":"[total] értékelésből [shown] megjelenítve."
 				},
 				"read_more":{
 					"title":"Description: Read More Button",
-					"value":"Read more"
+					"value":"Bővebben"
 				},
 				"read_less":{
 					"title":"Description: Show Less Button",
-					"value":"Show less"
+					"value":"Kevesebb"
 				}
 			}
 		},
@@ -1670,11 +1686,23 @@
 				},
 				"coupon_not_applicable":{
 					"title":"Cart, Coupon Code Not Applicable",
-					"value":"Coupon does not apply to the items in your cart"
+					"value":"A kupon nem vonatkozik a kosarában lévő termékekre"
 				},
 				"coupon_first_only":{
 					"title":"Cart, Coupon Code First Order Only",
 					"value":"Ez a kupon csak az első rendelésre használható fel"
+				},
+				"subscription_coupon_first_payment":{
+					"title":"Subscription, Discount on the First Payment Only ( 6.0.3 )",
+					"value":"A kedvezmény csak az első fizetésre vonatkozik. Ezt követően az előfizetés [price] áron újul meg."
+				},
+				"subscription_coupon_months":{
+					"title":"Subscription, Discount for the First Months ( 6.0.3 )",
+					"value":"A kedvezmény az első [months] hónapra vonatkozik. Ezt követően az előfizetés [price] áron újul meg."
+				},
+				"subscription_renewal_plus_tax":{
+					"title":"Subscription, Renewal Price Plus Tax ( 6.0.3 )",
+					"value":"plusz adó"
 				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
@@ -1836,7 +1864,7 @@
 				},
 				"cart_estimate_shipping_error":{
 					"title":"Kosár, Nem egyező irányítószámok hiba üzenete",
-					"value":"Your postal code does not match our store's country. Shipping rates will be determined after you have entered your shipping information"
+					"value":"Az Ön irányítószáma nem egyezik áruházunk országával. A szállítási díjakat a szállítási adatok megadása után számoljuk ki."
 				},
 				"cart_estimate_shipping_hint":{
 					"title":"Kosár, Szállítás megbecsülése szövege, Irányítószám alapján",
@@ -2000,6 +2028,38 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Már megvásárolta ezt a terméket. Kérjük, keresse fel fiókját az aktív előfizetések megtekintéséhez."
 				},
+				"subscription_change_existing":{
+					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
+					"value":"Már van előfizetése erre a csomagra. Módosítsa a fiókjában, ahelyett hogy egy másodikat vásárolna."
+				},
+				"subscription_change_existing_link":{
+					"title":"Subscription Page: Change My Plan Link ( 6.0.3 )",
+					"value":"Csomagom módosítása"
+				},
+				"subscription_owned_one":{
+					"title":"Subscription Page: Already Subscribed, One ( 6.0.3 )",
+					"value":"Már rendelkezik előfizetéssel erre: [title]. Alább vásárolhat még egyet, vagy kezelheti a meglévőt a fiókjában."
+				},
+				"subscription_owned_many":{
+					"title":"Subscription Page: Already Subscribed, Several ( 6.0.3 )",
+					"value":"Már [count] előfizetése van erre a csomagra. Alább vásárolhat még egyet, vagy kezelheti őket a fiókjában."
+				},
+				"subscription_owned_link_one":{
+					"title":"Subscription Page: Manage My Subscription Link ( 6.0.3 )",
+					"value":"Előfizetésem kezelése"
+				},
+				"subscription_owned_link_many":{
+					"title":"Subscription Page: Manage My Subscriptions Link ( 6.0.3 )",
+					"value":"Előfizetéseim kezelése"
+				},
+				"subscription_choose_options":{
+					"title":"Subscription, Choose the Options First ( 6.0.3 )",
+					"value":"A fizetés előtt válassza ki az előfizetés beállításait a termékoldalon."
+				},
+				"subscription_choose_options_link":{
+					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
+					"value":"Beállítások kiválasztása"
+				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
 					"value":"Ez az előfizetés jelenleg nem vásárolható meg online. Kérjük, vegye fel velünk a kapcsolatot a feliratkozáshoz."
@@ -2053,31 +2113,31 @@
 			"options":{
 				"cart_state_ca":{
 					"title":"Cart, State (Canada)",
-					"value":"Province"
+					"value":"Tartomány"
 				},
 				"cart_zip_ca":{
 					"title":"Cart, Zip (Canada)",
-					"value":"Postal code"
+					"value":"Irányítószám"
 				},
 				"cart_zip_gb":{
 					"title":"Cart, Zip (UK)",
-					"value":"Postcode"
+					"value":"Irányítószám"
 				},
 				"cart_address_nl":{
 					"title":"Cart, Address (Netherlands)",
-					"value":"Street and house number"
+					"value":"Utca és házszám"
 				},
 				"cart_zip_nl":{
 					"title":"Cart, Zip (Netherlands)",
-					"value":"Postal code"
+					"value":"Irányítószám"
 				},
 				"cart_zip_ar":{
 					"title":"Cart, Zip (Argentina)",
-					"value":"Postal code"
+					"value":"Irányítószám"
 				},
 				"cart_state_ar":{
 					"title":"Cart, State (Argentina)",
-					"value":"Province"
+					"value":"Tartomány"
 				}
 			}
 		},
@@ -2375,11 +2435,11 @@
 				},
 				"cart_payment_information_apple_pay":{
 					"title":"Cart, Payment Information, Mobile Payment Label",
-					"value":"Pay using Your Device"
+					"value":"Fizetés az eszközével"
 				},
 				"cart_payment_card_type_credit_card":{
 					"title":"Cart, Payment Information, Default Card Type Label",
-					"value":"Credit Card"
+					"value":"Hitelkártya"
 				},
 				"cart_payment_information_credit_card":{
 					"title":"Kosár, Fizetési Információk, Fizetés kátyával cimke",
@@ -2825,67 +2885,67 @@
 			"options":{
 				"mini_cart_title":{
 					"title":"Mini Cart, Title",
-					"value":"Your cart"
+					"value":"Az Ön kosara"
 				},
 				"view_cart":{
 					"title":"Mini Cart, View Cart Button",
-					"value":"View cart"
+					"value":"Kosár megtekintése"
 				},
 				"close":{
 					"title":"Mini Cart, Close Button ( screen readers )",
-					"value":"Close"
+					"value":"Bezárás"
 				},
 				"cart_button_label":{
 					"title":"Menu Cart, Button Name ( screen readers; [count] is the number of items )",
-					"value":"Cart, [count] items"
+					"value":"Kosár, [count] termék"
 				},
 				"remove_item":{
 					"title":"Mini Cart, Remove Button ( screen readers; [title] is the product )",
-					"value":"Remove [title]"
+					"value":"[title] eltávolítása"
 				},
 				"quantity_of":{
 					"title":"Side Cart, Quantity Box ( screen readers; [title] is the product )",
-					"value":"Quantity of [title]"
+					"value":"[title] mennyisége"
 				},
 				"increase_quantity":{
 					"title":"Side Cart, Plus Button ( screen readers; [title] is the product )",
-					"value":"Increase quantity of [title]"
+					"value":"[title] mennyiségének növelése"
 				},
 				"decrease_quantity":{
 					"title":"Side Cart, Minus Button ( screen readers; [title] is the product )",
-					"value":"Decrease quantity of [title]"
+					"value":"[title] mennyiségének csökkentése"
 				},
 				"cart_updated":{
 					"title":"Mini Cart, Cart Updated ( screen readers )",
-					"value":"Your cart was updated."
+					"value":"A kosara frissült."
 				},
 				"item_added":{
 					"title":"Side Cart, Product Added ( screen readers; [title] is the product )",
-					"value":"[title] was added to your cart."
+					"value":"Kosárba helyezve: [title]."
 				},
 				"free_shipping_remaining":{
 					"title":"Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
-					"value":"Spend [amount] more for free shipping"
+					"value":"Még [amount] hiányzik az ingyenes szállításhoz"
 				},
 				"free_shipping_available":{
 					"title":"Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
-					"value":"Free shipping available"
+					"value":"Ingyenes szállítás elérhető"
 				},
 				"confirmation_items":{
 					"title":"Order Confirmation, Products Heading",
-					"value":"Your order"
+					"value":"Az Ön rendelése"
 				},
 				"confirmation_payment":{
 					"title":"Order Confirmation, How to Pay Heading",
-					"value":"How to pay"
+					"value":"Fizetés módja"
 				},
 				"confirmation_pay_link_note":{
 					"title":"Order Confirmation, Pay Online Note",
-					"value":"You can pay for this order online."
+					"value":"A rendelést online is kifizetheti."
 				},
 				"confirmation_pay_now":{
 					"title":"Order Confirmation, Pay Now Button",
-					"value":"Pay now"
+					"value":"Fizetés most"
 				}
 			}
 		},
@@ -2939,6 +2999,30 @@
 				"subscription_trial_ending_email_title":{
 					"title":"Előfizetési próba E-mail cím szövege",
 					"value":"A próba 3 nap alatt véget ér"
+				},
+				"trial_reminder_email_title":{
+					"title":"Trial Reminder Email Title ( 6.0.3 )",
+					"value":"Ingyenes próbaidőszaka lejár: [date]"
+				},
+				"trial_reminder_message":{
+					"title":"Trial Reminder Message ( 6.0.3 )",
+					"value":"A(z) [title] ingyenes próbaidőszaka lejár: [date]. Ezután elindul az előfizetése, és kártyáját [price] összeggel terheljük."
+				},
+				"trial_reminder_ends":{
+					"title":"Trial Reminder, Trial Ends Label ( 6.0.3 )",
+					"value":"Próbaidőszak vége"
+				},
+				"trial_reminder_then":{
+					"title":"Trial Reminder, Then Label ( 6.0.3 )",
+					"value":"Ezután"
+				},
+				"trial_reminder_cancel":{
+					"title":"Trial Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Mégsem Önnek való? Mondja le fiókjában [date] előtt, és nem terheljük meg."
+				},
+				"trial_reminder_link":{
+					"title":"Trial Reminder Button ( 6.0.3 )",
+					"value":"Előfizetés kezelése"
 				}
 			}
 		},
@@ -2989,6 +3073,66 @@
 				"subscription_upcoming_email_title":{
 					"title":"Subscription Upcoming Email Title",
 					"value":"Előfizetése hamarosan megújul"
+				},
+				"renewal_reminder_email_title":{
+					"title":"Renewal Reminder Email Title ( 6.0.3 )",
+					"value":"Előfizetése megújul: [date]"
+				},
+				"renewal_reminder_message":{
+					"title":"Renewal Reminder Message ( 6.0.3 )",
+					"value":"A(z) [title] előfizetése automatikusan megújul: [date]."
+				},
+				"renewal_reminder_plan":{
+					"title":"Renewal Reminder, Subscription Label ( 6.0.3 )",
+					"value":"Előfizetés"
+				},
+				"renewal_reminder_date":{
+					"title":"Renewal Reminder, Date Label ( 6.0.3 )",
+					"value":"Megújul"
+				},
+				"renewal_reminder_price":{
+					"title":"Renewal Reminder, Price Label ( 6.0.3 )",
+					"value":"Megújítási ár"
+				},
+				"renewal_reminder_cancel":{
+					"title":"Renewal Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Ha nem szeretné megújítani, mondja le fiókjában [date] előtt. Ott a fizetési módját is frissítheti."
+				},
+				"renewal_reminder_link":{
+					"title":"Renewal Reminder Button ( 6.0.3 )",
+					"value":"Előfizetés kezelése"
+				},
+				"price_change_email_title":{
+					"title":"Price Change Email Title ( 6.0.3 )",
+					"value":"Az előfizetése ára változik"
+				},
+				"price_change_message":{
+					"title":"Price Change Message ( 6.0.3 )",
+					"value":"[date] naptól a(z) [title] előfizetése [price] lesz [old_price] helyett."
+				},
+				"price_change_plan":{
+					"title":"Price Change, Subscription Label ( 6.0.3 )",
+					"value":"Előfizetés"
+				},
+				"price_change_old":{
+					"title":"Price Change, Price Now Label ( 6.0.3 )",
+					"value":"Jelenlegi ár"
+				},
+				"price_change_new":{
+					"title":"Price Change, New Price Label ( 6.0.3 )",
+					"value":"Új ár"
+				},
+				"price_change_date":{
+					"title":"Price Change, Date Label ( 6.0.3 )",
+					"value":"Ettől"
+				},
+				"price_change_cancel":{
+					"title":"Price Change, How to Cancel ( 6.0.3 )",
+					"value":"Addig semmi sem változik. Ha nem szeretné az új áron folytatni, mondja le fiókjában [date] előtt."
+				},
+				"price_change_link":{
+					"title":"Price Change Button ( 6.0.3 )",
+					"value":"Előfizetés kezelése"
 				}
 			}
 		},
@@ -3130,15 +3274,15 @@
 			"options":{
 				"account_connect_order_email_title":{
 					"title":"Connect Order Email Subject and Heading",
-					"value":"Add your order to your account"
+					"value":"Rendelés hozzáadása a fiókjához"
 				},
 				"account_connect_order_email_message":{
 					"title":"Connect Order Email Message ( [order_id] is the order number )",
-					"value":"You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+					"value":"Kérte, hogy hozzáadjuk a fiókjához a következő rendelést: [order_id]. Nyissa meg az alábbi linket, miközben be van jelentkezve ebbe a fiókba. Ha nem Ön kérte, hagyja figyelmen kívül ezt az e-mailt."
 				},
 				"account_connect_order_email_link":{
 					"title":"Connect Order Email Link",
-					"value":"Add the order to my account"
+					"value":"Rendelés hozzáadása a fiókomhoz"
 				}
 			}
 		},
@@ -3200,91 +3344,91 @@
 			"options":{
 				"nav_dashboard":{
 					"title":"Account Widgets, Menu, Dashboard",
-					"value":"Dashboard"
+					"value":"Vezérlőpult"
 				},
 				"nav_orders":{
 					"title":"Account Widgets, Menu, Orders",
-					"value":"Orders"
+					"value":"Rendelések"
 				},
 				"nav_downloads":{
 					"title":"Account Widgets, Menu, Downloads",
-					"value":"Downloads"
+					"value":"Letöltések"
 				},
 				"nav_subscriptions":{
 					"title":"Account Widgets, Menu, Subscriptions",
-					"value":"Subscriptions"
+					"value":"Előfizetések"
 				},
 				"nav_addresses":{
 					"title":"Account Widgets, Menu, Addresses",
-					"value":"Addresses"
+					"value":"Címek"
 				},
 				"nav_details":{
 					"title":"Account Widgets, Menu, Account Details",
-					"value":"Account details"
+					"value":"Fiókadatok"
 				},
 				"nav_payment_methods":{
 					"title":"Account Widgets, Menu, Payment Methods",
-					"value":"Payment methods"
+					"value":"Fizetési módok"
 				},
 				"nav_logout":{
 					"title":"Account Widgets, Menu, Sign Out",
-					"value":"Sign out"
+					"value":"Kijelentkezés"
 				},
 				"nav_menu_label":{
 					"title":"Account Widgets, Menu Name ( screen readers, phone dropdown )",
-					"value":"Account menu"
+					"value":"Fiókmenü"
 				},
 				"back_to_orders":{
 					"title":"Account Widgets, Back to Orders Link",
-					"value":"Back to orders"
+					"value":"Vissza a rendelésekhez"
 				},
 				"downloads_title":{
 					"title":"Account Widgets, Downloads Title",
-					"value":"Downloads"
+					"value":"Letöltések"
 				},
 				"downloads_none":{
 					"title":"Account Widgets, No Downloads",
-					"value":"You have no downloads yet."
+					"value":"Még nincsenek letöltései."
 				},
 				"downloads_order":{
 					"title":"Account Widgets, Downloads, Order Link",
-					"value":"Order"
+					"value":"Rendelés"
 				},
 				"downloads_expires":{
 					"title":"Account Widgets, Downloads, Available Until",
-					"value":"Available until"
+					"value":"Elérhető eddig"
 				},
 				"downloads_expired":{
 					"title":"Account Widgets, Downloads, Expired",
-					"value":"This download has expired."
+					"value":"Ez a letöltés lejárt."
 				},
 				"downloads_used_up":{
 					"title":"Account Widgets, Downloads, Limit Reached",
-					"value":"No downloads left."
+					"value":"Nincs több letöltés."
 				},
 				"payment_title":{
 					"title":"Account Widgets, Payment Methods Title",
-					"value":"Payment methods"
+					"value":"Fizetési módok"
 				},
 				"payment_card":{
 					"title":"Account Widgets, Payment Methods, Card",
-					"value":"Card"
+					"value":"Kártya"
 				},
 				"payment_card_note":{
 					"title":"Account Widgets, Payment Methods, Card Note",
-					"value":"Used for your subscriptions."
+					"value":"Az előfizetéseihez használjuk."
 				},
 				"payment_none":{
 					"title":"Account Widgets, No Payment Method",
-					"value":"You have no saved payment method."
+					"value":"Nincs mentett fizetési módja."
 				},
 				"signed_in_as":{
 					"title":"Account Widgets, Signed In As ( [name] is the customer's name )",
-					"value":"You are signed in as [name]."
+					"value":"Bejelentkezve mint [name]."
 				},
 				"my_account":{
 					"title":"Account Widgets, My Account Button",
-					"value":"My account"
+					"value":"Fiókom"
 				}
 			}
 		},
@@ -3901,7 +4045,7 @@
 				},
 				"account_orders_details_email":{
 					"title":"Account, Orders Details, Order Email Label",
-					"value":"Email:"
+					"value":"E-mail:"
 				},
 				"account_orders_details_email_other":{
 					"title":"Account, Orders Details, Order Additional Email Label",
@@ -3979,6 +4123,126 @@
 				"subscription_details_plan_notice":{
 					"title":"Account, Subscription Details, Plan Change Notice",
 					"value":"A csomagváltás azonnal érvénybe lép. A következő számlája az új árat mutatja, valamint a jelenlegi időszak hátralévő részére eső esetleges terhelést vagy jóváírást."
+				},
+				"subscription_details_interval_notice":{
+					"title":"Account, Subscription Details, Billing Schedule Change Notice",
+					"value":"Ez a csomag más gyakorisággal kerül számlázásra, ezért ma új számlázási időszak kezdődik: most fizeti az új árat, a jelenlegi időszak fel nem használt részével csökkentve."
+				},
+				"subscription_details_trial_ends":{
+					"title":"Account, Subscription Details, Trial Ends Label",
+					"value":"A próbaidőszak vége"
+				},
+				"subscription_details_trial_notice":{
+					"title":"Account, Subscription Details, Free Trial Notice",
+					"value":"Az ingyenes próbaidőszak [date] napon ér véget. Az első, [price] összegű fizetés ekkor esedékes."
+				},
+				"subscription_change_review":{
+					"title":"Change Plan: Review Button ( 6.0.3 )",
+					"value":"Módosítás áttekintése"
+				},
+				"subscription_change_confirm":{
+					"title":"Change Plan: Confirm Button ( 6.0.3 )",
+					"value":"Módosítás megerősítése"
+				},
+				"subscription_change_back":{
+					"title":"Change Plan: Back Button ( 6.0.3 )",
+					"value":"Vissza"
+				},
+				"subscription_change_now_charge":{
+					"title":"Change Plan: Charged Now ( 6.0.3 )",
+					"value":"A csomagja most módosul. Ma [amount] összeget fizet a számlázási időszak hátralévő részére, majd [price] összeget [date] naptól."
+				},
+				"subscription_change_now_next":{
+					"title":"Change Plan: Added to Next Payment ( 6.0.3 )",
+					"value":"A csomagja most módosul. A számlázási időszak hátralévő részére eső [amount] összeg a következő, [date] napi fizetéséhez adódik."
+				},
+				"subscription_change_now_credit":{
+					"title":"Change Plan: Credit on Next Payment ( 6.0.3 )",
+					"value":"A csomagja most módosul. A számlázási időszak fel nem használt részére eső [amount] összeget levonjuk a következő, [date] napi fizetéséből."
+				},
+				"subscription_change_now_none":{
+					"title":"Change Plan: Now, Nothing Extra ( 6.0.3 )",
+					"value":"A csomagja most módosul. A következő fizetése [price], [date] napon."
+				},
+				"subscription_change_now_interval":{
+					"title":"Change Plan: New Billing Period ( 6.0.3 )",
+					"value":"A csomagja most módosul, és ma új számlázási időszak kezdődik. Ma [amount] összeget fizet, majd [price] összeget [date] naptól."
+				},
+				"subscription_change_trial":{
+					"title":"Change Plan: During a Free Trial ( 6.0.3 )",
+					"value":"A csomagja most módosul. Az ingyenes próbaidőszaka továbbra is [date] napon jár le, ezután [price] összeget fizet."
+				},
+				"subscription_change_renewal":{
+					"title":"Change Plan: At Renewal ( 6.0.3 )",
+					"value":"A jelenlegi csomagja [date] napig megmarad. Ezután a csomagja módosul, és [price] összeget fizet."
+				},
+				"subscription_change_note_now":{
+					"title":"Change Plan: Starts Now ( 6.0.3 )",
+					"value":"Azonnal indul"
+				},
+				"subscription_change_note_renewal":{
+					"title":"Change Plan: Starts on a Date ( 6.0.3 )",
+					"value":"Indul: [date]"
+				},
+				"subscription_change_note_later":{
+					"title":"Change Plan: Starts at Renewal ( 6.0.3 )",
+					"value":"Megújításkor indul"
+				},
+				"subscription_change_note_trial":{
+					"title":"Change Plan: Starts Now During a Free Trial ( 6.0.3 )",
+					"value":"Azonnal indul, ingyenes eddig: [date]"
+				},
+				"subscription_change_note_trial_end":{
+					"title":"Change Plan: Starts Now and Ends the Free Trial ( 6.0.3 )",
+					"value":"Azonnal indul, és lezárja az ingyenes próbaidőszakot"
+				},
+				"subscription_change_pending":{
+					"title":"Change Plan: Change Waiting ( 6.0.3 )",
+					"value":"A csomagja [date] napon erre változik: [title]."
+				},
+				"subscription_change_pending_payment":{
+					"title":"Change Plan: Waiting for a Payment ( 6.0.3 )",
+					"value":"A(z) [title] csomagra váltás egy fizetés teljesülésére vár."
+				},
+				"subscription_change_cancel":{
+					"title":"Change Plan: Cancel the Change ( 6.0.3 )",
+					"value":"Módosítás visszavonása"
+				},
+				"subscription_change_cancelled":{
+					"title":"Change Plan: Change Cancelled ( 6.0.3 )",
+					"value":"A módosítást visszavontuk. A jelenlegi csomagja megmarad."
+				},
+				"subscription_change_applied":{
+					"title":"Change Plan: Plan Changed ( 6.0.3 )",
+					"value":"A csomagja módosult."
+				},
+				"subscription_change_scheduled":{
+					"title":"Change Plan: Change Scheduled ( 6.0.3 )",
+					"value":"A csomagváltás ütemezve."
+				},
+				"subscription_change_declined":{
+					"title":"Change Plan: Card Declined ( 6.0.3 )",
+					"value":"A kártyáját elutasították, ezért a csomagja nem módosult. Frissítse a fizetési módját, és próbálja újra."
+				},
+				"subscription_change_error":{
+					"title":"Change Plan: Error ( 6.0.3 )",
+					"value":"A csomagját most nem sikerült módosítani. Próbálja újra, vagy lépjen kapcsolatba velünk."
+				},
+				"subscription_change_unavailable":{
+					"title":"Change Plan: Not Available ( 6.0.3 )",
+					"value":"Ez a módosítás nem érhető el az előfizetéséhez."
+				},
+				"subscription_change_monthly":{
+					"title":"Change Plan: Monthly Tab ( 6.0.3 )",
+					"value":"Havi"
+				},
+				"subscription_change_yearly":{
+					"title":"Change Plan: Yearly Tab ( 6.0.3 )",
+					"value":"Éves"
+				},
+				"subscription_change_price":{
+					"title":"Change Plan: Price Changing ( 6.0.3 )",
+					"value":"Az ára [date] naptól erre változik: [price]. Addig semmi sem változik."
 				},
 				"subscription_details_card_notice":{
 					"title":"Account, Subscription Details, Card Change Notice",
@@ -4155,7 +4419,7 @@
 				},
 				"password_update_error":{
 					"title":"Jelszó frissítés hiba",
-					"value":"An error occurred while updating your password."
+					"value":"Hiba történt a jelszó frissítése közben."
 				},
 				"billing_information_error":{
 					"title":"Fiók, Számlázási adatok frissítési hiba üzenet",
@@ -4323,15 +4587,15 @@
 				},
 				"order_claim_invalid":{
 					"title":"Connect Order, Link Not Valid",
-					"value":"That link is not valid or has expired. Ask for a new one from your account."
+					"value":"Ez a link érvénytelen vagy lejárt. Kérjen újat a fiókjából."
 				},
 				"order_claim_sign_in":{
 					"title":"Connect Order, Sign In First",
-					"value":"Sign in to the account that asked for this link, then open the link again."
+					"value":"Jelentkezzen be abba a fiókba, amelyből ezt a linket kérték, majd nyissa meg újra a linket."
 				},
 				"order_claim_limit":{
 					"title":"Connect Order, Too Many Requests",
-					"value":"Too many requests. Please try again later."
+					"value":"Túl sok kérés. Kérjük, próbálja újra később."
 				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
@@ -4424,7 +4688,7 @@
 				},
 				"order_claim_sent":{
 					"title":"Connect Order, Link Sent",
-					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
+					"value":"Ha a rendelést az Ön e-mail címével adták le, küldtünk Önnek egy linket. Nyissa meg a linket, miközben be van jelentkezve, hogy hozzáadja a rendelést a fiókjához."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -4627,15 +4891,15 @@
 			"options":{
 				"email_title":{
 					"title":"Email Title",
-					"value":"Your Item is Back"
+					"value":"Újra készleten van a termék"
 				},
 				"view_now":{
 					"title":"View Link Text",
-					"value":"View Now"
+					"value":"Megtekintés"
 				},
 				"unsubscribe":{
 					"title":"Unsubscribe Link Text",
-					"value":"Unsubscribe from these notifications"
+					"value":"Leiratkozás az értesítésekről"
 				}
 			}
 		},
@@ -4644,35 +4908,35 @@
 			"options":{
 				"email_title":{
 					"title":"Email Title",
-					"value":"New Review Available"
+					"value":"Új értékelés érkezett"
 				},
 				"reviewed_product":{
 					"title":"Reviewed Product Label",
-					"value":"Reviewed Product"
+					"value":"Értékelt termék"
 				},
 				"submitted_by":{
 					"title":"Submitted By Label",
-					"value":"Submitted By"
+					"value":"Beküldte"
 				},
 				"rating_label":{
 					"title":"Rating Label",
-					"value":"Rating"
+					"value":"Pontszám"
 				},
 				"review_title":{
 					"title":"Review Title Label",
-					"value":"Review Title"
+					"value":"Értékelés címe"
 				},
 				"review_comments":{
 					"title":"Review Comments Label",
-					"value":"Review Comments"
+					"value":"Értékelés szövege"
 				},
 				"anonymous":{
 					"title":"Anonymous Review Label",
-					"value":"Anonymous"
+					"value":"Névtelen"
 				},
 				"link_text":{
 					"title":"Link Text",
-					"value":"View Review Now"
+					"value":"Értékelés megtekintése"
 				}
 			}
 		},
@@ -4681,87 +4945,87 @@
 			"options":{
 				"details_title":{
 					"title":"Checkout Fields Answers Heading",
-					"value":"Additional details"
+					"value":"További adatok"
 				},
 				"optional":{
 					"title":"Optional Field Marker",
-					"value":"(optional)"
+					"value":"(nem kötelező)"
 				},
 				"select_placeholder":{
 					"title":"Dropdown First Choice",
-					"value":"Choose…"
+					"value":"Válasszon…"
 				},
 				"required_error":{
 					"title":"Required Field Error",
-					"value":"Please fill in this field."
+					"value":"Kérjük, töltse ki ezt a mezőt."
 				},
 				"choose_error":{
 					"title":"Required Choice Error",
-					"value":"Please choose an option."
+					"value":"Kérjük, válasszon egy lehetőséget."
 				},
 				"email_error":{
 					"title":"Email Field Error",
-					"value":"Please enter a valid email address."
+					"value":"Kérjük, adjon meg egy érvényes e-mail címet."
 				},
 				"phone_error":{
 					"title":"Phone Field Error",
-					"value":"Please enter a valid phone number."
+					"value":"Kérjük, adjon meg egy érvényes telefonszámot."
 				},
 				"number_error":{
 					"title":"Number Field Error",
-					"value":"Please enter a number in the allowed range."
+					"value":"Kérjük, a megengedett tartományba eső számot adjon meg."
 				},
 				"date_error":{
 					"title":"Date Field Error",
-					"value":"Please choose an available date."
+					"value":"Kérjük, válasszon egy elérhető dátumot."
 				},
 				"format_error":{
 					"title":"Format Error",
-					"value":"Please check the format of this answer."
+					"value":"Kérjük, ellenőrizze a válasz formátumát."
 				},
 				"length_error":{
 					"title":"Too Short Error",
-					"value":"Please enter a longer answer."
+					"value":"Kérjük, adjon meg hosszabb választ."
 				},
 				"consent_error":{
 					"title":"Consent Error",
-					"value":"Please accept to continue."
+					"value":"A folytatáshoz kérjük, fogadja el."
 				},
 				"checkout_error":{
 					"title":"Checkout Fields Notice",
-					"value":"Please check the highlighted checkout fields."
+					"value":"Kérjük, ellenőrizze a kiemelt mezőket."
 				},
 				"yes":{
 					"title":"Checkbox Ticked Answer",
-					"value":"Yes"
+					"value":"Igen"
 				},
 				"no":{
 					"title":"Checkbox Not Ticked Answer",
-					"value":"No"
+					"value":"Nem"
 				},
 				"accepted":{
 					"title":"Consent Accepted Answer",
-					"value":"Accepted"
+					"value":"Elfogadva"
 				},
 				"after_payment_title":{
 					"title":"After Payment Heading",
-					"value":"A few more details"
+					"value":"Még néhány adat"
 				},
 				"after_payment_intro":{
 					"title":"After Payment Introduction",
-					"value":"We still need a few details to complete your order."
+					"value":"A rendelés befejezéséhez még néhány adatra van szükségünk."
 				},
 				"after_payment_button":{
 					"title":"After Payment Save Button",
-					"value":"Save details"
+					"value":"Adatok mentése"
 				},
 				"after_payment_saved":{
 					"title":"After Payment Saved Message",
-					"value":"Thank you. We have your details."
+					"value":"Köszönjük, megkaptuk az adatait."
 				},
 				"after_payment_failed":{
 					"title":"After Payment Save Failed Message",
-					"value":"Your details could not be saved. Reload the page and try again."
+					"value":"Az adatait nem sikerült elmenteni. Töltse újra az oldalt, és próbálja újra."
 				}
 			}
 		},
@@ -4770,35 +5034,35 @@
 			"options":{
 				"shipment_package":{
 					"title":"Package Label (tracking)",
-					"value":"Package %d"
+					"value":"%d. csomag"
 				},
 				"shipment_packages_intro":{
 					"title":"Several Packages Intro",
-					"value":"Your order ships in %d packages. Each one has its own tracking number."
+					"value":"A rendelését %d csomagban szállítjuk. Mindegyiknek saját nyomkövetési száma van."
 				},
 				"tracking_label_created":{
 					"title":"Tracking: Label Created",
-					"value":"Label created"
+					"value":"Címke létrehozva"
 				},
 				"tracking_in_transit":{
 					"title":"Tracking: In Transit",
-					"value":"In transit"
+					"value":"Úton van"
 				},
 				"tracking_out_for_delivery":{
 					"title":"Tracking: Out for Delivery",
-					"value":"Out for delivery"
+					"value":"Kézbesítés alatt"
 				},
 				"tracking_delivered":{
 					"title":"Tracking: Delivered",
-					"value":"Delivered"
+					"value":"Kézbesítve"
 				},
 				"tracking_problem":{
 					"title":"Tracking: Delivery Problem",
-					"value":"Delivery problem"
+					"value":"Kézbesítési probléma"
 				},
 				"tracking_returned":{
 					"title":"Tracking: Returned",
-					"value":"Returned to sender"
+					"value":"Visszaküldve a feladónak"
 				},
 				"packing_slip_title":{
 					"title":"Packing Slip Title",
@@ -5171,43 +5435,43 @@
 			"options":{
 				"declined":{
 					"title":"Payment Declined (simple message)",
-					"value":"Your payment wasn't approved. Please check your card details or try a different card."
+					"value":"A fizetését nem hagyták jóvá. Kérjük, ellenőrizze a kártyaadatait, vagy próbáljon meg másik kártyát."
 				},
 				"paused_title":{
 					"title":"Paused: Title",
-					"value":"Payments are paused for a little while."
+					"value":"A fizetések egy kis időre szünetelnek."
 				},
 				"paused":{
 					"title":"Paused: Message ([time] and [email] are filled in)",
-					"value":"For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+					"value":"Az Ön biztonsága érdekében többszöri próbálkozás után szüneteltettük a fizetéseket erről az eszközről. Kérjük, [time] után próbálja újra, vagy írjon nekünk a következő címen: [email], és segítünk."
 				},
 				"paused_soon":{
 					"title":"Paused: Message Without a Time",
-					"value":"For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+					"value":"Az Ön biztonsága érdekében többszöri próbálkozás után szüneteltettük a fizetéseket erről az eszközről. Kérjük, próbálja újra egy kicsit később, vagy írjon nekünk a következő címen: [email], és segítünk."
 				},
 				"check_title":{
 					"title":"Human Check: Title",
-					"value":"Quick security check"
+					"value":"Gyors biztonsági ellenőrzés"
 				},
 				"check_needed":{
 					"title":"Human Check: Message",
-					"value":"Please complete the security check below, then place your order again."
+					"value":"Kérjük, végezze el az alábbi biztonsági ellenőrzést, majd adja le újra a rendelését."
 				},
 				"check_failed":{
 					"title":"Human Check: Failed",
-					"value":"The security check didn't work. Please try it again."
+					"value":"A biztonsági ellenőrzés nem sikerült. Kérjük, próbálja újra."
 				},
 				"checking":{
 					"title":"Human Check: Checking",
-					"value":"Checking…"
+					"value":"Ellenőrzés…"
 				},
 				"reload":{
 					"title":"Reload Needed",
-					"value":"Please reload this page and try again."
+					"value":"Kérjük, töltse újra az oldalt, és próbálja újra."
 				},
 				"code_paused":{
 					"title":"Too Many Codes Tried",
-					"value":"Too many codes were tried. Please wait an hour before trying another code."
+					"value":"Túl sok kódot próbált meg beírni. Kérjük, várjon egy órát, mielőtt újabb kódot próbálna."
 				}
 			}
 		},
@@ -5216,7 +5480,7 @@
 			"options":{
 				"being_made":{
 					"title":"Package Status: Being Made by a Partner",
-					"value":"Being made"
+					"value":"Készítés alatt"
 				}
 			}
 		},
@@ -5225,11 +5489,11 @@
 			"options":{
 				"variant_unavailable":{
 					"title":"Cart: Variant Switched Off",
-					"value":"An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+					"value":"A kosarában lévő egyik termék már nem érhető el a kiválasztott opcióban. Kérjük, távolítsa el, és válasszon másik opciót."
 				},
 				"line_unavailable":{
 					"title":"Cart: Item Cannot Be Ordered",
-					"value":"An item in your cart cannot be ordered right now. Please remove it or try again later."
+					"value":"A kosarában lévő egyik termék jelenleg nem rendelhető meg. Kérjük, távolítsa el, vagy próbálja újra később."
 				},
 				"product_unavailable":{
 					"title":"Cart: Item Not Available To Order",
@@ -5411,43 +5675,43 @@
 			"options":{
 				"ships_separately":{
 					"title":"Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
-					"value":"[label] items ship separately ( [amount] )."
+					"value":"[label] termékei külön érkeznek ([amount])."
 				},
 				"delivery_estimate":{
 					"title":"Note: Delivery Estimate ([days] is the delivery time)",
-					"value":"Estimated delivery: [days]."
+					"value":"Becsült kézbesítés: [days]."
 				},
 				"delivery_days":{
 					"title":"Delivery Time ([days] is a number or a range)",
-					"value":"[days] business days"
+					"value":"[days] munkanap"
 				},
 				"pending":{
 					"title":"Note: No Address Yet ([label] is the partner)",
-					"value":"[label] items ship separately. Their shipping is added once you enter your address."
+					"value":"[label] termékei külön érkeznek. A szállítási díjukat a cím megadása után adjuk hozzá."
 				},
 				"unavailable":{
 					"title":"Note: No Shipping for This Address ([label] is the partner)",
-					"value":"We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+					"value":"Nem tudtuk megállapítani, mennyibe kerül [label] termékeinek szállítása erre a címre. Kérjük, ellenőrizze a címet, vagy próbálja újra egy pillanat múlva."
 				},
 				"totals_included":{
 					"title":"Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
-					"value":"Includes [label] shipping: [amount]"
+					"value":"Tartalmazza [label] szállítási díját: [amount]"
 				},
 				"totals_pending":{
 					"title":"Totals: No Address Yet ([label] is the partner)",
-					"value":"[label] shipping is added once you enter your address"
+					"value":"[label] szállítási díját a cím megadása után adjuk hozzá"
 				},
 				"totals_unavailable":{
 					"title":"Totals: No Shipping for This Address ([label] is the partner)",
-					"value":"[label] shipping is unavailable for this address"
+					"value":"[label] szállítása nem elérhető erre a címre"
 				},
 				"free":{
 					"title":"Partner Shipping Covered by Free Shipping",
-					"value":"Free"
+					"value":"Ingyenes"
 				},
 				"checkout_error":{
 					"title":"Checkout Error: Partner Shipping Unavailable",
-					"value":"We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+					"value":"Nem tudtuk kiszámolni néhány termék szállítási díját, ezért a rendelést nem adtuk le. Kérjük, ellenőrizze a szállítási címet, és próbálja újra."
 				},
 				"method_name":{
 					"title":"Order Shipping Method Name ([label] is the partner, [service] its service)",

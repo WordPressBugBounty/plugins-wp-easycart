@@ -12,19 +12,61 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! function_exists( 'ecst_account_render_recaptcha_note' ) ) {
+if ( ! function_exists( 'ecst_account_render_recaptcha_test' ) ) {
 	/**
-	 * reCAPTCHA stays off until both keys are saved ( wp_easycart_recaptcha_ready() ): says so under the switch while a key
-	 * is missing. data-ecst-needs lets the page hide it once both keys are typed.
+	 * The reCAPTCHA key test row ( 6.0.3, wp_easycart_admin_recaptcha ): where the saved keys stand and a Test keys button.
 	 *
-	 * @since 6.0.2
+	 * @since 6.0.3
 	 * @param array $field Field declaration.
 	 * @param array $page  Page declaration.
 	 * @return void
 	 */
-	function ecst_account_render_recaptcha_note( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
-		$missing = ( '' === trim( (string) get_option( 'ec_option_recaptcha_site_key' ) ) || '' === trim( (string) get_option( 'ec_option_recaptcha_secret_key' ) ) );
-		echo '<p class="ecst-needs-note" data-ecst-needs="ec_option_recaptcha_site_key ec_option_recaptcha_secret_key"' . ( $missing ? '' : ' hidden' ) . '>' . esc_html__( 'reCAPTCHA stays off until both keys are saved. Until then the forms show no challenge and nobody is asked for one.', 'wp-easycart' ) . '</p>';
+	function ecst_account_render_recaptcha_test( $field, $page = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings render callable signature.
+		if ( class_exists( 'wp_easycart_admin_recaptcha' ) ) {
+			wp_easycart_admin_recaptcha::print_row();
+		}
+	}
+}
+
+if ( ! function_exists( 'ecst_account_recaptcha_switch' ) ) {
+	/**
+	 * Sanitize for the reCAPTCHA switch ( 6.0.3 ): it turns on only once the saved keys passed a test, so keys that don't
+	 * work never lock shoppers out of signing in. Turning it off is always allowed.
+	 *
+	 * @since 6.0.3
+	 * @param string $raw   Posted value.
+	 * @param array  $field Field declaration.
+	 * @return int|WP_Error
+	 */
+	function ecst_account_recaptcha_switch( $raw, $field = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings sanitize callable signature.
+		$on = in_array( (string) $raw, array( '1', 'true', 'on' ), true ) ? 1 : 0;
+		if ( $on && function_exists( 'wp_easycart_recaptcha_verified' ) && ! wp_easycart_recaptcha_verified() ) {
+			return new WP_Error( 'recaptcha_untested', __( 'Test your keys first: reCAPTCHA switches on once the saved keys pass the test above.', 'wp-easycart' ) );
+		}
+		return $on;
+	}
+}
+
+if ( ! function_exists( 'ecst_account_recaptcha_keys_saved' ) ) {
+	/**
+	 * A reCAPTCHA key was saved ( 6.0.3 ): a pass recorded for other keys no longer counts, and new keys are never taken for
+	 * keys that were already in use before the update.
+	 *
+	 * @since 6.0.3
+	 * @param string $value New value.
+	 * @param string $old   Previous value.
+	 * @param array  $field Field declaration.
+	 * @return void
+	 */
+	function ecst_account_recaptcha_keys_saved( $value, $old, $field = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- settings on_save callable signature.
+		if ( trim( (string) $value ) === trim( (string) $old ) ) {
+			return;
+		}
+		$record      = get_option( 'ec_option_recaptcha_verified', false );
+		$fingerprint = function_exists( 'wp_easycart_recaptcha_fingerprint' ) ? wp_easycart_recaptcha_fingerprint() : '';
+		if ( ! is_array( $record ) || empty( $record['fingerprint'] ) || $record['fingerprint'] !== $fingerprint ) {
+			update_option( 'ec_option_recaptcha_verified', array(), false );
+		}
 	}
 }
 
@@ -104,32 +146,18 @@ return array(
 		),
 
 		'spam-protection' => array(
-			'title'  => __( 'Spam protection', 'wp-easycart' ),
-			'hint'   => __( 'Google reCAPTCHA v2 on the account and checkout forms', 'wp-easycart' ),
-			'fields' => array(
-				'ec_option_enable_recaptcha' => array(
-					'type'     => 'toggle',
-					'label'    => __( 'Google reCAPTCHA v2', 'wp-easycart' ),
-					'desc'     => __( 'Adds a reCAPTCHA challenge to registration and login. Needs a site key and secret key from your Google reCAPTCHA account.', 'wp-easycart' ),
-					'keywords' => array( 'captcha', 'bots', 'spam', 'google' ),
-					'legacy'   => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Google Recaptcha V2' ),
-				),
-				/* 6.0.2: switched on without both keys, reCAPTCHA does nothing ( it used to refuse every sign-in ) */
-				'ecst_recaptcha_keys_note' => array(
-					'type'      => 'html',
-					'label'     => __( 'reCAPTCHA keys missing', 'wp-easycart' ),
-					'parent'    => 'ec_option_enable_recaptcha',
-					'show_when' => '1',
-					'render'    => 'ecst_account_render_recaptcha_note',
-					'keywords'  => array( 'captcha', 'keys' ),
-					'legacy'    => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'New in 6.0.2' ),
-				),
+			'title'   => __( 'Spam protection', 'wp-easycart' ),
+			'hint'    => __( 'Google reCAPTCHA v2 on the account and checkout forms', 'wp-easycart' ),
+			/* 6.0.3: the key test's script and styles ( wp_easycart_admin_recaptcha ). */
+			'enqueue' => array( 'wp_easycart_admin_recaptcha', 'enqueue' ),
+			'fields'  => array(
+				/* 6.0.3: keys first, then a test with them, then the switch, which turns on only once the test passed. */
 				'ec_option_recaptcha_site_key' => array(
 					'type'        => 'text',
 					'label'       => __( 'Site key', 'wp-easycart' ),
-					'desc'        => __( 'From your Google reCAPTCHA admin console. One key pair per site URL.', 'wp-easycart' ),
+					'desc'        => __( 'From your Google reCAPTCHA admin console: a v2 “I’m not a robot” key that lists this site’s domain.', 'wp-easycart' ),
 					'placeholder' => '6Lc…',
-					'parent'      => 'ec_option_enable_recaptcha',
+					'on_save'     => 'ecst_account_recaptcha_keys_saved',
 					'keywords'    => array( 'captcha', 'google' ),
 					'legacy'      => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Google Recaptcha: Site Key' ),
 				),
@@ -137,9 +165,24 @@ return array(
 					'type'        => 'password',
 					'label'       => __( 'Secret key', 'wp-easycart' ),
 					'desc'        => __( 'Keep this private. It is only sent to Google from your server.', 'wp-easycart' ),
-					'parent'      => 'ec_option_enable_recaptcha',
+					'on_save'     => 'ecst_account_recaptcha_keys_saved',
 					'keywords'    => array( 'captcha', 'google' ),
 					'legacy'      => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Google Recaptcha: Secret Key' ),
+				),
+				'ecst_recaptcha_test' => array(
+					'type'     => 'html',
+					'label'    => __( 'Test your keys', 'wp-easycart' ),
+					'render'   => 'ecst_account_render_recaptcha_test',
+					'keywords' => array( 'captcha', 'keys', 'test', 'verify' ),
+					'legacy'   => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'New in 6.0.3' ),
+				),
+				'ec_option_enable_recaptcha' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Google reCAPTCHA v2', 'wp-easycart' ),
+					'desc'     => __( 'Adds a reCAPTCHA challenge to registration and login. It switches on once your keys pass the test above.', 'wp-easycart' ),
+					'sanitize' => 'ecst_account_recaptcha_switch',
+					'keywords' => array( 'captcha', 'bots', 'spam', 'google' ),
+					'legacy'   => array( 'page' => 'account', 'section' => 'Account Options', 'label' => 'Google Recaptcha V2' ),
 				),
 				'ec_option_enable_recaptcha_cart' => array(
 					'type'     => 'toggle',

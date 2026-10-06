@@ -55,6 +55,24 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 */
 		private static $flat = false;
 
+		/**
+		 * 6.0.3: flat because a PDF renderer asked ( filter 'wp_easycart_email_design_flat' ), which drops the side padding.
+		 *
+		 * @var bool
+		 */
+		private static $pdf = false;
+
+		/**
+		 * 6.0.3: the email value, or the tighter one flat ( PDF / print ) pages use, so a typical invoice fits on one page.
+		 *
+		 * @param mixed $email Value in emails.
+		 * @param mixed $flat  Value on flat pages.
+		 * @return mixed
+		 */
+		private static function fit( $email, $flat ) {
+			return self::$flat ? $flat : $email;
+		}
+
 		/* ------------------------------------------------------------------ */
 		/* Context and styles                                                  */
 		/* ------------------------------------------------------------------ */
@@ -166,23 +184,25 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		public static function css( $key ) {
 			$c = self::ctx();
 			$f = 'font-family:' . $c['font'] . ';';
+			/* Flat pages: smaller type and leading ( 14px text in a PDF reads as large print ). */
+			$t = self::fit( 'font-size:14px;line-height:1.55;', 'font-size:10.5px;line-height:1.35;' );
 			switch ( $key ) {
 				case 'small':
-					return $f . 'font-size:12px;line-height:1.5;color:#6b7280;';
+					return $f . self::fit( 'font-size:12px;line-height:1.5;', 'font-size:9.5px;line-height:1.3;' ) . 'color:#6b7280;';
 				case 'label':
-					return $f . 'font-size:11px;line-height:1.4;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;font-weight:600;';
+					return $f . self::fit( 'font-size:11px;', 'font-size:9px;' ) . 'line-height:1.4;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;font-weight:600;';
 				case 'link':
 					return 'color:' . $c['accent'] . ';text-decoration:underline;';
 				case 'heading':
-					return $f . 'font-size:22px;line-height:1.3;font-weight:700;color:#111827;';
+					return $f . self::fit( 'font-size:22px;', 'font-size:15px;' ) . 'line-height:1.3;font-weight:700;color:#111827;';
 				case 'strong':
-					return $f . 'font-size:14px;line-height:1.55;color:#111827;font-weight:600;';
+					return $f . $t . 'color:#111827;font-weight:600;';
 				case 'muted':
-					return $f . 'font-size:14px;line-height:1.55;color:#6b7280;';
+					return $f . $t . 'color:#6b7280;';
 				case 'mono':
-					return 'font-family:' . $c['mono'] . ';font-size:14px;font-weight:600;color:#111827;word-break:break-all;';
+					return 'font-family:' . $c['mono'] . ';' . self::fit( 'font-size:14px;', 'font-size:11px;' ) . 'font-weight:600;color:#111827;word-break:break-all;';
 				default:
-					return $f . 'font-size:14px;line-height:1.55;color:#374151;';
+					return $f . $t . 'color:#374151;';
 			}
 		}
 
@@ -222,7 +242,8 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		public static function get_open( $args = array() ) {
 			$args       = is_array( $args ) ? $args : array();
 			self::$ctx  = self::context( $args );
-			self::$flat = ! empty( $args['flat'] ) || (bool) apply_filters( 'wp_easycart_email_design_flat', false, $args );
+			self::$pdf  = (bool) apply_filters( 'wp_easycart_email_design_flat', false, $args );
+			self::$flat = ! empty( $args['flat'] ) || self::$pdf;
 			$c          = self::$ctx;
 			$lang      = isset( $args['lang'] ) ? (string) $args['lang'] : get_bloginfo( 'language' );
 			$title     = isset( $args['title'] ) ? wp_strip_all_tags( (string) $args['title'] ) : $c['store_name'];
@@ -275,9 +296,12 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			} else {
 				$h .= '<table role="presentation" class="ec-email-container" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#ffffff;border-collapse:collapse;">' . "\n";
 			}
-			$h .= '<tr><td style="height:4px;line-height:4px;font-size:4px;background-color:' . esc_attr( $c['accent'] ) . ';border-radius:10px 10px 0 0;">&nbsp;</td></tr>' . "\n";
+			/* 6.0.3: a flat page with its own ruled heading block ( top_html ) skips the accent bar: two rules in a row. */
+			if ( ! self::$flat || empty( $args['top_html'] ) ) {
+				$h .= '<tr><td style="height:4px;line-height:4px;font-size:4px;background-color:' . esc_attr( $c['accent'] ) . ';border-radius:10px 10px 0 0;">&nbsp;</td></tr>' . "\n";
+			}
 			if ( ! isset( $args['header'] ) || $args['header'] ) {
-				$h .= '<tr><td class="ec-email-pad" align="' . esc_attr( $align ) . '" style="padding:24px 32px 8px 32px;">';
+				$h .= '<tr><td class="ec-email-pad" align="' . esc_attr( $align ) . '" style="padding:' . self::fit( '24px 32px 8px 32px', '10px 32px 2px 32px' ) . ';">';
 				if ( '' !== $c['logo_url'] ) {
 					$logo_style = 'display:' . ( 'center' === $align ? 'inline-block' : 'block' ) . ';max-width:' . (int) $c['logo_max_w'] . '%;width:auto;height:auto;';
 					if ( (int) $c['logo_max_h'] > 0 ) {
@@ -321,7 +345,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				$footer .= '<br />' . $args['footer_html'];
 			}
 			$footer = (string) apply_filters( 'wp_easycart_email_footer_html', $footer, $args );
-			$h     .= '<tr><td class="ec-email-pad" align="center" style="padding:24px 32px 24px 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-top:16px;border-top:1px solid #e5e7eb;' . esc_attr( self::css( 'small' ) ) . '">' . $footer . '</td></tr></table></td></tr>' . "\n";
+			$h     .= '<tr><td class="ec-email-pad" align="center" style="padding:' . self::fit( '24px 32px 24px 32px', '12px 32px 0 32px' ) . ';"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-top:' . self::fit( 16, 8 ) . 'px;border-top:1px solid #e5e7eb;' . esc_attr( self::css( 'small' ) ) . '">' . $footer . '</td></tr></table></td></tr>' . "\n";
 			$h     .= '</table>' . "\n" . ( self::$flat ? '' : '</td></tr></table>' . "\n" );
 			if ( ! empty( $args['after_html'] ) ) {
 				$h .= $args['after_html'] . "\n";
@@ -329,6 +353,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			$h        .= '</body>' . "\n" . '</html>' . "\n";
 			self::$ctx  = null;
 			self::$flat = false;
+			self::$pdf  = false;
 			return $h;
 		}
 
@@ -351,7 +376,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			$width  = isset( $args['signature_image_w'] ) ? max( 5, min( 100, (int) $args['signature_image_w'] ) ) : self::logo_number( 'ec_option_email_signature_image_max_width', 100, 5, 100 );
 			$height = isset( $args['signature_image_h'] ) ? max( 0, min( 600, (int) $args['signature_image_h'] ) ) : self::logo_number( 'ec_option_email_signature_image_max_height', 0, 0, 600 );
 			$c      = self::ctx();
-			$h      = '<tr><td class="ec-email-pad" align="' . esc_attr( $c['start'] ) . '" style="padding:12px 32px 0 32px;' . esc_attr( self::css( 'text' ) ) . '">';
+			$h      = '<tr><td class="ec-email-pad" align="' . esc_attr( $c['start'] ) . '" style="padding:' . self::fit( 12, 8 ) . 'px 32px 0 32px;' . esc_attr( self::css( 'text' ) ) . '">';
 			if ( '' !== $text ) {
 				$h .= '<div style="margin:0 0 10px 0;">' . nl2br( esc_html( $text ) ) . '</div>';
 			}
@@ -374,7 +399,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 */
 		public static function get_section_start( $args = array() ) {
 			$c      = self::ctx();
-			$top    = isset( $args['top'] ) ? (int) $args['top'] : 16;
+			$top    = isset( $args['top'] ) ? (int) $args['top'] : self::fit( 16, 10 );
 			$bottom = isset( $args['bottom'] ) ? (int) $args['bottom'] : 0;
 			$align  = isset( $args['align'] ) ? ( 'center' === $args['align'] ? 'center' : ( 'end' === $args['align'] ? $c['end'] : $c['start'] ) ) : $c['start'];
 			$style  = isset( $args['style'] ) ? (string) $args['style'] : '';
@@ -404,7 +429,38 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * @return string
 		 */
 		public static function get_heading( $html ) {
-			return '<p style="margin:0 0 12px 0;' . esc_attr( self::css( 'heading' ) ) . '">' . $html . '</p>' . "\n";
+			return '<p style="margin:0 0 ' . self::fit( 12, 6 ) . 'px 0;' . esc_attr( self::css( 'heading' ) ) . '">' . $html . '</p>' . "\n";
+		}
+
+		/**
+		 * The greeting that opens a letter ( "Dear Jane Doe," ): the size of the text around it, bold, never a headline.
+		 *
+		 * @since 6.0.3 ( the receipt, shipped and password emails, the printable receipt and the invoice PDF drew it with heading(),
+		 *              the size of a title; a customer asked why "Dear:" was bigger than the rest of the email )
+		 * @param string $salutation_html Escaped HTML: the "Dear" phrase. A colon or comma at its end is dropped ( the English receipt's
+		 *                                is "Dear:" ).
+		 * @param string $name            Plain text: the customer's name, or ''.
+		 * @param array  $args            comma ( bool, default true: end with a comma ), margin ( CSS ).
+		 * @return string
+		 */
+		public static function get_greeting( $salutation_html, $name = '', $args = array() ) {
+			$args       = is_array( $args ) ? $args : array();
+			$salutation = rtrim( trim( (string) $salutation_html ), ":, \t" );
+			$name       = trim( (string) $name );
+			$html       = $salutation . ( '' !== $name ? ( '' !== $salutation ? ' ' : '' ) . esc_html( $name ) : '' );
+			if ( '' === $html ) {
+				return '';
+			}
+			if ( ! isset( $args['comma'] ) || $args['comma'] ) {
+				$html .= ',';
+			}
+			return self::get_paragraph(
+				$html,
+				array(
+					'tone'   => 'strong',
+					'margin' => isset( $args['margin'] ) ? (string) $args['margin'] : self::fit( '0 0 12px 0', '0 0 6px 0' ),
+				)
+			);
 		}
 
 		/**
@@ -416,7 +472,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 */
 		public static function get_paragraph( $html, $args = array() ) {
 			$tone   = isset( $args['tone'] ) ? (string) $args['tone'] : 'text';
-			$margin = isset( $args['margin'] ) ? (string) $args['margin'] : '0 0 16px 0';
+			$margin = isset( $args['margin'] ) ? (string) $args['margin'] : self::fit( '0 0 16px 0', '0 0 6px 0' );
 			return '<p' . ( ! empty( $args['nolink'] ) ? ' class="ec-email-nolink"' : '' ) . ' style="margin:' . esc_attr( $margin ) . ';' . esc_attr( self::css( $tone ) ) . '">' . $html . '</p>' . "\n";
 		}
 
@@ -427,7 +483,7 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * @return string
 		 */
 		public static function get_label( $html ) {
-			return '<div style="margin:0 0 6px 0;' . esc_attr( self::css( 'label' ) ) . '">' . $html . '</div>';
+			return '<div style="margin:0 0 ' . self::fit( 6, 3 ) . 'px 0;' . esc_attr( self::css( 'label' ) ) . '">' . $html . '</div>';
 		}
 
 		/**
@@ -446,8 +502,8 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 			);
 			$t = isset( $tones[ $tone ] ) ? $tones[ $tone ] : $tones['info'];
 			$c = self::ctx();
-			return '<tr><td class="ec-email-pad" style="padding:16px 32px 0 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:separate;"><tr>'
-				. '<td align="' . esc_attr( $c['start'] ) . '" style="background-color:' . $t[0] . ';border-' . esc_attr( $c['start'] ) . ':4px solid ' . $t[1] . ';border-radius:6px;padding:12px 16px;' . esc_attr( self::css( 'strong' ) ) . 'color:' . $t[2] . ';">' . $html . '</td>'
+			return '<tr><td class="ec-email-pad" style="padding:' . self::fit( 16, 10 ) . 'px 32px 0 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:separate;"><tr>'
+				. '<td align="' . esc_attr( $c['start'] ) . '" style="background-color:' . $t[0] . ';border-' . esc_attr( $c['start'] ) . ':4px solid ' . $t[1] . ';border-radius:6px;padding:' . self::fit( '12px 16px', '8px 12px' ) . ';' . esc_attr( self::css( 'strong' ) ) . 'color:' . $t[2] . ';">' . $html . '</td>'
 				. '</tr></table></td></tr>' . "\n";
 		}
 
@@ -670,14 +726,14 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 				if ( '' !== $card['address']['phone'] ) {
 					$body .= '<br /><span style="color:#6b7280;">' . esc_html( $card['address']['phone'] ) . '</span>';
 				}
-				$cells .= '<td class="ec-email-col" width="' . $width . '" valign="top" align="' . esc_attr( $c['start'] ) . '" style="width:' . $width . ';padding:0 0 12px 0;">'
+				$cells .= '<td class="ec-email-col" width="' . $width . '" valign="top" align="' . esc_attr( $c['start'] ) . '" style="width:' . $width . ';padding:0 0 ' . self::fit( 12, 4 ) . 'px 0;">'
 					. '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;"><tr>'
-					. '<td align="' . esc_attr( $c['start'] ) . '" style="padding:14px 16px;">'
+					. '<td align="' . esc_attr( $c['start'] ) . '" style="padding:' . self::fit( '14px 16px', '6px 10px' ) . ';">'
 					. self::get_label( isset( $card['label'] ) ? $card['label'] : '' )
 					. '<div class="ec-email-nolink" style="' . esc_attr( self::css( 'text' ) ) . 'color:#111827;">' . $body . '</div>'
 					. '</td></tr></table></td>';
 			}
-			$h  = '<tr><td class="ec-email-pad" style="padding:16px 32px 8px 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">';
+			$h  = '<tr><td class="ec-email-pad" style="padding:' . self::fit( '16px 32px 8px 32px', '10px 32px 2px 32px' ) . ';"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">';
 			$h .= $cells ? '<tr>' . $cells . '</tr>' : '';
 			if ( '' !== $extra_html ) {
 				$h .= '<tr><td colspan="' . max( 1, ( 2 * count( $cards ) ) - 1 ) . '" align="' . esc_attr( $c['start'] ) . '" style="padding:0 0 8px 0;' . esc_attr( self::css( 'small' ) ) . '">' . $extra_html . '</td></tr>';
@@ -698,16 +754,29 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		public static function get_items_start( $labels = array() ) {
 			$c  = self::ctx();
 			$th = 'border-bottom:2px solid #111827;' . self::css( 'label' );
-			$h  = '<tr><td class="ec-email-pad" style="padding:16px 32px 0 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>';
-			$h .= '<td align="' . esc_attr( $c['start'] ) . '" style="padding:0 0 8px 0;' . esc_attr( $th ) . '">' . ( isset( $labels['product'] ) ? $labels['product'] : '' ) . '</td>';
+			$b  = self::fit( 8, 5 );
+			if ( self::$flat ) {
+				/*
+				 * 6.0.3: flat pages close the content table and give the items a table of their own, a direct child of
+				 * <body>, so dompdf can break between item rows. Nested in one row, the whole list moved to the next page.
+				 */
+				$h = '</table>' . "\n" . '<table role="presentation" class="ec-email-items"' . ( self::$pdf ? ' width="100%"' : '' ) . ' border="0" cellpadding="0" cellspacing="0" style="' . ( self::$pdf ? 'width:100%;margin:10px 0 0 0;' : 'margin:10px 32px 0 32px;' ) . 'border-collapse:collapse;"><thead><tr>';
+			} else {
+				$h = '<tr><td class="ec-email-pad" style="padding:16px 32px 0 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>';
+			}
+			/* Without a table width ( side margins on a page ), the product column takes the rest of the line. */
+			$h .= '<td align="' . esc_attr( $c['start'] ) . '"' . ( self::$flat && ! self::$pdf ? ' width="100%"' : '' ) . ' style="padding:0 0 ' . $b . 'px 0;' . esc_attr( $th ) . '">' . ( isset( $labels['product'] ) ? $labels['product'] : '' ) . '</td>';
 			if ( isset( $labels['qty'] ) ) {
-				$h .= '<td align="center" width="44" style="padding:0 4px 8px 4px;' . esc_attr( $th ) . '">' . $labels['qty'] . '</td>';
+				$h .= '<td align="center" width="44" style="padding:0 4px ' . $b . 'px 4px;' . esc_attr( $th ) . '">' . $labels['qty'] . '</td>';
 			}
 			if ( isset( $labels['unit'] ) ) {
-				$h .= '<td class="ec-email-hide-sm" align="' . esc_attr( $c['end'] ) . '" width="90" style="padding:0 4px 8px 4px;' . esc_attr( $th ) . '">' . $labels['unit'] . '</td>';
+				$h .= '<td class="ec-email-hide-sm" align="' . esc_attr( $c['end'] ) . '" width="90" style="padding:0 4px ' . $b . 'px 4px;' . esc_attr( $th ) . '">' . $labels['unit'] . '</td>';
 			}
 			if ( isset( $labels['total'] ) ) {
-				$h .= '<td align="' . esc_attr( $c['end'] ) . '" width="90" style="padding:0 0 8px 4px;' . esc_attr( $th ) . '">' . $labels['total'] . '</td>';
+				$h .= '<td align="' . esc_attr( $c['end'] ) . '" width="90" style="padding:0 0 ' . $b . 'px 4px;' . esc_attr( $th ) . '">' . $labels['total'] . '</td>';
+			}
+			if ( self::$flat ) {
+				return $h . '</tr></thead><tbody>' . "\n";
 			}
 			return $h . '</tr>' . "\n";
 		}
@@ -722,14 +791,15 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		public static function get_item_start( $args = array() ) {
 			$c     = self::ctx();
 			$width = isset( $args['image_width'] ) ? max( 32, min( 120, (int) $args['image_width'] ) ) : 70;
-			$h     = '<tr><td valign="top" align="' . esc_attr( $c['start'] ) . '" style="padding:14px 0;border-bottom:1px solid #e5e7eb;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>';
+			$width = self::$flat ? min( $width, 44 ) : $width;
+			$h     = '<tr><td valign="top" align="' . esc_attr( $c['start'] ) . '" style="padding:' . self::fit( 14, 6 ) . 'px 0;border-bottom:1px solid #e5e7eb;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0"><tr>';
 			if ( ! empty( $args['image_url'] ) ) {
-				$h .= '<td class="ec_receipt_item_image" valign="top" width="' . ( $width + 12 ) . '" style="width:' . ( $width + 12 ) . 'px;padding-' . esc_attr( $c['end'] ) . ':12px;">'
+				$h .= '<td class="ec_receipt_item_image" valign="top" width="' . ( $width + 12 ) . '" style="width:' . ( $width + 12 ) . 'px;padding-' . esc_attr( $c['end'] ) . ':' . self::fit( 12, 10 ) . 'px;">'
 					. '<img src="' . esc_url( $args['image_url'] ) . '" width="' . $width . '" alt="' . esc_attr( isset( $args['image_alt'] ) ? wp_strip_all_tags( (string) $args['image_alt'] ) : '' ) . '" style="display:block;width:' . $width . 'px;max-width:' . $width . 'px;height:auto;border-radius:6px;border:1px solid #e5e7eb;" /></td>';
 			}
 			$h .= '<td valign="top" align="' . esc_attr( $c['start'] ) . '" style="' . esc_attr( self::css( 'text' ) ) . 'word-wrap:break-word;overflow-wrap:anywhere;">';
 			$h .= '<table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="' . esc_attr( self::css( 'small' ) ) . '">';
-			$h .= '<tr><td style="font-family:' . esc_attr( $c['font'] ) . ';font-size:14px;line-height:1.4;font-weight:600;color:#111827;padding:0 0 2px 0;">' . ( isset( $args['title_html'] ) ? $args['title_html'] : '' ) . '</td></tr>' . "\n";
+			$h .= '<tr><td style="font-family:' . esc_attr( $c['font'] ) . ';font-size:' . self::fit( 14, 11 ) . 'px;line-height:1.4;font-weight:600;color:#111827;padding:0 0 ' . self::fit( 2, 1 ) . 'px 0;">' . ( isset( $args['title_html'] ) ? $args['title_html'] : '' ) . '</td></tr>' . "\n";
 			return $h;
 		}
 
@@ -764,21 +834,26 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		public static function get_item_end( $args = array() ) {
 			$c    = self::ctx();
 			$cell = 'border-bottom:1px solid #e5e7eb;' . self::css( 'text' );
+			$pad  = self::fit( 14, 6 );
 			$h    = '</table></td></tr></table></td>';
 			if ( array_key_exists( 'qty', $args ) ) {
-				$h .= '<td valign="top" align="center" style="padding:14px 4px;' . esc_attr( $cell ) . '">' . esc_html( (string) $args['qty'] ) . '</td>';
+				$h .= '<td valign="top" align="center" style="padding:' . $pad . 'px 4px;' . esc_attr( $cell ) . '">' . esc_html( (string) $args['qty'] ) . '</td>';
 			}
 			if ( array_key_exists( 'unit_html', $args ) ) {
-				$h .= '<td class="ec-email-hide-sm" valign="top" align="' . esc_attr( $c['end'] ) . '" style="padding:14px 4px;white-space:nowrap;' . esc_attr( $cell ) . '">' . $args['unit_html'] . '</td>';
+				$h .= '<td class="ec-email-hide-sm" valign="top" align="' . esc_attr( $c['end'] ) . '" style="padding:' . $pad . 'px 4px;white-space:nowrap;' . esc_attr( $cell ) . '">' . $args['unit_html'] . '</td>';
 			}
 			if ( array_key_exists( 'total_html', $args ) ) {
-				$h .= '<td valign="top" align="' . esc_attr( $c['end'] ) . '" style="padding:14px 0 14px 4px;white-space:nowrap;' . esc_attr( $cell ) . 'color:#111827;font-weight:600;">' . $args['total_html'] . '</td>';
+				$h .= '<td valign="top" align="' . esc_attr( $c['end'] ) . '" style="padding:' . $pad . 'px 0 ' . $pad . 'px 4px;white-space:nowrap;' . esc_attr( $cell ) . 'color:#111827;font-weight:600;">' . $args['total_html'] . '</td>';
 			}
 			return $h . '</tr>' . "\n";
 		}
 
 		/** @return string */
 		public static function get_items_end() {
+			if ( self::$flat ) {
+				/* Reopen the content table items_start() closed; get_close() ends it. */
+				return '</tbody></table>' . "\n" . '<table role="presentation" class="ec-email-container" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#ffffff;border-collapse:collapse;">' . "\n";
+			}
 			return '</table></td></tr>' . "\n";
 		}
 
@@ -791,19 +866,19 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 */
 		public static function get_totals( $rows, $grand = array() ) {
 			$c = self::ctx();
-			$h = '<tr><td class="ec-email-pad" style="padding:12px 32px 8px 32px;"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">';
+			$h = '<tr><td class="ec-email-pad" style="padding:' . self::fit( '12px 32px 8px 32px', '6px 32px 2px 32px' ) . ';"><table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0">';
 			foreach ( (array) $rows as $row ) {
 				$label = isset( $row['label'] ) ? $row['label'] : ( isset( $row[0] ) ? $row[0] : '' );
 				$value = isset( $row['value'] ) ? $row['value'] : ( isset( $row[1] ) ? $row[1] : '' );
 				$tone  = isset( $row['tone'] ) ? $row['tone'] : '';
 				$color = ( 'danger' === $tone ) ? '#b91c1c' : ( ( 'success' === $tone ) ? '#15803d' : '#111827' );
-				$h    .= '<tr><td align="' . esc_attr( $c['end'] ) . '" style="padding:3px 12px 3px 0;' . esc_attr( self::css( 'muted' ) ) . ( 'strong' === $tone ? 'font-weight:700;color:#111827;' : '' ) . '">' . $label . '</td>'
-					. '<td align="' . esc_attr( $c['end'] ) . '" width="120" style="padding:3px 0;white-space:nowrap;' . esc_attr( self::css( 'text' ) ) . 'color:' . $color . ';' . ( 'strong' === $tone ? 'font-weight:700;' : '' ) . '">' . $value . '</td></tr>';
+				$h    .= '<tr><td align="' . esc_attr( $c['end'] ) . '" style="padding:' . self::fit( 3, 2 ) . 'px 12px ' . self::fit( 3, 2 ) . 'px 0;' . esc_attr( self::css( 'muted' ) ) . ( 'strong' === $tone ? 'font-weight:700;color:#111827;' : '' ) . '">' . $label . '</td>'
+					. '<td align="' . esc_attr( $c['end'] ) . '" width="120" style="padding:' . self::fit( 3, 2 ) . 'px 0;white-space:nowrap;' . esc_attr( self::css( 'text' ) ) . 'color:' . $color . ';' . ( 'strong' === $tone ? 'font-weight:700;' : '' ) . '">' . $value . '</td></tr>';
 			}
 			if ( ! empty( $grand ) ) {
-				$big = 'font-family:' . $c['font'] . ';font-size:15px;font-weight:700;color:#111827;';
-				$h  .= '<tr><td align="' . esc_attr( $c['end'] ) . '" style="padding:10px 12px 0 0;border-top:1px solid #e5e7eb;' . esc_attr( $big ) . '">' . $grand[0] . '</td>'
-					. '<td align="' . esc_attr( $c['end'] ) . '" width="120" style="padding:10px 0 0 0;border-top:1px solid #e5e7eb;white-space:nowrap;' . esc_attr( $big ) . '">' . $grand[1] . '</td></tr>';
+				$big = 'font-family:' . $c['font'] . ';font-size:' . self::fit( 15, 12 ) . 'px;font-weight:700;color:#111827;';
+				$h  .= '<tr><td align="' . esc_attr( $c['end'] ) . '" style="padding:' . self::fit( 10, 6 ) . 'px 12px 0 0;border-top:1px solid #e5e7eb;' . esc_attr( $big ) . '">' . $grand[0] . '</td>'
+					. '<td align="' . esc_attr( $c['end'] ) . '" width="120" style="padding:' . self::fit( 10, 6 ) . 'px 0 0 0;border-top:1px solid #e5e7eb;white-space:nowrap;' . esc_attr( $big ) . '">' . $grand[1] . '</td></tr>';
 			}
 			return $h . '</table></td></tr>' . "\n";
 		}
@@ -847,6 +922,10 @@ if ( ! class_exists( 'wp_easycart_email_design' ) ) :
 		 * @return string
 		 */
 		public static function tracking_url( $carrier, $tracking ) {
+			/* 6.0.3: every carrier the order screens offer ( wp_easycart_carriers ); the map below is for an older load order. */
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				return wp_easycart_carriers::tracking_url( $carrier, $tracking );
+			}
 			$carrier  = strtolower( trim( (string) $carrier ) );
 			$tracking = trim( (string) $tracking );
 			if ( '' === $carrier || '' === $tracking ) {

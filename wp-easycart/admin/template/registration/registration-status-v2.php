@@ -105,11 +105,16 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 		<span><?php esc_html_e( 'This site is on a legacy ( v3 ) license and the licensing server could not confirm it just now. Everything keeps working; if this message stays for more than a day, contact support.', 'wp-easycart' ); ?></span>
 	</div>
 	<?php elseif ( $ecrs_lapsed ) : ?>
+	<?php /* 6.0.3: the one place this page says the license has ended ( the shell's renewal banner, WP EasyCart Premium's and the extensions' license notices stay off this page ). */ ?>
 	<div class="ecreg-notice is-ended">
 		<span class="dashicons dashicons-warning"></span>
-		<span><strong><?php esc_html_e( 'Support and updates have lapsed.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'The license is still registered here, but you are no longer receiving security fixes or new features.', 'wp-easycart' ); ?>
-			<?php $ecrs_deact = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::pro_deactivate_url() : ''; ?>
-			<?php if ( '' !== $ecrs_deact ) : ?><a class="ecreg-quiet-link" href="<?php echo esc_url( $ecrs_deact ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin. Your data is kept.', 'wp-easycart' ) ) ); ?> );"><?php esc_html_e( 'Not renewing? Switch to the free edition.', 'wp-easycart' ); ?></a><?php endif; ?>
+		<span><strong><?php
+			/* translators: 1: plan name, Pro or Premium, 2: date. */
+			echo esc_html( sprintf( __( 'Your %1$s license ended on %2$s.', 'wp-easycart' ), $ecrs_premium ? __( 'Premium', 'wp-easycart' ) : __( 'Pro', 'wp-easycart' ), date_i18n( get_option( 'date_format' ), $ecrs_end_ts ) ) );
+		?></strong> <?php echo esc_html( $ecrs_premium ? __( 'Premium features are locked, your extensions keep running but can no longer be updated or changed, and the 2% gateway fee is back. Nothing has been deleted: renewing reopens everything.', 'wp-easycart' ) : __( 'Pro features are locked and the 2% gateway fee is back. Nothing has been deleted: renewing reopens everything.', 'wp-easycart' ) ); ?>
+			<?php /* 6.0.3: its own name; it reused $ecrs_deact, so the Move this license form below posted to the plugin deactivation link. */ ?>
+			<?php $ecrs_free_url = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::pro_deactivate_url() : ''; ?>
+			<?php if ( '' !== $ecrs_free_url ) : ?><a class="ecreg-quiet-link" href="<?php echo esc_url( $ecrs_free_url ); ?>" onclick="return window.confirm( <?php echo esc_attr( wp_json_encode( __( 'Switch to the free edition? This deactivates the WP EasyCart PRO plugin. Your data is kept.', 'wp-easycart' ) ) ); ?> );"><?php esc_html_e( 'Not renewing? Switch to the free edition.', 'wp-easycart' ); ?></a><?php endif; ?>
 		</span>
 		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecrs_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew now', 'wp-easycart' ); ?></a>
 	</div>
@@ -131,7 +136,13 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 			<span class="ecss-ring-label"><?php echo $ecrs_premium ? esc_html__( 'Premium', 'wp-easycart' ) : esc_html__( 'Pro', 'wp-easycart' ); ?></span>
 		</div>
 		<div class="ecss-license-copy">
-			<h3><?php echo $ecrs_premium ? esc_html__( 'Premium license active on this site', 'wp-easycart' ) : esc_html__( 'Pro license active on this site', 'wp-easycart' ); ?></h3>
+			<h3><?php
+			if ( $ecrs_lapsed ) {
+				echo $ecrs_premium ? esc_html__( 'Premium license registered on this site', 'wp-easycart' ) : esc_html__( 'Pro license registered on this site', 'wp-easycart' );
+			} else {
+				echo $ecrs_premium ? esc_html__( 'Premium license active on this site', 'wp-easycart' ) : esc_html__( 'Pro license active on this site', 'wp-easycart' );
+			}
+			?></h3>
 			<dl class="ecreg-dl ecreg-dl-wide">
 				<dt><?php esc_html_e( 'Registered URL', 'wp-easycart' ); ?></dt><dd><?php echo esc_html( isset( $ecrs_license->siteurl ) ? $ecrs_license->siteurl : home_url() ); ?></dd>
 				<?php if ( $ecrs_v3 ) : ?>
@@ -160,21 +171,39 @@ $ecrs_key     = ( is_array( $ecrs_info ) && isset( $ecrs_info['transaction_key']
 		<span class="dashicons dashicons-sos ecreg-support-icon" aria-hidden="true"></span>
 		<div class="ecreg-support-text">
 			<b><?php esc_html_e( 'Need a hand with your store?', 'wp-easycart' ); ?></b>
-			<span><?php echo esc_html( $ecrs_lapsed ? __( 'Support tickets are answered while support and updates are active. Renew below to open a new ticket.', 'wp-easycart' ) : __( 'Your license includes support. Open a ticket from your WP EasyCart account and the team replies by email.', 'wp-easycart' ) ); ?></span>
+			<span><?php echo esc_html( $ecrs_lapsed ? __( 'Support tickets are answered while support and updates are active; renewing opens them again. The documentation is always open.', 'wp-easycart' ) : __( 'Your license includes support. Open a ticket from your WP EasyCart account and the team replies by email.', 'wp-easycart' ) ); ?></span>
 		</div>
+		<?php if ( ! $ecrs_lapsed ) : /* 6.0.3: no ticket button while tickets are not answered */ ?>
 		<a class="ecv2-btn ecv2-btn-primary" href="<?php echo esc_url( $ecrs_account ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open a support ticket', 'wp-easycart' ); ?> <span class="dashicons dashicons-external" aria-hidden="true"></span></a>
+		<?php endif; ?>
 		<a class="ecv2-btn" href="http://docs.wpeasycart.com/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Documentation', 'wp-easycart' ); ?></a>
 	</div>
 
 	<div class="ecreg-paths ecreg-paths-3">
-		<div class="ecreg-path<?php echo ( $ecrs_lapsed || ( $ecrs_end_ts && $ecrs_days <= 30 ) ) ? ' is-featured' : ''; ?>">
-			<?php if ( $ecrs_lapsed || ( $ecrs_end_ts && $ecrs_days <= 30 ) ) : ?><span class="ecreg-path-tag"><?php echo $ecrs_lapsed ? esc_html__( 'Action needed', 'wp-easycart' ) : ( $ecrs_days <= 7 ? esc_html__( 'Ends this week', 'wp-easycart' ) : esc_html__( 'Renew before it lapses', 'wp-easycart' ) ); ?></span><?php endif; ?>
+		<?php if ( $ecrs_lapsed ) : ?>
+		<?php /* 6.0.3: renewing is the notice's button above; a store that bought a new license enters it here ( it replaces this one ). */ ?>
+		<div class="ecreg-path">
+			<span class="dashicons dashicons-admin-network ecreg-path-icon"></span>
+			<h3><?php esc_html_e( 'Bought a new license?', 'wp-easycart' ); ?></h3>
+			<p><?php esc_html_e( 'Enter the new key and it replaces the ended one on this site.', 'wp-easycart' ); ?></p>
+			<form action="<?php echo esc_url( $ecrs_activate ); ?>" method="POST" id="wpeasycart_admin_form1" class="ecreg-form" novalidate="novalidate">
+				<?php wp_nonce_field( 'wp-easycart-license-action', 'wpec_license_nonce' ); ?>
+				<div class="ecreg-f"><label for="customername"><?php esc_html_e( 'Full name', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input" name="customername" id="customername" required="required" autocomplete="name" /></div>
+				<div class="ecreg-f"><label for="customeremail_activate"><?php esc_html_e( 'Email address', 'wp-easycart' ); ?></label><input type="email" class="ecv2-input" name="customeremail" id="customeremail_activate" required="required" autocomplete="email" value="<?php echo esc_attr( $ecrs_email_v ); ?>" /></div>
+				<div class="ecreg-f"><label for="transactionkey"><?php esc_html_e( 'License key', 'wp-easycart' ); ?></label><input type="text" class="ecv2-input ecreg-mono" name="transactionkey" id="transactionkey" required="required" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" /></div>
+				<button type="submit" class="ecv2-btn ecreg-path-cta"><?php esc_html_e( 'Activate license', 'wp-easycart' ); ?></button>
+			</form>
+		</div>
+		<?php else : ?>
+		<div class="ecreg-path<?php echo ( $ecrs_end_ts && $ecrs_days <= 30 ) ? ' is-featured' : ''; ?>">
+			<?php if ( $ecrs_end_ts && $ecrs_days <= 30 ) : ?><span class="ecreg-path-tag"><?php echo $ecrs_days <= 7 ? esc_html__( 'Ends this week', 'wp-easycart' ) : esc_html__( 'Renew before it lapses', 'wp-easycart' ); ?></span><?php endif; ?>
 			<span class="dashicons dashicons-update ecreg-path-icon"></span>
 			<h3><?php esc_html_e( 'Support & updates', 'wp-easycart' ); ?></h3>
 			<p><?php esc_html_e( 'Renewing extends security fixes, new features and priority support for another year. Renew early and the time is added on — nothing is lost.', 'wp-easycart' ); ?></p>
-			<a class="ecv2-btn <?php echo ( $ecrs_lapsed || ( $ecrs_end_ts && $ecrs_days <= 30 ) ) ? 'ecv2-btn-primary ' : ''; ?>ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew support & updates', 'wp-easycart' ); ?></a>
+			<a class="ecv2-btn <?php echo ( $ecrs_end_ts && $ecrs_days <= 30 ) ? 'ecv2-btn-primary ' : ''; ?>ecreg-path-cta" href="<?php echo esc_url( $ecrs_v3 ? $ecrs_account : $ecrs_renew ); ?>" target="_blank"><?php esc_html_e( 'Renew support & updates', 'wp-easycart' ); ?></a>
 			<span class="ecreg-path-fine"><?php esc_html_e( 'Sign in with the account that bought this license so the credit applies.', 'wp-easycart' ); ?></span>
 		</div>
+		<?php endif; ?>
 		<?php if ( ! $ecrs_premium ) : ?>
 		<?php $ecrs_offer = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::premium_offer() : array( 'mode' => 'get', 'cta' => __( 'See Premium', 'wp-easycart' ) ); ?>
 		<div class="ecreg-path">

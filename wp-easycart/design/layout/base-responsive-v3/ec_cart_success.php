@@ -116,7 +116,7 @@ if ( function_exists( 'wp_easycart_meta_purchase' ) ) {
 <div class="ec_cart_error_row2" style="margin-bottom:20px;">
     <?php echo wp_easycart_language( )->get_text( 'ec_errors', 'order_refunded' )?> 
 </div>
-<?php } else if ( ! $order->is_approved ) { ?>
+<?php } else if ( ! $order->is_approved && wp_easycart_show_payment_pending_notice( $order ) ) { /* 6.0.3: the store can switch it off */ ?>
 <div class="ec_cart_notice_row" style="margin-bottom:20px;">
     <?php echo wp_easycart_language( )->get_text( 'ec_errors', 'payment_processing' )?> 
 </div>

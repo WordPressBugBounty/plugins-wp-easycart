@@ -126,7 +126,8 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account' ) ) :
 			}
 			$done = true;
 			add_action( 'wp', array( __CLASS__, 'route_request' ), 1 );
-			/* Before ec_fix_store_template() ( priority 1 ), which ends store item requests that use a custom store template. */
+			/* First on template_redirect: anything later may still end the request ( WP EasyCart 6.0.2's ec_fix_store_template() did,
+			 * at priority 1, for store items drawn with a custom store template ). */
 			add_action( 'template_redirect', array( __CLASS__, 'page_headers' ), 0 );
 			add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ), 1 );
 			add_action( 'elementor/frontend/after_register_scripts', array( __CLASS__, 'register_assets' ) );
@@ -1063,7 +1064,8 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account' ) ) :
 				self::push_texts( $texts );
 			}
 			ob_start();
-			$result = false;
+			$result         = false;
+			$printed_before = self::$message_printed;
 			try {
 				/* Menus and the sign-out button draw without the account page ( it reads the customer's orders ). */
 				$page = $args['needs_page'] ? self::account_page( $context['sample'] ) : null;
@@ -1095,7 +1097,8 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account' ) ) :
 			$html = self::add_marker( $html, $marker );
 			$html = self::decorate( $html, is_array( $args['placeholders'] ) ? $args['placeholders'] : array() );
 
-			self::open_wrapper( $args, $context );
+			/* Menus and the sign-out button ( no account page ) never answer for a view: they do not show it. */
+			self::open_wrapper( $args, $context, ( $editor || $context['sample'] ) ? '' : self::answer( $args['needs_page'] ? $context['views'] : array(), ! $printed_before && self::$message_printed ) );
 			if ( $editor ) {
 				self::editor_note( $args, $context, false );
 			}
@@ -1104,18 +1107,41 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Account' ) ) :
 		}
 
 		/**
+		 * Whether a widget answers this request: it printed the request's message ( 'message' ), or it shows the view the link
+		 * asked for, such as the password reset form ( 'view' ). account.js opens the Elementor Pro popup that holds it.
+		 *
+		 * @since 6.0.3
+		 *
+		 * @param array $views   The widget's views ( 'all' = every one ).
+		 * @param bool  $message The widget printed the message.
+		 * @return string '' | 'message' | 'view'
+		 */
+		public static function answer( $views, $message ) {
+			if ( $message ) {
+				return 'message';
+			}
+			$requested = class_exists( 'WP_EasyCart_Elementor_Account_Views' ) ? WP_EasyCart_Elementor_Account_Views::requested_view() : '';
+			if ( '' === $requested || 'logout' === $requested ) {
+				return '';
+			}
+			$views = (array) $views;
+			return ( in_array( 'all', $views, true ) || in_array( $requested, $views, true ) ) ? 'view' : '';
+		}
+
+		/**
 		 * The widget's wrapper.
 		 *
-		 * @param array $args    render() arguments.
-		 * @param array $context Render context.
+		 * @param array  $args    render() arguments.
+		 * @param array  $context Render context.
+		 * @param string $answer  answer() ( 6.0.3 ).
 		 */
-		private static function open_wrapper( $args, $context ) {
+		private static function open_wrapper( $args, $context, $answer = '' ) {
 			$slug    = str_replace( '_', '-', preg_replace( '/^wp_easycart_my_account_?/', '', (string) $args['name'] ) );
 			$classes = array_merge( array( 'wpec-el', 'wpec-acc', 'wpec-acc--' . ( '' === $slug ? 'my-account' : $slug ) ), (array) $args['classes'] );
 			if ( $context['sample'] ) {
 				$classes[] = 'wpec-acc--sample';
 			}
-			echo '<div class="' . esc_attr( implode( ' ', array_map( 'sanitize_html_class', $classes ) ) ) . '">';
+			echo '<div class="' . esc_attr( implode( ' ', array_map( 'sanitize_html_class', $classes ) ) ) . '"' . ( '' !== $answer ? ' data-wpec-acc-answer="' . esc_attr( $answer ) . '"' : '' ) . '>';
 		}
 
 		/**

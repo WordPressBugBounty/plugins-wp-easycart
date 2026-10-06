@@ -81,6 +81,7 @@ function ecsh_nav_sublink( $href, $label, $is_current, $locked = false ) {
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-products&subpage=manufacturers', __( 'Manufacturers', 'wp-easycart' ), 'manufacturers' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-products&subpage=reviews', __( 'Product Reviews', 'wp-easycart' ), 'reviews' === $ecsh_subpage );
 		ecsh_nav_sublink( 'admin.php?page=wp-easycart-products&subpage=subscriptionplans', __( 'Subscription Plans', 'wp-easycart' ), 'subscriptionplans' === $ecsh_subpage, true );
+		ecsh_nav_sublink( 'admin.php?page=wp-easycart-products&subpage=import', __( 'Import', 'wp-easycart' ), 'import' === $ecsh_subpage ); /* 6.0.3: last, as a tool rather than a list */
 		?>
 	</div>
 </div>

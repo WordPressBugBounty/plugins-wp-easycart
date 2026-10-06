@@ -1,5 +1,6 @@
 jQuery( document ).ready( function( ){
-	/* 6.0.2: only stores that share usage data are asked ( the answer is sent only from those ). */
+	/* 6.0.2: every store is asked ( ask-feedback ); the form says what Submit sends, and a store that does not share usage data
+	   sends only that answer ( wp_easycart_admin_tracking::send_feedback() ). */
 	if ( typeof wpeasycart_admin_ajax_object === 'undefined' || ! wpeasycart_admin_ajax_object.wp_easycart_deactivate_language || '1' !== wpeasycart_admin_ajax_object.wp_easycart_deactivate_language['ask-feedback'] ) {
 		return;
 	}

@@ -487,8 +487,9 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Order_Summary_Widget' ) && class_exi
 				return;
 			}
 			WP_EasyCart_Elementor_Checkout_Module::no_cache();
-			if ( get_option( 'ec_option_cache_prevent' ) ) {
-				/* The page may be cached: checkout.js fills the summary after it loads, and removes it for an empty cart ( or shows its message ). */
+			/* checkout.js fills the summary after the page loads, and removes it for an empty cart ( or shows its message ). 6.0.3:
+			 * always away from the cart page, where the HTML must never hold a visitor's cart ( a cache may ignore the no-cache signal ). */
+			if ( get_option( 'ec_option_cache_prevent' ) || ! WP_EasyCart_Elementor_Checkout_Module::is_cart_page() ) {
 				echo '<div class="' . esc_attr( $this->ec_classes( $settings ) ) . '" data-wpec-summary="1" data-wpec-summary-load="1" hidden>';
 				$this->ec_heading( $settings );
 				echo '<div class="wpec-summary__body" aria-live="polite"></div>';

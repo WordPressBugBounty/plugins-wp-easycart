@@ -391,15 +391,21 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-reports.php'
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-pay.php' ); /* 6.0.2: pay an existing order from its link ( ec_page=invoice ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-paypal-webhooks.php' ); /* 6.0.2: PayPal notifications ( registration, status, the Payments drawer's Notifications group ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-gateway.php' ); /* 6.0.2: subscriptions need Stripe; what to tell the merchant and the shopper when they can't be sold */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-prices.php' ); /* 6.0.3: the Stripe price a subscription bills, checked before every use; one way to change a subscription's product */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-reminders.php' ); /* 6.0.3: reminders before a yearly renewal and before a free trial ends */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-changes.php' ); /* 6.0.3: plan changes now or at renewal, previewed, paid first, cancellable */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscription-options.php' ); /* 6.0.3: the options a subscription is bought with belong to that product, and the required ones are there */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-gift.php' ); /* 6.0.2: gift orders on the storefront, in emails and on the order screen ( asked by WP EasyCart PRO ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-consent.php' ); /* 6.0.2: cookie consent ( WP Consent API, Google Consent Mode, Cookiebot, CookieYes, Complianz ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-meta.php' ); /* 6.0.2: Meta content IDs, the browser Pixel and storefront event announcements */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-packages.php' ); /* 6.0.2: box library and packing */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-shipments.php' ); /* 6.0.2: an order's packages, labels, tracking and delivery */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-carriers.php' ); /* 6.0.3: the carriers the order screens offer, and their tracking pages */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-checkout-guard.php' ); /* 6.0.2: checkout protection ( card-testing defence ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-fields.php' ); /* 6.0.2: checkout field answers kept on orders ( asked by WP EasyCart PRO ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-source.php' ); /* 6.0.2: where each order came from */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-schema.php' ); /* 6.0.2: product data for search engines and AI assistants */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-image.php' ); /* 6.0.3: the picture a product shows first, from its row ( the products export ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-store-schema.php' ); /* 6.0.2: store return and shipping policy for search engines */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-wordpress-users.php' ); /* 6.0.2: store accounts and WordPress users ( WordPress User Sync ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-subscribers.php' ); /* 6.0.2: newsletter subscribers: one event for every change, and a consent record */
@@ -407,7 +413,9 @@ include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-privacy.php'
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-variants.php' ); /* 6.0.2: a product's variant rows, kept when its option sets change */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-storefront-access.php' ); /* 6.0.2: what a shopper may add to the cart, download and open ( memberships ) */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-product-writer.php' ); /* 6.0.2: create and update products from code ( importers, catalog extensions ) */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/import/class-wp-easycart-import.php' ); /* 6.0.3: the import framework ( WooCommerce, Square ), its WP-Cron runner and old address redirects */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-fulfillment.php' ); /* 6.0.2: fulfillment partners ( print on demand ): order lines, release, state */
+include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-order-returns.php' ); /* 6.0.3: a cancelled order's stock and gift card balance go back */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/class-wp-easycart-shipping-groups.php' ); /* 6.0.2: checkout shipping for lines a fulfillment partner ships */
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_page_options.php' );
 include( EC_PLUGIN_DIRECTORY . '/inc/classes/core/ec_payment.php' );

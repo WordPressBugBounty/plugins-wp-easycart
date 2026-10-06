@@ -513,10 +513,12 @@ if ( ! class_exists( 'ec_reviews' ) ) :
 			$s = self::settings();
 			$products = array();
 			foreach ( $rows as $r ) {
-				$p = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, title, image1, product_images, use_optionitem_images, post_id FROM ec_product WHERE product_id = %d', (int) $r->product_id ) );
+				$p = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, title, image1, image2, image3, image4, image5, product_images, use_optionitem_images, post_id FROM ec_product WHERE product_id = %d', (int) $r->product_id ) );
 				if ( ! $p ) { continue; }
 				$image = '';
-				if ( function_exists( 'wp_easycart_admin_catalog_v2_product_thumb' ) ) { $image = wp_easycart_admin_catalog_v2_product_thumb( $p ); }
+				/* 6.0.3: the picture the store shows first, also from WP-Cron ( which read image1, an old picture behind a gallery ). */
+				if ( class_exists( 'wp_easycart_product_image' ) ) { $image = wp_easycart_product_image::absolute( wp_easycart_product_image::main_url( $p, 'medium' ) ); }
+				else if ( function_exists( 'wp_easycart_admin_catalog_v2_product_thumb' ) ) { $image = wp_easycart_admin_catalog_v2_product_thumb( $p ); }
 				else if ( $p->image1 ) { $image = ( 0 === strpos( $p->image1, 'http' ) ) ? $p->image1 : plugins_url( '/wp-easycart-data/products/pics1/' . $p->image1, EC_PLUGIN_DATA_DIRECTORY ); }
 				$stars = array(); for ( $i = 1; $i <= 5; $i++ ) { $stars[ $i ] = self::review_link( $r, $i ); }
 				$products[] = array( 'title' => wp_unslash( $p->title ), 'image' => $image, 'link' => self::review_link( $r ), 'stars' => $stars );

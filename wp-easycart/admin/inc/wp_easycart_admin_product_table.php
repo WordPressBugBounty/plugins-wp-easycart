@@ -68,6 +68,55 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			parent::__construct();
 		}
 
+		/**
+		 * The products this list shows for the request's filters, search, health tile and option set / menu scope, in id
+		 * order, for Export All ( 6.0.3: it exported every product whatever the list was filtered by ). Null when the request
+		 * carries none of them, which means every product. Call after setup(): the filters and the scope come from it.
+		 *
+		 * @since 6.0.3
+		 * @return int[]|null
+		 */
+		public function filtered_product_ids() {
+			if ( ! $this->is_filtered_request() ) {
+				return null;
+			}
+			$ids = array();
+			$sql = 'SELECT ec_product.product_id' . $this->get_filter_select() . ' FROM ec_product ' . $this->join . $this->get_filter();
+			foreach ( (array) $this->wpdb->get_results( $sql, ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built by get_filter(), which prepares every request value, as the list's own query.
+				$ids[ (int) $row['product_id'] ] = true; /* a category filter joins one row per category */
+			}
+			$ids = array_keys( $ids );
+			sort( $ids );
+			return $ids;
+		}
+
+		/**
+		 * Whether the request narrows the list: a filter, the search box, a health tile or an option set / menu scope.
+		 *
+		 * @since 6.0.3
+		 * @return bool
+		 */
+		protected function is_filtered_request() {
+			// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only list state; the export checked its nonce first.
+			if ( '' !== trim( (string) $this->custom_where ) ) {
+				return true;
+			}
+			if ( isset( $_GET['health_filter'] ) && '' !== sanitize_key( wp_unslash( $_GET['health_filter'] ) ) ) {
+				return true;
+			}
+			if ( isset( $_GET['s'] ) && '' !== trim( sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) ) {
+				return true;
+			}
+			$filter_count = count( $this->filters );
+			for ( $i = 0; $i < $filter_count; $i++ ) {
+				if ( isset( $_GET[ 'filter_' . $i ] ) && '' !== sanitize_text_field( wp_unslash( $_GET[ 'filter_' . $i ] ) ) ) {
+					return true;
+				}
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Recommended
+			return false;
+		}
+
 		public function setup() {
 			$this->set_table( 'ec_product', 'product_id' );
 			$this->set_table_id( 'ec_admin_product_list_v2' );
@@ -824,7 +873,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			if ( ! empty( $result->use_optionitem_images ) ) {
 				// Try optionitem product_images CSV first.
 				if ( ! empty( $result->oi_first_product_images ) ) {
-					$url = self::resolve_first_from_csv( $result->oi_first_product_images );
+					$url = self::resolve_first_from_csv( $result->oi_first_product_images, (object) array( 'image1' => isset( $result->oi_first_image1 ) ? $result->oi_first_image1 : '' ) );
 					if ( $url ) {
 						return $url;
 					}
@@ -837,7 +886,7 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 			// 2. Product-level product_images CSV (pro gallery).
 			if ( ! empty( $result->product_images ) ) {
-				$url = self::resolve_first_from_csv( $result->product_images );
+				$url = self::resolve_first_from_csv( $result->product_images, $result ); /* 6.0.3: its image1 to image5 entries too */
 				if ( $url ) {
 					return $url;
 				}
@@ -865,8 +914,16 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 
 		/**
 		 * Given a product_images CSV string, resolve the first displayable image URL.
+		 *
+		 * 6.0.3: an image1 to image5 entry is the row's own picture column ( pass the row; without it they are skipped, as
+		 * before ) and a video entry its poster, as the storefront shows them. A gallery of just image3 showed image1.
+		 *
+		 * @param string      $csv The gallery.
+		 * @param object|null $row The row the gallery belongs to ( its image1 to image5 ).
+		 * @return string
 		 */
-		public static function resolve_first_from_csv( $csv ) {
+		public static function resolve_first_from_csv( $csv, $row = null ) {
+			$row   = ( null !== $row ) ? (object) $row : null;
 			$items = explode( ',', $csv );
 			foreach ( $items as $item ) {
 				$item = trim( $item );
@@ -874,8 +931,12 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					continue;
 				}
 
-				// Skip video types — they aren't useful as thumbnails.
+				// Videos: their poster when there is one.
 				if ( substr( $item, 0, 6 ) === 'video:' || substr( $item, 0, 8 ) === 'youtube:' || substr( $item, 0, 6 ) === 'vimeo:' ) {
+					$poster = class_exists( 'wp_easycart_product_image' ) ? wp_easycart_product_image::token_url( $item, (object) array(), 'medium' ) : '';
+					if ( '' !== $poster ) {
+						return $poster;
+					}
 					continue;
 				}
 
@@ -893,10 +954,12 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 					return substr( $item, 6 );
 				}
 
-				// Legacy image1-5 references.
-				if ( preg_match( '/^image[1-5]$/', $item ) ) {
-					// These refer back to ec_product.image1-5 which we don't have in this context;
-					// skip — the legacy fallback in step 3/4 will catch these.
+				// Legacy image1-5 references: the row's own picture column.
+				if ( preg_match( '/^image([1-5])$/', $item, $match ) ) {
+					$field = 'image' . $match[1];
+					if ( null !== $row && isset( $row->$field ) && '' !== trim( (string) $row->$field ) ) {
+						return self::slot_image_url( (string) $row->$field, (int) $match[1] );
+					}
 					continue;
 				}
 
@@ -907,6 +970,21 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			}
 
 			return '';
+		}
+
+		/**
+		 * A picture column's address: a web address as it is, a file name in wp-easycart-data/products/picsN.
+		 *
+		 * @since 6.0.3
+		 * @param string $value Stored value.
+		 * @param int    $slot  1 to 5.
+		 * @return string
+		 */
+		private static function slot_image_url( $value, $slot ) {
+			if ( substr( $value, 0, 7 ) === 'http://' || substr( $value, 0, 8 ) === 'https://' ) {
+				return $value;
+			}
+			return plugins_url( '/wp-easycart-data/products/pics' . $slot . '/' . $value, EC_PLUGIN_DATA_DIRECTORY );
 		}
 
 		private function print_product_image( $result ) {
@@ -1825,13 +1903,38 @@ if ( ! class_exists( 'wp_easycart_admin_product_table' ) ) :
 			if ( isset( $this->docs_guide ) ) {
 				echo '<a href="' . esc_url( wp_easycart_admin()->helpsystem->print_docs_url( $this->docs_guide, $this->docs_link, 'master-record' ) ) . '" target="_blank" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm"><span class="dashicons dashicons-editor-help"></span> <span class="ecv2-btn-label">' . esc_html__( 'Help', 'wp-easycart' ) . '</span></a>';
 			}
-			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-ecv2pi-open="import" title="' . esc_attr__( 'Import products from a CSV file', 'wp-easycart' ) . '"><span class="dashicons dashicons-upload"></span> <span class="ecv2-btn-label">' . esc_html__( 'Import', 'wp-easycart' ) . '</span></button>';
+			/* 6.0.3: Import offers a CSV file ( the panel on this page ) or another store ( Products › Import ). */
+			echo '<details class="ecv2-imp-menu"><summary class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" title="' . esc_attr__( 'Import products', 'wp-easycart' ) . '"><span class="dashicons dashicons-upload"></span> <span class="ecv2-btn-label">' . esc_html__( 'Import', 'wp-easycart' ) . '</span></summary>';
+			echo '<div class="ecv2-imp-menu-list"><button type="button" data-ecv2pi-open="import">' . esc_html__( 'From a CSV file', 'wp-easycart' ) . '</button>';
+			echo '<a href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import' ) ) . '">' . esc_html__( 'From WooCommerce or Square', 'wp-easycart' ) . '</a></div></details>';
 			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost ecv2-btn-sm" data-ecv2pi-open="export" title="' . esc_attr__( 'Export products to a CSV file', 'wp-easycart' ) . '"><span class="dashicons dashicons-download"></span> <span class="ecv2-btn-label">' . esc_html__( 'Export', 'wp-easycart' ) . '</span></button>';
 			if ( $this->add_new ) {
 				echo '<a href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '" class="ecv2-btn ecv2-btn-primary"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '><span class="dashicons dashicons-plus-alt2"></span> <span class="ecv2-btn-label">' . esc_html( $this->add_new_label ) . '</span></a>';
 			}
 			echo '</div>';
 			echo '</div>';
+		}
+
+		/**
+		 * 6.0.3: a store with no products at all is offered the ways to fill it: add one, import from WooCommerce or Square,
+		 * or a CSV file. A search or filter that finds nothing keeps the usual line.
+		 */
+		protected function print_empty_state() {
+			global $wpdb;
+			if ( (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ec_product' ) > 0 ) {
+				parent::print_empty_state();
+				return;
+			}
+			echo '<div class="ecv2-empty-start">';
+			echo '<b>' . esc_html__( 'Your store has no products yet', 'wp-easycart' ) . '</b>';
+			echo '<span>' . esc_html__( 'Add your first product, or bring your catalog in from the store you use now.', 'wp-easycart' ) . '</span>';
+			echo '<span class="ecv2-empty-start-actions">';
+			if ( $this->add_new ) {
+				echo '<a class="ecv2-btn ecv2-btn-primary" href="' . esc_url( $this->get_url( 'ec_admin_form_action', $this->add_new_action, $this->add_new_reset, $this->add_new_reset_var, $this->add_new_reset_val ) ) . '"' . ( $this->add_new_js ? ' onclick="' . esc_attr( $this->add_new_js ) . '"' : '' ) . '>' . esc_html__( 'Add a product', 'wp-easycart' ) . '</a>';
+			}
+			echo '<a class="ecv2-btn" href="' . esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import' ) ) . '">' . esc_html__( 'Import from WooCommerce or Square', 'wp-easycart' ) . '</a>';
+			echo '<button type="button" class="ecv2-btn ecv2-btn-ghost" data-ecv2pi-open="import">' . esc_html__( 'Import a CSV file', 'wp-easycart' ) . '</button>';
+			echo '</span></div>';
 		}
 
 		protected function print_custom_modals() {

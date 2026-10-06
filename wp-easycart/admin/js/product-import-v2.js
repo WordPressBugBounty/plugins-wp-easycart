@@ -267,6 +267,9 @@
 		$( document ).on( 'change', '.ecv2-row-check, #ecv2-select-all, #ecv2-ss-select-all', function() { if ( $modal && $modal.is( ':visible' ) ) { refresh_selected(); } } );
 		$( '#ecv2pi_sample' ).on( 'click', function() { post( 'ecv2_product_import_sample', {}, function( d ) { download( d.csv, d.filename || t( 'sample_name' ) ); } ); } );
 		$( window ).on( 'beforeunload', function() { if ( state.running ) { return true; } } );
+		/* 6.0.3: the Import page's "Open the CSV importer" lands here with ?ecv2pi=import; the header menu closes once picked. */
+		if ( /[?&]ecv2pi=import(&|$)/.test( window.location.search ) ) { open( 'import' ); }
+		$( document ).on( 'click', '.ecv2-imp-menu [data-ecv2pi-open]', function() { $( this ).closest( 'details' ).removeAttr( 'open' ); } );
 	} );
 
 	window.ecv2pi = { open: open, close: close };

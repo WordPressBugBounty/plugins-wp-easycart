@@ -5,7 +5,8 @@
  * 6.0.0: card row. Included by ec_subscription_list::display_subscription_list() and
  * display_canceled_subscription_list(). Available: $subscription ( ec_subscription ), $i ( row index ), $this ( ec_subscription_list ).
  */
-$ec_line_status = $subscription->get_status_key();
+$ec_line_status = $subscription->get_display_status_key(); /* 6.0.3: trialing during a free trial */
+$ec_line_trial  = $subscription->in_trial();
 $ec_line_ended  = $subscription->is_canceled();
 $ec_line_next   = $subscription->get_next_payment_timestamp();
 $ec_line_last   = $subscription->get_last_payment_timestamp();
@@ -32,13 +33,13 @@ $ec_line_url    = wpeasycart_links()->get_account_page( 'subscription_details', 
 		</div>
 		<div class="ec_account_subscription_card_dates">
 			<?php if ( $ec_line_next && in_array( $ec_line_status, array( 'active', 'trialing', 'past_due', 'incomplete' ), true ) ) { ?>
-			<span class="ec_account_subscription_card_date"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'account_subscriptions_header_2' ) ); ?>: <b><?php echo esc_html( ec_subscription::format_date( $ec_line_next ) ); ?></b></span>
+			<span class="ec_account_subscription_card_date"><?php echo wp_easycart_escape_html( $ec_line_trial ? ec_subscription::get_text( 'subscription_details_trial_ends', 'Trial ends' ) : wp_easycart_language()->get_text( 'account_subscriptions', 'account_subscriptions_header_2' ) ); ?>: <b><?php echo esc_html( ec_subscription::format_date( $ec_line_next ) ); ?></b></span>
 			<?php } else if ( $ec_line_next && 'canceling' == $ec_line_status ) { ?>
 			<span class="ec_account_subscription_card_date"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_ends', 'Ends' ) ); ?>: <b><?php echo esc_html( ec_subscription::format_date( $ec_line_next ) ); ?></b></span>
 			<?php } else if ( $ec_line_ended && $ec_line_next && $ec_line_next <= time() ) { ?>
 			<span class="ec_account_subscription_card_date"><?php echo wp_easycart_escape_html( ec_subscription::get_text( 'subscription_details_ended', 'Ended' ) ); ?>: <b><?php echo esc_html( ec_subscription::format_date( $ec_line_next ) ); ?></b></span>
 			<?php } ?>
-			<?php if ( $ec_line_last ) { ?>
+			<?php if ( $ec_line_last && ( ! $ec_line_trial || $subscription->has_paid() ) ) { ?>
 			<span class="ec_account_subscription_card_date"><?php echo wp_easycart_escape_html( wp_easycart_language()->get_text( 'account_subscriptions', 'account_subscriptions_header_3' ) ); ?>: <b><?php echo esc_html( ec_subscription::format_date( $ec_line_last ) ); ?></b></span>
 			<?php } ?>
 		</div>

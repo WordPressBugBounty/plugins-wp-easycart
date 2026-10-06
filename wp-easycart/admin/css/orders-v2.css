@@ -371,3 +371,10 @@ body.ecv2-qe-open { overflow:hidden; }
 @media screen and ( max-width: 600px ) {
 	.ecv2-order-ship-pop { top:auto !important; right:8px !important; bottom:8px !important; left:8px !important; width:auto; }
 }
+
+/* 6.0.3: a carrier field's Other… ( admin/js/order-carriers-v2.js ): a field for the carrier's name in place of the list. */
+.wpec-carrier-other { position: relative; display: flex; align-items: center; width: 100%; min-width: 0; }
+.wpec-carrier-other[hidden] { display: none; }
+.wpec-carrier-other .wpec-carrier-other-input { flex: 1 1 auto; width: 100%; min-width: 0; padding-right: 32px; }
+.wpec-carrier-other-back { position: absolute; top: 50%; right: 5px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-top: -13px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #6b7280; font-size: 18px; line-height: 1; cursor: pointer; }
+.wpec-carrier-other-back:hover, .wpec-carrier-other-back:focus-visible { outline: none; background: #f3f4f6; color: #111827; }

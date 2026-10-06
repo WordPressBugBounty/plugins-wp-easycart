@@ -3,13 +3,13 @@
  * WP EasyCart Admin Shell V2 — Help menu content.
  *
  * The old full-width marketing header bar is now the content of the Help
- * dropdown in the top bar (shell.php fires wp_easycart_admin_head_navigation
+ * dropdown in the top bar (admin-frame.php fires wp_easycart_admin_head_navigation
  * inside .ecsh-tb-dropdown, so third-party hooks keep working — anchors
  * appended here render as extra menu rows).
  *
  * Video Tutorials is an expandable group (works on touch, unlike the old
  * hover flyout). Each video link carries data-ecsh-video with the YouTube
- * id: shell-v2.js intercepts the click and plays it in the existing
+ * id: admin-frame-v2.js intercepts the click and plays it in the existing
  * in-admin lightbox (wp_easycart_admin_help_video_player). Without JS, or
  * on middle-click/new-tab, the href still goes to YouTube — same URLs as V1.
  */

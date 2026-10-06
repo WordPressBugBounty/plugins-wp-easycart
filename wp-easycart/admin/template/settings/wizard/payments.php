@@ -2,9 +2,8 @@
 /**
  * Step 2 — Payments & checkout.
  *
- * Gateways are cards with explicit Connect buttons ( the old design used toggles
- * that navigated off-site ). Connect links are the same onboarding URLs as before;
- * their return handlers redirect back here ( see load_setup_wizard() remap ).
+ * Gateways are lines with explicit Connect buttons, grouped by way to pay as on Settings › Payment ( 6.0.3 ). Connect
+ * links are the same onboarding URLs as before; their return handlers redirect back here ( see load_setup_wizard() remap ).
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -16,12 +15,11 @@ $gate     = $wizard->show_terms_gate();
 $upsell   = $wizard->show_upsell();
 $fee_badge = $wizard->connect_fee_badge(); /* 6.0.2: the fee the gateways charge now, not the upsell switch */
 $admin    = esc_url_raw( admin_url() );
-$state_id = rand( 1000000, 9999999 );
 
 /* 6.0.2: WP EasyCart Connect's /paypal-v3/ onboarding. The return carries the nonce wpeasycart_paypal_express_partner_authorized() checks ( without it the account was never kept ). */
 $paypal_url = wp_easycart_paypal_connect::onboard_url( 'production', $admin . '?wpeasycart_paypal_onboard=production&is_wizard=true&wp_easycart_nonce=' . wp_create_nonce( 'wp-easycart-paypal' ) );
 $stripe_url = esc_url_raw( wp_easycart_admin()->get_available_url() ) . '/connect/?step=start&redirect=' . urlencode( $admin . '?ec_admin_form_action=stripe_onboard&env=production&goto=wizard' ) . '&env=production';
-$square_url = 'https://connect.wpeasycart.com/square-v2/?url=' . urlencode( $admin . '?ec_admin_form_action=handle-square&goto=wizard' ) . '&state=' . $state_id;
+$square_url = 'https://connect.wpeasycart.com/square-v2/?url=' . urlencode( $admin . '?ec_admin_form_action=handle-square&goto=wizard' ) . '&state=' . wp_create_nonce( 'wp-easycart-square' ); /* 6.0.3: the return handler checks this nonce; a random number made it drop the connection */
 $payment_settings = admin_url( 'admin.php?page=wp-easycart-settings&subpage=payment' );
 
 $flash = '';
@@ -68,35 +66,18 @@ $ssl_badge = $env['https']
 		</div>
 		<?php } ?>
 
-		<div class="ecwz-cards" id="ecwz_pay_cards">
+		<?php /* 6.0.3: the same lines as Settings › Payment, grouped by way to pay ( Card payments, Checkout buttons, Pay later ). */ ?>
+		<div class="ecwz-plines" id="ecwz_pay_cards">
 
-			<div class="ecwz-ccard<?php echo $gw['manual'] ? ' is-on' : ''; ?>" data-pay="manual">
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:var(--ecsh-g700,#374151)">$</span><div><h4><?php esc_html_e( 'Manual payments', 'wp-easycart' ); ?></h4><span class="ecwz-sub"><?php esc_html_e( 'Check, direct deposit, pay on pickup', 'wp-easycart' ); ?></span></div></div>
-				<p><?php esc_html_e( 'Customers complete the order and pay you offline. You write the instructions shown at checkout. No fees.', 'wp-easycart' ); ?></p>
-				<div class="ecwz-ccard-act">
-					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'No fees', 'wp-easycart' ); ?></span>
-					<label class="ecwz-tg"><input type="checkbox" name="manual_billing" id="wp_easycart_manual_billing" value="1"<?php checked( $gw['manual'] ); ?>><span></span></label>
+			<div class="ecwz-pgroup"><?php esc_html_e( 'Card payments', 'wp-easycart' ); ?></div>
+
+			<div class="ecwz-pline<?php echo $gw['stripe'] ? ' is-on' : ''; ?>" data-pay="stripe">
+				<span class="ecwz-ico" style="background:#635bff">S</span>
+				<div class="ecwz-pline-text">
+					<h4>Stripe <?php if ( ! $gw['stripe'] && ! $gw['square'] ) { ?><span class="ecwz-badge ecwz-badge-green"><?php esc_html_e( 'Recommended', 'wp-easycart' ); ?></span><?php } ?></h4>
+					<span class="ecwz-sub"><?php esc_html_e( 'Cards, Apple Pay, Google Pay and Link', 'wp-easycart' ); ?> · <?php echo $ssl_badge; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above. ?></span>
 				</div>
-			</div>
-
-			<div class="ecwz-ccard<?php echo $gw['paypal'] ? ' is-on' : ''; ?>" data-pay="paypal">
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:#003087">PP</span><div><h4>PayPal</h4><span class="ecwz-sub"><?php esc_html_e( 'No SSL certificate required', 'wp-easycart' ); ?></span></div></div>
-				<p><?php esc_html_e( 'Redirects the customer to PayPal to pay. Connects in a few seconds with your PayPal login.', 'wp-easycart' ); ?></p>
-				<div class="ecwz-ccard-act">
-					<?php if ( $gw['paypal'] ) { ?>
-					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
-					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
-					<?php } else { ?>
-					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
-					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $paypal_url ); ?>" data-href="<?php echo esc_url( $paypal_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
-					<?php } ?>
-				</div>
-			</div>
-
-			<div class="ecwz-ccard<?php echo $gw['stripe'] ? ' is-on' : ''; ?>" data-pay="stripe">
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:#635bff">S</span><div><h4>Stripe</h4><span class="ecwz-sub"><?php esc_html_e( 'Cards, Apple Pay, Google Pay', 'wp-easycart' ); ?></span></div></div>
-				<p><?php esc_html_e( 'Cards are entered on your checkout page.', 'wp-easycart' ); ?> <?php echo $ssl_badge; ?></p>
-				<div class="ecwz-ccard-act">
+				<div class="ecwz-pline-act">
 					<?php if ( $gw['stripe'] ) { ?>
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
@@ -107,10 +88,13 @@ $ssl_badge = $env['https']
 				</div>
 			</div>
 
-			<div class="ecwz-ccard<?php echo $gw['square'] ? ' is-on' : ''; ?>" data-pay="square">
-				<div class="ecwz-ccard-top"><span class="ecwz-ico" style="background:#000">&#9634;</span><div><h4>Square</h4><span class="ecwz-sub"><?php esc_html_e( 'Sync with your Square POS', 'wp-easycart' ); ?></span></div></div>
-				<p><?php esc_html_e( 'Accept cards on your site and keep inventory in step with Square.', 'wp-easycart' ); ?> <?php echo $ssl_badge; ?></p>
-				<div class="ecwz-ccard-act">
+			<div class="ecwz-pline<?php echo $gw['square'] ? ' is-on' : ''; ?>" data-pay="square">
+				<span class="ecwz-ico" style="background:#1c1c1c">Sq</span>
+				<div class="ecwz-pline-text">
+					<h4>Square</h4>
+					<span class="ecwz-sub"><?php esc_html_e( 'Cards, plus your Square items brought into your store', 'wp-easycart' ); ?> · <?php echo $ssl_badge; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above. ?></span>
+				</div>
+				<div class="ecwz-pline-act">
 					<?php if ( $gw['square'] ) { ?>
 					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
@@ -118,6 +102,39 @@ $ssl_badge = $env['https']
 					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
 					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $square_url ); ?>" data-href="<?php echo esc_url( $square_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?><?php if ( ! $env['https'] ) { echo ' title="' . esc_attr__( 'Requires https', 'wp-easycart' ) . '"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
 					<?php } ?>
+				</div>
+			</div>
+
+			<div class="ecwz-pgroup"><?php esc_html_e( 'Checkout buttons', 'wp-easycart' ); ?></div>
+
+			<div class="ecwz-pline<?php echo $gw['paypal'] ? ' is-on' : ''; ?>" data-pay="paypal">
+				<span class="ecwz-ico" style="background:#003087">PP</span>
+				<div class="ecwz-pline-text">
+					<h4>PayPal</h4>
+					<span class="ecwz-sub"><?php esc_html_e( 'PayPal, Venmo and Pay Later buttons', 'wp-easycart' ); ?> · <?php esc_html_e( 'No SSL certificate required', 'wp-easycart' ); ?></span>
+				</div>
+				<div class="ecwz-pline-act">
+					<?php if ( $gw['paypal'] ) { ?>
+					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span>
+					<a class="ecwz-btn ecwz-btn-sm ecwz-btn-ghost" href="<?php echo esc_url( $payment_settings ); ?>"><?php esc_html_e( 'Manage', 'wp-easycart' ); ?></a>
+					<?php } else { ?>
+					<span class="ecwz-badge ecwz-badge-gray"><?php echo esc_html( $fee_badge ); ?></span>
+					<a class="ecwz-btn ecwz-btn-sm ecwz-connect" href="<?php echo $gate ? '#' : esc_url( $paypal_url ); ?>" data-href="<?php echo esc_url( $paypal_url ); ?>"<?php if ( $gate ) { echo ' aria-disabled="true"'; } ?>><?php esc_html_e( 'Connect', 'wp-easycart' ); ?></a>
+					<?php } ?>
+				</div>
+			</div>
+
+			<div class="ecwz-pgroup"><?php esc_html_e( 'Pay later', 'wp-easycart' ); ?></div>
+
+			<div class="ecwz-pline<?php echo $gw['manual'] ? ' is-on' : ''; ?>" data-pay="manual">
+				<span class="ecwz-ico" style="background:#475569">$</span>
+				<div class="ecwz-pline-text">
+					<h4 id="ecwz_manual_name"><?php esc_html_e( 'Manual payments', 'wp-easycart' ); ?></h4>
+					<span class="ecwz-sub"><?php esc_html_e( 'Customers complete the order and pay you offline. You write the instructions shown at checkout. No fees.', 'wp-easycart' ); ?></span>
+				</div>
+				<div class="ecwz-pline-act">
+					<span class="ecwz-badge ecwz-badge-green">&#10003; <?php esc_html_e( 'No fees', 'wp-easycart' ); ?></span>
+					<label class="ecwz-tg"><input type="checkbox" name="manual_billing" id="wp_easycart_manual_billing" value="1" aria-labelledby="ecwz_manual_name"<?php checked( $gw['manual'] ); ?>><span></span></label>
 				</div>
 			</div>
 		</div>

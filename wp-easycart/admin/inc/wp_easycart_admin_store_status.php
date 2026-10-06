@@ -1780,6 +1780,11 @@ if ( ! class_exists( 'wp_easycart_admin_store_status' ) ) :
 					break;
 				}
 			}
+			/* 6.0.3: a store whose live rates all come from rate services ( WP EasyCart PRO's Royal Mail, Shippo, ShipStation … )
+			   has no carrier rows and was told no rates are set up. */
+			if ( ! $has_live_shipping && class_exists( 'ec_live_shipping' ) && method_exists( 'ec_live_shipping', 'providers' ) ) {
+				$has_live_shipping = (bool) ec_live_shipping::providers();
+			}
 			return $has_live_shipping;
 		}
 

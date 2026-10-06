@@ -116,6 +116,8 @@ class wp_easycart_admin_details_products_v2 extends wp_easycart_admin_details_pr
 				/* The free edition's own Options and Images cards; WP EasyCart PRO covers its panels itself. */
 				'options'    => array( 'options' => true ),
 				'images'     => array( 'images' => true ),
+				/* 6.0.3: a plan group owns the billing of the products it makes; payments, emails, prorating and the membership page stay editable. */
+				'subscription' => array( 'subscription' => array( 'is_subscription_item', 'subscription_bill_length', 'subscription_bill_period', 'trial_period_days', 'subscription_signup_fee', 'subscription_plan_id' ) ),
 			)
 		);
 	}

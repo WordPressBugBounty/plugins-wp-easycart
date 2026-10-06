@@ -298,7 +298,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Shop_Query' ) ) :
 			if ( ! is_array( $query ) || ! class_exists( 'ec_db' ) || ! class_exists( 'ec_product' ) ) {
 				return $empty;
 			}
-			$where         = 'WHERE product.activate_in_store = 1';
+			$where         = 'WHERE product.activate_in_store = 1' . ( function_exists( 'wp_easycart_unlisted_sql' ) ? wp_easycart_unlisted_sql( 'product' ) : '' ); /* 6.0.3: not plan group products */
 			$joins         = '';
 			$default_order = '';
 			$ids           = self::ids( $query['ids'] );
@@ -468,6 +468,7 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Shop_Query' ) ) :
 			$role_id = ( isset( $GLOBALS['ec_user'] ) && is_object( $GLOBALS['ec_user'] ) && ! empty( $GLOBALS['ec_user']->role_id ) ) ? (int) $GLOBALS['ec_user']->role_id : 0;
 			$sql     = ' AND ( ' . $a . '.role_id = 0 OR ' . $a . '.role_id = ' . ( $role_id ? $role_id : -1 ) . ' )';
 			$sql    .= self::hide_out_of_stock_sql( $a );
+			$sql    .= ( function_exists( 'wp_easycart_unlisted_sql' ) ) ? wp_easycart_unlisted_sql( $a ) : ''; /* 6.0.3: not plan group products */
 
 			$location_id = self::location_id();
 			if ( $location_id ) {

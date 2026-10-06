@@ -285,7 +285,7 @@ return array(
 				'ec_option_allow_tracking' => array(
 					'type'     => 'pills',
 					'label'    => __( 'Anonymous usage data', 'wp-easycart' ),
-					'desc'     => __( 'Sends WP EasyCart basic, anonymous details about how the store is configured (gateway, shipping type, product count) to help prioritise development. No customer or order data is included.', 'wp-easycart' ),
+					'desc'     => __( 'Once a week, sends WP EasyCart anonymous details about how the store is set up (gateways, shipping, which features are on, rough store size) to help prioritise development. No customer or order data is included, and turning it off deletes what was sent.', 'wp-easycart' ),
 					'default'  => '0',
 					'options'  => array(
 						'1'  => __( 'Send', 'wp-easycart' ),

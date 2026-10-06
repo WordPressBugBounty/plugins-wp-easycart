@@ -273,7 +273,7 @@
 
 		var manual = byId( 'wp_easycart_manual_billing' );
 		if ( manual ) {
-			$( manual ).on( 'change', function() { $( this ).closest( '.ecwz-ccard' ).toggleClass( 'is-on', this.checked ); } );
+			$( manual ).on( 'change', function() { $( this ).closest( '.ecwz-pline, .ecwz-ccard' ).toggleClass( 'is-on', this.checked ); } );
 		}
 	}
 

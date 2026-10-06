@@ -4,7 +4,7 @@
  * Plugin URI: http://www.wpeasycart.com
  * Description: The WordPress Shopping Cart by WP EasyCart is a simple eCommerce solution that installs into new or existing WordPress blogs. Customers purchase directly from your store! Get a full ecommerce platform in WordPress! Sell products, downloadable goods, gift cards, clothing and more! Now with WordPress, the powerful features are still very easy to administrate! If you have any questions, please view our website at <a href="http://www.wpeasycart.com" target="_blank">WP EasyCart</a>.
 
- * Version: 6.0.2
+ * Version: 6.0.3
  * Requires at least: 6.5
  * Requires PHP: 7.3
  * Author: WP EasyCart
@@ -19,7 +19,7 @@
  * This program is free to download and install and sell with PayPal. Although we offer a ton of FREE features, some of the more advanced features and payment options requires the purchase of our professional shopping cart admin plugin. Professional features include alternate third party gateways, live payment gateways, coupons, promotions, advanced product features, and much more!
  *
  * @package wpeasycart
- * @version 6.0.2
+ * @version 6.0.3
  * @author WP EasyCart <sales@wpeasycart.com>
  * @copyright Copyright (c) 2012, WP EasyCart
  * @link http://www.wpeasycart.com
@@ -28,9 +28,9 @@
 define( 'EC_PUGIN_NAME', 'WP EasyCart' );
 define( 'EC_PLUGIN_DIRECTORY', __DIR__ );
 define( 'EC_PLUGIN_DATA_DIRECTORY', __DIR__ . '-data' );
-define( 'EC_CURRENT_VERSION', '6_0_2' );
+define( 'EC_CURRENT_VERSION', '6_0_3' );
 define( 'EC_CURRENT_DB', '1_30' );/* Backwards Compatibility */
-define( 'EC_UPGRADE_DB', '119' );
+define( 'EC_UPGRADE_DB', '123' );
 
 /*
  * Gateway notifications ( webhooks ): Square ( 6.0.1 ), PayPal ( 6.0.2 ).
@@ -908,6 +908,13 @@ function ec_activate() {
 		wp_easycart_customer_uploads::protect_all();
 	}
 
+	/* 6.0.3: when WP EasyCart was first activated ( usage data's store age and getting-started steps, kept locally ). A store that
+	   does not share yet remembers this activation, so it can be counted once the store chooses to share ( access_granted() ). */
+	add_option( 'wp_easycart_installed_at', time(), '', false );
+	if ( '1' !== (string) get_option( 'ec_option_allow_tracking' ) ) {
+		update_option( 'wp_easycart_tracking_activated', time(), false );
+	}
+
 	if ( get_option( 'ec_option_allow_tracking' ) && '1' == get_option( 'ec_option_allow_tracking' ) && ! function_exists( 'wp_easycart_admin_tracking' ) ) {
 		include( EC_PLUGIN_DIRECTORY . '/admin/inc/wp_easycart_admin_tracking.php' );
 	}
@@ -949,24 +956,40 @@ function ec_uninstall() {
 
 	wp_clear_scheduled_hook( 'wp_easycart_square_renew_token' );
 
-	/* 6.0.2: usage data's waiting events, install id and WP-Cron event ( wp_easycart_admin_tracking ). */
+	/* 6.0.3: a store that shares usage data says it was deleted ( never sent before ), without waiting for the answer. */
+	if ( '1' === (string) get_option( 'ec_option_allow_tracking' ) && wp_easycart_tracking_load() ) {
+		wp_easycart_admin_tracking::instance()->deleted();
+	}
+
+	/* 6.0.2: usage data's waiting events, install id and WP-Cron event ( wp_easycart_admin_tracking ). 6.0.3: the check-in, the
+	   steps sent and the activation times too. */
 	delete_option( 'wp_easycart_tracking_queue' );
 	delete_option( 'wp_easycart_tracking_install_id' );
+	delete_option( 'wp_easycart_tracking_milestones' );
+	delete_option( 'wp_easycart_tracking_activated' );
+	delete_option( 'wp_easycart_installed_at' );
 	wp_clear_scheduled_hook( 'wp_easycart_tracking_flush' );
+	wp_clear_scheduled_hook( 'wp_easycart_tracking_checkin' );
 }
 
 function wpeasycart_update_check() {
 	if ( ! get_option( 'ec_option_wpoptions_version' ) || get_option( 'ec_option_wpoptions_version' ) != EC_CURRENT_VERSION ) {
+		$ec_tracking_from = (string) get_option( 'ec_option_wpoptions_version' );
 		$wpoptions = new ec_wpoptionset();
 		$wpoptions->add_options();
 		wp_easycart_language()->update_language_data();
 		update_option( 'ec_option_wpoptions_version', EC_CURRENT_VERSION );
-		update_option( 'ec_option_language_sections_rev', '6.0.2-bug-round-14' );
-		/* 6.0.2: a store that chose to share usage data before sending came back queues its setup once ( catch_up() ). */
+		update_option( 'ec_option_language_sections_rev', '6.0.3-translations' );
+		/* 6.0.2: a store that chose to share usage data before sending came back queues its setup once ( catch_up() ). 6.0.3: an
+		   update event with a fresh check-in ( not on a first install, which has no version before ). */
+		add_option( 'wp_easycart_installed_at', 0, '', false ); /* 0: installed before 6.0.3 recorded it */
 		if ( '1' === (string) get_option( 'ec_option_allow_tracking' ) && wp_easycart_tracking_load() ) {
 			wp_easycart_admin_tracking::instance()->catch_up();
+			if ( '' !== $ec_tracking_from ) {
+				wp_easycart_admin_tracking::instance()->updated( $ec_tracking_from, EC_CURRENT_VERSION );
+			}
 		}
-	} else if ( '6.0.2-bug-round-14' != get_option( 'ec_option_language_sections_rev' ) ) {
+	} else if ( '6.0.3-translations' != get_option( 'ec_option_language_sections_rev' ) ) {
 		/* 6.0.2: new phrases reach stores that already merged a 6.0.2 build: the one-page checkout's ( cart_onepage ), then
 		   the order payments ones ( documents: pay_paid_label, pay_balance_label, account_pay_balance ), then the Elementor
 		   upgrade's: the sections elementor_templates, elementor_product, elementor_product_info, elementor_shop,
@@ -980,10 +1003,21 @@ function wpeasycart_update_check() {
 		   gallery_pause, gallery_resume, price_you_save; elementor_product_info: the share, meta, reviews and read more phrases ), then
 		   bug round 14's ( product_page: product_page_restricted_signed_out, product_page_restricted_no_access; account_subscriptions:
 		   subscription_details_plan_notice, subscription_details_card_notice; product_managed: product_unavailable; ec_errors:
-		   download_unavailable ).
-		   Only missing sections and keys are added, so a store's own wording stays. */
+		   download_unavailable ), then 6.0.3's subscription phrases ( product_details: product_details_subscription_days, _weeks, _years,
+		   _month_one; account_subscriptions: subscription_details_interval_notice ), then the subscription reminders' ( subscription_upcoming:
+		   renewal_reminder_*; subscription_trial: trial_reminder_* ), then the plan changes' ( account_subscriptions: subscription_change_*;
+		   cart_login: subscription_change_existing, subscription_change_existing_link ), then the price moves' ( account_subscriptions:
+		   subscription_change_price; subscription_upcoming: price_change_* ), then the free trial's ( account_subscriptions:
+		   subscription_details_trial_ends, subscription_details_trial_notice ), then buying more than one ( cart_login:
+		   subscription_owned_one, _many, _link_one, _link_many ), then the trial change notes ( account_subscriptions:
+		   subscription_change_note_trial, subscription_change_note_trial_end ), then the subscription page's renewal note
+		   ( cart_coupons: subscription_coupon_first_payment, subscription_coupon_months, subscription_renewal_plus_tax ), then the
+		   subscription page's options notice ( cart_login: subscription_choose_options, subscription_choose_options_link ), then
+		   the translations of the phrases 6.0.2 added in English to every language file ( ec_language::refresh_phrase() ).
+		   Missing sections and keys are added; an existing phrase changes only while it still reads as the English copy ( or a
+		   translation that lost a [token] ), so a store's own wording stays. */
 		wp_easycart_language()->update_language_data();
-		update_option( 'ec_option_language_sections_rev', '6.0.2-bug-round-14' );
+		update_option( 'ec_option_language_sections_rev', '6.0.3-translations' );
 	}
 
 	if ( is_admin() && ( ! get_option( 'ec_option_db_new_version' ) || EC_UPGRADE_DB != get_option( 'ec_option_db_new_version' ) ) ) {
@@ -1517,6 +1551,17 @@ function load_ec_pre() {
 		}
 
 		if ( $tempcart_id ) {
+			/* 6.0.3: a subscription link's choices are made for this product ( wp_easycart_subscription_options ): its basic
+			 * choices are kept too ( they were dropped ), and nothing chosen for another subscription stays. */
+			if ( $product->is_subscription_item && class_exists( 'wp_easycart_subscription_options' ) ) {
+				wp_easycart_subscription_options::claim( $product->product_id );
+				$wpec_link_slots = array( 1 => $option_id_1, 2 => $option_id_2, 3 => $option_id_3, 4 => $option_id_4, 5 => $option_id_5 );
+				foreach ( $wpec_link_slots as $wpec_slot => $wpec_item ) {
+					$GLOBALS['ec_cart_data']->cart_data->{ 'subscription_option' . $wpec_slot } = ( (int) $wpec_item > 0 ) ? (int) $wpec_item : '';
+				}
+				$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = '';
+				$GLOBALS['ec_cart_data']->save_session_to_db();
+			}
 			if ( $product->use_advanced_optionset || $product->use_both_option_types ) {
 				if ( $product->is_subscription_item ) {
 					$GLOBALS['ec_cart_data']->cart_data->subscription_advanced_option = maybe_serialize( $option_vals );
@@ -1908,6 +1953,64 @@ function wp_easycart_load_cart_js() {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_recaptcha_fingerprint' ) ) {
+	/**
+	 * Which reCAPTCHA key pair is saved ( Settings › Accounts ), so a passed test is tied to the keys it tested.
+	 *
+	 * @since 6.0.3
+	 * @param string|null $site_key   Site key, or null for the saved one.
+	 * @param string|null $secret_key Secret key, or null for the saved one.
+	 * @return string '' when either key is empty.
+	 */
+	function wp_easycart_recaptcha_fingerprint( $site_key = null, $secret_key = null ) {
+		$site   = trim( (string) ( null === $site_key ? get_option( 'ec_option_recaptcha_site_key' ) : $site_key ) );
+		$secret = trim( (string) ( null === $secret_key ? get_option( 'ec_option_recaptcha_secret_key' ) : $secret_key ) );
+		return ( '' === $site || '' === $secret ) ? '' : md5( $site . '|' . $secret );
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_recaptcha_test_record' ) ) {
+	/**
+	 * The last reCAPTCHA key test ( option ec_option_recaptcha_verified: fingerprint, at, host, source test | existing ).
+	 * A store that already had reCAPTCHA switched on with both keys before 6.0.3 counts as tested ( source existing ), once,
+	 * so updating never turns its protection off; new or changed keys need a test ( the key saves clear the record ).
+	 *
+	 * @since 6.0.3
+	 * @return array Empty when no test has passed.
+	 */
+	function wp_easycart_recaptcha_test_record() {
+		$record = get_option( 'ec_option_recaptcha_verified', false );
+		if ( false === $record ) {
+			$fingerprint = wp_easycart_recaptcha_fingerprint();
+			$record      = ( '' !== $fingerprint && get_option( 'ec_option_enable_recaptcha' ) ) ? array(
+				'fingerprint' => $fingerprint,
+				'at'          => 0,
+				'host'        => '',
+				'source'      => 'existing',
+			) : array();
+			update_option( 'ec_option_recaptcha_verified', $record, false );
+		}
+		return is_array( $record ) ? $record : array();
+	}
+}
+
+if ( ! function_exists( 'wp_easycart_recaptcha_verified' ) ) {
+	/**
+	 * Have the saved reCAPTCHA keys passed a test ( Settings › Accounts › Test keys )?
+	 *
+	 * @since 6.0.3
+	 * @return bool
+	 */
+	function wp_easycart_recaptcha_verified() {
+		$fingerprint = wp_easycart_recaptcha_fingerprint();
+		if ( '' === $fingerprint ) {
+			return false;
+		}
+		$record = wp_easycart_recaptcha_test_record();
+		return isset( $record['fingerprint'] ) && hash_equals( (string) $record['fingerprint'], $fingerprint );
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_recaptcha_ready' ) ) {
 	/**
 	 * Is reCAPTCHA on and able to work: switched on, with both its site key and its secret key saved ( Settings ›
@@ -1915,6 +2018,8 @@ if ( ! function_exists( 'wp_easycart_recaptcha_ready' ) ) {
 	 * the keys were entered no longer refuses every sign-in and sign-up with a widget nobody could see.
 	 *
 	 * @since 6.0.2
+	 * @since 6.0.3 the saved keys must also have passed a test ( wp_easycart_recaptcha_verified() ): keys that don't work
+	 *              never reach a form, where they would lock shoppers out of signing in.
 	 * @param string $place '' ( account forms, stock alerts, subscriptions ) or 'cart' ( also needs the checkout switch ).
 	 * @return bool
 	 */
@@ -1922,12 +2027,13 @@ if ( ! function_exists( 'wp_easycart_recaptcha_ready' ) ) {
 		$ready = get_option( 'ec_option_enable_recaptcha' )
 			&& '' !== trim( (string) get_option( 'ec_option_recaptcha_site_key' ) )
 			&& '' !== trim( (string) get_option( 'ec_option_recaptcha_secret_key' ) )
-			&& ( 'cart' !== $place || get_option( 'ec_option_enable_recaptcha_cart' ) );
+			&& ( 'cart' !== $place || get_option( 'ec_option_enable_recaptcha_cart' ) )
+			&& wp_easycart_recaptcha_verified();
 		/**
 		 * Filters whether reCAPTCHA is shown and checked.
 		 *
 		 * @since 6.0.2
-		 * @param bool   $ready Switched on with both keys saved.
+		 * @param bool   $ready Switched on with both keys saved ( 6.0.3: and tested ).
 		 * @param string $place '' or 'cart'.
 		 */
 		return (bool) apply_filters( 'wp_easycart_recaptcha_ready', (bool) $ready, (string) $place );
@@ -2042,6 +2148,8 @@ function ec_load_js() {
 		'consent_mode' => class_exists( 'wp_easycart_consent' ) ? wp_easycart_consent::mode() : ( ( 'wp_consent_api' === get_option( 'ec_option_marketing_consent', 'off' ) ) ? 'wp_consent_api' : 'off' ),
 		'consent_marketing' => ( ! function_exists( 'wp_easycart_has_marketing_consent' ) || wp_easycart_has_marketing_consent( 'marketing' ) ) ? '1' : '0',
 		'consent_statistics' => ( ! function_exists( 'wp_easycart_has_marketing_consent' ) || wp_easycart_has_marketing_consent( 'statistics' ) ) ? '1' : '0',
+		/* 6.0.3: My Account's Change plan previews a change and confirms it ( wp_easycart_subscription_changes, ec-account-subscriptions.js ). */
+		'subscription_changes' => ( class_exists( 'wp_easycart_subscription_changes' ) && wp_easycart_subscription_changes::active() ) ? '1' : '0',
 	);
 	wp_localize_script( 'wpeasycart_js', 'wpeasycart_ajax_object', $ajax_array );
 }
@@ -4289,6 +4397,44 @@ if ( ! function_exists( 'wp_easycart_shortcode_block_render' ) ) {
 	add_filter( 'render_block', 'wp_easycart_shortcode_block_render', 10, 2 );
 }
 
+/**
+ * [ec_plan_table id="4"]: the pricing table of a plan group ( WP EasyCart PRO, 6.0.3 ). WP EasyCart PRO draws it through
+ * filter wp_easycart_plan_table_html; without it visitors see nothing and store managers a note saying what is missing.
+ *
+ * @since 6.0.3
+ * @param array $atts id ( plan group ), interval ( m | y, the one the table opens on ), layout ( cards | table, else the group's ),
+ *                    head ( 0 hides the group's heading and intro ).
+ * @return string
+ */
+function load_ec_plan_table( $atts ) {
+	$atts = shortcode_atts(
+		array(
+			'id'       => 0,
+			'interval' => '',
+			'layout'   => '',
+			'head'     => '',
+		),
+		$atts,
+		'ec_plan_table'
+	);
+	$atts['id']       = (int) $atts['id'];
+	$atts['interval'] = in_array( $atts['interval'], array( 'm', 'y' ), true ) ? $atts['interval'] : '';
+	$atts['layout']   = in_array( $atts['layout'], array( 'cards', 'table' ), true ) ? $atts['layout'] : '';
+	$atts['head']     = ( '0' === (string) $atts['head'] ) ? '0' : '';
+	/**
+	 * The pricing table of a plan group.
+	 *
+	 * @since 6.0.3
+	 * @param string $html '' until WP EasyCart PRO draws it.
+	 * @param array  $atts id, interval, layout, head.
+	 */
+	$html = (string) apply_filters( 'wp_easycart_plan_table_html', '', $atts );
+	if ( '' === $html && ( current_user_can( 'manage_options' ) || current_user_can( 'wpec_manager' ) ) ) {
+		$html = '<p class="wpec-plans-note">' . esc_html__( 'This pricing table shows once WP EasyCart PRO is active and licensed, and the plan group has tiers. Only store managers see this note.', 'wp-easycart' ) . '</p>';
+	}
+	return $html;
+}
+
 //[ec_membership productid=''][/ec_membership]
 function load_ec_membership( $atts, $content = NULL ) {
 	extract( shortcode_atts( array(
@@ -4762,6 +4908,7 @@ if ( !is_admin() || wp_doing_ajax() || ( isset( $_GET['action'] ) && $_GET['acti
 	add_shortcode( 'ec_category_view', 'load_ec_category_view' );
 	add_shortcode( 'ec_categories', 'load_ec_categories' );
 	add_shortcode( 'ec_search', 'load_ec_search' );
+	add_shortcode( 'ec_plan_table', 'load_ec_plan_table' ); /* 6.0.3: a WP EasyCart PRO plan group's pricing table */
 }
 
 add_filter( 'widget_text', 'do_shortcode');
@@ -5511,6 +5658,9 @@ function wp_easycart_subscription_output_ajax_totals( $coupon_notice = null ) {
 	$ec_db = new ec_db();
 	$products = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", (int) $_POST['product_id'] ), "", "", "" );
 	$product = new ec_product( $products[0], 0, 1, 0 );
+	if ( class_exists( 'wp_easycart_subscription_options' ) ) {
+		wp_easycart_subscription_options::guard( $products[0] ); /* 6.0.3: totals from this product's own choices only */
+	}
 	$subscription_cart = array();
 
 	if ( !get_option( 'ec_option_subscription_one_only' ) && $GLOBALS['ec_cart_data']->cart_data->subscription_quantity != "" ) { 
@@ -5873,6 +6023,18 @@ function wp_easycart_subscription_output_ajax_totals( $coupon_notice = null ) {
 		$grand_total = ( ( $product->price + $option_total + $product->subscription_signup_fee ) * $subscription_quantity ) + $option_total_onetime - $discount_amount + $tax_total + $vat_total + $ec_tax->hst + $ec_tax->gst + $ec_tax->pst + $shipping_total;
 	}
 
+	/* 6.0.3: what the subscription renews at when the code comes off the first payment only, and the free trial's line with
+	 * the first payment ( the page's note and trial line, redrawn ). */
+	$wpec_sub_plan = array(
+		'code'           => ( 'valid' === $coupon_status ) ? (string) $GLOBALS['ec_cart_data']->cart_data->coupon_code : '',
+		'quantity'       => $subscription_quantity,
+		'option_total'   => $option_total,
+		'shipping_total' => $shipping_total,
+		'taxed'          => ( $tax_total + $ec_tax->hst + $ec_tax->gst + $ec_tax->pst > 0 ) || ( $vat_total > 0 && ! $ec_tax->vat_included ),
+	);
+	$renewal_note  = function_exists( 'wp_easycart_subscription_renewal_note' ) ? wp_easycart_subscription_renewal_note( $product, $wpec_sub_plan ) : '';
+	$trial_text    = function_exists( 'wp_easycart_subscription_trial_text' ) ? wp_easycart_subscription_trial_text( $product, $wpec_sub_plan ) : '';
+
 	ob_start();
 	$cartpage->shipping->print_shipping_options( wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_standard' ), wp_easycart_language( )->get_text( 'cart_estimate_shipping', 'cart_estimate_shipping_express' ) );
 	$shipping_method_content = ob_get_clean();
@@ -5914,6 +6076,8 @@ function wp_easycart_subscription_output_ajax_totals( $coupon_notice = null ) {
 		'vat_rate'			=> $vat_rate,
 		'vat_rate_formatted'=> $cartpage->get_vat_rate_formatted( $vat_rate ),
 		'grand_total'		=> $GLOBALS['currency']->get_currency_display( $grand_total ),
+		'renewal_note'		=> $renewal_note, /* 6.0.3, plain text */
+		'trial_text'		=> $trial_text, /* 6.0.3, plain text ( '' without a free trial ) */
 		'coupon_message'	=> $coupon_message,
 		'coupon_status'		=> $coupon_status,
 		'has_discount'		=> ( $discount_amount == 0 ) ? 0 : 1,
@@ -8270,6 +8434,9 @@ function ec_ajax_get_stripe_update_customer_card() {
 		$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
 		$card_info = $stripe->attach_payment_method( sanitize_text_field( $_POST['payment_id'] ), $GLOBALS['ec_user'] );
 		$update_response = $stripe->set_subscription_payment_method( sanitize_text_field( $_POST['payment_id'] ), $subscription_info, $subscription, $quantity );
+		if ( $update_response && class_exists( 'wp_easycart_subscription_changes' ) ) {
+			wp_easycart_subscription_changes::payment_method_changed( (int) $subscription->subscription_id, isset( $_POST['payment_id'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_id'] ) ) : '' ); /* 6.0.3: a change waiting for renewal bills the new card */
+		}
 		if ( $update_response ) {
 			$card = new ec_credit_card( $card_info->card->brand, ( ( isset( $card_info->card->billing_details ) && isset( $card_info->card->billing_details->name ) ) ? $card_info->card->billing_details->name : '' ), $card_info->card->last4, $card_info->card->exp_month, $card_info->card->exp_year, '' );
 			$ec_db->update_user_default_card( $GLOBALS['ec_user'], $card );
@@ -8333,48 +8500,33 @@ function ec_ajax_stripe_update_customer_subscription_plan() {
 		echo json_encode( array( 'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => ( isset( $_POST['subscription_id'] ) ? (int) $_POST['subscription_id'] : 0 ), 'account_error' => 'subscription_update_failed' ) ) ) ) );
 		die();
 	}
-	$subscription_info = $stripe->get_subscription( $GLOBALS['ec_user']->stripe_customer_id, $subscription->stripe_subscription_id );
-	$subscription_item_id = ( isset( $subscription_info->items ) && isset( $subscription_info->items->data ) && count( $subscription_info->items->data ) > 0 ) ? $subscription_info->items->data[0]->id : false;
 	$quantity = ( isset( $_POST['quantity'] ) && (int) $_POST['quantity'] > 0 && ! get_option( 'ec_option_subscription_one_only' ) ) ? (int) $_POST['quantity'] : max( 1, (int) $subscription->quantity );
 
-	// Update Plan if Changed
-	$products = $ec_db->get_product_list( $wpdb->prepare( " WHERE product.product_id = %d", sanitize_text_field( $_POST['ec_selected_plan'] ) ), "", "", "" );
-	if ( count( $products ) > 0 ) {
-		if ( $payment_method == "stripe" || $payment_method == "stripe_connect" ) {
-			$product = new ec_product( $products[0] );
-			$product_check = $stripe->get_product( $product->stripe_product_id );
-			$is_sandbox = apply_filters( 'wp_easycart_is_stripe_sandbox', false );
-			if ( ! $product_check ) {
-				$stripe_product_new = $stripe->insert_product( $product );
-				$product->stripe_product_id = $stripe_product_new->id;
-				$product->stripe_default_price_id = $stripe_product_new->default_price;
-				if ( ! $is_sandbox ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id = %s, stripe_default_price_id = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-				} else {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_product_id_sandbox = %s, stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_product_new->id, $stripe_product_new->default_price, $product->product_id ) );
-				}
-			} else {
-				$price_check = $stripe->get_price( $product->stripe_default_price_id );
-				if ( ! $price_check ) {
-					$stripe_price_new = $stripe->insert_price( $product );
-					$product->stripe_default_price_id = $stripe_price_new->id;
-					if ( ! $is_sandbox ) {
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-					} else {
-						$wpdb->query( $wpdb->prepare( 'UPDATE ec_product SET stripe_default_price_id_sandbox = %s WHERE product_id = %d', $stripe_price_new->id, $product->product_id ) );
-					}
-				}
-			}
-			$success = $stripe->update_subscription( $product, $GLOBALS['ec_user'], NULL, sanitize_text_field( $subscription->stripe_subscription_id ), NULL, $product->subscription_prorate, NULL, $quantity, $subscription_item_id );
-			if ( $success ) {
-				$ec_db->update_subscription( $subscription->subscription_id, $GLOBALS['ec_user'], $product, null, $quantity );
-			}
-		}
+	/* 6.0.3: one way to change plan ( wp_easycart_change_subscription_plan(): the Stripe price checked before use, the subscription's
+	 * own item, the model number kept, wp_easycart_subscription_plan_changed ), shared with the account form and WP EasyCart PRO.
+	 * Through wp_easycart_subscription_changes, so a change the plan makes wait for renewal waits here too ( this Save comes from
+	 * template copies before 6.0.3; the current panel previews and confirms through ec_ajax_subscription_change_* ). */
+	if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+		$changed = wp_easycart_subscription_changes::customer_change( (int) $subscription->subscription_id, (int) $_POST['ec_selected_plan'], $quantity, $GLOBALS['ec_user'] ) ? true : new WP_Error( 'change', 'refused' );
+	} else {
+		$changed = wp_easycart_change_subscription_plan(
+			(int) $subscription->subscription_id,
+			(int) $_POST['ec_selected_plan'],
+			$quantity,
+			array(
+				'source' => 'customer',
+				'user'   => $GLOBALS['ec_user'],
+			)
+		);
+	}
+	$changed_args = array( 'subscription_id' => (int) $subscription->subscription_id );
+	if ( is_wp_error( $changed ) ) {
+		$changed_args['account_error'] = 'subscription_update_failed';
 	}
 
-	echo json_encode( 
-		array( 
-			'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', array( 'subscription_id' => (int) $subscription->subscription_id ) ) ),
+	echo json_encode(
+		array(
+			'url' => esc_url_raw( wpeasycart_links()->get_account_page( 'subscription_details', $changed_args ) ),
 		)
 	);
 	die();
@@ -9823,8 +9975,7 @@ function ec_get_order_totals( $cart = false ) {
 	}
 	$sales_tax_discount = new ec_discount( $cart, $cart->discountable_subtotal, 0.00, $coupon_code, "", 0 );
 	if ( null !== $wpeasycart_offer_result_local ) {
-		$sales_tax_discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-		$sales_tax_discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+		$sales_tax_discount->add_discount( $wpeasycart_offer_result_local->discount_total );
 	}
 	$GLOBALS['wpeasycart_current_coupon_discount'] = $sales_tax_discount->coupon_discount;
 	$shipping = new ec_shipping( $cart->shipping_subtotal, $cart->weight, $cart->store_shippable_items /* 6.0.2: the units the store ships */, 'RADIO', $GLOBALS['ec_user']->freeshipping, $cart->length, $cart->width, $cart->height, $cart->cart );
@@ -9832,8 +9983,7 @@ function ec_get_order_totals( $cart = false ) {
 	// Tax (no VAT here)
 	$sales_tax_discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, "", 0 );
 	if ( null !== $wpeasycart_offer_result_local ) {
-		$sales_tax_discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-		$sales_tax_discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+		$sales_tax_discount->add_discount( $wpeasycart_offer_result_local->discount_total );
 	}
 	if ( $sales_tax_discount->shipping_discount > 0 ) {
 		$shipping_price_tax = ( $shipping_price > $sales_tax_discount->shipping_discount ) ? $shipping_price - $sales_tax_discount->shipping_discount : 0;
@@ -9854,8 +10004,7 @@ function ec_get_order_totals( $cart = false ) {
 	// Discount for Coupon
 	$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $total_without_vat_or_discount );
 	if ( null !== $wpeasycart_offer_result_local ) {
-		$discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-		$discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+		$discount->add_discount( $wpeasycart_offer_result_local->discount_total ); /* 6.0.3: before the gift card takes its share */
 	}
 	// Amount to Apply VAT on
 	$promotion = new ec_promotion();
@@ -9869,8 +10018,7 @@ function ec_get_order_totals( $cart = false ) {
 	$grand_total = ( $cart->subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $shipping_price + $tax->duty_total );
 	$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $grand_total );
 	if ( null !== $wpeasycart_offer_result_local ) {
-		$discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-		$discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+		$discount->add_discount( $wpeasycart_offer_result_local->discount_total ); /* 6.0.3: before the gift card takes its share */
 	}
 	// Order Totals
 	$order_totals = new ec_order_totals( $cart, $GLOBALS['ec_user'], $shipping, $tax, $discount );
@@ -10406,6 +10554,23 @@ function wp_easycart_reset_rewrite_check() {
 }
 
 /**
+ * A plan change that charged nothing ( 6.0.3 ): Stripe's invoice for a subscription update with nothing paid, such as a change
+ * during a free trial ( the trial goes on ) or one covered by credit. It is not a payment, so the webhook records no order and
+ * leaves the subscription's dates, price and payment count as the change left them.
+ *
+ * @since 6.0.3
+ * @param object $invoice Stripe invoice.
+ * @return bool
+ */
+function wp_easycart_stripe_invoice_is_free_change( $invoice ) {
+	if ( ! is_object( $invoice ) || ! isset( $invoice->billing_reason ) || 'subscription_update' !== $invoice->billing_reason ) {
+		return false;
+	}
+	$paid = isset( $invoice->amount_paid ) ? $invoice->amount_paid : ( isset( $invoice->total ) ? max( 0, $invoice->total ) : 1 );
+	return 0 === (int) $paid;
+}
+
+/**
  * Subscription id carried by a Stripe invoice object. API versions before
  * 2025-03-31 expose invoice.subscription; newer versions moved it to
  * invoice.parent.subscription_details.subscription. Either may be an id or
@@ -10714,6 +10879,9 @@ function wp_easycart_webhook_catch() {
 					if ( $subscription_row ) {
 						$subscription = new ec_subscription( $subscription_row );
 						$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
+						if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+							wp_easycart_subscription_changes::closed( (int) $subscription_row->subscription_id ); /* 6.0.3: its open plan change will not happen */
+						}
 						$user = $mysqli->get_stripe_user( $webhook_data->customer );
 						$subscription->send_subscription_ended_email( $user );
 						do_action( 'wp_easycart_subscription_ended', $subscription, $user, $webhook_data );
@@ -10740,15 +10908,46 @@ function wp_easycart_webhook_catch() {
 							$mysqli->insert_response( 0, 0, "STRIPE Subscription", 'Subscription ' . $webhook_data->id . ' status synced: ' . $subscription_row->subscription_status . ' -> ' . $status_map[ $webhook_data->status ] . ' ( Stripe status ' . $webhook_data->status . ' )' );
 							do_action( 'wp_easycart_subscription_status_synced', $subscription_row, $status_map[ $webhook_data->status ], $webhook_data );
 						}
+						/* 6.0.3: a plan change that started at renewal, or was paid after 3-D Secure, applies here ( read again from Stripe ). */
+						if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+							wp_easycart_subscription_changes::webhook( (string) $webhook_data->id );
+						}
 					}
 
 				// Subscription Trial is Ending in 3 Days
 				} else if ( $webhook_type == "customer.subscription.trial_will_end" && isset( $webhook_data->id ) && '' != $webhook_data->id ) {
 					$stripe_subscription_id = $webhook_data->id;
 					$subscription_row = $mysqli->get_stripe_subscription( $stripe_subscription_id );
-					if ( $subscription_row ) {
+					/* 6.0.3: not when the trial reminder ( N days before, wp_easycart_subscription_reminders ) already went out for this trial. */
+					if ( $subscription_row && ( ! class_exists( 'wp_easycart_subscription_reminders' ) || wp_easycart_subscription_reminders::webhook_trial_notice( $subscription_row, isset( $webhook_data->trial_end ) ? (int) $webhook_data->trial_end : 0 ) ) ) {
 						$subscription = new ec_subscription( $subscription_row );
-						$subscription->send_subscription_trial_ending_email();
+						/* 6.0.3: the email needs the subscriber ( it was called without one, which stopped the webhook on PHP 7.1+ ). */
+						$user = $mysqli->get_stripe_user( isset( $webhook_data->customer ) ? $webhook_data->customer : '' );
+						if ( ! $user || empty( $user->email ) ) {
+							$user = (object) array(
+								'user_id'    => (int) $subscription_row->user_id,
+								'email'      => (string) $subscription_row->email,
+								'first_name' => (string) $subscription_row->first_name,
+								'last_name'  => (string) $subscription_row->last_name,
+							);
+						}
+						$subscription->send_subscription_trial_ending_email( $user );
+					}
+
+				// 6.0.3: a plan change that charged nothing ( during a trial ) is not a payment: no order, nothing counted.
+				} else if ( $webhook_type == "invoice.payment_succeeded" && '' != wp_easycart_stripe_invoice_subscription_id( $webhook_data ) && wp_easycart_stripe_invoice_is_free_change( $webhook_data ) ) {
+					$mysqli->insert_response( 0, 0, "STRIPE Subscription", 'Invoice ' . ( isset( $webhook_data->id ) ? $webhook_data->id : '' ) . ' for subscription ' . wp_easycart_stripe_invoice_subscription_id( $webhook_data ) . ' charged nothing ( a plan change ): no order recorded.' );
+					/* The next billing date follows the change ( a change that keeps the trial keeps its end; one to another schedule moves it ). */
+					$wpec_period_end = 0;
+					if ( isset( $webhook_data->lines->data ) && is_array( $webhook_data->lines->data ) ) {
+						foreach ( $webhook_data->lines->data as $wpec_line ) {
+							if ( isset( $wpec_line->period->end ) ) {
+								$wpec_period_end = max( $wpec_period_end, (int) $wpec_line->period->end );
+							}
+						}
+					}
+					if ( $wpec_period_end > time() ) {
+						$wpdb->query( $wpdb->prepare( 'UPDATE ec_subscription SET next_payment_date = %s WHERE stripe_subscription_id = %s', $wpec_period_end, wp_easycart_stripe_invoice_subscription_id( $webhook_data ) ) );
 					}
 
 				// Subscription Recurring Billing Succeeded	
@@ -10792,6 +10991,9 @@ function wp_easycart_webhook_catch() {
 									$stripe = new ec_stripe();
 								} else {
 									$stripe = new ec_stripe_connect();
+								}
+								if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+									wp_easycart_subscription_changes::before_cancel( (int) $subscription->subscription_id );
 								}
 								$stripe->cancel_subscription( $user, $stripe_subscription_id );
 								$mysqli->cancel_stripe_subscription( $stripe_subscription_id );
@@ -11022,8 +11224,7 @@ function wp_easycart_webhook_catch() {
 											}
 											$sales_tax_discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, "", 0 );
 											if ( null !== $wpeasycart_offer_result_local ) {
-												$sales_tax_discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-												$sales_tax_discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+												$sales_tax_discount->add_discount( $wpeasycart_offer_result_local->discount_total );
 											}
 											$GLOBALS['wpeasycart_current_coupon_discount'] = $sales_tax_discount->coupon_discount;
 
@@ -11046,8 +11247,7 @@ function wp_easycart_webhook_catch() {
 
 											$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $total_without_vat_or_discount );
 											if ( null !== $wpeasycart_offer_result_local ) {
-												$discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-												$discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+												$discount->add_discount( $wpeasycart_offer_result_local->discount_total ); /* 6.0.3: before the gift card takes its share */
 											}
 											$promotion = new ec_promotion();
 
@@ -11061,8 +11261,7 @@ function wp_easycart_webhook_catch() {
 											$grand_total = ( $cart->subtotal + $tax->tax_total + $tax->gst + $tax->hst + $tax->pst + $shipping_price + $tax->duty_total );
 											$discount = new ec_discount( $cart, $cart->discountable_subtotal, $shipping_price, $coupon_code, $gift_card, $grand_total );
 											if ( null !== $wpeasycart_offer_result_local ) {
-												$discount->coupon_discount += $wpeasycart_offer_result_local->discount_total;
-												$discount->discount_total += $wpeasycart_offer_result_local->discount_total;
+												$discount->add_discount( $wpeasycart_offer_result_local->discount_total ); /* 6.0.3: before the gift card takes its share */
 											}
 
 											$order_totals = new ec_order_totals( $cart, $user, $shipping, $tax, $discount );
@@ -11536,26 +11735,18 @@ function wp_easycart_webhook_catch() {
 										if ( $catalog_object && is_object( $catalog_object ) ) {
 											$item_found = true;
 											$ec_db_admin->insert_response( 0, 0, "Square Webhook (Item Verify)", print_r( $catalog_object, true ) );
-											if ( $square->allowed_at_location( $catalog_object ) && ! $catalog_object->is_deleted ) {
+											if ( $square->allowed_at_location( $catalog_object ) && empty( $catalog_object->is_deleted ) ) {
 												$is_enabled = 1;
-												if ( isset( $catalog_object->item_variation_data->location_overrides ) ) {
-													for ( $j=0; $j<count( $catalog_object->item_variation_data->location_overrides ); $j++ ) {
-														if ( $catalog_object->item_variation_data->location_overrides[$j]->location_id == $location_id ) {
-															if ( $catalog_object->item_variation_data->location_overrides[$j]->track_inventory ) {
-																$use_optionitem_quantity_tracking = 1;
-															}
-														}
-													}
-												} else if( isset( $catalog_object->item_variation_data->track_inventory ) ) {
-													$use_optionitem_quantity_tracking = 1;
-												}
+												/* 6.0.3: the location's own setting, else the variation's ( a variation that said "don't track" counted as tracked ). */
+												$use_optionitem_quantity_tracking = $square->variation_tracks_inventory( $catalog_object, $location_id ) ? 1 : 0;
 											}
 										}
 									}
 
 									/* Update Quantity for a Variation or Product */
 									if ( $item_found ) {
-										$wpdb->query( $wpdb->prepare( 'UPDATE ec_optionitemquantity SET is_stock_tracking_enabled = %d, is_enabled = %d, quantity = %d WHERE square_id = %s', $is_enabled, $use_optionitem_quantity_tracking, $inventory_count->quantity, $inventory_count->catalog_object_id ) );
+										/* 6.0.3: the values in the columns' order ( they were swapped: a variation Square stopped counting was switched off ). */
+										$wpdb->query( $wpdb->prepare( 'UPDATE ec_optionitemquantity SET is_stock_tracking_enabled = %d, is_enabled = %d, quantity = %d WHERE square_id = %s', $use_optionitem_quantity_tracking, $is_enabled, $inventory_count->quantity, $inventory_count->catalog_object_id ) );
 									} else {
 										$wpdb->query( $wpdb->prepare( 'UPDATE ec_optionitemquantity SET quantity = %d WHERE square_id = %s', $inventory_count->quantity, $inventory_count->catalog_object_id ) );
 									}
@@ -11860,6 +12051,30 @@ if ( ! function_exists( 'wp_easycart_store_post_link' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_easycart_show_payment_pending_notice' ) ) {
+	/**
+	 * Show the "payment is still being processed" notice ( language ec_errors › payment_processing ) for an order that is
+	 * not approved: on the receipt email, the order confirmation page and My Account's order details. The other order
+	 * notices ( payment failed, refunded, payment received ) always show.
+	 *
+	 * @since 6.0.3 Settings › Email › Order emails › Payment pending notice ( GitHub #128 ); stores that take bank transfer,
+	 *              invoice or pay on pickup found it confusing.
+	 * @param object|null $order The order the notice is for.
+	 * @return bool
+	 */
+	function wp_easycart_show_payment_pending_notice( $order = null ) {
+		$show = '0' !== (string) get_option( 'ec_option_show_payment_pending_notice', '1' );
+		/**
+		 * Filter whether an order that is not approved shows the payment pending notice.
+		 *
+		 * @since 6.0.3
+		 * @param bool        $show  The store's setting.
+		 * @param object|null $order The order.
+		 */
+		return (bool) apply_filters( 'wp_easycart_show_payment_pending_notice', $show, $order );
+	}
+}
+
 if ( ! function_exists( 'wp_easycart_prime_store_posts' ) ) {
 	/**
 	 * Load several store posts in one query before their links are built ( the menu, the category widget, the cart ).
@@ -11891,8 +12106,13 @@ function ec_force_page_type() {
 	}
 }
 
-add_filter( 'template_redirect', 'ec_fix_store_template', 1 );
-function ec_fix_store_template() {
+/* 6.0.3: a store item ( product, category, manufacturer page ) is drawn with the store page's theme page template. Until 6.0.2
+ * this included that file on template_redirect ( priority 1 ) and exited, so no later template_redirect callback ran on those
+ * pages ( canonical redirects, page caches, Elementor's frontend set-up, other plugins ) and the template ran inside a function,
+ * without WordPress's globals. It now hands the file to WordPress's own template loader, late enough that it still wins over
+ * other template_include filters, as the exit did. */
+add_filter( 'template_include', 'ec_fix_store_template', 999 );
+function ec_fix_store_template( $template = '' ) {
 	global $wp;
 	$custom_post_types = array("ec_store");
 
@@ -11900,13 +12120,13 @@ function ec_fix_store_template() {
 	 * draws ( filter wp_easycart_store_item_as_page, see ec_force_page_type() ). */
 	if ( isset( $wp->query_vars["post_type"] ) && in_array( $wp->query_vars["post_type"], $custom_post_types ) && apply_filters( 'wp_easycart_store_item_as_page', true ) ) {
 		$store_template = get_post_meta( get_option( 'ec_option_storepage' ), "_wp_page_template", true );
-		if ( isset( $store_template ) && $store_template != "" && $store_template != "default" ) {
+		if ( is_string( $store_template ) && $store_template != "" && $store_template != "default" && 0 === validate_file( $store_template ) ) {
 			if ( file_exists( get_template_directory() . "/" . $store_template ) ) {
-				include( get_template_directory() . "/" . $store_template );
-				exit();
+				return get_template_directory() . "/" . $store_template;
 			}
 		}
 	}
+	return $template;
 }
 
 add_action( 'wp_easycart_square_renew_token', 'wp_easycart_square_renew_token' );
@@ -11927,6 +12147,8 @@ function wp_easycart_square_renew_token() {
    wherever it is changed ( the Allow notice, Settings, the setup wizard ): turned on, the store's setup snapshot is queued once;
    turned off, the waiting events, the install id and the WP-Cron event go. */
 add_action( 'wp_easycart_tracking_flush', 'wp_easycart_tracking_flush' );
+add_action( 'wp_easycart_tracking_checkin', 'wp_easycart_tracking_checkin' );
+add_action( 'wpeasycart_order_inserted', 'wp_easycart_tracking_first_order', 99 );
 add_action( 'add_option_ec_option_allow_tracking', 'wp_easycart_tracking_option_added', 10, 2 );
 add_action( 'update_option_ec_option_allow_tracking', 'wp_easycart_tracking_option_changed', 10, 2 );
 
@@ -11946,6 +12168,31 @@ function wp_easycart_tracking_load() {
 function wp_easycart_tracking_flush() {
 	if ( wp_easycart_tracking_load() ) {
 		wp_easycart_admin_tracking::instance()->flush();
+	}
+}
+
+/** WP-Cron, weekly ( 6.0.3 ): the usage check-in ( how the store is set up, as keys, flags and bands ). */
+function wp_easycart_tracking_checkin() {
+	if ( '1' !== (string) get_option( 'ec_option_allow_tracking' ) ) {
+		wp_clear_scheduled_hook( 'wp_easycart_tracking_checkin' );
+		return;
+	}
+	if ( wp_easycart_tracking_load() ) {
+		wp_easycart_admin_tracking::instance()->checkin();
+	}
+}
+
+/** The store's first order, once, for a store that shares usage data ( 6.0.3; a getting-started step ). */
+function wp_easycart_tracking_first_order() {
+	if ( '1' !== (string) get_option( 'ec_option_allow_tracking' ) ) {
+		return;
+	}
+	$sent = get_option( 'wp_easycart_tracking_milestones', array() );
+	if ( is_array( $sent ) && isset( $sent['first_order'] ) ) {
+		return;
+	}
+	if ( wp_easycart_tracking_load() ) {
+		wp_easycart_admin_tracking::instance()->milestone( 'first_order' );
 	}
 }
 

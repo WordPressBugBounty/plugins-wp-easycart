@@ -24,6 +24,8 @@
  *   dimensions   length, width and height
  *   categories   the categories the product is in
  *   shipping     the shipping card ( shippable, handling, backorders, restrictions ) and customs / packing
+ *   subscription the Subscription card's billing: the switch, how often it bills, trial, sign-up fee and the plan ( 6.0.3,
+ *                a WP EasyCart PRO plan group owns these on the products it manages )
  *
  * FREE locks nothing by default ( Square keeps its own covers, printed by WP EasyCart PRO ); a provider's extension adds
  * its fields through the filter. The V2 product editor covers a section whose fields are all locked and disables the
@@ -65,7 +67,7 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 		 * @return string[]
 		 */
 		public static function fields() {
-			return array( 'title', 'description', 'price', 'list_price', 'options', 'variants', 'sku', 'stock', 'images', 'weight', 'dimensions', 'categories', 'shipping' );
+			return array( 'title', 'description', 'price', 'list_price', 'options', 'variants', 'sku', 'stock', 'images', 'weight', 'dimensions', 'categories', 'shipping', 'subscription' );
 		}
 
 		/**
@@ -309,6 +311,17 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 			if ( '' === $slug ) {
 				return __( 'another service', 'wp-easycart' );
 			}
+			/**
+			 * The name shown for a managing service ( 6.0.3; WP EasyCart PRO names its plan groups ).
+			 *
+			 * @since 6.0.3
+			 * @param string $label '' to use the built-in name.
+			 * @param string $slug  Who manages the product.
+			 */
+			$label = (string) apply_filters( 'wp_easycart_product_lock_label', '', $slug );
+			if ( '' !== $label ) {
+				return $label;
+			}
 			if ( 'square' === $slug ) {
 				return 'Square';
 			}
@@ -328,6 +341,17 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 		 * @return string
 		 */
 		public static function url( $slug ) {
+			/**
+			 * Where the managing service's own settings are ( 6.0.3; a plan group's editor ). '' for the built-in answer.
+			 *
+			 * @since 6.0.3
+			 * @param string $url  Address.
+			 * @param string $slug Who manages the product.
+			 */
+			$url = (string) apply_filters( 'wp_easycart_product_lock_url', '', (string) $slug );
+			if ( '' !== $url ) {
+				return esc_url_raw( $url );
+			}
 			if ( '' === (string) $slug || ! class_exists( 'wp_easycart_fulfillment' ) || ! method_exists( 'wp_easycart_fulfillment', 'provider' ) ) {
 				return '';
 			}
@@ -342,9 +366,12 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 		 * @return string
 		 */
 		public static function message( $product ) {
-			$label = self::label( self::managed_by( $product ) );
+			$by    = self::managed_by( $product );
+			$label = self::label( $by );
 			/* translators: %s: the service that manages the product ( e.g. Printful ). */
-			return sprintf( __( 'This is managed by %s. Change it there and it arrives here on the next sync.', 'wp-easycart' ), $label );
+			$text = sprintf( __( 'This is managed by %s. Change it there and it arrives here on the next sync.', 'wp-easycart' ), $label );
+			/** This filter is documented in print_cover(). */
+			return (string) apply_filters( 'wp_easycart_product_lock_text', $text, $by, 'message' );
 		}
 
 		/**
@@ -426,6 +453,20 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 				'options'       => array( 'block' => array( 'options' ) ),
 				'images'        => array( 'block' => array( 'images' ) ),
 				'categories'    => array( 'block' => array( 'categories' ) ),
+				/* 6.0.3: the Subscription card ( a plan group's products ); how many payments, emails, prorating and the
+				 * membership page stay the merchant's. */
+				'subscription'  => array(
+					'keep' => array(
+						'subscription' => array(
+							'is_subscription_item'     => 'is_subscription_item',
+							'subscription_bill_length' => 'subscription_bill_length',
+							'subscription_bill_period' => 'subscription_bill_period',
+							'trial_period_days'        => 'trial_period_days',
+							'subscription_signup_fee'  => 'subscription_signup_fee',
+							'subscription_plan_id'     => 'subscription_plan_id',
+						),
+					),
+				),
 				'variant_rows'  => array( 'block' => array( 'variants' ) ),
 				'variant_stock' => array( 'block' => array( 'stock' ) ),
 				'quick'         => array(
@@ -578,6 +619,15 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 				),
 				(array) $args
 			);
+			/**
+			 * The wording of a managed product's notices ( 6.0.3; a plan group isn't synced, it is edited ).
+			 *
+			 * @since 6.0.3
+			 * @param string $text The sentence.
+			 * @param string $by   Who manages the product.
+			 * @param string $kind cover | banner | message.
+			 */
+			$args['text'] = (string) apply_filters( 'wp_easycart_product_lock_text', $args['text'], $by, $args['inline'] ? 'banner' : 'cover' );
 			$link  = '';
 			if ( '' !== $url ) {
 				/* translators: %s: the service that manages the product ( e.g. Printful ). */
@@ -613,6 +663,7 @@ if ( ! class_exists( 'wp_easycart_product_lock' ) ) :
 				'dimensions'  => __( 'dimensions', 'wp-easycart' ),
 				'categories'  => __( 'categories', 'wp-easycart' ),
 				'shipping'    => __( 'shipping', 'wp-easycart' ),
+				'subscription' => __( 'billing', 'wp-easycart' ),
 			);
 			$out   = array();
 			foreach ( (array) $fields as $field ) {

@@ -278,11 +278,18 @@ return array(
 				'ec_option_gift_card_shipping_allowed' => array(
 					'type'     => 'toggle',
 					'label'    => __( 'Gift cards cover the grand total', 'wp-easycart' ),
-					'desc'     => __( 'The gift card balance can pay for shipping and tax as well as the products. Off limits it to the product subtotal.', 'wp-easycart' ),
+					'desc'     => __( 'A gift card pays like any other payment: shipping, tax, fees and tips as well as the products. Off, it pays for the products only.', 'wp-easycart' ),
 					'default'  => 1,
 					'parent'   => 'ec_option_show_giftcards',
-					'keywords' => array( 'gift card shipping', 'gift card tax', 'grand total' ),
+					'keywords' => array( 'gift card shipping', 'gift card tax', 'gift card fees', 'gift card tips', 'grand total', 'subtotal' ),
 					'legacy'   => array( 'page' => 'checkout', 'section' => 'Cart Settings', 'label' => 'Gift Cards: Apply to Grand Total' ),
+				),
+				'ec_option_cancel_return_giftcard' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Give gift card balances back when an order is cancelled', 'wp-easycart' ),
+					'desc'     => __( 'The amount a cancelled order took from a gift card goes back onto the card. Moving the order back out of Cancelled takes it again.', 'wp-easycart' ),
+					'default'  => 1,
+					'keywords' => array( 'gift card balance', 'cancel', 'cancelled order', 'restore', 'refund gift card' ),
 				),
 				'ec_option_enable_tips' => array(
 					'type'     => 'toggle',

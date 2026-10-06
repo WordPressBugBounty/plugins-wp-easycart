@@ -55,19 +55,19 @@
                 },
                 "shop_sold_out": {
                     "title": "Shop Widgets, Sold Out Badge",
-                    "value": "Sold out"
+                    "value": "Uitverkocht"
                 },
                 "shop_regular_price": {
                     "title": "Shop Widgets, Regular Price ( screen readers )",
-                    "value": "Regular price:"
+                    "value": "Normale prijs:"
                 },
                 "shop_sale_price": {
                     "title": "Shop Widgets, Sale Price ( screen readers )",
-                    "value": "Sale price:"
+                    "value": "Actieprijs:"
                 },
                 "shop_rated": {
                     "title": "Shop Widgets, Rating ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Beoordeeld met [rating] van 5"
                 },
                 "shop_review_one": {
                     "title": "Shop Widgets, One Review ( [count] )",
@@ -79,7 +79,7 @@
                 },
                 "shop_options": {
                     "title": "Shop Widgets, Colour Swatches ( screen readers )",
-                    "value": "Available options"
+                    "value": "Beschikbare opties"
                 },
                 "shop_more_options": {
                     "title": "Shop Widgets, More Swatches ( [count] )",
@@ -87,131 +87,131 @@
                 },
                 "shop_adding": {
                     "title": "Shop Widgets, Adding to Cart",
-                    "value": "Adding\u2026"
+                    "value": "Toevoegen…"
                 },
                 "shop_added": {
                     "title": "Shop Widgets, Added Button",
-                    "value": "Added"
+                    "value": "Toegevoegd"
                 },
                 "shop_added_note": {
                     "title": "Shop Widgets, Added to Cart ( [product] is the product name )",
-                    "value": "[product] was added to your cart."
+                    "value": "[product] is toegevoegd aan uw winkelwagen."
                 },
                 "shop_add_failed": {
                     "title": "Shop Widgets, Could Not Add",
-                    "value": "This product could not be added. Opening the product page."
+                    "value": "Dit product kon niet worden toegevoegd. De productpagina wordt geopend."
                 },
                 "shop_quantity": {
                     "title": "Shop Widgets, Quantity Label",
-                    "value": "Quantity"
+                    "value": "Aantal"
                 },
                 "shop_view_details": {
                     "title": "Shop Widgets, Quick View Details Link",
-                    "value": "View full details"
+                    "value": "Alle details bekijken"
                 },
                 "shop_close": {
                     "title": "Shop Widgets, Close Quick View",
-                    "value": "Close"
+                    "value": "Sluiten"
                 },
                 "shop_loading": {
                     "title": "Shop Widgets, Loading",
-                    "value": "Loading\u2026"
+                    "value": "Laden…"
                 },
                 "shop_load_more": {
                     "title": "Shop Widgets, Load More Button",
-                    "value": "Load more"
+                    "value": "Meer laden"
                 },
                 "shop_loaded": {
                     "title": "Shop Widgets, More Products Loaded ( [count] )",
-                    "value": "[count] more products loaded"
+                    "value": "[count] extra producten geladen"
                 },
                 "shop_page_nav": {
                     "title": "Shop Widgets, Page Numbers ( screen readers )",
-                    "value": "Product pages"
+                    "value": "Productpagina's"
                 },
                 "shop_page": {
                     "title": "Shop Widgets, Page Number ( [page] )",
-                    "value": "Page [page]"
+                    "value": "Pagina [page]"
                 },
                 "shop_previous": {
                     "title": "Shop Widgets, Previous Page",
-                    "value": "Previous page"
+                    "value": "Vorige pagina"
                 },
                 "shop_next": {
                     "title": "Shop Widgets, Next Page",
-                    "value": "Next page"
+                    "value": "Volgende pagina"
                 },
                 "shop_carousel_label": {
                     "title": "Shop Widgets, Carousel Name",
-                    "value": "Products"
+                    "value": "Producten"
                 },
                 "shop_carousel_prev": {
                     "title": "Shop Widgets, Carousel Previous",
-                    "value": "Previous products"
+                    "value": "Vorige producten"
                 },
                 "shop_carousel_next": {
                     "title": "Shop Widgets, Carousel Next",
-                    "value": "Next products"
+                    "value": "Volgende producten"
                 },
                 "shop_carousel_pause": {
                     "title": "Shop Widgets, Carousel Pause",
-                    "value": "Pause"
+                    "value": "Pauzeren"
                 },
                 "shop_carousel_play": {
                     "title": "Shop Widgets, Carousel Play",
-                    "value": "Play"
+                    "value": "Afspelen"
                 },
                 "shop_carousel_slide": {
                     "title": "Shop Widgets, Carousel Slide ( [index] of [total] )",
-                    "value": "[index] of [total]"
+                    "value": "[index] van [total]"
                 },
                 "shop_carousel_go_to": {
                     "title": "Shop Widgets, Carousel Dot ( [index] )",
-                    "value": "Go to slide [index]"
+                    "value": "Ga naar dia [index]"
                 },
                 "shop_result_count": {
                     "title": "Shop Widgets, Results ( [start], [end], [total] )",
-                    "value": "Showing [start]\u2013[end] of [total] products"
+                    "value": "[start]–[end] van [total] producten weergegeven"
                 },
                 "shop_result_all": {
                     "title": "Shop Widgets, All Results ( [total] )",
-                    "value": "Showing all [total] products"
+                    "value": "Alle [total] producten weergegeven"
                 },
                 "shop_result_one": {
                     "title": "Shop Widgets, One Result",
-                    "value": "Showing 1 product"
+                    "value": "1 product weergegeven"
                 },
                 "shop_sort_by": {
                     "title": "Shop Widgets, Sort Label",
-                    "value": "Sort by"
+                    "value": "Sorteren op"
                 },
                 "shop_sort_apply": {
                     "title": "Shop Widgets, Sort Button",
-                    "value": "Sort"
+                    "value": "Sorteren"
                 },
                 "shop_active_filters": {
                     "title": "Shop Widgets, Active Filters ( screen readers )",
-                    "value": "Active filters"
+                    "value": "Actieve filters"
                 },
                 "shop_remove_filter": {
                     "title": "Shop Widgets, Remove Filter ( [filter] )",
-                    "value": "Remove filter: [filter]"
+                    "value": "Filter verwijderen: [filter]"
                 },
                 "shop_clear_all": {
                     "title": "Shop Widgets, Clear All Filters",
-                    "value": "Clear all"
+                    "value": "Alles wissen"
                 },
                 "shop_chip_search": {
                     "title": "Shop Widgets, Search Filter ( [term] )",
-                    "value": "Search: [term]"
+                    "value": "Zoeken: [term]"
                 },
                 "shop_price": {
                     "title": "Shop Widgets, Price Filter Title",
-                    "value": "Price"
+                    "value": "Prijs"
                 },
                 "shop_sign_in": {
                     "title": "Shop Widgets, Sign In Button",
-                    "value": "Sign in"
+                    "value": "Inloggen"
                 },
                 "shop_category_count_one": {
                     "title": "Shop Widgets, Category With One Product ( [count] )",
@@ -219,43 +219,43 @@
                 },
                 "shop_category_count_many": {
                     "title": "Shop Widgets, Category Products ( [count] )",
-                    "value": "[count] products"
+                    "value": "[count] producten"
                 },
                 "shop_search_label": {
                     "title": "Shop Widgets, Search Label",
-                    "value": "Search products"
+                    "value": "Zoek producten"
                 },
                 "shop_search_placeholder": {
                     "title": "Shop Widgets, Search Placeholder",
-                    "value": "Search products\u2026"
+                    "value": "Zoek producten…"
                 },
                 "shop_search_button": {
                     "title": "Shop Widgets, Search Button",
-                    "value": "Search"
+                    "value": "Zoeken"
                 },
                 "shop_search_suggestions": {
                     "title": "Shop Widgets, Suggestions ( screen readers )",
-                    "value": "Product suggestions"
+                    "value": "Productsuggesties"
                 },
                 "shop_search_view_all": {
                     "title": "Shop Widgets, View All Results ( [term] )",
-                    "value": "View all results for \u201c[term]\u201d"
+                    "value": "Alle resultaten voor “[term]” bekijken"
                 },
                 "shop_search_none": {
                     "title": "Shop Widgets, No Suggestions ( [term] )",
-                    "value": "No products match \u201c[term]\u201d."
+                    "value": "Geen producten gevonden voor “[term]”."
                 },
                 "shop_search_result": {
                     "title": "Shop Widgets, One Suggestion ( screen readers )",
-                    "value": "1 product found. Use the down arrow to choose it."
+                    "value": "1 product gevonden. Gebruik de pijl omlaag om het te kiezen."
                 },
                 "shop_search_results": {
                     "title": "Shop Widgets, Suggestions Found ( [count], screen readers )",
-                    "value": "[count] products found. Use the up and down arrows to choose one."
+                    "value": "[count] producten gevonden. Gebruik de pijlen omhoog en omlaag om er een te kiezen."
                 },
                 "shop_search_loading": {
                     "title": "Shop Widgets, Searching",
-                    "value": "Searching\u2026"
+                    "value": "Zoeken…"
                 }
             }
         },
@@ -381,11 +381,11 @@
                 },
                 "category_product_count": {
                     "title": "Subcategories Widget: Product Count ( [count] is the number )",
-                    "value": "[count] products"
+                    "value": "[count] producten"
                 },
                 "categories_label": {
                     "title": "Subcategories Widget: List Name for Screen Readers",
-                    "value": "Categories"
+                    "value": "Categorieën"
                 }
             }
         },
@@ -769,6 +769,22 @@
                     "title": "Subscription Year Label",
                     "value": "jaar"
                 },
+                "product_details_subscription_days": {
+                    "title": "Subscription Days Label",
+                    "value": "dagen"
+                },
+                "product_details_subscription_weeks": {
+                    "title": "Subscription Weeks Label",
+                    "value": "weken"
+                },
+                "product_details_subscription_years": {
+                    "title": "Subscription Years Label",
+                    "value": "jaar"
+                },
+                "product_details_subscription_month_one": {
+                    "title": "Subscription Month Label, One Month",
+                    "value": "maand"
+                },
                 "product_details_notify_subscribe_success": {
                     "title": "Stock Notification Subscribe Success",
                     "value": "U bent aangemeld voor een voorraadnotificatie van dit product!"
@@ -779,7 +795,7 @@
                 },
                 "product_details_notify_subscribe_email_placeholder": {
                     "title": "Stock Notification Subscribe Email Placeholder",
-                    "value": "your@email.com"
+                    "value": "uw@email.nl"
                 },
                 "product_details_notify_subscribe_button_title": {
                     "title": "Stock Notification Subscribe Button Title",
@@ -864,47 +880,47 @@
             "options": {
                 "added_to_cart": {
                     "title": "Add to Cart, Added Message",
-                    "value": "Added to your cart."
+                    "value": "Toegevoegd aan uw winkelwagen."
                 },
                 "view_cart": {
                     "title": "Add to Cart, View Cart Link",
-                    "value": "View cart"
+                    "value": "Bekijk winkelwagen"
                 },
                 "buy_now": {
                     "title": "Add to Cart, Buy Now Button",
-                    "value": "Buy now"
+                    "value": "Nu kopen"
                 },
                 "add_unconfirmed": {
                     "title": "Add to Cart, Add Not Confirmed",
-                    "value": "We could not confirm this was added. Please check your cart before you try again."
+                    "value": "We konden niet bevestigen dat dit is toegevoegd. Controleer uw winkelwagen voordat u het opnieuw probeert."
                 },
                 "quantity_label": {
                     "title": "Add to Cart, Quantity Label ( screen readers )",
-                    "value": "Quantity"
+                    "value": "Aantal"
                 },
                 "decrease_quantity": {
                     "title": "Add to Cart, Minus Button ( screen readers )",
-                    "value": "Decrease quantity"
+                    "value": "Aantal verlagen"
                 },
                 "increase_quantity": {
                     "title": "Add to Cart, Plus Button ( screen readers )",
-                    "value": "Increase quantity"
+                    "value": "Aantal verhogen"
                 },
                 "in_stock": {
                     "title": "Stock, In Stock",
-                    "value": "In stock"
+                    "value": "Op voorraad"
                 },
                 "stock_count": {
                     "title": "Stock, Number in Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] op voorraad"
                 },
                 "low_stock": {
                     "title": "Stock, Low Stock ( [count] is the number )",
-                    "value": "Only [count] left"
+                    "value": "Nog maar [count] over"
                 },
                 "backorder": {
                     "title": "Stock, Available on Backorder",
-                    "value": "Available on backorder"
+                    "value": "Beschikbaar op nabestelling"
                 },
                 "sku_label": {
                     "title": "SKU, Label",
@@ -920,79 +936,79 @@
                 },
                 "badge_new": {
                     "title": "Badges, New",
-                    "value": "New"
+                    "value": "Nieuw"
                 },
                 "badge_low_stock": {
                     "title": "Badges, Low Stock",
-                    "value": "Low stock"
+                    "value": "Beperkte voorraad"
                 },
                 "badge_out_of_stock": {
                     "title": "Badges, Sold Out",
-                    "value": "Sold out"
+                    "value": "Uitverkocht"
                 },
                 "price_tiers_title": {
                     "title": "Price, Quantity Discounts Title",
-                    "value": "Buy more, save more"
+                    "value": "Meer kopen, meer besparen"
                 },
                 "price_tiers_quantity": {
                     "title": "Price, Quantity Discounts Quantity Column",
-                    "value": "Quantity"
+                    "value": "Aantal"
                 },
                 "price_tiers_price": {
                     "title": "Price, Quantity Discounts Price Column",
-                    "value": "Price each"
+                    "value": "Prijs per stuk"
                 },
                 "gallery_label": {
                     "title": "Gallery, Name ( screen readers, [product] is the product )",
-                    "value": "[product] images"
+                    "value": "Afbeeldingen van [product]"
                 },
                 "gallery_slide": {
                     "title": "Gallery, Image Position ( screen readers )",
-                    "value": "[number] of [count]"
+                    "value": "[number] van [count]"
                 },
                 "gallery_previous": {
                     "title": "Gallery, Previous Image",
-                    "value": "Previous image"
+                    "value": "Vorige afbeelding"
                 },
                 "gallery_next": {
                     "title": "Gallery, Next Image",
-                    "value": "Next image"
+                    "value": "Volgende afbeelding"
                 },
                 "gallery_open": {
                     "title": "Gallery, Open Larger Image",
-                    "value": "Open larger image"
+                    "value": "Grotere afbeelding openen"
                 },
                 "gallery_close": {
                     "title": "Gallery, Close Larger Image",
-                    "value": "Close"
+                    "value": "Sluiten"
                 },
                 "gallery_thumbnail": {
                     "title": "Gallery, Thumbnail ( [number] is the image )",
-                    "value": "Show image [number]"
+                    "value": "Afbeelding [number] tonen"
                 },
                 "gallery_play": {
                     "title": "Gallery, Play Video",
-                    "value": "Play video"
+                    "value": "Video afspelen"
                 },
                 "gallery_thumbs_previous": {
                     "title": "Gallery, Thumbnail Strip Back Arrow ( screen readers )",
-                    "value": "Earlier thumbnails"
+                    "value": "Eerdere miniaturen"
                 },
                 "gallery_thumbs_next": {
                     "title": "Gallery, Thumbnail Strip Forward Arrow ( screen readers )",
-                    "value": "More thumbnails"
+                    "value": "Meer miniaturen"
                 },
                 "gallery_pause": {
                     "title": "Gallery, Pause Slideshow Button",
-                    "value": "Pause the slideshow"
+                    "value": "Diavoorstelling pauzeren"
                 },
                 "gallery_resume": {
                     "title": "Gallery, Play Slideshow Button",
-                    "value": "Play the slideshow"
+                    "value": "Diavoorstelling afspelen"
                 },
                 "price_you_save": {
                     "title": "Product Price, You Save ( [amount] is the saving, [percent] the percentage )",
-                    "value": "You save [amount] ([percent]%)"
+                    "value": "U bespaart [amount] ([percent]%)"
                 }
             }
         },
@@ -1077,7 +1093,7 @@
                 },
                 "customer_review_save_error": {
                     "title": "Store Review Error Not Saved",
-                    "value": "Your review could not be saved. Please refresh the page and try again."
+                    "value": "Uw review kon niet worden opgeslagen. Vernieuw de pagina en probeer het opnieuw."
                 }
             }
         },
@@ -1086,7 +1102,7 @@
             "options": {
                 "rating_label": {
                     "title": "Product Rating: Screen Reader Text ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Beoordeeld met [rating] van 5"
                 },
                 "review_count_one": {
                     "title": "Product Rating: One Review",
@@ -1098,51 +1114,51 @@
                 },
                 "rating_none": {
                     "title": "Product Rating: No Reviews",
-                    "value": "No reviews yet"
+                    "value": "Nog geen reviews"
                 },
                 "reviews_based_on_one": {
                     "title": "Product Reviews: Summary, One Review",
-                    "value": "Based on 1 review"
+                    "value": "Gebaseerd op 1 review"
                 },
                 "reviews_based_on_many": {
                     "title": "Product Reviews: Summary ( [count] is the number )",
-                    "value": "Based on [count] reviews"
+                    "value": "Gebaseerd op [count] reviews"
                 },
                 "reviews_filter_group": {
                     "title": "Product Reviews: Star Filter Label",
-                    "value": "Filter reviews by rating"
+                    "value": "Reviews filteren op beoordeling"
                 },
                 "reviews_filter_button": {
                     "title": "Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )",
-                    "value": "Show [rating]-star reviews ([count])"
+                    "value": "Reviews met [rating] sterren tonen ([count])"
                 },
                 "reviews_filter_showing": {
                     "title": "Product Reviews: Filter On ( [rating] is the stars )",
-                    "value": "Showing [rating]-star reviews."
+                    "value": "Reviews met [rating] sterren worden getoond."
                 },
                 "reviews_filter_clear": {
                     "title": "Product Reviews: Show All Reviews",
-                    "value": "Show all reviews"
+                    "value": "Alle reviews tonen"
                 },
                 "reviews_none": {
                     "title": "Product Reviews: No Reviews ( no form shown )",
-                    "value": "There are no reviews yet."
+                    "value": "Er zijn nog geen reviews."
                 },
                 "reviews_sign_in": {
                     "title": "Product Reviews: Sign In Link",
-                    "value": "Sign in"
+                    "value": "Inloggen"
                 },
                 "review_star_one": {
                     "title": "Product Reviews: Form, 1 Star",
-                    "value": "1 star"
+                    "value": "1 ster"
                 },
                 "review_star_many": {
                     "title": "Product Reviews: Form, Stars ( [rating] is the number )",
-                    "value": "[rating] stars"
+                    "value": "[rating] sterren"
                 },
                 "breadcrumbs_label": {
                     "title": "Breadcrumbs: Screen Reader Label",
-                    "value": "Breadcrumb"
+                    "value": "Kruimelpad"
                 },
                 "meta_sku": {
                     "title": "Product Meta: SKU Label",
@@ -1150,11 +1166,11 @@
                 },
                 "meta_category": {
                     "title": "Product Meta: One Category Label",
-                    "value": "Category:"
+                    "value": "Categorie:"
                 },
                 "meta_brand": {
                     "title": "Product Meta: Brand Label",
-                    "value": "Brand:"
+                    "value": "Merk:"
                 },
                 "meta_tag": {
                     "title": "Product Meta: Tag Label",
@@ -1162,23 +1178,23 @@
                 },
                 "share_facebook": {
                     "title": "Share Buttons: Facebook",
-                    "value": "Share on Facebook"
+                    "value": "Delen op Facebook"
                 },
                 "share_x": {
                     "title": "Share Buttons: X",
-                    "value": "Share on X"
+                    "value": "Delen op X"
                 },
                 "share_pinterest": {
                     "title": "Share Buttons: Pinterest",
-                    "value": "Pin on Pinterest"
+                    "value": "Pinnen op Pinterest"
                 },
                 "share_linkedin": {
                     "title": "Share Buttons: LinkedIn",
-                    "value": "Share on LinkedIn"
+                    "value": "Delen op LinkedIn"
                 },
                 "share_email": {
                     "title": "Share Buttons: Email",
-                    "value": "Share by email"
+                    "value": "Delen via e-mail"
                 },
                 "share_email_label": {
                     "title": "Share Buttons: Email Button Text",
@@ -1186,95 +1202,95 @@
                 },
                 "share_copy": {
                     "title": "Share Buttons: Copy Link",
-                    "value": "Copy link"
+                    "value": "Link kopiëren"
                 },
                 "share_copied": {
                     "title": "Share Buttons: Link Copied",
-                    "value": "Link copied"
+                    "value": "Link gekopieerd"
                 },
                 "share_whatsapp": {
                     "title": "Share Buttons: WhatsApp ( screen readers )",
-                    "value": "Share on WhatsApp"
+                    "value": "Delen op WhatsApp"
                 },
                 "share_telegram": {
                     "title": "Share Buttons: Telegram ( screen readers )",
-                    "value": "Share on Telegram"
+                    "value": "Delen op Telegram"
                 },
                 "share_reddit": {
                     "title": "Share Buttons: Reddit ( screen readers )",
-                    "value": "Share on Reddit"
+                    "value": "Delen op Reddit"
                 },
                 "share_threads": {
                     "title": "Share Buttons: Threads ( screen readers )",
-                    "value": "Share on Threads"
+                    "value": "Delen op Threads"
                 },
                 "share_bluesky": {
                     "title": "Share Buttons: Bluesky ( screen readers )",
-                    "value": "Share on Bluesky"
+                    "value": "Delen op Bluesky"
                 },
                 "share_sms_label": {
                     "title": "Share Buttons: Text Message Button",
-                    "value": "Text message"
+                    "value": "Sms"
                 },
                 "share_sms": {
                     "title": "Share Buttons: Text Message ( screen readers )",
-                    "value": "Share by text message"
+                    "value": "Delen via sms"
                 },
                 "share_print_label": {
                     "title": "Share Buttons: Print Button",
-                    "value": "Print"
+                    "value": "Afdrukken"
                 },
                 "share_print": {
                     "title": "Share Buttons: Print ( screen readers )",
-                    "value": "Print this page"
+                    "value": "Deze pagina afdrukken"
                 },
                 "share_native_label": {
                     "title": "Share Buttons: Device Share Menu Button",
-                    "value": "Share"
+                    "value": "Delen"
                 },
                 "share_native": {
                     "title": "Share Buttons: Device Share Menu ( screen readers )",
-                    "value": "Share with an app on this device"
+                    "value": "Delen met een app op dit apparaat"
                 },
                 "meta_stock": {
                     "title": "Product Meta: Stock Label",
-                    "value": "Availability:"
+                    "value": "Beschikbaarheid:"
                 },
                 "meta_in_stock": {
                     "title": "Product Meta: In Stock",
-                    "value": "In stock"
+                    "value": "Op voorraad"
                 },
                 "meta_stock_count": {
                     "title": "Product Meta: Units In Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] op voorraad"
                 },
                 "meta_backorder": {
                     "title": "Product Meta: On Backorder",
-                    "value": "Available on backorder"
+                    "value": "Beschikbaar op nabestelling"
                 },
                 "meta_weight": {
                     "title": "Product Meta: Weight Label",
-                    "value": "Weight:"
+                    "value": "Gewicht:"
                 },
                 "meta_dimensions": {
                     "title": "Product Meta: Dimensions Label",
-                    "value": "Dimensions:"
+                    "value": "Afmetingen:"
                 },
                 "reviews_more": {
                     "title": "Product Reviews: Show More Link",
-                    "value": "Show more reviews"
+                    "value": "Meer reviews tonen"
                 },
                 "reviews_shown": {
                     "title": "Product Reviews: How Many Show ( [shown] and [total] are numbers )",
-                    "value": "Showing [shown] of [total] reviews."
+                    "value": "[shown] van [total] reviews worden getoond."
                 },
                 "read_more": {
                     "title": "Description: Read More Button",
-                    "value": "Read more"
+                    "value": "Meer lezen"
                 },
                 "read_less": {
                     "title": "Description: Show Less Button",
-                    "value": "Show less"
+                    "value": "Minder tonen"
                 }
             }
         },
@@ -1355,11 +1371,11 @@
                 },
                 "cart_menu_icon_label": {
                     "title": "Cart in Menu, Item",
-                    "value": "Item"
+                    "value": "Artikel"
                 },
                 "cart_menu_icon_label_plural": {
                     "title": "Cart in Menu, Items",
-                    "value": "Items"
+                    "value": "Artikelen"
                 },
                 "deconetwork_edit": {
                     "title": "Deconetwork, Edit Design",
@@ -1496,7 +1512,7 @@
                 },
                 "cart_notice_emails_match": {
                     "title": "Cart, Notice, Emails Wedstrijd",
-                    "value": "Emails"
+                    "value": "E-mailadressen"
                 },
                 "cart_notice_password": {
                     "title": "Cart, Notice, Wachtwoord",
@@ -1663,6 +1679,18 @@
 				"coupon_first_only":{
 					"title":"Cart, Coupon Code First Order Only",
 					"value":"Deze coupon kan alleen worden gebruikt voor uw eerste bestelling"
+				},
+				"subscription_coupon_first_payment":{
+					"title":"Subscription, Discount on the First Payment Only ( 6.0.3 )",
+					"value":"Uw korting geldt alleen voor uw eerste betaling. Daarna wordt uw abonnement verlengd voor [price]."
+				},
+				"subscription_coupon_months":{
+					"title":"Subscription, Discount for the First Months ( 6.0.3 )",
+					"value":"Uw korting geldt voor de eerste [months] maanden. Daarna wordt uw abonnement verlengd voor [price]."
+				},
+				"subscription_renewal_plus_tax":{
+					"title":"Subscription, Renewal Price Plus Tax ( 6.0.3 )",
+					"value":"plus btw"
 				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
@@ -1982,11 +2010,43 @@
 				},
 				"cart_login_already_have_account_login":{
 					"title":"Cart, Login Button Have Account",
-					"value":"Log in"
+					"value":"Inloggen"
 				},
 				"cart_subscription_already_purchased":{
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Je hebt dit item al gekocht. Ga naar uw account om uw actieve abonnementen te bekijken."
+				},
+				"subscription_change_existing":{
+					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
+					"value":"U hebt al een abonnement op dit plan. Wijzig het via uw account in plaats van een tweede te kopen."
+				},
+				"subscription_change_existing_link":{
+					"title":"Subscription Page: Change My Plan Link ( 6.0.3 )",
+					"value":"Mijn abonnement wijzigen"
+				},
+				"subscription_owned_one":{
+					"title":"Subscription Page: Already Subscribed, One ( 6.0.3 )",
+					"value":"U hebt al een abonnement op [title]. Koop hieronder een extra abonnement, of beheer het uwe in uw account."
+				},
+				"subscription_owned_many":{
+					"title":"Subscription Page: Already Subscribed, Several ( 6.0.3 )",
+					"value":"U hebt al [count] abonnementen op dit plan. Koop hieronder een extra abonnement, of beheer ze in uw account."
+				},
+				"subscription_owned_link_one":{
+					"title":"Subscription Page: Manage My Subscription Link ( 6.0.3 )",
+					"value":"Mijn abonnement beheren"
+				},
+				"subscription_owned_link_many":{
+					"title":"Subscription Page: Manage My Subscriptions Link ( 6.0.3 )",
+					"value":"Mijn abonnementen beheren"
+				},
+				"subscription_choose_options":{
+					"title":"Subscription, Choose the Options First ( 6.0.3 )",
+					"value":"Kies de opties voor dit abonnement op de productpagina voordat u afrekent."
+				},
+				"subscription_choose_options_link":{
+					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
+					"value":"Opties kiezen"
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2041,11 +2101,11 @@
 			"options":{
 				"cart_state_ca":{
 					"title":"Cart, State (Canada)",
-					"value":"Province"
+					"value":"Provincie"
 				},
 				"cart_zip_ca":{
 					"title":"Cart, Zip (Canada)",
-					"value":"Postal code"
+					"value":"Postcode"
 				},
 				"cart_zip_gb":{
 					"title":"Cart, Zip (UK)",
@@ -2053,19 +2113,19 @@
 				},
 				"cart_address_nl":{
 					"title":"Cart, Address (Netherlands)",
-					"value":"Street and house number"
+					"value":"Straat en huisnummer"
 				},
 				"cart_zip_nl":{
 					"title":"Cart, Zip (Netherlands)",
-					"value":"Postal code"
+					"value":"Postcode"
 				},
 				"cart_zip_ar":{
 					"title":"Cart, Zip (Argentina)",
-					"value":"Postal code"
+					"value":"Postcode"
 				},
 				"cart_state_ar":{
 					"title":"Cart, State (Argentina)",
-					"value":"Province"
+					"value":"Provincie"
 				}
 			}
 		},
@@ -2813,67 +2873,67 @@
             "options": {
                 "mini_cart_title": {
                     "title": "Mini Cart, Title",
-                    "value": "Your cart"
+                    "value": "Uw winkelwagen"
                 },
                 "view_cart": {
                     "title": "Mini Cart, View Cart Button",
-                    "value": "View cart"
+                    "value": "Bekijk winkelwagen"
                 },
                 "close": {
                     "title": "Mini Cart, Close Button ( screen readers )",
-                    "value": "Close"
+                    "value": "Sluiten"
                 },
                 "cart_button_label": {
                     "title": "Menu Cart, Button Name ( screen readers; [count] is the number of items )",
-                    "value": "Cart, [count] items"
+                    "value": "Winkelwagen, [count] artikelen"
                 },
                 "remove_item": {
                     "title": "Mini Cart, Remove Button ( screen readers; [title] is the product )",
-                    "value": "Remove [title]"
+                    "value": "[title] verwijderen"
                 },
                 "quantity_of": {
                     "title": "Side Cart, Quantity Box ( screen readers; [title] is the product )",
-                    "value": "Quantity of [title]"
+                    "value": "Aantal van [title]"
                 },
                 "increase_quantity": {
                     "title": "Side Cart, Plus Button ( screen readers; [title] is the product )",
-                    "value": "Increase quantity of [title]"
+                    "value": "Aantal van [title] verhogen"
                 },
                 "decrease_quantity": {
                     "title": "Side Cart, Minus Button ( screen readers; [title] is the product )",
-                    "value": "Decrease quantity of [title]"
+                    "value": "Aantal van [title] verlagen"
                 },
                 "cart_updated": {
                     "title": "Mini Cart, Cart Updated ( screen readers )",
-                    "value": "Your cart was updated."
+                    "value": "Uw winkelwagen is bijgewerkt."
                 },
                 "item_added": {
                     "title": "Side Cart, Product Added ( screen readers; [title] is the product )",
-                    "value": "[title] was added to your cart."
+                    "value": "[title] is toegevoegd aan uw winkelwagen."
                 },
                 "free_shipping_remaining": {
                     "title": "Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
-                    "value": "Spend [amount] more for free shipping"
+                    "value": "Bestel nog voor [amount] voor gratis verzending"
                 },
                 "free_shipping_available": {
                     "title": "Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
-                    "value": "Free shipping available"
+                    "value": "Gratis verzending beschikbaar"
                 },
                 "confirmation_items": {
                     "title": "Order Confirmation, Products Heading",
-                    "value": "Your order"
+                    "value": "Uw bestelling"
                 },
                 "confirmation_payment": {
                     "title": "Order Confirmation, How to Pay Heading",
-                    "value": "How to pay"
+                    "value": "Hoe te betalen"
                 },
                 "confirmation_pay_link_note": {
                     "title": "Order Confirmation, Pay Online Note",
-                    "value": "You can pay for this order online."
+                    "value": "U kunt deze bestelling online betalen."
                 },
                 "confirmation_pay_now": {
                     "title": "Order Confirmation, Pay Now Button",
-                    "value": "Pay now"
+                    "value": "Nu betalen"
                 }
             }
         },
@@ -2927,6 +2987,30 @@
                 "subscription_trial_ending_email_title": {
                     "title": "Subscription Trial Email Title",
                     "value": "Uw proefperiode eindigt dagen"
+                },
+                "trial_reminder_email_title": {
+                    "title": "Trial Reminder Email Title ( 6.0.3 )",
+                    "value": "Uw gratis proefperiode eindigt op [date]"
+                },
+                "trial_reminder_message": {
+                    "title": "Trial Reminder Message ( 6.0.3 )",
+                    "value": "Uw gratis proefperiode van [title] eindigt op [date]. Daarna gaat uw abonnement in en wordt [price] van uw kaart afgeschreven."
+                },
+                "trial_reminder_ends": {
+                    "title": "Trial Reminder, Trial Ends Label ( 6.0.3 )",
+                    "value": "Proefperiode eindigt"
+                },
+                "trial_reminder_then": {
+                    "title": "Trial Reminder, Then Label ( 6.0.3 )",
+                    "value": "Daarna"
+                },
+                "trial_reminder_cancel": {
+                    "title": "Trial Reminder, How to Cancel ( 6.0.3 )",
+                    "value": "Toch niets voor u? Zeg vóór [date] op via uw account en er wordt niets afgeschreven."
+                },
+                "trial_reminder_link": {
+                    "title": "Trial Reminder Button ( 6.0.3 )",
+                    "value": "Uw abonnement beheren"
                 }
             }
         },
@@ -2977,6 +3061,66 @@
 				"subscription_upcoming_email_title":{
 					"title":"Subscription Upcoming Email Title",
 					"value":"Uw abonnement wordt binnenkort verlengd"
+				},
+				"renewal_reminder_email_title":{
+					"title":"Renewal Reminder Email Title ( 6.0.3 )",
+					"value":"Uw abonnement wordt verlengd op [date]"
+				},
+				"renewal_reminder_message":{
+					"title":"Renewal Reminder Message ( 6.0.3 )",
+					"value":"Uw abonnement op [title] wordt op [date] automatisch verlengd."
+				},
+				"renewal_reminder_plan":{
+					"title":"Renewal Reminder, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"renewal_reminder_date":{
+					"title":"Renewal Reminder, Date Label ( 6.0.3 )",
+					"value":"Verlengd op"
+				},
+				"renewal_reminder_price":{
+					"title":"Renewal Reminder, Price Label ( 6.0.3 )",
+					"value":"Verlengingsprijs"
+				},
+				"renewal_reminder_cancel":{
+					"title":"Renewal Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Wilt u niet verlengen? Zeg het abonnement vóór [date] op via uw account. Daar kunt u ook uw betaalmethode bijwerken."
+				},
+				"renewal_reminder_link":{
+					"title":"Renewal Reminder Button ( 6.0.3 )",
+					"value":"Uw abonnement beheren"
+				},
+				"price_change_email_title":{
+					"title":"Price Change Email Title ( 6.0.3 )",
+					"value":"De prijs van uw abonnement verandert"
+				},
+				"price_change_message":{
+					"title":"Price Change Message ( 6.0.3 )",
+					"value":"Vanaf [date] kost uw abonnement op [title] [price] in plaats van [old_price]."
+				},
+				"price_change_plan":{
+					"title":"Price Change, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"price_change_old":{
+					"title":"Price Change, Price Now Label ( 6.0.3 )",
+					"value":"Huidige prijs"
+				},
+				"price_change_new":{
+					"title":"Price Change, New Price Label ( 6.0.3 )",
+					"value":"Nieuwe prijs"
+				},
+				"price_change_date":{
+					"title":"Price Change, Date Label ( 6.0.3 )",
+					"value":"Vanaf"
+				},
+				"price_change_cancel":{
+					"title":"Price Change, How to Cancel ( 6.0.3 )",
+					"value":"Tot die tijd verandert er niets. Wilt u niet doorgaan tegen de nieuwe prijs? Zeg dan vóór [date] op via uw account."
+				},
+				"price_change_link":{
+					"title":"Price Change Button ( 6.0.3 )",
+					"value":"Uw abonnement beheren"
 				}
 			}
 		},
@@ -3118,15 +3262,15 @@
             "options": {
                 "account_connect_order_email_title": {
                     "title": "Connect Order Email Subject and Heading",
-                    "value": "Add your order to your account"
+                    "value": "Voeg uw bestelling toe aan uw account"
                 },
                 "account_connect_order_email_message": {
                     "title": "Connect Order Email Message ( [order_id] is the order number )",
-                    "value": "You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+                    "value": "U hebt gevraagd om bestelling [order_id] toe te voegen aan uw account bij ons. Open de onderstaande link terwijl u bent ingelogd op dat account. Als u dit niet hebt aangevraagd, kunt u deze e-mail negeren."
                 },
                 "account_connect_order_email_link": {
                     "title": "Connect Order Email Link",
-                    "value": "Add the order to my account"
+                    "value": "Bestelling aan mijn account toevoegen"
                 }
             }
         },
@@ -3192,7 +3336,7 @@
                 },
                 "nav_orders": {
                     "title": "Account Widgets, Menu, Orders",
-                    "value": "Orders"
+                    "value": "Bestellingen"
                 },
                 "nav_downloads": {
                     "title": "Account Widgets, Menu, Downloads",
@@ -3200,31 +3344,31 @@
                 },
                 "nav_subscriptions": {
                     "title": "Account Widgets, Menu, Subscriptions",
-                    "value": "Subscriptions"
+                    "value": "Abonnementen"
                 },
                 "nav_addresses": {
                     "title": "Account Widgets, Menu, Addresses",
-                    "value": "Addresses"
+                    "value": "Adressen"
                 },
                 "nav_details": {
                     "title": "Account Widgets, Menu, Account Details",
-                    "value": "Account details"
+                    "value": "Accountgegevens"
                 },
                 "nav_payment_methods": {
                     "title": "Account Widgets, Menu, Payment Methods",
-                    "value": "Payment methods"
+                    "value": "Betaalmethoden"
                 },
                 "nav_logout": {
                     "title": "Account Widgets, Menu, Sign Out",
-                    "value": "Sign out"
+                    "value": "Uitloggen"
                 },
                 "nav_menu_label": {
                     "title": "Account Widgets, Menu Name ( screen readers, phone dropdown )",
-                    "value": "Account menu"
+                    "value": "Accountmenu"
                 },
                 "back_to_orders": {
                     "title": "Account Widgets, Back to Orders Link",
-                    "value": "Back to orders"
+                    "value": "Terug naar bestellingen"
                 },
                 "downloads_title": {
                     "title": "Account Widgets, Downloads Title",
@@ -3232,47 +3376,47 @@
                 },
                 "downloads_none": {
                     "title": "Account Widgets, No Downloads",
-                    "value": "You have no downloads yet."
+                    "value": "U hebt nog geen downloads."
                 },
                 "downloads_order": {
                     "title": "Account Widgets, Downloads, Order Link",
-                    "value": "Order"
+                    "value": "Bestelling"
                 },
                 "downloads_expires": {
                     "title": "Account Widgets, Downloads, Available Until",
-                    "value": "Available until"
+                    "value": "Beschikbaar tot"
                 },
                 "downloads_expired": {
                     "title": "Account Widgets, Downloads, Expired",
-                    "value": "This download has expired."
+                    "value": "Deze download is verlopen."
                 },
                 "downloads_used_up": {
                     "title": "Account Widgets, Downloads, Limit Reached",
-                    "value": "No downloads left."
+                    "value": "Geen downloads meer over."
                 },
                 "payment_title": {
                     "title": "Account Widgets, Payment Methods Title",
-                    "value": "Payment methods"
+                    "value": "Betaalmethoden"
                 },
                 "payment_card": {
                     "title": "Account Widgets, Payment Methods, Card",
-                    "value": "Card"
+                    "value": "Kaart"
                 },
                 "payment_card_note": {
                     "title": "Account Widgets, Payment Methods, Card Note",
-                    "value": "Used for your subscriptions."
+                    "value": "Gebruikt voor uw abonnementen."
                 },
                 "payment_none": {
                     "title": "Account Widgets, No Payment Method",
-                    "value": "You have no saved payment method."
+                    "value": "U hebt geen opgeslagen betaalmethode."
                 },
                 "signed_in_as": {
                     "title": "Account Widgets, Signed In As ( [name] is the customer's name )",
-                    "value": "You are signed in as [name]."
+                    "value": "U bent ingelogd als [name]."
                 },
                 "my_account": {
                     "title": "Account Widgets, My Account Button",
-                    "value": "My account"
+                    "value": "Mijn account"
                 }
             }
         },
@@ -3789,7 +3933,7 @@
                 },
                 "account_orders_details_print_online": {
                     "title": "Account, Orderdetails, Print Online Link",
-                    "value": "Print Online"
+                    "value": "Online afdrukken"
                 },
                 "account_orders_details_download": {
                     "title": "Account, Orderdetails, Download",
@@ -3968,6 +4112,126 @@
                     "title": "Account, Subscription Details, Plan Change Notice",
                     "value": "Wijzigingen in uw abonnement gaan direct in. Uw volgende factuur toont de nieuwe prijs en eventuele extra kosten of tegoeden voor de rest van de huidige periode."
                 },
+                "subscription_details_interval_notice": {
+                    "title": "Account, Subscription Details, Billing Schedule Change Notice",
+                    "value": "Dit abonnement wordt met een andere regelmaat gefactureerd, dus vandaag begint een nieuwe factuurperiode: u betaalt nu de nieuwe prijs, min het ongebruikte deel van uw huidige periode."
+                },
+                "subscription_details_trial_ends": {
+                    "title": "Account, Subscription Details, Trial Ends Label",
+                    "value": "Proefperiode eindigt"
+                },
+                "subscription_details_trial_notice": {
+                    "title": "Account, Subscription Details, Free Trial Notice",
+                    "value": "Uw gratis proefperiode eindigt op [date]. Uw eerste betaling van [price] wordt dan afgeschreven."
+                },
+                "subscription_change_review": {
+                    "title": "Change Plan: Review Button ( 6.0.3 )",
+                    "value": "Wijziging bekijken"
+                },
+                "subscription_change_confirm": {
+                    "title": "Change Plan: Confirm Button ( 6.0.3 )",
+                    "value": "Wijziging bevestigen"
+                },
+                "subscription_change_back": {
+                    "title": "Change Plan: Back Button ( 6.0.3 )",
+                    "value": "Terug"
+                },
+                "subscription_change_now_charge": {
+                    "title": "Change Plan: Charged Now ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu. U betaalt vandaag [amount] voor de rest van deze factuurperiode en daarna [price] vanaf [date]."
+                },
+                "subscription_change_now_next": {
+                    "title": "Change Plan: Added to Next Payment ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu. [amount] voor de rest van deze factuurperiode wordt bij uw volgende betaling op [date] opgeteld."
+                },
+                "subscription_change_now_credit": {
+                    "title": "Change Plan: Credit on Next Payment ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu. [amount] voor het ongebruikte deel van deze factuurperiode gaat af van uw volgende betaling op [date]."
+                },
+                "subscription_change_now_none": {
+                    "title": "Change Plan: Now, Nothing Extra ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu. Uw volgende betaling is [price] op [date]."
+                },
+                "subscription_change_now_interval": {
+                    "title": "Change Plan: New Billing Period ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu en vandaag begint een nieuwe factuurperiode. U betaalt vandaag [amount] en daarna [price] vanaf [date]."
+                },
+                "subscription_change_trial": {
+                    "title": "Change Plan: During a Free Trial ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt nu. Uw gratis proefperiode eindigt nog steeds op [date], daarna betaalt u [price]."
+                },
+                "subscription_change_renewal": {
+                    "title": "Change Plan: At Renewal ( 6.0.3 )",
+                    "value": "U houdt uw huidige abonnement tot [date]. Daarna wijzigt het en betaalt u [price]."
+                },
+                "subscription_change_note_now": {
+                    "title": "Change Plan: Starts Now ( 6.0.3 )",
+                    "value": "Gaat nu in"
+                },
+                "subscription_change_note_renewal": {
+                    "title": "Change Plan: Starts on a Date ( 6.0.3 )",
+                    "value": "Gaat in op [date]"
+                },
+                "subscription_change_note_later": {
+                    "title": "Change Plan: Starts at Renewal ( 6.0.3 )",
+                    "value": "Gaat in bij verlenging"
+                },
+                "subscription_change_note_trial": {
+                    "title": "Change Plan: Starts Now During a Free Trial ( 6.0.3 )",
+                    "value": "Gaat nu in, gratis tot [date]"
+                },
+                "subscription_change_note_trial_end": {
+                    "title": "Change Plan: Starts Now and Ends the Free Trial ( 6.0.3 )",
+                    "value": "Gaat nu in en beëindigt uw gratis proefperiode"
+                },
+                "subscription_change_pending": {
+                    "title": "Change Plan: Change Waiting ( 6.0.3 )",
+                    "value": "Uw abonnement wijzigt op [date] naar [title]."
+                },
+                "subscription_change_pending_payment": {
+                    "title": "Change Plan: Waiting for a Payment ( 6.0.3 )",
+                    "value": "Uw wijziging naar [title] wacht op een betaling."
+                },
+                "subscription_change_cancel": {
+                    "title": "Change Plan: Cancel the Change ( 6.0.3 )",
+                    "value": "Deze wijziging annuleren"
+                },
+                "subscription_change_cancelled": {
+                    "title": "Change Plan: Change Cancelled ( 6.0.3 )",
+                    "value": "De wijziging is geannuleerd. U houdt uw huidige abonnement."
+                },
+                "subscription_change_applied": {
+                    "title": "Change Plan: Plan Changed ( 6.0.3 )",
+                    "value": "Uw abonnement is gewijzigd."
+                },
+                "subscription_change_scheduled": {
+                    "title": "Change Plan: Change Scheduled ( 6.0.3 )",
+                    "value": "Uw abonnementswijziging is ingepland."
+                },
+                "subscription_change_declined": {
+                    "title": "Change Plan: Card Declined ( 6.0.3 )",
+                    "value": "Uw kaart is geweigerd, dus uw abonnement is niet gewijzigd. Werk uw betaalmethode bij en probeer het opnieuw."
+                },
+                "subscription_change_error": {
+                    "title": "Change Plan: Error ( 6.0.3 )",
+                    "value": "Uw abonnement kan nu niet worden gewijzigd. Probeer het opnieuw of neem contact met ons op."
+                },
+                "subscription_change_unavailable": {
+                    "title": "Change Plan: Not Available ( 6.0.3 )",
+                    "value": "Deze wijziging is niet beschikbaar voor uw abonnement."
+                },
+                "subscription_change_monthly": {
+                    "title": "Change Plan: Monthly Tab ( 6.0.3 )",
+                    "value": "Maandelijks"
+                },
+                "subscription_change_yearly": {
+                    "title": "Change Plan: Yearly Tab ( 6.0.3 )",
+                    "value": "Jaarlijks"
+                },
+                "subscription_change_price": {
+                    "title": "Change Plan: Price Changing ( 6.0.3 )",
+                    "value": "Uw prijs wordt [price] vanaf [date]. Tot die tijd verandert er niets."
+                },
                 "subscription_details_card_notice": {
                     "title": "Account, Subscription Details, Card Change Notice",
                     "value": "Uw volgende betaling wordt van de nieuwe kaart afgeschreven."
@@ -3986,7 +4250,7 @@
 				},
 				"subscription_details_update_payment":{
 					"title":"Account, Subscription Details, Save Payment Method",
-					"value":"Update"
+					"value":"Bijwerken"
 				},
 				"subscription_details_change_plan":{
 					"title":"Account, Subscription Details, Change Plan",
@@ -4307,15 +4571,15 @@
 				},
 				"order_claim_invalid":{
 					"title":"Connect Order, Link Not Valid",
-					"value":"That link is not valid or has expired. Ask for a new one from your account."
+					"value":"Die link is niet geldig of is verlopen. Vraag een nieuwe aan via uw account."
 				},
 				"order_claim_sign_in":{
 					"title":"Connect Order, Sign In First",
-					"value":"Sign in to the account that asked for this link, then open the link again."
+					"value":"Log in op het account dat deze link heeft aangevraagd en open de link daarna opnieuw."
 				},
 				"order_claim_limit":{
 					"title":"Connect Order, Too Many Requests",
-					"value":"Too many requests. Please try again later."
+					"value":"Te veel verzoeken. Probeer het later opnieuw."
 				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
@@ -4408,7 +4672,7 @@
 				},
 				"order_claim_sent":{
 					"title":"Connect Order, Link Sent",
-					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
+					"value":"Als die bestelling met uw e-mailadres is geplaatst, hebben we een link naar dat adres gestuurd. Open de link terwijl u bent ingelogd om de bestelling aan uw account toe te voegen."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -4573,7 +4837,7 @@
                 },
                 "signup_form_button_text": {
                     "title": "Signup Form Button",
-                    "value": "SUBMIT"
+                    "value": "VERSTUREN"
                 },
                 "signup_form_success_title": {
                     "title": "Signup Success Title",
@@ -4665,87 +4929,87 @@
             "options":{
                 "details_title":{
                     "title":"Checkout Fields Answers Heading",
-                    "value":"Additional details"
+                    "value":"Aanvullende gegevens"
                 },
                 "optional":{
                     "title":"Optional Field Marker",
-                    "value":"(optional)"
+                    "value":"(optioneel)"
                 },
                 "select_placeholder":{
                     "title":"Dropdown First Choice",
-                    "value":"Choose…"
+                    "value":"Kies…"
                 },
                 "required_error":{
                     "title":"Required Field Error",
-                    "value":"Please fill in this field."
+                    "value":"Vul dit veld in."
                 },
                 "choose_error":{
                     "title":"Required Choice Error",
-                    "value":"Please choose an option."
+                    "value":"Kies een optie."
                 },
                 "email_error":{
                     "title":"Email Field Error",
-                    "value":"Please enter a valid email address."
+                    "value":"Voer een geldig e-mailadres in."
                 },
                 "phone_error":{
                     "title":"Phone Field Error",
-                    "value":"Please enter a valid phone number."
+                    "value":"Voer een geldig telefoonnummer in."
                 },
                 "number_error":{
                     "title":"Number Field Error",
-                    "value":"Please enter a number in the allowed range."
+                    "value":"Voer een getal binnen het toegestane bereik in."
                 },
                 "date_error":{
                     "title":"Date Field Error",
-                    "value":"Please choose an available date."
+                    "value":"Kies een beschikbare datum."
                 },
                 "format_error":{
                     "title":"Format Error",
-                    "value":"Please check the format of this answer."
+                    "value":"Controleer de notatie van dit antwoord."
                 },
                 "length_error":{
                     "title":"Too Short Error",
-                    "value":"Please enter a longer answer."
+                    "value":"Voer een langer antwoord in."
                 },
                 "consent_error":{
                     "title":"Consent Error",
-                    "value":"Please accept to continue."
+                    "value":"Ga akkoord om door te gaan."
                 },
                 "checkout_error":{
                     "title":"Checkout Fields Notice",
-                    "value":"Please check the highlighted checkout fields."
+                    "value":"Controleer de gemarkeerde velden bij het afrekenen."
                 },
                 "yes":{
                     "title":"Checkbox Ticked Answer",
-                    "value":"Yes"
+                    "value":"Ja"
                 },
                 "no":{
                     "title":"Checkbox Not Ticked Answer",
-                    "value":"No"
+                    "value":"Nee"
                 },
                 "accepted":{
                     "title":"Consent Accepted Answer",
-                    "value":"Accepted"
+                    "value":"Geaccepteerd"
                 },
                 "after_payment_title":{
                     "title":"After Payment Heading",
-                    "value":"A few more details"
+                    "value":"Nog een paar gegevens"
                 },
                 "after_payment_intro":{
                     "title":"After Payment Introduction",
-                    "value":"We still need a few details to complete your order."
+                    "value":"We hebben nog een paar gegevens nodig om uw bestelling te voltooien."
                 },
                 "after_payment_button":{
                     "title":"After Payment Save Button",
-                    "value":"Save details"
+                    "value":"Gegevens opslaan"
                 },
                 "after_payment_saved":{
                     "title":"After Payment Saved Message",
-                    "value":"Thank you. We have your details."
+                    "value":"Bedankt. We hebben uw gegevens ontvangen."
                 },
                 "after_payment_failed":{
                     "title":"After Payment Save Failed Message",
-                    "value":"Your details could not be saved. Reload the page and try again."
+                    "value":"Uw gegevens konden niet worden opgeslagen. Laad de pagina opnieuw en probeer het nogmaals."
                 }
             }
         },
@@ -4754,35 +5018,35 @@
             "options": {
 				"shipment_package":{
 					"title":"Package Label (tracking)",
-					"value":"Package %d"
+					"value":"Pakket %d"
 				},
 				"shipment_packages_intro":{
 					"title":"Several Packages Intro",
-					"value":"Your order ships in %d packages. Each one has its own tracking number."
+					"value":"Uw bestelling wordt verzonden in %d pakketten. Elk pakket heeft een eigen trackingnummer."
 				},
 				"tracking_label_created":{
 					"title":"Tracking: Label Created",
-					"value":"Label created"
+					"value":"Label aangemaakt"
 				},
 				"tracking_in_transit":{
 					"title":"Tracking: In Transit",
-					"value":"In transit"
+					"value":"Onderweg"
 				},
 				"tracking_out_for_delivery":{
 					"title":"Tracking: Out for Delivery",
-					"value":"Out for delivery"
+					"value":"In bezorging"
 				},
 				"tracking_delivered":{
 					"title":"Tracking: Delivered",
-					"value":"Delivered"
+					"value":"Bezorgd"
 				},
 				"tracking_problem":{
 					"title":"Tracking: Delivery Problem",
-					"value":"Delivery problem"
+					"value":"Bezorgprobleem"
 				},
 				"tracking_returned":{
 					"title":"Tracking: Returned",
-					"value":"Returned to sender"
+					"value":"Teruggestuurd naar afzender"
 				},
                 "packing_slip_title": {
                     "title": "Packing Slip Title",
@@ -5155,43 +5419,43 @@
             "options": {
                 "declined": {
                     "title": "Payment Declined (simple message)",
-                    "value": "Your payment wasn't approved. Please check your card details or try a different card."
+                    "value": "Uw betaling is niet goedgekeurd. Controleer uw kaartgegevens of probeer een andere kaart."
                 },
                 "paused_title": {
                     "title": "Paused: Title",
-                    "value": "Payments are paused for a little while."
+                    "value": "Betalingen zijn tijdelijk gepauzeerd."
                 },
                 "paused": {
                     "title": "Paused: Message ([time] and [email] are filled in)",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+                    "value": "Voor uw veiligheid hebben we betalingen vanaf dit apparaat gepauzeerd na meerdere pogingen. Probeer het opnieuw na [time] of neem contact met ons op via [email], dan helpen we u verder."
                 },
                 "paused_soon": {
                     "title": "Paused: Message Without a Time",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+                    "value": "Voor uw veiligheid hebben we betalingen vanaf dit apparaat gepauzeerd na meerdere pogingen. Probeer het over een poosje opnieuw of neem contact met ons op via [email], dan helpen we u verder."
                 },
                 "check_title": {
                     "title": "Human Check: Title",
-                    "value": "Quick security check"
+                    "value": "Snelle beveiligingscontrole"
                 },
                 "check_needed": {
                     "title": "Human Check: Message",
-                    "value": "Please complete the security check below, then place your order again."
+                    "value": "Voltooi de onderstaande beveiligingscontrole en plaats uw bestelling daarna opnieuw."
                 },
                 "check_failed": {
                     "title": "Human Check: Failed",
-                    "value": "The security check didn't work. Please try it again."
+                    "value": "De beveiligingscontrole is niet gelukt. Probeer het opnieuw."
                 },
                 "checking": {
                     "title": "Human Check: Checking",
-                    "value": "Checking…"
+                    "value": "Controleren…"
                 },
                 "reload": {
                     "title": "Reload Needed",
-                    "value": "Please reload this page and try again."
+                    "value": "Laad deze pagina opnieuw en probeer het nogmaals."
                 },
                 "code_paused": {
                     "title": "Too Many Codes Tried",
-                    "value": "Too many codes were tried. Please wait an hour before trying another code."
+                    "value": "Er zijn te veel codes geprobeerd. Wacht een uur voordat u een andere code probeert."
                 }
             }
         },
@@ -5200,7 +5464,7 @@
             "options": {
                 "being_made": {
                     "title": "Package Status: Being Made by a Partner",
-                    "value": "Being made"
+                    "value": "Wordt gemaakt"
                 }
             }
         },
@@ -5209,11 +5473,11 @@
             "options": {
                 "variant_unavailable": {
                     "title": "Cart: Variant Switched Off",
-                    "value": "An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+                    "value": "Een artikel in uw winkelwagen is niet meer beschikbaar in de gekozen optie. Verwijder het en kies een andere optie."
                 },
                 "line_unavailable": {
                     "title": "Cart: Item Cannot Be Ordered",
-                    "value": "An item in your cart cannot be ordered right now. Please remove it or try again later."
+                    "value": "Een artikel in uw winkelwagen kan op dit moment niet worden besteld. Verwijder het of probeer het later opnieuw."
                 },
                 "product_unavailable": {
                     "title": "Cart: Item Not Available To Order",
@@ -5395,43 +5659,43 @@
             "options": {
                 "ships_separately": {
                     "title": "Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
-                    "value": "[label] items ship separately ( [amount] )."
+                    "value": "[label]-artikelen worden apart verzonden ( [amount] )."
                 },
                 "delivery_estimate": {
                     "title": "Note: Delivery Estimate ([days] is the delivery time)",
-                    "value": "Estimated delivery: [days]."
+                    "value": "Verwachte levering: [days]."
                 },
                 "delivery_days": {
                     "title": "Delivery Time ([days] is a number or a range)",
-                    "value": "[days] business days"
+                    "value": "[days] werkdagen"
                 },
                 "pending": {
                     "title": "Note: No Address Yet ([label] is the partner)",
-                    "value": "[label] items ship separately. Their shipping is added once you enter your address."
+                    "value": "[label]-artikelen worden apart verzonden. De verzendkosten worden toegevoegd zodra u uw adres invoert."
                 },
                 "unavailable": {
                     "title": "Note: No Shipping for This Address ([label] is the partner)",
-                    "value": "We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+                    "value": "We konden de verzendkosten voor [label]-artikelen naar dit adres niet ophalen. Controleer het adres of probeer het over een moment opnieuw."
                 },
                 "totals_included": {
                     "title": "Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
-                    "value": "Includes [label] shipping: [amount]"
+                    "value": "Inclusief verzending [label]: [amount]"
                 },
                 "totals_pending": {
                     "title": "Totals: No Address Yet ([label] is the partner)",
-                    "value": "[label] shipping is added once you enter your address"
+                    "value": "Verzendkosten [label] worden toegevoegd zodra u uw adres invoert"
                 },
                 "totals_unavailable": {
                     "title": "Totals: No Shipping for This Address ([label] is the partner)",
-                    "value": "[label] shipping is unavailable for this address"
+                    "value": "Verzending [label] is niet beschikbaar voor dit adres"
                 },
                 "free": {
                     "title": "Partner Shipping Covered by Free Shipping",
-                    "value": "Free"
+                    "value": "Gratis"
                 },
                 "checkout_error": {
                     "title": "Checkout Error: Partner Shipping Unavailable",
-                    "value": "We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+                    "value": "We konden de verzendkosten voor een aantal van uw artikelen niet berekenen, dus uw bestelling is niet geplaatst. Controleer uw verzendadres en probeer het opnieuw."
                 },
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",

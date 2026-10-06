@@ -45,7 +45,7 @@ $has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
 			<div class="ecwz-ncard">
 				<h4><?php esc_html_e( 'Import from WooCommerce', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-blue"><?php esc_html_e( 'Detected', 'wp-easycart' ); ?></span></h4>
 				<p><?php esc_html_e( 'We noticed WooCommerce on this site. Bring products and categories across automatically.', 'wp-easycart' ); ?></p>
-				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
+				<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=woocommerce' ) ); ?>"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
 			</div>
 			<?php } ?>
 
@@ -53,7 +53,7 @@ $has_square = ( '' != get_option( 'ec_option_square_access_token' ) );
 			<div class="ecwz-ncard">
 				<h4><?php esc_html_e( 'Import from Square', 'wp-easycart' ); ?> <span class="ecwz-badge ecwz-badge-blue"><?php esc_html_e( 'Connected', 'wp-easycart' ); ?></span></h4>
 				<p><?php esc_html_e( 'Your Square account is connected. Import your catalog into EasyCart now.', 'wp-easycart' ); ?></p>
-				<a class="ecwz-btn ecwz-btn-sm" href="admin.php?page=wp-easycart-settings&subpage=cart-importer"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
+				<a class="ecwz-btn ecwz-btn-sm" href="<?php echo esc_url( admin_url( 'admin.php?page=wp-easycart-products&subpage=import&source=square' ) ); ?>"><?php esc_html_e( 'Open importer', 'wp-easycart' ); ?></a>
 			</div>
 			<?php } ?>
 

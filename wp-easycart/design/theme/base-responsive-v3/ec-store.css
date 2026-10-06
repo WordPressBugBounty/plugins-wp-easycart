@@ -1104,7 +1104,7 @@ input[type="radio"]{ -webkit-appearance:radio; }
 .wpeasycart-html-swatch{ cursor:pointer; float:left; width:inherit !important; padding:5px 10px !important; border-radius:5px; color:#FFF; background:#222; margin-right:5px !important; }
 .ec_details_combo{ float:left; margin:0 !important; opacity:1; }
 .ec_details_combo.ec_inactive{ opacity:.5; }
-.ec_details_option_row_error{ display:none; float:left; width:100%; font-family: 'Lato', Arial, sans-serif; border:1px dashed #AE0000; border-color:#AE0000 !important; color:#AE0000; padding:8px 16px; font-size:12px; line-height:1.1em; margin:5px 0; background:#FFE7E7; font-weight:bold; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; box-sizing:border-box; }
+.ec_details_option_row_error{ display:none; float:left; width:100%; box-sizing:border-box; margin:6px 0; padding:9px 12px; border:1px solid #fecaca; border-color:#fecaca !important; border-radius:8px; background:#fef2f2; color:#991b1b; font-family:inherit; font-size:14px; line-height:1.45; font-weight:500; } /* 6.0.3: the messages' look ( see .ec_cart_error ) */
 .ec_details_option_data{ font-family: 'Lato', Arial, sans-serif; color:#777; font-size:12px; float:left; width:100%; line-height:40px; }
 .ec_details_option_data > select{ width:100%; margin:0 !important; }
 .ec_details_option_data > input[type="text"]{ min-width:220px !important; margin:0 !important; }
@@ -1682,13 +1682,28 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_cart_input_row input, .ec_cart_input_row select, .ec_cart_input_row textarea{ float:left; width:100% !important; margin-bottom:0 !important; background-color:#FFF; }
 .ec_cart_input_row input[type="checkbox"]{ float:left; width:auto !important; margin-right:10px; }
 .ec_cart_no_shipping_address{ float:left; width:100%; font-size:16px; font-weight:bold; margin:0; padding:15px 0; color:#222; }
-.ec_cart_error_row, .ec_cart_error_message{ display:none; float:left; width:100%; font-family: 'Lato', Arial, sans-serif; border:1px solid #551111; border-color:#cc0023 !important; color:#222222; padding:12px; font-size:15px; line-height:1.1em; margin:5px 0 0 0; background:#fff4f4; font-weight:normal;  box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; border-radius:5px; }
-.ec_cart_success_row2{ border-radius: 8px; box-shadow: none; background-image: none; line-height: 1.57; font-size: 0.975rem; font-weight: 400; display: flex; padding:16px; color: rgb(10, 85, 84); background-color: rgb(216, 251, 222); justify-content:center; }
-.ec_cart_notice_row{ border-radius: 8px; box-shadow: none; background-image: none; line-height: 1.57; font-size: 0.975rem; font-weight: 400; display: flex; padding:16px; color: rgb(122, 65, 0); background-color: rgb(255, 245, 204); justify-content:center; }
-.ec_cart_error_row2{ border-radius: 8px; box-shadow: none; background-image: none; line-height: 1.57; font-size: 0.975rem; font-weight: 400; display: flex; padding:16px; color: rgb(122, 9, 22); background-color: rgb(255, 233, 213); justify-content:center; }
+.ec_cart_error_row, .ec_cart_error_message{ display:none; float:left; width:100%; box-sizing:border-box; margin:6px 0 0; padding:9px 12px; border:1px solid #fecaca; border-color:#fecaca !important; border-radius:8px; background:#fef2f2; color:#991b1b; font-family:inherit; font-size:14px; line-height:1.45; font-weight:normal; } /* 6.0.3: the messages' look */
+.ec_cart_success_row2{ border-radius:10px; box-shadow:none; background-image:none; line-height:1.57; font-size:0.975rem; font-weight:400; display:flex; padding:16px; border:1px solid #bbf7d0; color:#166534; background-color:#f0fdf4; justify-content:center; }
+.ec_cart_notice_row{ border-radius:10px; box-shadow:none; background-image:none; line-height:1.57; font-size:0.975rem; font-weight:400; display:flex; padding:16px; border:1px solid #fde68a; color:#92400e; background-color:#fffbeb; justify-content:center; }
+.ec_cart_error_row2{ border-radius:10px; box-shadow:none; background-image:none; line-height:1.57; font-size:0.975rem; font-weight:400; display:flex; padding:16px; border:1px solid #fecaca; color:#991b1b; background-color:#fef2f2; justify-content:center; }
 .ec_cart_paypal_note{ margin:5px 0 25px; font-weight:bold; font-size:16px; }
-.ec_cart_success{ float:left; width:100%; font-family: 'Lato', Arial, sans-serif; border:1px solid #CCCCCC; border-color:#CCCCCC !important; color:#222222; padding:25px 20px; text-align:center; font-size:14px; line-height:1.1em; margin:5px 0 20px 0; background:#EFEFEF; font-weight:bold; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; }
-.ec_cart_success_message{ display:none; float:left; width:100%; font-family: 'Lato', Arial, sans-serif; border:1px dashed #678828; border-color:#678828 !important; color:#678828; padding:8px 16px; font-size:12px; line-height:1.1em; margin:5px 0 0 0; background:#E7FFF4; font-weight:bold; }
+/* 6.0.3: the store's messages share one look ( the subscription page's ): a soft card in the theme's font with a round icon in the
+   text's colour. A page message takes its own full row inside its column: it floated, 34px wider than the column ( padding
+   without border-box ), and what came next squeezed in beside it. :has() rules stand alone ( a browser without it drops the rule ). */
+.ec_cart_error, .ec_cart_success, .ec_account_error, .ec_account_success{ float:none; clear:both; display:block; width:100%; box-sizing:border-box; position:relative; margin:0 0 16px; padding:12px 16px; border:1px solid; border-radius:10px; font-family:inherit; font-size:14px; line-height:1.5; font-weight:500; text-align:start; }
+.ec_cart_error, .ec_account_error{ border-color:#fecaca !important; background:#fef2f2; color:#991b1b; }
+.ec_cart_success, .ec_account_success{ border-color:#bbf7d0 !important; background:#f0fdf4; color:#166534; }
+.ec_cart_error > div, .ec_cart_success > div, .ec_account_error > div, .ec_account_success > div{ position:relative; min-height:20px; padding:0; padding-inline-start:30px; font-family:inherit; font-size:inherit; line-height:inherit !important; font-weight:inherit; color:inherit; }
+.ec_cart_error > div + div, .ec_cart_success > div + div, .ec_account_error > div + div, .ec_account_success > div + div{ margin-top:6px; }
+.ec_cart_error > div::before, .ec_cart_success > div::before, .ec_account_error > div::before, .ec_account_success > div::before{ content:""; position:absolute; inset-inline-start:0; top:1px; width:20px; height:20px; float:none; margin:0; padding:0; background-color:currentColor; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; -webkit-mask-size:20px 20px; mask-size:20px 20px; }
+.ec_cart_error > div::before, .ec_account_error > div::before{ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM9.1 5h1.8v6.6H9.1ZM10 13.1a1.15 1.15 0 1 1 0 2.3a1.15 1.15 0 1 1 0-2.3Z'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM9.1 5h1.8v6.6H9.1ZM10 13.1a1.15 1.15 0 1 1 0 2.3a1.15 1.15 0 1 1 0-2.3Z'/%3E%3C/svg%3E"); }
+.ec_cart_success > div::before, .ec_account_success > div::before{ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM5.3 10.4l1.4-1.4l1.8 1.8l4.3-4.3l1.4 1.4l-5.7 5.7Z'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM5.3 10.4l1.4-1.4l1.8 1.8l4.3-4.3l1.4 1.4l-5.7 5.7Z'/%3E%3C/svg%3E"); }
+.ec_cart_error:not(:has(> div)), .ec_cart_success:not(:has(> div)), .ec_account_error:not(:has(> div)), .ec_account_success:not(:has(> div)){ padding-inline-start:46px; }
+.ec_cart_error:not(:has(> div))::before, .ec_cart_success:not(:has(> div))::before, .ec_account_error:not(:has(> div))::before, .ec_account_success:not(:has(> div))::before{ content:""; position:absolute; inset-inline-start:15px; top:13px; width:20px; height:20px; float:none; margin:0; padding:0; background-color:currentColor; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; -webkit-mask-size:20px 20px; mask-size:20px 20px; }
+.ec_cart_error:not(:has(> div))::before, .ec_account_error:not(:has(> div))::before{ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM9.1 5h1.8v6.6H9.1ZM10 13.1a1.15 1.15 0 1 1 0 2.3a1.15 1.15 0 1 1 0-2.3Z'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM9.1 5h1.8v6.6H9.1ZM10 13.1a1.15 1.15 0 1 1 0 2.3a1.15 1.15 0 1 1 0-2.3Z'/%3E%3C/svg%3E"); }
+.ec_cart_success:not(:has(> div))::before, .ec_account_success:not(:has(> div))::before{ -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM5.3 10.4l1.4-1.4l1.8 1.8l4.3-4.3l1.4 1.4l-5.7 5.7Z'/%3E%3C/svg%3E"); mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill-rule='evenodd' d='M10 1.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 1 1 0-17ZM5.3 10.4l1.4-1.4l1.8 1.8l4.3-4.3l1.4 1.4l-5.7 5.7Z'/%3E%3C/svg%3E"); }
+.ec_cart_error a, .ec_cart_success a, .ec_account_error a, .ec_account_success a{ color:inherit !important; text-decoration:underline; }
+.ec_cart_success_message{ display:none; float:left; width:100%; box-sizing:border-box; margin:6px 0 0; padding:9px 12px; border:1px solid #bbf7d0; border-color:#bbf7d0 !important; border-radius:8px; background:#f0fdf4; color:#166534; font-family:inherit; font-size:14px; line-height:1.45; font-weight:600; } /* 6.0.3: the messages' look */
 #ec_user_login_form, #ec_user_create_form, #ec_shipping_form, #ec_manual_payment_form, #ec_affirm_form, #ec_third_party_form, #ec_credit_card_form, #ec_ideal_form{ display:none; }
 #ec_user_login_form{ float:left; width:100%; position: relative; }
 .ec_cart_box_section{ float:left; width:100%; border:1px solid #CCC; padding:9px 12px; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; background:#FFF; }
@@ -1704,9 +1719,6 @@ td.ec_cartitem_total{ text-align:right; padding:0 12px 0 0 !important; font-size
 .ec_cart_input_row > .ec_cart_input_left_half.ec_small_field > select,.ec_cart_input_row > .ec_cart_input_left_half.ec_small_field > input, .ec_cart_input_row > .ec_cart_input_right_half.ec_small_field > select,.ec_cart_input_row > .ec_cart_input_right_half.ec_small_field > input{ width:35% !important; margin-right:2% !important; }
 .ec_cart_input_row > a, .ec_cart_input_row > b, .ec_cart_input_row > strong, .ec_account_order_details_item_display_title > a{ font-family: 'Lato', Arial, sans-serif; font-size:12px; color:#222222; text-decoration:none; border-bottom:none !important; }
 .ec_cart_input_row > a:hover, .ec_account_order_details_item_display_title > a:hover{ font-family: 'Lato', Arial, sans-serif; font-size:12px; color:#666666; text-decoration:none; }
-.ec_cart_error{ float:left; width:100%; border:1px solid #AE0000; border-color:#AE0000 !important; padding:8px 16px;  margin:5px 0 0 0; background:#ffeeee;  }
-.ec_cart_error > div{ font-family:'Lato', Arial, sans-serif; color:#000000; font-size:12px; line-height:2.0em !important; font-weight:bold; position:relative; }
-.ec_cart_error > div:before{ content: "\f348"; font-family: "dashicons"; font-size:22px; color:#7d2222; float:left; margin-top:0px; padding-right:10px; }
 #ec_cart_payment_one_column{ display:none; }
 .ec_cart_input_row.ec_agreement_section{ margin:20px 5px 15px; font-weight:bold; line-height:1.9em; }
 .ec_cart_input_row.ec_agreement_section input{ float:left; width:14px !important; margin-right:12px; margin-top:5px; }
@@ -1982,12 +1994,6 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 .ec_cart_shipping_method_row > input[type="radio"]:after, .ec_cart_option_row > input[type="radio"]:after{ position:relative; display:none; }
 
 /* Account Page General Styles */
-.ec_account_error{ width:100%; float:left; text-align:center; background-color:#F1D9D9; color:#900; font-size:14px; font-weight:bold; font-family:'Lato', Arial, sans-serif; margin-bottom:5px; border:thin solid #FF0606; }
-.ec_account_error div{ padding:15px; }
-.ec_account_error a{ color:#900 !important; }
-.ec_account_error a:hover{ color:#900 !important; }
-.ec_account_success{ width:100%; float:left; text-align:center; background-color:#E6FFE6; color:#333333; font-size:14px; font-weight:bold; font-family:'Lato', Arial, sans-serif; margin-bottom:5px; border:thin solid #6FFF47; }
-.ec_account_success div{ padding:15px; }
 .ec_account_page{ max-width:100%; }
 .ec_account_page input[type='text'], .ec_account_page input[type='input'], .ec_account_page input[type='date'], .ec_account_page input[type='password'], .ec_account_page input[type='email'], .ec_account_page input[type='number'], .ec_account_page input[type='url'], .ec_account_page input[type='tel'], .ec_account_page input[type='search'], .ec_account_page textarea, .ec_account_page select{ border-color:#e1e1e1; background-color:#f8f8f8; color:#919191; -webkit-appearance:none; border:1px solid #e1e1e1; outline:none; font:13px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif; color:#777; margin:0; display:block; max-width:100%; background:#FFF; padding:8px 6px; line-height:1.1em; box-sizing:border-box; -moz-box-sizing:border-box; -webkit-box-sizing:border-box; height:39px; }
 .ec_account_page textarea{ height:auto; min-height:80px; } /* 6.0.2: a text box ( a remembered checkout answer ) is taller than one line */
@@ -2132,6 +2138,64 @@ html.wpec-checkout-busy #stripe-success-cover, html.wpec-checkout-busy #square-s
 #ec_user_login_link a{ background:#333; color: white; padding: 8px 15px; border-radius: 8px; margin-left: 10px; }
 #ec_user_login_link a:hover{ background:#111; }
 .ec_subscription_purchased{ float: left; width: 100%; padding: 25px; background: #efefef; border: 1px solid #CCC; text-align: center; margin: 100px 0; }
+.ec_subscription_owned{ clear:both; width:100%; box-sizing:border-box; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; margin:0 0 20px; padding:14px 18px; border:1px solid #c7d2fe; border-radius:10px; background:#eef2ff; color:#312e81; }
+.ec_subscription_owned p{ margin:0; flex:1 1 280px; }
+.ec_subscription_owned_link{ font-weight:600; white-space:nowrap; }
+/* 6.0.3: a subscription that still needs its options chosen on the product page ( wp_easycart_subscription_options ). */
+.ec_subscription_choose_options{ clear:both; width:100%; box-sizing:border-box; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; margin:0 0 20px; padding:14px 18px; border:1px solid #fde68a; border-radius:10px; background:#fffbeb; color:#92400e; font-size:15px; line-height:1.5; }
+.ec_subscription_choose_options p{ margin:0; flex:1 1 280px; }
+.ec_subscription_choose_options_link{ font-weight:600; white-space:nowrap; }
+
+/* 6.0.3: the subscription checkout in the look of My Account's subscription details: the free trial as a notice, quiet section
+   titles, the totals as a card, rounded fields and buttons. Colours stay the store's ( buttons follow its settings ); widths stay
+   the cart's column settings. A larger redesign comes later. */
+.ec_subscription_trial{ float:left; width:100%; box-sizing:border-box; display:flex; flex-direction:column; gap:2px; margin:0 0 24px; padding:14px 18px; border:1px solid #ddd6fe; border-radius:10px; background:#f5f3ff; color:#5b21b6; font-size:14px; line-height:1.5; }
+.ec_subscription_trial_title{ font-size:16px; font-weight:700; }
+/* 6.0.3: what a subscription renews at when its code comes off the first payment only ( under the grand total ). */
+.ec_subscription_renewal{ float:left; width:100%; box-sizing:border-box; margin:4px 0 0; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; color:#374151; font-size:13px; line-height:1.45; }
+.ec_cart_page.ec_cart_subscription .ec_cart_left{ border-right:0; }
+.ec_cart_page.ec_cart_subscription .ec_cart_right, .ec_cart_page.ec_cart_subscription #ec_cart_payment_one_column{ box-sizing:border-box; padding:20px; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+.ec_cart_page.ec_cart_subscription #ec_cart_payment_one_column{ float:left; width:100%; margin:0 0 24px; }
+.ec_cart_page.ec_cart_subscription .ec_cart_header{ font-family:inherit !important; font-size:12px; font-weight:600; line-height:1.4; letter-spacing:0.06em; color:#6b7280; border-bottom:1px solid #e5e7eb; padding:0 0 10px; margin:28px 0 14px; }
+.ec_cart_page.ec_cart_subscription .ec_cart_header.ec_top{ margin-top:0; }
+.ec_cart_page.ec_cart_subscription .ec_cart_price_row{ padding:9px 0; border-bottom-color:#eef0f2; }
+.ec_cart_page.ec_cart_subscription .ec_cart_price_row_label, .ec_cart_page.ec_cart_subscription .ec_cart_price_row_total{ font-family:inherit !important; font-size:14px; }
+.ec_cart_page.ec_cart_subscription .ec_cart_price_row_grand_total{ border-bottom:0; padding-top:12px; }
+.ec_cart_page.ec_cart_subscription .ec_cart_price_row_grand_total .ec_cart_price_row_label, .ec_cart_page.ec_cart_subscription .ec_cart_price_row_grand_total .ec_cart_price_row_total{ font-size:16px; font-weight:700; }
+.ec_cart_page.ec_cart_subscription .ec_cart_input_row{ font-family:inherit !important; font-size:14px; }
+.ec_cart_page.ec_cart_subscription .ec_cart_address_display{ box-sizing:border-box; padding:16px 18px; border:1px solid #e5e7eb; border-radius:10px; background:#f9fafb; }
+.ec_cart_page.ec_cart_subscription .ec_cart_address_display_header{ margin:0 0 4px; font-size:12px; font-weight:600; letter-spacing:0.06em; color:#6b7280; }
+.ec_cart_page.ec_cart_subscription .ec_cart_input_row input[type="text"], .ec_cart_page.ec_cart_subscription .ec_cart_input_row input[type="email"], .ec_cart_page.ec_cart_subscription .ec_cart_input_row input[type="password"], .ec_cart_page.ec_cart_subscription .ec_cart_input_row input[type="tel"], .ec_cart_page.ec_cart_subscription .ec_cart_input_row select, .ec_cart_page.ec_cart_subscription .ec_cart_input_row textarea{ box-sizing:border-box; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; line-height:1.4; }
+.ec_cart_page.ec_cart_subscription .ec_cart_button_row > .ec_cart_button, .ec_cart_page.ec_cart_subscription .ec_cart_button_row > .ec_cart_button_working{ padding:13px 16px; border-radius:8px; font-size:14px; letter-spacing:0.04em; }
+.ec_cart_page.ec_cart_subscription .ec_cartitem_update_button{ border-radius:8px; }
+/* 6.0.3: section titles sit closer to what follows; the coupon box and its button share one row at one height. */
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon{ float:left; width:100%; display:flex; flex-wrap:wrap; gap:8px; margin:0; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon > .ec_cart_input_row{ flex:999 1 160px; width:auto; margin:0; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon > .ec_cart_button_row{ flex:1 0 auto; width:auto; margin:0; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon > .ec_cart_input_row input[type="text"]{ height:44px !important; margin:0 !important; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon > .ec_cart_button_row > .ec_cart_button{ display:flex; align-items:center; justify-content:center; float:none; width:100%; height:44px; padding:0 18px; white-space:nowrap; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_coupon > .ec_cart_button_row > .ec_cart_button_working{ float:none; width:100%; height:44px; padding:0 18px; line-height:44px; white-space:nowrap; }
+.ec_cart_page.ec_cart_subscription .ec_cart_error_row, .ec_cart_page.ec_cart_subscription .ec_cart_error_message{ margin:10px 0 0; padding:10px 12px; border:1px solid #fecaca !important; border-radius:8px; background:#fef2f2; color:#991b1b; font-family:inherit !important; font-size:14px; line-height:1.45; }
+.ec_cart_page.ec_cart_subscription .ec_cart_success_message{ margin:10px 0 0; padding:10px 12px; border:1px solid #bbf7d0 !important; border-radius:8px; background:#f0fdf4; color:#166534; font-family:inherit !important; font-size:14px; font-weight:600; line-height:1.45; box-sizing:border-box; }
+.ec_cart_page.ec_cart_subscription #ec_coupon_error, .ec_cart_page.ec_cart_subscription #ec_coupon_success, .ec_cart_page.ec_cart_subscription #ec_coupon_error_mobile, .ec_cart_page.ec_cart_subscription #ec_coupon_success_mobile{ margin:0 0 10px; }
+/* 6.0.3: the quantity as a stepper, Update beside it in the store's button colour. */
+.ec_cart_page.ec_cart_subscription .ec_subscription_quantity{ float:left; width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:16px 0 0; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper{ display:inline-flex; align-items:stretch; height:44px; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px; overflow:hidden; background:#FFFFFF; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper:focus-within{ border-color:var(--wpec-main-color, #222222); }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_minus, .ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_plus{ float:none; width:40px; height:auto; min-height:0; margin:0; padding:0; border:0; border-radius:0; background:#f9fafb; background-image:none; color:#374151; font-family:inherit; font-size:18px; font-weight:500; line-height:1; text-shadow:none; box-shadow:none; cursor:pointer; -webkit-appearance:none; appearance:none; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_minus:hover, .ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_plus:hover, .ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_minus:focus, .ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_plus:focus{ background:#f3f4f6; color:#111827; outline:none; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_quantity{ float:none; width:56px; height:auto; min-height:0; margin:0; padding:0 4px; border:0; border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; border-radius:0; background:#FFFFFF; color:#111827; font-family:inherit; font-size:15px; font-weight:600; text-align:center; box-shadow:none; outline:none; -moz-appearance:textfield; appearance:textfield; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_quantity::-webkit-outer-spin-button, .ec_cart_page.ec_cart_subscription .ec_subscription_stepper > .ec_quantity::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_quantity > .ec_cartitem_update_button{ float:none; width:auto; height:44px; margin:0; padding:0 18px; border:0; border-radius:8px; background:var(--wpec-main-color, #222222); background-image:none; color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:600; line-height:1; letter-spacing:0.04em; text-transform:uppercase; text-shadow:none; box-shadow:none; cursor:pointer; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_quantity > .ec_cartitem_update_button:hover, .ec_cart_page.ec_cart_subscription .ec_subscription_quantity > .ec_cartitem_update_button:focus{ background:var(--wpec-second-color, #666666); color:#FFFFFF; }
+/* 6.0.3: the newsletter and terms choices as rows you can click anywhere on. */
+.ec_cart_page.ec_cart_subscription .ec_cart_input_row.ec_agreement_section{ margin:10px 0 0; font-weight:400; line-height:1.45; }
+.ec_cart_page.ec_cart_subscription .ec_agreement_section ~ .ec_cart_button_row{ margin-top:16px; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice{ display:flex; align-items:flex-start; gap:12px; float:none; width:100%; box-sizing:border-box; margin:0; padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; background:#FFFFFF; color:#111827; font-family:inherit !important; font-size:14px; font-weight:500; line-height:1.45; cursor:pointer; transition:border-color .15s ease, background-color .15s ease; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice:hover{ border-color:#d1d5db; background:#f9fafb; }
+.ec_cart_page.ec_cart_subscription .ec_subscription_choice:has( input:checked ){ border-color:var(--wpec-main-color, #222222); background:#f9fafb; }
+.ec_cart_page.ec_cart_subscription .ec_cart_input_row.ec_agreement_section .ec_subscription_choice input[type="checkbox"]{ flex:0 0 auto; float:none; width:18px !important; height:18px; margin:1px 0 0 !important; accent-color:var(--wpec-main-color, #222222); cursor:pointer; }
+.ec_cart_page.ec_cart_subscription .ec_cart_header input[type="checkbox"]{ width:16px; height:16px; margin:0 8px 0 0; vertical-align:-3px; accent-color:var(--wpec-main-color, #222222); }
 
 /* Account Billing + Shipping */
 .ec_account_billing_information_title, .ec_account_shipping_information_title{ width:100%; float:left; padding-bottom:7px; border-bottom:3px solid #222222; color:#222222; font-family:'Lato', Arial, sans-serif; font-size:20px; margin-bottom:24px; }
@@ -3105,6 +3169,7 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 .ec_account_subscription_v2_notice{ padding:12px 16px; margin:0 0 16px; border-radius:10px; border:1px solid var(--ec-sub-border); background:var(--ec-sub-soft); font-size:14px; }
 .ec_account_subscription_v2_notice.is-past-due{ background:#fef2f2; border-color:#fecaca; color:#991b1b; }
 .ec_account_subscription_v2_notice.is-canceling{ background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.ec_account_subscription_v2_notice.is-trial{ background:#f5f3ff; border-color:#ddd6fe; color:#5b21b6; }
 .ec_account_subscription_v2_grid{ display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:auto auto auto 1fr; grid-template-areas:"summary side" "panels side" "selections side" "history side"; column-gap:20px; align-items:start; }
 .ec_account_subscription_v2_summary{ grid-area:summary; }
 .ec_account_subscription_v2_side{ grid-area:side; min-width:0; }
@@ -3160,6 +3225,33 @@ p.wpeasycart-location-popup-item-note{ font-size:12px; font-weight:bold; }
 .ec_account_subscription_v2_plan_name{ font-weight:600; color:#111111; word-break:break-word; }
 .ec_account_subscription_v2_plan_price{ font-weight:600; color:#111111; white-space:nowrap; }
 .ec_account_subscription_v2_plan_tag{ flex:0 0 auto; padding:1px 8px; border-radius:999px; background:var(--ec-sub-soft); color:var(--ec-sub-muted); font-size:11px; font-weight:600; line-height:18px; white-space:nowrap; }
+/* 6.0.3: plan changes ( when each plan starts, Monthly / Yearly, the review box, a change waiting, the subscription page sending a subscriber to Change plan ). */
+.ec_account_subscription_v2_plan_note{ flex:1 0 100%; font-size:12px; font-weight:500; line-height:1.4; color:var(--ec-sub-muted); }
+.ec_account_subscription_v2_plan_note.is-renewal{ color:#92400e; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_plan[hidden]{ display:none; }
+.ec_account_subscription_v2_tabs{ display:inline-flex; gap:4px; margin:0 0 12px; padding:4px; border-radius:999px; background:var(--ec-sub-soft); }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_tab{ margin:0; padding:6px 16px; border:0 !important; border-radius:999px; background:transparent !important; background-image:none; color:var(--ec-sub-muted) !important; font-size:13px; font-weight:600; line-height:1.2; box-shadow:none; text-shadow:none; cursor:pointer; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_tab.is-active{ background:#ffffff !important; color:#111111 !important; box-shadow:0 1px 2px rgba(0,0,0,0.08); }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_tab:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+.ec_account_subscription_v2_review{ margin:0 0 4px; padding:14px 16px; border:1px solid var(--ec-sub-accent); border-radius:10px; background:#ffffff; }
+.ec_account_subscription_v2_review[hidden], .ec_account_subscription_v2 .ec_account_subscription_v2_change_error[hidden], .ec_account_subscription_change_open_error[hidden]{ display:none; }
+.ec_account_subscription_v2_review_text{ margin:0 0 12px; font-size:14px; line-height:1.5; color:#111111; }
+.ec_account_subscription_v2 .ec_account_subscription_v2_change_error{ margin:0 0 12px; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_primary{ display:inline-flex; align-items:center; justify-content:center; width:auto; min-width:120px; height:42px; margin:0; padding:0 20px; border:1px solid var(--ec-sub-accent) !important; border-radius:8px; background:var(--ec-sub-accent) !important; background-image:none; color:#ffffff !important; font-size:14px; font-weight:600; line-height:1; text-shadow:none; box-shadow:none; cursor:pointer; -webkit-appearance:none; appearance:none; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_primary:hover{ opacity:0.9; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_primary:disabled{ opacity:0.4; cursor:not-allowed; }
+.ec_account_subscription_v2 button.ec_account_subscription_v2_primary:focus-visible{ outline:2px solid var(--ec-sub-accent); outline-offset:2px; }
+.ec_account_subscription_v2 .is-busy{ cursor:progress; }
+.ec_account_subscription_v2_notice.is-change{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; background:#eff6ff; border-color:#bfdbfe; color:#1e3a8a; }
+.ec_account_subscription_v2_notice.is-change-result{ background:#f0fdf4; border-color:#bbf7d0; color:#166534; }
+.ec_account_subscription_v2_notice.is-offer{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; background:#f0fdf4; border-color:#bbf7d0; color:#14532d; }
+.ec_account_subscription_v2_notice.is-offer a{ font-weight:600; color:inherit; white-space:nowrap; }
+.ec_account_subscription_v2 button.ec_account_subscription_change_cancel{ margin:0; padding:6px 12px; border:1px solid currentColor !important; border-radius:8px; background:transparent !important; background-image:none; color:inherit !important; font-size:13px; font-weight:600; line-height:1.2; box-shadow:none; text-shadow:none; cursor:pointer; }
+.ec_account_subscription_v2 button.ec_account_subscription_change_cancel:focus-visible{ outline:2px solid currentColor; outline-offset:2px; }
+.ec_account_subscription_change_open_error{ flex:1 0 100%; color:var(--ec-sub-danger); font-size:13px; }
+.ec_subscription_change_existing p{ margin:0 0 12px; }
+.ec_subscription_change_existing_link{ display:inline-block; padding:10px 20px; border-radius:6px; background:#222222; color:#ffffff !important; font-weight:600; text-decoration:none !important; }
+.ec_subscription_change_existing_link:hover, .ec_subscription_change_existing_link:focus{ opacity:0.9; }
 .ec_account_subscription_v2_field{ margin:0 0 16px; }
 .ec_account_subscription_v2 .ec_account_subscription_v2_label{ display:block; margin:0 0 6px; font-size:13px; font-weight:600; color:#374151; }
 .ec_account_subscription_v2_stepper{ display:inline-flex; align-items:stretch; height:40px; border:1px solid #e1e1e1; border-radius:8px; overflow:hidden; background:#ffffff; }

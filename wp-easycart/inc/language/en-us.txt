@@ -781,6 +781,22 @@
 					"title":"Subscription Year Label",
 					"value":"year"
 				},
+				"product_details_subscription_days":{
+					"title":"Subscription Days Label",
+					"value":"days"
+				},
+				"product_details_subscription_weeks":{
+					"title":"Subscription Weeks Label",
+					"value":"weeks"
+				},
+				"product_details_subscription_years":{
+					"title":"Subscription Years Label",
+					"value":"years"
+				},
+				"product_details_subscription_month_one":{
+					"title":"Subscription Month Label, One Month",
+					"value":"month"
+				},
 				"product_details_notify_subscribe_success":{
 					"title":"Stock Notification Subscribe Success",
 					"value":"You have been subscribed to stock notification of this product!"
@@ -1676,6 +1692,18 @@
 					"title":"Cart, Coupon Code First Order Only",
 					"value":"This coupon can only be used for your first order"
 				},
+				"subscription_coupon_first_payment":{
+					"title":"Subscription, Discount on the First Payment Only ( 6.0.3 )",
+					"value":"Your discount applies to your first payment only. After that, it renews at [price]."
+				},
+				"subscription_coupon_months":{
+					"title":"Subscription, Discount for the First Months ( 6.0.3 )",
+					"value":"Your discount applies for the first [months] months. After that, it renews at [price]."
+				},
+				"subscription_renewal_plus_tax":{
+					"title":"Subscription, Renewal Price Plus Tax ( 6.0.3 )",
+					"value":"plus tax"
+				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
 					"value":"Apply"
@@ -1999,6 +2027,38 @@
 				"cart_subscription_already_purchased":{
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"You have already purchased this item. Please visit your account to review your active subscriptions."
+				},
+				"subscription_change_existing":{
+					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
+					"value":"You already have a subscription to this plan. Change it from your account instead of buying a second one."
+				},
+				"subscription_change_existing_link":{
+					"title":"Subscription Page: Change My Plan Link ( 6.0.3 )",
+					"value":"Change my plan"
+				},
+				"subscription_owned_one":{
+					"title":"Subscription Page: Already Subscribed, One ( 6.0.3 )",
+					"value":"You already have a subscription to [title]. Buy another below, or manage yours in your account."
+				},
+				"subscription_owned_many":{
+					"title":"Subscription Page: Already Subscribed, Several ( 6.0.3 )",
+					"value":"You already have [count] subscriptions to this plan. Buy another below, or manage them in your account."
+				},
+				"subscription_owned_link_one":{
+					"title":"Subscription Page: Manage My Subscription Link ( 6.0.3 )",
+					"value":"Manage my subscription"
+				},
+				"subscription_owned_link_many":{
+					"title":"Subscription Page: Manage My Subscriptions Link ( 6.0.3 )",
+					"value":"Manage my subscriptions"
+				},
+				"subscription_choose_options":{
+					"title":"Subscription, Choose the Options First ( 6.0.3 )",
+					"value":"Choose the options for this subscription on its product page before you check out."
+				},
+				"subscription_choose_options_link":{
+					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
+					"value":"Choose options"
 				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
@@ -2972,6 +3032,30 @@
 				"subscription_trial_ending_email_title":{
 					"title":"Subscription Trial Email Title",
 					"value":"Your Trial is Ending in 3 Days"
+				},
+				"trial_reminder_email_title":{
+					"title":"Trial Reminder Email Title ( 6.0.3 )",
+					"value":"Your free trial ends on [date]"
+				},
+				"trial_reminder_message":{
+					"title":"Trial Reminder Message ( 6.0.3 )",
+					"value":"Your free trial of [title] ends on [date]. Your subscription then starts and your card is charged [price]."
+				},
+				"trial_reminder_ends":{
+					"title":"Trial Reminder, Trial Ends Label ( 6.0.3 )",
+					"value":"Trial ends"
+				},
+				"trial_reminder_then":{
+					"title":"Trial Reminder, Then Label ( 6.0.3 )",
+					"value":"Then"
+				},
+				"trial_reminder_cancel":{
+					"title":"Trial Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Not for you? Cancel from your account before [date] and you won’t be charged."
+				},
+				"trial_reminder_link":{
+					"title":"Trial Reminder Button ( 6.0.3 )",
+					"value":"Manage your subscription"
 				}
 			}
 		},
@@ -3022,6 +3106,66 @@
 				"subscription_upcoming_email_title":{
 					"title":"Subscription Upcoming Email Title",
 					"value":"Your Subscription Will Renew Soon"
+				},
+				"renewal_reminder_email_title":{
+					"title":"Renewal Reminder Email Title ( 6.0.3 )",
+					"value":"Your subscription renews on [date]"
+				},
+				"renewal_reminder_message":{
+					"title":"Renewal Reminder Message ( 6.0.3 )",
+					"value":"Your subscription to [title] renews automatically on [date]."
+				},
+				"renewal_reminder_plan":{
+					"title":"Renewal Reminder, Subscription Label ( 6.0.3 )",
+					"value":"Subscription"
+				},
+				"renewal_reminder_date":{
+					"title":"Renewal Reminder, Date Label ( 6.0.3 )",
+					"value":"Renews on"
+				},
+				"renewal_reminder_price":{
+					"title":"Renewal Reminder, Price Label ( 6.0.3 )",
+					"value":"Renewal price"
+				},
+				"renewal_reminder_cancel":{
+					"title":"Renewal Reminder, How to Cancel ( 6.0.3 )",
+					"value":"If you don’t want it to renew, cancel from your account before [date]. You can update your payment method there too."
+				},
+				"renewal_reminder_link":{
+					"title":"Renewal Reminder Button ( 6.0.3 )",
+					"value":"Manage your subscription"
+				},
+				"price_change_email_title":{
+					"title":"Price Change Email Title ( 6.0.3 )",
+					"value":"The price of your subscription is changing"
+				},
+				"price_change_message":{
+					"title":"Price Change Message ( 6.0.3 )",
+					"value":"From [date], your subscription to [title] costs [price] instead of [old_price]."
+				},
+				"price_change_plan":{
+					"title":"Price Change, Subscription Label ( 6.0.3 )",
+					"value":"Subscription"
+				},
+				"price_change_old":{
+					"title":"Price Change, Price Now Label ( 6.0.3 )",
+					"value":"Price now"
+				},
+				"price_change_new":{
+					"title":"Price Change, New Price Label ( 6.0.3 )",
+					"value":"New price"
+				},
+				"price_change_date":{
+					"title":"Price Change, Date Label ( 6.0.3 )",
+					"value":"From"
+				},
+				"price_change_cancel":{
+					"title":"Price Change, How to Cancel ( 6.0.3 )",
+					"value":"Nothing changes before then. If you don’t want to continue at the new price, cancel from your account before [date]."
+				},
+				"price_change_link":{
+					"title":"Price Change Button ( 6.0.3 )",
+					"value":"Manage your subscription"
 				}
 			}
 		},
@@ -4012,6 +4156,126 @@
 				"subscription_details_plan_notice":{
 					"title":"Account, Subscription Details, Plan Change Notice",
 					"value":"Plan changes take effect right away. Your next bill shows the new price and any charge or credit for the rest of the current period."
+				},
+				"subscription_details_interval_notice":{
+					"title":"Account, Subscription Details, Billing Schedule Change Notice",
+					"value":"This plan bills on a different schedule, so it starts a new billing period today: you pay the new price now, less the unused part of your current period."
+				},
+				"subscription_details_trial_ends":{
+					"title":"Account, Subscription Details, Trial Ends Label",
+					"value":"Trial ends"
+				},
+				"subscription_details_trial_notice":{
+					"title":"Account, Subscription Details, Free Trial Notice",
+					"value":"Your free trial ends on [date]. Your first payment of [price] is taken then."
+				},
+				"subscription_change_review":{
+					"title":"Change Plan: Review Button ( 6.0.3 )",
+					"value":"Review change"
+				},
+				"subscription_change_confirm":{
+					"title":"Change Plan: Confirm Button ( 6.0.3 )",
+					"value":"Confirm change"
+				},
+				"subscription_change_back":{
+					"title":"Change Plan: Back Button ( 6.0.3 )",
+					"value":"Back"
+				},
+				"subscription_change_now_charge":{
+					"title":"Change Plan: Charged Now ( 6.0.3 )",
+					"value":"Your plan changes now. You pay [amount] today for the rest of this billing period, then [price] from [date]."
+				},
+				"subscription_change_now_next":{
+					"title":"Change Plan: Added to Next Payment ( 6.0.3 )",
+					"value":"Your plan changes now. [amount] for the rest of this billing period is added to your next payment on [date]."
+				},
+				"subscription_change_now_credit":{
+					"title":"Change Plan: Credit on Next Payment ( 6.0.3 )",
+					"value":"Your plan changes now. [amount] for the unused part of this billing period comes off your next payment on [date]."
+				},
+				"subscription_change_now_none":{
+					"title":"Change Plan: Now, Nothing Extra ( 6.0.3 )",
+					"value":"Your plan changes now. Your next payment is [price] on [date]."
+				},
+				"subscription_change_now_interval":{
+					"title":"Change Plan: New Billing Period ( 6.0.3 )",
+					"value":"Your plan changes now and a new billing period starts today. You pay [amount] today, then [price] from [date]."
+				},
+				"subscription_change_trial":{
+					"title":"Change Plan: During a Free Trial ( 6.0.3 )",
+					"value":"Your plan changes now. Your free trial still ends on [date], then you pay [price]."
+				},
+				"subscription_change_renewal":{
+					"title":"Change Plan: At Renewal ( 6.0.3 )",
+					"value":"You keep your current plan until [date]. Then your plan changes and you pay [price]."
+				},
+				"subscription_change_note_now":{
+					"title":"Change Plan: Starts Now ( 6.0.3 )",
+					"value":"Starts now"
+				},
+				"subscription_change_note_renewal":{
+					"title":"Change Plan: Starts on a Date ( 6.0.3 )",
+					"value":"Starts [date]"
+				},
+				"subscription_change_note_later":{
+					"title":"Change Plan: Starts at Renewal ( 6.0.3 )",
+					"value":"Starts at renewal"
+				},
+				"subscription_change_note_trial":{
+					"title":"Change Plan: Starts Now During a Free Trial ( 6.0.3 )",
+					"value":"Starts now, free until [date]"
+				},
+				"subscription_change_note_trial_end":{
+					"title":"Change Plan: Starts Now and Ends the Free Trial ( 6.0.3 )",
+					"value":"Starts now and ends your free trial"
+				},
+				"subscription_change_pending":{
+					"title":"Change Plan: Change Waiting ( 6.0.3 )",
+					"value":"Your plan changes to [title] on [date]."
+				},
+				"subscription_change_pending_payment":{
+					"title":"Change Plan: Waiting for a Payment ( 6.0.3 )",
+					"value":"Your change to [title] is waiting for a payment to go through."
+				},
+				"subscription_change_cancel":{
+					"title":"Change Plan: Cancel the Change ( 6.0.3 )",
+					"value":"Cancel this change"
+				},
+				"subscription_change_cancelled":{
+					"title":"Change Plan: Change Cancelled ( 6.0.3 )",
+					"value":"The change was cancelled. You keep your current plan."
+				},
+				"subscription_change_applied":{
+					"title":"Change Plan: Plan Changed ( 6.0.3 )",
+					"value":"Your plan has changed."
+				},
+				"subscription_change_scheduled":{
+					"title":"Change Plan: Change Scheduled ( 6.0.3 )",
+					"value":"Your plan change is scheduled."
+				},
+				"subscription_change_declined":{
+					"title":"Change Plan: Card Declined ( 6.0.3 )",
+					"value":"Your card was declined, so your plan did not change. Update your payment method and try again."
+				},
+				"subscription_change_error":{
+					"title":"Change Plan: Error ( 6.0.3 )",
+					"value":"Your plan could not be changed right now. Please try again, or contact us."
+				},
+				"subscription_change_unavailable":{
+					"title":"Change Plan: Not Available ( 6.0.3 )",
+					"value":"This change is not available for your subscription."
+				},
+				"subscription_change_monthly":{
+					"title":"Change Plan: Monthly Tab ( 6.0.3 )",
+					"value":"Monthly"
+				},
+				"subscription_change_yearly":{
+					"title":"Change Plan: Yearly Tab ( 6.0.3 )",
+					"value":"Yearly"
+				},
+				"subscription_change_price":{
+					"title":"Change Plan: Price Changing ( 6.0.3 )",
+					"value":"Your price changes to [price] from [date]. Nothing changes before then."
 				},
 				"subscription_details_card_notice":{
 					"title":"Account, Subscription Details, Card Change Notice",

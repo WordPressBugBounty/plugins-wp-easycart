@@ -2589,6 +2589,13 @@ function wpeasycart_subscription_cart_update_totals( data_arr ) {
 
 	jQuery( document.getElementById( 'ec_cart_total' ) ).html( data_arr['grand_total'] );
 	jQuery( document.getElementById( 'ec_cart_total_mobile' ) ).html( data_arr['grand_total'] );
+	/* 6.0.3: what the subscription renews at when the code comes off the first payment only ( plain text; '' hides it ). */
+	if ( 'undefined' != typeof data_arr['renewal_note'] ) {
+		jQuery( '.ec_subscription_renewal' ).text( data_arr['renewal_note'] ).css( 'display', ( '' == data_arr['renewal_note'] ) ? 'none' : '' );
+	}
+	if ( 'undefined' != typeof data_arr['trial_text'] && '' != data_arr['trial_text'] ) { /* 6.0.3: the free trial's first payment, with the code */
+		jQuery( '.ec_subscription_trial_text' ).text( data_arr['trial_text'] );
+	}
 
 	if( Number( data_arr['has_tax'] ) == 1 ){ 
 		jQuery( '#ec_cart_tax_row' ).show( ); 

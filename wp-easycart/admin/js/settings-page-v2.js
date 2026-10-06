@@ -167,6 +167,17 @@
 		}
 
 		/* autosave ( toggle / select / pills ) */
+		/* 6.0.3: a switch the server refused ( the reCAPTCHA switch before its keys passed a test ) goes back to its saved state. */
+		function revertToggle( key ) {
+			var $row = rowOf( key );
+			if ( $row.data( 'type' ) !== 'toggle' ) { return; }
+			var on = String( initial[ key ] ) === '1';
+			$row.find( '.ecst-input' ).prop( 'checked', on );
+			$row.find( '.ecst-toggle' ).toggleClass( 'is-on', on );
+			$row.toggleClass( 'is-on', on ).toggleClass( 'is-off', ! on );
+			$row.find( '.ecst-onoff' ).text( on ? ( T.on || 'On' ) : ( T.off || 'Off' ) );
+			applyDeps( key );
+		}
 		function saveNow( key, value ) {
 			var changes = {};
 			changes[ key ] = value;
@@ -176,6 +187,7 @@
 				if ( d.errors && d.errors[ key ] ) {
 					setState( key, 'error', T.save_failed );
 					setMsg( key, d.errors[ key ] );
+					revertToggle( key );
 					return;
 				}
 				setState( key, 'saved', T.saved );

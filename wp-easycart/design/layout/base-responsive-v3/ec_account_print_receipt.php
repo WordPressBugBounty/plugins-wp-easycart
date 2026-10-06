@@ -110,7 +110,7 @@ if ( ! empty( $order->includes_restaurant_type ) ) {
 /* Greeting */
 $ec_pr_date = isset( $order_timestamp ) ? date_i18n( get_option( 'date_format' ), $order_timestamp ) : date_i18n( get_option( 'date_format' ), strtotime( $order->order_date ) );
 $ed::section_start();
-$ed::heading( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ) . ' ' . esc_html( trim( $order->billing_first_name . ' ' . $order->billing_last_name ) ) );
+$ed::greeting( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ), trim( $order->billing_first_name . ' ' . $order->billing_last_name ), array( 'comma' => false ) ); /* 6.0.3: text size, not a headline */
 $ed::paragraph( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_line_2' ) ) . ' <strong style="color:#111827;">' . esc_html( $order_id ) . ' &mdash; ' . esc_html( $ec_pr_date ) . '</strong>' );
 $ed::paragraph( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_line_3' ) ) );
 $ed::paragraph( wp_kses_post( $ec_pr_lang->get_text( 'cart_success', 'cart_payment_complete_line_4' ) ), array( 'margin' => '0' ) );

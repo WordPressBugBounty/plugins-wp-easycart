@@ -389,6 +389,17 @@ if ( ! class_exists( 'wp_easycart_storefront_access' ) ) :
 			global $wpdb;
 			$user_id = (int) $user_id;
 			$ids     = self::id_list( $product_ids );
+			if ( ! empty( $ids ) && $user_id > 0 ) {
+				/**
+				 * The products whose purchase opens a membership for these products ( 6.0.3: WP EasyCart PRO adds the other billing
+				 * interval and the higher tiers of a plan group, so "Player" content opens for Pro subscribers too ).
+				 *
+				 * @since 6.0.3
+				 * @param int[] $ids     Product ids.
+				 * @param int   $user_id ec_user id.
+				 */
+				$ids = self::id_list( apply_filters( 'wp_easycart_membership_product_ids', $ids, $user_id ) );
+			}
 			if ( $user_id <= 0 || empty( $ids ) || ! is_object( $wpdb ) ) {
 				return false;
 			}
@@ -421,7 +432,10 @@ if ( ! class_exists( 'wp_easycart_storefront_access' ) ) :
 				$member = false;
 				if ( ! empty( $recurs ) ) {
 					$in_recurs = implode( ', ', array_fill( 0, count( $recurs ), '%d' ) );
-					$active    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT( subscription_id ) FROM ec_subscription WHERE user_id = %d AND subscription_status = 'Active' AND product_id IN ( " . $in_recurs . ' )', array_merge( array( $user_id ), $recurs ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one %d placeholder per id, bound by prepare().
+					/* 6.0.3: a free trial, or a subscription cancelled at the end of the period it paid for, is still a member
+					 * ( wp_easycart_subscription_member_statuses() ); WP EasyCart PRO's sync writes those statuses. */
+					$statuses  = ( function_exists( 'wp_easycart_subscription_member_statuses' ) ) ? wp_easycart_subscription_member_statuses() : array( 'Active' );
+					$active    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT( subscription_id ) FROM ec_subscription WHERE user_id = %d AND subscription_status IN ( ' . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ' ) AND product_id IN ( ' . $in_recurs . ' )', array_merge( array( $user_id ), $statuses, $recurs ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one placeholder per status and per id, bound by prepare().
 					if ( $active > 0 ) {
 						$member = true;
 					} else {

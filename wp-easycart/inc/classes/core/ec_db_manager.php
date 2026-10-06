@@ -771,6 +771,12 @@ class ec_db_manager {
 				'wpeasycart_sql_6_0_2_packing',
 				'wpeasycart_sql_6_0_2_reports'
 			),
+			'6.0.3' => array(
+				'wpeasycart_sql_6_0_3_import',
+				'wpeasycart_sql_6_0_3_plan_groups',
+				'wpeasycart_sql_6_0_3_plan_changes',
+				'wpeasycart_sql_6_0_3_subscription_options'
+			),
 		);
 
 		$return_functions = array();
@@ -2442,6 +2448,107 @@ class ec_db_manager {
 	}
 
 	/**
+	 * 6.0.3 import ( EC_UPGRADE_DB 120 ): ec_import_map, the import framework's record of what each import brought in
+	 * ( wp_easycart_import ): one row per source item ( source, source_site, entity, source_id ) with the EasyCart id it
+	 * became, the run, whether that run created it ( created: an undo removes only those ), the result and its note, a
+	 * hash for reruns and the item's old address ( source_path: old WooCommerce addresses redirect from it ). Also indexes
+	 * on the Square ids the Square import, sync and webhook look up ( prefix indexes: the columns are varchar 255 ). dbDelta
+	 * adds the table from get_schema() too.
+	 */
+	private function wpeasycart_sql_6_0_3_import() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_import_map' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_import_map ( map_id bigint(20) NOT NULL AUTO_INCREMENT, source varchar(20) NOT NULL DEFAULT '', source_site varchar(40) NOT NULL DEFAULT '', entity varchar(20) NOT NULL DEFAULT '', source_id varchar(100) NOT NULL DEFAULT '', target_id bigint(20) NOT NULL DEFAULT '0', run_id int(11) NOT NULL DEFAULT '0', created tinyint(1) NOT NULL DEFAULT '0', status varchar(20) NOT NULL DEFAULT '', label varchar(255) NOT NULL DEFAULT '', message text, source_hash char(32) NOT NULL DEFAULT '', source_path varchar(255) NOT NULL DEFAULT '', updated_at datetime DEFAULT NULL, PRIMARY KEY  (map_id), UNIQUE KEY source_item (source,source_site,entity,source_id), KEY run_id (run_id), KEY target (entity,target_id), KEY source_path (source_path(100)) ) $collate;" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed DDL.
+			$sql_error = $wpdb->last_error; // table_exists() runs a query, which clears it
+			if ( ! $this->table_exists( 'ec_import_map' ) ) {
+				$this->record_update_failure( '6.0.3 import: could not create ec_import_map: ' . $sql_error );
+			}
+		}
+		foreach ( array( 'ec_product' => 'product_square_id', 'ec_optionitemquantity' => 'optionitemquantity_square_id', 'ec_optionitem' => 'optionitem_square_id', 'ec_option' => 'option_square_id', 'ec_category' => 'category_square_id' ) as $table => $index ) {
+			if ( $this->column_exists( $table, 'square_id' ) ) {
+				$this->add_index( $table, $index, 'square_id(64)' ); /* an index is a speed-up: never fails the update */
+			}
+		}
+	}
+
+	/**
+	 * 6.0.3 plan groups ( EC_UPGRADE_DB 121 ): WP EasyCart PRO's plan groups sell a set of tiers, each monthly and / or yearly,
+	 * from a pricing table. ec_subscription_plan gains its kind ( list: the Change plan list it always was | table: a plan
+	 * group ) and the group's settings ( JSON ); ec_subscription_plan_tier holds the tiers; ec_product gains plan_tier_id and
+	 * plan_interval ( the products a group writes, one per tier and interval: M1 monthly, Y1 yearly ). ec_subscription gains
+	 * renewal_reminder_for / trial_reminder_for ( the renewal or trial end a reminder email was sent for ). dbDelta adds the
+	 * same from get_schema().
+	 */
+	/**
+	 * 6.0.3 plan changes ( plan tables Phase 2 ): ec_subscription_change keeps every change a subscriber or the store asks for, with
+	 * when it applies ( now | renewal ), its state ( scheduled | pending_payment | applied | cancelled | failed ) and the Stripe
+	 * schedule or invoice behind it ( wp_easycart_subscription_changes ). dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 122 ).
+	 */
+	/**
+	 * 6.0.3 subscription options: the product a checkout session's subscription choices were made for, so another subscription opened
+	 * later in the session never shows, prices or bills them ( wp_easycart_subscription_options ). dbDelta adds the same from get_schema()
+	 * ( EC_UPGRADE_DB 123 ), which is how a store that already recorded 6.0.3 gets it.
+	 */
+	private function wpeasycart_sql_6_0_3_subscription_options() {
+		global $wpdb;
+		if ( ! $this->add_column( 'ec_tempcart_data', 'subscription_product_id', "int(11) NOT NULL DEFAULT '0'" ) || ( $this->table_exists( 'ec_tempcart_data' ) && ! $this->column_exists( 'ec_tempcart_data', 'subscription_product_id' ) ) ) {
+			$this->record_update_failure( '6.0.3 subscription options: could not add ec_tempcart_data.subscription_product_id: ' . $wpdb->last_error );
+		}
+	}
+
+	private function wpeasycart_sql_6_0_3_plan_changes() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_subscription_change' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_subscription_change ( change_id int(11) NOT NULL AUTO_INCREMENT, subscription_id int(11) NOT NULL DEFAULT '0', from_product_id int(11) NOT NULL DEFAULT '0', to_product_id int(11) NOT NULL DEFAULT '0', from_quantity int(11) NOT NULL DEFAULT '1', to_quantity int(11) NOT NULL DEFAULT '1', change_when varchar(20) NOT NULL DEFAULT 'now', change_status varchar(20) NOT NULL DEFAULT 'scheduled', effective_at int(11) NOT NULL DEFAULT '0', amount double(21,3) NOT NULL DEFAULT '0.000', stripe_schedule_id varchar(255) NOT NULL DEFAULT '', stripe_price_id varchar(255) NOT NULL DEFAULT '', stripe_invoice_id varchar(255) NOT NULL DEFAULT '', change_source varchar(20) NOT NULL DEFAULT 'customer', created_at datetime DEFAULT NULL, updated_at datetime DEFAULT NULL, PRIMARY KEY  (change_id), KEY subscription_id (subscription_id), KEY change_status (change_status) ) $collate;" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed DDL; $collate is the charset clause.
+			$sql_error = $wpdb->last_error;
+			if ( ! $this->table_exists( 'ec_subscription_change' ) ) {
+				$this->record_update_failure( '6.0.3 plan changes: could not create ec_subscription_change: ' . $sql_error );
+			}
+		}
+	}
+
+	private function wpeasycart_sql_6_0_3_plan_groups() {
+		global $wpdb;
+		$collate = $wpdb->has_cap( 'collation' ) ? $wpdb->get_charset_collate() : '';
+		if ( ! $this->table_exists( 'ec_subscription_plan_tier' ) ) {
+			$wpdb->query( "CREATE TABLE IF NOT EXISTS ec_subscription_plan_tier ( tier_id int(11) NOT NULL AUTO_INCREMENT, subscription_plan_id int(11) NOT NULL DEFAULT '0', tier_order int(11) NOT NULL DEFAULT '0', tier_name varchar(255) NOT NULL DEFAULT '', tier_description text NULL, button_label varchar(255) NOT NULL DEFAULT '', is_popular tinyint(1) NOT NULL DEFAULT '0', trial_days int(11) NOT NULL DEFAULT '0', signup_fee float(15,3) NOT NULL DEFAULT '0.000', features longtext NULL, tier_status varchar(20) NOT NULL DEFAULT 'active', PRIMARY KEY  (tier_id), KEY subscription_plan_id (subscription_plan_id) ) $collate;" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed DDL; $collate is the charset clause.
+			$sql_error = $wpdb->last_error;
+			if ( ! $this->table_exists( 'ec_subscription_plan_tier' ) ) {
+				$this->record_update_failure( '6.0.3 plan groups: could not create ec_subscription_plan_tier: ' . $sql_error );
+			}
+		}
+		$columns = array(
+			'ec_subscription_plan' => array(
+				'plan_kind'     => "varchar(20) NOT NULL DEFAULT 'list'",
+				'plan_settings' => 'longtext NULL',
+			),
+			'ec_product'           => array(
+				'plan_tier_id'  => "int(11) NOT NULL DEFAULT '0'",
+				'plan_interval' => "varchar(10) NOT NULL DEFAULT ''",
+			),
+			'ec_subscription'      => array(
+				'renewal_reminder_for' => "varchar(20) NOT NULL DEFAULT ''",
+				'trial_reminder_for'   => "varchar(20) NOT NULL DEFAULT ''",
+			),
+		);
+		foreach ( $columns as $table => $list ) {
+			foreach ( $list as $column => $definition ) {
+				if ( ! $this->column_exists( $table, $column ) ) {
+					$this->add_column( $table, $column, $definition );
+					if ( ! $this->column_exists( $table, $column ) ) {
+						$this->record_update_failure( '6.0.3 plan groups: could not add ' . $table . '.' . $column );
+					}
+				}
+			}
+		}
+		if ( $this->column_exists( 'ec_product', 'plan_tier_id' ) ) {
+			$this->add_index( 'ec_product', 'product_plan_tier', 'plan_tier_id' );
+		}
+	}
+
+	/**
 	 * 6.0.2 payments: what each order has been paid ( amount_paid, NULL = not recorded ) and the part of its refunds that gave
 	 * back an overpayment ( overpaid_refund_total ), so an order edited after it was paid shows its balance ( see
 	 * wp_easycart_order_payments ). dbDelta adds the same from get_schema() ( EC_UPGRADE_DB 116 ). Paid orders whose lines and
@@ -2792,7 +2899,9 @@ class ec_db_manager {
 
 	private function get_uninstall_tables() {
 		/* 6.0.2: every table get_schema() creates, including the abandoned cart, email and review request tables ( 6.0.0 /
-		   6.0.1 ) and the packages and shipments tables ( 6.0.2 ), so uninstalling removes them and Store Status reports them. */
+		   6.0.1 ) and the packages and shipments tables ( 6.0.2 ), so uninstalling removes them and Store Status reports them.
+		   6.0.3: the Reports tables ( 6.0.2 ), the import map, pricing table tiers and plan changes had been left out ( deleting
+		   the plugin kept them ); the list now also takes every table get_schema() names, so a new table is never missed. */
 		$tables = array(
 			"ec_abandoned_cart",
 			"ec_abandoned_cart_event",
@@ -2816,6 +2925,7 @@ class ec_db_manager {
 			"ec_email_queue",
 			"ec_fee",
 			"ec_giftcard",
+			"ec_import_map",
 			"ec_inventory_log",
 			"ec_invoice",
 			"ec_live_rate_cache",
@@ -2846,6 +2956,7 @@ class ec_db_manager {
 			"ec_order_shipment",
 			"ec_order_tag",
 			"ec_order_tag_item",
+			"ec_order_transaction",
 			"ec_orderdetail",
 			"ec_orderstatus",
 			"ec_package",
@@ -2860,6 +2971,12 @@ class ec_db_manager {
 			"ec_product_subscriber",
 			"ec_promocode",
 			"ec_promotion",
+			"ec_report_day",
+			"ec_report_product_day",
+			"ec_report_search_day",
+			"ec_report_session",
+			"ec_report_step_day",
+			"ec_report_visit_day",
 			"ec_response",
 			"ec_review",
 			"ec_review_request",
@@ -2874,7 +2991,9 @@ class ec_db_manager {
 			"ec_state",
 			"ec_subscriber",
 			"ec_subscription",
+			"ec_subscription_change",
 			"ec_subscription_plan",
+			"ec_subscription_plan_tier",
 			"ec_taxrate",
 			"ec_tempcart",
 			"ec_tempcart_data",
@@ -2892,6 +3011,10 @@ class ec_db_manager {
 			"ec_zone",
 			"ec_zone_to_location"
 		);
+
+		if ( preg_match_all( '/CREATE TABLE\s+`?(ec_[a-z0-9_]+)/i', $this->get_schema(), $created ) ) {
+			$tables = array_values( array_unique( array_merge( $tables, array_map( 'strtolower', $created[1] ) ) ) );
+		}
 
 		return $tables;
 
@@ -3806,6 +3929,27 @@ CREATE TABLE ec_report_visit_day (
   visits int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY  (stat_date,source_type)
 ) $collate;
+CREATE TABLE ec_import_map (
+  map_id bigint(20) NOT NULL AUTO_INCREMENT,
+  source varchar(20) NOT NULL DEFAULT '',
+  source_site varchar(40) NOT NULL DEFAULT '',
+  entity varchar(20) NOT NULL DEFAULT '',
+  source_id varchar(100) NOT NULL DEFAULT '',
+  target_id bigint(20) NOT NULL DEFAULT '0',
+  run_id int(11) NOT NULL DEFAULT '0',
+  created tinyint(1) NOT NULL DEFAULT '0',
+  status varchar(20) NOT NULL DEFAULT '',
+  label varchar(255) NOT NULL DEFAULT '',
+  message text,
+  source_hash char(32) NOT NULL DEFAULT '',
+  source_path varchar(255) NOT NULL DEFAULT '',
+  updated_at datetime DEFAULT NULL,
+  PRIMARY KEY  (map_id),
+  UNIQUE KEY source_item (source,source_site,entity,source_id),
+  KEY run_id (run_id),
+  KEY target (entity,target_id),
+  KEY source_path (source_path(100))
+) $collate;
 CREATE TABLE ec_order_fee (
   order_fee_id int(11) NOT NULL AUTO_INCREMENT,
   order_id int(11) NOT NULL DEFAULT '0',
@@ -4178,6 +4322,8 @@ CREATE TABLE ec_product (
   ships_separately tinyint(1) NOT NULL DEFAULT '0',
   package_id int(11) NOT NULL DEFAULT '0',
   fulfillment_provider varchar(40) NOT NULL DEFAULT '',
+  plan_tier_id int(11) NOT NULL DEFAULT '0',
+  plan_interval varchar(10) NOT NULL DEFAULT '',
   PRIMARY KEY  (product_id),
   UNIQUE KEY product_product_id (product_id),
   KEY product_model_number (model_number($max_index_length)),
@@ -4192,7 +4338,8 @@ CREATE TABLE ec_product (
   KEY product_option_id_5 (option_id_5),
   KEY idx_storefront_default (activate_in_store, role_id, sort_position),
   KEY idx_post_id (post_id),
-  KEY product_active_price (activate_in_store,price)
+  KEY product_active_price (activate_in_store,price),
+  KEY product_plan_tier (plan_tier_id)
 ) $collate;
 CREATE TABLE ec_product_bundle (
   product_bundle_id int(11) NOT NULL AUTO_INCREMENT,
@@ -4571,6 +4718,8 @@ CREATE TABLE ec_subscription (
   quantity int(11) NOT NULL DEFAULT '1',
   num_failed_payment int(11) NOT NULL DEFAULT '0',
   cancelled_at datetime DEFAULT NULL,
+  renewal_reminder_for varchar(20) NOT NULL DEFAULT '',
+  trial_reminder_for varchar(20) NOT NULL DEFAULT '',
   PRIMARY KEY  (subscription_id),
   UNIQUE KEY subscription_id (subscription_id),
   KEY user_id (user_id),
@@ -4580,7 +4729,45 @@ CREATE TABLE ec_subscription_plan (
   subscription_plan_id int(11) NOT NULL AUTO_INCREMENT,
   plan_title varchar(255) NOT NULL DEFAULT '',
   can_downgrade tinyint(1) NOT NULL DEFAULT '0',
+  plan_kind varchar(20) NOT NULL DEFAULT 'list',
+  plan_settings longtext NULL,
   PRIMARY KEY  (subscription_plan_id)
+) $collate;
+CREATE TABLE ec_subscription_change (
+  change_id int(11) NOT NULL AUTO_INCREMENT,
+  subscription_id int(11) NOT NULL DEFAULT '0',
+  from_product_id int(11) NOT NULL DEFAULT '0',
+  to_product_id int(11) NOT NULL DEFAULT '0',
+  from_quantity int(11) NOT NULL DEFAULT '1',
+  to_quantity int(11) NOT NULL DEFAULT '1',
+  change_when varchar(20) NOT NULL DEFAULT 'now',
+  change_status varchar(20) NOT NULL DEFAULT 'scheduled',
+  effective_at int(11) NOT NULL DEFAULT '0',
+  amount double(21,3) NOT NULL DEFAULT '0.000',
+  stripe_schedule_id varchar(255) NOT NULL DEFAULT '',
+  stripe_price_id varchar(255) NOT NULL DEFAULT '',
+  stripe_invoice_id varchar(255) NOT NULL DEFAULT '',
+  change_source varchar(20) NOT NULL DEFAULT 'customer',
+  created_at datetime DEFAULT NULL,
+  updated_at datetime DEFAULT NULL,
+  PRIMARY KEY  (change_id),
+  KEY subscription_id (subscription_id),
+  KEY change_status (change_status)
+) $collate;
+CREATE TABLE ec_subscription_plan_tier (
+  tier_id int(11) NOT NULL AUTO_INCREMENT,
+  subscription_plan_id int(11) NOT NULL DEFAULT '0',
+  tier_order int(11) NOT NULL DEFAULT '0',
+  tier_name varchar(255) NOT NULL DEFAULT '',
+  tier_description text NULL,
+  button_label varchar(255) NOT NULL DEFAULT '',
+  is_popular tinyint(1) NOT NULL DEFAULT '0',
+  trial_days int(11) NOT NULL DEFAULT '0',
+  signup_fee float(15,3) NOT NULL DEFAULT '0.000',
+  features longtext NULL,
+  tier_status varchar(20) NOT NULL DEFAULT 'active',
+  PRIMARY KEY  (tier_id),
+  KEY subscription_plan_id (subscription_plan_id)
 ) $collate;
 CREATE TABLE ec_taxrate (
   taxrate_id int(11) NOT NULL AUTO_INCREMENT,
@@ -4705,6 +4892,7 @@ CREATE TABLE ec_tempcart_data (
   subscription_option5 text,
   subscription_advanced_option text,
   subscription_quantity varchar(255) NOT NULL DEFAULT '',
+  subscription_product_id int(11) NOT NULL DEFAULT '0',
   convert_to varchar(255) NOT NULL DEFAULT '',
   translate_to varchar(255) NOT NULL DEFAULT '',
   taxcloud_tax_amount varchar(255) NOT NULL DEFAULT '',

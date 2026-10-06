@@ -20,6 +20,8 @@ $ecreg_active    = ! empty( $ecreg_status['active'] );
 $ecreg_trial_url = wp_easycart_admin()->pro_install_url( 'trial' );
 $ecreg_install   = wp_easycart_admin()->pro_install_url( 'install' );
 $ecreg_activate  = wp_easycart_admin()->get_pro_activation_link();
+$ecreg_outdated  = method_exists( wp_easycart_admin(), 'pro_needs_update' ) && wp_easycart_admin()->pro_needs_update(); /* 6.0.3: the link updates, then activates */
+$ecreg_act_label = $ecreg_outdated ? __( 'Update and activate WP EasyCart PRO', 'wp-easycart' ) : __( 'Activate WP EasyCart PRO', 'wp-easycart' );
 $ecreg_pricing   = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::plan_url( 'pro', 'default' ) : 'https://www.wpeasycart.com/wordpress-shopping-cart-pricing/';
 $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admin_upsell::stats() : array();
 ?>
@@ -43,8 +45,12 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 	<?php if ( $ecreg_installed && ! $ecreg_active ) : ?>
 	<div class="ecreg-notice">
 		<span class="dashicons dashicons-info-outline"></span>
+		<?php if ( $ecreg_outdated ) : ?>
+		<span><strong><?php esc_html_e( 'WP EasyCart PRO is installed but too old for this version of WP EasyCart.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'Update and activate it in one click, then renew your license or enter a new key on this page.', 'wp-easycart' ); ?></span>
+		<?php else : ?>
 		<span><strong><?php esc_html_e( 'WP EasyCart PRO is already installed on this site.', 'wp-easycart' ); ?></strong> <?php esc_html_e( 'Activate the plugin, then enter your license key ( or start a trial ) on this page.', 'wp-easycart' ); ?></span>
-		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate WP EasyCart PRO', 'wp-easycart' ); ?></a>
+		<?php endif; ?>
+		<a class="ecv2-btn ecv2-btn-sm ecv2-btn-primary" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php echo esc_html( $ecreg_act_label ); ?></a>
 	</div>
 	<?php endif; ?>
 
@@ -71,7 +77,7 @@ $ecreg_stats     = class_exists( 'wp_easycart_admin_upsell' ) ? wp_easycart_admi
 			<h3><?php esc_html_e( 'Already have a license key?', 'wp-easycart' ); ?></h3>
 			<?php if ( $ecreg_installed && ! $ecreg_active ) : ?>
 				<p><?php esc_html_e( 'WP EasyCart PRO is installed. Activate it and this page will show the license form where you paste your key.', 'wp-easycart' ); ?></p>
-				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php esc_html_e( 'Activate WP EasyCart PRO', 'wp-easycart' ); ?></a>
+				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_activate ); ?>"><?php echo esc_html( $ecreg_act_label ); ?></a>
 			<?php elseif ( ! $ecreg_installed ) : ?>
 				<p><?php esc_html_e( 'Install the WP EasyCart PRO plugin first — it is a one-click download from here — then paste your key on this page.', 'wp-easycart' ); ?></p>
 				<a class="ecv2-btn ecreg-path-cta" href="<?php echo esc_url( $ecreg_install ); ?>"><?php esc_html_e( 'Install WP EasyCart PRO', 'wp-easycart' ); ?></a>

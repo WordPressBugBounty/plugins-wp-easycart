@@ -863,33 +863,12 @@ if ( ! class_exists( 'WP_EasyCart_Elementor_Cart_Widget' ) && class_exists( 'WP_
 				wp_easycart_load_cart_js();
 			}
 			$attributes = ' data-wpec-cart-widget="cart" data-wpec-cart-offpage="1"' . WP_EasyCart_Elementor_Checkout_Module::context_attributes( $this->get_id() );
-			if ( get_option( 'ec_option_cache_prevent' ) ) {
-				/* The page may be cached: checkout.js asks for the cart after it loads ( wp_easycart_elementor_cart ). */
-				echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '" data-wpec-cart-load="1"' . $attributes . '><div class="wpec-cart-loading" aria-busy="true"></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
-				$this->ec_render_empty( $settings, true );
-				echo '</div>';
-				$this->ec_render_after( $settings );
-				return;
-			}
-			if ( ! class_exists( 'ec_cartpage' ) || ! isset( $GLOBALS['ec_cart_data'] ) ) {
-				return;
-			}
-			$cartpage = new ec_cartpage();
-			if ( (int) $cartpage->cart->total_items > 0 && method_exists( $cartpage, 'display_cart_contents' ) ) {
-				echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . $attributes . '><div class="wpec-cart-contents">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
-				WP_EasyCart_Elementor_Checkout_Module::push_texts( $settings );
-				$cartpage->display_cart_contents();
-				WP_EasyCart_Elementor_Checkout_Module::pop_texts();
-				echo '</div>';
-				$this->ec_render_empty( $settings, true );
-				echo '</div>';
-				$this->ec_render_after( $settings );
-				return;
-			}
-			$classes[] = 'wpec-cart--empty';
-			echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '"' . $attributes . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
-			$this->ec_render_empty( $settings );
+			/* checkout.js asks for the cart after the page loads ( wp_easycart_elementor_cart ). 6.0.3: always, not only with cache
+			 * prevention on: the page's HTML never holds a visitor's cart, even where a cache ignores the no-cache signal above. */
+			echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '" data-wpec-cart-load="1"' . $attributes . '><div class="wpec-cart-loading" aria-busy="true"></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			$this->ec_render_empty( $settings, true );
 			echo '</div>';
+			$this->ec_render_after( $settings );
 		}
 
 		/**

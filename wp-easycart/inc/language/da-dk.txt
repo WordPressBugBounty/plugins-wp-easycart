@@ -47,7 +47,7 @@
             "options": {
                 "shop_sale": {
                     "title": "Shop Widgets, Sale Badge",
-                    "value": "Sale"
+                    "value": "Tilbud"
                 },
                 "shop_percent_off": {
                     "title": "Shop Widgets, Discount Badge ( [percent] is the discount )",
@@ -55,31 +55,31 @@
                 },
                 "shop_sold_out": {
                     "title": "Shop Widgets, Sold Out Badge",
-                    "value": "Sold out"
+                    "value": "Udsolgt"
                 },
                 "shop_regular_price": {
                     "title": "Shop Widgets, Regular Price ( screen readers )",
-                    "value": "Regular price:"
+                    "value": "Normalpris:"
                 },
                 "shop_sale_price": {
                     "title": "Shop Widgets, Sale Price ( screen readers )",
-                    "value": "Sale price:"
+                    "value": "Tilbudspris:"
                 },
                 "shop_rated": {
                     "title": "Shop Widgets, Rating ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Vurderet [rating] ud af 5"
                 },
                 "shop_review_one": {
                     "title": "Shop Widgets, One Review ( [count] )",
-                    "value": "[count] review"
+                    "value": "[count] anmeldelse"
                 },
                 "shop_review_many": {
                     "title": "Shop Widgets, Reviews ( [count] )",
-                    "value": "[count] reviews"
+                    "value": "[count] anmeldelser"
                 },
                 "shop_options": {
                     "title": "Shop Widgets, Colour Swatches ( screen readers )",
-                    "value": "Available options"
+                    "value": "Tilgængelige muligheder"
                 },
                 "shop_more_options": {
                     "title": "Shop Widgets, More Swatches ( [count] )",
@@ -87,71 +87,71 @@
                 },
                 "shop_adding": {
                     "title": "Shop Widgets, Adding to Cart",
-                    "value": "Adding\u2026"
+                    "value": "Tilføjer…"
                 },
                 "shop_added": {
                     "title": "Shop Widgets, Added Button",
-                    "value": "Added"
+                    "value": "Tilføjet"
                 },
                 "shop_added_note": {
                     "title": "Shop Widgets, Added to Cart ( [product] is the product name )",
-                    "value": "[product] was added to your cart."
+                    "value": "[product] er lagt i din kurv."
                 },
                 "shop_add_failed": {
                     "title": "Shop Widgets, Could Not Add",
-                    "value": "This product could not be added. Opening the product page."
+                    "value": "Produktet kunne ikke tilføjes. Åbner produktsiden."
                 },
                 "shop_quantity": {
                     "title": "Shop Widgets, Quantity Label",
-                    "value": "Quantity"
+                    "value": "Antal"
                 },
                 "shop_view_details": {
                     "title": "Shop Widgets, Quick View Details Link",
-                    "value": "View full details"
+                    "value": "Se alle detaljer"
                 },
                 "shop_close": {
                     "title": "Shop Widgets, Close Quick View",
-                    "value": "Close"
+                    "value": "Luk"
                 },
                 "shop_loading": {
                     "title": "Shop Widgets, Loading",
-                    "value": "Loading\u2026"
+                    "value": "Indlæser…"
                 },
                 "shop_load_more": {
                     "title": "Shop Widgets, Load More Button",
-                    "value": "Load more"
+                    "value": "Vis flere"
                 },
                 "shop_loaded": {
                     "title": "Shop Widgets, More Products Loaded ( [count] )",
-                    "value": "[count] more products loaded"
+                    "value": "[count] flere produkter indlæst"
                 },
                 "shop_page_nav": {
                     "title": "Shop Widgets, Page Numbers ( screen readers )",
-                    "value": "Product pages"
+                    "value": "Produktsider"
                 },
                 "shop_page": {
                     "title": "Shop Widgets, Page Number ( [page] )",
-                    "value": "Page [page]"
+                    "value": "Side [page]"
                 },
                 "shop_previous": {
                     "title": "Shop Widgets, Previous Page",
-                    "value": "Previous page"
+                    "value": "Forrige side"
                 },
                 "shop_next": {
                     "title": "Shop Widgets, Next Page",
-                    "value": "Next page"
+                    "value": "Næste side"
                 },
                 "shop_carousel_label": {
                     "title": "Shop Widgets, Carousel Name",
-                    "value": "Products"
+                    "value": "Produkter"
                 },
                 "shop_carousel_prev": {
                     "title": "Shop Widgets, Carousel Previous",
-                    "value": "Previous products"
+                    "value": "Forrige produkter"
                 },
                 "shop_carousel_next": {
                     "title": "Shop Widgets, Carousel Next",
-                    "value": "Next products"
+                    "value": "Næste produkter"
                 },
                 "shop_carousel_pause": {
                     "title": "Shop Widgets, Carousel Pause",
@@ -159,103 +159,103 @@
                 },
                 "shop_carousel_play": {
                     "title": "Shop Widgets, Carousel Play",
-                    "value": "Play"
+                    "value": "Afspil"
                 },
                 "shop_carousel_slide": {
                     "title": "Shop Widgets, Carousel Slide ( [index] of [total] )",
-                    "value": "[index] of [total]"
+                    "value": "[index] af [total]"
                 },
                 "shop_carousel_go_to": {
                     "title": "Shop Widgets, Carousel Dot ( [index] )",
-                    "value": "Go to slide [index]"
+                    "value": "Gå til slide [index]"
                 },
                 "shop_result_count": {
                     "title": "Shop Widgets, Results ( [start], [end], [total] )",
-                    "value": "Showing [start]\u2013[end] of [total] products"
+                    "value": "Viser [start]–[end] af [total] produkter"
                 },
                 "shop_result_all": {
                     "title": "Shop Widgets, All Results ( [total] )",
-                    "value": "Showing all [total] products"
+                    "value": "Viser alle [total] produkter"
                 },
                 "shop_result_one": {
                     "title": "Shop Widgets, One Result",
-                    "value": "Showing 1 product"
+                    "value": "Viser 1 produkt"
                 },
                 "shop_sort_by": {
                     "title": "Shop Widgets, Sort Label",
-                    "value": "Sort by"
+                    "value": "Sortér efter"
                 },
                 "shop_sort_apply": {
                     "title": "Shop Widgets, Sort Button",
-                    "value": "Sort"
+                    "value": "Sortér"
                 },
                 "shop_active_filters": {
                     "title": "Shop Widgets, Active Filters ( screen readers )",
-                    "value": "Active filters"
+                    "value": "Aktive filtre"
                 },
                 "shop_remove_filter": {
                     "title": "Shop Widgets, Remove Filter ( [filter] )",
-                    "value": "Remove filter: [filter]"
+                    "value": "Fjern filter: [filter]"
                 },
                 "shop_clear_all": {
                     "title": "Shop Widgets, Clear All Filters",
-                    "value": "Clear all"
+                    "value": "Ryd alle"
                 },
                 "shop_chip_search": {
                     "title": "Shop Widgets, Search Filter ( [term] )",
-                    "value": "Search: [term]"
+                    "value": "Søgning: [term]"
                 },
                 "shop_price": {
                     "title": "Shop Widgets, Price Filter Title",
-                    "value": "Price"
+                    "value": "Pris"
                 },
                 "shop_sign_in": {
                     "title": "Shop Widgets, Sign In Button",
-                    "value": "Sign in"
+                    "value": "Log ind"
                 },
                 "shop_category_count_one": {
                     "title": "Shop Widgets, Category With One Product ( [count] )",
-                    "value": "[count] product"
+                    "value": "[count] produkt"
                 },
                 "shop_category_count_many": {
                     "title": "Shop Widgets, Category Products ( [count] )",
-                    "value": "[count] products"
+                    "value": "[count] produkter"
                 },
                 "shop_search_label": {
                     "title": "Shop Widgets, Search Label",
-                    "value": "Search products"
+                    "value": "Søg efter produkter"
                 },
                 "shop_search_placeholder": {
                     "title": "Shop Widgets, Search Placeholder",
-                    "value": "Search products\u2026"
+                    "value": "Søg efter produkter…"
                 },
                 "shop_search_button": {
                     "title": "Shop Widgets, Search Button",
-                    "value": "Search"
+                    "value": "Søg"
                 },
                 "shop_search_suggestions": {
                     "title": "Shop Widgets, Suggestions ( screen readers )",
-                    "value": "Product suggestions"
+                    "value": "Produktforslag"
                 },
                 "shop_search_view_all": {
                     "title": "Shop Widgets, View All Results ( [term] )",
-                    "value": "View all results for \u201c[term]\u201d"
+                    "value": "Se alle resultater for “[term]”"
                 },
                 "shop_search_none": {
                     "title": "Shop Widgets, No Suggestions ( [term] )",
-                    "value": "No products match \u201c[term]\u201d."
+                    "value": "Ingen produkter matcher “[term]”."
                 },
                 "shop_search_result": {
                     "title": "Shop Widgets, One Suggestion ( screen readers )",
-                    "value": "1 product found. Use the down arrow to choose it."
+                    "value": "1 produkt fundet. Brug pil ned for at vælge det."
                 },
                 "shop_search_results": {
                     "title": "Shop Widgets, Suggestions Found ( [count], screen readers )",
-                    "value": "[count] products found. Use the up and down arrows to choose one."
+                    "value": "[count] produkter fundet. Brug pil op og pil ned for at vælge et."
                 },
                 "shop_search_loading": {
                     "title": "Shop Widgets, Searching",
-                    "value": "Searching\u2026"
+                    "value": "Søger…"
                 }
             }
         },
@@ -264,7 +264,7 @@
             "options": {
                 "product_quick_view": {
                     "title": "Product Quick View Label",
-                    "value": "Quickview"
+                    "value": "Hurtigvisning"
                 },
                 "product_design_now": {
                     "title": "Product Design Now Label",
@@ -377,15 +377,15 @@
             "options": {
                 "category_product_count_one": {
                     "title": "Subcategories Widget: One Product",
-                    "value": "1 product"
+                    "value": "1 produkt"
                 },
                 "category_product_count": {
                     "title": "Subcategories Widget: Product Count ( [count] is the number )",
-                    "value": "[count] products"
+                    "value": "[count] produkter"
                 },
                 "categories_label": {
                     "title": "Subcategories Widget: List Name for Screen Readers",
-                    "value": "Categories"
+                    "value": "Kategorier"
                 }
             }
         },
@@ -755,7 +755,7 @@
                 },
                 "product_details_subscription_month": {
                     "title": "Subscription Month Label Short",
-                    "value": "mo"
+                    "value": "md."
                 },
                 "product_details_subscription_month_full": {
                     "title": "Subscription Month Label Full",
@@ -763,11 +763,27 @@
                 },
                 "product_details_subscription_duration_divider": {
                     "title": "Subscription duration limit dividing word",
-                    "value": "for"
+                    "value": "i"
                 },
                 "product_details_subscription_year": {
                     "title": "Subscription Year Label",
                     "value": "år"
+                },
+                "product_details_subscription_days": {
+                    "title": "Subscription Days Label",
+                    "value": "dage"
+                },
+                "product_details_subscription_weeks": {
+                    "title": "Subscription Weeks Label",
+                    "value": "uger"
+                },
+                "product_details_subscription_years": {
+                    "title": "Subscription Years Label",
+                    "value": "år"
+                },
+                "product_details_subscription_month_one": {
+                    "title": "Subscription Month Label, One Month",
+                    "value": "måned"
                 },
                 "product_details_notify_subscribe_success": {
                     "title": "Stock Notification Subscribe Success",
@@ -864,47 +880,47 @@
             "options": {
                 "added_to_cart": {
                     "title": "Add to Cart, Added Message",
-                    "value": "Added to your cart."
+                    "value": "Lagt i din kurv."
                 },
                 "view_cart": {
                     "title": "Add to Cart, View Cart Link",
-                    "value": "View cart"
+                    "value": "Se kurven"
                 },
                 "buy_now": {
                     "title": "Add to Cart, Buy Now Button",
-                    "value": "Buy now"
+                    "value": "Køb nu"
                 },
                 "add_unconfirmed": {
                     "title": "Add to Cart, Add Not Confirmed",
-                    "value": "We could not confirm this was added. Please check your cart before you try again."
+                    "value": "Vi kunne ikke bekræfte, at varen blev lagt i kurven. Tjek din kurv, før du prøver igen."
                 },
                 "quantity_label": {
                     "title": "Add to Cart, Quantity Label ( screen readers )",
-                    "value": "Quantity"
+                    "value": "Antal"
                 },
                 "decrease_quantity": {
                     "title": "Add to Cart, Minus Button ( screen readers )",
-                    "value": "Decrease quantity"
+                    "value": "Mindsk antal"
                 },
                 "increase_quantity": {
                     "title": "Add to Cart, Plus Button ( screen readers )",
-                    "value": "Increase quantity"
+                    "value": "Øg antal"
                 },
                 "in_stock": {
                     "title": "Stock, In Stock",
-                    "value": "In stock"
+                    "value": "På lager"
                 },
                 "stock_count": {
                     "title": "Stock, Number in Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] på lager"
                 },
                 "low_stock": {
                     "title": "Stock, Low Stock ( [count] is the number )",
-                    "value": "Only [count] left"
+                    "value": "Kun [count] tilbage"
                 },
                 "backorder": {
                     "title": "Stock, Available on Backorder",
-                    "value": "Available on backorder"
+                    "value": "Kan bestilles som restordre"
                 },
                 "sku_label": {
                     "title": "SKU, Label",
@@ -912,7 +928,7 @@
                 },
                 "badge_sale": {
                     "title": "Badges, On Sale",
-                    "value": "Sale"
+                    "value": "Tilbud"
                 },
                 "badge_sale_percent": {
                     "title": "Badges, Discount ( [percent] is the number )",
@@ -920,79 +936,79 @@
                 },
                 "badge_new": {
                     "title": "Badges, New",
-                    "value": "New"
+                    "value": "Ny"
                 },
                 "badge_low_stock": {
                     "title": "Badges, Low Stock",
-                    "value": "Low stock"
+                    "value": "Få på lager"
                 },
                 "badge_out_of_stock": {
                     "title": "Badges, Sold Out",
-                    "value": "Sold out"
+                    "value": "Udsolgt"
                 },
                 "price_tiers_title": {
                     "title": "Price, Quantity Discounts Title",
-                    "value": "Buy more, save more"
+                    "value": "Køb mere, spar mere"
                 },
                 "price_tiers_quantity": {
                     "title": "Price, Quantity Discounts Quantity Column",
-                    "value": "Quantity"
+                    "value": "Antal"
                 },
                 "price_tiers_price": {
                     "title": "Price, Quantity Discounts Price Column",
-                    "value": "Price each"
+                    "value": "Pris pr. stk."
                 },
                 "gallery_label": {
                     "title": "Gallery, Name ( screen readers, [product] is the product )",
-                    "value": "[product] images"
+                    "value": "Billeder af [product]"
                 },
                 "gallery_slide": {
                     "title": "Gallery, Image Position ( screen readers )",
-                    "value": "[number] of [count]"
+                    "value": "[number] af [count]"
                 },
                 "gallery_previous": {
                     "title": "Gallery, Previous Image",
-                    "value": "Previous image"
+                    "value": "Forrige billede"
                 },
                 "gallery_next": {
                     "title": "Gallery, Next Image",
-                    "value": "Next image"
+                    "value": "Næste billede"
                 },
                 "gallery_open": {
                     "title": "Gallery, Open Larger Image",
-                    "value": "Open larger image"
+                    "value": "Åbn større billede"
                 },
                 "gallery_close": {
                     "title": "Gallery, Close Larger Image",
-                    "value": "Close"
+                    "value": "Luk"
                 },
                 "gallery_thumbnail": {
                     "title": "Gallery, Thumbnail ( [number] is the image )",
-                    "value": "Show image [number]"
+                    "value": "Vis billede [number]"
                 },
                 "gallery_play": {
                     "title": "Gallery, Play Video",
-                    "value": "Play video"
+                    "value": "Afspil video"
                 },
                 "gallery_thumbs_previous": {
                     "title": "Gallery, Thumbnail Strip Back Arrow ( screen readers )",
-                    "value": "Earlier thumbnails"
+                    "value": "Tidligere miniaturebilleder"
                 },
                 "gallery_thumbs_next": {
                     "title": "Gallery, Thumbnail Strip Forward Arrow ( screen readers )",
-                    "value": "More thumbnails"
+                    "value": "Flere miniaturebilleder"
                 },
                 "gallery_pause": {
                     "title": "Gallery, Pause Slideshow Button",
-                    "value": "Pause the slideshow"
+                    "value": "Sæt diasshowet på pause"
                 },
                 "gallery_resume": {
                     "title": "Gallery, Play Slideshow Button",
-                    "value": "Play the slideshow"
+                    "value": "Afspil diasshowet"
                 },
                 "price_you_save": {
                     "title": "Product Price, You Save ( [amount] is the saving, [percent] the percentage )",
-                    "value": "You save [amount] ([percent]%)"
+                    "value": "Du sparer [amount] ([percent]%)"
                 }
             }
         },
@@ -1077,7 +1093,7 @@
                 },
                 "customer_review_save_error": {
                     "title": "Store Review Error Not Saved",
-                    "value": "Your review could not be saved. Please refresh the page and try again."
+                    "value": "Din anmeldelse kunne ikke gemmes. Genindlæs siden, og prøv igen."
                 }
             }
         },
@@ -1086,63 +1102,63 @@
             "options": {
                 "rating_label": {
                     "title": "Product Rating: Screen Reader Text ( [rating] is the average )",
-                    "value": "Rated [rating] out of 5"
+                    "value": "Vurderet [rating] ud af 5"
                 },
                 "review_count_one": {
                     "title": "Product Rating: One Review",
-                    "value": "1 review"
+                    "value": "1 anmeldelse"
                 },
                 "review_count_many": {
                     "title": "Product Rating: Reviews ( [count] is the number )",
-                    "value": "[count] reviews"
+                    "value": "[count] anmeldelser"
                 },
                 "rating_none": {
                     "title": "Product Rating: No Reviews",
-                    "value": "No reviews yet"
+                    "value": "Ingen anmeldelser endnu"
                 },
                 "reviews_based_on_one": {
                     "title": "Product Reviews: Summary, One Review",
-                    "value": "Based on 1 review"
+                    "value": "Baseret på 1 anmeldelse"
                 },
                 "reviews_based_on_many": {
                     "title": "Product Reviews: Summary ( [count] is the number )",
-                    "value": "Based on [count] reviews"
+                    "value": "Baseret på [count] anmeldelser"
                 },
                 "reviews_filter_group": {
                     "title": "Product Reviews: Star Filter Label",
-                    "value": "Filter reviews by rating"
+                    "value": "Filtrer anmeldelser efter vurdering"
                 },
                 "reviews_filter_button": {
                     "title": "Product Reviews: Star Filter Button ( [rating] stars, [count] reviews )",
-                    "value": "Show [rating]-star reviews ([count])"
+                    "value": "Vis anmeldelser med [rating] stjerner ([count])"
                 },
                 "reviews_filter_showing": {
                     "title": "Product Reviews: Filter On ( [rating] is the stars )",
-                    "value": "Showing [rating]-star reviews."
+                    "value": "Viser anmeldelser med [rating] stjerner."
                 },
                 "reviews_filter_clear": {
                     "title": "Product Reviews: Show All Reviews",
-                    "value": "Show all reviews"
+                    "value": "Vis alle anmeldelser"
                 },
                 "reviews_none": {
                     "title": "Product Reviews: No Reviews ( no form shown )",
-                    "value": "There are no reviews yet."
+                    "value": "Der er endnu ingen anmeldelser."
                 },
                 "reviews_sign_in": {
                     "title": "Product Reviews: Sign In Link",
-                    "value": "Sign in"
+                    "value": "Log ind"
                 },
                 "review_star_one": {
                     "title": "Product Reviews: Form, 1 Star",
-                    "value": "1 star"
+                    "value": "1 stjerne"
                 },
                 "review_star_many": {
                     "title": "Product Reviews: Form, Stars ( [rating] is the number )",
-                    "value": "[rating] stars"
+                    "value": "[rating] stjerner"
                 },
                 "breadcrumbs_label": {
                     "title": "Breadcrumbs: Screen Reader Label",
-                    "value": "Breadcrumb"
+                    "value": "Brødkrumme"
                 },
                 "meta_sku": {
                     "title": "Product Meta: SKU Label",
@@ -1150,11 +1166,11 @@
                 },
                 "meta_category": {
                     "title": "Product Meta: One Category Label",
-                    "value": "Category:"
+                    "value": "Kategori:"
                 },
                 "meta_brand": {
                     "title": "Product Meta: Brand Label",
-                    "value": "Brand:"
+                    "value": "Mærke:"
                 },
                 "meta_tag": {
                     "title": "Product Meta: Tag Label",
@@ -1162,23 +1178,23 @@
                 },
                 "share_facebook": {
                     "title": "Share Buttons: Facebook",
-                    "value": "Share on Facebook"
+                    "value": "Del på Facebook"
                 },
                 "share_x": {
                     "title": "Share Buttons: X",
-                    "value": "Share on X"
+                    "value": "Del på X"
                 },
                 "share_pinterest": {
                     "title": "Share Buttons: Pinterest",
-                    "value": "Pin on Pinterest"
+                    "value": "Pin på Pinterest"
                 },
                 "share_linkedin": {
                     "title": "Share Buttons: LinkedIn",
-                    "value": "Share on LinkedIn"
+                    "value": "Del på LinkedIn"
                 },
                 "share_email": {
                     "title": "Share Buttons: Email",
-                    "value": "Share by email"
+                    "value": "Del via email"
                 },
                 "share_email_label": {
                     "title": "Share Buttons: Email Button Text",
@@ -1186,95 +1202,95 @@
                 },
                 "share_copy": {
                     "title": "Share Buttons: Copy Link",
-                    "value": "Copy link"
+                    "value": "Kopiér link"
                 },
                 "share_copied": {
                     "title": "Share Buttons: Link Copied",
-                    "value": "Link copied"
+                    "value": "Link kopieret"
                 },
                 "share_whatsapp": {
                     "title": "Share Buttons: WhatsApp ( screen readers )",
-                    "value": "Share on WhatsApp"
+                    "value": "Del på WhatsApp"
                 },
                 "share_telegram": {
                     "title": "Share Buttons: Telegram ( screen readers )",
-                    "value": "Share on Telegram"
+                    "value": "Del på Telegram"
                 },
                 "share_reddit": {
                     "title": "Share Buttons: Reddit ( screen readers )",
-                    "value": "Share on Reddit"
+                    "value": "Del på Reddit"
                 },
                 "share_threads": {
                     "title": "Share Buttons: Threads ( screen readers )",
-                    "value": "Share on Threads"
+                    "value": "Del på Threads"
                 },
                 "share_bluesky": {
                     "title": "Share Buttons: Bluesky ( screen readers )",
-                    "value": "Share on Bluesky"
+                    "value": "Del på Bluesky"
                 },
                 "share_sms_label": {
                     "title": "Share Buttons: Text Message Button",
-                    "value": "Text message"
+                    "value": "SMS"
                 },
                 "share_sms": {
                     "title": "Share Buttons: Text Message ( screen readers )",
-                    "value": "Share by text message"
+                    "value": "Del via SMS"
                 },
                 "share_print_label": {
                     "title": "Share Buttons: Print Button",
-                    "value": "Print"
+                    "value": "Udskriv"
                 },
                 "share_print": {
                     "title": "Share Buttons: Print ( screen readers )",
-                    "value": "Print this page"
+                    "value": "Udskriv denne side"
                 },
                 "share_native_label": {
                     "title": "Share Buttons: Device Share Menu Button",
-                    "value": "Share"
+                    "value": "Del"
                 },
                 "share_native": {
                     "title": "Share Buttons: Device Share Menu ( screen readers )",
-                    "value": "Share with an app on this device"
+                    "value": "Del med en app på denne enhed"
                 },
                 "meta_stock": {
                     "title": "Product Meta: Stock Label",
-                    "value": "Availability:"
+                    "value": "Tilgængelighed:"
                 },
                 "meta_in_stock": {
                     "title": "Product Meta: In Stock",
-                    "value": "In stock"
+                    "value": "På lager"
                 },
                 "meta_stock_count": {
                     "title": "Product Meta: Units In Stock ( [count] is the number )",
-                    "value": "[count] in stock"
+                    "value": "[count] på lager"
                 },
                 "meta_backorder": {
                     "title": "Product Meta: On Backorder",
-                    "value": "Available on backorder"
+                    "value": "Kan bestilles som restordre"
                 },
                 "meta_weight": {
                     "title": "Product Meta: Weight Label",
-                    "value": "Weight:"
+                    "value": "Vægt:"
                 },
                 "meta_dimensions": {
                     "title": "Product Meta: Dimensions Label",
-                    "value": "Dimensions:"
+                    "value": "Mål:"
                 },
                 "reviews_more": {
                     "title": "Product Reviews: Show More Link",
-                    "value": "Show more reviews"
+                    "value": "Vis flere anmeldelser"
                 },
                 "reviews_shown": {
                     "title": "Product Reviews: How Many Show ( [shown] and [total] are numbers )",
-                    "value": "Showing [shown] of [total] reviews."
+                    "value": "Viser [shown] af [total] anmeldelser."
                 },
                 "read_more": {
                     "title": "Description: Read More Button",
-                    "value": "Read more"
+                    "value": "Læs mere"
                 },
                 "read_less": {
                     "title": "Description: Show Less Button",
-                    "value": "Show less"
+                    "value": "Vis mindre"
                 }
             }
         },
@@ -1363,7 +1379,7 @@
                 },
                 "deconetwork_edit": {
                     "title": "Deconetwork, Edit Design",
-                    "value": "Edit Design"
+                    "value": "Rediger design"
                 },
                 "cart_order_adjustment": {
                     "title": "Cart Item, Adjustment per Order",
@@ -1496,11 +1512,11 @@
                 },
                 "cart_notice_emails_match": {
                     "title": "Cart, Notice, Emails Match",
-                    "value": "Emails"
+                    "value": "Emailadresserne"
                 },
                 "cart_notice_password": {
                     "title": "Cart, Notice, Password",
-                    "value": "Password"
+                    "value": "Adgangskode"
                 },
                 "cart_notice_retype_password": {
                     "title": "Cart, Notice, Retype Password",
@@ -1508,7 +1524,7 @@
                 },
                 "cart_notice_passwords_match": {
                     "title": "Cart, Notice, Passwords Match",
-                    "value": "Passwords"
+                    "value": "Adgangskoderne"
                 },
                 "cart_notice_length_error": {
                     "title": "Cart, Notice, Password Format",
@@ -1663,6 +1679,18 @@
 				"coupon_first_only":{
 					"title":"Cart, Coupon Code First Order Only",
 					"value":"Denne kupon kan kun bruges til din første ordre"
+				},
+				"subscription_coupon_first_payment":{
+					"title":"Subscription, Discount on the First Payment Only ( 6.0.3 )",
+					"value":"Din rabat gælder kun for din første betaling. Derefter fornyes abonnementet til [price]."
+				},
+				"subscription_coupon_months":{
+					"title":"Subscription, Discount for the First Months ( 6.0.3 )",
+					"value":"Din rabat gælder de første [months] måneder. Derefter fornyes abonnementet til [price]."
+				},
+				"subscription_renewal_plus_tax":{
+					"title":"Subscription, Renewal Price Plus Tax ( 6.0.3 )",
+					"value":"plus moms"
 				},
 				"cart_simple_apply":{
 					"title":"Cart, Apply",
@@ -1865,7 +1893,7 @@
                 },
                 "cart_totals_shipping": {
                     "title": "Cart, Cart Totals, Shipping",
-                    "value": "Shipping"
+                    "value": "Forsendelse"
                 },
                 "cart_totals_tax": {
                     "title": "Cart, Cart Totals, Tax",
@@ -1930,7 +1958,7 @@
                 },
                 "cart_login_password_label": {
                     "title": "Cart, Login, Password Label",
-                    "value": "Password"
+                    "value": "Adgangskode"
                 },
                 "cart_login_button": {
                     "title": "Cart, Login Button",
@@ -1988,6 +2016,38 @@
 					"title":"Cart, Subscription Already Purchased Message",
 					"value":"Du har allerede købt denne vare. Besøg din konto for at gennemgå dine aktive abonnementer."
 				},
+				"subscription_change_existing":{
+					"title":"Subscription Page: Already Subscribed to the Plan ( 6.0.3 )",
+					"value":"Du har allerede et abonnement på denne plan. Skift det fra din konto i stedet for at købe et til."
+				},
+				"subscription_change_existing_link":{
+					"title":"Subscription Page: Change My Plan Link ( 6.0.3 )",
+					"value":"Skift mit abonnement"
+				},
+				"subscription_owned_one":{
+					"title":"Subscription Page: Already Subscribed, One ( 6.0.3 )",
+					"value":"Du har allerede et abonnement på [title]. Køb et mere herunder, eller administrer dit på din konto."
+				},
+				"subscription_owned_many":{
+					"title":"Subscription Page: Already Subscribed, Several ( 6.0.3 )",
+					"value":"Du har allerede [count] abonnementer på denne plan. Køb et mere herunder, eller administrer dem på din konto."
+				},
+				"subscription_owned_link_one":{
+					"title":"Subscription Page: Manage My Subscription Link ( 6.0.3 )",
+					"value":"Administrer mit abonnement"
+				},
+				"subscription_owned_link_many":{
+					"title":"Subscription Page: Manage My Subscriptions Link ( 6.0.3 )",
+					"value":"Administrer mine abonnementer"
+				},
+				"subscription_choose_options":{
+					"title":"Subscription, Choose the Options First ( 6.0.3 )",
+					"value":"Vælg mulighederne for dette abonnement på produktsiden, før du går til kassen."
+				},
+				"subscription_choose_options_link":{
+					"title":"Subscription, Choose the Options Link ( 6.0.3 )",
+					"value":"Vælg muligheder"
+				},
 				"cart_subscription_unavailable":{
 					"title":"Cart, Subscription Unavailable Message ( subscriptions need Stripe )",
 					"value":"Dette abonnement kan ikke købes online lige nu. Kontakt os venligst for at tilmelde dig."
@@ -2020,19 +2080,19 @@
             "options": {
                 "cart_subscription_guest_title": {
                     "title": "Cart, Login, Subscription No Account Title",
-                    "value": "Create Account on Checkout"
+                    "value": "Opret konto i kassen"
                 },
                 "cart_subscription_guest_sub_title": {
                     "title": "Cart, Login, Subscription No Account Sub Title",
-                    "value": "Not registered? Checkout without an existing account."
+                    "value": "Ikke registreret? Handl uden en eksisterende konto."
                 },
                 "cart_subscription_guest_message": {
                     "title": "Cart, Login, Subscription No Account Message",
-                    "value": "No account? No problem.<br/>You will have an opportunity to create an account later."
+                    "value": "Ingen konto? Det er ikke noget problem.<br/>Du får mulighed for at oprette en konto senere."
                 },
                 "cart_subscription_guest_button": {
                     "title": "Cart, Login, Guest Checkout Button",
-                    "value": "CONTINUE TO CHECKOUT"
+                    "value": "FORTSÆT TIL KASSEN"
                 }
             }
         },
@@ -2041,31 +2101,31 @@
 			"options":{
 				"cart_state_ca":{
 					"title":"Cart, State (Canada)",
-					"value":"Province"
+					"value":"Provins"
 				},
 				"cart_zip_ca":{
 					"title":"Cart, Zip (Canada)",
-					"value":"Postal code"
+					"value":"Postnummer"
 				},
 				"cart_zip_gb":{
 					"title":"Cart, Zip (UK)",
-					"value":"Postcode"
+					"value":"Postkode"
 				},
 				"cart_address_nl":{
 					"title":"Cart, Address (Netherlands)",
-					"value":"Street and house number"
+					"value":"Vej og husnummer"
 				},
 				"cart_zip_nl":{
 					"title":"Cart, Zip (Netherlands)",
-					"value":"Postal code"
+					"value":"Postnummer"
 				},
 				"cart_zip_ar":{
 					"title":"Cart, Zip (Argentina)",
-					"value":"Postal code"
+					"value":"Postnummer"
 				},
 				"cart_state_ar":{
 					"title":"Cart, State (Argentina)",
-					"value":"Province"
+					"value":"Provins"
 				}
 			}
 		},
@@ -2248,7 +2308,7 @@
                 },
                 "cart_contact_information_password": {
                     "title": "Cart, Contact Information, Password Label",
-                    "value": "Password"
+                    "value": "Adgangskode"
                 },
                 "cart_contact_information_retype_password": {
                     "title": "Cart, Contact Information, Retype Password Label",
@@ -2700,47 +2760,47 @@
                 },
                 "cart_giftcard_receipt_title": {
                     "title": "Cart, Gift Card Email Subject",
-                    "value": "Gift Card Delivery"
+                    "value": "Levering af gavekort"
                 },
                 "cart_giftcard_receipt_header": {
                     "title": "Cart, Gift Card Header",
-                    "value": "Your Gift Card"
+                    "value": "Dit gavekort"
                 },
                 "cart_giftcard_receipt_to": {
                     "title": "Cart, Gift Card To",
-                    "value": "To"
+                    "value": "Til"
                 },
                 "cart_giftcard_receipt_from": {
                     "title": "Cart, Gift Card From",
-                    "value": "From"
+                    "value": "Fra"
                 },
                 "cart_giftcard_receipt_id": {
                     "title": "Cart, Gift Card ID Label",
-                    "value": "Your Gift Card ID"
+                    "value": "Dit gavekort-id"
                 },
                 "cart_giftcard_receipt_amount": {
                     "title": "Cart, Gift Card Amount",
-                    "value": "Gift Card Total"
+                    "value": "Gavekortets værdi"
                 },
                 "cart_giftcard_receipt_message": {
                     "title": "Cart, Gift Card Message",
-                    "value": "You can redeem your gift card during checkout at"
+                    "value": "Du kan indløse dit gavekort i kassen på"
                 },
                 "cart_downloads_available": {
                     "title": "Cart Success, Downloads Available",
-                    "value": "Your order includes downloads and are available in your account."
+                    "value": "Din ordre indeholder downloads, som er tilgængelige på din konto."
                 },
                 "cart_downloads_unavailable": {
                     "title": "Cart Success, Downloads Unavailable",
-                    "value": "Your order includes downloads, but your payment has not yet been approved. Once payment has been approved your downloads will be available in your account."
+                    "value": "Din ordre indeholder downloads, men din betaling er endnu ikke godkendt. Når betalingen er godkendt, er dine downloads tilgængelige på din konto."
                 },
                 "cart_downloads_click_to_go": {
                     "title": "Cart Success, Downloads Click to go Text",
-                    "value": "Click to go there now."
+                    "value": "Klik for at gå dertil nu."
                 },
                 "cart_success_view_downloads": {
                     "title": "Cart Success, View Downloads",
-                    "value": "View Downloads"
+                    "value": "Se downloads"
                 },
                 "cart_invoice_line_1": {
                     "title": "Cart Invoice, Payment Note",
@@ -2813,67 +2873,67 @@
             "options": {
                 "mini_cart_title": {
                     "title": "Mini Cart, Title",
-                    "value": "Your cart"
+                    "value": "Din kurv"
                 },
                 "view_cart": {
                     "title": "Mini Cart, View Cart Button",
-                    "value": "View cart"
+                    "value": "Se kurven"
                 },
                 "close": {
                     "title": "Mini Cart, Close Button ( screen readers )",
-                    "value": "Close"
+                    "value": "Luk"
                 },
                 "cart_button_label": {
                     "title": "Menu Cart, Button Name ( screen readers; [count] is the number of items )",
-                    "value": "Cart, [count] items"
+                    "value": "Kurv, [count] varer"
                 },
                 "remove_item": {
                     "title": "Mini Cart, Remove Button ( screen readers; [title] is the product )",
-                    "value": "Remove [title]"
+                    "value": "Fjern [title]"
                 },
                 "quantity_of": {
                     "title": "Side Cart, Quantity Box ( screen readers; [title] is the product )",
-                    "value": "Quantity of [title]"
+                    "value": "Antal af [title]"
                 },
                 "increase_quantity": {
                     "title": "Side Cart, Plus Button ( screen readers; [title] is the product )",
-                    "value": "Increase quantity of [title]"
+                    "value": "Øg antal af [title]"
                 },
                 "decrease_quantity": {
                     "title": "Side Cart, Minus Button ( screen readers; [title] is the product )",
-                    "value": "Decrease quantity of [title]"
+                    "value": "Mindsk antal af [title]"
                 },
                 "cart_updated": {
                     "title": "Mini Cart, Cart Updated ( screen readers )",
-                    "value": "Your cart was updated."
+                    "value": "Din kurv er opdateret."
                 },
                 "item_added": {
                     "title": "Side Cart, Product Added ( screen readers; [title] is the product )",
-                    "value": "[title] was added to your cart."
+                    "value": "[title] er lagt i din kurv."
                 },
                 "free_shipping_remaining": {
                     "title": "Side Cart, Free Shipping Progress ( [amount] is what is left to spend )",
-                    "value": "Spend [amount] more for free shipping"
+                    "value": "Køb for [amount] mere for at få gratis forsendelse"
                 },
                 "free_shipping_available": {
                     "title": "Side Cart, Free Shipping Available ( the cart reached the lowest order value one of your shipping rates ships free )",
-                    "value": "Free shipping available"
+                    "value": "Gratis forsendelse tilgængelig"
                 },
                 "confirmation_items": {
                     "title": "Order Confirmation, Products Heading",
-                    "value": "Your order"
+                    "value": "Din ordre"
                 },
                 "confirmation_payment": {
                     "title": "Order Confirmation, How to Pay Heading",
-                    "value": "How to pay"
+                    "value": "Sådan betaler du"
                 },
                 "confirmation_pay_link_note": {
                     "title": "Order Confirmation, Pay Online Note",
-                    "value": "You can pay for this order online."
+                    "value": "Du kan betale for denne ordre online."
                 },
                 "confirmation_pay_now": {
                     "title": "Order Confirmation, Pay Now Button",
-                    "value": "Pay now"
+                    "value": "Betal nu"
                 }
             }
         },
@@ -2882,51 +2942,75 @@
             "options": {
                 "trial_message_1": {
                     "title": "Subscription Trial Part 1",
-                    "value": "Thank you for signing up! Your"
+                    "value": "Tak for din tilmelding! Din"
                 },
                 "trial_message_2": {
                     "title": "Subscription Trial Part 2",
-                    "value": "day free trial of"
+                    "value": "dages gratis prøveperiode på"
                 },
                 "trial_message_3": {
                     "title": "Subscription Trial Part 3",
-                    "value": "has now started! If you have any questions or concerns during your trial, please contact us, we are happy to help."
+                    "value": "er nu startet! Hvis du har spørgsmål eller bekymringer under din prøveperiode, er du velkommen til at kontakte os. Vi hjælper gerne."
                 },
                 "trial_message_4": {
                     "title": "Subscription Trial Part 4",
-                    "value": "We hope you stick with us, but if you decide this isn't for you, you may cancel at any time prior to the end of your trial to prevent being charged. To cancel, log into your account, click manage subscriptions, view your subscription, and cancel on the details page."
+                    "value": "Vi håber, du bliver hos os, men hvis du beslutter, at det ikke er noget for dig, kan du opsige når som helst inden prøveperiodens udløb, så du undgår at blive trukket. Log ind på din konto, klik på administrer abonnementer, åbn dit abonnement, og opsig det på detaljesiden."
                 },
                 "trial_message_link": {
                     "title": "View Subscription Information",
-                    "value": "View Subscription Information"
+                    "value": "Se abonnementsoplysninger"
                 },
                 "subscription_trial_email_title": {
                     "title": "Subscription Trial Email Title",
-                    "value": "Your Trial Has Started"
+                    "value": "Din prøveperiode er startet"
                 },
                 "trial_ending_message_1": {
                     "title": "Subscription Trial Ending Part 1",
-                    "value": "Your"
+                    "value": "Din"
                 },
                 "trial_ending_message_2": {
                     "title": "Subscription Trial Part 2",
-                    "value": "day free trial of"
+                    "value": "dages gratis prøveperiode på"
                 },
                 "trial_ending_message_3": {
                     "title": "Subscription Trial Part 3",
-                    "value": "is ending in only 3 days! If you have any questions or concerns, please contact us! We are happy to help."
+                    "value": "slutter om kun 3 dage! Hvis du har spørgsmål eller bekymringer, er du meget velkommen til at kontakte os. Vi hjælper gerne."
                 },
                 "trial_ending_message_4": {
                     "title": "Subscription Trial Part 4",
-                    "value": "We hope you stick with us, but if you decide this isn't for you, you may cancel at any time prior to the end of your trial to prevent being charged. To cancel, log into your account, click manage subscriptions, view your subscription, and cancel on the details page."
+                    "value": "Vi håber, du bliver hos os, men hvis du beslutter, at det ikke er noget for dig, kan du opsige når som helst inden prøveperiodens udløb, så du undgår at blive trukket. Log ind på din konto, klik på administrer abonnementer, åbn dit abonnement, og opsig det på detaljesiden."
                 },
                 "trial_ending_message_link": {
                     "title": "View Subscription Information",
-                    "value": "View Subscription Information"
+                    "value": "Se abonnementsoplysninger"
                 },
                 "subscription_trial_ending_email_title": {
                     "title": "Subscription Trial Email Title",
-                    "value": "Your Trial is Ending in 3 Days"
+                    "value": "Din prøveperiode slutter om 3 dage"
+                },
+                "trial_reminder_email_title": {
+                    "title": "Trial Reminder Email Title ( 6.0.3 )",
+                    "value": "Din gratis prøveperiode slutter den [date]"
+                },
+                "trial_reminder_message": {
+                    "title": "Trial Reminder Message ( 6.0.3 )",
+                    "value": "Din gratis prøveperiode på [title] slutter den [date]. Derefter starter dit abonnement, og dit kort bliver trukket [price]."
+                },
+                "trial_reminder_ends": {
+                    "title": "Trial Reminder, Trial Ends Label ( 6.0.3 )",
+                    "value": "Prøveperioden slutter"
+                },
+                "trial_reminder_then": {
+                    "title": "Trial Reminder, Then Label ( 6.0.3 )",
+                    "value": "Derefter"
+                },
+                "trial_reminder_cancel": {
+                    "title": "Trial Reminder, How to Cancel ( 6.0.3 )",
+                    "value": "Ikke noget for dig? Opsig fra din konto før den [date], så bliver du ikke trukket."
+                },
+                "trial_reminder_link": {
+                    "title": "Trial Reminder Button ( 6.0.3 )",
+                    "value": "Administrer dit abonnement"
                 }
             }
         },
@@ -2935,23 +3019,23 @@
             "options": {
                 "ended_message_1": {
                     "title": "Subscription Ended Part 1",
-                    "value": "Your subscription with us has either ended, been cancelled, or expired due to too many failed payments."
+                    "value": "Dit abonnement hos os er enten udløbet, blevet opsagt eller ophørt på grund af for mange mislykkede betalinger."
                 },
                 "ended_message_2": {
                     "title": "Subscription Ended Part 2",
-                    "value": "We are sorry to see you go and hope you return. If this subscription was cancelled by accident, you may click the link below to purchase a new subscription."
+                    "value": "Vi er kede af at se dig gå og håber, du vender tilbage. Hvis abonnementet blev opsagt ved en fejl, kan du klikke på linket nedenfor for at købe et nyt abonnement."
                 },
                 "ended_details": {
                     "title": "Subscription Ended Details",
-                    "value": "The following subscription has ended:"
+                    "value": "Følgende abonnement er ophørt:"
                 },
                 "emded_message_link": {
                     "title": "Start a New Subscription",
-                    "value": "Start a New Subscription"
+                    "value": "Start et nyt abonnement"
                 },
                 "subscription_ended_email_title": {
                     "title": "Subscription Ended Email Title",
-                    "value": "Your Subscription Has Ended"
+                    "value": "Dit abonnement er ophørt"
                 }
             }
         },
@@ -2977,6 +3061,66 @@
 				"subscription_upcoming_email_title":{
 					"title":"Subscription Upcoming Email Title",
 					"value":"Dit abonnement fornyes snart"
+				},
+				"renewal_reminder_email_title":{
+					"title":"Renewal Reminder Email Title ( 6.0.3 )",
+					"value":"Dit abonnement fornyes den [date]"
+				},
+				"renewal_reminder_message":{
+					"title":"Renewal Reminder Message ( 6.0.3 )",
+					"value":"Dit abonnement på [title] fornyes automatisk den [date]."
+				},
+				"renewal_reminder_plan":{
+					"title":"Renewal Reminder, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"renewal_reminder_date":{
+					"title":"Renewal Reminder, Date Label ( 6.0.3 )",
+					"value":"Fornyes den"
+				},
+				"renewal_reminder_price":{
+					"title":"Renewal Reminder, Price Label ( 6.0.3 )",
+					"value":"Pris ved fornyelse"
+				},
+				"renewal_reminder_cancel":{
+					"title":"Renewal Reminder, How to Cancel ( 6.0.3 )",
+					"value":"Hvis du ikke ønsker at forny, kan du opsige det fra din konto før den [date]. Du kan også opdatere din betalingsmetode der."
+				},
+				"renewal_reminder_link":{
+					"title":"Renewal Reminder Button ( 6.0.3 )",
+					"value":"Administrer dit abonnement"
+				},
+				"price_change_email_title":{
+					"title":"Price Change Email Title ( 6.0.3 )",
+					"value":"Prisen på dit abonnement ændres"
+				},
+				"price_change_message":{
+					"title":"Price Change Message ( 6.0.3 )",
+					"value":"Fra den [date] koster dit abonnement på [title] [price] i stedet for [old_price]."
+				},
+				"price_change_plan":{
+					"title":"Price Change, Subscription Label ( 6.0.3 )",
+					"value":"Abonnement"
+				},
+				"price_change_old":{
+					"title":"Price Change, Price Now Label ( 6.0.3 )",
+					"value":"Pris nu"
+				},
+				"price_change_new":{
+					"title":"Price Change, New Price Label ( 6.0.3 )",
+					"value":"Ny pris"
+				},
+				"price_change_date":{
+					"title":"Price Change, Date Label ( 6.0.3 )",
+					"value":"Fra"
+				},
+				"price_change_cancel":{
+					"title":"Price Change, How to Cancel ( 6.0.3 )",
+					"value":"Indtil da ændres intet. Hvis du ikke vil fortsætte til den nye pris, kan du opsige fra din konto før den [date]."
+				},
+				"price_change_link":{
+					"title":"Price Change Button ( 6.0.3 )",
+					"value":"Administrer dit abonnement"
 				}
 			}
 		},
@@ -2997,7 +3141,7 @@
                 },
                 "account_login_password_label": {
                     "title": "Account, Login, Password Label",
-                    "value": "Password"
+                    "value": "Adgangskode"
                 },
                 "account_login_button": {
                     "title": "Account, Login Button",
@@ -3013,7 +3157,7 @@
                 },
                 "account_login_account_information_text": {
                     "title": "Account, Login Complete Text",
-                    "value": "You are currently checking out as Demo User. To checkout with a different account,"
+                    "value": "Du handler i øjeblikket som Demo User. For at handle med en anden konto,"
                 },
                 "account_login_account_information_logout_link": {
                     "title": "Account, Login Complete, Logout Link",
@@ -3118,15 +3262,15 @@
             "options": {
                 "account_connect_order_email_title": {
                     "title": "Connect Order Email Subject and Heading",
-                    "value": "Add your order to your account"
+                    "value": "Tilføj din ordre til din konto"
                 },
                 "account_connect_order_email_message": {
                     "title": "Connect Order Email Message ( [order_id] is the order number )",
-                    "value": "You asked to add order [order_id] to your account with us. Open the link below while you are signed in to that account. If you did not ask for this, you can ignore this email."
+                    "value": "Du har bedt om at få ordre [order_id] knyttet til din konto hos os. Åbn linket nedenfor, mens du er logget ind på den konto. Hvis du ikke har bedt om dette, kan du ignorere denne email."
                 },
                 "account_connect_order_email_link": {
                     "title": "Connect Order Email Link",
-                    "value": "Add the order to my account"
+                    "value": "Tilføj ordren til min konto"
                 }
             }
         },
@@ -3151,7 +3295,7 @@
                 },
                 "account_register_password": {
                     "title": "Account, Register, Password Label",
-                    "value": "Password"
+                    "value": "Adgangskode"
                 },
                 "account_register_retype_password": {
                     "title": "Account, Register, Re-type Password Label",
@@ -3188,11 +3332,11 @@
             "options": {
                 "nav_dashboard": {
                     "title": "Account Widgets, Menu, Dashboard",
-                    "value": "Dashboard"
+                    "value": "Oversigt"
                 },
                 "nav_orders": {
                     "title": "Account Widgets, Menu, Orders",
-                    "value": "Orders"
+                    "value": "Ordrer"
                 },
                 "nav_downloads": {
                     "title": "Account Widgets, Menu, Downloads",
@@ -3200,31 +3344,31 @@
                 },
                 "nav_subscriptions": {
                     "title": "Account Widgets, Menu, Subscriptions",
-                    "value": "Subscriptions"
+                    "value": "Abonnementer"
                 },
                 "nav_addresses": {
                     "title": "Account Widgets, Menu, Addresses",
-                    "value": "Addresses"
+                    "value": "Adresser"
                 },
                 "nav_details": {
                     "title": "Account Widgets, Menu, Account Details",
-                    "value": "Account details"
+                    "value": "Kontooplysninger"
                 },
                 "nav_payment_methods": {
                     "title": "Account Widgets, Menu, Payment Methods",
-                    "value": "Payment methods"
+                    "value": "Betalingsmetoder"
                 },
                 "nav_logout": {
                     "title": "Account Widgets, Menu, Sign Out",
-                    "value": "Sign out"
+                    "value": "Log ud"
                 },
                 "nav_menu_label": {
                     "title": "Account Widgets, Menu Name ( screen readers, phone dropdown )",
-                    "value": "Account menu"
+                    "value": "Kontomenu"
                 },
                 "back_to_orders": {
                     "title": "Account Widgets, Back to Orders Link",
-                    "value": "Back to orders"
+                    "value": "Tilbage til ordrer"
                 },
                 "downloads_title": {
                     "title": "Account Widgets, Downloads Title",
@@ -3232,47 +3376,47 @@
                 },
                 "downloads_none": {
                     "title": "Account Widgets, No Downloads",
-                    "value": "You have no downloads yet."
+                    "value": "Du har ingen downloads endnu."
                 },
                 "downloads_order": {
                     "title": "Account Widgets, Downloads, Order Link",
-                    "value": "Order"
+                    "value": "Ordre"
                 },
                 "downloads_expires": {
                     "title": "Account Widgets, Downloads, Available Until",
-                    "value": "Available until"
+                    "value": "Tilgængelig til"
                 },
                 "downloads_expired": {
                     "title": "Account Widgets, Downloads, Expired",
-                    "value": "This download has expired."
+                    "value": "Denne download er udløbet."
                 },
                 "downloads_used_up": {
                     "title": "Account Widgets, Downloads, Limit Reached",
-                    "value": "No downloads left."
+                    "value": "Ingen downloads tilbage."
                 },
                 "payment_title": {
                     "title": "Account Widgets, Payment Methods Title",
-                    "value": "Payment methods"
+                    "value": "Betalingsmetoder"
                 },
                 "payment_card": {
                     "title": "Account Widgets, Payment Methods, Card",
-                    "value": "Card"
+                    "value": "Kort"
                 },
                 "payment_card_note": {
                     "title": "Account Widgets, Payment Methods, Card Note",
-                    "value": "Used for your subscriptions."
+                    "value": "Bruges til dine abonnementer."
                 },
                 "payment_none": {
                     "title": "Account Widgets, No Payment Method",
-                    "value": "You have no saved payment method."
+                    "value": "Du har ingen gemt betalingsmetode."
                 },
                 "signed_in_as": {
                     "title": "Account Widgets, Signed In As ( [name] is the customer's name )",
-                    "value": "You are signed in as [name]."
+                    "value": "Du er logget ind som [name]."
                 },
                 "my_account": {
                     "title": "Account Widgets, My Account Button",
-                    "value": "My account"
+                    "value": "Min konto"
                 }
             }
         },
@@ -3968,6 +4112,126 @@
                     "title": "Account, Subscription Details, Plan Change Notice",
                     "value": "Ændringer af abonnementet træder i kraft med det samme. Din næste regning viser den nye pris og et eventuelt tillæg eller fradrag for resten af den aktuelle periode."
                 },
+                "subscription_details_interval_notice": {
+                    "title": "Account, Subscription Details, Billing Schedule Change Notice",
+                    "value": "Denne plan opkræves med et andet interval, så en ny betalingsperiode starter i dag: du betaler den nye pris nu, fratrukket den ubrugte del af din nuværende periode."
+                },
+                "subscription_details_trial_ends": {
+                    "title": "Account, Subscription Details, Trial Ends Label",
+                    "value": "Prøveperioden slutter"
+                },
+                "subscription_details_trial_notice": {
+                    "title": "Account, Subscription Details, Free Trial Notice",
+                    "value": "Din gratis prøveperiode slutter den [date]. Din første betaling på [price] trækkes da."
+                },
+                "subscription_change_review": {
+                    "title": "Change Plan: Review Button ( 6.0.3 )",
+                    "value": "Gennemse ændring"
+                },
+                "subscription_change_confirm": {
+                    "title": "Change Plan: Confirm Button ( 6.0.3 )",
+                    "value": "Bekræft ændring"
+                },
+                "subscription_change_back": {
+                    "title": "Change Plan: Back Button ( 6.0.3 )",
+                    "value": "Tilbage"
+                },
+                "subscription_change_now_charge": {
+                    "title": "Change Plan: Charged Now ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu. Du betaler [amount] i dag for resten af denne betalingsperiode og derefter [price] fra den [date]."
+                },
+                "subscription_change_now_next": {
+                    "title": "Change Plan: Added to Next Payment ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu. [amount] for resten af denne betalingsperiode lægges til din næste betaling den [date]."
+                },
+                "subscription_change_now_credit": {
+                    "title": "Change Plan: Credit on Next Payment ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu. [amount] for den ubrugte del af denne betalingsperiode trækkes fra din næste betaling den [date]."
+                },
+                "subscription_change_now_none": {
+                    "title": "Change Plan: Now, Nothing Extra ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu. Din næste betaling er [price] den [date]."
+                },
+                "subscription_change_now_interval": {
+                    "title": "Change Plan: New Billing Period ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu, og en ny betalingsperiode starter i dag. Du betaler [amount] i dag og derefter [price] fra den [date]."
+                },
+                "subscription_change_trial": {
+                    "title": "Change Plan: During a Free Trial ( 6.0.3 )",
+                    "value": "Dit abonnement skifter nu. Din gratis prøveperiode slutter stadig den [date], og derefter betaler du [price]."
+                },
+                "subscription_change_renewal": {
+                    "title": "Change Plan: At Renewal ( 6.0.3 )",
+                    "value": "Du beholder dit nuværende abonnement indtil den [date]. Derefter skifter det, og du betaler [price]."
+                },
+                "subscription_change_note_now": {
+                    "title": "Change Plan: Starts Now ( 6.0.3 )",
+                    "value": "Starter nu"
+                },
+                "subscription_change_note_renewal": {
+                    "title": "Change Plan: Starts on a Date ( 6.0.3 )",
+                    "value": "Starter den [date]"
+                },
+                "subscription_change_note_later": {
+                    "title": "Change Plan: Starts at Renewal ( 6.0.3 )",
+                    "value": "Starter ved fornyelse"
+                },
+                "subscription_change_note_trial": {
+                    "title": "Change Plan: Starts Now During a Free Trial ( 6.0.3 )",
+                    "value": "Starter nu, gratis indtil den [date]"
+                },
+                "subscription_change_note_trial_end": {
+                    "title": "Change Plan: Starts Now and Ends the Free Trial ( 6.0.3 )",
+                    "value": "Starter nu og afslutter din gratis prøveperiode"
+                },
+                "subscription_change_pending": {
+                    "title": "Change Plan: Change Waiting ( 6.0.3 )",
+                    "value": "Dit abonnement skifter til [title] den [date]."
+                },
+                "subscription_change_pending_payment": {
+                    "title": "Change Plan: Waiting for a Payment ( 6.0.3 )",
+                    "value": "Dit skift til [title] venter på, at en betaling går igennem."
+                },
+                "subscription_change_cancel": {
+                    "title": "Change Plan: Cancel the Change ( 6.0.3 )",
+                    "value": "Annuller denne ændring"
+                },
+                "subscription_change_cancelled": {
+                    "title": "Change Plan: Change Cancelled ( 6.0.3 )",
+                    "value": "Ændringen blev annulleret. Du beholder dit nuværende abonnement."
+                },
+                "subscription_change_applied": {
+                    "title": "Change Plan: Plan Changed ( 6.0.3 )",
+                    "value": "Dit abonnement er ændret."
+                },
+                "subscription_change_scheduled": {
+                    "title": "Change Plan: Change Scheduled ( 6.0.3 )",
+                    "value": "Dit skift af abonnement er planlagt."
+                },
+                "subscription_change_declined": {
+                    "title": "Change Plan: Card Declined ( 6.0.3 )",
+                    "value": "Dit kort blev afvist, så dit abonnement blev ikke ændret. Opdater din betalingsmetode, og prøv igen."
+                },
+                "subscription_change_error": {
+                    "title": "Change Plan: Error ( 6.0.3 )",
+                    "value": "Dit abonnement kunne ikke ændres lige nu. Prøv igen, eller kontakt os."
+                },
+                "subscription_change_unavailable": {
+                    "title": "Change Plan: Not Available ( 6.0.3 )",
+                    "value": "Denne ændring er ikke mulig for dit abonnement."
+                },
+                "subscription_change_monthly": {
+                    "title": "Change Plan: Monthly Tab ( 6.0.3 )",
+                    "value": "Månedligt"
+                },
+                "subscription_change_yearly": {
+                    "title": "Change Plan: Yearly Tab ( 6.0.3 )",
+                    "value": "Årligt"
+                },
+                "subscription_change_price": {
+                    "title": "Change Plan: Price Changing ( 6.0.3 )",
+                    "value": "Din pris ændres til [price] fra den [date]. Indtil da ændres intet."
+                },
                 "subscription_details_card_notice": {
                     "title": "Account, Subscription Details, Card Change Notice",
                     "value": "Din næste betaling trækkes på det nye kort."
@@ -4307,15 +4571,15 @@
 				},
 				"order_claim_invalid":{
 					"title":"Connect Order, Link Not Valid",
-					"value":"That link is not valid or has expired. Ask for a new one from your account."
+					"value":"Linket er ikke gyldigt eller er udløbet. Bed om et nyt fra din konto."
 				},
 				"order_claim_sign_in":{
 					"title":"Connect Order, Sign In First",
-					"value":"Sign in to the account that asked for this link, then open the link again."
+					"value":"Log ind på den konto, der bad om dette link, og åbn derefter linket igen."
 				},
 				"order_claim_limit":{
 					"title":"Connect Order, Too Many Requests",
-					"value":"Too many requests. Please try again later."
+					"value":"For mange forespørgsler. Prøv igen senere."
 				},
 				"reset_link_invalid":{
 					"title":"Reset Password Link Invalid",
@@ -4408,7 +4672,7 @@
 				},
 				"order_claim_sent":{
 					"title":"Connect Order, Link Sent",
-					"value":"If that order was placed with your email address, we sent a link to it. Open the link while you are signed in to add the order to your account."
+					"value":"Hvis ordren blev afgivet med din emailadresse, har vi sendt dig et link til den. Åbn linket, mens du er logget ind, for at tilføje ordren til din konto."
 				},
 				"password_reset_success":{
 					"title":"Password Reset Success Message",
@@ -4465,7 +4729,7 @@
                 },
                 "shipping_product": {
                     "title": "Produkt etikette",
-                    "value": "Product"
+                    "value": "Produkt"
                 },
                 "shipping_quantity": {
                     "title": "Kvantitets etikette",
@@ -4494,7 +4758,7 @@
             "options": {
                 "hello_text": {
                     "title": "Hello",
-                    "value": "Hello"
+                    "value": "Hej"
                 },
                 "dashboard_text": {
                     "title": "Dashboard",
@@ -4665,87 +4929,87 @@
             "options":{
                 "details_title":{
                     "title":"Checkout Fields Answers Heading",
-                    "value":"Additional details"
+                    "value":"Yderligere oplysninger"
                 },
                 "optional":{
                     "title":"Optional Field Marker",
-                    "value":"(optional)"
+                    "value":"(valgfrit)"
                 },
                 "select_placeholder":{
                     "title":"Dropdown First Choice",
-                    "value":"Choose…"
+                    "value":"Vælg…"
                 },
                 "required_error":{
                     "title":"Required Field Error",
-                    "value":"Please fill in this field."
+                    "value":"Udfyld dette felt."
                 },
                 "choose_error":{
                     "title":"Required Choice Error",
-                    "value":"Please choose an option."
+                    "value":"Vælg en mulighed."
                 },
                 "email_error":{
                     "title":"Email Field Error",
-                    "value":"Please enter a valid email address."
+                    "value":"Indtast en gyldig emailadresse."
                 },
                 "phone_error":{
                     "title":"Phone Field Error",
-                    "value":"Please enter a valid phone number."
+                    "value":"Indtast et gyldigt telefonnummer."
                 },
                 "number_error":{
                     "title":"Number Field Error",
-                    "value":"Please enter a number in the allowed range."
+                    "value":"Indtast et tal inden for det tilladte interval."
                 },
                 "date_error":{
                     "title":"Date Field Error",
-                    "value":"Please choose an available date."
+                    "value":"Vælg en ledig dato."
                 },
                 "format_error":{
                     "title":"Format Error",
-                    "value":"Please check the format of this answer."
+                    "value":"Tjek formatet på dette svar."
                 },
                 "length_error":{
                     "title":"Too Short Error",
-                    "value":"Please enter a longer answer."
+                    "value":"Indtast et længere svar."
                 },
                 "consent_error":{
                     "title":"Consent Error",
-                    "value":"Please accept to continue."
+                    "value":"Accepter for at fortsætte."
                 },
                 "checkout_error":{
                     "title":"Checkout Fields Notice",
-                    "value":"Please check the highlighted checkout fields."
+                    "value":"Tjek de fremhævede felter i kassen."
                 },
                 "yes":{
                     "title":"Checkbox Ticked Answer",
-                    "value":"Yes"
+                    "value":"Ja"
                 },
                 "no":{
                     "title":"Checkbox Not Ticked Answer",
-                    "value":"No"
+                    "value":"Nej"
                 },
                 "accepted":{
                     "title":"Consent Accepted Answer",
-                    "value":"Accepted"
+                    "value":"Accepteret"
                 },
                 "after_payment_title":{
                     "title":"After Payment Heading",
-                    "value":"A few more details"
+                    "value":"Et par flere oplysninger"
                 },
                 "after_payment_intro":{
                     "title":"After Payment Introduction",
-                    "value":"We still need a few details to complete your order."
+                    "value":"Vi mangler stadig et par oplysninger for at gennemføre din ordre."
                 },
                 "after_payment_button":{
                     "title":"After Payment Save Button",
-                    "value":"Save details"
+                    "value":"Gem oplysninger"
                 },
                 "after_payment_saved":{
                     "title":"After Payment Saved Message",
-                    "value":"Thank you. We have your details."
+                    "value":"Tak. Vi har dine oplysninger."
                 },
                 "after_payment_failed":{
                     "title":"After Payment Save Failed Message",
-                    "value":"Your details could not be saved. Reload the page and try again."
+                    "value":"Dine oplysninger kunne ikke gemmes. Genindlæs siden, og prøv igen."
                 }
             }
         },
@@ -4754,35 +5018,35 @@
             "options": {
 				"shipment_package":{
 					"title":"Package Label (tracking)",
-					"value":"Package %d"
+					"value":"Pakke %d"
 				},
 				"shipment_packages_intro":{
 					"title":"Several Packages Intro",
-					"value":"Your order ships in %d packages. Each one has its own tracking number."
+					"value":"Din ordre sendes i %d pakker. Hver pakke har sit eget sporingsnummer."
 				},
 				"tracking_label_created":{
 					"title":"Tracking: Label Created",
-					"value":"Label created"
+					"value":"Fragtetiket oprettet"
 				},
 				"tracking_in_transit":{
 					"title":"Tracking: In Transit",
-					"value":"In transit"
+					"value":"Under transport"
 				},
 				"tracking_out_for_delivery":{
 					"title":"Tracking: Out for Delivery",
-					"value":"Out for delivery"
+					"value":"Ude til levering"
 				},
 				"tracking_delivered":{
 					"title":"Tracking: Delivered",
-					"value":"Delivered"
+					"value":"Leveret"
 				},
 				"tracking_problem":{
 					"title":"Tracking: Delivery Problem",
-					"value":"Delivery problem"
+					"value":"Leveringsproblem"
 				},
 				"tracking_returned":{
 					"title":"Tracking: Returned",
-					"value":"Returned to sender"
+					"value":"Returneret til afsender"
 				},
                 "packing_slip_title": {
                     "title": "Packing Slip Title",
@@ -5155,43 +5419,43 @@
             "options": {
                 "declined": {
                     "title": "Payment Declined (simple message)",
-                    "value": "Your payment wasn't approved. Please check your card details or try a different card."
+                    "value": "Din betaling blev ikke godkendt. Tjek dine kortoplysninger, eller prøv et andet kort."
                 },
                 "paused_title": {
                     "title": "Paused: Title",
-                    "value": "Payments are paused for a little while."
+                    "value": "Betalinger er sat på pause et øjeblik."
                 },
                 "paused": {
                     "title": "Paused: Message ([time] and [email] are filled in)",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again after [time], or contact us at [email] and we'll help."
+                    "value": "Af hensyn til din sikkerhed har vi sat betalinger fra denne enhed på pause efter flere forsøg. Prøv igen efter [time], eller kontakt os på [email], så hjælper vi dig."
                 },
                 "paused_soon": {
                     "title": "Paused: Message Without a Time",
-                    "value": "For your security, we've paused payments from this device after several tries. Please try again a little later, or contact us at [email] and we'll help."
+                    "value": "Af hensyn til din sikkerhed har vi sat betalinger fra denne enhed på pause efter flere forsøg. Prøv igen lidt senere, eller kontakt os på [email], så hjælper vi dig."
                 },
                 "check_title": {
                     "title": "Human Check: Title",
-                    "value": "Quick security check"
+                    "value": "Hurtigt sikkerhedstjek"
                 },
                 "check_needed": {
                     "title": "Human Check: Message",
-                    "value": "Please complete the security check below, then place your order again."
+                    "value": "Gennemfør sikkerhedstjekket nedenfor, og afgiv derefter din ordre igen."
                 },
                 "check_failed": {
                     "title": "Human Check: Failed",
-                    "value": "The security check didn't work. Please try it again."
+                    "value": "Sikkerhedstjekket virkede ikke. Prøv igen."
                 },
                 "checking": {
                     "title": "Human Check: Checking",
-                    "value": "Checking…"
+                    "value": "Tjekker…"
                 },
                 "reload": {
                     "title": "Reload Needed",
-                    "value": "Please reload this page and try again."
+                    "value": "Genindlæs siden, og prøv igen."
                 },
                 "code_paused": {
                     "title": "Too Many Codes Tried",
-                    "value": "Too many codes were tried. Please wait an hour before trying another code."
+                    "value": "Der er prøvet for mange koder. Vent en time, før du prøver en anden kode."
                 }
             }
         },
@@ -5200,7 +5464,7 @@
             "options": {
                 "being_made": {
                     "title": "Package Status: Being Made by a Partner",
-                    "value": "Being made"
+                    "value": "Fremstilles"
                 }
             }
         },
@@ -5209,11 +5473,11 @@
             "options": {
                 "variant_unavailable": {
                     "title": "Cart: Variant Switched Off",
-                    "value": "An item in your cart is no longer available in the option you chose. Please remove it and choose another option."
+                    "value": "En vare i din kurv er ikke længere tilgængelig i den valgmulighed, du valgte. Fjern den, og vælg en anden mulighed."
                 },
                 "line_unavailable": {
                     "title": "Cart: Item Cannot Be Ordered",
-                    "value": "An item in your cart cannot be ordered right now. Please remove it or try again later."
+                    "value": "En vare i din kurv kan ikke bestilles lige nu. Fjern den, eller prøv igen senere."
                 },
                 "product_unavailable": {
                     "title": "Cart: Item Not Available To Order",
@@ -5395,43 +5659,43 @@
             "options": {
                 "ships_separately": {
                     "title": "Note Under Shipping Choices ([label] is the partner, [amount] its shipping)",
-                    "value": "[label] items ship separately ( [amount] )."
+                    "value": "Varer fra [label] sendes separat ( [amount] )."
                 },
                 "delivery_estimate": {
                     "title": "Note: Delivery Estimate ([days] is the delivery time)",
-                    "value": "Estimated delivery: [days]."
+                    "value": "Forventet levering: [days]."
                 },
                 "delivery_days": {
                     "title": "Delivery Time ([days] is a number or a range)",
-                    "value": "[days] business days"
+                    "value": "[days] hverdage"
                 },
                 "pending": {
                     "title": "Note: No Address Yet ([label] is the partner)",
-                    "value": "[label] items ship separately. Their shipping is added once you enter your address."
+                    "value": "Varer fra [label] sendes separat. Forsendelsen lægges til, når du har indtastet din adresse."
                 },
                 "unavailable": {
                     "title": "Note: No Shipping for This Address ([label] is the partner)",
-                    "value": "We could not get shipping for [label] items to this address. Please check the address or try again in a moment."
+                    "value": "Vi kunne ikke få en forsendelsespris for varer fra [label] til denne adresse. Tjek adressen, eller prøv igen om et øjeblik."
                 },
                 "totals_included": {
                     "title": "Totals: Partner Shipping Included ([label] is the partner, [amount] its shipping)",
-                    "value": "Includes [label] shipping: [amount]"
+                    "value": "Inkluderer [label]-forsendelse: [amount]"
                 },
                 "totals_pending": {
                     "title": "Totals: No Address Yet ([label] is the partner)",
-                    "value": "[label] shipping is added once you enter your address"
+                    "value": "Forsendelse fra [label] lægges til, når du har indtastet din adresse"
                 },
                 "totals_unavailable": {
                     "title": "Totals: No Shipping for This Address ([label] is the partner)",
-                    "value": "[label] shipping is unavailable for this address"
+                    "value": "Forsendelse fra [label] er ikke tilgængelig til denne adresse"
                 },
                 "free": {
                     "title": "Partner Shipping Covered by Free Shipping",
-                    "value": "Free"
+                    "value": "Gratis"
                 },
                 "checkout_error": {
                     "title": "Checkout Error: Partner Shipping Unavailable",
-                    "value": "We could not work out shipping for some of your items, so your order has not been placed. Please check your shipping address and try again."
+                    "value": "Vi kunne ikke beregne forsendelsen for nogle af dine varer, så din ordre er ikke afgivet. Tjek din leveringsadresse, og prøv igen."
                 },
                 "method_name": {
                     "title": "Order Shipping Method Name ([label] is the partner, [service] its service)",

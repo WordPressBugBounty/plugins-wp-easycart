@@ -660,6 +660,7 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 		 * take the same line's stock.
 		 *
 		 * @since 6.0.2 bug round 14: $note, and the units taken are returned.
+		 * @since 6.0.3 units a refund already put back in stock are not taken again ( an order cancelled, then reopened ).
 		 * @param int    $order_id Order.
 		 * @param string $note     The stock history's note ( wpeasycart_inventory_stock_changed ); '' for "Order #N paid".
 		 * @return int Units taken.
@@ -671,16 +672,22 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 			/* translators: %d: order number. */
 			$note  = ( '' !== (string) $note ) ? (string) $note : sprintf( __( 'Order #%d paid', 'wp-easycart' ), (int) $order_id );
 			$lines = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ec_orderdetail WHERE order_id = %d AND stock_adjusted = 0', (int) $order_id ) );
+			/* 6.0.3: units the refund window restocked stay in stock. */
+			$restocked = ( $lines && class_exists( 'wp_easycart_order_returns' ) ) ? wp_easycart_order_returns::restocked_units( $order_id ) : array();
 			foreach ( $lines as $line ) {
 				/* Claim the line first: only the request that flips stock_adjusted takes its stock ( two paths at once cannot both ). */
 				if ( 1 !== (int) $wpdb->query( $wpdb->prepare( 'UPDATE ec_orderdetail SET stock_adjusted = 1 WHERE orderdetail_id = %d AND stock_adjusted = 0', (int) $line->orderdetail_id ) ) ) {
+					continue;
+				}
+				$units = (int) $line->quantity - ( isset( $restocked[ (int) $line->orderdetail_id ] ) ? (int) $restocked[ (int) $line->orderdetail_id ] : 0 );
+				if ( $units <= 0 ) {
 					continue;
 				}
 				$product = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ec_product WHERE product_id = %d', (int) $line->product_id ) );
 				if ( ! $product ) {
 					continue;
 				}
-				$taken += (int) $line->quantity;
+				$taken += $units;
 				$oiq_id = 0;
 				$old    = (int) $product->stock_quantity;
 				if ( $product->use_optionitem_quantity_tracking ) {
@@ -689,9 +696,9 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 						$oiq_id = (int) $oiq->optionitemquantity_id;
 						$old    = (int) $oiq->quantity;
 					}
-					$db->update_quantity_value( $line->quantity, $line->product_id, $line->optionitem_id_1, $line->optionitem_id_2, $line->optionitem_id_3, $line->optionitem_id_4, $line->optionitem_id_5 );
+					$db->update_quantity_value( $units, $line->product_id, $line->optionitem_id_1, $line->optionitem_id_2, $line->optionitem_id_3, $line->optionitem_id_4, $line->optionitem_id_5 );
 				}
-				$db->update_product_stock( $line->product_id, $line->quantity );
+				$db->update_product_stock( $line->product_id, $units );
 				$wpdb->insert(
 					'ec_order_log',
 					array(
@@ -702,7 +709,7 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 				$log_id   = (int) $wpdb->insert_id;
 				$log_meta = array(
 					'product_id' => (string) $line->product_id,
-					'quantity'   => '-' . (int) $line->quantity,
+					'quantity'   => '-' . $units,
 				);
 				foreach ( $log_meta as $meta_key => $meta_value ) {
 					$wpdb->insert(
@@ -721,8 +728,8 @@ if ( ! class_exists( 'wp_easycart_order_pay' ) ) :
 						'product_id'            => (int) $line->product_id,
 						'optionitemquantity_id' => $oiq_id,
 						'old_quantity'          => $old,
-						'new_quantity'          => $old - (int) $line->quantity,
-						'delta'                 => -1 * (int) $line->quantity,
+						'new_quantity'          => $old - $units,
+						'delta'                 => -1 * $units,
 						'reason'                => 'order',
 						'source'                => 'order',
 						'note'                  => $note,

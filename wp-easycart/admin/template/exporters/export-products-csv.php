@@ -29,6 +29,17 @@ $product_id_array = array();
 if ( isset( $_GET['ec_admin_form_action'] ) && 'export-products-csv' === sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ) && isset( $_GET['bulk'] ) ) {
 	$product_id_array = array_values( array_unique( array_filter( array_map( 'absint', (array) wp_unslash( $_GET['bulk'] ) ) ) ) );
 }
+/* 6.0.3: Export All from the products list sends the list's filters, search and scope with it; export what the list shows. */
+$filtered_export = false;
+if ( isset( $_GET['ec_admin_form_action'] ) && 'export-all-products-csv' === sanitize_key( wp_unslash( $_GET['ec_admin_form_action'] ) ) && class_exists( 'wp_easycart_admin_product_table' ) ) {
+	$export_list = new wp_easycart_admin_product_table();
+	$export_list->setup();
+	$filtered_ids = $export_list->filtered_product_ids();
+	if ( null !== $filtered_ids ) {
+		$filtered_export  = true;
+		$product_id_array = $filtered_ids;
+	}
+}
 // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 if ( ! function_exists( 'wp_easycart_export_products_csv_normalize' ) ) {
@@ -66,7 +77,8 @@ $product_sql = "SELECT
 		WHERE
 			";
 
-$id_chunks = ( count( $product_id_array ) > 0 ) ? array_chunk( $product_id_array, $chunk_size ) : null;
+/* A filtered list with no products exports none ( never every product ). */
+$id_chunks = ( count( $product_id_array ) > 0 || $filtered_export ) ? array_chunk( $product_id_array, $chunk_size ) : null;
 $id_chunk_index = 0;
 $last_product_id = 0;
 $keys = null;
@@ -109,7 +121,7 @@ while ( true ) {
 		$keys = array_keys( $results[0] );
 		$keys[] = 'advanced_option_ids';
 		$output = fopen( 'php://output', 'w' );
-		fputcsv( $output, $keys );
+		fputcsv( $output, $keys, ',', '"', '\\' ); /* 6.0.3: every argument given ( PHP 8.4 warns without the escape character, and a site showing warnings printed it into the file ) */
 	}
 
 	$chunk_product_ids = array();
@@ -144,13 +156,69 @@ while ( true ) {
 		}
 	}
 
+	/*
+	 * 6.0.3: the picture columns show what the store shows. While a product has a gallery ( product_images ) or per-option
+	 * pictures, the storefront never shows a picture column the gallery does not name, and the gallery editor never clears
+	 * one, so an old picture could sit there unseen and come out in this file ( a customer's report ). Such a column now
+	 * exports empty, except image1, which carries the picture the store shows first; a column the gallery names keeps its
+	 * value. The file still imports: the gallery is unchanged and image1 becomes that picture.
+	 */
+	$option_images_by_product = array();
+	$gallery_media_ids        = array();
+	if ( class_exists( 'wp_easycart_product_image' ) ) {
+		$option_image_products = array();
+		foreach ( $results as $result ) {
+			if ( ! empty( $result['use_optionitem_images'] ) ) {
+				$option_image_products[] = (int) $result['product_id'];
+			}
+			foreach ( wp_easycart_product_image::tokens( (object) $result ) as $token ) {
+				if ( preg_match( '/^\d+$/', $token ) ) {
+					$gallery_media_ids[] = (int) $token;
+				}
+			}
+		}
+		if ( $option_image_products ) {
+			$option_image_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT oii.product_id, oii.image1, oii.image2, oii.image3, oii.image4, oii.image5, oii.product_images FROM ec_optionitemimage AS oii LEFT JOIN ec_optionitem AS oi ON oi.optionitem_id = oii.optionitem_id WHERE oii.product_id IN ( ' . implode( ', ', array_fill( 0, count( $option_image_products ), '%d' ) ) . ' ) AND ( oii.optionitem_id = 0 OR oi.optionitem_id IS NOT NULL ) ORDER BY oii.product_id ASC, CASE WHEN oii.optionitem_id = 0 THEN 0 ELSE 1 END ASC, oi.optionitem_order ASC', $option_image_products ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the only interpolation is a list of %d placeholders the sniff cannot see; the ids are prepare() arguments.
+			foreach ( (array) $option_image_rows as $option_image_row ) {
+				/* The storefront's order ( ec_options::get_optionitem_images() ): the Default set, then each choice's by its order. */
+				foreach ( wp_easycart_product_image::tokens( $option_image_row ) as $token ) {
+					if ( preg_match( '/^\d+$/', $token ) ) {
+						$gallery_media_ids[] = (int) $token;
+					}
+				}
+				$option_images_by_product[ (int) $option_image_row->product_id ][] = $option_image_row;
+			}
+		}
+		if ( $gallery_media_ids && function_exists( '_prime_post_caches' ) ) {
+			_prime_post_caches( array_values( array_unique( $gallery_media_ids ) ), false, true ); /* one query for the chunk's media, not one per picture */
+		}
+	}
+
 	/* Write the chunk. */
 	foreach ( $results as $result ) {
 		$product_id = (int) $result['product_id'];
 		$line = array();
 
+		$picture_columns = array();
+		if ( class_exists( 'wp_easycart_product_image' ) ) {
+			$picture_row     = (object) $result;
+			$picture_options = ( ! empty( $result['use_optionitem_images'] ) && ! empty( $option_images_by_product[ $product_id ] ) ) ? $option_images_by_product[ $product_id ] : array();
+			if ( $picture_options || array() !== wp_easycart_product_image::tokens( $picture_row ) ) {
+				/* With per-option pictures shown, none of the product's own columns are; else the gallery's image1 to image5 tokens are. */
+				$used_slots = $picture_options ? array() : wp_easycart_product_image::used_slots( $picture_row );
+				for ( $slot = 1; $slot <= 5; $slot++ ) {
+					if ( ! in_array( $slot, $used_slots, true ) ) {
+						$picture_columns[ 'image' . $slot ] = ( 1 === $slot ) ? wp_easycart_product_image::main_url( $picture_row, 'large', $picture_options ) : '';
+					}
+				}
+			}
+		}
+
 		foreach ( $result as $key => $value ) {
-			if ( 'price_tiers' === $key ) {
+			if ( isset( $picture_columns[ $key ] ) ) {
+				$line[] = wp_easycart_export_products_csv_normalize( $picture_columns[ $key ] );
+
+			} elseif ( 'price_tiers' === $key ) {
 				$line[] = isset( $price_tiers_by_product[ $product_id ] ) ? wp_easycart_export_products_csv_normalize( implode( ',', $price_tiers_by_product[ $product_id ] ) ) : '';
 
 			} elseif ( 'b2b_prices' === $key ) {
@@ -179,7 +247,7 @@ while ( true ) {
 			$line[] = isset( $advanced_options_by_product[ $product_id ] ) ? implode( ',', $advanced_options_by_product[ $product_id ] ) : '';
 		}
 
-		fputcsv( $output, $line );
+		fputcsv( $output, $line, ',', '"', '\\' );
 	}
 
 	flush();

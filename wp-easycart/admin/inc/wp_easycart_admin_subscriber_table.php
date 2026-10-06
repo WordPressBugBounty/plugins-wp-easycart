@@ -447,13 +447,13 @@ function ecv2_subscriber_export() {
 	if ( 'guests' === $f ) { $where .= ' AND NOT EXISTS ( SELECT 1 FROM ec_user u WHERE u.email = ec_subscriber.email )'; }
 	if ( ! empty( $_GET['s'] ) ) { $like = '%' . $wpdb->esc_like( sanitize_text_field( wp_unslash( $_GET['s'] ) ) ) . '%'; $where .= $wpdb->prepare( ' AND ( email LIKE %s OR first_name LIKE %s OR last_name LIKE %s )', $like, $like, $like ); }
 	if ( ! headers_sent() ) { header( 'Content-Type: text/csv; charset=utf-8' ); header( 'Content-Disposition: attachment; filename="subscribers-' . date( 'Ymd' ) . '.csv"' ); }
-	$out = fopen( 'php://output', 'w' ); fputcsv( $out, array( 'email', 'first_name', 'last_name' ) );
+	$out = fopen( 'php://output', 'w' ); fputcsv( $out, array( 'email', 'first_name', 'last_name' ), ',', '"', '\\' );
 	/* 6.0.0: streamed 1000 rows at a time ( LIMIT / OFFSET over the email order ) instead of one result set for the whole list. */
 	$chunk = 1000; $offset = 0;
 	while ( true ) {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT email, first_name, last_name FROM ec_subscriber $where ORDER BY email, subscriber_id LIMIT %d OFFSET %d", $chunk, $offset ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is literal SQL, an intval() IN list and $wpdb->prepare() fragments; limit and offset go through prepare().
 		if ( empty( $rows ) ) { break; }
-		foreach ( $rows as $r ) { fputcsv( $out, array( $r['email'], wp_unslash( $r['first_name'] ), wp_unslash( $r['last_name'] ) ) ); }
+		foreach ( $rows as $r ) { fputcsv( $out, array( $r['email'], wp_unslash( $r['first_name'] ), wp_unslash( $r['last_name'] ) ), ',', '"', '\\' ); }
 		fflush( $out );
 		if ( ob_get_level() ) { ob_flush(); }
 		flush();

@@ -102,7 +102,7 @@ if ( $document->show( 'seller' ) || $document->show( 'heading' ) ) {
 	if ( '' === $ec_in_seller ) {
 		$ec_in_seller = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 	}
-	$ec_in_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 18px 0;border-bottom:2px solid #1d2327;"><tr>';
+	$ec_in_head  = '<table role="presentation" class="wpec-pdf-head" width="100%" border="0" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 8px 0;border-bottom:2px solid #1d2327;"><tr>';
 	$ec_in_head .= '<td class="wpec-pdf-seller" width="55%" style="' . esc_attr( $ec_in_cell ) . '">' . ( $document->show( 'seller' ) ? nl2br( esc_html( $ec_in_seller ) ) : '&nbsp;' ) . '</td>';
 	$ec_in_head .= '<td width="45%" align="right" style="' . esc_attr( $ec_in_cell . 'text-align:right;' ) . '">';
 	if ( $document->show( 'heading' ) ) {
@@ -156,7 +156,7 @@ if ( ! empty( $ec_in_order->includes_restaurant_type ) ) {
 /* Greeting */
 if ( $document->show( 'intro' ) ) {
 	$ed::section_start();
-	$ed::heading( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ) . ' ' . esc_html( trim( $ec_in_order->billing_first_name . ' ' . $ec_in_order->billing_last_name ) ) );
+	$ed::greeting( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_line_1' ) ), trim( $ec_in_order->billing_first_name . ' ' . $ec_in_order->billing_last_name ), array( 'comma' => false ) ); /* 6.0.3: text size, not a headline */
 	$ed::paragraph( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_line_2' ) ) . ' <strong style="color:#111827;">' . esc_html( $ec_in_id ) . ' &mdash; ' . esc_html( $document->date() ) . '</strong>' );
 	$ed::paragraph( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_line_3' ) ) );
 	$ed::paragraph( wp_kses_post( $ec_in_lang->get_text( 'cart_success', 'cart_payment_complete_line_4' ) ), array( 'margin' => '0' ) );

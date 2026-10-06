@@ -1,0 +1,20 @@
+/* WP EasyCart — Settings › Accounts › reCAPTCHA key test ( 6.0.3 ). */
+.ecst-recaptcha { display:flex; flex-direction:column; gap:10px; }
+.ecst-recaptcha-status { display:flex; align-items:flex-start; gap:8px; margin:0; font-size:13px; line-height:1.45; color:var(--ecv2-g700, #374151); }
+.ecst-recaptcha-dot { flex-shrink:0; width:8px; height:8px; margin-top:6px; border-radius:50%; background:var(--ecv2-g300, #d1d5db); }
+.ecst-recaptcha-status.is-good .ecst-recaptcha-dot { background:#16a34a; }
+.ecst-recaptcha-status.is-warn .ecst-recaptcha-dot { background:#d97706; }
+.ecst-recaptcha-status.is-bad .ecst-recaptcha-dot { background:#dc2626; }
+.ecst-recaptcha-status.is-bad .ecst-recaptcha-text { color:#b91c1c; }
+.ecst-recaptcha-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ecst-recaptcha-unsaved { font-size:12px; color:var(--ecv2-g500, #6b7280); }
+.ecst-recaptcha-stage { display:flex; flex-direction:column; gap:8px; padding:12px; border:1px dashed var(--ecv2-g200, #e5e7eb); border-radius:var(--ecv2-r, 8px); background:var(--ecv2-g50, #f9fafb); }
+.ecst-recaptcha-stage[hidden] { display:none; }
+.ecst-recaptcha-hint { margin:0; font-size:12px; line-height:1.45; color:var(--ecv2-g500, #6b7280); }
+.ecst-recaptcha-box { min-height:78px; }
+.ecst-recaptcha-result { margin:0; font-size:12.5px; line-height:1.45; }
+.ecst-recaptcha-result[hidden] { display:none; }
+.ecst-recaptcha-result.is-good { color:#15803d; }
+.ecst-recaptcha-result.is-warn { color:#b45309; }
+.ecst-recaptcha-result.is-bad { color:#b91c1c; }
+.ecst-recaptcha-result.is-muted { color:var(--ecv2-g500, #6b7280); }

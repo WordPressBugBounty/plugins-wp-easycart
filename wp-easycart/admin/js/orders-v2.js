@@ -1,4 +1,4 @@
-/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in shell-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
+/* 6.0.0: rows are rendered once per view mode; count an id once ( shared definition lives in admin-frame-v2.js ). */window.ecv2_row_check_count = window.ecv2_row_check_count || function() { var seen = {}, n = 0; jQuery( '.ecv2-row-check:checked' ).each( function() { if ( ! seen[ this.value ] ) { seen[ this.value ] = true; n++; } } ); return n; };
 /**
  * WP EasyCart Admin — Order List V2 (FREE)
  *
@@ -1439,10 +1439,16 @@ jQuery( function( $ ) {
 		ship_mode( pickup ? 'pickup' : 'ship' );
 		if ( ! pickup ) {
 			var carrier = String( $wrap.attr( 'data-carrier' ) || '' ), $carrier = $( '#ecv2-ship-carrier' );
-			if ( carrier && ! $carrier.find( 'option' ).filter( function() { return this.value === carrier; } ).length ) {
-				$carrier.append( $( '<option></option>' ).val( carrier ).text( carrier ) );
+			/* 6.0.3: the order's carrier, else the store's usual one ( data-default ); order-carriers-v2.js adds a name the list lacks. */
+			carrier = carrier || String( $carrier.attr( 'data-default' ) || '' );
+			if ( window.wpecCarrierSet ) {
+				window.wpecCarrierSet( $carrier, carrier );
+			} else {
+				if ( carrier && ! $carrier.find( 'option' ).filter( function() { return this.value === carrier; } ).length ) {
+					$carrier.append( $( '<option></option>' ).val( carrier ).text( carrier ) );
+				}
+				$carrier.val( carrier );
 			}
-			$carrier.val( carrier );
 			$( '#ecv2-ship-tracking' ).val( '' );
 			$( '#ecv2-ship-mark, #ecv2-ship-email' ).prop( 'checked', true );
 			$( '#ecv2-ship-email-row' ).show();

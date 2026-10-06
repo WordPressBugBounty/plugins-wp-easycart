@@ -116,7 +116,7 @@ $wpec_screen_data = array(
 		'status_title_16'   => __( 'Mark this order refunded?', 'wp-easycart' ),
 		'status_body_16'    => __( 'This changes the order’s status only. No money goes back to the customer: use Refund to return the payment.', 'wp-easycart' ),
 		'status_title_19'   => __( 'Cancel this order?', 'wp-easycart' ),
-		'status_body_19'    => __( 'This changes the order’s status only. If the customer paid, refund the payment too.', 'wp-easycart' ),
+		'status_body_19'    => wp_easycart_order_returns::cancel_text(), /* 6.0.3: says what goes back ( stock, gift card balance ) */
 		'status_title_17'   => __( 'Mark this order partly refunded?', 'wp-easycart' ),
 		'status_body_17'    => __( 'This changes the order’s status only. No money goes back to the customer: use Refund to return part of the payment.', 'wp-easycart' ),
 		'status_confirm'    => __( 'Change status', 'wp-easycart' ),
@@ -211,6 +211,9 @@ $wpec_screen_data = array(
 		'find_open'         => __( 'Open order #%s', 'wp-easycart' ),
 		'find_hint'         => __( '↑ ↓ to move · Enter to open · Esc to close', 'wp-easycart' ),
 		'act_ship'          => __( 'Ship order', 'wp-easycart' ),
+		/* 6.0.3: the phone Ship bar's buttons when a label service is the key one. */
+		'act_label'         => __( 'Buy label', 'wp-easycart' ),
+		'act_ship_short'    => __( 'Ship', 'wp-easycart' ),
 		'act_fulfill'       => __( 'Fulfill: make a label and add tracking', 'wp-easycart' ),
 		'act_slip'          => __( 'Print the packing slip', 'wp-easycart' ),
 		'act_receipt'       => __( 'Print the receipt', 'wp-easycart' ),
@@ -758,7 +761,12 @@ $wpec_screen_data = array(
 					<?php } ?>
 					<span class="ecodv2-refund-chip<?php echo ( (float) $this->order->refund_total < 0.005 ) ? ' ec_admin_initial_hide' : ''; ?>" id="ecodv2_refund_chip"><?php esc_html_e( 'Refunded', 'wp-easycart' ); ?> <span class="ecodv2-amt" data-amt-for="ecodv2_refund_chip_amount"><?php echo esc_html( wp_easycart_admin_order_screen::money( $this->order->refund_total ) ); ?></span><span class="ecodv2-amt-raw" id="ecodv2_refund_chip_amount" hidden><?php echo esc_html( number_format( (float) $this->order->refund_total, 2, '.', '' ) ); ?></span></span>
 					<div class="ecdv2-card-header-actions">
-						<?php if ( (float) $this->order->grand_total > (float) $this->order->refund_total ) { ?>
+						<?php
+						/* 6.0.3: an order paid with a gift card can be refunded to the card ( WP EasyCart PRO 6.0.3's refund window ). */
+						$wpec_card_left   = ( 'show_pro_required' !== $refund_action && apply_filters( 'wp_easycart_admin_order_giftcard_refunds', false ) ) ? wp_easycart_order_returns::giftcard( (int) $this->order->order_id ) : null;
+						$wpec_card_refund = $wpec_card_left && $wpec_card_left['returnable'] >= 0.005;
+						?>
+						<?php if ( (float) $this->order->grand_total > (float) $this->order->refund_total || $wpec_card_refund ) { ?>
 						<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="<?php echo ( 'show_pro_required' === $refund_action ) ? "ecodv2_locked( 'refunds' );" : esc_attr( $refund_action ) . '( );'; ?> return false;" id="ec_admin_refund_button" aria-keyshortcuts="R"><span class="dashicons dashicons-undo" aria-hidden="true"></span> <?php esc_html_e( 'Refund', 'wp-easycart' ); ?> <kbd class="ecodv2-kbd">R</kbd><?php if ( 'show_pro_required' === $refund_action ) { ?> <span class="ecodv2-pro-pill"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span><?php } ?></button>
 						<?php } ?>
 						<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost ecodv2-totals-edit ecodv2-header-edit" id="ec_admin_order_total_edit" onclick="<?php echo ( 'show_pro_required' === $edit_totals_action ) ? "ecodv2_locked( 'totals' );" : esc_attr( $edit_totals_action ) . '( );'; ?> return false;"><span class="dashicons dashicons-edit" aria-hidden="true"></span> <span><?php esc_html_e( 'Edit totals', 'wp-easycart' ); ?></span><?php if ( 'show_pro_required' === $edit_totals_action ) { ?> <span class="ecodv2-pro-pill"><?php echo esc_html( class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::badge( 'pro' ) : __( 'Pro/Premium', 'wp-easycart' ) ); ?></span><?php } ?></button>
@@ -1439,16 +1447,9 @@ $wpec_screen_data = array(
 	$wpec_shippo_on      =( function_exists( 'wp_easycart_shippo' ) && '' !== (string) wp_easycart_shippo()->get_setting( 'api_key' ) );
 	$wpec_shipstation_on = apply_filters( 'wp_easycart_ecv2_shipstation_active', class_exists( 'wp_easycart_shipstation' ) );
 	$wpec_stamps_on      = apply_filters( 'wp_easycart_ecv2_stamps_active', class_exists( 'wp_easycart_stamps' ) );
-	/**
-	 * Label services an extension draws itself in the Fulfill window. A row keyed shippo, stamps or shipstation replaces the
-	 * built-in link for that service.
-	 *
-	 * @since 6.0.2
-	 * @param array  $rows  slug => array( name, sub, logo ( two letters ), color, cta, onclick | url, integrated ( bool ) ).
-	 * @param object $order Order row.
-	 */
-	$wpec_label_rows     = apply_filters( 'wp_easycart_ecv2_label_services', array(), $this->order );
-	$wpec_label_rows     = is_array( $wpec_label_rows ) ? $wpec_label_rows : array();
+	/* Filter wp_easycart_ecv2_label_services ( 6.0.3: asked once per order by wp_easycart_admin_order_screen::label_services(), which
+	   the Ship panel's key label button shares ). */
+	$wpec_label_rows     = wp_easycart_admin_order_screen::label_services( $this->order );
 	$wpec_shippo_on      = $wpec_shippo_on || isset( $wpec_label_rows['shippo'] );
 	$wpec_stamps_on      = $wpec_stamps_on || isset( $wpec_label_rows['stamps'] );
 	$wpec_shipstation_on = $wpec_shipstation_on || isset( $wpec_label_rows['shipstation'] );

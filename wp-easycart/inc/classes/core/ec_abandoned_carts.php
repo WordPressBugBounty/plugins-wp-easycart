@@ -127,7 +127,7 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 			$email = sanitize_email( trim( (string) $d->email ) ); if ( ! is_email( $email ) ) { return 0; }
 			/** Skip a session ( 6.0.2: checkout protection skips sessions it stopped, so bots trigger no reminder emails ). @since 6.0.2 */
 			if ( apply_filters( 'wpeasycart_abandoned_cart_capture_skip', false, $session_id, $d ) ) { return 0; }
-			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT t.tempcart_id, t.product_id, t.quantity, t.optionitem_id_1, t.optionitem_id_2, t.optionitem_id_3, t.optionitem_id_4, t.optionitem_id_5, t.last_changed_date, t.hide_from_admin, t.abandoned_cart_email_sent, t.donation_price, p.title, p.model_number, p.price, p.image1, p.stock_quantity, p.show_stock_quantity, p.use_optionitem_quantity_tracking, p.activate_in_store FROM ec_tempcart t LEFT JOIN ec_product p ON p.product_id = t.product_id WHERE t.session_id = %s ORDER BY t.tempcart_id', $session_id ) );
+			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT t.tempcart_id, t.product_id, t.quantity, t.optionitem_id_1, t.optionitem_id_2, t.optionitem_id_3, t.optionitem_id_4, t.optionitem_id_5, t.last_changed_date, t.hide_from_admin, t.abandoned_cart_email_sent, t.donation_price, p.title, p.model_number, p.price, p.image1, p.image2, p.image3, p.image4, p.image5, p.product_images, p.use_optionitem_images, p.stock_quantity, p.show_stock_quantity, p.use_optionitem_quantity_tracking, p.activate_in_store FROM ec_tempcart t LEFT JOIN ec_product p ON p.product_id = t.product_id WHERE t.session_id = %s ORDER BY t.tempcart_id', $session_id ) );
 			if ( ! $lines ) { return 0; }
 			$items = array(); $legacy_items = array(); $subtotal = 0; $count = 0; $last = ''; $sent = 0; $hidden = 0;
 			$prices = self::line_prices( $session_id, $d );
@@ -140,7 +140,7 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 				// options was reminded, and totalled, at $89.
 				if ( isset( $prices[ (int) $l->tempcart_id ] ) ) { $price = $prices[ (int) $l->tempcart_id ]['price']; $total = $prices[ (int) $l->tempcart_id ]['total']; }
 				$opts = array(); $oids = array(); for ( $i = 1; $i <= 5; $i++ ) { $oid = (int) $l->{ "optionitem_id_$i" }; if ( $oid ) { $oids[] = $oid; $n = $wpdb->get_var( $wpdb->prepare( 'SELECT optionitem_name FROM ec_optionitem WHERE optionitem_id = %d', $oid ) ); if ( $n ) { $opts[] = wp_unslash( $n ); } } }
-				$item = array( 'product_id' => (int) $l->product_id, 'title' => wp_unslash( (string) $l->title ), 'sku' => (string) $l->model_number, 'qty' => (int) $l->quantity, 'price' => $price, 'options' => $opts, 'image' => (string) $l->image1 );
+				$item = array( 'product_id' => (int) $l->product_id, 'title' => wp_unslash( (string) $l->title ), 'sku' => (string) $l->model_number, 'qty' => (int) $l->quantity, 'price' => $price, 'options' => $opts, 'image' => self::line_picture( $l, $oids ) );
 				$legacy_items[] = $item;
 				// 6.0.2: the option item ids ( non-zero optionitem_id_1..5, in order ) and the cart line, so an extension can name the exact variant;
 				// the line's total ( one-time option prices are not per item ) and the product's own price ( what "price changed" compares ).
@@ -263,6 +263,23 @@ if ( ! class_exists( 'ec_abandoned_carts' ) ) :
 				}
 			}
 			return $out;
+		}
+
+		/**
+		 * A snapshot line's picture: the product's image1 as it is ( what snapshots always saved ), or the address of the
+		 * picture the store shows when the product has a gallery or per-option pictures ( image1 can be an old picture
+		 * there ). The chosen options' own pictures come first, as in the cart.
+		 *
+		 * @since 6.0.3
+		 * @param object $line           The capture's line ( product_id and the product's picture columns ).
+		 * @param int[]  $optionitem_ids The line's option choices.
+		 * @return string
+		 */
+		private static function line_picture( $line, $optionitem_ids ) {
+			if ( class_exists( 'wp_easycart_product_image' ) ) {
+				return wp_easycart_product_image::line_picture( $line, $optionitem_ids );
+			}
+			return (string) $line->image1;
 		}
 
 		/**

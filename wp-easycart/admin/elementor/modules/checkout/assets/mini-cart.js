@@ -16,6 +16,9 @@
  *   open( root, opener, options ) / close( root )   a mini cart panel: focus moves in ( options.focus false keeps it where it
  *                           is, for a dropdown ), Esc and the overlay close it, a modal panel keeps focus; options.instant
  *                           opens it at once, without the slide or moving focus ( the editor putting a redrawn panel back )
+ *                           ( 6.0.3: only a root api.shown() says is on screen; closing one also closes any left open off screen )
+ *   shown( el )             whether a Menu Cart / Side Cart is really on screen: laid out, not visibility:hidden, not in Elementor
+ *                           Pro's sticky header copy ( .elementor-sticky__spacer ) ( 6.0.3 )
  *   place( root )           lines a dropdown up with its icon ( round 11: it followed the widget's width )
  *   text( key, values )     wording from the store's language file
  *   announce( root, text )  a polite screen reader message
@@ -323,6 +326,23 @@
 		}
 	}
 
+	/*
+	 * 6.0.3: whether a Menu Cart or Side Cart is really on screen. Elementor Pro's sticky header leaves a copy of the header behind
+	 * ( .elementor-sticky__spacer, visibility:hidden, which jQuery's :visible counts as shown ), and stores often hide a header's
+	 * widgets on some devices ( display:none ). A panel opened in such a copy can't be seen or closed, and it kept the page's scroll
+	 * locked after the panel the shopper saw had closed.
+	 */
+	api.shown = function( el ) {
+		if ( ! el || ! el.getClientRects || ! el.getClientRects().length ) {
+			return false;
+		}
+		if ( $( el ).closest( '.elementor-sticky__spacer' ).length ) {
+			return false;
+		}
+		var style = window.getComputedStyle ? window.getComputedStyle( el ) : null;
+		return ! style || ( 'hidden' !== style.visibility && 'collapse' !== style.visibility );
+	};
+
 	api.open = function( root, opener, options ) {
 		var $root = $( root );
 		var $panel = $root.find( '.wpec-mini-cart' ).first();
@@ -331,6 +351,9 @@
 		}
 		var modal = 'true' === $panel.attr( 'aria-modal' );
 		var instant = !! ( options && options.instant );
+		if ( ! instant && ! inEditor() && ! api.shown( root ) ) {
+			return; /* 6.0.3: never a copy nobody can see ( see api.shown ) */
+		}
 		var focus = ! instant && ( modal || ! options || false !== options.focus );
 		root.wpecOpener = opener || document.activeElement;
 		api.place( root );
@@ -390,6 +413,13 @@
 		} else {
 			window.setTimeout( finish, 320 );
 		}
+		/* 6.0.3: a panel still open where nobody can see it ( see api.shown ) closes with this one, so it never holds the page's scroll. */
+		$( '.wpec-mini-cart.is-open[aria-modal="true"]' ).each( function() {
+			var other = rootOf( this );
+			if ( other && other !== root && ! api.shown( other ) ) {
+				api.close( other, true );
+			}
+		} );
 		if ( ! $( '.wpec-mini-cart.is-open[aria-modal="true"]' ).length ) {
 			$( document.documentElement ).removeClass( 'wpec-mini-cart-locked' );
 		}
@@ -459,7 +489,9 @@
 		if ( 'Tab' !== e.key ) {
 			return;
 		}
-		var panel = $open.filter( '[aria-modal="true"]' ).get( 0 );
+		var panel = $open.filter( '[aria-modal="true"]' ).filter( function() {
+			return api.shown( rootOf( this ) );
+		} ).get( 0 );
 		if ( ! panel ) {
 			return;
 		}
@@ -564,7 +596,12 @@
 		var now = new Date().getTime();
 		$( '.wpec-menu-cart[data-wpec-open-on-add="1"]' ).each( function() {
 			var root = this;
-			if ( ( root.wpecAddedAt && now - root.wpecAddedAt < 800 ) || ! $( root ).is( ':visible' ) ) {
+			if ( root.wpecAddedAt && now - root.wpecAddedAt < 800 ) {
+				return;
+			}
+			/* 6.0.3: the cart has a line now, so "Hide when empty" shows the icon before the cart state answers ( it skipped the first add ). */
+			$( root ).filter( '.wpec-menu-cart--hide-empty' ).removeClass( 'wpec-menu-cart--empty' );
+			if ( ! api.shown( root ) ) {
 				return;
 			}
 			root.wpecAddedAt = now;

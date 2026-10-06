@@ -37,6 +37,7 @@ class ec_subscription{
 	public $subscription_type;							// stripe, paypal
 	public $start_date;									// timestamp column ( DATETIME string )
 	public $number_payments_completed;					// INT
+	private $trial_days_cache = null;					// 6.0.3: trial_days()
 	public $num_failed_payment;							// INT
 	public $model_number;								// VARCHAR
 
@@ -507,13 +508,89 @@ class ec_subscription{
 	}
 
 	/**
+	 * In its free trial ( 6.0.3 ). Stripe's status says trialing, or the row still says Active while the product's trial runs:
+	 * the trial has not ended, the next billing date is the trial's end and no payment beyond the trial's own $0 invoice was
+	 * recorded. My Account then says Trial, shows when the trial ends and leaves out a "last payment" that was not one.
+	 *
+	 * @since 6.0.3
+	 * @return bool
+	 */
+	public function in_trial() {
+		$key = $this->get_status_key();
+		if ( 'trialing' === $key ) {
+			return true;
+		}
+		$days = $this->trial_days();
+		if ( 'active' !== $key || $days <= 0 || (int) $this->number_payments_completed > 1 ) {
+			return false;
+		}
+		$start = $this->get_start_timestamp();
+		$next  = $this->get_next_payment_timestamp();
+		$now   = time();
+		if ( ! $start || ! $next || $next <= $now ) {
+			return false;
+		}
+		$trial_end = $start + $days * DAY_IN_SECONDS;
+		return $now < $trial_end + DAY_IN_SECONDS && abs( $next - $trial_end ) <= 2 * DAY_IN_SECONDS;
+	}
+
+	/**
+	 * The trial this subscription started with: its product's trial days, or after a plan change those of the product it started on
+	 * ( the first change applied, ec_subscription_change ), since a change during a trial keeps the trial's end.
+	 *
+	 * @since 6.0.3
+	 * @return int
+	 */
+	public function trial_days() {
+		if ( null !== $this->trial_days_cache ) {
+			return $this->trial_days_cache;
+		}
+		$days = (int) $this->trial_period_days;
+		global $wpdb;
+		if ( (int) $this->subscription_id > 0 && isset( $wpdb ) && is_object( $wpdb ) && class_exists( 'wp_easycart_subscription_changes' ) && method_exists( 'wp_easycart_subscription_changes', 'ready' ) && wp_easycart_subscription_changes::ready() ) {
+			$first = (int) $wpdb->get_var( $wpdb->prepare( "SELECT from_product_id FROM ec_subscription_change WHERE subscription_id = %d AND change_status = 'applied' ORDER BY change_id ASC LIMIT 1", (int) $this->subscription_id ) );
+			if ( $first > 0 ) {
+				$days = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT trial_period_days FROM ec_product WHERE product_id = %d', $first ) );
+			}
+		}
+		$this->trial_days_cache = $days;
+		return $days;
+	}
+
+	/**
+	 * The status My Account shows: trialing during a free trial ( in_trial() ), else get_status_key(). What a customer may change
+	 * still follows get_status_key().
+	 *
+	 * @since 6.0.3
+	 * @return string
+	 */
+	public function get_display_status_key() {
+		return $this->in_trial() ? 'trialing' : $this->get_status_key();
+	}
+
+	/**
+	 * Something was charged for this subscription ( a sign-up fee, a renewal ): one of its orders is above zero.
+	 *
+	 * @since 6.0.3
+	 * @return bool
+	 */
+	public function has_paid() {
+		foreach ( (array) $this->past_payments as $payment ) {
+			if ( isset( $payment->grand_total ) && (float) $payment->grand_total > 0 ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Customer-facing status label ( language editor: Account - Subscriptions ).
 	 *
 	 * @since 6.0.0
 	 * @return string Escaped text.
 	 */
 	public function get_status_label() {
-		$key      = $this->get_status_key();
+		$key      = $this->get_display_status_key(); /* 6.0.3: a free trial reads Trial while the row still says Active */
 		$defaults = array(
 			'active'     => 'Active',
 			'trialing'   => 'Trial',
@@ -624,7 +701,8 @@ class ec_subscription{
 	 * @return bool
 	 */
 	public function has_plan_choices() {
-		return ( $this->has_upgrade_options() || ! get_option( 'ec_option_subscription_one_only' ) );
+		/* 6.0.3: another plan the change rule allows ( the plan list itself counts the current plan ). */
+		return ( count( $this->get_plan_rows() ) > 1 || ! get_option( 'ec_option_subscription_one_only' ) );
 	}
 
 	/**
@@ -639,28 +717,23 @@ class ec_subscription{
 		if ( $product_id == (int) $this->product_id ) {
 			return true;
 		}
-		if ( ! $this->has_upgrade_options() ) {
-			return false;
-		}
-		$found_this = false;
-		foreach ( $this->upgrades as $upgrade ) {
-			if ( (int) $this->product_id == (int) $upgrade->product_id ) {
-				$found_this = true;
-			}
-			if ( (int) $upgrade->product_id == $product_id ) {
-				return ( $upgrade->can_downgrade || $found_this );
+		foreach ( $this->get_plan_rows() as $choice ) {
+			if ( (int) $choice['product_id'] === $product_id ) {
+				return true;
 			}
 		}
 		return false;
 	}
 
 	/**
-	 * Plans the customer can pick on the change-plan panel ( same rules and order as display_upgrade_dropdown() ).
+	 * The plans the customer can move to, before they are worded: the price order and the plan's "can move to a lower-priced
+	 * product" switch, then ( 6.0.3 ) the change rule ( wp_easycart_subscription_changes::annotate() ), which can leave a plan out
+	 * and says when each one starts; filter wp_easycart_subscription_plan_choices orders them ( WP EasyCart PRO: by tier ).
 	 *
-	 * @since 6.0.0
-	 * @return array[] { product_id: int, title: string ( escaped ), amount: string, period: string, current: bool }
+	 * @since 6.0.3
+	 * @return array[] { product_id, current, allowed, row, when ( current | now | renewal ), note }
 	 */
-	public function get_plan_choices() {
+	public function get_plan_rows() {
 		$choices = array();
 		if ( ! $this->has_upgrade_options() ) {
 			return $choices;
@@ -671,15 +744,58 @@ class ec_subscription{
 			if ( $is_current ) {
 				$found_this = true;
 			}
-			if ( $upgrade->can_downgrade || $found_this ) {
-				$choices[] = array(
-					'product_id' => (int) $upgrade->product_id,
-					'title'      => wp_easycart_language()->convert_text( $upgrade->title ),
-					'amount'     => $GLOBALS['currency']->get_currency_display( $upgrade->price ),
-					'period'     => $this->get_new_bill_period_formatted( $upgrade->subscription_bill_length, $upgrade->subscription_bill_period ),
-					'current'    => $is_current,
-				);
-			}
+			$choices[] = array(
+				'product_id' => (int) $upgrade->product_id,
+				'current'    => $is_current,
+				'allowed'    => ( $is_current || $upgrade->can_downgrade || $found_this ),
+				'row'        => $upgrade,
+				'when'       => $is_current ? 'current' : 'now',
+				'note'       => '',
+			);
+		}
+		if ( class_exists( 'wp_easycart_subscription_changes' ) ) {
+			$choices = wp_easycart_subscription_changes::annotate( $this, $choices );
+		} else {
+			$choices = array_values(
+				array_filter(
+					$choices,
+					function ( $choice ) {
+						return $choice['allowed'];
+					}
+				)
+			);
+		}
+		/**
+		 * The plans My Account offers a subscription ( 6.0.3 ), in the order shown.
+		 *
+		 * @since 6.0.3
+		 * @param array[]         $choices { product_id, current, allowed, row, when, note }.
+		 * @param ec_subscription $this    The subscription.
+		 */
+		return array_values( (array) apply_filters( 'wp_easycart_subscription_plan_choices', $choices, $this ) );
+	}
+
+	/**
+	 * Plans the customer can pick on the change-plan panel ( same rules and order as display_upgrade_dropdown() ).
+	 *
+	 * @since 6.0.0
+	 * @return array[] { product_id: int, title: string ( escaped ), amount: string, period: string, interval: string ( 6.0.3, e.g. M1 ), current: bool,
+	 *                 when: string ( 6.0.3: current | now | renewal ), note: string ( 6.0.3: plain text, when it starts ) }
+	 */
+	public function get_plan_choices() {
+		$choices = array();
+		foreach ( $this->get_plan_rows() as $choice ) {
+			$upgrade   = $choice['row'];
+			$choices[] = array(
+				'product_id' => (int) $upgrade->product_id,
+				'title'      => wp_easycart_language()->convert_text( $upgrade->title ),
+				'amount'     => $GLOBALS['currency']->get_currency_display( $upgrade->price ),
+				'period'     => $this->get_new_bill_period_formatted( $upgrade->subscription_bill_length, $upgrade->subscription_bill_period ),
+				'interval'   => $upgrade->subscription_bill_period . max( 1, (int) $upgrade->subscription_bill_length ), /* 6.0.3: tells the page when a choice bills on another schedule */
+				'current'    => $choice['current'],
+				'when'       => $choice['when'],
+				'note'       => $choice['note'],
+			);
 		}
 		return $choices;
 	}
@@ -753,6 +869,8 @@ class ec_subscription{
 	 * Image for the subscription: the image saved on the original order line, else the product's first image.
 	 *
 	 * @since 6.0.0
+	 * @since 6.0.3 The product's picture is the one the store shows first ( a gallery's image2 to image5 entry or video poster,
+	 *              per-option pictures ); it fell back to image1, which can hold an old picture.
 	 * @return string URL or empty.
 	 */
 	public function get_image_url() {
@@ -764,9 +882,13 @@ class ec_subscription{
 			}
 		}
 		global $wpdb;
-		$product = $wpdb->get_row( $wpdb->prepare( 'SELECT image1, product_images FROM ec_product WHERE product_id = %d', $this->product_id ) );
+		$product = $wpdb->get_row( $wpdb->prepare( 'SELECT product_id, use_optionitem_images, image1, image2, image3, image4, image5, product_images FROM ec_product WHERE product_id = %d', $this->product_id ) );
 		if ( ! $product ) {
 			return '';
+		}
+		if ( class_exists( 'wp_easycart_product_image' ) && ! wp_easycart_product_image::is_plain( $product ) ) {
+			$url = wp_easycart_product_image::absolute( wp_easycart_product_image::main_url( $product, 'medium' ) );
+			return ( '' !== $url ) ? esc_url_raw( $url ) : '';
 		}
 		$first = ( isset( $product->product_images ) && '' != $product->product_images ) ? trim( current( explode( ',', $product->product_images ) ) ) : '';
 		if ( 'image:' == substr( $first, 0, 6 ) ) {
@@ -996,53 +1118,14 @@ class ec_subscription{
 	//Help Functions
 	/////////////////////////////////////////////////////////
 
+	/* 6.0.3: the store's own words ( wp_easycart_subscription_period_text() ), not "/month" in English. */
 	private function get_new_bill_period_formatted( $length, $period ){
-
-		$ret_string = "/";
-
-		if( $length > 1 ){
-			$ret_string .= $length . " ";
-		}
-
-		if( $period == "D" ){
-			$ret_string .= "day";
-		}else if( $period == "W" ){
-			$ret_string .= "week";
-		}else if( $period == "M" ){
-			$ret_string .= "month";
-		}else if( $period == "Y" ){
-			$ret_string .= "year";
-		}
-
-		if( $length > 1 ){
-			$ret_string .= "s";
-		}
-
-		return $ret_string;
-
+		return wp_easycart_subscription_period_text( $length, $period );
 	}
 
 	private function get_bill_period_formatted( ){
 
-		$ret_string = "/";
-
-		if( $this->bill_length > 1 ){
-			$ret_string .= $this->bill_length . " ";
-		}
-
-		if( $this->bill_period == "D" ){
-			$ret_string .= "day";
-		}else if( $this->bill_period == "W" ){
-			$ret_string .= "week";
-		}else if( $this->bill_period == "M" ){
-			$ret_string .= "month";
-		}else if( $this->bill_period == "Y" ){
-			$ret_string .= "year";
-		}
-
-		if( $this->bill_length > 1 ){
-			$ret_string .= "s";
-		}
+		$ret_string = wp_easycart_subscription_period_text( $this->bill_length, $this->bill_period );
 
 		global $wpdb;
 		$model_number = $wpdb->get_var( $wpdb->prepare( "SELECT ec_product.model_number FROM ec_product WHERE ec_product.product_id = %d", $this->product_id ) );

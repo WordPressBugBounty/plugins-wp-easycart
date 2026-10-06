@@ -224,7 +224,7 @@ header( 'Content-Type: text/csv; charset=utf-8' );
 header( 'Content-Disposition: attachment; filename=users-export-' . date( 'Y-m-d' ) . '.csv' );
 
 $output = fopen( 'php://output', 'w' );
-fputcsv( $output, $keys );
+fputcsv( $output, $keys, ',', '"', '\\' );
 
 $last_user_id = 0;
 while ( true ) {
@@ -250,7 +250,7 @@ while ( true ) {
 		foreach ( $keys as $key ) {
 			$line[] = isset( $result[ $key ] ) ? $result[ $key ] : '';
 		}
-		fputcsv( $output, $line );
+		fputcsv( $output, $line, ',', '"', '\\' );
 	}
 
 	flush();

@@ -435,9 +435,11 @@ class wp_easycart_admin_upsell {
 				'plan'     => 'pro',
 				'icon'     => 'dashicons-update',
 				'features' => array(
-					'rebill' => self::f( 'dashicons-update', __( 'Automatic rebilling', 'wp-easycart' ), __( 'Through Stripe, Authorize.net, or PayPal.', 'wp-easycart' ) ),
-					'self'   => self::f( 'dashicons-admin-users', __( 'Customer self-service', 'wp-easycart' ), __( 'Manage, pause, or cancel from their account.', 'wp-easycart' ) ),
+					'rebill' => self::f( 'dashicons-update', __( 'Automatic rebilling', 'wp-easycart' ), __( 'Billed through Stripe.', 'wp-easycart' ) /* 6.0.3: subscriptions bill only through Stripe today */ ),
+					'self'   => self::f( 'dashicons-admin-users', __( 'Customer self-service', 'wp-easycart' ), __( 'Update their card, switch plans or cancel from their account.', 'wp-easycart' ) /* 6.0.3: there is no pause */ ),
 					'trial'  => self::f( 'dashicons-clock', __( 'Trials & sign-up fees', 'wp-easycart' ), __( 'Free trials and one-time setup charges.', 'wp-easycart' ) ),
+					/* 6.0.3: plan groups. */
+					'plan_tables' => array_merge( self::f( 'dashicons-grid-view', __( 'Pricing tables', 'wp-easycart' ), __( 'Tiers sold monthly or yearly, side by side, with a billing switch and the yearly saving.', 'wp-easycart' ) ), array( 'min_version' => '6.0.3' ) ),
 				),
 			),
 			'downloads' => array(
@@ -621,6 +623,8 @@ class wp_easycart_admin_upsell {
 					'checkout_sections'  => self::f( 'dashicons-feedback', __( 'Checkout layout choices', 'wp-easycart' ), __( 'Put the order summary beside, above or below the checkout, hide the parts you don\'t use, and add your own text between the checkout sections.', 'wp-easycart' ) ),
 					'side_cart'          => self::f( 'dashicons-cart', __( 'Side cart', 'wp-easycart' ), __( 'A cart that slides in when a shopper adds a product, with a free-shipping progress bar.', 'wp-easycart' ) ),
 					'template_overrides' => self::f( 'dashicons-admin-page', __( 'Layouts for one product or category', 'wp-easycart' ), __( 'Give a single product or category its own Elementor layout, on top of the store-wide templates.', 'wp-easycart' ) ),
+					/* 6.0.3: the Pricing Table widget ( a plan group's table ). */
+					'plan_tables'        => array_merge( self::f( 'dashicons-grid-view', __( 'Pricing tables', 'wp-easycart' ), __( 'Your subscription tiers side by side, monthly or yearly, as cards or a compare table, styled in Elementor.', 'wp-easycart' ) ), array( 'min_version' => '6.0.3' ) ),
 				),
 			),
 			/* 6.0.2: Settings › Search & AI › Google product feed ( the product markup itself is free ). */
@@ -1089,6 +1093,8 @@ class wp_easycart_admin_upsell {
 				'prem_desc'  => __( 'Everything in Pro, plus every extension: ShipStation, Stamps.com, AvaTax, QuickBooks Desktop and more, with QuickBooks Online and Xero coming soon.', 'wp-easycart' ),
 				'prem_cta'   => __( 'Get Premium', 'wp-easycart' ),
 			),
+			/* 6.0.3: only on a store that shares usage data: which locked features are opened ( wp_easycart_admin_tracking::ajax_upsell() ). */
+			'track'   => ( '1' === (string) get_option( 'ec_option_allow_tracking' ) ) ? array( 'ajax' => admin_url( 'admin-ajax.php' ), 'nonce' => wp_create_nonce( 'wp-easycart-ecv2-tracking' ) ) : false,
 		) );
 		if ( class_exists( 'wp_easycart_admin_edition' ) ) {
 			wp_localize_script( 'wp_easycart_admin_upsell_js', 'wp_easycart_edition', wp_easycart_admin_edition::for_js() );

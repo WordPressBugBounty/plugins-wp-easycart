@@ -108,6 +108,16 @@ $ecpsv2_lang = array(
 	'opt_left'         => __( '%d more option sets available', 'wp-easycart' ),
 	'drag'             => __( 'Drag to reorder', 'wp-easycart' ),
 	'remove'           => __( 'Remove', 'wp-easycart' ),
+	/* 6.0.3: modifiers picked with the variations, and the Live / Draft switch. */
+	'mod_search'       => __( 'Search modifiers…', 'wp-easycart' ),
+	'mod_no_match'     => __( 'No modifiers match', 'wp-easycart' ),
+	'mod_one'          => __( '1 modifier', 'wp-easycart' ),
+	/* translators: %d is a count. */
+	'mod_many'         => __( '%d modifiers', 'wp-easycart' ),
+	'create_live'      => __( 'Create product', 'wp-easycart' ),
+	'create_draft'     => __( 'Save as draft', 'wp-easycart' ),
+	/* translators: %s: product title. */
+	'created_draft'    => __( '“%s” saved as a draft.', 'wp-easycart' ),
 );
 
 if ( ! function_exists( 'ecpsv2_locked_row' ) ) :
@@ -217,8 +227,20 @@ endif;
 		<!-- ============================ BASICS ============================ -->
 		<?php ecpsv2_card_open( 'ecpsv2_card_basics', __( 'Basics', 'wp-easycart' ), __( 'Title, SKU and where it appears', 'wp-easycart' ) ); ?>
 
+			<?php /* 6.0.3: Live or Draft, picked up front. The hidden checkbox is the value the script saves ( activate_in_store ); it sits outside the two-card grid, and the CSS hides it ( WordPress gives every checkbox display:inline-block, which beats the hidden attribute ). */ ?>
+			<input type="checkbox" id="ecpsv2_status" value="1" checked hidden tabindex="-1" aria-hidden="true" />
+			<div class="ecpsv2-publish" id="ecpsv2_publish" role="radiogroup" aria-label="<?php esc_attr_e( 'Product status', 'wp-easycart' ); ?>">
+				<button type="button" class="ecpsv2-publish-opt is-on" data-live="1" role="radio" aria-checked="true">
+					<span class="ecpsv2-publish-dot" aria-hidden="true"></span>
+					<span class="ecpsv2-publish-text"><strong><?php echo esc_html( _x( 'Live', 'product status', 'wp-easycart' ) ); ?></strong><span><?php esc_html_e( 'Shoppers can see and buy it', 'wp-easycart' ); ?></span></span>
+				</button>
+				<button type="button" class="ecpsv2-publish-opt" data-live="0" role="radio" aria-checked="false">
+					<span class="ecpsv2-publish-dot" aria-hidden="true"></span>
+					<span class="ecpsv2-publish-text"><strong><?php esc_html_e( 'Draft', 'wp-easycart' ); ?></strong><span><?php esc_html_e( 'Hidden from the store until you make it live', 'wp-easycart' ); ?></span></span>
+				</button>
+			</div>
+
 			<div class="ecpsv2-toggle-grid">
-				<?php ecpsv2_toggle_row( 'ecpsv2_status', __( 'Active in store', 'wp-easycart' ), __( 'Visible and purchasable on the storefront.', 'wp-easycart' ), true ); ?>
 				<?php ecpsv2_toggle_row( 'ecpsv2_featured', __( 'Feature on store page', 'wp-easycart' ), __( 'Shows in the featured products area.', 'wp-easycart' ), true ); ?>
 			</div>
 
@@ -345,8 +367,13 @@ endif;
 				<div class="ecpsv2-img-meta">
 					<input type="hidden" id="ecpsv2_image" value="" />
 					<div class="ecpsv2-img-name" id="ecpsv2_img_name"><?php esc_html_e( 'No main image yet', 'wp-easycart' ); ?></div>
-					<div class="ecpsv2-hint"><?php esc_html_e( 'JPG, PNG or WebP from the Media Library.', 'wp-easycart' ); ?></div>
-					<div class="ecpsv2-img-actions">
+					<div class="ecpsv2-hint" id="ecpsv2_img_hint"><?php esc_html_e( 'JPG, PNG or WebP from the Media Library.', 'wp-easycart' ); ?></div>
+					<?php /* 6.0.3: shown instead of the picker while the product shows its gallery or per-option pictures ( product-slideout-v2.js apply_picture() ). */ ?>
+					<div class="ecpsv2-hint ecpsv2-img-managed" id="ecpsv2_img_managed" hidden>
+						<span id="ecpsv2_img_managed_text"></span>
+						<a href="#" class="ecpsv2-link ecpsv2-full-editor" data-tab="media"><?php esc_html_e( 'Change pictures in the full editor', 'wp-easycart' ); ?></a>
+					</div>
+					<div class="ecpsv2-img-actions" id="ecpsv2_img_actions">
 						<button type="button" class="ecv2-btn ecv2-btn-sm" onclick="ecpsv2_pick_image();"><?php esc_html_e( 'Choose image', 'wp-easycart' ); ?></button>
 						<button type="button" class="ecv2-btn ecv2-btn-sm ecv2-btn-ghost" id="ecpsv2_img_remove" onclick="ecpsv2_set_image( '' );" hidden><?php esc_html_e( 'Remove', 'wp-easycart' ); ?></button>
 					</div>
@@ -418,15 +445,13 @@ endif;
 
 			<?php if ( $show_variants ) : ?>
 			<div data-mode-only="create">
-				<div class="ecpsv2-f" id="ecpsv2_optmode_f">
-					<label for="ecpsv2_optmode"><?php esc_html_e( 'Choices on this product', 'wp-easycart' ); ?></label>
-					<select class="ecv2-select" id="ecpsv2_optmode">
-						<option value="0"><?php esc_html_e( 'No options or modifiers', 'wp-easycart' ); ?></option>
-						<option value="1"><?php esc_html_e( 'Product options (size, color, …)', 'wp-easycart' ); ?></option>
-						<?php do_action( 'wp_easycart_admin_product_slideout_option_types' ); ?>
-					</select>
-				</div>
-				<div id="ecpsv2_optrows" hidden>
+				<?php /* 6.0.3: variations and modifiers together ( a product can have both: use_both_option_types ); the old either / or
+				   select is gone, so WP EasyCart PRO's wp_easycart_admin_product_slideout_option_types choice is not asked for. */ ?>
+				<div class="ecpsv2-optgroup" id="ecpsv2_optrows">
+					<div class="ecpsv2-optgroup-head">
+						<strong><?php esc_html_e( 'Variations', 'wp-easycart' ); ?></strong>
+						<span><?php esc_html_e( 'Choices such as size or colour. Each combination can have its own price, SKU and stock.', 'wp-easycart' ); ?></span>
+					</div>
 					<!-- Legacy insertion point only: the new-option-set slideout appends its new set here and the picker adopts it. Existing sets are searched, never listed. -->
 					<select id="ec_new_product_option1" hidden aria-hidden="true" tabindex="-1">
 						<option value="0"></option>
@@ -460,7 +485,26 @@ endif;
 					</div>
 					<?php endif; ?>
 				</div>
-				<div class="ecpsv2-hint ecpsv2-block" id="ecpsv2_modifier_note" hidden><?php esc_html_e( 'Modifiers (text fields, add-ons, uploads) are attached in the full editor after the product is created.', 'wp-easycart' ); ?></div>
+
+				<?php if ( $is_pro ) : /* Modifiers ( advanced option sets ) are Pro; a free store reads about them in the locked row below. */ ?>
+				<div class="ecpsv2-optgroup" id="ecpsv2_modrows">
+					<div class="ecpsv2-optgroup-head">
+						<strong><?php esc_html_e( 'Modifiers', 'wp-easycart' ); ?></strong>
+						<span><?php esc_html_e( 'Extras on top of a variation: add-ons, text boxes, uploads. They can change the price.', 'wp-easycart' ); ?></span>
+					</div>
+					<div class="ecpsv2-opt-chips" id="ecpsv2_mod_list" role="list" aria-label="<?php esc_attr_e( 'Chosen modifiers', 'wp-easycart' ); ?>"></div>
+					<div class="ecpsv2-opt-search" id="ecpsv2_mod_search_wrap" data-nonce="<?php echo esc_attr( $ecpsv2_option_set_nonce ); ?>">
+						<svg class="ecpsv2-opt-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+						<input type="text" class="ecv2-input" id="ecpsv2_mod_search" autocomplete="off" placeholder="<?php esc_attr_e( 'Search modifiers…', 'wp-easycart' ); ?>" role="combobox" aria-expanded="false" aria-controls="ecpsv2_mod_results" aria-autocomplete="list" />
+						<ul class="ecpsv2-combo-list ecpsv2-opt-results" id="ecpsv2_mod_results" role="listbox" hidden></ul>
+					</div>
+					<div class="ecpsv2-opt-foot">
+						<span class="ecpsv2-hint" id="ecpsv2_mod_count"></span>
+						<button type="button" class="ecpsv2-link" onclick="if ( typeof ecosv2_open === 'function' ) { ecosv2_open( { origin: 'product', type: 'checkbox' } ); } else { ecpsv2_open_nested( 'new_adv_option_box' ); }"><?php esc_html_e( '+ Create a new modifier', 'wp-easycart' ); ?></button>
+					</div>
+					<div class="ecpsv2-hint ecpsv2-opt-empty" id="ecpsv2_mod_empty"><?php esc_html_e( 'No modifiers yet. Required choices and show-when rules are set in the full editor.', 'wp-easycart' ); ?></div>
+				</div>
+				<?php endif; ?>
 			</div>
 			<?php endif; ?>
 
@@ -500,7 +544,7 @@ endif;
 		<span class="ecpsv2-spacer"></span>
 		<button type="button" class="ecv2-btn" data-mode-only="create" onclick="ecpsv2_save( 'another' );"><?php esc_html_e( 'Create & add another', 'wp-easycart' ); ?></button>
 		<button type="button" class="ecv2-btn" data-mode-only="create" onclick="ecpsv2_save( 'edit' );"><?php esc_html_e( 'Create & open editor', 'wp-easycart' ); ?></button>
-		<button type="button" class="ecv2-btn ecv2-btn-primary" data-mode-only="create" onclick="ecpsv2_save( 'close' );"><?php esc_html_e( 'Create product', 'wp-easycart' ); ?></button>
+		<button type="button" class="ecv2-btn ecv2-btn-primary" data-mode-only="create" id="ecpsv2_create_btn" onclick="ecpsv2_save( 'close' );"><?php esc_html_e( 'Create product', 'wp-easycart' ); ?></button>
 		<button type="button" class="ecv2-btn" data-mode-only="edit" onclick="ecpsv2_save( 'edit' );"><?php esc_html_e( 'Save & open editor', 'wp-easycart' ); ?></button>
 		<button type="button" class="ecv2-btn ecv2-btn-primary" data-mode-only="edit" onclick="ecpsv2_save( 'close' );"><?php esc_html_e( 'Save changes', 'wp-easycart' ); ?></button>
 	</footer>

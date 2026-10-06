@@ -1585,7 +1585,9 @@ body.ecodv2-drawer-saving #ec_admin_order_management { display: none !important;
 .ecodv2-ship { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .ecodv2-ship-field { display: flex; flex-direction: column; gap: 4px; }
 .ecodv2-ship-field label { font-size: 11.5px; font-weight: 600; color: var(--ecv2-g600); }
-.ecodv2-ship-carrier { width: 140px; }
+.ecodv2-ship-carrier { width: 170px; }
+/* 6.0.3: the carrier name typed with Other… is a name, not a tracking number. */
+.ecodv2-b .ecodv2-ship input.wpec-carrier-other-input { font-family: inherit; padding-right: 32px; }
 /* Round 9: a tracking number needs about 34 characters, so the field stops at 440px and the send controls sit at the right, over the note. */
 .ecodv2-ship-tracking { flex: 1 1 240px; min-width: 0; max-width: 440px; margin-right: auto; }
 .ecodv2-b .ecodv2-ship select, .ecodv2-b .ecodv2-ship input[type="text"] { width: 100%; max-width: none; height: 40px; margin: 0; padding: 0 12px; border: 1px solid var(--ecv2-g300); border-radius: 9px; background: #fff; font-size: 13px; line-height: 1; box-sizing: border-box; box-shadow: none; }
@@ -1600,6 +1602,12 @@ body.ecodv2-drawer-saving #ec_admin_order_management { display: none !important;
 .ecodv2-ship-email input { margin: 0; accent-color: var(--ec-brand, var(--ecv2-primary)); }
 .ecodv2-b .ecodv2-ship-go { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; font-weight: 600; }
 .ecodv2-b .ecodv2-ship-go .dashicons { font-size: 16px; width: 16px; height: 16px; }
+/* 6.0.3: a label service's Buy label, the key button when one can buy this order's label ( Ship order is then the second ). */
+.ecodv2-b .ecodv2-ship-label { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 16px 0 6px; font-weight: 600; white-space: nowrap; }
+.ecodv2-b .ecodv2-ship-label:not( :has( .ecodv2-ship-label-logo ) ) { padding-left: 16px; }
+.ecodv2-ship-label-logo { display: inline-flex; flex: 0 0 28px; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .02em; box-shadow: inset 0 0 0 1px rgba( 255, 255, 255, .25 ); }
+.ecodv2-ship-label-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.ecodv2-ship-label-text small { max-width: 220px; overflow: hidden; font-size: 11px; font-weight: 500; text-overflow: ellipsis; opacity: .85; }
 .ecodv2-ship-many { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13px; color: var(--ecv2-g700); }
 .ecodv2-ship-status { margin: 0; font-size: 12.5px; }
 .ecodv2-ship-status:empty { display: none; }
@@ -1836,8 +1844,10 @@ body.ecodv2-drawer-saving #ec_admin_order_management { display: none !important;
 	.ecodv2-shipbar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 9990; display: flex; gap: 10px; padding: 10px 16px calc( 10px + env( safe-area-inset-bottom, 0px ) ); background: #fff; border-top: 1px solid #e5e7eb; box-shadow: 0 -6px 20px rgba( 17, 24, 39, .08 ); }
 	.ecodv2-shipbar .ecv2-btn { display: inline-flex; align-items: center; justify-content: center; height: 50px; font-size: 16px; font-weight: 700; }
 	.ecodv2-shipbar-go { flex: 1 1 auto; }
+	.ecodv2-shipbar-label { flex: 1 1 auto; }
+	.ecodv2-shipbar .ecodv2-shipbar-go.is-secondary { flex: 0 0 auto; padding: 0 18px; }
 	.ecodv2-shipbar-next { flex: 0 0 104px; }
 	body.ecodv2-has-shipbar #wpbody-content { padding-bottom: 150px; }
-	body.ecodv2-has-shipbar .ecodv2-b .ecodv2-ship-go, body.ecodv2-has-shipbar .ecodv2-b .ecodv2-queue-next { display: none; }
+	body.ecodv2-has-shipbar .ecodv2-b .ecodv2-ship-go, body.ecodv2-has-shipbar .ecodv2-b .ecodv2-ship-label, body.ecodv2-has-shipbar .ecodv2-b .ecodv2-queue-next { display: none; }
 	body.ecodv2-drawer-open .ecodv2-shipbar, body.ecodv2-label-open .ecodv2-shipbar, body.ecodv2-line-open .ecodv2-shipbar, body.ecodv2-add-open .ecodv2-shipbar, body.ecodv2-hdrawer-open .ecodv2-shipbar { display: none; }
 }

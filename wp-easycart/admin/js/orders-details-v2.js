@@ -2115,6 +2115,22 @@ function ecodv2_refresh_pending() {
 	return !! ecodv2_refresh.xhr;
 }
 
+/**
+ * 6.0.3: select a carrier in a carrier field ( order-carriers-v2.js adds a carrier the list does not have, and leaves Other… ).
+ *
+ * @param {jQuery} $sel    Carrier select( s ).
+ * @param {string} carrier Carrier name.
+ */
+function ecodv2_carrier_set( $sel, carrier ) {
+	$sel.each( function() {
+		if ( window.wpecCarrierSet ) {
+			window.wpecCarrierSet( this, carrier );
+		} else if ( jQuery( this ).find( 'option' ).filter( function() { return this.value === carrier; } ).length ) {
+			jQuery( this ).val( carrier );
+		}
+	} );
+}
+
 function ecodv2_screen_refresh( then, force ) {
 	var $ = jQuery, order_id = $( '#order_id' ).val(), nonce = $( '#wp_easycart_order_details_nonce' ).val();
 	if ( 'function' === typeof then ) {
@@ -2194,8 +2210,8 @@ function ecodv2_refresh_apply( d ) {
 			$.each( kept.rows, function( sid, row ) {
 				var $row = $( '#ecodv2_label_rows .ecodv2-label-pkg[data-shipment-id="' + ( parseInt( sid, 10 ) || 0 ) + '"]:not(.is-done)' );
 				$row.find( '.ecodv2-label-pkg-tracking' ).val( row.tracking );
-				if ( row.carrier && $row.find( '.ecodv2-label-pkg-carrier option' ).filter( function() { return this.value === row.carrier; } ).length ) {
-					$row.find( '.ecodv2-label-pkg-carrier' ).val( row.carrier );
+				if ( row.carrier ) {
+					ecodv2_carrier_set( $row.find( '.ecodv2-label-pkg-carrier' ), row.carrier );
 				}
 			} );
 			if ( kept.single && document.getElementById( 'ecodv2_label_tracking' ) ) {
@@ -2215,8 +2231,8 @@ function ecodv2_refresh_apply( d ) {
 	}
 	if ( kept.ship && document.getElementById( 'ecodv2_ship_tracking' ) ) {
 		$( '#ecodv2_ship_tracking' ).val( kept.ship );
-		if ( kept.carrier && $( '#ecodv2_ship_carrier option' ).filter( function() { return this.value === kept.carrier; } ).length ) {
-			$( '#ecodv2_ship_carrier' ).val( kept.carrier );
+		if ( kept.carrier ) {
+			ecodv2_carrier_set( $( '#ecodv2_ship_carrier' ), kept.carrier );
 		}
 	}
 	if ( null !== kept.email && document.getElementById( 'ecodv2_ship_email' ) ) {
@@ -2533,17 +2549,31 @@ jQuery( function( $ ) {
 		if ( ! $pop.find( '[data-label-step]' ).length ) {
 			return;
 		}
-		$pop.find( '#ecodv2_label_carrier_all, .ecodv2-label-pkg-carrier, #ecodv2_label_carrier_sel' ).each( function() {
-			if ( $( this ).find( 'option' ).filter( function() { return this.value === carrier; } ).length ) {
-				$( this ).val( carrier );
-			}
+		$pop.find( '#ecodv2_label_carrier_all, .ecodv2-label-pkg:not(.is-done) .ecodv2-label-pkg-carrier, #ecodv2_label_carrier_sel' ).each( function() {
+			ecodv2_carrier_set( $( this ), carrier );
 		} );
 		setTimeout( function() {
 			ecodv2_label_step( 2 );
 		}, 0 );
 	} );
 	$( document ).on( 'change', '#ecodv2_label_carrier_all', function() {
-		$( '#ecodv2_label_popup .ecodv2-label-pkg:not(.is-done) .ecodv2-label-pkg-carrier' ).val( $( this ).val() );
+		var carrier = $( this ).val();
+		/* Other…: the name typed in its field is copied as it is typed ( below ). */
+		if ( '__other__' === carrier ) {
+			return;
+		}
+		$( '#ecodv2_label_popup .ecodv2-label-pkg:not(.is-done) .ecodv2-label-pkg-carrier' ).each( function() {
+			ecodv2_carrier_set( $( this ), carrier );
+		} );
+	} );
+	/* 6.0.3: a carrier typed with Other… on "Carrier for every package" goes on every package. */
+	$( document ).on( 'wpec-carrier-typed', '#ecodv2_label_carrier_all', function( e, carrier ) {
+		if ( ! carrier ) {
+			return;
+		}
+		$( '#ecodv2_label_popup .ecodv2-label-pkg:not(.is-done) .ecodv2-label-pkg-carrier' ).each( function() {
+			ecodv2_carrier_set( $( this ), carrier );
+		} );
 	} );
 	/* Enter in a tracking box: on to the next empty one, then Save. */
 	$( document ).on( 'keydown', '#ecodv2_label_popup .ecodv2-label-pkg-tracking', function( e ) {
@@ -4389,10 +4419,27 @@ function ecodv2_next_init() {
 	var go = document.getElementById( 'ecodv2_ship_go' );
 	if ( go ) {
 		var bar = document.createElement( 'div' ), ship = document.createElement( 'button' ), next = document.getElementById( 'ecodv2_queue_next' );
+		var label = document.getElementById( 'ecodv2_ship_label' );
 		bar.className = 'ecodv2-shipbar';
+		/* 6.0.3: a label service is the key button ( Buy label ), Ship the second. */
+		if ( label ) {
+			var buy = document.createElement( 'button' );
+			buy.type = 'button';
+			buy.className = 'ecv2-btn ecv2-btn-primary ecodv2-shipbar-label';
+			buy.textContent = ecodv2_t( 'act_label', 'Buy label' );
+			buy.setAttribute( 'aria-label', label.getAttribute( 'aria-label' ) || buy.textContent );
+			buy.onclick = function() {
+				label.click();
+				return false;
+			};
+			bar.appendChild( buy );
+		}
 		ship.type = 'button';
-		ship.className = 'ecv2-btn ecv2-btn-primary ecodv2-shipbar-go';
-		ship.textContent = go.getAttribute( 'data-ship-many' ) ? jQuery.trim( go.textContent ) : ecodv2_t( 'act_ship', 'Ship order' );
+		ship.className = 'ecv2-btn' + ( label ? ' is-secondary' : ' ecv2-btn-primary' ) + ' ecodv2-shipbar-go';
+		ship.textContent = label ? ecodv2_t( 'act_ship_short', 'Ship' ) : ( go.getAttribute( 'data-ship-many' ) ? jQuery.trim( go.textContent ) : ecodv2_t( 'act_ship', 'Ship order' ) );
+		if ( label ) {
+			ship.setAttribute( 'aria-label', go.getAttribute( 'data-ship-many' ) ? jQuery.trim( go.textContent ) : ecodv2_t( 'act_ship', 'Ship order' ) );
+		}
 		ship.onclick = function() {
 			go.click();
 			return false;

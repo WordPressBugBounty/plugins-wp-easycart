@@ -492,7 +492,10 @@ if ( ! class_exists( 'wp_easycart_shipments' ) ) :
 				)
 			);
 			$tracking = trim( sanitize_text_field( (string) $args['tracking_number'] ) );
-			$carrier  = trim( sanitize_text_field( (string) $args['carrier'] ) );
+			$carrier  = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::clean( $args['carrier'] ) : trim( sanitize_text_field( (string) $args['carrier'] ) );
+			if ( class_exists( 'wp_easycart_carriers' ) ) {
+				wp_easycart_carriers::saved( $carrier );
+			}
 			$status   = in_array( $args['status'], array( 'label', 'shipped', 'delivered' ), true ) ? $args['status'] : 'shipped';
 			$now      = current_time( 'mysql', true );
 

@@ -740,6 +740,75 @@ if ( ! function_exists( 'ecv2_shipping_status_options' ) ) {
 	}
 }
 
+if ( ! function_exists( 'ecv2_shipping_royalmail_min_version' ) ) {
+	/**
+	 * The WP EasyCart PRO the Royal Mail section needs ( 6.0.3 ): any licensed PRO that has Royal Mail rates ( ec_royalmail ),
+	 * else 6.0.3, so an older PRO shows Update instead of the section's rows.
+	 *
+	 * @since 6.0.3
+	 * @return string
+	 */
+	function ecv2_shipping_royalmail_min_version() {
+		return class_exists( 'ec_royalmail' ) ? '6.0.0' : '6.0.3';
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_royalmail_services_preview' ) ) {
+	/**
+	 * The Royal Mail services, for the section's locked preview ( WP EasyCart PRO draws the real list ).
+	 *
+	 * @since 6.0.3
+	 * @return array service => array( name, area ).
+	 */
+	function ecv2_shipping_royalmail_services_preview() {
+		return array(
+			'second_class'         => array( __( 'Royal Mail 2nd Class', 'wp-easycart' ), 'uk' ),
+			'first_class'          => array( __( 'Royal Mail 1st Class', 'wp-easycart' ), 'uk' ),
+			'second_signed'        => array( __( 'Royal Mail 2nd Class Signed For', 'wp-easycart' ), 'uk' ),
+			'first_signed'         => array( __( 'Royal Mail 1st Class Signed For', 'wp-easycart' ), 'uk' ),
+			'tracked_48'           => array( __( 'Royal Mail Tracked 48', 'wp-easycart' ), 'uk' ),
+			'tracked_24'           => array( __( 'Royal Mail Tracked 24', 'wp-easycart' ), 'uk' ),
+			'special_delivery_1pm' => array( __( 'Royal Mail Special Delivery Guaranteed by 1pm', 'wp-easycart' ), 'uk' ),
+			'intl_standard'        => array( __( 'Royal Mail International Standard', 'wp-easycart' ), 'intl' ),
+			'intl_tracked'         => array( __( 'Royal Mail International Tracked', 'wp-easycart' ), 'intl' ),
+			'intl_economy'         => array( __( 'Royal Mail International Economy', 'wp-easycart' ), 'intl' ),
+		);
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_render_royalmail_services' ) ) {
+	/**
+	 * Royal Mail › Services ( html row ). WP EasyCart PRO 6.0.3 replaces this render with its service editor; without it the
+	 * section is locked and this shows what the editor lists.
+	 *
+	 * @since 6.0.3
+	 * @param array $field The row.
+	 * @param array $page  The page.
+	 */
+	function ecv2_shipping_render_royalmail_services( $field, $page ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's html render signature.
+		echo '<div class="ecsh-rm-preview" aria-hidden="true">';
+		echo '<div class="ecsh-rm-preview-h"><b>' . esc_html__( 'Services', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Pick the services shoppers can choose, rename them, and charge Royal Mail’s price, a percentage more or less, or a fixed price.', 'wp-easycart' ) . '</span></div>';
+		echo '<ul>';
+		foreach ( ecv2_shipping_royalmail_services_preview() as $service ) {
+			echo '<li><span class="ecsh-rm-tick"></span><span>' . esc_html( $service[0] ) . '</span><em>' . esc_html( 'uk' === $service[1] ? __( 'UK', 'wp-easycart' ) : __( 'International', 'wp-easycart' ) ) . '</em></li>';
+		}
+		echo '</ul></div>';
+	}
+}
+
+if ( ! function_exists( 'ecv2_shipping_render_royalmail_status' ) ) {
+	/**
+	 * Royal Mail › Prices in use ( html row ). WP EasyCart PRO 6.0.3 replaces it with the prices it is using.
+	 *
+	 * @since 6.0.3
+	 * @param array $field The row.
+	 * @param array $page  The page.
+	 */
+	function ecv2_shipping_render_royalmail_status( $field, $page ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- the engine's html render signature.
+		echo '<div class="ecsh-note"><div class="ecsh-note-text"><b>' . esc_html__( 'Prices follow Royal Mail’s price changes', 'wp-easycart' ) . '</b><span>' . esc_html__( 'Royal Mail changes its prices in April and October. The new prices reach your store before their date and take over on the day, without an update.', 'wp-easycart' ) . '</span></div></div>';
+	}
+}
+
 /* Plan name for copy: the store's own plan, or Pro/Premium when no license is known ( and outside WordPress ). */
 $ecv2_shipping_plan = class_exists( 'wp_easycart_admin_edition' ) ? wp_easycart_admin_edition::plan_name() : 'Pro/Premium';
 
@@ -976,6 +1045,112 @@ return array(
 			'hint'   => __( 'USPS, UPS, FedEx, DHL, Canada Post and Australia Post credentials and origin details. A carrier quotes once its details are complete.', 'wp-easycart' ),
 			'pro'    => true,
 			'fields' => ecv2_shipping_carrier_fields(),
+		),
+
+		/* 6.0.3: Royal Mail postage, priced from Royal Mail's price lists by WP EasyCart PRO ( ec_royalmail, a live rate provider ). */
+		'royal-mail' => array(
+			'title'           => __( 'Royal Mail', 'wp-easycart' ),
+			'hint'            => __( 'Royal Mail postage at checkout for shops that post from the UK, priced from Royal Mail’s own price lists', 'wp-easycart' ),
+			'pro'             => true,
+			'pro_min_version' => ecv2_shipping_royalmail_min_version(),
+			'mark'            => array( 'text' => 'RM', 'bg' => '#da202a' ),
+			'fields'          => array(
+				'ec_option_royalmail_enable' => array(
+					'type'     => 'toggle',
+					'label'    => __( 'Offer Royal Mail at checkout', 'wp-easycart' ),
+					'desc'     => __( 'Adds the Royal Mail services you pick to the live rates shoppers choose from, priced by each parcel’s size, weight and destination. Needs Live carrier rates as the shipping method.', 'wp-easycart' ),
+					'default'  => 0,
+					'pro'      => true,
+					'on_save'  => 'ecv2_shipping_flush_cache',
+					'keywords' => array( 'royal mail', 'uk', 'postage', '1st class', '2nd class', 'tracked 24', 'tracked 48', 'signed for', 'special delivery', 'click & drop', 'international tracked' ),
+					'legacy'   => array( 'page' => 'shipping-settings', 'section' => 'Royal Mail', 'label' => 'New in 6.0.3' ),
+				),
+				'ec_option_royalmail_price_list' => array(
+					'type'      => 'pills',
+					'label'     => __( 'Prices', 'wp-easycart' ),
+					'desc'      => __( 'Online prices are what Royal Mail charges through Click & Drop; Post Office prices are for stamps and the counter.', 'wp-easycart' ),
+					'options'   => array(
+						'online'      => __( 'Online ( Click & Drop )', 'wp-easycart' ),
+						'post_office' => __( 'Post Office', 'wp-easycart' ),
+					),
+					'default'   => 'online',
+					'pro'       => true,
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+					'on_save'   => 'ecv2_shipping_flush_cache',
+					'keywords'  => array( 'royal mail', 'click & drop', 'post office', 'online prices' ),
+					'legacy'    => array( 'page' => 'shipping-settings', 'section' => 'Royal Mail', 'label' => 'New in 6.0.3' ),
+				),
+				'ecv2_shipping_royalmail_services' => array(
+					'type'      => 'html',
+					'render'    => 'ecv2_shipping_render_royalmail_services',
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+				),
+				'ec_option_royalmail_default_format' => array(
+					'type'      => 'select',
+					'label'     => __( 'Size for products without measurements', 'wp-easycart' ),
+					'desc'      => __( 'Royal Mail prices by size. A product with no length, width and height is sent at least this size.', 'wp-easycart' ),
+					'options'   => array(
+						'large_letter'  => __( 'Large Letter', 'wp-easycart' ),
+						'small_parcel'  => __( 'Small Parcel', 'wp-easycart' ),
+						'medium_parcel' => __( 'Medium Parcel', 'wp-easycart' ),
+					),
+					'default'   => 'small_parcel',
+					'pro'       => true,
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+					'on_save'   => 'ecv2_shipping_flush_cache',
+					'keywords'  => array( 'royal mail', 'large letter', 'small parcel', 'dimensions', 'size' ),
+					'legacy'    => array( 'page' => 'shipping-settings', 'section' => 'Royal Mail', 'label' => 'New in 6.0.3' ),
+				),
+				'ec_option_royalmail_vat' => array(
+					'type'      => 'select',
+					'label'     => __( 'VAT in Tracked prices', 'wp-easycart' ),
+					'desc'      => __( 'Royal Mail’s Tracked prices include 20% VAT. Leave it out when your tax settings add VAT to shipping, so it is not charged twice.', 'wp-easycart' ),
+					'options'   => array(
+						'include' => __( 'Include it, as Royal Mail prints them', 'wp-easycart' ),
+						'exclude' => __( 'Leave it out', 'wp-easycart' ),
+					),
+					'default'   => 'include',
+					'advanced'  => true,
+					'pro'       => true,
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+					'on_save'   => 'ecv2_shipping_flush_cache',
+					'keywords'  => array( 'royal mail', 'vat', 'tax', 'tracked' ),
+					'legacy'    => array( 'page' => 'shipping-settings', 'section' => 'Royal Mail', 'label' => 'New in 6.0.3' ),
+				),
+				'ec_option_royalmail_collection' => array(
+					'type'      => 'toggle',
+					'label'     => __( 'Add the collection charge', 'wp-easycart' ),
+					'desc'      => __( 'Adds Royal Mail’s charge for collecting from you to each parcel ( 50p in the October 2026 prices ).', 'wp-easycart' ),
+					'default'   => 0,
+					'advanced'  => true,
+					'pro'       => true,
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+					'on_save'   => 'ecv2_shipping_flush_cache',
+					'keywords'  => array( 'royal mail', 'collection', 'pickup' ),
+					'legacy'    => array( 'page' => 'shipping-settings', 'section' => 'Royal Mail', 'label' => 'New in 6.0.3' ),
+				),
+				'ecv2_shipping_royalmail_status' => array(
+					'type'      => 'html',
+					'render'    => 'ecv2_shipping_render_royalmail_status',
+					'parent'    => 'ec_option_royalmail_enable',
+					'show_when' => '1',
+				),
+			),
+			'actions'         => array(
+				array(
+					'id'       => 'royalmail-refresh',
+					'label'    => __( 'Check for new Royal Mail prices', 'wp-easycart' ),
+					'desc'     => __( 'Your store checks once a day; this checks now.', 'wp-easycart' ),
+					'button'   => __( 'Check now', 'wp-easycart' ),
+					'pro'      => true,
+					'callback' => null,
+				),
+			),
 		),
 
 		'fraktjakt' => array(

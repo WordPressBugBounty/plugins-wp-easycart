@@ -775,7 +775,7 @@ if ( ! class_exists( 'wp_easycart_admin_packages' ) ) :
 		 * @param object $order Order row.
 		 */
 		private static function print_order_modals( $order ) {
-			$carriers = array( 'USPS', 'UPS', 'FedEx', 'DHL', 'Canada Post', 'Australia Post', 'Royal Mail' );
+			$carriers = class_exists( 'wp_easycart_carriers' ) ? wp_easycart_carriers::names() : array( 'USPS', 'UPS', 'FedEx', 'DHL', 'Canada Post', 'Australia Post', 'Royal Mail' );
 			?>
 			<div class="ecpk-modal-backdrop" id="ecpk_order_backdrop" hidden></div>
 			<?php /* 6.0.2: the package editor. packages-v2.js draws #ecpk_edit_packages from the block's .ecpk-data. */ ?>

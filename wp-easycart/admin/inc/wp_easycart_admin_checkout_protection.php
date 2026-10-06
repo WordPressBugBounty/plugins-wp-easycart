@@ -912,7 +912,7 @@ if ( ! class_exists( 'wp_easycart_admin_checkout_protection' ) ) :
 
 		/**
 		 * Action wp_easycart_admin_messages ( every EasyCart screen, inside the shell ): the attack banner, and once the
-		 * "it's on" notice. 6.0.2: the shell's notice card ( .wpec-pro-notice, shell-v2.css ), styled on every screen.
+		 * "it's on" notice. 6.0.2: the shell's notice card ( .wpec-pro-notice, admin-frame-v2.css ), styled on every screen.
 		 */
 		public static function banner() {
 			if ( ! self::engine() || ! current_user_can( 'manage_options' ) || ! class_exists( 'wp_easycart_admin' ) ) {

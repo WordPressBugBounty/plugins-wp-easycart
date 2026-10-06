@@ -56,7 +56,9 @@
 .ecext-card-desc { flex:1 1 auto; margin:0; font-size:12.5px; line-height:1.5; color:var(--ecv2-g600, #4b5563); }
 .ecext-card-note { margin:0; font-size:11.5px; color:#92400e; }
 .ecext-card-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--ecv2-g100, #f3f4f6); min-height:40px; }
-.ecext-card-status { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--ecv2-g500, #6b7280); min-width:0; }
+/* 6.0.3: a status that runs to two lines wraps beside its dot ( flex-wrap:wrap dropped the text below it ) */
+.ecext-card-status { display:inline-flex; align-items:flex-start; gap:6px; flex-wrap:nowrap; font-size:12px; color:var(--ecv2-g500, #6b7280); min-width:0; }
+.ecext-card-status > .ecext-dot { margin-top:5px; }
 .ecext-card-actions { display:flex; gap:6px; flex-wrap:wrap; }
 /* 6.0.2: a platform icon before a button label ( icon_svg(): the store manager apps ). */
 .ecext-btn-icon { flex:0 0 auto; width:14px; height:14px; margin-right:6px; vertical-align:-2px; }

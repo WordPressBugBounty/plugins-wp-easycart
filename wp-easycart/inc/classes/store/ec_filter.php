@@ -543,6 +543,9 @@ class ec_filter {
 			} else {
 				$ret_string = 'WHERE ( product.activate_in_store = 1 OR product.activate_in_store = 0 )';
 			}
+			if ( ! $this->product_only ) {
+				$ret_string .= ( function_exists( 'wp_easycart_unlisted_sql' ) ? wp_easycart_unlisted_sql( 'product' ) : '' ); /* 6.0.3: a plan group's products sell from its pricing table, not the lists */
+			}
 			if ( $this->get_menu_level() == 1 && $this->get_menu_id() != 0 ) {
 				$ret_string .= $wpdb->prepare( ' AND ( product.menulevel1_id_1 = %s OR product.menulevel2_id_1 = %s OR product.menulevel3_id_1 = %s )', $this->get_menu_id(), $this->get_menu_id(), $this->get_menu_id() );
 			}
